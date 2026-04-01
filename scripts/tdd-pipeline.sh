@@ -1,0 +1,821 @@
+#!/usr/bin/env bash
+# tdd-pipeline.sh — Pipeline TDD automatizado para ControlAsistencias
+#
+# Uso:
+#   ./scripts/tdd-pipeline.sh 42
+#   ./scripts/tdd-pipeline.sh --issue 42
+#   ./scripts/tdd-pipeline.sh --file "docs/Historias de usuario/HU-25.md"
+#   ./scripts/tdd-pipeline.sh 42 --from-stage 2   # Retomar desde Stage 2
+#   ./scripts/tdd-pipeline.sh 42 --from-stage 3   # Retomar desde Stage 3
+#
+# Ciclo completo: Issue → Worktree → Test Writer → Implementer → Reviewer → Sync main → PR → Cleanup
+
+set -euo pipefail
+
+# ─── Colores ────────────────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+PIPELINE_DIR=".claude/pipeline"
+LOG_DIR="$PIPELINE_DIR/logs"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+LOG_FILE="$LOG_DIR/pipeline-$TIMESTAMP.log"
+
+# ─── Tracking de estado enriquecido ──────────────────────────────────────────
+AGENT_TW_DUR="" AGENT_TW_RES="pending"
+AGENT_IM_DUR="" AGENT_IM_RES="pending"
+AGENT_RV_DUR="" AGENT_RV_RES="pending"
+PIPELINE_TESTS=""
+PIPELINE_PR=""
+PIPELINE_ERROR=""
+LAST_AGENT_DURATION=0
+CURRENT_STAGE="setup"
+IS_REFACTOR=false
+REFACTOR_JUSTIFICATION=""
+BASELINE_TEST_COUNT="?"
+
+_strip_ansi() { sed 's/\x1b\[[0-9;]*m//g'; }
+_log_file()   { echo -e "$1" | _strip_ansi >> "${LOG_FILE_ABS:-$LOG_FILE}"; }
+
+log()     { local m="${BLUE}[$(date +%H:%M:%S)]${NC} $1"; echo -e "$m"; _log_file "$m"; }
+success() { local m="${GREEN}${BOLD}✓${NC} $1"; echo -e "$m"; _log_file "$m"; }
+warn()    { local m="${YELLOW}⚠${NC} $1"; echo -e "$m"; _log_file "$m"; }
+header()  { local m="\n${CYAN}${BOLD}── $1 ──${NC}"; echo -e "$m"; _log_file "$m"; }
+abort() {
+    PIPELINE_ERROR="$(echo "$1" | sed 's/"/\\"/g' | tr '\n' ' ')"
+    echo -e "\n${RED}${BOLD}✗ ERROR: $1${NC}" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}"
+    echo -e "${YELLOW}Revisa el log: ${LOG_FILE_ABS:-$LOG_FILE}${NC}"
+    if [ -n "${WORKTREE_PATH:-}" ] && [ -d "$WORKTREE_PATH" ]; then
+        echo -e "${YELLOW}El worktree queda en: $WORKTREE_PATH${NC}"
+        echo -e "${YELLOW}Para inspeccionar: cd $WORKTREE_PATH${NC}"
+    fi
+    if [ -n "${PIPELINE_DIR_ABS:-}" ]; then
+        update_status "$CURRENT_STAGE" "failed"
+        # M4: Registrar falla en historial para analisis de patrones
+        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
+            >> "$PIPELINE_DIR_ABS/history.jsonl" 2>/dev/null || true
+    fi
+    exit 1
+}
+
+update_status() {
+    local stage="$1" state="$2"
+    CURRENT_STAGE="$stage"
+    local tw_dur="null" im_dur="null" rv_dur="null"
+    [ -n "$AGENT_TW_DUR" ] && tw_dur="$AGENT_TW_DUR"
+    [ -n "$AGENT_IM_DUR" ] && im_dur="$AGENT_IM_DUR"
+    [ -n "$AGENT_RV_DUR" ] && rv_dur="$AGENT_RV_DUR"
+    local tests_val="null" pr_val="null" error_val="null"
+    [ -n "$PIPELINE_TESTS" ] && tests_val="$PIPELINE_TESTS"
+    [ -n "$PIPELINE_PR" ]    && pr_val="\"$PIPELINE_PR\""
+    [ -n "$PIPELINE_ERROR" ] && error_val="\"$PIPELINE_ERROR\""
+    cat > "$PIPELINE_DIR_ABS/$STATUS_FILENAME" <<EOJSON
+{
+  "issue": "${ISSUE_NUM:-null}",
+  "title": "$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')",
+  "started": "$TIMESTAMP",
+  "stage": "$stage",
+  "state": "$state",
+  "updated": "$(date +%Y-%m-%dT%H:%M:%S)",
+  "worktree": "${WORKTREE_PATH:-}",
+  "log": "${LOG_FILE_ABS:-$LOG_FILE}",
+  "agents": {
+    "test-writer": {"duration": $tw_dur, "result": "$AGENT_TW_RES"},
+    "implementer": {"duration": $im_dur, "result": "$AGENT_IM_RES"},
+    "reviewer":    {"duration": $rv_dur, "result": "$AGENT_RV_RES"}
+  },
+  "tests": $tests_val,
+  "pr": $pr_val,
+  "last_error": $error_val
+}
+EOJSON
+}
+
+# [Cambio 7] Buscar específicamente Superado/Passed/Correctas (no Total)
+# y usar head -1 para evitar capturar líneas irrelevantes
+extract_test_count() {
+    echo "$1" | grep -oE '(Correctas|Passed|Superado):[[:space:]]+[0-9]+' \
+        | grep -oE '[0-9]+' | head -1 || echo "?"
+}
+
+# ─── Parsear argumentos ───────────────────────────────────────────────────────
+ISSUE_NUM=""
+INPUT_FILE=""
+FROM_STAGE=1        # Por defecto, empezar desde Stage 1
+STATUS_FILENAME="status.json"  # Nombre del archivo de status (parametrizable para paralelismo)
+
+if [ $# -eq 0 ]; then
+    echo "Uso: $0 [--issue NUM | --file PATH | NUM] [--from-stage N] [--status-file NOMBRE]"
+    exit 1
+fi
+
+# Parsear todos los argumentos
+POSITIONAL_ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --issue)
+            [ $# -lt 2 ] && abort "Falta el número de issue"
+            ISSUE_NUM="$2"
+            shift 2
+            ;;
+        --file)
+            [ $# -lt 2 ] && abort "Falta la ruta del archivo"
+            INPUT_FILE="$2"
+            shift 2
+            ;;
+        --from-stage)
+            [ $# -lt 2 ] && abort "Falta el número de stage"
+            FROM_STAGE="$2"
+            shift 2
+            ;;
+        --status-file)
+            [ $# -lt 2 ] && abort "Falta el nombre del archivo de status"
+            STATUS_FILENAME="$2"
+            shift 2
+            ;;
+        [0-9]*)
+            POSITIONAL_ARGS+=("$1")
+            shift
+            ;;
+        *)
+            abort "Argumento no reconocido: $1"
+            ;;
+    esac
+done
+
+# Procesar argumento posicional (número de issue)
+if [ ${#POSITIONAL_ARGS[@]} -gt 0 ] && [ -z "$ISSUE_NUM" ]; then
+    ISSUE_NUM="${POSITIONAL_ARGS[0]}"
+fi
+
+# [Cambio 3] Validar --from-stage
+if ! [[ "$FROM_STAGE" =~ ^[1-3]$ ]]; then
+    abort "--from-stage debe ser 1, 2, o 3 (recibido: $FROM_STAGE)"
+fi
+
+# ─── Verificar dependencias ───────────────────────────────────────────────────
+for cmd in claude gh git dotnet; do
+    command -v "$cmd" &>/dev/null || abort "Falta comando requerido: $cmd"
+done
+
+# ─── Preparar directorio de pipeline ─────────────────────────────────────────
+mkdir -p "$LOG_DIR"
+echo "Pipeline iniciado: $TIMESTAMP" > "$LOG_FILE"
+
+# Resolver rutas absolutas para uso dentro de subshells (cd al worktree)
+PIPELINE_DIR_ABS="$(realpath "$PIPELINE_DIR")"
+LOG_DIR_ABS="$(realpath "$LOG_DIR")"
+LOG_FILE_ABS="$(realpath "$LOG_FILE")"
+
+# [Cambio 5] Definir EVENTS_LOG_ABS aquí (fuera de bloques condicionales)
+# para que esté disponible tanto en modo normal como en --from-stage
+EVENTS_LOG_ABS="$PIPELINE_DIR_ABS/events.log"
+
+# Separador de sesión en events.log
+echo "─── SESSION $TIMESTAMP issue:${ISSUE_NUM:-file} from-stage:$FROM_STAGE ───" >> "$EVENTS_LOG_ABS"
+
+# ─── Obtener contexto del issue/HU ───────────────────────────────────────────
+header "Preparando contexto"
+
+ISSUE_CONTEXT=""
+ISSUE_TITLE=""
+
+if [ -n "$ISSUE_NUM" ]; then
+    log "Descargando issue #$ISSUE_NUM..."
+    ISSUE_JSON=$(gh issue view "$ISSUE_NUM" --json number,title,body,state 2>>"$LOG_FILE") \
+        || abort "No se pudo obtener el issue #$ISSUE_NUM"
+    ISSUE_STATE=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['state'])" 2>/dev/null || echo "UNKNOWN")
+    if [ "$ISSUE_STATE" != "OPEN" ]; then
+        abort "El issue #$ISSUE_NUM está $ISSUE_STATE — solo se procesan issues abiertos."
+    fi
+    ISSUE_TITLE=$(echo "$ISSUE_JSON" | grep -o '"title":"[^"]*"' | sed 's/"title":"//;s/"//')
+    ISSUE_BODY=$(echo "$ISSUE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['body'])" 2>/dev/null \
+        || echo "$ISSUE_JSON" | sed 's/.*"body":"//;s/","[^"]*":".*//;s/\\n/\n/g;s/\\r//g')
+    ISSUE_CONTEXT="# Issue #$ISSUE_NUM: $ISSUE_TITLE
+
+$ISSUE_BODY"
+    log "Issue: $ISSUE_TITLE"
+
+elif [ -n "$INPUT_FILE" ]; then
+    [ -f "$INPUT_FILE" ] || abort "Archivo no encontrado: $INPUT_FILE"
+    ISSUE_TITLE=$(basename "$INPUT_FILE" .md)
+    ISSUE_CONTEXT=$(cat "$INPUT_FILE")
+    log "Archivo: $INPUT_FILE"
+fi
+
+# Guardar contexto para referencia
+echo "$ISSUE_CONTEXT" > "$PIPELINE_DIR/input.md"
+
+# ─── Preparar worktree ───────────────────────────────────────────────────────
+header "Preparando worktree"
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Generar slug para el nombre del worktree
+if [ -n "$ISSUE_NUM" ]; then
+    SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr ' áéíóúàèìòùäëïöü' ' aeiouaeiouaeiou' | sed 's/[^a-z0-9 ]//g' | tr -s ' ' '-' | cut -c1-40 | sed 's/-$//')
+    BRANCH_NAME="worktree-issue-${ISSUE_NUM}-${SLUG}"
+else
+    SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-zA-Z0-9]/-/g' | tr -s '-' | cut -c1-40 | sed 's/-$//')
+    BRANCH_NAME="worktree-tdd-${SLUG}"
+fi
+
+WORKTREE_PATH="${REPO_ROOT}/../${BRANCH_NAME}"
+
+if [ "$FROM_STAGE" -gt 1 ]; then
+    # ── Modo retomar: el worktree ya debe existir ──
+    [ -d "$WORKTREE_PATH" ] || abort "No existe el worktree en $WORKTREE_PATH. No se puede retomar desde Stage $FROM_STAGE."
+    log "Retomando desde Stage $FROM_STAGE — worktree existente: $WORKTREE_PATH"
+    # [Cambio 4] Eliminado código muerto: solo usar merge-base
+    SNAPSHOT_COMMIT=$(git -C "$WORKTREE_PATH" merge-base HEAD main)
+    log "Snapshot detectado: $SNAPSHOT_COMMIT"
+else
+    # ── Modo normal: crear worktree nuevo ──
+    if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+        warn "No estás en main/master (rama actual: $CURRENT_BRANCH)"
+        warn "Asegúrate de estar en la rama correcta antes de continuar"
+    fi
+
+    log "Actualizando desde origin..."
+    git pull origin "${CURRENT_BRANCH}" >>"$LOG_FILE" 2>&1 || warn "No se pudo hacer pull (continuando de todas formas)"
+
+    # [Cambio 8] Idempotencia: si el worktree ya existe, limpiarlo
+    if [ -d "$WORKTREE_PATH" ]; then
+        warn "El worktree ya existe: $WORKTREE_PATH — limpiando para reiniciar..."
+        git worktree remove --force "$WORKTREE_PATH" >>"$LOG_FILE" 2>&1 || true
+        git branch -D "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 || true
+    fi
+    # También limpiar rama huérfana sin worktree
+    if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
+        warn "La rama $BRANCH_NAME ya existe sin worktree — eliminándola..."
+        git branch -D "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 || true
+    fi
+
+    log "Creando worktree: $WORKTREE_PATH"
+    git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 \
+        || abort "No se pudo crear el worktree"
+
+    success "Worktree creado: $WORKTREE_PATH"
+
+    mkdir -p "$WORKTREE_PATH/.claude/pipeline/summaries"
+
+    # Parchear settings.json del worktree con ruta absoluta del events.log
+    sed "s|\.claude/pipeline/events\.log|${EVENTS_LOG_ABS}|g" \
+        "$REPO_ROOT/.claude/settings.json" > "$WORKTREE_PATH/.claude/settings.json"
+
+    update_status "setup" "running"
+
+    SNAPSHOT_COMMIT=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
+    log "Snapshot: $SNAPSHOT_COMMIT"
+fi
+
+# Detectar señal de refactoring pre-existente (worktree previo con --from-stage)
+REFACTOR_SIGNAL_PATH="$WORKTREE_PATH/.claude/pipeline/refactor-signal.md"
+if [ -f "$REFACTOR_SIGNAL_PATH" ]; then
+    IS_REFACTOR=true
+    REFACTOR_JUSTIFICATION=$(grep "^JUSTIFICATION=" "$REFACTOR_SIGNAL_PATH" | cut -d= -f2- || echo "no especificada")
+    log "Señal de refactoring detectada (pre-existente): $REFACTOR_JUSTIFICATION"
+fi
+
+# ─── Función auxiliar para recolectar resumen de agente ─────────────────────
+collect_summary() {
+    local stage="$1" agent="$2"
+    local f="$WORKTREE_PATH/.claude/pipeline/summaries/stage-${stage}-${agent}.md"
+    if [ -f "$f" ]; then cat "$f"; else echo "_(El agente no generó resumen)_"; fi
+}
+
+# ─── Función auxiliar para invocar agentes ───────────────────────────────────
+run_agent() {
+    local stage="$1"
+    local agent="$2"
+    local prompt="$3"
+    local log_stage="$LOG_DIR_ABS/stage-${stage}-${agent}-${TIMESTAMP}.log"
+    local start_ts
+    start_ts=$(date +%s)
+
+    echo "[$(date +%H:%M:%S)] === STAGE $stage: $agent ===" >> "$EVENTS_LOG_ABS"
+    case "$agent" in
+        test-writer) AGENT_TW_RES="running" ;;
+        implementer) AGENT_IM_RES="running" ;;
+        reviewer)    AGENT_RV_RES="running" ;;
+    esac
+    update_status "$stage-$agent" "running"
+    log "Invocando $agent..."
+
+    local AGENT_TIMEOUT_SECONDS=1800  # 30 minutos por agente
+    (cd "$WORKTREE_PATH" && claude -p "$prompt" \
+        --agent "$agent" \
+        --permission-mode bypassPermissions \
+        --output-format text \
+        >"$log_stage" 2>&1) &
+    local CLAUDE_PID=$!
+    # M3: usar SIGKILL para garantizar que el proceso muere al timeout
+    (sleep $AGENT_TIMEOUT_SECONDS && kill -9 $CLAUDE_PID 2>/dev/null && echo "[$(date +%H:%M:%S)] TIMEOUT: $agent superó ${AGENT_TIMEOUT_SECONDS}s — eliminado con SIGKILL" >> "$EVENTS_LOG_ABS") &
+    local WATCHDOG_PID=$!
+
+    local CLAUDE_EXIT=0
+    wait $CLAUDE_PID || CLAUDE_EXIT=$?
+
+    kill $WATCHDOG_PID 2>/dev/null || true
+    wait $WATCHDOG_PID 2>/dev/null || true
+    local elapsed=$(( $(date +%s) - start_ts ))
+
+    if [ "$CLAUDE_EXIT" -ne 0 ]; then
+        # M1: Clasificar tipo de fallo por exit code y contenido del log
+        local failure_type
+        if [ "$CLAUDE_EXIT" -eq 137 ] || [ "$CLAUDE_EXIT" -eq 143 ]; then
+            failure_type="TIMEOUT (signal $CLAUDE_EXIT, ${elapsed}s)"
+        elif grep -q "API Error: 5" "$log_stage" 2>/dev/null; then
+            failure_type="API_ERROR_SERVER (exit $CLAUDE_EXIT)"
+        elif grep -q "API Error: 4" "$log_stage" 2>/dev/null; then
+            failure_type="API_ERROR_CLIENT (exit $CLAUDE_EXIT)"
+        else
+            failure_type="CLI_ERROR (exit $CLAUDE_EXIT)"
+        fi
+        log "$agent falló después de ${elapsed}s — tipo: $failure_type"
+        echo "[$(date +%H:%M:%S)] FALLO $agent: $failure_type" >> "$EVENTS_LOG_ABS"
+
+        # M6: Retry automatico para errores transitorios del servidor sin trabajo previo
+        if echo "$failure_type" | grep -q "API_ERROR_SERVER"; then
+            local has_work=false
+            if ! git -C "$WORKTREE_PATH" diff --quiet "${SNAPSHOT_COMMIT:-HEAD}..HEAD" 2>/dev/null; then
+                has_work=true
+            fi
+            if [ "$has_work" = false ]; then
+                warn "$agent: API error 5xx — reintentando una vez..."
+                echo "[$(date +%H:%M:%S)] RETRY $agent: API error 5xx, reintentando" >> "$EVENTS_LOG_ABS"
+                local log_stage_retry="$LOG_DIR_ABS/stage-${stage}-${agent}-${TIMESTAMP}-retry.log"
+                local retry_start
+                retry_start=$(date +%s)
+                CLAUDE_EXIT=0
+                (cd "$WORKTREE_PATH" && claude -p "$prompt" \
+                    --agent "$agent" \
+                    --permission-mode bypassPermissions \
+                    --output-format text \
+                    >"$log_stage_retry" 2>&1) || CLAUDE_EXIT=$?
+                elapsed=$(( $(date +%s) - start_ts ))
+                log_stage="$log_stage_retry"
+                if [ "$CLAUDE_EXIT" -ne 0 ]; then
+                    failure_type="CLI_ERROR_POST_RETRY (exit $CLAUDE_EXIT)"
+                    log "$agent falló tambien en reintento — tipo: $failure_type"
+                    echo "[$(date +%H:%M:%S)] RETRY_FALLO $agent: $failure_type" >> "$EVENTS_LOG_ABS"
+                else
+                    log "$agent: reintento exitoso en ${elapsed}s"
+                    echo "[$(date +%H:%M:%S)] RETRY_OK $agent: exitoso en ${elapsed}s" >> "$EVENTS_LOG_ABS"
+                fi
+            fi
+        fi
+
+        if [ "$CLAUDE_EXIT" -ne 0 ]; then
+            # M2: Verificar si el agente produjo trabajo util antes de abortar
+            local has_commits=false
+            local gate_passes=false
+
+            if ! git -C "$WORKTREE_PATH" diff --quiet "${SNAPSHOT_COMMIT:-HEAD}..HEAD" 2>/dev/null; then
+                has_commits=true
+            fi
+            if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/ 2>/dev/null)" ]; then
+                has_commits=true
+            fi
+
+            if [ "$has_commits" = true ]; then
+                case "$stage" in
+                    1)
+                        if dotnet build "$WORKTREE_PATH" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
+                            gate_passes=true
+                        fi
+                        ;;
+                    2|3|merge)
+                        local test_out
+                        test_out=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+                        if ! echo "$test_out" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
+                            gate_passes=true
+                        fi
+                        ;;
+                esac
+            fi
+
+            if [ "$has_commits" = true ] && [ "$gate_passes" = true ]; then
+                warn "$agent: CLI retorno error ($failure_type) pero hay trabajo util completado — continuando"
+                echo "[$(date +%H:%M:%S)] RECUPERADO $agent: trabajo util detectado post-$failure_type, continuando" >> "$EVENTS_LOG_ABS"
+                # Continuar sin abortar — los gates del pipeline verificaran el resultado
+            else
+                case "$agent" in
+                    test-writer) AGENT_TW_DUR=$elapsed; AGENT_TW_RES="failed" ;;
+                    implementer) AGENT_IM_DUR=$elapsed; AGENT_IM_RES="failed" ;;
+                    reviewer)    AGENT_RV_DUR=$elapsed; AGENT_RV_RES="failed" ;;
+                esac
+                update_status "$stage-$agent" "failed"
+                echo -e "\n${RED}── Ultimas lineas del log de $agent:${NC}"
+                tail -20 "$log_stage"
+                abort "$agent falló ($failure_type). Log completo: $log_stage"
+            fi
+        fi
+    fi
+
+    LAST_AGENT_DURATION=$elapsed
+    log "$agent completado en ${elapsed}s"
+}
+
+# ─── Función auxiliar: auto-commit de seguridad ──────────────────────────────
+# Solo commitea cambios en tests/ y src/ (ignora .claude/, bin/, obj/, etc.)
+auto_commit_if_needed() {
+    local phase="$1"     # "roja", "verde", "refactor"
+    local msg="$2"       # mensaje de commit
+
+    # [Cambio 1] Restaurar settings.json antes de verificar estado git
+    # El pipeline lo parchea a propósito, pero no debe interferir con git
+    git -C "$WORKTREE_PATH" checkout -- .claude/settings.json 2>/dev/null || true
+
+    # Revisar si hay cambios en tests/ o src/ específicamente
+    if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/)" ]; then
+        log "El agente no commitió cambios en tests/src. Haciendo commit automático (fase $phase)..."
+        git -C "$WORKTREE_PATH" add tests/ src/ >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1
+        git -C "$WORKTREE_PATH" commit -m "$msg" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 || true
+    fi
+}
+
+# ─── STAGE 1: Test Writer (fase roja) ────────────────────────────────────────
+if [ "$FROM_STAGE" -le 1 ]; then
+    header "Stage 1: Test Writer (fase roja)"
+
+    STAGE1_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+
+Contexto de la historia de usuario a implementar:
+
+$ISSUE_CONTEXT
+
+Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de compilación. Sigue todas las instrucciones de tu rol de test-writer."
+
+    run_agent "1" "test-writer" "$STAGE1_PROMPT"
+
+    # Validar que el agente generó cambios (commiteados o no)
+    if git -C "$WORKTREE_PATH" diff --quiet "$SNAPSHOT_COMMIT" HEAD 2>/dev/null \
+       && [ -z "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/)" ]; then
+        abort "El test-writer no generó ningún archivo. Verifica que la definición del agente (.claude/agents/test-writer.md) existe en el repo."
+    fi
+
+    # Gate 1a: debe compilar
+    log "Gate: verificando compilación..."
+    dotnet build "$WORKTREE_PATH" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 \
+        || abort "Stage 1 fallido: el proyecto no compila después del test-writer. Revisa $LOG_DIR/stage-1-test-writer.log"
+
+    # Detectar si el test-writer señalizó refactoring puro (puede haber sido creado recién)
+    if [ -f "$REFACTOR_SIGNAL_PATH" ] && [ "$IS_REFACTOR" = false ]; then
+        IS_REFACTOR=true
+        REFACTOR_JUSTIFICATION=$(grep "^JUSTIFICATION=" "$REFACTOR_SIGNAL_PATH" | cut -d= -f2- || echo "no especificada")
+        log "Señal de refactoring detectada: $REFACTOR_JUSTIFICATION"
+    fi
+
+    if [ "$IS_REFACTOR" = false ]; then
+        # Gate 1b: los tests nuevos deben FALLAR
+        log "Gate: verificando fase roja (tests deben fallar)..."
+        TEST_OUTPUT_G1=$(dotnet test "$WORKTREE_PATH" --no-build 2>&1 || true)
+        echo "$TEST_OUTPUT_G1" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+        if ! echo "$TEST_OUTPUT_G1" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
+            abort "Stage 1 fallido: no se detectaron tests fallando — el test-writer pudo haber escrito implementación real en lugar de stubs"
+        fi
+    fi
+
+    # Auto-commit de seguridad (solo si hay cambios uncommitted en tests/ o src/)
+    auto_commit_if_needed "roja" "test(hu-${ISSUE_NUM:-?}): tests fase roja"
+
+    if [ "$IS_REFACTOR" = true ]; then
+        # Baseline: verificar que todos los tests pasan antes del refactoring
+        log "Gate: verificando baseline verde para refactoring..."
+        TEST_OUTPUT_BASELINE=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+        echo "$TEST_OUTPUT_BASELINE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+        if echo "$TEST_OUTPUT_BASELINE" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
+            abort "Refactoring señalizado pero hay tests fallando. No se puede refactorizar sobre una base roja."
+        fi
+        BASELINE_TEST_COUNT=$(extract_test_count "$TEST_OUTPUT_BASELINE")
+        log "Baseline refactoring: $BASELINE_TEST_COUNT tests pasando"
+        success "Baseline verde confirmado"
+    fi
+
+    AGENT_TW_DUR=$LAST_AGENT_DURATION
+    AGENT_TW_RES="passed"
+    update_status "1-test-writer" "passed"
+    success "Stage 1 completado — fase roja confirmada"
+else
+    log "Saltando Stage 1 (--from-stage $FROM_STAGE)"
+fi
+
+# [Cambio 6] Capturar archivos y verificar que hay contenido
+if [ "$IS_REFACTOR" = false ]; then
+    STAGE1_FILES=$(git -C "$WORKTREE_PATH" diff --name-only "$SNAPSHOT_COMMIT"..HEAD)
+    if [ -z "$STAGE1_FILES" ]; then
+        abort "No se detectaron archivos nuevos después de Stage 1. El test-writer no generó ni commitió cambios válidos. Verifica el log del test-writer."
+    fi
+    log "Archivos del test-writer:"
+    echo "$STAGE1_FILES" | while read -r f; do log "  + $f"; done
+else
+    STAGE1_FILES=""
+    log "Refactoring puro: no se esperan archivos de test nuevos"
+fi
+
+# ─── STAGE 2: Implementer (fase verde) ───────────────────────────────────────
+if [ "$IS_REFACTOR" = true ]; then
+    log "Saltando Stage 2 (refactoring puro — no hay tests que hacer pasar)"
+    AGENT_IM_RES="skipped"
+    update_status "2-implementer" "skipped"
+elif [ "$FROM_STAGE" -le 2 ]; then
+    header "Stage 2: Implementer (fase verde)"
+
+    STAGE2_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+
+Contexto de la historia de usuario:
+
+$ISSUE_CONTEXT
+
+El test-writer creó/modificó los siguientes archivos:
+$STAGE1_FILES
+
+Tu tarea: implementa la lógica de negocio para hacer pasar todos los tests. Sigue todas las instrucciones de tu rol de implementer."
+
+    run_agent "2" "implementer" "$STAGE2_PROMPT"
+
+    # Gate 2: TODOS los tests deben pasar
+    log "Gate: verificando fase verde (todos los tests deben pasar)..."
+    TEST_OUTPUT_G2=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+    echo "$TEST_OUTPUT_G2" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+    if echo "$TEST_OUTPUT_G2" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
+        echo "$TEST_OUTPUT_G2" | tail -20
+        abort "Stage 2 fallido: no todos los tests pasan después del implementer. Revisa $LOG_DIR_ABS/stage-2-implementer.log"
+    fi
+
+    TEST_COUNT=$(extract_test_count "$TEST_OUTPUT_G2")
+    PIPELINE_TESTS="$TEST_COUNT"
+    log "Tests pasando: $TEST_COUNT"
+
+    # Auto-commit de seguridad
+    auto_commit_if_needed "verde" "feat(hu-${ISSUE_NUM:-?}): implementación fase verde"
+
+    AGENT_IM_DUR=$LAST_AGENT_DURATION
+    AGENT_IM_RES="passed"
+    update_status "2-implementer" "passed"
+    success "Stage 2 completado — fase verde confirmada"
+else
+    log "Saltando Stage 2 (--from-stage $FROM_STAGE)"
+fi
+
+# ─── STAGE 3: Reviewer (fase refactor) ───────────────────────────────────────
+if [ "$FROM_STAGE" -le 3 ]; then
+    header "Stage 3: Reviewer (fase refactor)"
+
+    if [ "$IS_REFACTOR" = true ]; then
+        STAGE3_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+
+Esta es una tarea de REFACTORING PURO. No hay fases roja ni verde previas.
+Justificación del refactoring: $REFACTOR_JUSTIFICATION
+
+Contexto de la tarea:
+
+$ISSUE_CONTEXT
+
+Tu misión: ejecutar el refactoring descrito en el issue. Los tests existentes DEBEN seguir pasando en todo momento.
+
+Reglas:
+1. Corre dotnet test ANTES de empezar para confirmar el baseline verde.
+2. Ejecuta el refactoring en pasos pequeños y seguros.
+3. Después de cada cambio significativo, corre dotnet test.
+4. Si un cambio rompe tests, reviértelo inmediatamente: git checkout -- <archivo>
+5. Al terminar, corre dotnet test una última vez para confirmar que todo sigue verde.
+6. Haz commit de tu trabajo con mensaje: refactor(hu-${ISSUE_NUM:-?}): [descripción]
+
+Sigue todas las instrucciones de tu rol de reviewer."
+    else
+        FULL_DIFF=$(git -C "$WORKTREE_PATH" diff "$SNAPSHOT_COMMIT"..HEAD)
+
+        STAGE3_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+
+Contexto de la historia de usuario:
+
+$ISSUE_CONTEXT
+
+Diff completo de las fases roja y verde:
+
+$FULL_DIFF
+
+Tu tarea: revisa la calidad del código, refactoriza si es necesario, y verifica que los criterios de aceptación estén bien cubiertos. Sigue todas las instrucciones de tu rol de reviewer."
+    fi
+
+    run_agent "3" "reviewer" "$STAGE3_PROMPT"
+
+    # Gate 3: tests deben seguir pasando
+    log "Gate: verificando que refactor no rompió tests..."
+    TEST_OUTPUT_G3=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+    echo "$TEST_OUTPUT_G3" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+    if echo "$TEST_OUTPUT_G3" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
+        echo "$TEST_OUTPUT_G3" | tail -20
+        abort "Stage 3 fallido: el reviewer rompió tests al refactorizar. Revisa $LOG_DIR_ABS/stage-3-reviewer.log"
+    fi
+
+    # Verificación adicional para refactoring: no deben perderse tests
+    if [ "$IS_REFACTOR" = true ]; then
+        POST_TEST_COUNT=$(extract_test_count "$TEST_OUTPUT_G3")
+        log "Tests post-refactoring: $POST_TEST_COUNT (baseline: $BASELINE_TEST_COUNT)"
+        if [ "$POST_TEST_COUNT" != "?" ] && [ "$BASELINE_TEST_COUNT" != "?" ]; then
+            if [ "$POST_TEST_COUNT" -lt "$BASELINE_TEST_COUNT" ]; then
+                abort "El refactoring perdió tests: antes=$BASELINE_TEST_COUNT, después=$POST_TEST_COUNT"
+            fi
+        fi
+        PIPELINE_TESTS="$POST_TEST_COUNT"
+    fi
+
+    # Auto-commit de seguridad
+    auto_commit_if_needed "refactor" "refactor(hu-${ISSUE_NUM:-?}): revisión y refactor"
+
+    AGENT_RV_DUR=$LAST_AGENT_DURATION
+    AGENT_RV_RES="passed"
+    update_status "3-reviewer" "passed"
+    success "Stage 3 completado — fase refactor confirmada"
+else
+    log "Saltando Stage 3 (--from-stage $FROM_STAGE)"
+fi
+
+# ─── Verificar que hay commits antes de crear PR ─────────────────────────────
+COMMITS_LIST=$(git -C "$WORKTREE_PATH" log "${SNAPSHOT_COMMIT}..HEAD" --oneline)
+if [ -z "$COMMITS_LIST" ]; then
+    abort "No hay commits en la rama $BRANCH_NAME. Los agentes no commitieron su trabajo y el auto-commit falló."
+fi
+
+# ─── Sincronizar con main antes de crear PR ──────────────────────────────────
+header "Sincronizando con main"
+
+log "Actualizando main desde origin..."
+git -C "$WORKTREE_PATH" fetch origin main >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 \
+    || abort "No se pudo hacer fetch de origin/main"
+
+BEHIND_COUNT=$(git -C "$WORKTREE_PATH" rev-list HEAD..origin/main --count)
+if [ "$BEHIND_COUNT" -eq 0 ]; then
+    log "La rama ya está al día con main"
+else
+    log "main tiene $BEHIND_COUNT commit(s) nuevos. Haciendo merge..."
+
+    if git -C "$WORKTREE_PATH" merge origin/main --no-edit >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
+        success "Merge automático exitoso"
+    else
+        warn "Merge con conflictos. Invocando agente para resolverlos..."
+
+        CONFLICT_FILES=$(git -C "$WORKTREE_PATH" diff --name-only --diff-filter=U)
+
+        MERGE_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+
+Hay conflictos de merge con la rama main en los siguientes archivos:
+$CONFLICT_FILES
+
+Resuelve los conflictos manteniendo tanto la funcionalidad nueva (de esta rama) como la existente (de main).
+Después de resolver cada archivo, haz git add del archivo.
+Cuando todos estén resueltos, haz git commit para completar el merge.
+NO elimines código de ninguna de las dos ramas — integra ambos cambios."
+
+        run_agent "merge" "implementer" "$MERGE_PROMPT"
+
+        # Verificar que no quedan conflictos
+        REMAINING_CONFLICTS=$(git -C "$WORKTREE_PATH" diff --name-only --diff-filter=U 2>/dev/null || true)
+        if [ -n "$REMAINING_CONFLICTS" ]; then
+            abort "Aún quedan conflictos después del agente: $REMAINING_CONFLICTS. Revisa manualmente: cd $WORKTREE_PATH"
+        fi
+        success "Conflictos resueltos"
+    fi
+
+    # Re-correr tests post-merge
+    log "Verificando tests después del merge..."
+    TEST_OUTPUT_MERGE=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+    echo "$TEST_OUTPUT_MERGE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+    if echo "$TEST_OUTPUT_MERGE" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
+        abort "Tests fallan después del merge con main. Revisa manualmente: cd $WORKTREE_PATH"
+    fi
+    success "Tests pasan después del merge con main"
+fi
+
+
+# ─── Crear PR ─────────────────────────────────────────────────────────────────
+header "Creando PR"
+
+log "Haciendo push de la rama..."
+git -C "$WORKTREE_PATH" push -u origin "$BRANCH_NAME" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 \
+    || abort "No se pudo hacer push de la rama $BRANCH_NAME"
+
+CLOSES_LINE=""
+if [ -n "$ISSUE_NUM" ]; then
+    CLOSES_LINE="Closes #$ISSUE_NUM"
+fi
+
+log "Creando PR..."
+
+# Recolectar resumenes de agentes
+TW_SUMMARY=$(collect_summary "1" "test-writer")
+IM_SUMMARY=$(collect_summary "2" "implementer")
+RV_SUMMARY=$(collect_summary "3" "reviewer")
+
+# Formatear duraciones
+_fmt_dur() { local s="${1:-0}"; echo "$((s/60))m $((s%60))s"; }
+TW_DUR_FMT=$(_fmt_dur "${AGENT_TW_DUR:-0}")
+IM_DUR_FMT=$(_fmt_dur "${AGENT_IM_DUR:-0}")
+RV_DUR_FMT=$(_fmt_dur "${AGENT_RV_DUR:-0}")
+
+if [ "$IS_REFACTOR" = true ]; then
+    PR_BODY_SUMMARY="Pipeline TDD completado (refactoring puro):
+- Análisis: no se requieren tests nuevos
+- Justificación: $REFACTOR_JUSTIFICATION
+- Baseline: $BASELINE_TEST_COUNT tests pasando
+- Refactoring ejecutado manteniendo todos los tests verdes"
+    IMPLEMENTER_SECTION=""
+else
+    PR_BODY_SUMMARY="Pipeline TDD completado:
+- Fase roja: tests escritos con stubs
+- Fase verde: implementación completa
+- Fase refactor: revisión de calidad"
+    IMPLEMENTER_SECTION="<details>
+<summary>Implementer (fase verde) — ${IM_DUR_FMT}</summary>
+
+${IM_SUMMARY}
+
+</details>
+"
+fi
+
+PR_URL=$(gh pr create \
+    --title "$ISSUE_TITLE" \
+    --body "$(cat <<EOF
+## Resumen
+
+$PR_BODY_SUMMARY
+
+## Decisiones del pipeline
+
+<details>
+<summary>Test Writer (fase roja) — ${TW_DUR_FMT}</summary>
+
+${TW_SUMMARY}
+
+</details>
+
+${IMPLEMENTER_SECTION}<details>
+<summary>Reviewer (fase refactor) — ${RV_DUR_FMT}</summary>
+
+${RV_SUMMARY}
+
+</details>
+
+## Commits
+
+$COMMITS_LIST
+
+$CLOSES_LINE
+EOF
+)" \
+    --base main \
+    --head "$BRANCH_NAME" \
+    --repo "$(git -C "$WORKTREE_PATH" remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')" \
+    2>>"$LOG_FILE") \
+    || abort "No se pudo crear el PR"
+
+PIPELINE_PR="$PR_URL"
+update_status "done" "completed"
+success "PR creado: $PR_URL"
+
+if [ -n "$ISSUE_NUM" ]; then
+    gh issue comment "$ISSUE_NUM" \
+        --body "Pipeline TDD completado. Decisiones de los agentes en el PR: $PR_URL" \
+        --repo "$(git -C "$WORKTREE_PATH" remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')" \
+        >>"$LOG_FILE" 2>&1 || warn "No se pudo comentar en el issue #$ISSUE_NUM"
+fi
+
+# Append al historial
+echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"test-writer\":{\"duration\":${AGENT_TW_DUR:-null}},\"implementer\":{\"duration\":${AGENT_IM_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
+    >> "$PIPELINE_DIR_ABS/history.jsonl"
+
+# ─── Cleanup ──────────────────────────────────────────────────────────────────
+header "Cleanup"
+
+# [Cambio 1/2] Restaurar archivos sucios antes de remover, y usar --force
+log "Eliminando worktree..."
+cd "$REPO_ROOT"
+git -C "$WORKTREE_PATH" checkout -- .claude/ 2>/dev/null || true
+git worktree remove --force "$WORKTREE_PATH" >>"$LOG_FILE" 2>&1 \
+    || warn "No se pudo eliminar el worktree automáticamente. Elimínalo manualmente: git worktree remove --force $WORKTREE_PATH"
+
+WORKTREE_PATH=""  # Marcar como eliminado para el trap de errores
+
+success "Worktree eliminado"
+
+# ─── Resumen final ────────────────────────────────────────────────────────────
+echo ""
+echo -e "${CYAN}${BOLD}═══ Pipeline completado ═══${NC}"
+echo ""
+TOTAL_COMMITS=$(echo "$COMMITS_LIST" | wc -l | tr -d ' ')
+echo -e "  Commits: $TOTAL_COMMITS"
+echo -e "  Rama:    $BRANCH_NAME"
+echo -e "  PR:      $PR_URL"
+echo -e "  Log:     $LOG_FILE"
+echo ""

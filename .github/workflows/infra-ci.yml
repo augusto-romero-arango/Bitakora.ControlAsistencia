@@ -1,0 +1,89 @@
+name: "Infra CI - Terraform Plan"
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infra/environments/dev
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: infra/environments/dev
+        run: terraform plan -no-color 2>&1 | tee /tmp/plan_output.txt
+        continue-on-error: true
+
+      - name: Comentar plan en PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('/tmp/plan_output.txt', 'utf8');
+            const planStatus = '${{ steps.plan.outcome }}';
+            const statusIcon = planStatus === 'success' ? '✅' : '❌';
+            const statusText = planStatus === 'success' ? 'exitoso' : 'fallido';
+
+            const body = `### ${statusIcon} Terraform Plan — \`dev\` (${statusText})
+
+            <details>
+            <summary>Ver output del plan</summary>
+
+            \`\`\`
+            ${planOutput}
+            \`\`\`
+            </details>
+
+            *Ejecutado en commit ${{ github.sha }}*`;
+
+            const marker = '<!-- terraform-plan-comment -->';
+            const fullBody = `${marker}\n${body}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: fullBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: fullBody,
+              });
+            }
+
+      - name: Fallar si el plan fallo
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

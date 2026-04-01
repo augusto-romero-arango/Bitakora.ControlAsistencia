@@ -1,0 +1,23 @@
+root = true
+
+[*.cs]
+# Namespace debe coincidir con la carpeta del archivo
+dotnet_diagnostic.IDE0130.severity = warning
+
+# Usar tipos de C# en lugar de alias BCL (int vs Int32)
+dotnet_diagnostic.IDE0049.severity = suggestion
+
+# Eliminar usings innecesarios
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Usar var cuando el tipo es obvio
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+
+# Indentación
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true

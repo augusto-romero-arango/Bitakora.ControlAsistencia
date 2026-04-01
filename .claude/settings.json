@@ -1,0 +1,58 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(gh repo delete*)",
+      "Bash(terraform destroy*)",
+      "Bash(terraform apply -auto-approve*)",
+      "Bash(az group delete*)"
+    ],
+    "allow": [
+      "Bash(dotnet *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(./scripts/*)",
+      "Bash(scripts/*)",
+      "Bash(ls *)",
+      "Bash(ls)",
+      "Bash(mkdir *)",
+      "Bash(find *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(claude *)",
+      "Bash(tail *)",
+      "Bash(head *)",
+      "Bash(terraform *)",
+      "Bash(az *)",
+      "Read(//Users/augusto-romero-arango/.claude/plans/**)",
+      "Read(//Users/augusto-romero-arango/Codigo/Personal/experimentos/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '\"[\" + (now | strftime(\"%H:%M:%S\")) + \"][archivo] \" + (.tool_input.file_path // .tool_input.path // \"(desconocido)\")' 2>/dev/null | tee -a .claude/pipeline/events.log 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r 'if (.tool_input.command // \"\") | test(\"dotnet test\") then \"[\" + (now | strftime(\"%H:%M:%S\")) + \"][test] \" + (if (.tool_result // \"\") | test(\"passed|Passed|Superado|Correctas\") then \"PASS\" else \"FAIL\" end) else empty end' 2>/dev/null | tee -a .claude/pipeline/events.log 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "jq -r 'if (.tool_input.command // \"\") | test(\"terraform (plan|apply|init|validate)\") then \"[\" + (now | strftime(\"%H:%M:%S\")) + \"][terraform] \" + ((.tool_input.command | split(\" \") | .[1]) // \"?\") + \": \" + (if (.tool_result.exitCode // 0) == 0 then \"OK\" else \"ERROR\" end) else empty end' 2>/dev/null | tee -a .claude/pipeline/events.log 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
