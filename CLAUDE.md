@@ -143,7 +143,4 @@ Al crear o modificar archivos en `.claude/agents/` o `.claude/skills/`:
 - **Despliegue**: Azure Functions (serverless)
 - **Comunicación**: por eventos (sin llamadas directas entre funciones)
 - **Principio**: la verdad viaja en el evento. Cada función es autónoma.
-- **Principio**: el turno es un objeto, no una referencia. Viaja completo en las operaciones.
-- **Dominios**: CalculoHoras, Depuración, Programación, Empleados
-- **Contratos compartidos**: namespace `Contracts` con value objects inmutables — es la única dependencia permitida entre dominios
 - **Estado**: infraestructura base implementada en `infra/environments/dev/` con Terraform.
