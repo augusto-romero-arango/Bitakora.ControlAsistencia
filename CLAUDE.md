@@ -9,16 +9,18 @@ Sistema de control de asistencias y cálculo de horas según legislación labora
 - **Stack**: .NET 10, C#, xUnit, AwesomeAssertions
 - **Remote**: `https://github.com/augusto-romero-arango/Bitakora.ControlAsistencia.git`
 - **Estructura**:
-  - `src/Bitakora.ControlAsistencia.Core/` — lógica de negocio
-  - `src/Bitakora.ControlAsistencia.McpServer/` — servidor MCP
-  - `tests/Bitakora.ControlAsistencia.Tests/` — pruebas unitarias
+  - `src/Bitakora.ControlAsistencia.Contracts/` — contratos de eventos y value objects compartidos
+  - `src/Bitakora.ControlAsistencia.{Dominio}/` — Function App por dominio (isolated worker)
+  - `tests/Bitakora.ControlAsistencia.{Dominio}.Tests/` — pruebas del dominio correspondiente
+  - `docs/adr/` — decisiones arquitectónicas (ADRs)
 
 ## Comandos principales
 
 ```bash
-dotnet build                          # compilar
-dotnet test                           # correr pruebas
-dotnet test --filter "NombreTest"     # correr una prueba específica
+dotnet build                                                      # compilar toda la solucion
+dotnet test                                                       # correr todas las pruebas
+dotnet test tests/Bitakora.ControlAsistencia.{Dominio}.Tests/    # correr pruebas de un dominio
+dotnet test --filter "NombreTest"                                 # correr una prueba especifica
 ```
 
 ## Flujo de trabajo
@@ -40,6 +42,7 @@ planner → crea issue → tdd-pipeline.sh → PR listo
 | `parallel-workflow` | Implementar múltiples issues en paralelo (sin merge) | `claude --agent parallel-workflow` |
 | `infra-workflow` | Implementar un cambio de infraestructura Azure | `claude --agent infra-workflow` |
 | `infra-bootstrap` | Bootstrap del backend Terraform + pipeline IaC (primer despliegue de un ambiente) | `claude --agent infra-bootstrap` |
+| `domain-scaffolder` | Crear un nuevo dominio completo (Function App + tests + Terraform + deploy workflow) | `claude --agent domain-scaffolder` |
 
 ## Pipeline TDD
 
@@ -135,7 +138,7 @@ Al crear o modificar archivos en `.claude/agents/` o `.claude/skills/`:
 - Los PRs deben incluir `Closes #<número>` en la descripción (el pipeline lo hace automáticamente)
 - Las ramas de trabajo se nombran `worktree-issue-<num>-<slug>`
 - Commits frecuentes con mensajes descriptivos en español
-- Convenciones de tests: ver archivos existentes en `tests/Bitakora.ControlAsistencia.Tests/`
+- Convenciones de tests: ver archivos existentes en `tests/Bitakora.ControlAsistencia.Contracts.Tests/`
 - **Caracteres prohibidos en código**: NUNCA uses el carácter "─" (U+2500, box drawing) ni otros caracteres decorativos Unicode para líneas o separadores. Usa siempre el guión ASCII estándar "-" (U+002D). Esto aplica a comentarios, separadores, documentación inline y cualquier texto dentro de archivos `.cs`.
 
 ## Arquitectura objetivo

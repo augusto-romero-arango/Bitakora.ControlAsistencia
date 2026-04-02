@@ -36,7 +36,7 @@ module "service_bus" {
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   sku                 = "Standard"
-  topics              = []
+  topics_config       = {}
   tags                = local.tags
 }
 
