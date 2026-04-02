@@ -73,6 +73,7 @@ resource "azurerm_linux_function_app" "this" {
     {
       APPLICATIONINSIGHTS_CONNECTION_STRING = var.app_insights_connection_string
       FUNCTIONS_EXTENSION_VERSION           = "~4"
+      FUNCTIONS_WORKER_RUNTIME              = "dotnet-isolated"
     },
     var.app_settings
   )

@@ -126,11 +126,11 @@ namespace Bitakora.ControlAsistencia.{PascalCase}.Functions;
 public class HealthCheck
 {
     [Function("health")]
-    public HttpResponseData Run(
+    public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")] HttpRequestData req)
     {
         var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
-        response.WriteString("OK");
+        await response.WriteStringAsync("OK");
         return response;
     }
 }
@@ -290,7 +290,26 @@ on:
       - 'infra/environments/dev/**'
 
 jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore ControlAsistencias.slnx
+
+      - name: Build
+        run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test ControlAsistencias.slnx --no-build --configuration Release
+
   deploy:
+    needs: build-and-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -309,6 +328,12 @@ jobs:
             --no-restore \
             --output ./publish
 
+      - name: Validar artefacto de publicacion
+        run: |
+          test -f ./publish/host.json
+          test -f ./publish/functions.metadata
+          test -f ./publish/Bitakora.ControlAsistencia.{PascalCase}.dll
+
       - name: Azure Authentication
         uses: azure/login@v2
         with:
@@ -319,6 +344,12 @@ jobs:
         with:
           app-name: func-{prefix_func}-{kebab}
           package: ./publish
+
+      - name: Smoke test
+        run: |
+          echo "Esperando 30s para que la Function App arranque..."
+          sleep 30
+          curl -f "https://func-{prefix_func}-{kebab}.azurewebsites.net/api/health"
 ```
 
 ---
