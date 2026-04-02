@@ -71,9 +71,11 @@ resource "azurerm_linux_function_app" "this" {
 
   app_settings = merge(
     {
-      APPLICATIONINSIGHTS_CONNECTION_STRING = var.app_insights_connection_string
-      FUNCTIONS_EXTENSION_VERSION           = "~4"
-      FUNCTIONS_WORKER_RUNTIME              = "dotnet-isolated"
+      APPLICATIONINSIGHTS_CONNECTION_STRING              = var.app_insights_connection_string
+      FUNCTIONS_EXTENSION_VERSION                        = "~4"
+      FUNCTIONS_WORKER_RUNTIME                           = "dotnet-isolated"
+      WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED             = "1"
+      WEBSITE_RUN_FROM_PACKAGE                           = "1"
     },
     var.app_settings
   )
