@@ -28,15 +28,15 @@ Con el nombre en kebab-case recibido, deriva las siguientes variantes:
 
 **Validacion 1 - longitud del nombre de la Function App:**
 
-El nombre resultante sera `func-controlasistencias-dev-{kebab}`. Verifica que no supere 32 caracteres.
+El nombre resultante sera `func-{prefix_func}-{kebab}` donde `prefix_func` es el valor de `local.prefix_func` definido en `infra/environments/dev/variables.tf`. Lee ese archivo para obtener el valor actual.
 
 ```bash
-nombre="func-controlasistencias-dev-{kebab}"
+nombre="func-{prefix_func}-{kebab}"
 echo ${#nombre}
 ```
 
 Si supera 32 caracteres, informa al usuario:
-> "El nombre `func-controlasistencias-dev-{kebab}` tiene N caracteres y supera el limite de 32 que impone Azure. Por favor elige un nombre mas corto."
+> "El nombre `func-{prefix_func}-{kebab}` tiene N caracteres y supera el limite de 32 que impone Azure. Por favor elige un nombre mas corto."
 
 Y detente sin hacer nada mas.
 
@@ -56,7 +56,7 @@ Antes de continuar muestra al usuario el resumen de lo que vas a crear y pide co
 ```
 Dominio:          {kebab}
 PascalCase:       {PascalCase}
-Function App:     func-controlasistencias-dev-{kebab} (N chars)
+Function App:     func-{prefix_func}-{kebab} (N chars)
 Proyecto src:     src/Bitakora.ControlAsistencia.{PascalCase}/
 Proyecto tests:   tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
 Workflow deploy:  .github/workflows/deploy-{kebab}.yml
@@ -195,7 +195,7 @@ module "storage_{snake_case}" {
 
 module "function_app_{snake_case}" {
   source                            = "../../modules/function-app"
-  name                              = "func-${local.prefix}-{kebab}"
+  name                              = "func-${local.prefix_func}-{kebab}"
   resource_group_name               = module.resource_group.name
   location                          = module.resource_group.location
   service_plan_id                   = module.service_plan.id
@@ -287,12 +287,16 @@ jobs:
             --no-restore \
             --output ./publish
 
+      - name: Azure Authentication
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
-          app-name: func-controlasistencias-dev-{kebab}
+          app-name: func-{prefix_func}-{kebab}
           package: ./publish
-          publish-profile: ${{ secrets.AZURE_FUNC_{UPPER_SNAKE}_PUBLISH_PROFILE }}
 ```
 
 ---
@@ -358,7 +362,7 @@ Scaffold completado para el dominio "{kebab}":
   .github/workflows/deploy-{kebab}.yml              - Workflow de deploy automatico
 
 Proximos pasos:
-  1. Agrega el secret AZURE_FUNC_{UPPER_SNAKE}_PUBLISH_PROFILE en GitHub
+  1. Asegurate de que el secret AZURE_CREDENTIALS este configurado en GitHub (un solo Service Principal para todos los dominios)
   2. Ejecuta "terraform apply" en infra/environments/dev/ para crear la infraestructura
   3. Escribe tus primeras Functions en src/Bitakora.ControlAsistencia.{PascalCase}/Functions/
 ```
