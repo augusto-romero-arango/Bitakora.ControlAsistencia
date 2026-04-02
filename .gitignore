@@ -494,3 +494,6 @@ $RECYCLE.BIN/
 *.tfstate.backup
 *.tfplan
 .terraform.lock.hcl
+
+# Azure Functions
+**/local.settings.json

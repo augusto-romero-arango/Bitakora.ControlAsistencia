@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bitakora.ControlAsistencia.Contracts.Tests/Bitakora.ControlAsistencia.Contracts.Tests.csproj" />
+  </Folder>
+</Solution>
