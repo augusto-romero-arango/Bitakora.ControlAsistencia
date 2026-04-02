@@ -163,22 +163,45 @@ dotnet sln ControlAsistencias.slnx add "tests/Bitakora.ControlAsistencia.{Pascal
 
 ---
 
-## Paso 4 - Actualizar Terraform: agregar Function App
+## Paso 4 - Actualizar Terraform: agregar Storage Account y Function App
+
+Cada Function App tiene su propia Storage Account para aislamiento de performance y escalado independiente (Best Practices, Beginning Azure Functions Cap. 8).
+
+**Nombre de la Storage Account**: `st` + dominio sin guiones + environment + sufijo aleatorio.
+Ejemplo para `marcaciones` en dev: `stmarcacionesdev{suffix}`.
+
+Antes de continuar, calcula y valida la longitud maxima posible del nombre:
+- `st` + `{kebab-sin-guiones}` + `dev` + 6 chars de suffix <= 24 caracteres (limite de Azure)
+- Si el nombre base (`st` + `{kebab-sin-guiones}` + `dev`) supera 18 caracteres, el nombre completo superaria 24. En ese caso avisa al usuario y trunca el nombre del dominio en el prefijo de storage hasta que quepa.
 
 Lee el archivo `infra/environments/dev/main.tf` completo antes de modificarlo.
 
-Agrega al **final del archivo** (antes del EOF) el siguiente bloque:
+Agrega al **final del archivo** los siguientes tres bloques:
 
 ```hcl
+resource "random_string" "storage_suffix_{snake_case}" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+module "storage_{snake_case}" {
+  source              = "../../modules/storage"
+  name                = "st{kebab-sin-guiones}${var.environment}${random_string.storage_suffix_{snake_case}.result}"
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  tags                = local.tags
+}
+
 module "function_app_{snake_case}" {
   source                            = "../../modules/function-app"
   name                              = "func-${local.prefix}-{kebab}"
   resource_group_name               = module.resource_group.name
   location                          = module.resource_group.location
   service_plan_id                   = module.service_plan.id
-  storage_account_name              = module.storage.name
-  storage_account_connection_string = module.storage.primary_connection_string
-  storage_account_access_key        = module.storage.primary_access_key
+  storage_account_name              = module.storage_{snake_case}.name
+  storage_account_connection_string = module.storage_{snake_case}.primary_connection_string
+  storage_account_access_key        = module.storage_{snake_case}.primary_access_key
   app_insights_connection_string    = module.monitoring.connection_string
   app_settings = {
     SERVICE_BUS_CONNECTION = module.service_bus.default_primary_connection_string
@@ -187,6 +210,8 @@ module "function_app_{snake_case}" {
   tags = local.tags
 }
 ```
+
+Donde `{kebab-sin-guiones}` es el nombre del dominio con los guiones eliminados (ej: `calculo-horas` -> `calculohoras`).
 
 ---
 

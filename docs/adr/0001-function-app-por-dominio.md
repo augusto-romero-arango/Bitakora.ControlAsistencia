@@ -48,7 +48,14 @@ src/
   dominios.
 - Aislamiento de fallos: un error en liquidacion no interrumpe el registro de marcaciones.
 
+- Cada Function App tiene su propia Storage Account dedicada. Los nombres de Storage Account
+  son globalmente unicos en Azure, por lo que se agrega un sufijo aleatorio de 6 caracteres
+  generado con el recurso `random_string` de Terraform para garantizar unicidad. Esta decision
+  sigue la recomendacion de "Beginning Azure Functions", capitulo 8 (Best Practices), que
+  indica que compartir una Storage Account entre Function Apps crea contension de IOPS,
+  afecta el escalado independiente y amplia el blast radius ante fallos de storage.
+
 **Negativas**
 
-- Un proyecto `.csproj` adicional por dominio aumenta la cantidad de artefactos a mantener
-  y despliega en la solucion.
+- Un proyecto `.csproj` adicional y una Storage Account adicional por dominio aumentan la
+  cantidad de artefactos a mantener en la solucion.
