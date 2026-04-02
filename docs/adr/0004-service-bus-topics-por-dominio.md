@@ -2,7 +2,7 @@
 
 ## Estado
 
-Aceptado
+Obsoleto - reemplazado por `0004-service-bus-topics-por-evento.md`
 
 ## Contexto
 

@@ -121,6 +121,8 @@ Los siguientes agentes son invocados por el script — no los uses directamente:
 | `test-writer` | Escribe tests + stubs de compilación | TDD - Roja |
 | `implementer` | Implementa para hacer pasar los tests | TDD - Verde |
 | `reviewer` | Refactoriza y verifica cobertura | TDD - Refactor |
+| `es-test-writer` | Escribe tests ES + stubs de compilación | ES TDD - Roja |
+| `es-implementer` | Implementa lógica ES para pasar los tests | ES TDD - Verde |
 | `infra-writer` | Escribe HCL y valida con terraform validate | IaC - Write |
 | `infra-reviewer` | Revisa seguridad y ejecuta terraform plan | IaC - Review |
 | `infra-applier` | Aplica el plan pre-generado | IaC - Apply |
@@ -140,6 +142,7 @@ Al crear o modificar archivos en `.claude/agents/` o `.claude/skills/`:
 - Commits frecuentes con mensajes descriptivos en español
 - Convenciones de tests: ver archivos existentes en `tests/Bitakora.ControlAsistencia.Contracts.Tests/`
 - **Caracteres prohibidos en código**: NUNCA uses el carácter "─" (U+2500, box drawing) ni otros caracteres decorativos Unicode para líneas o separadores. Usa siempre el guión ASCII estándar "-" (U+002D). Esto aplica a comentarios, separadores, documentación inline y cualquier texto dentro de archivos `.cs`.
+- **ADRs en tareas de arquitectura**: cuando estés en plan mode trabajando en una tarea que involucre decisiones arquitectónicas (nueva estrategia de testing, cambio de patrones, adopción de librerías, cambios en la comunicación entre dominios, etc.), evalúa si la decisión merece un ADR en `docs/adr/`. Si lo merece, propón su creación como parte del plan. Los ADRs siguen el formato: contexto, decisión, consecuencias.
 
 ## Arquitectura objetivo
 
