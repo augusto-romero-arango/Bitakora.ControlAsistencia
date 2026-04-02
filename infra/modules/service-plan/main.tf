@@ -14,9 +14,9 @@ variable "location" {
 }
 
 variable "sku_name" {
-  description = "SKU del plan: Y1=Consumption, EP1=Elastic Premium"
+  description = "SKU del plan: B1=Basic (minimo para .NET 10), EP1=Elastic Premium"
   type        = string
-  default     = "Y1"
+  default     = "B1"
 }
 
 variable "tags" {

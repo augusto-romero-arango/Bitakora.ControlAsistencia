@@ -319,13 +319,22 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore src/Bitakora.ControlAsistencia.{PascalCase}/
+        run: dotnet restore src/Bitakora.ControlAsistencia.{PascalCase}/ -r linux-x64
+
+      - name: Build
+        run: |
+          dotnet build src/Bitakora.ControlAsistencia.{PascalCase}/ \
+            --configuration Release \
+            --no-restore \
+            -r linux-x64
 
       - name: Publish
         run: |
           dotnet publish src/Bitakora.ControlAsistencia.{PascalCase}/ \
             --configuration Release \
-            --no-restore \
+            --no-build \
+            -r linux-x64 \
+            --self-contained false \
             --output ./publish
 
       - name: Validar artefacto de publicacion
