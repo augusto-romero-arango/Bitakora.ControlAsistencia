@@ -5,9 +5,15 @@ module "resource_group" {
   tags     = local.tags
 }
 
+resource "random_string" "storage_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 module "storage" {
   source              = "../../modules/storage"
-  name                = "stca${var.environment}func"
+  name                = "stca${var.environment}${random_string.storage_suffix.result}"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   tags                = local.tags
