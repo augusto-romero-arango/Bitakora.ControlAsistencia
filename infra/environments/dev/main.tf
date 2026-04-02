@@ -11,7 +11,7 @@ module "service_plan" {
   name                = "asp-${local.prefix}"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
-  sku_name            = "Y1"
+  sku_name            = "B1"
   tags                = local.tags
 }
 
