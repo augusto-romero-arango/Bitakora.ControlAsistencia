@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.Programacion/Bitakora.ControlAsistencia.Programacion.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bitakora.ControlAsistencia.Contracts.Tests/Bitakora.ControlAsistencia.Contracts.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.Programacion.Tests/Bitakora.ControlAsistencia.Programacion.Tests.csproj" />
   </Folder>
 </Solution>

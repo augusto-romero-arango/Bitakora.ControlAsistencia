@@ -23,7 +23,8 @@ variable "location" {
 
 
 locals {
-  prefix = "${var.project}-${var.environment}"
+  prefix      = "${var.project}-${var.environment}"
+  prefix_func = "asist-${var.environment}"
 
   tags = {
     proyecto   = var.project
