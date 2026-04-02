@@ -21,11 +21,6 @@ variable "location" {
   default     = "eastus2"
 }
 
-variable "dominios" {
-  description = "Lista de dominios de negocio (una Function App por dominio)"
-  type        = list(string)
-  default     = ["calculo-horas", "depuracion", "programacion", "empleados"]
-}
 
 locals {
   prefix = "${var.project}-${var.environment}"
