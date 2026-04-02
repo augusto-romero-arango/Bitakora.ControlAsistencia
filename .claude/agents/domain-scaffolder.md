@@ -89,23 +89,37 @@ Una vez creado, lee el archivo `.csproj` generado para ver su contenido actual a
 
 Luego aplica los siguientes ajustes al `.csproj`:
 
-**1. Agregar el paquete de Service Bus** si no esta presente, dentro del primer `<ItemGroup>` de PackageReferences:
+**1. Remover los paquetes de ApplicationInsights** que `func init` agrega por defecto (los reemplazamos con OpenTelemetry):
+
+Elimina estas lineas del `.csproj`:
+```xml
+<PackageReference Include="Microsoft.ApplicationInsights.WorkerService" ... />
+<PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" ... />
+```
+
+**2. Agregar los paquetes de Marten, Wolverine y OpenTelemetry** dentro del `<ItemGroup>` de PackageReferences:
 
 ```xml
 <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.*" />
+<PackageReference Include="Cosmos.EventDriven.Abstractions" Version="0.0.8" />
+<PackageReference Include="Cosmos.EventDriven.CritterStack" Version="0.0.5" />
+<PackageReference Include="Cosmos.EventDriven.CritterStack.AzureServiceBus" Version="0.0.6" />
+<PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="0.0.12" />
+<PackageReference Include="Cosmos.EventSourcing.CritterStack" Version="0.1.9" />
+<PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
 ```
 
-**2. Agregar la referencia al proyecto Contracts:**
+**3. Agregar la referencia al proyecto Contracts:**
 
 ```xml
 <ProjectReference Include="..\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
 ```
 
-**3. Verificar que el `<RootNamespace>` sea correcto:**
+**4. Verificar que el `<RootNamespace>` sea correcto:**
 
 El `<RootNamespace>` debe ser `Bitakora.ControlAsistencia.{PascalCase}`. Si no existe el elemento, agregalo dentro del primer `<PropertyGroup>`. Si ya existe con otro valor, corrígelo.
 
-**4. Crear carpetas estructurales:**
+**5. Crear carpetas estructurales:**
 
 ```bash
 mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Functions"
@@ -115,7 +129,106 @@ touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Dominio/.gitkeep"
 touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Infraestructura/.gitkeep"
 ```
 
-**5. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
+**6. Reemplazar el `Program.cs`** generado por `func init` con el patron de Marten y Wolverine:
+
+```csharp
+using Cosmos.EventDriven.CritterStack;
+using Cosmos.EventDriven.CritterStack.AzureServiceBus;
+using Cosmos.EventSourcing.CritterStack;
+using Cosmos.EventSourcing.CritterStack.Commands;
+using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Trace;
+using Bitakora.ControlAsistencia.{PascalCase};
+
+var builder = FunctionsApplication.CreateBuilder(args);
+builder.ConfigureFunctionsWebApplication();
+
+var martenConnectionString = Environment.GetEnvironmentVariable("MartenConnectionString")!;
+var serviceBusConnectionString = Environment.GetEnvironmentVariable("SERVICE_BUS_CONNECTION")!;
+
+builder.Services.AgregarWolverineParaComandosServerless(
+    typeof(I{PascalCase}AssemblyMarker).Assembly,
+    martenConnectionString,
+    "{snake_case}",
+    builder.Environment.IsDevelopment(),
+    options =>
+    {
+        options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
+        // options.PublicarEventoServerless<MiEvento>("eventos-{kebab}");
+    });
+
+builder.Services.AgregarMartenEventStore();
+builder.Services.AgregarWolverineCommandRouter();
+builder.Services.AgregarWolverineEventSender();
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSource("Wolverine")
+        .AddSource("Marten")
+        .AddSource("Bitakora.ControlAsistencia.{PascalCase}.*"));
+
+await builder.Build().RunAsync();
+```
+
+**7. Crear la interface marker `I{PascalCase}AssemblyMarker.cs`** en la raiz del proyecto:
+
+```csharp
+namespace Bitakora.ControlAsistencia.{PascalCase};
+
+/// <summary>
+/// Marker interface para assembly scanning de Wolverine.
+/// </summary>
+public interface I{PascalCase}AssemblyMarker;
+```
+
+**8. Actualizar `host.json`** para agregar la configuracion de Service Bus. Lee el archivo generado por `func init` y agrega la seccion `extensions` al JSON:
+
+```json
+{
+    "version": "2.0",
+    "logging": {
+        "applicationInsights": {
+            "samplingSettings": {
+                "isEnabled": true,
+                "excludedTypes": "Request"
+            },
+            "enableLiveMetricsFilters": true
+        }
+    },
+    "extensions": {
+        "serviceBus": {
+            "autoCompleteMessages": false,
+            "maxAutoLockRenewalDuration": "00:05:00",
+            "maxConcurrentCalls": 1,
+            "maxConcurrentSessions": 16,
+            "prefetchCount": 10,
+            "sessionIdleTimeout": "00:00:01"
+        }
+    }
+}
+```
+
+**9. Actualizar `local.settings.json`** para incluir `MartenConnectionString` para desarrollo local. Lee el archivo y agrega la clave dentro de `Values`:
+
+```json
+"MartenConnectionString": "Host=localhost;Database=controlasistencias;Username=postgres;Password=postgres"
+```
+
+**10. Verificar que Contracts tenga `Cosmos.EventDriven.Abstractions`:**
+
+Lee `src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj`. Si no tiene el paquete, agregalo:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="0.0.8" />
+</ItemGroup>
+```
+
+Si ya lo tiene, no hagas nada.
+
+**11. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
 
 ```csharp
 using Microsoft.Azure.Functions.Worker;
@@ -228,12 +341,16 @@ module "function_app_{snake_case}" {
   app_settings = {
     SERVICE_BUS_CONNECTION = module.service_bus.default_primary_connection_string
     DOMINIO                = "{kebab}"
+    MartenConnectionString = "Host=${module.postgresql.server_fqdn};Database=${module.postgresql.database_name};Username=pgadmin;Password=${var.postgresql_admin_password};SSL Mode=Require"
   }
   tags = local.tags
 }
 ```
 
 Donde `{kebab-sin-guiones}` es el nombre del dominio con los guiones eliminados (ej: `calculo-horas` -> `calculohoras`).
+
+> **Nota**: el bloque hace referencia a `module.postgresql` que debe existir en la infraestructura base. Si el modulo PostgreSQL no esta presente en `main.tf`, agrega la siguiente advertencia al usuario antes de hacer commit:
+> "Recuerda que el modulo `postgresql` debe estar en la infraestructura base antes de ejecutar `terraform apply`."
 
 ---
 

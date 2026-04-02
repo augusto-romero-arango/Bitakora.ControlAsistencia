@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="0.0.8" />
+  </ItemGroup>
+
 </Project>
