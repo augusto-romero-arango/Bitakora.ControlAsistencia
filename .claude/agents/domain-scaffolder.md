@@ -105,16 +105,38 @@ Luego aplica los siguientes ajustes al `.csproj`:
 
 El `<RootNamespace>` debe ser `Bitakora.ControlAsistencia.{PascalCase}`. Si no existe el elemento, agregalo dentro del primer `<PropertyGroup>`. Si ya existe con otro valor, corrígelo.
 
-**4. Crear carpetas estructurales con `.gitkeep`:**
+**4. Crear carpetas estructurales:**
 
 ```bash
 mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Functions"
 mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Dominio"
 mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Infraestructura"
-touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Functions/.gitkeep"
 touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Dominio/.gitkeep"
 touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Infraestructura/.gitkeep"
 ```
+
+**5. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
+
+```csharp
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+
+namespace Bitakora.ControlAsistencia.{PascalCase}.Functions;
+
+public class HealthCheck
+{
+    [Function("health")]
+    public HttpResponseData Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")] HttpRequestData req)
+    {
+        var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
+        response.WriteString("OK");
+        return response;
+    }
+}
+```
+
+Este archivo garantiza que la Function App siempre tenga al menos un trigger y que el deploy no falle con "malformed content".
 
 ---
 
