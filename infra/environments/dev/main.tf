@@ -23,6 +23,17 @@ module "monitoring" {
   tags                = local.tags
 }
 
+module "postgresql" {
+  source                 = "../../modules/postgresql"
+  name                   = "psql-${local.prefix}"
+  resource_group_name    = module.resource_group.name
+  location               = module.resource_group.location
+  administrator_login    = "pgadmin"
+  administrator_password = var.postgresql_admin_password
+  database_name          = "controlasistencias"
+  tags                   = local.tags
+}
+
 module "service_bus" {
   source              = "../../modules/service-bus"
   name                = "sb-${local.prefix}"
@@ -64,6 +75,7 @@ module "function_app_programacion" {
   app_settings = {
     SERVICE_BUS_CONNECTION = module.service_bus.default_primary_connection_string
     DOMINIO                = "programacion"
+    MartenConnectionString = "Host=${module.postgresql.server_fqdn};Database=${module.postgresql.database_name};Username=pgadmin;Password=${var.postgresql_admin_password};SSL Mode=Require"
   }
   tags = local.tags
 }

@@ -21,6 +21,11 @@ variable "location" {
   default     = "eastus2"
 }
 
+variable "postgresql_admin_password" {
+  description = "Contrasena del administrador de PostgreSQL"
+  type        = string
+  sensitive   = true
+}
 
 locals {
   prefix      = "${var.project}-${var.environment}"
