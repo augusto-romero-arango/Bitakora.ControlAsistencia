@@ -7,6 +7,10 @@ on:
     paths:
       - 'infra/**'
 
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -34,8 +38,8 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infra/environments/dev
-        run: terraform plan -no-color
+        run: terraform plan -no-color -lock-timeout=5m
 
       - name: Terraform Apply
         working-directory: infra/environments/dev
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -lock-timeout=5m
