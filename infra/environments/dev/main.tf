@@ -27,7 +27,7 @@ module "postgresql" {
   source                 = "../../modules/postgresql"
   name                   = "psql-${local.prefix}"
   resource_group_name    = module.resource_group.name
-  location               = module.resource_group.location
+  location               = "centralus" # eastus2 restringida para PostgreSQL Flexible Server
   administrator_login    = "pgadmin"
   administrator_password = var.postgresql_admin_password
   database_name          = "controlasistencias"
