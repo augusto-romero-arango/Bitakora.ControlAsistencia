@@ -74,10 +74,10 @@ con comportamiento predecible y constantes estaticas para valores de retorno.
 
 ### Familia de agentes separada
 
-Los agentes de codificacion para event sourcing (`es-test-writer`, y futuros `es-implementer`,
-`es-reviewer`) son una familia independiente de los agentes existentes (`test-writer`,
-`implementer`, `reviewer`). Los agentes existentes no se modifican. Esto permite que ambas
-familias evolucionen sin interferencia.
+Los agentes de codificacion para event sourcing (`es-test-writer`, `es-implementer` y
+`es-reviewer`) son una familia completamente independiente. Cada agente ES es autosuficiente
+y no depende de los agentes del pipeline clasico. Esto permite que la familia ES evolucione
+sin interferencia y sin acoplamientos implicitos.
 
 ### Stack de dependencias
 

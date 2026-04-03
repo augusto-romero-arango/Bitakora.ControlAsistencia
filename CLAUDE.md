@@ -123,6 +123,7 @@ Los siguientes agentes son invocados por el script — no los uses directamente:
 | `reviewer` | Refactoriza y verifica cobertura | TDD - Refactor |
 | `es-test-writer` | Escribe tests ES + stubs de compilación | ES TDD - Roja |
 | `es-implementer` | Implementa lógica ES para pasar los tests | ES TDD - Verde |
+| `es-reviewer` | Revisa patrones ES, refactoriza y verifica cobertura | ES TDD - Refactor |
 | `infra-writer` | Escribe HCL y valida con terraform validate | IaC - Write |
 | `infra-reviewer` | Revisa seguridad y ejecuta terraform plan | IaC - Review |
 | `infra-applier` | Aplica el plan pre-generado | IaC - Apply |
