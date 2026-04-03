@@ -25,7 +25,7 @@ module "monitoring" {
 
 module "postgresql" {
   source                 = "../../modules/postgresql"
-  name                   = "psql-${local.prefix}"
+  name                   = "psql-${local.prefix_short}"
   resource_group_name    = module.resource_group.name
   location               = "centralus" # eastus2 restringida para PostgreSQL Flexible Server
   administrator_login    = "pgadmin"
@@ -64,7 +64,7 @@ module "storage_programacion" {
 
 module "function_app_programacion" {
   source                            = "../../modules/function-app"
-  name                              = "func-${local.prefix_func}-programacion"
+  name                              = "func-${local.prefix_short}-programacion"
   resource_group_name               = module.resource_group.name
   location                          = module.resource_group.location
   service_plan_id                   = module.service_plan.id

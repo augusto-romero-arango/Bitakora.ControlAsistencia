@@ -21,6 +21,12 @@ variable "location" {
   default     = "eastus2"
 }
 
+variable "project_short" {
+  description = "Nombre corto del proyecto para recursos con limite de caracteres"
+  type        = string
+  default     = "asist"
+}
+
 variable "postgresql_admin_password" {
   description = "Contrasena del administrador de PostgreSQL"
   type        = string
@@ -29,7 +35,7 @@ variable "postgresql_admin_password" {
 
 locals {
   prefix      = "${var.project}-${var.environment}"
-  prefix_func = "asist-${var.environment}"
+  prefix_short = "${var.project_short}-${var.environment}"
 
   tags = {
     proyecto   = var.project
