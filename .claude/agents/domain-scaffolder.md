@@ -210,10 +210,19 @@ public interface I{PascalCase}AssemblyMarker;
 {
     "version": "2.0",
     "logging": {
+        "logLevel": {
+            "default": "Warning",
+            "Function": "Information",
+            "Host.Results": "Information",
+            "Host.Aggregator": "Information",
+            "Marten": "Warning",
+            "Wolverine": "Warning"
+        },
         "applicationInsights": {
             "samplingSettings": {
                 "isEnabled": true,
-                "excludedTypes": "Request"
+                "maxTelemetryItemsPerSecond": 5,
+                "excludedTypes": "Request;Event"
             },
             "enableLiveMetricsFilters": true
         }
