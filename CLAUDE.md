@@ -26,17 +26,31 @@ dotnet test --filter "NombreTest"                                 # correr una p
 ## Flujo de trabajo
 
 ```
-planner → crea issue → tdd-pipeline.sh → PR listo
+/draft "idea"  →  estado:borrador
+planner modo 7 →  refina → estado:listo
+dev-workflow   →  pipeline TDD → PR → cierra issue
 ```
 
-1. Usa el agente `planner` para explorar ideas y crear el issue en GitHub
-2. Ejecuta el pipeline TDD pasándole el número de issue
+1. Captura ideas rápidas con `/draft [idea]` — crea un issue borrador sin fricción
+2. Usa el agente `planner` para refinar borradores (modo 7) o crear issues completos directamente
+3. Ejecuta el pipeline TDD pasándole el número de issue (`estado:listo`)
+
+### Gestión de issues
+
+- **Titles**: `[verbo infinitivo] [qué cosa]` — sin prefijos (EMP001, feat:, HU-)
+- **Labels obligatorios**: `tipo:X` + `dom:X` + `estado:listo` (el planner los asigna)
+- **Task Graph**: issues `epic` con task lists → sub-issues con sección "Dependencias"
+- **Bloqueados**: label `bloqueado` en issues que dependen de otro no cerrado
+- **Nuevos dominios**: al crear con `domain-scaffolder`, agregar `dom:X` con `gh label create`
+
+Setup inicial de labels: `./scripts/setup-github-labels.sh`
 
 ## Herramientas disponibles
 
 | Herramienta | Cuándo usarla | Comando |
 |---|---|---|
-| `planner` | Pensar, explorar ideas, crear issues | `claude --agent planner` |
+| `/draft` | Capturar una idea rápida como borrador | `/draft [idea en lenguaje natural]` |
+| `planner` | Pensar, explorar ideas, crear issues, refinar borradores | `claude --agent planner` |
 | `dev-workflow` | Implementar una tarea (ciclo completo) | `claude --agent dev-workflow` |
 | `batch-workflow` | Implementar múltiples issues secuencialmente (con merge) | `claude --agent batch-workflow` |
 | `parallel-workflow` | Implementar múltiples issues en paralelo (sin merge) | `claude --agent parallel-workflow` |

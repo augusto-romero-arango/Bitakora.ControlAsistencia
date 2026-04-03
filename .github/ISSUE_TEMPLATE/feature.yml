@@ -1,0 +1,85 @@
+name: Feature de dominio
+description: Funcionalidad nueva para un dominio del sistema. Listo para el pipeline TDD.
+labels: ["tipo:feature", "estado:listo"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Para capturar ideas sin refinar usa `/draft` en Claude Code — este template es para issues listos para el pipeline TDD.
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Por que existe esta tarea — el problema o la necesidad que resuelve
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependencias
+      description: "Issues de los que depende o que bloquea. Formato: 'Depende de #XX (razon)'"
+      value: "Ninguna — se puede implementar de forma independiente"
+    validations:
+      required: true
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripcion
+      description: Que se espera que se haga
+    validations:
+      required: true
+
+  - type: textarea
+    id: modelo-eventos
+    attributes:
+      label: Modelo de eventos
+      description: "Comando, aggregate, eventos de exito/fallo, y consumidores. Omitir si no involucra comportamiento de dominio (refactor, tooling)."
+      value: |
+        - **Comando**: `NombreComando` (trigger: HTTP | ServiceBus)
+          - Payload: `Campo1 (tipo)`, `Campo2 (tipo)`
+        - **Aggregate**: `NombreAggregateRoot`
+          - Estado que cambia: `Propiedad1`, `Propiedad2`
+        - **Eventos de exito**: `EventoExitoso` - campos del evento
+        - **Eventos de fallo**: `EventoFallido` - condicion que lo causa
+        - **Consumidores**: Ninguno (evento interno) | dominio X via topic `eventos-dominio`
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptacion
+      description: "Usa IDs para trazabilidad con los tests: CA-1, CA-2, etc."
+      value: |
+        - [ ] CA-1:
+        - [ ] CA-2:
+    validations:
+      required: true
+
+  - type: textarea
+    id: notas-tecnicas
+    attributes:
+      label: Notas tecnicas
+      description: Referencias al codigo existente, archivos relevantes, consideraciones de implementacion
+
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Impacto en archivos
+      value: |
+        - **Modifica**:
+        - **Crea**:
+        - **Lee**:
+
+  - type: dropdown
+    id: dominio
+    attributes:
+      label: Dominio
+      options:
+        - programacion
+        - contracts
+        - asistencia
+        - otro
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Captura rapida de ideas (borrador)
+    about: Usa /draft en Claude Code para registrar una idea sin friccion. Se crea como borrador y se refina despues con el planner.
+    url: https://github.com/augusto-romero-arango/Bitakora.ControlAsistencia/issues/new/choose

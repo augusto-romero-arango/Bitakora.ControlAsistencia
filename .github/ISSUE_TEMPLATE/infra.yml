@@ -1,0 +1,63 @@
+name: Infraestructura Azure
+description: Crear o modificar recursos Azure con Terraform. Listo para el pipeline IaC.
+labels: ["tipo:infra", "estado:listo"]
+body:
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Por que se necesita este recurso Azure
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependencias
+      description: "Issues de los que depende o que bloquea"
+      value: "Ninguna"
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripcion
+      description: Que recurso(s) exactos crear o modificar
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptacion
+      value: |
+        - [ ] CA-1: terraform validate pasa sin errores
+        - [ ] CA-2: terraform plan no contiene destrucciones inesperadas
+        - [ ] CA-3: terraform apply exitoso
+        - [ ] CA-4: Recurso verificable con az CLI
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ambiente
+    attributes:
+      label: Ambiente
+      options:
+        - dev
+        - staging
+        - prod
+    validations:
+      required: true
+
+  - type: textarea
+    id: notas-tecnicas
+    attributes:
+      label: Notas tecnicas
+      description: Modulo a usar o crear, convenciones de nomenclatura, dependencias entre recursos
+
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Impacto en archivos
+      value: |
+        - **Modifica**:
+        - **Crea**:
