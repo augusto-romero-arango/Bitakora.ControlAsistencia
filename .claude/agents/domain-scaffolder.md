@@ -10,9 +10,9 @@ Eres el agente encargado de crear el scaffold completo para un nuevo dominio en 
 
 El usuario debe darte:
 - **Nombre del dominio** en kebab-case (obligatorio). Ejemplo: `marcaciones`, `calculo-horas`, `liquidacion-nomina`.
-- **Lista de dominios a los que se suscribe** (opcional). Ejemplo: `marcaciones, configuracion`.
 
 Si el usuario no especifica el nombre del dominio, pregunta antes de continuar:
+
 > "Dime el nombre del nuevo dominio en kebab-case (ej: `marcaciones`, `calculo-horas`)."
 
 ---
@@ -47,6 +47,7 @@ ls /ruta-del-proyecto/src/ | grep -i "{PascalCase}"
 ```
 
 Si el directorio `src/Bitakora.ControlAsistencia.{PascalCase}/` ya existe, informa al usuario:
+
 > "El proyecto `src/Bitakora.ControlAsistencia.{PascalCase}/` ya existe. Si quieres recrearlo, eliminalo primero."
 
 Y detente sin hacer nada mas.
@@ -97,7 +98,7 @@ Elimina estas lineas del `.csproj`:
 <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" ... />
 ```
 
-**2. Agregar los paquetes de Marten, Wolverine y OpenTelemetry** dentro del `<ItemGroup>` de PackageReferences:
+**2. Agregar los paquetes** dentro del `<ItemGroup>` de PackageReferences:
 
 ```xml
 <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.*" />
@@ -107,24 +108,9 @@ Elimina estas lineas del `.csproj`:
 <PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="0.0.12" />
 <PackageReference Include="Cosmos.EventSourcing.CritterStack" Version="0.1.9" />
 <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
-```
-
-**1b. Agregar FluentValidation** en el mismo `<ItemGroup>`:
-
-```xml
 <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
 ```
 
-**1c. Agregar los paquetes de event sourcing** en el mismo `<ItemGroup>`:
-
-```xml
-<PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="0.1.*" />
-<PackageReference Include="Cosmos.EventDriven.Abstractions" Version="0.1.*" />
-```
-
-Estos paquetes proveen `AggregateRoot`, `IEventStore`, `ICommandHandlerAsync`, `IPrivateEvent`, `IPublicEvent`, `IPrivateEventSender` y `IPublicEventSender` — los tipos base de todos los dominios ES.
-
-**2. Agregar la referencia al proyecto Contracts:**
 **3. Agregar la referencia al proyecto Contracts:**
 
 ```xml
@@ -149,19 +135,23 @@ La estructura de carpetas sigue el estilo de vertical slicing:
 - `Infraestructura/` — RequestValidator, assembly marker y otros servicios transversales
 - `Functions/` — solo el HealthCheck inicial; los features del dominio viven en sus propios directorios al nivel raiz del proyecto
 
-**5. Crear el assembly marker en `I{PascalCase}AssemblyMarker.cs`:**
-**6. Reemplazar el `Program.cs`** generado por `func init` con el patron de Marten y Wolverine:
+**6. Reemplazar el `Program.cs`** generado por `func init`:
+
+Lee el Program.cs generado para ver su contenido actual, luego reemplazalo completo con:
 
 ```csharp
+using System.Text.Json;
+using Bitakora.ControlAsistencia.{PascalCase};
+using Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
 using Cosmos.EventSourcing.CritterStack.Commands;
+using FluentValidation;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Trace;
-using Bitakora.ControlAsistencia.{PascalCase};
 
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
@@ -177,7 +167,6 @@ builder.Services.AgregarWolverineParaComandosServerless(
     options =>
     {
         options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
-        // options.PublicarEventoServerless<MiEvento>("eventos-{kebab}");
     });
 
 builder.Services.AgregarMartenEventStore();
@@ -190,10 +179,21 @@ builder.Services.AddOpenTelemetry()
         .AddSource("Marten")
         .AddSource("Bitakora.ControlAsistencia.{PascalCase}.*"));
 
+// Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
+builder.Services.Configure<JsonSerializerOptions>(options =>
+{
+    options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.PropertyNameCaseInsensitive = true;
+});
+
+// Validacion de requests
+builder.Services.AddScoped<IRequestValidator, RequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<I{PascalCase}AssemblyMarker>();
+
 await builder.Build().RunAsync();
 ```
 
-**7. Crear la interface marker `I{PascalCase}AssemblyMarker.cs`** en la raiz del proyecto:
+**7. Crear la interface marker `I{PascalCase}AssemblyMarker.cs`** en la raiz del proyecto (marker para assembly scanning de Wolverine y FluentValidation):
 
 ```csharp
 namespace Bitakora.ControlAsistencia.{PascalCase};
@@ -249,15 +249,7 @@ Lee `src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contrac
 
 Si ya lo tiene, no hagas nada.
 
-**11. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
-
-```csharp
-namespace Bitakora.ControlAsistencia.{PascalCase};
-
-public interface I{PascalCase}AssemblyMarker;
-```
-
-**6. Crear el RequestValidator en `Infraestructura/RequestValidator.cs`:**
+**11. Crear el RequestValidator en `Infraestructura/RequestValidator.cs`:**
 
 ```csharp
 using System.Text.Json;
@@ -307,7 +299,7 @@ public class RequestValidator(IServiceProvider serviceProvider) : IRequestValida
 }
 ```
 
-**7. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
+**12. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
 
 ```csharp
 using Microsoft.AspNetCore.Http;
@@ -326,42 +318,6 @@ public class HealthCheck
 ```
 
 Este archivo garantiza que la Function App siempre tenga al menos un trigger y que el deploy no falle con "malformed content".
-
-**8. Modificar el `Program.cs` generado por `func init`:**
-
-Lee el Program.cs generado para ver su contenido actual, luego reemplazalo completo con:
-
-```csharp
-using System.Text.Json;
-using Bitakora.ControlAsistencia.{PascalCase};
-using Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
-using FluentValidation;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-
-var builder = FunctionsApplication.CreateBuilder(args);
-
-builder.ConfigureFunctionsWebApplication();
-
-builder.Services
-    .AddApplicationInsightsTelemetryWorkerService()
-    .ConfigureFunctionsApplicationInsights();
-
-// Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
-builder.Services.Configure<JsonSerializerOptions>(options =>
-{
-    options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    options.PropertyNameCaseInsensitive = true;
-});
-
-// Validacion de requests
-builder.Services.AddScoped<IRequestValidator, RequestValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<I{PascalCase}AssemblyMarker>();
-
-builder.Build().Run();
-```
 
 ---
 
