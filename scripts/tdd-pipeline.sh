@@ -109,9 +109,10 @@ ISSUE_NUM=""
 INPUT_FILE=""
 FROM_STAGE=1        # Por defecto, empezar desde Stage 1
 STATUS_FILENAME="status.json"  # Nombre del archivo de status (parametrizable para paralelismo)
+SCAFFOLD_DOMAIN=""  # Nombre del dominio a scaffoldear antes de Stage 1 (kebab-case)
 
 if [ $# -eq 0 ]; then
-    echo "Uso: $0 [--issue NUM | --file PATH | NUM] [--from-stage N] [--status-file NOMBRE]"
+    echo "Uso: $0 [--issue NUM | --file PATH | NUM] [--from-stage N] [--status-file NOMBRE] [--scaffold-domain KEBAB]"
     exit 1
 fi
 
@@ -137,6 +138,11 @@ while [[ $# -gt 0 ]]; do
         --status-file)
             [ $# -lt 2 ] && abort "Falta el nombre del archivo de status"
             STATUS_FILENAME="$2"
+            shift 2
+            ;;
+        --scaffold-domain)
+            [ $# -lt 2 ] && abort "Falta el nombre del dominio para --scaffold-domain"
+            SCAFFOLD_DOMAIN="$2"
             shift 2
             ;;
         [0-9]*)
@@ -274,6 +280,56 @@ else
 
     SNAPSHOT_COMMIT=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
     log "Snapshot: $SNAPSHOT_COMMIT"
+
+    # --- Stage 0: Scaffold de dominio nuevo (solo en modo normal, no en --from-stage) ---
+    if [ -n "$SCAFFOLD_DOMAIN" ]; then
+        header "Stage 0: Scaffold del dominio '$SCAFFOLD_DOMAIN'"
+        update_status "scaffold" "running"
+
+        local log_scaffold="$LOG_DIR_ABS/stage-0-scaffold-${TIMESTAMP}.log"
+        local scaffold_start
+        scaffold_start=$(date +%s)
+        echo "[$(date +%H:%M:%S)] === STAGE 0: domain-scaffolder ===" >> "$EVENTS_LOG_ABS"
+
+        SCAFFOLD_PROMPT="Crea el scaffold para el dominio '$SCAFFOLD_DOMAIN'. El usuario ya confirmo la creacion — omite la confirmacion del Paso 0 y procede directamente a crear el proyecto."
+
+        local SCAFFOLD_TIMEOUT=1800
+        (cd "$WORKTREE_PATH" && claude -p "$SCAFFOLD_PROMPT" \
+            --agent domain-scaffolder \
+            --permission-mode bypassPermissions \
+            --output-format text \
+            >"$log_scaffold" 2>&1) &
+        local SCAFFOLD_PID=$!
+        (sleep $SCAFFOLD_TIMEOUT && kill -9 $SCAFFOLD_PID 2>/dev/null && \
+            echo "[$(date +%H:%M:%S)] TIMEOUT: domain-scaffolder supero ${SCAFFOLD_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
+        local SCAFFOLD_WATCHDOG=$!
+
+        local SCAFFOLD_EXIT=0
+        wait $SCAFFOLD_PID || SCAFFOLD_EXIT=$?
+        kill $SCAFFOLD_WATCHDOG 2>/dev/null || true
+        wait $SCAFFOLD_WATCHDOG 2>/dev/null || true
+        local scaffold_elapsed=$(( $(date +%s) - scaffold_start ))
+
+        if [ "$SCAFFOLD_EXIT" -ne 0 ]; then
+            echo "[$(date +%H:%M:%S)] FALLO domain-scaffolder (${scaffold_elapsed}s, exit $SCAFFOLD_EXIT)" >> "$EVENTS_LOG_ABS"
+            abort "El scaffold del dominio '$SCAFFOLD_DOMAIN' fallo despues de ${scaffold_elapsed}s. Revisa: $log_scaffold"
+        fi
+
+        # Verificar que el proyecto fue creado
+        local PASCAL_CASE
+        PASCAL_CASE=$(echo "$SCAFFOLD_DOMAIN" | awk -F'-' '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1' OFS='')
+        if [ ! -d "$WORKTREE_PATH/src/Bitakora.ControlAsistencia.$PASCAL_CASE" ]; then
+            abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE — revisa: $log_scaffold"
+        fi
+
+        echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${scaffold_elapsed}s)" >> "$EVENTS_LOG_ABS"
+        success "Scaffold del dominio '$SCAFFOLD_DOMAIN' completado en ${scaffold_elapsed}s"
+        update_status "scaffold" "completed"
+
+        # Actualizar snapshot: los diffs de Stage 1-3 solo muestran la implementacion, no el scaffold
+        SNAPSHOT_COMMIT=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
+        log "Snapshot actualizado post-scaffold: $SNAPSHOT_COMMIT"
+    fi
 fi
 
 # Detectar señal de refactoring pre-existente (worktree previo con --from-stage)

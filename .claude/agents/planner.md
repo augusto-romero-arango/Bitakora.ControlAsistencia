@@ -100,7 +100,7 @@ Tu rol:
 
 No necesitas responder todas en una sola iteración. La conversación puede tomar varias vueltas. El objetivo es que al final puedas llenar la sección "Modelo de eventos" del issue.
 
-Cuando la idea esté clara, ofrece convertirla en issue(s).
+Cuando la idea esté clara, ofrece convertirla en issue(s). Al crear el issue, aplica el Definition of Ready de la sección correspondiente: si cumple todos los criterios para su tipo, crea como `estado:listo` usando el template completo; si falta informacion (ej: no se llego a definir el modelo de eventos), crea como `estado:borrador` y sugiere pasar por el modo `refinar`.
 
 ### desglosar
 El usuario tiene una feature clara pero es demasiado grande para un solo PR.
@@ -115,9 +115,9 @@ Tu rol:
 - Cada sub-issue debe llevar su propia sección "Modelo de eventos"
 
 Al crear los issues del desglose, sigue este orden:
-1. Crea primero los issues hijos con su template completo (incluyendo sección Dependencias)
+1. Crea primero los issues hijos como **`estado:borrador`** (no como `estado:listo`) con cuerpo enriquecido que incluya: Contexto, Modelo de eventos (sketch del desglose), Dependencias entre sub-issues. No es necesario que tengan CAs detallados ni notas tecnicas completas — cada sub-issue se refinara individualmente antes de ir a desarrollo.
 2. Anota los números asignados
-3. Crea el issue `epic` padre con la task list completa referenciando los números reales:
+3. Crea el issue `epic` padre como `estado:listo` con la task list completa referenciando los números reales:
    ```
    ## Task Graph
    - [ ] #N1 Titulo del primer sub-issue
@@ -253,7 +253,13 @@ Tu rol:
    ISSUEEOF
    )"
    ```
-6. Cambia el estado a listo:
+6. Verifica el Definition of Ready antes de marcar como listo:
+
+   Lee `docs/adr/0014-definition-of-ready.md`, determina el tipo del issue, y verifica cada criterio obligatorio y critico de la tabla DoR correspondiente.
+
+   Si el issue no cumple el DoR, completa las secciones faltantes con la informacion de la sesion antes de cambiar a `estado:listo`. Si falta informacion que solo el usuario puede dar, pregunta antes de asumir.
+
+   Una vez satisfecho el DoR, cambia el estado:
    ```bash
    gh issue edit <num> \
      --remove-label "estado:borrador" \
@@ -300,6 +306,14 @@ Tu rol:
 6. Si descartar un hijo deja al `epic` sin sentido, sugiere cerrar el epic también.
 
 **Nunca elimines issues** (`gh issue delete`). Cerrar con "not planned" preserva el historial y es reversible. La eliminación solo aplica para spam o issues creados por error accidental.
+
+---
+
+## Definition of Ready
+
+Lee y aplica los criterios de `docs/adr/0014-definition-of-ready.md`. Ese documento define la tabla DoR por tipo de issue y es la fuente unica de verdad compartida con el skill `/implement`.
+
+**Regla clave**: un issue solo puede pasar a `estado:listo` si cumple todos los criterios obligatorios y criticos de su tipo segun el ADR-0014.
 
 ---
 

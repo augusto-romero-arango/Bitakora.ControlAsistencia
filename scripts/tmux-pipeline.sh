@@ -103,6 +103,7 @@ cmd_attach() {
 # --- Modo SINGLE (un issue) ---
 cmd_single() {
     local issue="$1"
+    local extra_args="${2:-}"
     local session
     session=$(safe_session_name "tdd-$issue")
 
@@ -123,7 +124,7 @@ cmd_single() {
 
     # Crear ventana pipeline
     tmux new-window -t "$session" -n "pipeline" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:pipeline" "./scripts/tdd-pipeline.sh $issue" Enter
+    tmux send-keys -t "$session:pipeline" "./scripts/tdd-pipeline.sh $issue $extra_args" Enter
 
     success "Pipeline iniciado para issue #$issue"
     print_connect_hint "$session"
@@ -251,6 +252,25 @@ main() {
         exit 0
     fi
 
+    # Pre-parsear --scaffold-domain antes del dispatch de modo,
+    # para que no interfiera con la deteccion de multiples issues
+    local scaffold_extra=""
+    local filtered_args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scaffold-domain)
+                [ $# -lt 2 ] && abort "Falta el nombre del dominio para --scaffold-domain"
+                scaffold_extra="--scaffold-domain $2"
+                shift 2
+                ;;
+            *)
+                filtered_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    set -- "${filtered_args[@]}"
+
     case "$1" in
         --help|-h)
             cmd_help
@@ -279,7 +299,7 @@ main() {
                 warn "Multiples issues sin modo especificado. Usando --parallel."
                 cmd_parallel "$@"
             else
-                cmd_single "$1"
+                cmd_single "$1" "$scaffold_extra"
             fi
             ;;
         *)
