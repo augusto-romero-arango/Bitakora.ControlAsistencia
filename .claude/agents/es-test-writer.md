@@ -195,7 +195,7 @@ Leer los tipos del dominio en `src/`:
              new EmpleadoAsignado(GuidAggregateId, EmpleadoId));
        await WhenAsync(new AsignarEmpleadoATurno(GuidAggregateId, EmpleadoId));
        Then(new AsignacionEmpleadoFallida(GuidAggregateId, EmpleadoId,
-           "El empleado ya esta asignado a este turno"));
+           TurnoAggregateRoot.Mensajes.EmpleadoYaAsignado));
        And<TurnoAggregateRoot, int>(t => t.EmpleadosAsignados.Count, 1); // estado NO cambio
    }
    ```
@@ -208,7 +208,7 @@ Leer los tipos del dominio en `src/`:
        var act = async () => await WhenAsync(
            new AsignarEmpleadoATurno(GuidAggregateId, EmpleadoId));
        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-           .WithMessage("*no encontrado*");
+           .WithMessage($"*{AsignarEmpleadoATurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");
    }
    ```
 5. **Aggregate ya existente** (obligatorio cuando el comando crea un stream nuevo): el handler lanza excepcion si el stream ya existe.
@@ -220,7 +220,7 @@ Leer los tipos del dominio en `src/`:
        var act = async () => await WhenAsync(
            new CrearTurno(GuidAggregateId, "Turno Manana", ...));
        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-           .WithMessage("*ya existe*");
+           .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.TurnoYaExiste}*");
    }
    ```
 
@@ -311,7 +311,7 @@ public record MarcacionRegistrada(Guid EmpleadoId, DateTimeOffset FechaHora, Tip
 
 **Aggregate root** (hereda de `AggregateRoot`, propiedades stub):
 ```csharp
-public class MarcacionAggregateRoot : AggregateRoot
+public partial class MarcacionAggregateRoot : AggregateRoot
 {
     public EstadoMarcacion Estado { get; private set; }
 
@@ -321,7 +321,7 @@ public class MarcacionAggregateRoot : AggregateRoot
 
 **Command handler** (implementa la interfaz correcta, metodo stub):
 ```csharp
-public class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<RegistrarMarcacion>
+public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<RegistrarMarcacion>
 {
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateSender;
@@ -342,6 +342,88 @@ public class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<RegistrarMa
 - El aggregate root debe tener las propiedades que los tests verifican con `And<>()`, aunque sean stub
 - Los metodos `Apply(TEvento)` del aggregate root deben existir pero pueden lanzar `NotImplementedException`
 - Coloca tipos en los archivos y namespaces correctos segun la estructura existente del dominio
+
+### 6b. Crear mensajes (.resx + clase Mensajes)
+
+Cuando un test necesita verificar un mensaje de error (evento de fallo del aggregate o excepcion del handler), debes crear la infraestructura de mensajes **antes de escribir el test**.
+
+**Paso 1 - Determinar a quien pertenece el mensaje:**
+- Reglas de negocio que emiten eventos de fallo → aggregate
+- Precondiciones del handler (aggregate no encontrado, ya existe) → handler
+
+**Paso 2 - Crear el archivo .resx** junto al aggregate o handler correspondiente:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="EmpleadoYaAsignado" xml:space="preserve">
+    <value>El empleado ya esta asignado a este turno</value>
+  </data>
+</root>
+```
+
+Convencion de nombrado:
+- Para aggregate: `{Aggregate}Mensajes.resx` en la misma carpeta que el aggregate. Ej: `TurnoAggregateRootMensajes.resx`
+- Para handler: `{Handler}Mensajes.resx` en la misma carpeta que el handler. Ej: `CrearTurnoCommandHandlerMensajes.resx`
+
+**Paso 3 - Crear la partial class `{Clase}.Mensajes.cs`** en la misma carpeta:
+
+```csharp
+// TurnoAggregateRoot.Mensajes.cs
+using System.Resources;
+
+namespace Bitakora.ControlAsistencia.Programacion.Entities;
+
+public partial class TurnoAggregateRoot
+{
+    private static readonly ResourceManager ResourceManager = new(
+        "Bitakora.ControlAsistencia.Programacion.Entities.TurnoAggregateRootMensajes",
+        typeof(TurnoAggregateRoot).Assembly);
+
+    public static class Mensajes
+    {
+        public static string EmpleadoYaAsignado => ResourceManager.GetString(nameof(EmpleadoYaAsignado))!;
+    }
+}
+```
+
+El nombre logico del recurso sigue la convencion: `{RootNamespace}.{RelativePath.ConPuntosEnVezDeSlashes}.{NombreResx}`. Por ejemplo, si el .resx esta en `Entities/TurnoAggregateRootMensajes.resx` y el RootNamespace es `Bitakora.ControlAsistencia.Programacion`, el nombre logico es `Bitakora.ControlAsistencia.Programacion.Entities.TurnoAggregateRootMensajes`.
+
+**Paso 4 - Usar la constante en el test:**
+
+```csharp
+// Para eventos de fallo del aggregate - comparacion exacta
+Then(new AsignacionEmpleadoFallida(GuidAggregateId, EmpleadoId,
+    TurnoAggregateRoot.Mensajes.EmpleadoYaAsignado));
+
+// Para excepciones del handler - wildcards para absorber variaciones de formato
+await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+    .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.TurnoYaExiste}*");
+```
+
+**Nota**: el SDK de .NET incluye automaticamente los archivos .resx como EmbeddedResource. No se necesita configuracion adicional en el .csproj.
+
+---
 
 ### 7. Verificar que compila
 
@@ -403,3 +485,5 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-es-test-writer.md`:
 7. Incluye al menos un test de **idempotencia o error** por handler cuando aplique.
 8. Cada criterio de aceptacion debe tener al menos un test.
 9. **NUNCA** uses el caracter "─" (U+2500, box drawing) en comentarios ni en ningun texto dentro de archivos `.cs`. Usa siempre el guion ASCII "-" (U+002D).
+10. **NUNCA** uses strings literales para mensajes de error en tests. Siempre referencia `Clase.Mensajes.Clave`. Crea el .resx y la clase Mensajes antes de escribir el test que los necesite.
+11. Los **aggregate roots y command handlers SIEMPRE deben ser `partial class`** para soportar la clase Mensajes anidada en un archivo separado.

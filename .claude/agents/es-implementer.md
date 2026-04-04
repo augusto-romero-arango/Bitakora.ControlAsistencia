@@ -41,7 +41,7 @@ El AggregateRoot es el guardian de las reglas de negocio del dominio. Tiene cuat
 4. **Proyector de su propio estado**: los metodos `Apply(TEvent)` reconstruyen el estado al rehidratar
 
 ```csharp
-public class TurnoAggregateRoot : AggregateRoot
+public partial class TurnoAggregateRoot : AggregateRoot
 {
     public EstadoTurno Estado { get; private set; }
     public List<Guid> EmpleadosAsignados { get; private set; } = [];
@@ -63,7 +63,7 @@ public class TurnoAggregateRoot : AggregateRoot
         if (EmpleadosAsignados.Contains(empleadoId))
         {
             var fallo = new AsignacionEmpleadoFallida(
-                Guid.Parse(Id), empleadoId, "El empleado ya esta asignado a este turno");
+                Guid.Parse(Id), empleadoId, Mensajes.EmpleadoYaAsignado);
             _uncommittedEvents.Add(fallo);
             Apply(fallo);
             return;
@@ -109,7 +109,7 @@ El CommandHandler no contiene logica de negocio. Solo orquesta: verificar precon
 
 **Stream nuevo (Crear):**
 ```csharp
-public class CrearTurnoCommandHandler(IEventStore eventStore, IPrivateEventSender eventSender)
+public partial class CrearTurnoCommandHandler(IEventStore eventStore, IPrivateEventSender eventSender)
     : ICommandHandlerAsync<CrearTurno>
 {
     public async Task HandleAsync(CrearTurno comando, CancellationToken ct)
@@ -117,7 +117,7 @@ public class CrearTurnoCommandHandler(IEventStore eventStore, IPrivateEventSende
         var existe = await eventStore.ExistsAsync<TurnoAggregateRoot>(
             comando.TurnoId.ToString(), ct);
         if (existe)
-            throw new InvalidOperationException("Ya existe un turno con ese identificador");
+            throw new InvalidOperationException(Mensajes.TurnoYaExiste);
 
         var turno = TurnoAggregateRoot.Crear(
             comando.TurnoId, comando.Nombre, comando.HoraInicio, comando.HoraFin);
@@ -131,7 +131,7 @@ public class CrearTurnoCommandHandler(IEventStore eventStore, IPrivateEventSende
 
 **Stream existente (Modificar):**
 ```csharp
-public class AsignarEmpleadoATurnoCommandHandler(IEventStore eventStore, IPrivateEventSender eventSender)
+public partial class AsignarEmpleadoATurnoCommandHandler(IEventStore eventStore, IPrivateEventSender eventSender)
     : ICommandHandlerAsync<AsignarEmpleadoATurno>
 {
     public async Task HandleAsync(AsignarEmpleadoATurno comando, CancellationToken ct)
@@ -139,7 +139,7 @@ public class AsignarEmpleadoATurnoCommandHandler(IEventStore eventStore, IPrivat
         var turno = await eventStore.GetAggregateRootAsync<TurnoAggregateRoot>(
             comando.TurnoId, ct);
         if (turno is null)
-            throw new InvalidOperationException("Turno no encontrado");
+            throw new InvalidOperationException(Mensajes.TurnoNoEncontrado);
 
         turno.AsignarEmpleado(comando.EmpleadoId);
 
@@ -393,6 +393,8 @@ dotnet test --verbosity normal
 ```
 
 Itera hasta que todos los tests pasen. Lee los mensajes de error de AwesomeAssertions — son descriptivos.
+
+**Mensajes**: el es-test-writer ya creo los archivos .resx y las clases `{Clase}.Mensajes.cs` con las constantes necesarias. Usa `Mensajes.ClaveMensaje` en tu implementacion (dentro del aggregate: `Mensajes.X`, desde afuera: `TurnoAggregateRoot.Mensajes.X`). No modifiques los .resx ni las clases Mensajes a menos que el implementer necesite un mensaje adicional no previsto por el test-writer — en ese caso, agrega la entrada al .resx y la propiedad a la clase Mensajes siguiendo el mismo patron.
 
 ### 5. Verificar infraestructura (si aplica)
 

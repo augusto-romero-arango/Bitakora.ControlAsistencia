@@ -115,6 +115,12 @@ Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions
 - `Entities/` para AggregateRoots y eventos del dominio
 - `Infraestructura/` para servicios transversales
 
+#### Mensajes de error
+
+- **Sin strings hardcodeados en mensajes**: todos los mensajes de eventos de fallo del aggregate y excepciones de precondicion del handler deben venir de la clase `Mensajes` respaldada por .resx. Si encuentras un string literal en `_uncommittedEvents.Add(new EventoFallido(..., "mensaje"))` o en `throw new InvalidOperationException("mensaje")`, muevelo al .resx + clase Mensajes correspondiente.
+- **Aggregates y handlers son `partial class`**: necesario para que la clase Mensajes anidada exista en un archivo separado. Si encuentras `public class TurnoAggregateRoot` o `public class CrearTurnoCommandHandler`, corrigelo a `partial class`.
+- **El .resx esta co-localizado con la clase**: `TurnoAggregateRootMensajes.resx` debe estar en la misma carpeta que `TurnoAggregateRoot.cs`.
+
 ---
 
 ### 4. Revisar cobertura de la HU
@@ -227,6 +233,8 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-es-reviewer.md` con el sigui
 | Naming de funciones Azure | ok / falla | ... |
 | Infraestructura Service Bus verificada | ok / falla / n/a | ... |
 | Organizacion vertical (feature folders) | ok / falla | ... |
+| Sin strings hardcodeados en mensajes | ok / falla | ... |
+| Aggregates/handlers son partial class | ok / falla | ... |
 
 ### Elegancia del codigo
 - [Hallazgos sobre compacidad, legibilidad, idiomatismo, robustez, eficiencia o limpieza]

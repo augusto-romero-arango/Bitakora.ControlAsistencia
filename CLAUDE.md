@@ -68,6 +68,9 @@ Setup inicial de labels: `./scripts/setup-github-labels.sh`
 | `infra-workflow` | Implementar un cambio de infraestructura Azure | `claude --agent infra-workflow` |
 | `infra-bootstrap` | Bootstrap del backend Terraform + pipeline IaC (primer despliegue de un ambiente) | `claude --agent infra-bootstrap` |
 | `domain-scaffolder` | Crear un nuevo dominio completo (Function App + tests + Terraform + deploy workflow) | `claude --agent domain-scaffolder` |
+| `tmux-pipeline` (opcional) | Ver pipelines en tabs nativos de iTerm2 con persistencia de sesión | `./scripts/tmux-pipeline.sh [--batch\|--parallel] <issues>` |
+
+> Ver `docs/tmux-cheatsheet.md` para setup de entorno tmux con iTerm2.
 
 ## Pipeline TDD
 
