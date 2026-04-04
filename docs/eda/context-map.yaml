@@ -1,0 +1,107 @@
+# Mapa de contextos — Bitakora.ControlAsistencia
+#
+# Documenta los bounded contexts del sistema y sus relaciones.
+# Basado en ADR-0001 (Function App por dominio), ADR-0004 (topics Service Bus) y el lenguaje ubicuo.
+#
+# TIPOS DE RELACION (DDD Context Mapping):
+# - Upstream-Downstream: el upstream publica, el downstream consume y se adapta
+# - Customer-Supplier: el downstream (cliente) puede influir en el upstream (proveedor)
+# - Conformist: el downstream acepta el modelo del upstream tal cual (sin anticorruption layer)
+# - AntiCorruptionLayer: el downstream traduce el modelo del upstream a su propio lenguaje
+# - SharedKernel: ambos contextos comparten un subdominio comun (en nuestro caso: Contracts/)
+#
+# Nota: Los dominios del sistema estan en revision (ver open_questions en ubiquitous-language.yaml).
+# ADR-0001 menciona Marcaciones, Empleados, Liquidacion, Notificaciones.
+# El lenguaje ubicuo emergente sugiere: Programacion, Depuracion, CalculoHoras, Empleados.
+#
+# Ultima actualizacion: 2026-04-04 (seed inicial - arquitectura planificada)
+
+# -------------------------
+# SHARED KERNEL
+# -------------------------
+shared_kernel:
+  name: Contracts
+  location: src/Bitakora.ControlAsistencia.Contracts/
+  description: Value objects y tipos de eventos compartidos entre todos los dominios
+  contains:
+    - Turno
+    - DiaOperativo
+    - Marcacion
+    - DesgloseHoras
+
+# -------------------------
+# BOUNDED CONTEXTS
+# -------------------------
+contexts:
+  - name: Programacion
+    namespace: Bitakora.ControlAsistencia.Programacion
+    status: en-desarrollo
+    description: Gestiona turnos (definicion y asignacion a empleados). Ciclos y patrones semanales.
+    aggregates: [CatalogoTurnos, CatalogoCiclos]
+    actors_served: [Programador de turnos]
+    upstream_of: [Depuracion]
+    external_producers: []
+    note: "Actualmente es el unico dominio con scaffold. Contiene CatalogoTurnos y CatalogoCiclos segun el eda-modeler."
+
+  - name: Depuracion
+    namespace: Bitakora.ControlAsistencia.Depuracion
+    status: planificado
+    description: Transforma marcaciones crudas del sistema externo en dias operativos limpios con intervalos de presencia.
+    aggregates: [DiaOperativo]
+    actors_served: [Aprobador]
+    upstream_of: [CalculoHoras]
+    downstream_of: [Programacion]
+    external_producers: [Sistema de marcacion]
+    note: "Recibe marcaciones del sistema externo y el turno de Programacion. Produce DiaDepurado para CalculoHoras."
+
+  - name: CalculoHoras
+    namespace: Bitakora.ControlAsistencia.CalculoHoras
+    status: planificado
+    description: Calcula el desglose de horas segun legislacion laboral colombiana (la CalculadoraHoras ya existe como logica).
+    aggregates: []
+    actors_served: [Aprobador]
+    downstream_of: [Depuracion]
+    relationship_with_depuracion: Conformist
+    external_consumers: [Sistema de nomina]
+    note: "CalculadoraHoras ya existe en el codigo. Recibe DiaOperativo depurado y produce DesgloseHoras."
+
+  - name: Empleados
+    namespace: Bitakora.ControlAsistencia.Empleados
+    status: planificado
+    description: Gestiona el registro maestro de empleados.
+    aggregates: []
+    actors_served: [Programador de turnos, Aprobador]
+    upstream_of: [Programacion, Depuracion, CalculoHoras]
+    external_producers: [Sistema de empleados / RRHH]
+    open_questions:
+      - "Que datos del empleado necesitamos? Solo los que importan para el control de asistencia."
+
+# -------------------------
+# RELACIONES ENTRE CONTEXTOS
+# -------------------------
+relationships:
+  - from: Programacion
+    to: Depuracion
+    type: Customer-Supplier
+    description: "Depuracion (cliente) necesita el Turno de Programacion (proveedor) para poder depurar marcaciones"
+    mechanism: "El Turno viaja COMPLETO en el evento — nunca como ID. Principio: 'la verdad viaja en el evento'."
+    adr: ADR-0002
+
+  - from: Depuracion
+    to: CalculoHoras
+    type: Upstream-Downstream
+    description: "Cuando Depuracion produce un DiaOperativo limpio, CalculoHoras lo consume para discriminar horas"
+    mechanism: "Evento DiaDepurado publicado en Service Bus"
+    relationship_detail: Conformist
+
+  - from: Empleados
+    to: Programacion
+    type: Upstream-Downstream
+    description: "Programacion necesita saber que empleados existen para asignarles turnos"
+    mechanism: "Por definir"
+
+  - from: Empleados
+    to: Depuracion
+    type: Upstream-Downstream
+    description: "Depuracion necesita identificar a quien corresponde cada marcacion"
+    mechanism: "Por definir"

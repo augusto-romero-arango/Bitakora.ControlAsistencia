@@ -1,0 +1,98 @@
+# Aggregate: DiaOperativo
+# Contexto: Depuracion
+#
+# Representa un dia de trabajo de un empleado desde las marcaciones crudas
+# hasta los intervalos de presencia depurados, listos para el calculo de horas.
+#
+# Basado en: ADR-0006 (Event Sourcing con Marten), lenguaje ubicuo (2026-04-04)
+# Estado: planificado (sin implementacion)
+
+aggregate:
+  name: DiaOperativo
+  context: Depuracion
+  description: >
+    Un dia de trabajo de un empleado. Nace cuando llegan marcaciones del sistema externo,
+    pasa por depuracion automatica y puede requerir conciliacion manual antes de ser aprobado
+    para el calculo de horas.
+
+  # Estado que el aggregate mantiene en su event stream
+  state:
+    - field: EmpleadoId
+      type: Guid
+    - field: Fecha
+      type: DateOnly
+    - field: TurnoAsignado
+      type: Turno
+      note: "El turno viaja completo, no como ID. Principio central de la arquitectura."
+    - field: Marcaciones
+      type: List<Marcacion>
+    - field: IntervalosPresencia
+      type: List<IntervaloPresencia>
+    - field: Anomalias
+      type: List<Anomalia>
+    - field: EstadoDepuracion
+      type: enum
+      values: [Pendiente, DepuracionPendiente, Depurado, ConciliacionPendiente, Conciliado, Aprobado]
+
+  # Invariantes de negocio — reglas que NUNCA se pueden violar
+  # Estas son las precondiciones que el aggregate root debe verificar en sus handlers
+  invariants:
+    - "No se puede iniciar la depuracion sin turno asignado"
+    - "Las marcaciones deben estar ordenadas cronologicamente"
+    - "Un dia Aprobado no puede volver a depurarse ni conciliarse"
+    - "Solo el Aprobador puede conciliar anomalias"
+    - "La conciliacion solo aplica a dias con estado Depurado (que tienen anomalias)"
+
+  # Comandos que acepta y eventos que produce
+  commands:
+    - name: RegistrarMarcaciones
+      trigger: ServiceBus (desde Sistema de marcacion externo)
+      description: Registra las marcaciones crudas del dia
+      preconditions:
+        - "El dia no debe estar en estado Aprobado"
+      produces:
+        - name: MarcacionesRegistradas
+          description: Se emiten cuando llegan nuevas marcaciones
+      open_questions:
+        - "Las marcaciones llegan de una vez o pueden llegar incrementalmente durante el dia?"
+
+    - name: DepurarDia
+      trigger: Policy DepuracionAutomatica (despues de recibir marcaciones y turno)
+      description: Ejecuta la depuracion automatica cruzando marcaciones con el turno
+      preconditions:
+        - "El dia debe tener marcaciones registradas"
+        - "El turno debe estar asignado (TurnoAsignado no nulo)"
+      produces:
+        - name: DiaDepurado
+          description: La depuracion fue exitosa y hay intervalos de presencia
+        - name: AnomaliaDetectada
+          description: Se encontraron casos sospechosos o incompletos
+          note: "Puede coexistir con DiaDepurado si hay anomalias parciales"
+
+    - name: ConciliarAnomalia
+      trigger: HTTP (accion del Aprobador)
+      description: El Aprobador resuelve manualmente una anomalia
+      preconditions:
+        - "El dia debe tener al menos una anomalia sin resolver"
+        - "Solo puede ejecutarlo el Aprobador"
+      produces:
+        - name: AnomaliaConciliada
+          description: Una anomalia fue resuelta manualmente
+
+    - name: AprobarDia
+      trigger: HTTP (accion del Aprobador)
+      description: El Aprobador da el visto bueno y el dia queda listo para calculo de horas
+      preconditions:
+        - "El dia debe estar Depurado (sin anomalias pendientes)"
+        - "O haber pasado por Conciliacion si tenia anomalias"
+      produces:
+        - name: DiaAprobado
+          description: El dia esta listo para ser procesado por CalculoHoras
+
+  # Policies que reaccionan a eventos de este aggregate
+  # (reacciones automaticas en otros dominios)
+  downstream_policies:
+    - name: CalculoAlRecibirDiaAprobado
+      context: CalculoHoras
+      triggered_by: DiaAprobado
+      description: "Cuando un dia es aprobado, CalculoHoras inicia automaticamente el desglose"

@@ -1,0 +1,74 @@
+# Catalogo EDA — Bitakora.ControlAsistencia
+#
+# Fuente de verdad para eventos, comandos, policies y value objects del sistema.
+# Actualizado por el agente `eda-modeler` al modelar flujos y por `planner` al crear issues.
+# Validado por scripts/eda-lint.sh.
+#
+# REGLAS:
+# - Si un objeto ya existe aqui, reutilizalo con el mismo nombre y payload exacto
+# - No crear variantes (si existe TurnoAsignado, no crear TurnoFueAsignado)
+# - Eventos: PascalCase en pasado (MarcacionRegistrada, TurnoAsignado)
+# - Comandos: PascalCase imperativo (RegistrarMarcacion, AsignarTurno)
+# - Policies: PascalCase descriptivo (DepuracionAutomatica)
+#
+# Ultima actualizacion: 2026-04-04 (seed inicial - sin implementacion aun)
+
+events: []
+  # Ejemplo de estructura:
+  # - name: TurnoCreado
+  #   context: Programacion
+  #   description: Se emite cuando un nuevo turno es creado en el sistema
+  #   payload:
+  #     - field: TurnoId
+  #       type: Guid
+  #     - field: Nombre
+  #       type: string
+  #     - field: Franjas
+  #       type: List<Franja>
+  #   published_to: eventos-programacion
+  #   used_in: []
+
+commands: []
+  # Ejemplo de estructura:
+  # - name: CrearTurno
+  #   context: Programacion
+  #   description: Crea un nuevo turno con sus franjas
+  #   trigger: HTTP
+  #   payload:
+  #     - field: Nombre
+  #       type: string
+  #     - field: Franjas
+  #       type: List<Franja>
+  #   produces: [TurnoCreado]
+  #   used_in: []
+
+policies: []
+  # Ejemplo de estructura:
+  # - name: DepuracionAutomatica
+  #   context: Depuracion
+  #   description: "Cuando llegan marcaciones, si hay turno asignado, inicia depuracion automatica"
+  #   triggered_by: MarcacionesRegistradas
+  #   emits_command: DepurarDia
+  #   cross_context: false
+  #   used_in: []
+
+value_objects:
+  - name: Turno
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/Turno.cs
+    description: Bloque de trabajo con franjas. Viaja completo en eventos (no como ID).
+    used_in: []
+
+  - name: DiaOperativo
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DiaOperativo.cs
+    description: "Dia de trabajo: fecha, marcaciones, indicador festivo"
+    used_in: []
+
+  - name: Marcacion
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/Marcacion.cs
+    description: "Registro crudo: HoraEntrada, HoraSalida, EsAnomala"
+    used_in: []
+
+  - name: DesgloseHoras
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DesgloseHoras.cs
+    description: "Tiempos ordinarios/nocturnos/dominicales/extra/faltantes"
+    used_in: []

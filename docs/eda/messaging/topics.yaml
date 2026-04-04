@@ -1,0 +1,31 @@
+# Topologia de mensajeria — Bitakora.ControlAsistencia
+#
+# Documenta los topics de Azure Service Bus y sus subscriptions.
+# Basado en ADR-0004 (topics por evento, no por dominio).
+# Actualizado por el agente `eda-modeler` al modelar flujos nuevos.
+# Validado por scripts/eda-lint.sh.
+#
+# CONVENCION DE NAMING (ADR-0004, ADR-0008):
+# - Topics: kebab-case del evento en pasado (turno-creado, dia-depurado)
+# - Subscriptions: {consumidor}-escucha-{productor} o {consumidor-contexto}
+#
+# ESTADO ACTUAL: seed inicial
+# El unico topic provisionado en infra es 'eventos-programacion' (segun main.tf).
+# Los topics aqui documentados son el estado objetivo de la arquitectura.
+#
+# Ultima actualizacion: 2026-04-04 (seed inicial - sin implementacion)
+
+service_bus:
+  namespace: sb-asist-dev
+  sku: Standard
+
+  topics: []
+    # Ejemplo de estructura (se poblara al usar el eda-modeler):
+    # - name: turno-creado
+    #   owner: Programacion
+    #   description: "Un turno fue creado o modificado"
+    #   events: [TurnoCreado]
+    #   subscriptions:
+    #     - name: depuracion-escucha-programacion
+    #       consumer: Depuracion
+    #       filter_events: [TurnoCreado]

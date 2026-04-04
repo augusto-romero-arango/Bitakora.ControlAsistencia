@@ -1,0 +1,168 @@
+# Glosario del lenguaje ubicuo — Bitakora.ControlAsistencia
+#
+# Fuente de verdad para el vocabulario del dominio, los actores del sistema y los sistemas externos.
+# Actualizado por el agente `proyecto` al cerrar cada sesion de knowledge crunching.
+# Consumido por el agente `planner` antes de crear issues.
+#
+# Ultima actualizacion: 2026-04-04 (sesion de exploracion inicial)
+
+# -------------------------
+# VOCABULARIO DEL DOMINIO
+# -------------------------
+terms:
+  - name: Marcacion
+    definition: Registro crudo de entrada/salida proveniente de un sistema externo. Contiene dia/hora, identificador de persona, opcionalmente tipo (entrada/salida), y lugar/dispositivo donde sucedio.
+    context: Depuracion
+    rejected_synonyms: [fichaje, registro de entrada]
+    rejection_reason: "fichaje es termino de España; registro de entrada es ambiguo"
+
+  - name: Turno
+    definition: Bloque de trabajo definido, compuesto por una o mas franjas. Concepto operativo.
+    context: Programacion
+    note: "'Jornada' se reserva para el concepto juridico (duraciones y limites legales). Turno es lo que el sistema gestiona."
+
+  - name: Franja
+    definition: Segmento continuo de tiempo dentro de un turno. Puede ser de trabajo o de descanso.
+    context: Programacion
+    note: "Resuelve elegantemente dos modelos: estricto (solo franjas de trabajo, descansos son huecos) y flexible (franjas con descansos declarados que se descuentan sin medir)"
+    rejected_synonyms: [tramo, bloque, segmento]
+
+  - name: Programacion de turnos
+    definition: Asignacion de turnos a empleados para periodos especificos.
+    context: Programacion
+
+  - name: Depuracion
+    definition: Proceso automatico que cruza marcaciones con el turno asignado y produce intervalos de presencia. Decide que marcaciones son relevantes y cuales se descartan, dejando rastro de su razonamiento.
+    context: Depuracion
+    note: "A diferencia de la Conciliacion (manual), la Depuracion es automatica"
+
+  - name: Intervalo de presencia
+    definition: Pareja inicio-fin que representa un periodo continuo de presencia del empleado.
+    context: Depuracion
+    note: "No es lo mismo que 'tiempo trabajado' porque puede contener descansos dentro"
+
+  - name: Anomalia
+    definition: Caso sospechoso o incompleto detectado automaticamente por el sistema durante la depuracion.
+    context: Depuracion
+    note: "Termino elegido por su peso estadistico, pensando en escalabilidad futura hacia deteccion por IA"
+
+  - name: Conciliacion
+    definition: Proceso manual donde un humano (el Aprobador) resuelve anomalias o corrige resultados de la depuracion.
+    context: Depuracion
+    note: "A diferencia de la Depuracion (automatica), la Conciliacion es humana y deliberada"
+
+  - name: Discriminacion de horas
+    definition: Desglose del tiempo trabajado por concepto (hora ordinaria diurna, recargo nocturno, hora extra, etc.). El sistema discrimina tiempo, no dinero.
+    context: CalculoHoras
+    rejected_synonyms: [liquidacion de horas]
+    rejection_reason: "liquidacion suena a pago; este sistema solo clasifica tiempo — los porcentajes y valores son responsabilidad del sistema de nomina"
+
+  - name: Concepto
+    definition: Categoria de clasificacion del tiempo (hora ordinaria diurna, recargo nocturno, hora extra diurna, hora extra nocturna, recargo dominical, etc.).
+    context: CalculoHoras
+
+  - name: Retardo
+    definition: Llegada tarde del empleado respecto al inicio de su turno asignado.
+    context: Depuracion
+
+  - name: Jornada
+    definition: "Concepto JURIDICO: habla de duraciones y limites legales (jornada maxima, jornada ordinaria). NO es un termino operativo del sistema."
+    context: General
+    note: "Usar 'Turno' para el concepto operativo. 'Jornada' solo aparece en contextos legislativos."
+
+# -------------------------
+# ACTORES DEL SISTEMA
+# Los roles son del sistema, no cargos organizacionales.
+# Pueden recaer en la misma persona.
+# -------------------------
+actors:
+  - name: Programador de turnos
+    type: user
+    definition: Persona responsable de garantizar la cobertura operativa de uno o mas sitios de trabajo.
+    responsibilities:
+      - Definir turnos con sus franjas (trabajo y descanso)
+      - Asignar turnos a empleados para periodos especificos
+      - Garantizar cobertura operativa del sitio
+      - Cumplir limites legales de jornada laboral maxima y trabajo suplementario
+    interacts_with: [Programacion]
+    open_questions:
+      - "Como se le llama al sitio donde trabaja el empleado? (punto de venta, sede, fabrica, obra)"
+
+  - name: Aprobador
+    type: user
+    definition: Persona que revisa los resultados de la depuracion, atiende anomalias y da el visto bueno para la discriminacion de horas.
+    responsibilities:
+      - Revisar resultados de la depuracion automatica
+      - Resolver anomalias mediante conciliacion
+      - Aprobar la discriminacion de horas para que fluya al sistema de nomina
+    frustrations:
+      - Tener que verificar manualmente cada empleado por no confiar en el sistema automatico
+    interacts_with: [Depuracion, CalculoHoras]
+    note: "Puede ser la misma persona que el Programador de turnos"
+
+  - name: Empleado
+    type: user
+    definition: La persona cuya asistencia se controla.
+    responsibilities:
+      - Registrar sus marcaciones de entrada y salida
+    note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo."
+    interacts_with: []
+    open_questions:
+      - "Como le llamamos en el dominio: empleado, trabajador, colaborador?"
+      - "Que datos del empleado nos importan para el control de asistencia?"
+
+# -------------------------
+# SISTEMAS EXTERNOS
+# -------------------------
+external_systems:
+  - name: Sistema de marcacion
+    role: producer
+    definition: Sistema externo (reloj biometrico u otro) que envia las marcaciones crudas.
+    publishes_to: [Depuracion]
+    note: "No conocemos su protocolo de integracion todavia"
+
+  - name: Sistema de nomina
+    role: consumer
+    definition: Sistema que recibe la discriminacion de horas aprobada para calcular el pago.
+    consumes_from: [CalculoHoras]
+    note: "El sistema de asistencia le entrega tiempo discriminado, nunca dinero"
+
+  - name: Sistema de empleados / RRHH
+    role: producer
+    definition: Sistema que gestiona el registro maestro de empleados (contrataciones, terminaciones, datos basicos).
+    publishes_to: [Empleados]
+
+# -------------------------
+# PREGUNTAS ABIERTAS DEL DOMINIO
+# Backlog de exploracion para futuras sesiones del agente `proyecto`
+# -------------------------
+open_questions:
+  - question: "Como llamamos al lugar de trabajo? (punto de venta, sede, fabrica, obra)"
+    context: General
+    date: 2026-04-04
+    priority: high
+
+  - question: "Le decimos empleado, trabajador o colaborador? Que datos nos importan de el?"
+    context: Empleados
+    date: 2026-04-04
+    priority: high
+
+  - question: "Los dominios del sistema (ADR-0001 menciona Marcaciones, Empleados, Liquidacion, Notificaciones) siguen siendo correctos con el vocabulario nuevo? Donde viven la Depuracion, la Discriminacion de horas, la Programacion?"
+    context: Arquitectura
+    date: 2026-04-04
+    priority: high
+
+  - question: "Como se delimita temporalmente la discriminacion de horas? Semanal, quincenal, mensual? Lo define cada empresa?"
+    context: CalculoHoras
+    date: 2026-04-04
+    priority: medium
+
+  - question: "Novedades: permisos, incapacidades, ausencias justificadas. Como interactuan con el turno y la discriminacion?"
+    context: General
+    date: 2026-04-04
+    priority: medium
+
+  - question: "Lista completa de Conceptos de discriminacion. Cuales son todos los tipos que maneja la legislacion colombiana?"
+    context: CalculoHoras
+    date: 2026-04-04
+    priority: medium

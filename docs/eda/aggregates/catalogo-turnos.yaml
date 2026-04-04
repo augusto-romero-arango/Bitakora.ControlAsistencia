@@ -1,0 +1,64 @@
+# Aggregate: CatalogoTurnos
+# Contexto: Programacion
+#
+# Gestiona el catalogo de turnos disponibles en el sistema.
+# Cada turno define una estructura de franjas de trabajo y descanso.
+#
+# Basado en: ADR-0006 (Event Sourcing con Marten), codigo existente en src/
+# Estado: en desarrollo (existe scaffold en Programacion, sin logica de dominio aun)
+
+aggregate:
+  name: CatalogoTurnos
+  context: Programacion
+  description: >
+    Catalogo de turnos disponibles en el sistema. Un turno es un bloque de trabajo
+    compuesto por franjas (de trabajo o descanso). Los turnos se asignan a empleados
+    para periodos especificos.
+
+  # Estado que el aggregate mantiene
+  state:
+    - field: TurnoId
+      type: Guid
+    - field: Nombre
+      type: string
+    - field: Franjas
+      type: List<Franja>
+      note: "Cada franja tiene hora inicio, hora fin, y tipo (Trabajo | Descanso)"
+    - field: EstaActivo
+      type: bool
+
+  # Invariantes de negocio
+  invariants:
+    - "Un turno debe tener al menos una franja de trabajo"
+    - "Las franjas no pueden solaparse entre si"
+    - "La duracion total del turno no puede exceder la jornada maxima legal"
+    - "Un turno inactivo no puede asignarse a empleados"
+
+  commands:
+    - name: CrearTurno
+      trigger: HTTP (accion del Programador de turnos)
+      description: Define un nuevo turno con sus franjas
+      produces:
+        - name: TurnoCreado
+          description: Un nuevo turno fue creado en el catalogo
+
+    - name: ModificarTurno
+      trigger: HTTP (accion del Programador de turnos)
+      description: Modifica las franjas de un turno existente
+      preconditions:
+        - "El turno no debe estar asignado activamente a empleados en el periodo actual"
+      produces:
+        - name: TurnoModificado
+          description: Las franjas del turno fueron actualizadas
+
+    - name: DesactivarTurno
+      trigger: HTTP (accion del Programador de turnos)
+      description: Marca un turno como inactivo para que no pueda asignarse
+      produces:
+        - name: TurnoDesactivado
+          description: El turno ya no esta disponible para asignacion
+
+  open_questions:
+    - "Un turno puede tener una duracion menor a la jornada ordinaria? (turno medio tiempo)"
+    - "Como se maneja la jornada nocturna? El turno puede cruzar medianoche?"
+    - "Existe un concepto de 'turno tipo' o plantilla del que se crean instancias?"
