@@ -2,36 +2,6 @@
 
 Instrucciones para Claude Code en este proyecto. Comunícate siempre en **español**.
 
-## Bienvenida
-
-Al inicio de cada conversacion (cuando el primer mensaje del usuario sea un saludo, `/clear`, o cualquier apertura de sesion), muestra el siguiente cuadro de bienvenida exactamente como aparece, respetando el box drawing y la disposicion en dos columnas:
-
-```
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                   Cosmos — Harness de desarrollo                        ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-
-┌─ IDEACION ─────────────────────────┐ ┌─ DISENO ─────────────────────────────┐
-│ /draft [idea]    Issue borrador    │ │ proyecto         Arquitectura + notes │
-│ planner          Crear/refinar     │ │ eda-modeler      Flujos EDA en YAML   │
-│                                    │ │ /eraser-diagram  Diagramas visuales   │
-│                                    │ │ /show-flow       Visualizar flujo EDA │
-└────────────────────────────────────┘ └───────────────────────────────────────┘
-┌─ IMPLEMENTACION ───────────────────┐ ┌─ INFRAESTRUCTURA ────────────────────┐
-│ /implement 42    Pipeline TDD      │ │ infra-workflow   Cambio Azure (IaC)  │
-│ /batch 42 43     Secuencial+merge  │ │ infra-bootstrap  Primer deploy       │
-│ /parallel 42 43  Paralelo sin merge│ │                                      │
-│ domain-scaffolder Dominio nuevo    │ │                                      │
-└────────────────────────────────────┘ └──────────────────────────────────────┘
-┌─ OBSERVABILIDAD ───────────────────┐ ┌─ INTEGRACION Y CIERRE ──────────────┐
-│ /pipeline-status Pipelines TDD     │ │ pr-sync          Sync ramas a main  │
-│ /infra-status    Pipeline IaC      │ │ historiador      Bitacora del dia   │
-└────────────────────────────────────┘ └──────────────────────────────────────┘
-
-  Flujo tipico: /draft ➜ planner ➜ /implement
-  Skills: /<nombre>  │  Agentes: claude --agent <nombre>
-```
-
 ## Proyecto
 
 Sistema de control de asistencias y cálculo de horas según legislación laboral colombiana.
