@@ -28,12 +28,12 @@ dotnet test --filter "NombreTest"                                 # correr una p
 ```
 /draft "idea"  →  estado:borrador
 planner modo 7 →  refina → estado:listo
-dev-workflow   →  pipeline TDD → PR → cierra issue
+/implement 42  →  pipeline TDD → PR → cierra issue
 ```
 
 1. Captura ideas rápidas con `/draft [idea]` — crea un issue borrador sin fricción
 2. Usa el agente `planner` para refinar borradores (modo 7) o crear issues completos directamente
-3. Ejecuta el pipeline TDD pasándole el número de issue (`estado:listo`)
+3. Lanza el pipeline TDD con `/implement <numero>` — corre en tmux, no bloquea tu terminal
 
 ### Bitácora y field notes
 
@@ -59,18 +59,18 @@ Setup inicial de labels: `./scripts/setup-github-labels.sh`
 | Herramienta | Cuándo usarla | Comando |
 |---|---|---|
 | `/draft` | Capturar una idea rápida como borrador | `/draft [idea en lenguaje natural]` |
+| `/implement` | Lanzar pipeline TDD para un issue (no bloquea) | `/implement 42` |
+| `/batch` | Pipeline secuencial: implementa → PR → merge → siguiente | `/batch 42 43 44` |
+| `/parallel` | Pipeline paralelo: un tab tmux por issue (sin merge) | `/parallel 42 43 44` |
+| `/pipeline-status` | Ver estado actual de los pipelines | `/pipeline-status` |
 | `proyecto` | Sesión de proyecto con field notes obligatorias (dominio, arquitectura) | `claude --agent proyecto` |
 | `planner` | Pensar, explorar ideas, crear issues, refinar borradores | `claude --agent planner` |
 | `historiador` | Generar entrada de bitácora del día | `claude --agent historiador` |
-| `dev-workflow` | Implementar una tarea (ciclo completo) | `claude --agent dev-workflow` |
-| `batch-workflow` | Implementar múltiples issues secuencialmente (con merge) | `claude --agent batch-workflow` |
-| `parallel-workflow` | Implementar múltiples issues en paralelo (sin merge) | `claude --agent parallel-workflow` |
 | `infra-workflow` | Implementar un cambio de infraestructura Azure | `claude --agent infra-workflow` |
 | `infra-bootstrap` | Bootstrap del backend Terraform + pipeline IaC (primer despliegue de un ambiente) | `claude --agent infra-bootstrap` |
 | `domain-scaffolder` | Crear un nuevo dominio completo (Function App + tests + Terraform + deploy workflow) | `claude --agent domain-scaffolder` |
-| `tmux-pipeline` (opcional) | Ver pipelines en tabs nativos de iTerm2 con persistencia de sesión | `./scripts/tmux-pipeline.sh [--batch\|--parallel] <issues>` |
 
-> Ver `docs/tmux-cheatsheet.md` para setup de entorno tmux con iTerm2.
+> Los skills `/implement`, `/batch` y `/parallel` lanzan pipelines en sesiones tmux (no bloquean tu terminal). Ver `docs/tmux-cheatsheet.md` para setup.
 
 ## Pipeline TDD
 
