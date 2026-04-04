@@ -406,4 +406,41 @@ Resume lo que se hizo:
 - Ideas que quedaron pendientes de refinar
 - Sugerencias para próximos pasos
 
+Luego, **escribe las field notes de la sesión**. Calcula el timestamp:
+
+```bash
+date "+%Y-%m-%d-%H%M"
+```
+
+Escribe el archivo `docs/bitacora/field-notes/YYYY-MM-DD-HHMM-planner.md`:
+
+```
+---
+fecha: YYYY-MM-DD
+hora: HH:MM
+sesion: planner
+tema: [tema principal de la sesion]
+---
+
+## Contexto
+[Por que se inicio esta sesion]
+
+## Descubrimientos
+[Vocabulario de dominio que surgio, reglas de negocio que se clarificaron]
+
+## Decisiones
+[Que se decidio sobre el modelo de dominio, issues, prioridades]
+
+## Descartado
+[Issues que se descartaron, enfoques que no se tomaron]
+
+## Preguntas abiertas
+[Lo que quedo sin resolver]
+
+## Referencias
+Issues creados: [lista]
+```
+
+Si la sesion fue breve, las field notes pueden ser 3-5 lineas. Lo importante es el habito.
+
 Pregunta: **"¿Hay algo más que quieras planear, o estamos listos?"**

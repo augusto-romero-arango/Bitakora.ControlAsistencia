@@ -35,6 +35,15 @@ dev-workflow   →  pipeline TDD → PR → cierra issue
 2. Usa el agente `planner` para refinar borradores (modo 7) o crear issues completos directamente
 3. Ejecuta el pipeline TDD pasándole el número de issue (`estado:listo`)
 
+### Bitácora y field notes
+
+El proyecto mantiene una bitácora en `docs/bitacora/` con una entrada por día de trabajo.
+
+- **Sesiones de proyecto** (dominio, arquitectura, diseño): usar `claude --agent proyecto` — genera field notes obligatorias al cerrar
+- **Sesiones del planner**: generan field notes automáticamente al finalizar
+- **Al cerrar el día**: `claude --agent historiador` — lee field notes + git + issues y produce la entrada de bitácora
+- Las field notes crudas van a `docs/bitacora/field-notes/`, las procesadas a `field-notes/procesadas/`
+
 ### Gestión de issues
 
 - **Titles**: `[verbo infinitivo] [qué cosa]` — sin prefijos (EMP001, feat:, HU-)
@@ -50,7 +59,9 @@ Setup inicial de labels: `./scripts/setup-github-labels.sh`
 | Herramienta | Cuándo usarla | Comando |
 |---|---|---|
 | `/draft` | Capturar una idea rápida como borrador | `/draft [idea en lenguaje natural]` |
+| `proyecto` | Sesión de proyecto con field notes obligatorias (dominio, arquitectura) | `claude --agent proyecto` |
 | `planner` | Pensar, explorar ideas, crear issues, refinar borradores | `claude --agent planner` |
+| `historiador` | Generar entrada de bitácora del día | `claude --agent historiador` |
 | `dev-workflow` | Implementar una tarea (ciclo completo) | `claude --agent dev-workflow` |
 | `batch-workflow` | Implementar múltiples issues secuencialmente (con merge) | `claude --agent batch-workflow` |
 | `parallel-workflow` | Implementar múltiples issues en paralelo (sin merge) | `claude --agent parallel-workflow` |
