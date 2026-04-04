@@ -1,7 +1,7 @@
 ---
 name: test-writer
 model: sonnet
-description: Escribe tests de command handlers con event sourcing (fase roja TDD). Usa el DSL Given/When/Then/And de Cosmos.EventSourcing.Testing.Utilities. Crea stubs minimos para que el proyecto compile pero los tests fallen.
+description: Escribe tests ES (fase roja TDD) con DSL Given/When/Then y stubs minimos de compilacion.
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 

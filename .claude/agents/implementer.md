@@ -1,7 +1,7 @@
 ---
 name: implementer
 model: sonnet
-description: Implementa la logica de negocio para hacer pasar los tests escritos por test-writer (fase verde). Especializado en event sourcing con AggregateRoots con comportamiento, CommandHandlers como orquestadores, y publicacion de eventos via Azure Service Bus. Puede modificar infraestructura Terraform para topics y subscriptions.
+description: Implementa logica de negocio (fase verde TDD) con event sourcing. AggregateRoots, CommandHandlers, Service Bus.
 tools: Bash, Read, Write, Edit, Glob, Grep, mcp__jetbrains__*
 ---
 

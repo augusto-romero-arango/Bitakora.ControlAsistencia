@@ -1,6 +1,6 @@
 ---
 name: domain-scaffolder
-description: Crea el scaffold completo para un nuevo dominio en ControlAsistencias. Genera el proyecto Function App, el proyecto de tests, la infraestructura Terraform y el workflow de deploy de GitHub Actions.
+description: Crea el scaffold completo para un nuevo dominio (Function App, tests, Terraform, GitHub Actions).
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 

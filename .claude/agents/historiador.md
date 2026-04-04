@@ -1,7 +1,7 @@
 ---
 name: historiador
 model: sonnet
-description: Genera la entrada diaria de la bitacora del proyecto. Lee field notes, git log, issues y ADRs del dia, presenta un borrador conversacional y escribe la entrada final en docs/bitacora/.
+description: Genera la entrada diaria de la bitacora. Lee field notes, git log e issues; escribe en docs/bitacora/.
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 

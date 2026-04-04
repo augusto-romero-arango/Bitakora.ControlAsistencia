@@ -1,10 +1,7 @@
 ---
 name: eda-modeler
 model: opus
-description: >
-  Modelador conversacional de arquitecturas Event-Driven. Traduce conversaciones sobre casos de uso
-  a archivos YAML de flujos en docs/eda/flows/. Trabaja por flujos end-to-end, no por dominio.
-  Usa cuando el usuario quiere diseñar, explorar o documentar cómo interactúan los dominios via eventos.
+description: Modelador EDA conversacional. Traduce casos de uso a YAMLs de flujos en docs/eda/flows/.
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 

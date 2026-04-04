@@ -54,24 +54,6 @@ El proyecto mantiene una bitácora en `docs/bitacora/` con una entrada por día 
 
 Setup inicial de labels: `./scripts/setup-github-labels.sh`
 
-## Herramientas disponibles
-
-| Herramienta | Cuándo usarla | Comando |
-|---|---|---|
-| `/draft` | Capturar una idea rápida como borrador | `/draft [idea en lenguaje natural]` |
-| `/implement` | Lanzar pipeline TDD para un issue (no bloquea) | `/implement 42` |
-| `/batch` | Pipeline secuencial: implementa → PR → merge → siguiente | `/batch 42 43 44` |
-| `/parallel` | Pipeline paralelo: un tab tmux por issue (sin merge) | `/parallel 42 43 44` |
-| `/pipeline-status` | Ver estado actual de los pipelines | `/pipeline-status` |
-| `proyecto` | Sesión de proyecto con field notes obligatorias (dominio, arquitectura) | `claude --agent proyecto` |
-| `planner` | Pensar, explorar ideas, crear issues, refinar borradores | `claude --agent planner` |
-| `historiador` | Generar entrada de bitácora del día | `claude --agent historiador` |
-| `infra-workflow` | Implementar un cambio de infraestructura Azure | `claude --agent infra-workflow` |
-| `infra-bootstrap` | Bootstrap del backend Terraform + pipeline IaC (primer despliegue de un ambiente) | `claude --agent infra-bootstrap` |
-| `domain-scaffolder` | Crear un nuevo dominio completo (Function App + tests + Terraform + deploy workflow) | `claude --agent domain-scaffolder` |
-
-> Los skills `/implement`, `/batch` y `/parallel` lanzan pipelines en sesiones tmux (no bloquean tu terminal). Ver `docs/tmux-cheatsheet.md` para setup.
-
 ## Pipeline TDD
 
 El script `scripts/tdd-pipeline.sh` ejecuta el ciclo completo de forma autónoma:
@@ -91,14 +73,6 @@ Issue → Worktree → Tests (rojo) → Implementación (verde) → Refactor →
 
 **El script crea su propio worktree, hace los commits, crea el PR y limpia el worktree.**
 Si algo falla, el worktree queda disponible para inspección y el log de error muestra la causa.
-
-### Visibilidad en tiempo real
-
-Mientras corre el pipeline, puedes seguir los eventos de los agentes en otra terminal:
-
-```bash
-tail -f .claude/pipeline/events.log
-```
 
 ## Pipeline paralelo
 
@@ -126,32 +100,6 @@ claude --agent infra-workflow
 ```
 
 Stages: **Write (HCL)** → **Review (plan)** → **Apply**
-
-El MCP server de HashiCorp (`@hashicorp/terraform-mcp-server`) esta configurado en `.mcp.json`
-y permite a los agentes consultar documentacion del registry de Terraform en tiempo real.
-
-**Prerequisitos**: `brew install terraform`, `brew install azure-cli`, `az login`
-
-### Estructura de infraestructura
-
-```
-infra/
-  modules/          # Modulos reutilizables por tipo de recurso
-  environments/     # Configuracion por ambiente (dev, staging, prod)
-```
-
-## Agentes del pipeline (internos)
-
-Los siguientes agentes son invocados por el script — no los uses directamente:
-
-| Agente | Rol | Fase TDD |
-|---|---|---|
-| `test-writer` | Escribe tests ES + stubs de compilación | TDD - Roja |
-| `implementer` | Implementa lógica ES para pasar los tests | TDD - Verde |
-| `reviewer` | Revisa patrones ES, refactoriza y verifica cobertura | TDD - Refactor |
-| `infra-writer` | Escribe HCL y valida con terraform validate | IaC - Write |
-| `infra-reviewer` | Revisa seguridad y ejecuta terraform plan | IaC - Review |
-| `infra-applier` | Aplica el plan pre-generado | IaC - Apply |
 
 ## Definición de agentes y skills
 
