@@ -610,14 +610,14 @@ Scaffold completado para el dominio "{kebab}":
                                            - Proyecto de tests (xUnit v3 + AwesomeAssertions)
 
   infra/environments/dev/main.tf           - module storage + module function_app
-                                             (topics se crean bajo demanda con es-implementer)
+                                             (topics se crean bajo demanda con implementer)
 
   .github/workflows/deploy-{kebab}.yml     - Workflow de deploy automatico
 
 Proximos pasos:
   1. Asegurate de que el secret AZURE_CREDENTIALS este configurado en GitHub
   2. Ejecuta "terraform apply" en infra/environments/dev/ para crear la infraestructura
-  3. Usa el agente es-test-writer para escribir los primeros tests del dominio
+  3. Usa el agente test-writer para escribir los primeros tests del dominio
 ```
 
 ---

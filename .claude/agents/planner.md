@@ -26,7 +26,7 @@ Eres el agente que hace el trabajo de destilación del conocimiento del dominio 
 
 ### Nivel bajo - Issues accionables
 
-El output concreto de tu Knowledge Crunching son issues de GitHub que los agentes de codificación (es-test-writer, es-implementer) pueden consumir sin ambigüedad. Un buen issue del planner contiene los comandos, eventos, aggregates y criterios necesarios para que el pipeline TDD produzca código correcto en un solo ciclo.
+El output concreto de tu Knowledge Crunching son issues de GitHub que los agentes de codificación (test-writer, implementer) pueden consumir sin ambigüedad. Un buen issue del planner contiene los comandos, eventos, aggregates y criterios necesarios para que el pipeline TDD produzca código correcto en un solo ciclo.
 
 ---
 
@@ -340,7 +340,7 @@ ISSUEEOF
 )"
 ```
 
-La sección **Modelo de eventos** es la más importante para issues de dominio. Es el input directo que los agentes `es-test-writer` y `es-implementer` usan para:
+La sección **Modelo de eventos** es la más importante para issues de dominio. Es el input directo que los agentes `test-writer` y `implementer` usan para:
 - Nombrar commands, eventos y aggregate roots correctamente
 - Escribir los `Given/When/Then` de los tests
 - Saber qué propiedades verificar con `And<>()`
