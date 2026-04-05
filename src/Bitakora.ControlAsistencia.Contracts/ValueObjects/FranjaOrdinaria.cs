@@ -8,17 +8,15 @@ namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
 // ADR-0015: sealed class con factory static, constructor privado, campos readonly.
 public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria>
 {
-    // CA-4: offset del fin respecto al dia de inicio
-    private readonly int _diaOffsetFin;
     private readonly List<FranjaDescanso> _descansos;
     private readonly List<FranjaExtra> _extras;
 
     // Constructor real: usado por el factory
+    // diaOffsetInicio siempre es 0 — la ordinaria empieza en el dia base
     private FranjaOrdinaria(TimeOnly horaInicio, TimeOnly horaFin, int diaOffsetFin,
         List<FranjaDescanso> descansos, List<FranjaExtra> extras)
-        : base(horaInicio, horaFin)
+        : base(horaInicio, horaFin, diaOffsetInicio: 0, diaOffsetFin)
     {
-        _diaOffsetFin = diaOffsetFin;
         _descansos = descansos;
         _extras = extras;
     }
@@ -29,9 +27,6 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         _descansos = [];
         _extras = [];
     }
-
-    internal override int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(_horaInicio, 0);
-    internal override int MinutosAbsolutoFin => CalcularMinutosAbsolutos(_horaFin, _diaOffsetFin);
 
     // CA-8: factory estatico
     // CA-7: rechaza InicioYFinIguales
@@ -139,9 +134,10 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
 
             typeInfo.CreateObject = () => (FranjaOrdinaria)ctor.Invoke(null);
 
-            RegistrarCampo(typeInfo, "_horaInicio", "horaInicio", typeof(TimeOnly), typeof(FranjaOrdinaria));
-            RegistrarCampo(typeInfo, "_horaFin", "horaFin", typeof(TimeOnly), typeof(FranjaOrdinaria));
-            RegistrarCampo(typeInfo, "_diaOffsetFin", "diaOffsetFin", typeof(int), typeof(FranjaOrdinaria));
+            RegistrarCampo(typeInfo, "_horaInicio", "horaInicio", typeof(TimeOnly), typeof(FranjaTemporal));
+            RegistrarCampo(typeInfo, "_horaFin", "horaFin", typeof(TimeOnly), typeof(FranjaTemporal));
+            RegistrarCampo(typeInfo, "_diaOffsetInicio", "diaOffsetInicio", typeof(int), typeof(FranjaTemporal));
+            RegistrarCampo(typeInfo, "_diaOffsetFin", "diaOffsetFin", typeof(int), typeof(FranjaTemporal));
 
             // Colecciones de hijas
             var fDescansos = typeof(FranjaOrdinaria)

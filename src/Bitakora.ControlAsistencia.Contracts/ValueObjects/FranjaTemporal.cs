@@ -37,24 +37,25 @@ public abstract class FranjaTemporal
     // Estado interno - solo las subclases lo ven para calculos
     protected readonly TimeOnly _horaInicio;
     protected readonly TimeOnly _horaFin;
+    protected readonly int _diaOffsetInicio;
+    protected readonly int _diaOffsetFin;
 
-    protected FranjaTemporal(TimeOnly horaInicio, TimeOnly horaFin)
+    protected FranjaTemporal(TimeOnly horaInicio, TimeOnly horaFin,
+        int diaOffsetInicio, int diaOffsetFin)
     {
         _horaInicio = horaInicio;
         _horaFin = horaFin;
+        _diaOffsetInicio = diaOffsetInicio;
+        _diaOffsetFin = diaOffsetFin;
     }
 
     // Constructor vacio para STJ/Marten
-    protected FranjaTemporal()
-    {
-        _horaInicio = default;
-        _horaFin = default;
-    }
+    protected FranjaTemporal() { }
 
     // Minutos absolutos desde el dia base, considerando offset
     // internal para que FranjaOrdinaria valide contencion y solapamiento de hijas
-    internal abstract int MinutosAbsolutoInicio { get; }
-    internal abstract int MinutosAbsolutoFin { get; }
+    internal int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(_horaInicio, _diaOffsetInicio);
+    internal int MinutosAbsolutoFin => CalcularMinutosAbsolutos(_horaFin, _diaOffsetFin);
 
     // CA-10, CA-11: calculo de duracion en minutos considerando offsets
     public int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;

@@ -9,24 +9,13 @@ namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
 // ADR-0015: sealed class con factory static, constructor privado, campos readonly.
 public sealed class FranjaExtra : FranjaTemporal, IEquatable<FranjaExtra>
 {
-    // CA-5: offsets respecto al dia de la ordinaria padre
-    private readonly int _diaOffsetInicio;
-    private readonly int _diaOffsetFin;
-
     // Constructor real: usado por el factory
     private FranjaExtra(TimeOnly horaInicio, TimeOnly horaFin,
         int diaOffsetInicio, int diaOffsetFin)
-        : base(horaInicio, horaFin)
-    {
-        _diaOffsetInicio = diaOffsetInicio;
-        _diaOffsetFin = diaOffsetFin;
-    }
+        : base(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin) { }
 
     // Constructor vacio para STJ/Marten
     private FranjaExtra() { }
-
-    internal override int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(_horaInicio, _diaOffsetInicio);
-    internal override int MinutosAbsolutoFin => CalcularMinutosAbsolutos(_horaFin, _diaOffsetFin);
 
     // CA-8: factory estatico
     // CA-7: rechaza InicioYFinIguales
@@ -69,10 +58,10 @@ public sealed class FranjaExtra : FranjaTemporal, IEquatable<FranjaExtra>
 
             typeInfo.CreateObject = () => (FranjaExtra)ctor.Invoke(null);
 
-            RegistrarCampo(typeInfo, "_horaInicio", "horaInicio", typeof(TimeOnly), typeof(FranjaExtra));
-            RegistrarCampo(typeInfo, "_horaFin", "horaFin", typeof(TimeOnly), typeof(FranjaExtra));
-            RegistrarCampo(typeInfo, "_diaOffsetInicio", "diaOffsetInicio", typeof(int), typeof(FranjaExtra));
-            RegistrarCampo(typeInfo, "_diaOffsetFin", "diaOffsetFin", typeof(int), typeof(FranjaExtra));
+            RegistrarCampo(typeInfo, "_horaInicio", "horaInicio", typeof(TimeOnly), typeof(FranjaTemporal));
+            RegistrarCampo(typeInfo, "_horaFin", "horaFin", typeof(TimeOnly), typeof(FranjaTemporal));
+            RegistrarCampo(typeInfo, "_diaOffsetInicio", "diaOffsetInicio", typeof(int), typeof(FranjaTemporal));
+            RegistrarCampo(typeInfo, "_diaOffsetFin", "diaOffsetFin", typeof(int), typeof(FranjaTemporal));
         });
     }
 }
