@@ -467,6 +467,8 @@ public override string ToString()
 }
 ```
 
+**Propiedades de Mensajes**: siempre usar `ResourceManager.GetString(nameof(Clave))!` (null-forgiving). NUNCA usar `?? "fallback"` — genera ramas no cubiertas en cobertura. Si la clave existe en el .resx, `GetString` nunca retorna null.
+
 ---
 
 ## Convenciones de nombramiento

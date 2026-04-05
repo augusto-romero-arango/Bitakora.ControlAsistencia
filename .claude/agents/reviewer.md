@@ -121,6 +121,7 @@ Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions
 - **Aggregates y handlers son `partial class`**: necesario para que la clase Mensajes anidada exista en un archivo separado. Si encuentras `public class TurnoAggregateRoot` o `public class CrearTurnoCommandHandler`, corrigelo a `partial class`.
 - **El .resx esta co-localizado con la clase**: `TurnoAggregateRootMensajes.resx` debe estar en la misma carpeta que `TurnoAggregateRoot.cs`.
 - **Tests verifican mensaje, no solo tipo**: cada `ThrowExactly<X>()` debe incluir `.WithMessage($"*{Clase.Mensajes.Clave}*")`. Si faltan, agregarlos.
+- **Sin fallback `??` en propiedades de Mensajes**: `ResourceManager.GetString(...)!` siempre, nunca `?? "valor"`. El fallback genera ramas fantasma en cobertura.
 
 #### Modelado de objetos (ADR-0015)
 
@@ -342,3 +343,4 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 18. **NUNCA** tests que solo verifican el tipo de excepcion sin `.WithMessage(...)` — el mensaje da contexto.
 19. **NUNCA** propiedades de mecanica interna (offsets, minutos absolutos) como `public` en value objects.
 20. **NUNCA** numeros magicos con significado de dominio — extraelos como constantes con nombre.
+21. **NUNCA** `ResourceManager.GetString(...) ?? "fallback"` en propiedades de Mensajes — usar `!` (null-forgiving). El `??` genera ramas no cubiertas en cobertura.
