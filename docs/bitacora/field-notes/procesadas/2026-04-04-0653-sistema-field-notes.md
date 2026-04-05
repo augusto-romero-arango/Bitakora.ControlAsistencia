@@ -2,7 +2,7 @@
 fecha: 2026-04-04
 hora: 06:53
 sesion: plan-mode
-tema: sistema de field notes y agentes proyecto + historiador
+tema: sistema de field notes y agentes event-stormer + historiador
 ---
 
 ## Contexto
@@ -25,7 +25,7 @@ El usuario queria un sistema para capturar el conocimiento que se genera en conv
 
 ## Decisiones
 
-- **Dos agentes nuevos**: `proyecto` (planificacion con field notes obligatorias, opus) e `historiador` (genera bitacora diaria, sonnet).
+- **Dos agentes nuevos**: `event-stormer` (facilitador de sesiones de descubrimiento con field notes obligatorias, opus) e `historiador` (genera bitacora diaria, sonnet).
 - **Agente proyecto usa Write** restringido por instruccion a `.claude/plans/` y `docs/bitacora/field-notes/`. No tiene Edit para forzar que solo cree archivos nuevos.
 - **Field notes son un output obligatorio del agente proyecto**: el agente no puede terminar sin escribirlas. La instruccion dice explicitamente "esta fase no es opcional".
 - **Historiador es conversacional**: presenta un borrador antes de escribir y acepta contexto verbal del usuario que no esta en ningun archivo.
@@ -41,7 +41,7 @@ El usuario queria un sistema para capturar el conocimiento que se genera en conv
 
 ## Preguntas abiertas
 
-- El agente `proyecto` tiene Write sin restriccion de path a nivel de sistema (solo por instruccion). Evaluar en uso real si es suficiente o si hay que agregar algun mecanismo adicional.
+- El agente `event-stormer` tiene Write sin restriccion de path a nivel de sistema (solo por instruccion). Evaluar en uso real si es suficiente o si hay que agregar algun mecanismo adicional.
 - El historiador hace commit al final de la sesion. Definir si siempre hace push o solo commit y deja el push al usuario.
 
 ## Referencias

@@ -39,7 +39,7 @@ planner modo 7 →  refina → estado:listo
 
 El proyecto mantiene una bitácora en `docs/bitacora/` con una entrada por día de trabajo.
 
-- **Sesiones de proyecto** (dominio, arquitectura, diseño): usar `claude --agent proyecto` — genera field notes obligatorias al cerrar
+- **Sesiones de descubrimiento** (dominio, arquitectura, diseño): usar `claude --agent event-stormer` — genera field notes obligatorias al cerrar
 - **Sesiones del planner**: generan field notes automáticamente al finalizar
 - **Al cerrar el día**: `claude --agent historiador` — lee field notes + git + issues y produce la entrada de bitácora
 - Las field notes crudas van a `docs/bitacora/field-notes/`, las procesadas a `field-notes/procesadas/`

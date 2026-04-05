@@ -12,7 +12,7 @@ El proyecto necesita un flujo estructurado para convertir el conocimiento descub
 
 Sin este flujo, el conocimiento queda disperso en field notes narrativas (formato libre, dificil de consumir por agentes), y el planner no tiene informacion estructurada sobre actores, invariantes de aggregates, ni el mapa de relaciones entre dominios. El resultado: sesiones de dominio valiosas que no se traducen en issues precisos.
 
-Adicionalmente, el agente `proyecto` no tenia capacidad de investigar fuentes externas, lo que llevaba a tomar decisiones con informacion superficial cuando el tema requeria consulta de legislacion colombiana, patrones DDD, o frameworks tecnicos.
+Adicionalmente, el agente `event-stormer` (antes llamado `proyecto`) no tenia capacidad de investigar fuentes externas, lo que llevaba a tomar decisiones con informacion superficial cuando el tema requeria consulta de legislacion colombiana, patrones DDD, o frameworks tecnicos.
 
 ## Decision
 
@@ -21,7 +21,7 @@ Crear un **knowledge hub** en `docs/eda/` con artefactos YAML estructurados y un
 ### Pipeline de tres fases
 
 ```
-Fase 1 - Descubrimiento (agente proyecto)
+Fase 1 - Descubrimiento (agente event-stormer)
   Sesion conversacional con WebSearch/WebFetch para investigacion cuando se necesite
   Output obligatorio:
     - field notes en docs/bitacora/field-notes/
@@ -47,10 +47,10 @@ Fase 3 - Planificacion (agente planner)
 
 | Artefacto | Ubicacion | Que documenta | Quien actualiza |
 |---|---|---|---|
-| Glosario de lenguaje ubicuo | `docs/eda/ubiquitous-language.yaml` | Terminos, actores/roles, sistemas externos, preguntas abiertas | agente `proyecto` |
+| Glosario de lenguaje ubicuo | `docs/eda/ubiquitous-language.yaml` | Terminos, actores/roles, sistemas externos, preguntas abiertas | agente `event-stormer` |
 | Catalogo EDA | `docs/eda/catalog.yaml` | Eventos, comandos, policies, value objects | agente `eda-modeler`, `planner` |
-| Mapa de contextos | `docs/eda/context-map.yaml` | Bounded contexts y relaciones entre ellos | agente `proyecto`, `eda-modeler` |
-| Aggregate Design Canvas | `docs/eda/aggregates/*.yaml` | Estado, invariantes, comandos y eventos por aggregate | agente `proyecto`, `eda-modeler` |
+| Mapa de contextos | `docs/eda/context-map.yaml` | Bounded contexts y relaciones entre ellos | agente `event-stormer`, `eda-modeler` |
+| Aggregate Design Canvas | `docs/eda/aggregates/*.yaml` | Estado, invariantes, comandos y eventos por aggregate | agente `event-stormer`, `eda-modeler` |
 | Flujos EDA | `docs/eda/flows/*.yaml` | Flujos end-to-end (Event Storming Process Modeling) | agente `eda-modeler` |
 | Topologia Service Bus | `docs/eda/messaging/topics.yaml` | Topics y subscriptions de Azure Service Bus | agente `eda-modeler` |
 | Projections | `docs/eda/projections/` | Read models (cuando existan) | agente `eda-modeler` |
@@ -64,7 +64,7 @@ Los artefactos usan YAML en lugar de Markdown porque:
 
 ### Roles de investigacion
 
-- **agente `proyecto`**: puede investigar fuentes externas (WebSearch, WebFetch) cuando el tema lo requiera. Ejemplo: legislacion laboral colombiana, patrones DDD, documentacion de Marten/Wolverine.
+- **agente `event-stormer`**: puede investigar fuentes externas (WebSearch, WebFetch) cuando el tema lo requiera. Ejemplo: legislacion laboral colombiana, patrones DDD, documentacion de Marten/Wolverine.
 - **agente `planner`**: NO investiga. Consume los artefactos ya producidos y cristaliza en issues.
 - **agente `eda-modeler`**: NO investiga. Modela flujos a partir de lo ya descubierto.
 
@@ -91,15 +91,15 @@ Descartado: requiere un equipo multidisciplinario para sacarle valor. Para un so
 - El planner puede crear issues mas precisos usando vocabulario establecido e invariantes documentadas
 - Las decisiones de diseno (terminos descartados, relaciones entre contextos) no se pierden en field notes
 - Los agentes de TDD (test-writer, implementer) tienen mas contexto para escribir tests y codigo correctos
-- WebSearch en el agente `proyecto` permite investigar legislacion colombiana con fuentes reales
+- WebSearch en el agente `event-stormer` permite investigar legislacion colombiana con fuentes reales
 
 **Negativas / Riesgos**:
-- Los artefactos pueden quedar desactualizados si el agente `proyecto` no los actualiza diligentemente
+- Los artefactos pueden quedar desactualizados si el agente `event-stormer` no los actualiza diligentemente
 - El catalogo puede divergir del codigo real si no se valida con el linter periodicamente
 - Overhead inicial: los artefactos semilla requieren ser creados y mantenerlos requiere disciplina
 
 **Mitigaciones**:
-- La actualizacion del glosario es **obligatoria** en la Fase 3.5 del agente `proyecto` (como las field notes)
+- La actualizacion del glosario es **obligatoria** en la Fase 3.5 del agente `event-stormer` (como las field notes)
 - El linter `scripts/eda-lint.sh` detecta divergencias entre el catalogo y los flows
 - Si un artefacto no se usa en 4 semanas, evaluar si eliminarlo
 

@@ -1,7 +1,7 @@
 ---
 fecha: 2026-04-04
 hora: 14:02
-sesion: proyecto
+sesion: event-stormer
 tema: Exploración inicial del lenguaje ubicuo del dominio
 ---
 

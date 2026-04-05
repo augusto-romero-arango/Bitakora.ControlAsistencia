@@ -1,7 +1,7 @@
 # Glosario del lenguaje ubicuo — Bitakora.ControlAsistencia
 #
 # Fuente de verdad para el vocabulario del dominio, los actores del sistema y los sistemas externos.
-# Actualizado por el agente `proyecto` al cerrar cada sesion de knowledge crunching.
+# Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
 # Ultima actualizacion: 2026-04-04 (sesion de exploracion inicial)
@@ -134,7 +134,7 @@ external_systems:
 
 # -------------------------
 # PREGUNTAS ABIERTAS DEL DOMINIO
-# Backlog de exploracion para futuras sesiones del agente `proyecto`
+# Backlog de exploracion para futuras sesiones del agente `event-stormer`
 # -------------------------
 open_questions:
   - question: "Como llamamos al lugar de trabajo? (punto de venta, sede, fabrica, obra)"
