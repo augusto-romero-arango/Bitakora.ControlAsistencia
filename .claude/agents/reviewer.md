@@ -156,6 +156,36 @@ Si faltan tests, agregarlos ahora siguiendo las convenciones del test-writer:
 
 ---
 
+### 4b. Verificar cobertura de contratos de value objects
+
+Si el diff contiene clases que implementan `IEquatable<T>` o incluyen `ConfigurarSerializacion`, verifica que existan tests de contrato. Estos son tests de contrato (verifican que IEquatable y la serializacion funcionan correctamente), no de comportamiento de negocio — generarlos en fase refactor no viola TDD.
+
+**IEquatable — tests de igualdad:**
+
+Busca `IgualdadTestBase.cs` en el proyecto de tests con Glob `**/IgualdadTestBase.cs`. Si existe, genera una subclase que herede de `IgualdadTestBase<T>` definiendo:
+- `CrearInstancia()` — instancia con valores representativos
+- `CrearInstanciaCopia()` — mismos valores, referencia diferente
+- `CrearInstanciasDiferentes()` — un `yield return` por cada atributo con nombre descriptivo
+
+Si el value object tiene colecciones hijas (como `FranjaOrdinaria` con descansos y extras), agrega `[Fact]` adicionales para igualdad y hash con hijos.
+
+Si `IgualdadTestBase<T>` no existe, escribe los tests directamente: `Equals(T?)` con iguales y diferentes, `Equals(object?)` con mismo tipo/tipo diferente/null, `GetHashCode` consistente.
+
+Archivo: `{NombreClase}IgualdadTests.cs` en la misma carpeta de tests del value object.
+
+**ConfigurarSerializacion — tests de round-trip JSON:**
+
+Escribe tests directamente (no hay clase base — el setup de `JsonSerializerOptions` varia entre tipos). Minimo:
+- Un round-trip simple (serializar → deserializar → verificar `ToString()` y duracion/comportamiento)
+- Un round-trip con variantes del dominio (offsets, hijos, cruce de medianoche)
+- Un round-trip que verifique igualdad: `restaurado.Should().Be(original)`
+
+Archivo: `{NombreClase}SerializacionTests.cs` en la misma carpeta de tests del value object.
+
+Despues de agregar tests, corre `dotnet test` para confirmar que pasan.
+
+---
+
 ### 5. Revisar calidad del codigo de produccion
 
 Con el objetivo de elegancia como guia, consulta primero los diagnosticos del IDE:
@@ -260,6 +290,8 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 | Tests via ToString (no via getters internos) | ok / falla / n/a | ... |
 | Mensajes en .resx (excepciones Y labels ToString) | ok / falla | ... |
 | Tests verifican mensaje de excepcion (.WithMessage) | ok / falla / n/a | ... |
+| Tests de IEquatable para value objects | ok / n/a | ... |
+| Tests de serializacion round-trip | ok / n/a | ... |
 
 ### Elegancia del codigo
 - [Hallazgos sobre compacidad, legibilidad, idiomatismo, robustez, eficiencia o limpieza]
@@ -280,6 +312,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 
 ### Tests agregados
 - [Tests de casos borde que se agregaron durante la revision]
+- [Tests de contrato: igualdad (IgualdadTestBase<T>) y serializacion round-trip, si aplica]
 - [Si no se agregaron, indicarlo]
 ```
 
