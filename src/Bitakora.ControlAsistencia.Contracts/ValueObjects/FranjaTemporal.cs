@@ -28,10 +28,10 @@ public abstract class FranjaTemporal
             ResourceManager.GetString(nameof(FranjasHijasSeSuperponen))!;
 
         public static string LabelDescansos =>
-            ResourceManager.GetString(nameof(LabelDescansos)) ?? "Descansos";
+            ResourceManager.GetString(nameof(LabelDescansos))!;
 
         public static string LabelExtras =>
-            ResourceManager.GetString(nameof(LabelExtras)) ?? "Extras";
+            ResourceManager.GetString(nameof(LabelExtras))!;
     }
 
     // Estado interno - solo las subclases lo ven para calculos
