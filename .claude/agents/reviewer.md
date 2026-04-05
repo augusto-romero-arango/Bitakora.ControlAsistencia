@@ -121,6 +121,17 @@ Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions
 - **Aggregates y handlers son `partial class`**: necesario para que la clase Mensajes anidada exista en un archivo separado. Si encuentras `public class TurnoAggregateRoot` o `public class CrearTurnoCommandHandler`, corrigelo a `partial class`.
 - **El .resx esta co-localizado con la clase**: `TurnoAggregateRootMensajes.resx` debe estar en la misma carpeta que `TurnoAggregateRoot.cs`.
 
+#### Modelado de objetos (ADR-0015)
+
+Estas son heurísticas — el diseño específico puede haberse ajustado durante el descubrimiento. Verifica antes de corregir ciegamente.
+
+- **Record/clase apropiado**: ¿el objeto muta después de crearse? Si no → debería ser record. Si sí → clase. Si hay un record mutable (`set` público), corregir.
+- **Factory static para objetos con invariantes**: si un Value Object o evento tiene precondiciones y usa constructor público con parámetros en lugar de factory static, refactorizarlo.
+- **Sin constructores públicos vacíos**: si encuentras `public Cedula() {}` o similar, corregirlo a `private`.
+- **Sin `{ get; init; }` en objetos con invariantes**: `init` en un objeto con factory static es una contradicción — permite bypasear la validación vía `with {}`. Corregirlo a `{ get; }` o `{ get; private set; }`.
+- **Tell Don't Ask**: si hay código fuera del objeto calculando algo usando solo datos del objeto, mover el cálculo dentro. Verificar que los aggregates ejecutan sus propios cálculos en los métodos `Apply()` o en métodos de comportamiento.
+- **Eventos con precondiciones usan factory static**: si un evento tiene campos críticos (Guids vacíos, strings nulos) y no tiene factory static, evaluar si lo merece.
+
 ---
 
 ### 4. Revisar cobertura de la HU
@@ -235,6 +246,10 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 | Organizacion vertical (feature folders) | ok / falla | ... |
 | Sin strings hardcodeados en mensajes | ok / falla | ... |
 | Aggregates/handlers son partial class | ok / falla | ... |
+| Modelado record/clase apropiado | ok / falla / n/a | ... |
+| Factory static en objetos con invariantes | ok / falla / n/a | ... |
+| Sin init en objetos con invariantes | ok / falla / n/a | ... |
+| Tell Don't Ask (calculos en el objeto) | ok / falla / n/a | ... |
 
 ### Elegancia del codigo
 - [Hallazgos sobre compacidad, legibilidad, idiomatismo, robustez, eficiencia o limpieza]
@@ -277,3 +292,6 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 11. **NUNCA** try-catch de excepciones de dominio en CommandHandlers.
 12. **NUNCA** NSubstitute para fakes de dependencias del handler — solo clases fake manuales.
 13. Todo test nuevo debe tener `Then(...)` Y al menos un `And<>()` — sin excepcion.
+14. **NUNCA** `{ get; init; }` en objetos con invariantes — `with {}` bypasea la validacion del factory.
+15. **NUNCA** constructores publicos vacios en objetos con factory static — `private` para persistencia.
+16. **NUNCA** objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.

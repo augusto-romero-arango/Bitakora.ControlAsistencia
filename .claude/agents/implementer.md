@@ -276,6 +276,104 @@ builder.Services.AddValidatorsFromAssemblyContaining<I{Dominio}AssemblyMarker>()
 
 ---
 
+## Modelado de objetos de dominio
+
+Estas son **heurísticas de diseño**, no reglas absolutas. El diseño específico de cada caso puede ajustarse en la fase de descubrimiento con event-stormer o planner.
+
+### Tabla de heurísticas: record vs clase
+
+| Tipo de objeto | Forma | Constructor | Validación |
+|---|---|---|---|
+| Comando (DTO) | `record` con constructor primario | Público | FluentValidation (externa) |
+| Evento sin invariantes | `record` con constructor primario | Público | Ninguna |
+| Evento con precondiciones | `record` con factory static | Privado | Factory static → throw |
+| Value Object simple | `record` con constructor primario | Público | Ninguna |
+| Value Object con invariantes | `record` con factory static | Privado + privado vacío | Factory static → throw |
+| AggregateRoot | `partial class` | Factory static (`Crear`) | Eventos de fallo (ADR-0007) |
+
+**La distinción es mutabilidad**: si el objeto no muta después de crearse → `record`. Si muta → `class`.
+
+### Factory static para objetos con invariantes
+
+Cuando un objeto tiene reglas que deben cumplirse en la construcción:
+
+```csharp
+// Value Object con invariantes
+public record Cedula
+{
+    public string Numero { get; }
+
+    private Cedula(string numero) => Numero = numero;
+
+    private Cedula() { } // para Marten y JSON
+
+    public static Cedula Crear(string numero)
+    {
+        ValidarFormato(numero);
+        return new Cedula(numero);
+    }
+
+    private static void ValidarFormato(string numero)
+    {
+        if (string.IsNullOrWhiteSpace(numero))
+            throw new ArgumentException("La cedula no puede estar vacia");
+    }
+}
+```
+
+- Constructor primario privado (recibe campos, no valida)
+- Constructor vacío `private` para Marten y JSON (nunca `public` ni `protected`)
+- Método estático `Crear(...)` valida y construye — throw si inválido
+- Validaciones como métodos privados estáticos del mismo objeto
+
+### Eventos con precondiciones
+
+Un evento con precondiciones estructurales usa factory static. El **CommandHandler** lo construye; si falla, el throw ocurre en el handler — no en el aggregate (ADR-0007 se mantiene):
+
+```csharp
+public record TurnoAsignado
+{
+    public Guid TurnoId { get; }
+    public Guid EmpleadoId { get; }
+    public DateOnly FechaInicio { get; }
+
+    private TurnoAsignado(Guid turnoId, Guid empleadoId, DateOnly fechaInicio)
+    {
+        TurnoId = turnoId;
+        EmpleadoId = empleadoId;
+        FechaInicio = fechaInicio;
+    }
+
+    public static TurnoAsignado Crear(Guid turnoId, Guid empleadoId, DateOnly fechaInicio)
+    {
+        if (turnoId == Guid.Empty)
+            throw new ArgumentException("El turno es requerido");
+        if (empleadoId == Guid.Empty)
+            throw new ArgumentException("El empleado es requerido");
+        return new TurnoAsignado(turnoId, empleadoId, fechaInicio);
+    }
+}
+```
+
+### Encapsulamiento: Tell Don't Ask
+
+Los cálculos pertenecen al objeto que tiene los datos. No crear objetos auxiliares para cálculos que el propio objeto puede resolver.
+
+En event sourcing, preferir el **aggregate que acumula estado vía eventos** y ejecuta los cálculos internamente:
+
+```csharp
+// Preferir esto
+public void Apply(MarcacionesRecibidas e)
+{
+    _marcaciones.AddRange(e.Marcaciones);
+    _horasDesglosadas = DesglosaHoras(); // calculo dentro del aggregate
+}
+```
+
+Si un cálculo cruza múltiples aggregates de formas que no pueden resolverse con acumulación de eventos, la alternativa (proyección o process manager) se decide en la fase de descubrimiento — no como default.
+
+---
+
 ## Convenciones de nombramiento
 
 **Codigo C# (PascalCase, espanol excepto patrones reconocidos):**
@@ -462,3 +560,6 @@ Crea el archivo `.claude/pipeline/summaries/stage-2-implementer.md`:
 8. **NUNCA** uses for/foreach cuando LINQ resuelve el problema.
 9. **NUNCA** adornes comentarios con caracteres decorativos Unicode ni composiciones complejas de separadores. Los comentarios deben ser simples y directos.
 10. **Solo modifica** `infra/environments/dev/main.tf` para infraestructura (y solo el bloque `topics_config`).
+11. **NUNCA** uses `{ get; init; }` en objetos con invariantes — `with {}` bypasea la validacion del factory.
+12. **NUNCA** crees constructores publicos vacios — si la persistencia lo necesita, hazlo `private`.
+13. **NUNCA** crees objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
