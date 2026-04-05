@@ -22,10 +22,10 @@ public class FranjaOrdinariaIgualdadTests : IgualdadTestBase<FranjaOrdinaria>
             FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0), diaOffsetFin: 1));
         yield return ("Descansos",
             FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
-                descansos: [FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))]));
+                descansos: [SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))]));
         yield return ("Extras",
             FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
-                extras: [FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(7, 0))]));
+                extras: [SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(7, 0))]));
     }
 
     // Tests adicionales especificos de FranjaOrdinaria (colecciones de hijos)
@@ -34,11 +34,11 @@ public class FranjaOrdinariaIgualdadTests : IgualdadTestBase<FranjaOrdinaria>
     public void Equals_RetornaTrue_CuandoMismosValoresConHijos()
     {
         var a = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
-            descansos: [FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))],
-            extras: [FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0))]);
+            descansos: [SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))],
+            extras: [SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0))]);
         var b = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
-            descansos: [FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))],
-            extras: [FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0))]);
+            descansos: [SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))],
+            extras: [SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0))]);
 
         a.Equals(b).Should().BeTrue();
     }
@@ -47,9 +47,9 @@ public class FranjaOrdinariaIgualdadTests : IgualdadTestBase<FranjaOrdinaria>
     public void GetHashCode_RetornaMismoHash_CuandoMismosValoresConHijos()
     {
         var a = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
-            descansos: [FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))]);
+            descansos: [SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))]);
         var b = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
-            descansos: [FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))]);
+            descansos: [SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15))]);
 
         a.GetHashCode().Should().Be(b.GetHashCode());
     }

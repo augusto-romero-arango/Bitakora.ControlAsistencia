@@ -25,7 +25,7 @@ public class FranjaOrdinariaTests
     [Fact]
     public void Crear_RetornaFranjaOrdinariaConDescanso_CuandoDescansoEstaContenido()
     {
-        var descanso = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var descanso = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
 
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -37,7 +37,7 @@ public class FranjaOrdinariaTests
     [Fact]
     public void Crear_RetornaFranjaOrdinariaConExtra_CuandoExtraEstaContenida()
     {
-        var extra = FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
+        var extra = SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
 
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -49,8 +49,8 @@ public class FranjaOrdinariaTests
     [Fact]
     public void Crear_RetornaFranjaOrdinariaConDescansosYExtras_CuandoTodosEsanContenidos()
     {
-        var descanso = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
-        var extra = FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
+        var descanso = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var extra = SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
 
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -150,10 +150,10 @@ public class FranjaOrdinariaTests
     [Fact]
     public void ToString_MuestraMultiplesDescansosYExtras_CuandoTieneVariosHijos()
     {
-        var descanso1 = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
-        var descanso2 = FranjaDescanso.Crear(new TimeOnly(11, 0), new TimeOnly(11, 15));
-        var extra1 = FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(7, 0));
-        var extra2 = FranjaExtra.Crear(new TimeOnly(7, 0), new TimeOnly(8, 0));
+        var descanso1 = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var descanso2 = SubFranja.Crear(new TimeOnly(11, 0), new TimeOnly(11, 15));
+        var extra1 = SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(7, 0));
+        var extra2 = SubFranja.Crear(new TimeOnly(7, 0), new TimeOnly(8, 0));
 
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(14, 0),
@@ -170,7 +170,7 @@ public class FranjaOrdinariaTests
     public void Crear_LanzaExcepcion_CuandoDescansoExcedeFin()
     {
         // descanso termina a las 13:00, ordinaria termina a las 12:00
-        var descanso = FranjaDescanso.Crear(new TimeOnly(11, 0), new TimeOnly(13, 0));
+        var descanso = SubFranja.Crear(new TimeOnly(11, 0), new TimeOnly(13, 0));
 
         var act = () => FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -184,7 +184,7 @@ public class FranjaOrdinariaTests
     public void Crear_LanzaExcepcion_CuandoDescansoEmpiezaAntesDeInicio()
     {
         // descanso empieza a las 7:00, ordinaria empieza a las 8:00
-        var descanso = FranjaDescanso.Crear(new TimeOnly(7, 0), new TimeOnly(9, 0));
+        var descanso = SubFranja.Crear(new TimeOnly(7, 0), new TimeOnly(9, 0));
 
         var act = () => FranjaOrdinaria.Crear(
             new TimeOnly(8, 0), new TimeOnly(12, 0),
@@ -198,7 +198,7 @@ public class FranjaOrdinariaTests
     public void Crear_LanzaExcepcion_CuandoExtraExcedeFin()
     {
         // extra termina a las 13:00, ordinaria termina a las 12:00
-        var extra = FranjaExtra.Crear(new TimeOnly(11, 0), new TimeOnly(13, 0));
+        var extra = SubFranja.Crear(new TimeOnly(11, 0), new TimeOnly(13, 0));
 
         var act = () => FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -215,7 +215,7 @@ public class FranjaOrdinariaTests
     {
         // Ordinaria nocturna: 22:00+0 -> 06:00+1
         // Descanso en tramo nocturno antes de medianoche: 23:00+0 -> 23:15+0
-        var descanso = FranjaDescanso.Crear(new TimeOnly(23, 0), new TimeOnly(23, 15),
+        var descanso = SubFranja.Crear(new TimeOnly(23, 0), new TimeOnly(23, 15),
             diaOffsetInicio: 0, diaOffsetFin: 0);
 
         var franja = FranjaOrdinaria.Crear(
@@ -232,7 +232,7 @@ public class FranjaOrdinariaTests
     {
         // Ordinaria nocturna: 22:00+0 -> 06:00+1
         // Extra: 05:00+1 -> 07:00+1 - termina despues de las 06:00+1
-        var extra = FranjaExtra.Crear(new TimeOnly(5, 0), new TimeOnly(7, 0),
+        var extra = SubFranja.Crear(new TimeOnly(5, 0), new TimeOnly(7, 0),
             diaOffsetInicio: 1, diaOffsetFin: 1);
 
         var act = () => FranjaOrdinaria.Crear(
@@ -249,8 +249,8 @@ public class FranjaOrdinariaTests
     public void Crear_LanzaExcepcion_CuandoExtraYDescansoSeSolapan()
     {
         // extra 09:00-11:00 y descanso 10:00-10:15 se solapan
-        var extra = FranjaExtra.Crear(new TimeOnly(9, 0), new TimeOnly(11, 0));
-        var descanso = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var extra = SubFranja.Crear(new TimeOnly(9, 0), new TimeOnly(11, 0));
+        var descanso = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
 
         var act = () => FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -264,8 +264,8 @@ public class FranjaOrdinariaTests
     [Fact]
     public void Crear_LanzaExcepcion_CuandoDosDescansosSeSolapan()
     {
-        var descanso1 = FranjaDescanso.Crear(new TimeOnly(9, 0), new TimeOnly(10, 0));
-        var descanso2 = FranjaDescanso.Crear(new TimeOnly(9, 30), new TimeOnly(10, 30));
+        var descanso1 = SubFranja.Crear(new TimeOnly(9, 0), new TimeOnly(10, 0));
+        var descanso2 = SubFranja.Crear(new TimeOnly(9, 30), new TimeOnly(10, 30));
 
         var act = () => FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -281,8 +281,8 @@ public class FranjaOrdinariaTests
     public void Crear_RetornaFranjaConHijosContiguos_CuandoFinDeUnoEsInicioDelOtro()
     {
         // extra termina exactamente donde empieza el descanso - contiguas, no solapadas
-        var extra = FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
-        var descanso = FranjaDescanso.Crear(new TimeOnly(8, 0), new TimeOnly(8, 15));
+        var extra = SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
+        var descanso = SubFranja.Crear(new TimeOnly(8, 0), new TimeOnly(8, 15));
 
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(12, 0),
@@ -299,9 +299,9 @@ public class FranjaOrdinariaTests
     {
         // Ordinaria nocturna: 22:00+0 -> 06:00+1
         // Dos descansos que se solapan en el tramo antes de medianoche
-        var descanso1 = FranjaDescanso.Crear(new TimeOnly(23, 0), new TimeOnly(23, 30),
+        var descanso1 = SubFranja.Crear(new TimeOnly(23, 0), new TimeOnly(23, 30),
             diaOffsetInicio: 0, diaOffsetFin: 0);
-        var descanso2 = FranjaDescanso.Crear(new TimeOnly(23, 15), new TimeOnly(23, 45),
+        var descanso2 = SubFranja.Crear(new TimeOnly(23, 15), new TimeOnly(23, 45),
             diaOffsetInicio: 0, diaOffsetFin: 0);
 
         var act = () => FranjaOrdinaria.Crear(
@@ -317,9 +317,9 @@ public class FranjaOrdinariaTests
     {
         // Ordinaria nocturna: 22:00+0 -> 06:00+1
         // descanso termina exactamente donde empieza la extra - contiguas, no solapadas
-        var descanso = FranjaDescanso.Crear(new TimeOnly(23, 0), new TimeOnly(23, 15),
+        var descanso = SubFranja.Crear(new TimeOnly(23, 0), new TimeOnly(23, 15),
             diaOffsetInicio: 0, diaOffsetFin: 0);
-        var extra = FranjaExtra.Crear(new TimeOnly(23, 15), new TimeOnly(0, 0),
+        var extra = SubFranja.Crear(new TimeOnly(23, 15), new TimeOnly(0, 0),
             diaOffsetInicio: 0, diaOffsetFin: 1);
 
         var franja = FranjaOrdinaria.Crear(

@@ -11,8 +11,7 @@ public class FranjaOrdinariaSerializacionTests
     private static JsonSerializerOptions CrearOpciones()
     {
         var resolver = new DefaultJsonTypeInfoResolver();
-        FranjaDescanso.ConfigurarSerializacion(resolver);
-        FranjaExtra.ConfigurarSerializacion(resolver);
+        SubFranja.ConfigurarSerializacion(resolver);
         FranjaOrdinaria.ConfigurarSerializacion(resolver);
         return new JsonSerializerOptions { TypeInfoResolver = resolver };
     }
@@ -48,8 +47,8 @@ public class FranjaOrdinariaSerializacionTests
     [Fact]
     public void RoundTrip_PreservaValores_CuandoOrdinariaConDescansoYExtra()
     {
-        var descanso = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
-        var extra = FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
+        var descanso = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var extra = SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(8, 0));
         var original = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
             descansos: [descanso], extras: [extra]);
         var opciones = CrearOpciones();
@@ -64,9 +63,9 @@ public class FranjaOrdinariaSerializacionTests
     [Fact]
     public void RoundTrip_PreservaValores_CuandoOrdinariaNocturnaConHijasConOffsets()
     {
-        var descanso = FranjaDescanso.Crear(new TimeOnly(23, 0), new TimeOnly(23, 15),
+        var descanso = SubFranja.Crear(new TimeOnly(23, 0), new TimeOnly(23, 15),
             diaOffsetInicio: 0, diaOffsetFin: 0);
-        var extra = FranjaExtra.Crear(new TimeOnly(4, 0), new TimeOnly(5, 0),
+        var extra = SubFranja.Crear(new TimeOnly(4, 0), new TimeOnly(5, 0),
             diaOffsetInicio: 1, diaOffsetFin: 1);
         var original = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0), diaOffsetFin: 1,
             descansos: [descanso], extras: [extra]);

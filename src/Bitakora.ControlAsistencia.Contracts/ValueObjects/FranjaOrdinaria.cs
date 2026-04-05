@@ -4,17 +4,17 @@ using System.Text.Json.Serialization.Metadata;
 namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
 
 // Segmento continuo de trabajo dentro de un turno.
-// Puede contener FranjaDescanso y FranjaExtra.
+// Contiene sub-franjas de descanso y extras.
 // ADR-0015: sealed class con factory static, constructor privado, campos readonly.
 public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria>
 {
-    private readonly List<FranjaDescanso> _descansos;
-    private readonly List<FranjaExtra> _extras;
+    private readonly List<SubFranja> _descansos;
+    private readonly List<SubFranja> _extras;
 
     // Constructor real: usado por el factory
     // diaOffsetInicio siempre es 0 — la ordinaria empieza en el dia base
     private FranjaOrdinaria(TimeOnly horaInicio, TimeOnly horaFin, int diaOffsetFin,
-        List<FranjaDescanso> descansos, List<FranjaExtra> extras)
+        List<SubFranja> descansos, List<SubFranja> extras)
         : base(horaInicio, horaFin, diaOffsetInicio: 0, diaOffsetFin)
     {
         _descansos = descansos;
@@ -37,8 +37,8 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         TimeOnly horaInicio,
         TimeOnly horaFin,
         int diaOffsetFin = 0,
-        IEnumerable<FranjaDescanso>? descansos = null,
-        IEnumerable<FranjaExtra>? extras = null)
+        IEnumerable<SubFranja>? descansos = null,
+        IEnumerable<SubFranja>? extras = null)
     {
         // CA-13: inferir offset cuando fin < inicio y no se especifico
         if (diaOffsetFin == 0 && horaFin < horaInicio)
@@ -142,14 +142,14 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
             // Colecciones de hijas
             var fDescansos = typeof(FranjaOrdinaria)
                 .GetField("_descansos", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var pDescansos = typeInfo.CreateJsonPropertyInfo(typeof(List<FranjaDescanso>), "descansos");
+            var pDescansos = typeInfo.CreateJsonPropertyInfo(typeof(List<SubFranja>), "descansos");
             pDescansos.Get = obj => fDescansos.GetValue(obj)!;
             pDescansos.Set = (obj, val) => fDescansos.SetValue(obj, val);
             typeInfo.Properties.Add(pDescansos);
 
             var fExtras = typeof(FranjaOrdinaria)
                 .GetField("_extras", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var pExtras = typeInfo.CreateJsonPropertyInfo(typeof(List<FranjaExtra>), "extras");
+            var pExtras = typeInfo.CreateJsonPropertyInfo(typeof(List<SubFranja>), "extras");
             pExtras.Get = obj => fExtras.GetValue(obj)!;
             pExtras.Set = (obj, val) => fExtras.SetValue(obj, val);
             typeInfo.Properties.Add(pExtras);

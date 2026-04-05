@@ -1,4 +1,4 @@
-// Issue #2: Tests de round-trip JSON para FranjaDescanso
+// Issue #2: Tests de round-trip JSON para SubFranja
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -6,23 +6,23 @@ using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
 
-public class FranjaDescansoSerializacionTests
+public class SubFranjaSerializacionTests
 {
     private static JsonSerializerOptions CrearOpciones()
     {
         var resolver = new DefaultJsonTypeInfoResolver();
-        FranjaDescanso.ConfigurarSerializacion(resolver);
+        SubFranja.ConfigurarSerializacion(resolver);
         return new JsonSerializerOptions { TypeInfoResolver = resolver };
     }
 
     [Fact]
-    public void RoundTrip_PreservaValores_CuandoDescansoSinOffset()
+    public void RoundTrip_PreservaValores_CuandoSubFranjaSinOffset()
     {
-        var original = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var original = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<FranjaDescanso>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<SubFranja>(json, opciones);
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(original.DuracionEnMinutos());
@@ -30,14 +30,14 @@ public class FranjaDescansoSerializacionTests
     }
 
     [Fact]
-    public void RoundTrip_PreservaValores_CuandoDescansoCruzaMedianoche()
+    public void RoundTrip_PreservaValores_CuandoSubFranjaCruzaMedianoche()
     {
-        var original = FranjaDescanso.Crear(new TimeOnly(23, 50), new TimeOnly(0, 10),
+        var original = SubFranja.Crear(new TimeOnly(23, 50), new TimeOnly(0, 10),
             diaOffsetInicio: 0, diaOffsetFin: 1);
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<FranjaDescanso>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<SubFranja>(json, opciones);
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(20);
@@ -45,14 +45,14 @@ public class FranjaDescansoSerializacionTests
     }
 
     [Fact]
-    public void RoundTrip_PreservaValores_CuandoDescansoConAmbosOffsets()
+    public void RoundTrip_PreservaValores_CuandoSubFranjaConAmbosOffsets()
     {
-        var original = FranjaDescanso.Crear(new TimeOnly(1, 0), new TimeOnly(1, 30),
+        var original = SubFranja.Crear(new TimeOnly(1, 0), new TimeOnly(1, 30),
             diaOffsetInicio: 1, diaOffsetFin: 1);
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<FranjaDescanso>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<SubFranja>(json, opciones);
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(30);
@@ -60,13 +60,13 @@ public class FranjaDescansoSerializacionTests
     }
 
     [Fact]
-    public void RoundTrip_PreservaIgualdad_CuandoDescansoRestaurado()
+    public void RoundTrip_PreservaIgualdad_CuandoSubFranjaRestaurada()
     {
-        var original = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var original = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<FranjaDescanso>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<SubFranja>(json, opciones);
 
         restaurado.Should().Be(original);
     }
