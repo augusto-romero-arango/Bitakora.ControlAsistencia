@@ -117,9 +117,10 @@ Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions
 
 #### Mensajes de error
 
-- **Sin strings hardcodeados en mensajes**: todos los mensajes de eventos de fallo del aggregate y excepciones de precondicion del handler deben venir de la clase `Mensajes` respaldada por .resx. Si encuentras un string literal en `_uncommittedEvents.Add(new EventoFallido(..., "mensaje"))` o en `throw new InvalidOperationException("mensaje")`, muevelo al .resx + clase Mensajes correspondiente.
+- **Sin strings hardcodeados en mensajes**: todos los mensajes de eventos de fallo del aggregate, excepciones del handler, **excepciones de value objects**, y **labels de presentacion en ToString()** deben venir de la clase `Mensajes` respaldada por .resx. Si encuentras un string literal en cualquiera de estos contextos, muevelo al .resx + clase Mensajes correspondiente.
 - **Aggregates y handlers son `partial class`**: necesario para que la clase Mensajes anidada exista en un archivo separado. Si encuentras `public class TurnoAggregateRoot` o `public class CrearTurnoCommandHandler`, corrigelo a `partial class`.
 - **El .resx esta co-localizado con la clase**: `TurnoAggregateRootMensajes.resx` debe estar en la misma carpeta que `TurnoAggregateRoot.cs`.
+- **Tests verifican mensaje, no solo tipo**: cada `ThrowExactly<X>()` debe incluir `.WithMessage($"*{Clase.Mensajes.Clave}*")`. Si faltan, agregarlos.
 
 #### Modelado de objetos (ADR-0015)
 
@@ -131,6 +132,10 @@ Estas son heurísticas — el diseño específico puede haberse ajustado durante
 - **Sin `{ get; init; }` en objetos con invariantes**: `init` en un objeto con factory static es una contradicción — permite bypasear la validación vía `with {}`. Corregirlo a `{ get; }` o `{ get; private set; }`.
 - **Tell Don't Ask**: si hay código fuera del objeto calculando algo usando solo datos del objeto, mover el cálculo dentro. Verificar que los aggregates ejecutan sus propios cálculos en los métodos `Apply()` o en métodos de comportamiento.
 - **Eventos con precondiciones usan factory static**: si un evento tiene campos críticos (Guids vacíos, strings nulos) y no tiene factory static, evaluar si lo merece.
+- **Propiedades internas son protected/private**: propiedades de mecanica interna (offsets, minutos absolutos, datos de calculo) no deben ser `public`. La interfaz publica de un value object son sus metodos de comportamiento (`DuracionEnMinutos()`, `ToString()`, etc.). Si un getter publico solo existe para que los tests lo verifiquen, es una señal de que: (a) la propiedad deberia ser `protected` y (b) el test deberia verificar via `ToString()` o comportamiento.
+- **Sin numeros magicos**: literales numericos con significado de dominio (60 min/hora, 1440 min/dia, 7 dias/semana) deben ser constantes con nombre descriptivo (`MinutosPorHora`, `MinutosPorDia`).
+- **Validaciones de consistencia → invariantes del constructor**: si hay metodos publicos que validan consistencia interna (`Contiene`, `SeSolapan`), evaluar si deben ser privados y ejecutarse en el factory. El objeto debe nacer valido.
+- **Diseño de factories**: cuando existen multiples factory methods, evaluar si alguno es siempre superior al otro (interfaz mas limpia, menos parametros, inferencia automatica). En ese caso, el factory inferior puede eliminarse o el superior puede convertirse en el unico `Crear`.
 
 ---
 
@@ -250,6 +255,11 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 | Factory static en objetos con invariantes | ok / falla / n/a | ... |
 | Sin init en objetos con invariantes | ok / falla / n/a | ... |
 | Tell Don't Ask (calculos en el objeto) | ok / falla / n/a | ... |
+| Sin numeros magicos | ok / falla / n/a | ... |
+| Propiedades internas son protected/private | ok / falla / n/a | ... |
+| Tests via ToString (no via getters internos) | ok / falla / n/a | ... |
+| Mensajes en .resx (excepciones Y labels ToString) | ok / falla | ... |
+| Tests verifican mensaje de excepcion (.WithMessage) | ok / falla / n/a | ... |
 
 ### Elegancia del codigo
 - [Hallazgos sobre compacidad, legibilidad, idiomatismo, robustez, eficiencia o limpieza]
@@ -295,3 +305,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 14. **NUNCA** `{ get; init; }` en objetos con invariantes — `with {}` bypasea la validacion del factory.
 15. **NUNCA** constructores publicos vacios en objetos con factory static — `private` para persistencia.
 16. **NUNCA** objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
+17. **NUNCA** strings literales en `throw`, eventos de fallo, ni en `ToString()` — todo a .resx + clase Mensajes.
+18. **NUNCA** tests que solo verifican el tipo de excepcion sin `.WithMessage(...)` — el mensaje da contexto.
+19. **NUNCA** propiedades de mecanica interna (offsets, minutos absolutos) como `public` en value objects.
+20. **NUNCA** numeros magicos con significado de dominio — extraelos como constantes con nombre.

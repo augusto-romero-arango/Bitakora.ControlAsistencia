@@ -345,11 +345,15 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
 
 ### 6b. Crear mensajes (.resx + clase Mensajes)
 
-Cuando un test necesita verificar un mensaje de error (evento de fallo del aggregate o excepcion del handler), debes crear la infraestructura de mensajes **antes de escribir el test**.
+Cuando un test necesita verificar un mensaje de error (evento de fallo del aggregate, excepcion del handler, **o cualquier texto que pueda llegar al front**), debes crear la infraestructura de mensajes **antes de escribir el test**.
+
+**Aplica a**: aggregates, handlers, y **value objects**. Cualquier string que salga al usuario — mensajes de excepcion, labels en `ToString()` ("Descansos", "Extras", etc.) — debe vivir en .resx.
 
 **Paso 1 - Determinar a quien pertenece el mensaje:**
 - Reglas de negocio que emiten eventos de fallo → aggregate
 - Precondiciones del handler (aggregate no encontrado, ya existe) → handler
+- Invariantes del value object (factory lanza excepcion) → el mismo value object
+- Labels de presentacion en ToString() de un value object → el mismo value object
 
 **Paso 2 - Crear el archivo .resx** junto al aggregate o handler correspondiente:
 
@@ -422,6 +426,34 @@ await act.Should().ThrowExactlyAsync<InvalidOperationException>()
 ```
 
 **Nota**: el SDK de .NET incluye automaticamente los archivos .resx como EmbeddedResource. No se necesita configuracion adicional en el .csproj.
+
+**Verificacion de mensajes en excepciones de value objects:**
+```csharp
+// CORRECTO: verifica tipo Y mensaje
+var act = () => FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 0));
+act.Should().ThrowExactly<ArgumentException>()
+    .WithMessage($"*{FranjaDescanso.Mensajes.InicioYFinIguales}*");
+
+// INCORRECTO: solo verifica el tipo, pierde contexto del error
+act.Should().ThrowExactly<ArgumentException>();
+```
+
+### 6c. Testear value objects via interfaz publica
+
+Los value objects exponen comportamiento, no datos. **Verifica propiedades a traves de `ToString()` y metodos de comportamiento, no via getters individuales.** Si el objeto fue bien diseñado, el `ToString()` y los metodos de calculo son su interfaz publica.
+
+```csharp
+// CORRECTO: verifica via interfaz publica
+var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0));
+franja.ToString().Should().Be("(06:00-12:00)");
+franja.DuracionEnMinutos().Should().Be(360);
+
+// INCORRECTO: accede a detalles internos que no deberian ser publicos
+franja.HoraInicio.Should().Be(new TimeOnly(6, 0));  // HoraInicio es internal/protected
+franja.DiaOffsetFin.Should().Be(0);                 // DiaOffsetFin es internal/protected
+```
+
+Esta heuristica te ayuda a detectar si el implementer rompió el encapsulamiento: si los tests necesitan getters de propiedades internas para verificar, esas propiedades no deberian ser publicas.
 
 ---
 

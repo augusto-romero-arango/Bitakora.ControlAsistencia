@@ -355,6 +355,22 @@ public record TurnoAsignado
 }
 ```
 
+### Encapsulamiento: propiedades internas
+
+Las propiedades que existen para facilitar calculos internos del objeto (ej: `MinutosAbsolutoInicio`, `DiaOffsetFin`, `HoraInicio`) deben ser `protected` o `private`. **La interfaz publica son los metodos de comportamiento** (`DuracionEnMinutos()`, `ToString()`, etc.).
+
+Regla practica: si un test necesita acceder a una propiedad para verificar el estado, esa propiedad debe ser publica. Si solo se usa internamente para calculos, debe ser `protected`.
+
+```csharp
+// CORRECTO: HoraInicio es un detalle de implementacion
+protected TimeOnly HoraInicio { get; }    // solo accesible para subclases
+public int DuracionEnMinutos() => ...     // interfaz publica
+
+// INCORRECTO: expone mecanica interna
+public TimeOnly HoraInicio { get; }       // el consumidor no necesita esto
+public int MinutosAbsolutoInicio { get; } // detalle de calculo, no contrato
+```
+
 ### Encapsulamiento: Tell Don't Ask
 
 Los cálculos pertenecen al objeto que tiene los datos. No crear objetos auxiliares para cálculos que el propio objeto puede resolver.
@@ -371,6 +387,85 @@ public void Apply(MarcacionesRecibidas e)
 ```
 
 Si un cálculo cruza múltiples aggregates de formas que no pueden resolverse con acumulación de eventos, la alternativa (proyección o process manager) se decide en la fase de descubrimiento — no como default.
+
+### Numeros magicos → constantes con nombre
+
+Nunca uses literales numericos con significado de dominio. Extraelos como constantes con nombre descriptivo:
+
+```csharp
+// INCORRECTO: 60 y 1440 son numeros magicos
+public int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
+public int MinutosAbsolutoInicio => HoraInicio.Hour * 60 + HoraInicio.Minute + DiaOffsetInicio * 1440;
+
+// CORRECTO: constantes con significado
+protected const int MinutosPorHora = 60;
+protected const int MinutosPorDia = 1440;
+public int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
+public int MinutosAbsolutoInicio => HoraInicio.Hour * MinutosPorHora + HoraInicio.Minute + DiaOffsetInicio * MinutosPorDia;
+```
+
+### Diseño de factories: evaluar si el secundario supera al principal
+
+Cuando tienes dos factory methods (`Crear` + `CrearInfiriendoOffset`), evalua si el secundario tiene una interfaz **siempre superior** al principal (menos parametros, inferencia automatica, menos error-prone). Si es asi, considera hacer del secundario el unico `Crear` y eliminar el principal.
+
+```csharp
+// INCORRECTO: dos factories donde uno es siempre superior
+public static FranjaDescanso Crear(TimeOnly inicio, TimeOnly fin, int offsetInicio = 0, int offsetFin = 0) { ... }
+public static FranjaDescanso CrearInfiriendoOffset(TimeOnly inicio, TimeOnly fin, int offsetInicio = 0) { ... }
+
+// CORRECTO: un solo Crear que infiere por defecto
+public static FranjaDescanso Crear(TimeOnly inicio, TimeOnly fin, int offsetInicio = 0)
+{
+    var offsetFin = fin < inicio ? offsetInicio + 1 : offsetInicio;
+    if (inicio == fin && offsetInicio == offsetFin)
+        throw new ArgumentException(Mensajes.InicioYFinIguales);
+    return new FranjaDescanso(inicio, fin, offsetInicio, offsetFin);
+}
+```
+
+### Validaciones de consistencia interna → invariantes del constructor
+
+Si una operacion valida consistencia entre partes del objeto (contenencia, solapamiento, orden), **debe ejecutarse en el constructor/factory**, no exponerse como metodo publico.
+
+```csharp
+// INCORRECTO: expone la logica de validacion como API publica
+public bool Contiene(FranjaBase franja) => ...
+public static bool SeSolapan(FranjaBase a, FranjaBase b) => ...
+
+// CORRECTO: metodos privados usados internamente en el factory
+private bool Contiene(FranjaBase franja) => ...
+private static bool SeSolapan(FranjaBase a, FranjaBase b) => ...
+
+public static FranjaOrdinaria Crear(TimeOnly inicio, TimeOnly fin, int offsetFin = 0,
+    IReadOnlyList<FranjaDescanso>? descansos = null, IReadOnlyList<FranjaExtra>? extras = null)
+{
+    var ordinaria = new FranjaOrdinaria(inicio, fin, offsetFin, descansos ?? [], extras ?? []);
+    foreach (var descanso in ordinaria.Descansos)
+        if (!ordinaria.Contiene(descanso))
+            throw new ArgumentException(Mensajes.DescansoFueraDeRango);
+    // ...
+    return ordinaria;
+}
+```
+
+### i18n: todo string visible en .resx
+
+Todo string que potencialmente salga al front debe estar en .resx — **no solo mensajes de excepcion**, sino tambien labels de presentacion en `ToString()`:
+
+```csharp
+// INCORRECTO: labels hardcodeados en ToString
+public override string ToString() =>
+    $"({HoraInicio:HH:mm}-{HoraFin:HH:mm}), Descansos:({string.Join(", ", Descansos)})";
+
+// CORRECTO: labels en .resx
+public override string ToString()
+{
+    var base_ = $"({HoraInicio:HH:mm}-{HoraFin:HH:mm})";
+    if (Descansos.Count > 0)
+        base_ += $", {Mensajes.LabelDescansos}:({string.Join(", ", Descansos)})";
+    return base_;
+}
+```
 
 ---
 
