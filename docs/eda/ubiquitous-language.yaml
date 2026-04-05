@@ -4,7 +4,7 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-04-04 (sesion de exploracion inicial)
+# Ultima actualizacion: 2026-04-05 (sesion de diseno evento TurnoCreado)
 
 # -------------------------
 # VOCABULARIO DEL DOMINIO
@@ -17,15 +17,30 @@ terms:
     rejection_reason: "fichaje es termino de España; registro de entrada es ambiguo"
 
   - name: Turno
-    definition: Bloque de trabajo definido, compuesto por una o mas franjas. Concepto operativo.
+    definition: Plantilla reutilizable compuesta por franjas ordinarias, cada una con posibles descansos y extras contenidos. Se almacena en el catalogo con un Id (Guid generado por el cliente) y un nombre. Concepto operativo.
     context: Programacion
     note: "'Jornada' se reserva para el concepto juridico (duraciones y limites legales). Turno es lo que el sistema gestiona."
 
-  - name: Franja
-    definition: Segmento continuo de tiempo dentro de un turno. Puede ser de trabajo o de descanso.
+  - name: Franja Ordinaria
+    definition: Segmento continuo de trabajo dentro de un turno. Es la franja principal que recibe marcaciones. Puede contener franjas de descanso y/o franjas de extra.
     context: Programacion
-    note: "Resuelve elegantemente dos modelos: estricto (solo franjas de trabajo, descansos son huecos) y flexible (franjas con descansos declarados que se descuentan sin medir)"
+    note: "Solo las ordinarias pueden contener otras franjas. Una ordinaria NO puede contener otra ordinaria."
     rejected_synonyms: [tramo, bloque, segmento]
+
+  - name: Franja de Descanso
+    definition: Pausa operativa dentro de una franja ordinaria (ej. almuerzo). Su tiempo se descuenta del trabajo al momento del calculo. Es hoja — no contiene otras franjas.
+    context: Programacion
+    note: "No modela derechos laborales (lactancia) ni actividades (pausas activas, reuniones). Solo pausas operativas del horario."
+
+  - name: Franja de Extra
+    definition: Horas extras programadas dentro de una franja ordinaria. Representan un compromiso del empleado. Es hoja — no contiene otras franjas.
+    context: Programacion
+    note: "Las extras NO programadas (el jefe pidio quedarse) se resuelven en Depuracion/CalculoHoras, no en Programacion."
+
+  - name: Offset de dia
+    definition: "Indicador relativo que marca si una hora pertenece al mismo dia (+0, implicito) o al dia siguiente (+1, explicito) respecto al dia de asignacion del turno. Se usa para representar turnos que cruzan medianoche."
+    context: Programacion
+    note: "El factory del evento infiere +1 cuando fin < inicio en la tupla del comando. No existe hora de corte — la particion legal por medianoche es responsabilidad de CalculoHoras."
 
   - name: Programacion de turnos
     definition: Asignacion de turnos a empleados para periodos especificos.
@@ -80,7 +95,7 @@ actors:
     type: user
     definition: Persona responsable de garantizar la cobertura operativa de uno o mas sitios de trabajo.
     responsibilities:
-      - Definir turnos con sus franjas (trabajo y descanso)
+      - Definir turnos con sus franjas (ordinarias, descansos, extras)
       - Asignar turnos a empleados para periodos especificos
       - Garantizar cobertura operativa del sitio
       - Cumplir limites legales de jornada laboral maxima y trabajo suplementario
@@ -165,4 +180,19 @@ open_questions:
   - question: "Lista completa de Conceptos de discriminacion. Cuales son todos los tipos que maneja la legislacion colombiana?"
     context: CalculoHoras
     date: 2026-04-04
+    priority: medium
+
+  - question: "Como se implementa el patron de acumulacion de errores en el factory del evento TurnoCreado?"
+    context: Programacion
+    date: 2026-04-05
+    priority: high
+
+  - question: "Necesitamos un limite maximo de franjas por turno?"
+    context: Programacion
+    date: 2026-04-05
+    priority: low
+
+  - question: "El turno debe validar duracion maxima legal o eso es responsabilidad de otro dominio?"
+    context: Programacion
+    date: 2026-04-05
     priority: medium

@@ -4,52 +4,125 @@
 # Gestiona el catalogo de turnos disponibles en el sistema.
 # Cada turno define una estructura de franjas de trabajo y descanso.
 #
-# Basado en: ADR-0006 (Event Sourcing con Marten), codigo existente en src/
-# Estado: en desarrollo (existe scaffold en Programacion, sin logica de dominio aun)
+# Basado en: ADR-0006 (Event Sourcing con Marten), field notes 2026-04-05-0633
+# Estado: en desarrollo
+# Ultima actualizacion: 2026-04-05 (sesion de diseno evento TurnoCreado)
 
 aggregate:
   name: CatalogoTurnos
   context: Programacion
   description: >
     Catalogo de turnos disponibles en el sistema. Un turno es un bloque de trabajo
-    compuesto por franjas (de trabajo o descanso). Los turnos se asignan a empleados
-    para periodos especificos.
+    compuesto por franjas ordinarias, cada una con posibles descansos y extras contenidos.
+    Los turnos se asignan a empleados para periodos especificos.
 
   # Estado que el aggregate mantiene
   state:
     - field: TurnoId
       type: Guid
+      note: "Generado por el cliente (front) para permitir seguimiento asincrono (ej: SignalR)"
     - field: Nombre
       type: string
-    - field: Franjas
-      type: List<Franja>
-      note: "Cada franja tiene hora inicio, hora fin, y tipo (Trabajo | Descanso)"
+      note: "Etiqueta de catalogo. No es unico, no es llave. No puede estar vacio."
+    - field: FranjasOrdinarias
+      type: List<FranjaOrdinaria>
+      note: "Cada franja ordinaria puede contener descansos y/o extras"
     - field: EstaActivo
       type: bool
 
+  # Value objects del aggregate
+  value_objects:
+    - name: FranjaOrdinaria
+      fields:
+        - { name: HoraInicio, type: TimeOnly }
+        - { name: HoraFin, type: TimeOnly }
+        - { name: DiaOffsetFin, type: int, note: "0 = mismo dia (default), 1 = dia siguiente. Inferido por el factory cuando fin < inicio." }
+        - { name: Descansos, type: "List<FranjaDescanso>" }
+        - { name: Extras, type: "List<FranjaExtra>" }
+      note: "Franja principal de trabajo. Recibe marcaciones. Puede contener descansos y extras."
+
+    - name: FranjaDescanso
+      fields:
+        - { name: HoraInicio, type: TimeOnly }
+        - { name: HoraFin, type: TimeOnly }
+        - { name: DiaOffsetInicio, type: int, default: 0 }
+        - { name: DiaOffsetFin, type: int, default: 0 }
+      note: "Pausa operativa (ej: almuerzo). Debe estar contenida dentro de una FranjaOrdinaria. Es hoja, no contiene nada."
+
+    - name: FranjaExtra
+      fields:
+        - { name: HoraInicio, type: TimeOnly }
+        - { name: HoraFin, type: TimeOnly }
+        - { name: DiaOffsetInicio, type: int, default: 0 }
+        - { name: DiaOffsetFin, type: int, default: 0 }
+      note: "Horas extras programadas (compromiso del empleado). Debe estar contenida dentro de una FranjaOrdinaria. Es hoja, no contiene nada. Las extras NO programadas se resuelven en Depuracion/CalculoHoras."
+
+  # Semantica temporal
+  time_semantics:
+    - "Inicio inclusivo, fin exclusivo: franja 8:00-11:00 = exactamente 180 minutos"
+    - "DiaOffset +0 es implicito (mismo dia), +1 es explicito (dia siguiente relativo al dia de asignacion)"
+    - "El factory infiere +1 cuando fin < inicio en la tupla del comando"
+    - "La particion legal por medianoche (recargos dominicales/festivos) es responsabilidad de CalculoHoras, no de este aggregate"
+
   # Invariantes de negocio
   invariants:
-    - "Un turno debe tener al menos una franja de trabajo"
-    - "Las franjas no pueden solaparse entre si"
-    - "La duracion total del turno no puede exceder la jornada maxima legal"
+    - "Un turno debe tener al menos una franja ordinaria"
+    - "Las franjas ordinarias no pueden solaparse entre si"
+    - "Los descansos deben estar contenidos dentro del rango temporal de su franja ordinaria padre"
+    - "Las extras deben estar contenidas dentro del rango temporal de su franja ordinaria padre"
+    - "Descansos y extras dentro de la misma ordinaria no pueden solaparse entre si"
+    - "Una franja ordinaria solo puede contener descansos y extras (no otras ordinarias)"
+    - "Descansos y extras son hojas — no contienen otras franjas"
     - "Un turno inactivo no puede asignarse a empleados"
+    - "El nombre no puede estar vacio"
 
+  # Comando CrearTurno
   commands:
     - name: CrearTurno
-      trigger: HTTP (accion del Programador de turnos)
+      trigger: HTTP POST (accion del Programador de turnos)
       description: Define un nuevo turno con sus franjas
+      command_shape:
+        fields:
+          - { name: TurnoId, type: Guid, note: "Generado por el cliente" }
+          - { name: Nombre, type: string }
+          - { name: Ordinarias, type: "List<(TimeOnly inicio, TimeOnly fin)>" }
+          - { name: Descansos, type: "List<(TimeOnly inicio, TimeOnly fin)>" }
+          - { name: Extras, type: "List<(TimeOnly inicio, TimeOnly fin)>" }
+        note: >
+          Comando plano — tres arreglos de tuplas sin tipo explicito.
+          El tipo es implicito en la propiedad.
+          Las tuplas NO se reordenan; el factory infiere +1 cuando fin < inicio.
+      validations:
+        endpoint:
+          - "JSON parseable"
+          - "Campos requeridos presentes (TurnoId, Nombre, Ordinarias)"
+          - "Tipos correctos (TurnoId es Guid valido, inicio/fin son horas validas)"
+          - "Nombre no vacio"
+        handler:
+          - "No existe un turno con ese TurnoId (idempotencia)"
+        factory:
+          - "Todas las invariantes del aggregate"
+          - "Acumula TODOS los errores antes de lanzar excepcion"
+          - "Mensajes descriptivos que guien la correccion del usuario"
       produces:
         - name: TurnoCreado
           description: Un nuevo turno fue creado en el catalogo
+          factory: >
+            El evento se construye via factory estatico que recibe el comando.
+            El factory infiere offsets +1, construye el arbol de contencion,
+            valida invariantes y acumula errores.
+            Si hay errores, lanza excepcion con todos los problemas.
+            El evento nunca se construye en estado invalido.
 
     - name: ModificarTurno
       trigger: HTTP (accion del Programador de turnos)
       description: Modifica las franjas de un turno existente
       preconditions:
-        - "El turno no debe estar asignado activamente a empleados en el periodo actual"
+        - "El turno existe"
       produces:
         - name: TurnoModificado
           description: Las franjas del turno fueron actualizadas
+      note: "Los dominios downstream deciden si escuchan este evento y actualizan sus asignaciones"
 
     - name: DesactivarTurno
       trigger: HTTP (accion del Programador de turnos)
@@ -58,7 +131,12 @@ aggregate:
         - name: TurnoDesactivado
           description: El turno ya no esta disponible para asignacion
 
+  # Representacion
+  display:
+    toString: '"{nombre} (06:00-12:00)(14:00-16:00)" — nombre seguido de las franjas ordinarias'
+
   open_questions:
-    - "Un turno puede tener una duracion menor a la jornada ordinaria? (turno medio tiempo)"
-    - "Como se maneja la jornada nocturna? El turno puede cruzar medianoche?"
-    - "Existe un concepto de 'turno tipo' o plantilla del que se crean instancias?"
+    - "Como se implementa el patron de acumulacion de errores en el factory? (lista de ValidationError vs AggregateException vs FluentValidation?)"
+    - "Necesitamos un limite maximo de franjas por turno?"
+    - "El turno debe validar duracion maxima legal o eso es de otro dominio?"
+    - "ToString() vive en el aggregate o en un value object Turno?"
