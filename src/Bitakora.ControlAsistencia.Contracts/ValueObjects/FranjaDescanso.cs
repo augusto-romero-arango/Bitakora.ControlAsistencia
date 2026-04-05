@@ -13,12 +13,27 @@ public sealed record FranjaDescanso : FranjaTemporal
     public int DiaOffsetInicio { get; private init; }
     public int DiaOffsetFin { get; private init; }
 
+    internal override int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(HoraInicio, DiaOffsetInicio);
+    internal override int MinutosAbsolutoFin => CalcularMinutosAbsolutos(HoraFin, DiaOffsetFin);
+
     // CA-8: factory estatico
     // CA-7: rechaza InicioYFinIguales
     public static FranjaDescanso Crear(TimeOnly horaInicio, TimeOnly horaFin,
         int diaOffsetInicio = 0, int diaOffsetFin = 0)
-        => throw new NotImplementedException();
+    {
+        if (horaInicio == horaFin && diaOffsetInicio == diaOffsetFin)
+            throw new ArgumentException(Mensajes.InicioYFinIguales);
+
+        return new FranjaDescanso
+        {
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            DiaOffsetInicio = diaOffsetInicio,
+            DiaOffsetFin = diaOffsetFin
+        };
+    }
 
     // CA-20, CA-21: formato heredado de la base
-    public override string ToString() => throw new NotImplementedException();
+    public override string ToString() =>
+        $"({FormatearHora(HoraInicio, DiaOffsetInicio)}-{FormatearHora(HoraFin, DiaOffsetFin)})";
 }
