@@ -59,11 +59,14 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         var ordinaria = new FranjaOrdinaria(horaInicio, horaFin, diaOffsetFin,
             listaDescansos, listaExtras);
 
+        // Proyectar todas las hijas como FranjaTemporal para validaciones unificadas
+        var hijas = listaDescansos.Cast<FranjaTemporal>().Concat(listaExtras).ToList();
+
         // CA-14 a CA-16: validar contencion de todas las hijas
-        ValidarContencion(ordinaria, listaDescansos, listaExtras);
+        ValidarContencion(ordinaria, hijas);
 
         // CA-17 a CA-19: validar que no haya solapamiento entre hijas
-        ValidarSolapamiento(listaDescansos, listaExtras);
+        ValidarSolapamiento(hijas);
 
         return ordinaria;
     }
@@ -103,59 +106,25 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     }
 
     // Verifica que cada franja hija este contenida dentro de la ordinaria
-    private static void ValidarContencion(
-        FranjaOrdinaria contenedor,
-        List<FranjaDescanso> descansos,
-        List<FranjaExtra> extras)
+    private static void ValidarContencion(FranjaOrdinaria contenedor, List<FranjaTemporal> hijas)
     {
-        var inicioContenedor = contenedor.MinutosAbsolutoInicio;
-        var finContenedor = contenedor.MinutosAbsolutoFin;
+        var inicio = contenedor.MinutosAbsolutoInicio;
+        var fin = contenedor.MinutosAbsolutoFin;
 
-        foreach (var descanso in descansos)
-        {
-            if (!EstaContenida(inicioContenedor, finContenedor,
-                    descanso.MinutosAbsolutoInicio, descanso.MinutosAbsolutoFin))
-                throw new ArgumentException(Mensajes.FranjaHijaFueraDeContenedor);
-        }
-
-        foreach (var extra in extras)
-        {
-            if (!EstaContenida(inicioContenedor, finContenedor,
-                    extra.MinutosAbsolutoInicio, extra.MinutosAbsolutoFin))
-                throw new ArgumentException(Mensajes.FranjaHijaFueraDeContenedor);
-        }
+        if (hijas.Any(h => h.MinutosAbsolutoInicio < inicio || h.MinutosAbsolutoFin > fin))
+            throw new ArgumentException(Mensajes.FranjaHijaFueraDeContenedor);
     }
-
-    // Contencion: hijo debe empezar >= padre inicio y terminar <= padre fin
-    private static bool EstaContenida(int inicioContenedor, int finContenedor,
-        int inicioHija, int finHija) =>
-        inicioHija >= inicioContenedor && finHija <= finContenedor;
 
     // Verifica que ningun par de franjas hijas se solapen
-    private static void ValidarSolapamiento(
-        List<FranjaDescanso> descansos,
-        List<FranjaExtra> extras)
+    // CA-18: fin exclusivo, contiguas no se solapan
+    private static void ValidarSolapamiento(List<FranjaTemporal> hijas)
     {
-        // Convertir todas las hijas a tuplas (inicio, fin) en minutos absolutos
-        var rangos = descansos
-            .Select(d => (Inicio: d.MinutosAbsolutoInicio, Fin: d.MinutosAbsolutoFin))
-            .Concat(extras.Select(e => (Inicio: e.MinutosAbsolutoInicio, Fin: e.MinutosAbsolutoFin)))
-            .ToList();
-
-        // Verificar cada par - CA-18: fin exclusivo, contiguas no se solapan
-        for (var i = 0; i < rangos.Count; i++)
-        {
-            for (var j = i + 1; j < rangos.Count; j++)
-            {
-                if (SeSolapan(rangos[i], rangos[j]))
-                    throw new ArgumentException(Mensajes.FranjasHijasSeSuperponen);
-            }
-        }
+        for (var i = 0; i < hijas.Count; i++)
+        for (var j = i + 1; j < hijas.Count; j++)
+            if (hijas[i].MinutosAbsolutoInicio < hijas[j].MinutosAbsolutoFin
+                && hijas[j].MinutosAbsolutoInicio < hijas[i].MinutosAbsolutoFin)
+                throw new ArgumentException(Mensajes.FranjasHijasSeSuperponen);
     }
-
-    // Dos rangos se solapan si uno empieza antes de que el otro termine (fin exclusivo)
-    private static bool SeSolapan((int Inicio, int Fin) a, (int Inicio, int Fin) b) =>
-        a.Inicio < b.Fin && b.Inicio < a.Fin;
 
     // Mapping de serializacion - vive aqui porque cambia con la clase
     internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
