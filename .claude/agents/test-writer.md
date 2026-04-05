@@ -442,6 +442,13 @@ act.Should().ThrowExactly<ArgumentException>();
 
 Los value objects exponen comportamiento, no datos. **Verifica propiedades a traves de `ToString()` y metodos de comportamiento, no via getters individuales.** Si el objeto fue bien diseñado, el `ToString()` y los metodos de calculo son su interfaz publica.
 
+**Regla: si el issue tiene seccion "Interfaz publica", esa seccion es tu contrato.** Solo puedes:
+- Invocar en tests los metodos listados como publicos
+- Crear stubs con `public` unicamente para lo listado ahi
+- Todo lo demas en los stubs debe ser `protected`, `private` o `internal`
+
+Si el issue NO tiene seccion "Interfaz publica" (command handlers simples), usa el harness Given/When/Then normalmente.
+
 ```csharp
 // CORRECTO: verifica via interfaz publica
 var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0));
@@ -452,6 +459,8 @@ franja.DuracionEnMinutos().Should().Be(360);
 franja.HoraInicio.Should().Be(new TimeOnly(6, 0));  // HoraInicio es internal/protected
 franja.DiaOffsetFin.Should().Be(0);                 // DiaOffsetFin es internal/protected
 ```
+
+**Regla de stubs para value objects**: los stubs que crees deben reflejar el encapsulamiento del issue. Si "Interfaz publica" dice que `HoraInicio` NO es publico, el stub debe tener `protected TimeOnly HoraInicio`, no `public`. El stub define la forma del objeto — si lo defines mal, el implementer hereda una interfaz rota.
 
 Esta heuristica te ayuda a detectar si el implementer rompió el encapsulamiento: si los tests necesitan getters de propiedades internas para verificar, esas propiedades no deberian ser publicas.
 
@@ -519,3 +528,4 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 9. **NUNCA** uses el caracter "─" (U+2500, box drawing) en comentarios ni en ningun texto dentro de archivos `.cs`. Usa siempre el guion ASCII "-" (U+002D).
 10. **NUNCA** uses strings literales para mensajes de error en tests. Siempre referencia `Clase.Mensajes.Clave`. Crea el .resx y la clase Mensajes antes de escribir el test que los necesite.
 11. Los **aggregate roots y command handlers SIEMPRE deben ser `partial class`** para soportar la clase Mensajes anidada en un archivo separado.
+12. **Cuando el issue tiene seccion "Interfaz publica"**, los stubs SOLO exponen como `public` lo listado ahi. Todo lo demas es `protected`, `private` o `internal`. No tomes decisiones de visibilidad que no te corresponden — el planner ya las tomo.

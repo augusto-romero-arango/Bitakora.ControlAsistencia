@@ -658,3 +658,5 @@ Crea el archivo `.claude/pipeline/summaries/stage-2-implementer.md`:
 11. **NUNCA** uses `{ get; init; }` en objetos con invariantes — `with {}` bypasea la validacion del factory.
 12. **NUNCA** crees constructores publicos vacios — si la persistencia lo necesita, hazlo `private`.
 13. **NUNCA** crees objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
+14. **NUNCA** uses `record` para value objects con invariantes — usa `sealed class`. Con campos privados, el `record` no aporta nada util: `ToString()` queda vacio, `with {}` queda paralizado, el copy constructor no es invocable. Usa `class` e implementa `IEquatable<T>`.
+15. **Value objects como `sealed class`**: cuando implementes un value object con factory static, incluye siempre el metodo `internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)` en la misma clase. Este metodo registra los campos privados para serializacion STJ sin poner atributos en la clase. Ver ADR-0015 para el patron completo.

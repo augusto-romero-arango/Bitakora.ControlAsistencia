@@ -358,6 +358,19 @@ gh issue create \
 
 (Si el issue no involucra comportamiento de dominio — ej: refactor, tooling — omitir esta seccion)
 
+## Interfaz publica
+(Obligatoria cuando el issue crea value objects complejos o aggregates con comportamiento rico.
+Para command handlers simples sin value objects propios, omitir esta seccion.)
+
+### NombreClase
+- `static Crear(...): NombreClase` — factory con invariantes
+- `MetodoComportamiento(): TipoRetorno` — descripcion
+- `ToString(): string` — formato esperado
+
+### NO es publico (estado interno)
+- PropiedadInterna1, PropiedadInterna2 — acceso protected/private
+- MetodoInterno() — privado, se invoca dentro del factory
+
 ## Criterios de aceptacion
 - [ ] CA-1: [criterio 1]
 - [ ] CA-2: [criterio 2]
@@ -378,6 +391,8 @@ La sección **Modelo de eventos** es la más importante para issues de dominio. 
 - Escribir los `Given/When/Then` de los tests
 - Saber qué propiedades verificar con `And<>()`
 - Decidir si necesitan infraestructura Service Bus (topics/subscriptions)
+
+La sección **Interfaz pública** es obligatoria para issues que crean value objects complejos o aggregates con comportamiento rico. Define el contrato que el test-writer usa como superficie de testing y que el implementer debe respetar. Sin ella, los agentes adivinan qué exponer y tienden a romper el encapsulamiento.
 
 Si el issue depende de otro no cerrado, agrega también `--label "bloqueado"`.
 
