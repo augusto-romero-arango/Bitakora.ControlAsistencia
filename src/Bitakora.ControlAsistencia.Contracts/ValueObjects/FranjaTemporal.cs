@@ -1,11 +1,13 @@
+using System.Reflection;
 using System.Resources;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
 
 // Clase abstracta base para todas las franjas temporales de un turno.
-// Encapsula HoraInicio, HoraFin, calculo de duracion y ToString().
-// ADR-0015: record con factory estatico, constructor privado.
-public abstract record FranjaTemporal
+// Encapsula estado interno y expone solo comportamiento.
+// ADR-0015: sealed class con factory static, constructor privado, campos readonly.
+public abstract class FranjaTemporal
 {
     protected const int MinutosPorHora = 60;
     protected const int MinutosPorDia = 1440;
@@ -32,13 +34,25 @@ public abstract record FranjaTemporal
             ResourceManager.GetString(nameof(LabelExtras)) ?? "Extras";
     }
 
-    protected FranjaTemporal() { }
+    // Estado interno - solo las subclases lo ven para calculos
+    protected readonly TimeOnly _horaInicio;
+    protected readonly TimeOnly _horaFin;
 
-    protected TimeOnly HoraInicio { get; init; }
-    protected TimeOnly HoraFin { get; init; }
+    protected FranjaTemporal(TimeOnly horaInicio, TimeOnly horaFin)
+    {
+        _horaInicio = horaInicio;
+        _horaFin = horaFin;
+    }
+
+    // Constructor vacio para STJ/Marten
+    protected FranjaTemporal()
+    {
+        _horaInicio = default;
+        _horaFin = default;
+    }
 
     // Minutos absolutos desde el dia base, considerando offset
-    // internal para que FranjaOrdinaria pueda validar contencion y solapamiento de hijas
+    // internal para que FranjaOrdinaria valide contencion y solapamiento de hijas
     internal abstract int MinutosAbsolutoInicio { get; }
     internal abstract int MinutosAbsolutoFin { get; }
 
@@ -56,4 +70,15 @@ public abstract record FranjaTemporal
 
     protected static int CalcularMinutosAbsolutos(TimeOnly hora, int diaOffset) =>
         hora.Hour * MinutosPorHora + hora.Minute + diaOffset * MinutosPorDia;
+
+    // Helper para que las subclases registren campos comunes de serializacion
+    protected static void RegistrarCampo(
+        JsonTypeInfo typeInfo, string nombreCampo, string nombreJson, Type tipoCampo, Type tipoClase)
+    {
+        var field = tipoClase.GetField(nombreCampo, BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var prop = typeInfo.CreateJsonPropertyInfo(tipoCampo, nombreJson);
+        prop.Get = obj => field.GetValue(obj)!;
+        prop.Set = (obj, val) => field.SetValue(obj, val);
+        typeInfo.Properties.Add(prop);
+    }
 }
