@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="InicioYFinIguales" xml:space="preserve">
+    <value>La franja no puede tener duracion cero: HoraInicio y HoraFin son iguales</value>
+  </data>
+  <data name="FranjaHijaFueraDeContenedor" xml:space="preserve">
+    <value>La franja hija no esta contenida dentro del rango temporal de la franja ordinaria</value>
+  </data>
+  <data name="FranjasHijasSeSuperponen" xml:space="preserve">
+    <value>Dos franjas hijas dentro de la misma franja ordinaria se superponen</value>
+  </data>
+  <data name="LabelDescansos" xml:space="preserve">
+    <value>Descansos</value>
+  </data>
+  <data name="LabelExtras" xml:space="preserve">
+    <value>Extras</value>
+  </data>
+</root>

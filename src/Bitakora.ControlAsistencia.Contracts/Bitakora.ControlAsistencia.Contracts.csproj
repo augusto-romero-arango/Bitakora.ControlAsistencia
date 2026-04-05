@@ -10,4 +10,8 @@
     <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="0.0.8" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Contracts.Tests" />
+  </ItemGroup>
+
 </Project>
