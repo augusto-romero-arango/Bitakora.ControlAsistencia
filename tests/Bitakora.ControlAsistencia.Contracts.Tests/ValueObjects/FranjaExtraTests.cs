@@ -101,4 +101,24 @@ public class FranjaExtraTests
 
         extra.ToString().Should().Be("(04:00+1-06:00+1)");
     }
+
+    [Fact]
+    public void ToString_MuestraOffsetSoloEnFin_CuandoCruzaMedianoche()
+    {
+        var extra = FranjaExtra.Crear(new TimeOnly(23, 0), new TimeOnly(1, 0),
+            diaOffsetInicio: 0, diaOffsetFin: 1);
+
+        extra.ToString().Should().Be("(23:00-01:00+1)");
+    }
+
+    // ---------- Duracion cruzando medianoche ----------
+
+    [Fact]
+    public void DuracionEnMinutos_Retorna120_CuandoExtraCruzaMedianoche()
+    {
+        var extra = FranjaExtra.Crear(new TimeOnly(23, 0), new TimeOnly(1, 0),
+            diaOffsetInicio: 0, diaOffsetFin: 1);
+
+        extra.DuracionEnMinutos().Should().Be(120);
+    }
 }

@@ -147,6 +147,23 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("(22:00-06:00+1)");
     }
 
+    [Fact]
+    public void ToString_MuestraMultiplesDescansosYExtras_CuandoTieneVariosHijos()
+    {
+        var descanso1 = FranjaDescanso.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
+        var descanso2 = FranjaDescanso.Crear(new TimeOnly(11, 0), new TimeOnly(11, 15));
+        var extra1 = FranjaExtra.Crear(new TimeOnly(6, 0), new TimeOnly(7, 0));
+        var extra2 = FranjaExtra.Crear(new TimeOnly(7, 0), new TimeOnly(8, 0));
+
+        var franja = FranjaOrdinaria.Crear(
+            new TimeOnly(6, 0), new TimeOnly(14, 0),
+            descansos: [descanso1, descanso2],
+            extras: [extra1, extra2]);
+
+        franja.ToString().Should().Be(
+            "(06:00-14:00)[Descansos:(10:00-10:15), (11:00-11:15)][Extras:(06:00-07:00), (07:00-08:00)]");
+    }
+
     // ---------- CA-14: contencion - descanso no contenido es rechazado ----------
 
     [Fact]
