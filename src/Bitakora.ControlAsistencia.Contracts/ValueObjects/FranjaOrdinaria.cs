@@ -70,12 +70,6 @@ public record FranjaOrdinaria : FranjaBase
         IReadOnlyList<FranjaExtra>? extras = null)
         => Crear(horaInicio, horaFin, InferirDiaOffset(horaInicio, horaFin), descansos, extras);
 
-    /// <summary>CA-10 / CA-11: Duracion considerando DiaOffsetFin.</summary>
-    public override int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
-
-    /// <summary>CA-12: Duracion en horas decimales.</summary>
-    public override double DuracionEnHorasDecimales() => DuracionEnMinutos() / 60.0;
-
     /// <summary>
     /// CA-14 / CA-15 / CA-16: Verifica si una franja hija esta contenida
     /// dentro del rango temporal de esta franja ordinaria, considerando offsets.

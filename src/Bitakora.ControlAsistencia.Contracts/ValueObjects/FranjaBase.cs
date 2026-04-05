@@ -32,12 +32,12 @@ public abstract record FranjaBase
     /// <summary>
     /// CA-10 / CA-11: Duracion en minutos considerando offsets de dia.
     /// </summary>
-    public abstract int DuracionEnMinutos();
+    public int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
 
     /// <summary>
     /// CA-12: Duracion como horas en formato decimal.
     /// </summary>
-    public abstract double DuracionEnHorasDecimales();
+    public double DuracionEnHorasDecimales() => DuracionEnMinutos() / 60.0;
 
     protected FranjaBase(TimeOnly horaInicio, TimeOnly horaFin)
     {

@@ -61,10 +61,4 @@ public record FranjaDescanso : FranjaBase
         var diaOffsetFin = horaFin < horaInicio ? diaOffsetInicio + 1 : diaOffsetInicio;
         return Crear(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
     }
-
-    /// <summary>CA-10 / CA-11: Duracion considerando DiaOffsetInicio y DiaOffsetFin.</summary>
-    public override int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
-
-    /// <summary>CA-12: Duracion en horas decimales.</summary>
-    public override double DuracionEnHorasDecimales() => DuracionEnMinutos() / 60.0;
 }
