@@ -124,16 +124,16 @@ El `<RootNamespace>` debe ser `Bitakora.ControlAsistencia.{PascalCase}`. Si no e
 **5. Crear carpetas estructurales:**
 
 ```bash
-mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Functions"
 mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Entities"
 mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Infraestructura"
 touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Entities/.gitkeep"
 ```
 
 La estructura de carpetas sigue el estilo de vertical slicing:
-- `Entities/` — AggregateRoots y eventos del dominio
+- `Entities/` — AggregateRoots y eventos del dominio (siempre a nivel raiz del proyecto)
 - `Infraestructura/` — RequestValidator, assembly marker y otros servicios transversales
-- `Functions/` — solo el HealthCheck inicial; los features del dominio viven en sus propios directorios al nivel raiz del proyecto
+- Cada feature crea su propio folder con sufijo `Function` (HTTP triggers) o sin sufijo (ServiceBus triggers)
+- No se crean carpetas horizontales (`Functions/`, `Dominio/`) a nivel raiz
 
 **6. Reemplazar el `Program.cs`** generado por `func init`:
 
@@ -309,14 +309,14 @@ public class RequestValidator(IServiceProvider serviceProvider) : IRequestValida
 }
 ```
 
-**12. Crear el HealthCheck en `Functions/HealthCheck.cs`:**
+**12. Crear el HealthCheck en `HealthCheck.cs` (raiz del proyecto):**
 
 ```csharp
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.Functions;
+namespace Bitakora.ControlAsistencia.{PascalCase};
 
 public class HealthCheck
 {
@@ -628,9 +628,9 @@ Scaffold completado para el dominio "{kebab}":
   src/Bitakora.ControlAsistencia.{PascalCase}/
     I{PascalCase}AssemblyMarker.cs         - Assembly marker para FluentValidation y Wolverine
     Program.cs                             - JSON global, IRequestValidator, FluentValidation
-    Functions/HealthCheck.cs               - Trigger HTTP de health check
+    HealthCheck.cs                         - Trigger HTTP de health check (raiz del proyecto)
     Infraestructura/RequestValidator.cs    - IRequestValidator + implementacion
-    Entities/                              - (vacio) para AggregateRoots y eventos
+    Entities/                              - AggregateRoots y eventos del dominio (siempre raiz)
 
   tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
                                            - Proyecto de tests (xUnit v3 + AwesomeAssertions)

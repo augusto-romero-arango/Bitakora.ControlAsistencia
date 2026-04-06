@@ -110,13 +110,14 @@ Antes de escribir una sola linea de test, determina si esta tarea requiere tests
 Antes de escribir una sola linea de test, explora el dominio:
 
 ```bash
-# Ver tests existentes del dominio
+# Ver tests existentes del dominio (organizados en feature folders)
 ls tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 
-# Ver estructura del dominio en produccion
+# Ver feature folders del dominio en produccion
 ls src/Bitakora.ControlAsistencia.{Dominio}/
-ls src/Bitakora.ControlAsistencia.{Dominio}/Dominio/
-ls src/Bitakora.ControlAsistencia.{Dominio}/Functions/
+
+# Ver estructura interna de un feature folder existente
+ls -R src/Bitakora.ControlAsistencia.{Dominio}/{Comando}Function/
 ```
 
 Leer 1-2 archivos de test existentes del mismo dominio para entender:
@@ -128,6 +129,21 @@ Leer los tipos del dominio en `src/`:
 - El aggregate root (propiedades que expone)
 - Los eventos (campos que tienen)
 - Los command handlers (dependencias que reciben)
+
+### 3b. Ubicar archivos de test en feature folders
+
+Los tests se organizan en feature folders espejo de produccion:
+
+```
+tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
+  {Comando}Function/                       <- misma carpeta que en src
+    {Comando}CommandHandlerTests.cs        <- un archivo por responsabilidad
+    {Comando}ValidatorTests.cs
+    {Evento}Tests.cs
+    FunctionEndpointTests.cs
+```
+
+**Regla: un archivo de test por clase de produccion.** No mezclar tests de handler, validator y endpoint en un solo archivo. Cada responsabilidad tiene su propio archivo de test aunque compartan factory methods o constantes.
 
 ### 4. Escribir los tests
 
@@ -341,7 +357,13 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
 - Solo `throw new NotImplementedException()`, sin logica real
 - El aggregate root debe tener las propiedades que los tests verifican con `And<>()`, aunque sean stub
 - Los metodos `Apply(TEvento)` del aggregate root deben existir pero pueden lanzar `NotImplementedException`
-- Coloca tipos en los archivos y namespaces correctos segun la estructura existente del dominio
+- Coloca tipos en los archivos y namespaces correctos segun la estructura vertical slice:
+  - Comando: `src/.../{Comando}Function/{Comando}.cs`
+  - Handler: `src/.../{Comando}Function/CommandHandler/{Comando}CommandHandler.cs`
+  - Validator: `src/.../{Comando}Function/CommandHandler/{Comando}Validator.cs`
+  - Evento: `src/.../Entities/{Evento}.cs` (raiz del dominio, nunca dentro del feature folder)
+  - Aggregate: `src/.../Entities/{Aggregate}.cs` (raiz del dominio, nunca dentro del feature folder)
+  - Endpoint: `src/.../{Comando}Function/FunctionEndpoint.cs`
 
 ### 6b. Crear mensajes (.resx + clase Mensajes)
 

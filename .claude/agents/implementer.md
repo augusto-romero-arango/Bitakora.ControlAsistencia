@@ -157,10 +157,10 @@ public partial class AsignarEmpleadoATurnoCommandHandler(IEventStore eventStore,
 ### Endpoint HTTP
 
 ```csharp
-public class Endpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
+public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
-    [Function(nameof(CrearTurno))]
-    public async Task<IActionResult> CrearTurno(
+    [Function(nameof(FunctionEndpoint))]
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "Programacion/Turnos")]
         HttpRequest req,
         CancellationToken ct)
@@ -169,7 +169,20 @@ public class Endpoint(IRequestValidator requestValidator, ICommandRouter command
         if (error is not null)
             return error;
 
-        await commandRouter.InvokeAsync(comando!, ct);
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(
+                ex.InnerExceptions.Select(e => e.Message));
+        }
+
         return new AcceptedResult();
     }
 }
@@ -226,7 +239,7 @@ Registrar en Program.cs: `builder.Services.AddScoped<IRequestValidator, RequestV
 ### Endpoint ServiceBus
 
 ```csharp
-public class Endpoint(ICommandRouter commandRouter, ILogger<Endpoint> logger)
+public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndpoint> logger)
 {
     [Function("DepurarMarcacionesCuandoTurnoCreado")]
     public async Task DepurarMarcacionesCuandoTurnoCreado(
@@ -485,12 +498,12 @@ public override string ToString()
 | AggregateRoot | `{Entidad}AggregateRoot` | `TurnoAggregateRoot` |
 
 **Funciones Azure:**
-- HTTP trigger: `[Function(nameof({Comando}))]` — el nombre del comando es el nombre de la funcion
+- HTTP trigger: `[Function(nameof(FunctionEndpoint))]` — la clase del endpoint es el nombre de la funcion
 - ServiceBus trigger: `[Function("{Accion}Cuando{Evento}")]` — siempre describe la accion Y el estimulo
 
 ```csharp
 // HTTP
-[Function(nameof(CrearTurno))]
+[Function(nameof(FunctionEndpoint))]
 
 // ServiceBus - siempre accion + estimulo, a prueba de crecimiento
 [Function("DepurarMarcacionesCuandoTurnoCreado")]
@@ -500,20 +513,29 @@ public override string ToString()
 **Organizacion vertical de directorios:**
 ```
 src/Bitakora.ControlAsistencia.{Dominio}/
-  CrearTurno/                            <- feature folder por comando HTTP
-    CrearTurno.cs                        <- record del comando
-    CrearTurnoCommandHandler.cs
-    CrearTurnoValidator.cs
-    Endpoint.cs                          <- Function con HTTP trigger
-  Entities/                             <- AggregateRoots + eventos del dominio
-    TurnoAggregateRoot.cs
+  HealthCheck.cs                         <- raiz del proyecto
+  Infraestructura/                       <- servicios transversales (RequestValidator, etc.)
+  Entities/                              <- AggregateRoots y eventos del dominio (siempre raiz)
+    CatalogoTurnos.cs
     TurnoCreado.cs
-    AsignacionEmpleadoFallida.cs
-  DepurarMarcacionesCuandoTurnoCreado/   <- feature folder por reaccion a evento
-    Endpoint.cs                          <- Function con ServiceBus trigger
+    TurnoCreado.Mensajes.cs
+    TurnoCreadoMensajes.resx
+  CrearTurnoFunction/                    <- HTTP trigger (sufijo Function para evitar colision con el record)
+    CrearTurno.cs                        <- record del comando
+    FunctionEndpoint.cs                  <- [Function(nameof(FunctionEndpoint))]
+    CommandHandler/                      <- subcarpeta para handler + validator
+      CrearTurnoCommandHandler.cs
+      CrearTurnoCommandHandler.Mensajes.cs
+      CrearTurnoCommandHandlerMensajes.resx
+      CrearTurnoValidator.cs
+  DepurarMarcacionesCuandoTurnoCreado/   <- ServiceBus trigger (sin sufijo Function)
+    FunctionEndpoint.cs
 ```
 
-- `Endpoint.cs` como nombre de clase en cada directorio — no colisiona porque cada uno esta en un namespace diferente
+- `FunctionEndpoint.cs` como nombre de clase del endpoint en cada feature folder
+- Sufijo `Function` solo para HTTP triggers (evita colision namespace vs record del comando). ServiceBus triggers sin sufijo
+- `Entities/` siempre a nivel raiz del dominio — las entities son de dominio, no de funcion
+- `CommandHandler/` como subcarpeta dentro del feature folder para handler, validator y mensajes
 - El directorio es el namespace
 - Clases en espanol, sufijos de patrones en ingles (CommandHandler, Validator, AggregateRoot)
 
