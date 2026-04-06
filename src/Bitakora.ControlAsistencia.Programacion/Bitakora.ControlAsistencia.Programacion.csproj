@@ -28,4 +28,8 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Programacion.Tests" />
+  </ItemGroup>
+
 </Project>
