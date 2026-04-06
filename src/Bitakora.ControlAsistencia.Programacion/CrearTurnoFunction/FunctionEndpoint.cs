@@ -12,9 +12,9 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 // Flujo: validar request -> despachar comando -> retornar 202 o error
 // ADR-0007: InvalidOperationException -> 409 Conflict
 //           AggregateException (del factory) -> 400 Bad Request con mensajes
-public class Endpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
+public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
-    [Function(nameof(Endpoint))]
+    [Function(nameof(FunctionEndpoint))]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/turnos")]
         HttpRequest req,

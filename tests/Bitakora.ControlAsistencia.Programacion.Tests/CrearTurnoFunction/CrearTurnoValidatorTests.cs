@@ -7,16 +7,15 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
 public class CrearTurnoValidatorTests
 {
-        
-    public const string NombreTurno = "Turno Manana";
+    private const string NombreTurno = "Turno Manana";
 
     // Factory method compartido entre las clases anidadas
-    public static CrearTurno.Franja FranjaDiurnaSimple() =>
+    private static CrearTurno.Franja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
 
-    public static CrearTurno ComandoConUnaFranja(Guid turnoId) =>
+    private static CrearTurno ComandoConUnaFranja(Guid turnoId) =>
         new(turnoId, NombreTurno, [FranjaDiurnaSimple()]);
-        
+
     private readonly IValidator<CrearTurno> _validator = new CrearTurnoValidator();
 
     // CA-5 (camino feliz): todos los campos validos pasan la validacion

@@ -1,12 +1,12 @@
 // HU-4: Tests del endpoint HTTP CrearTurno
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using CrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
-using Endpoint = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Endpoint;
+
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 /// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
 /// ADR-0007: InvalidOperationException -> 409, AggregateException -> 400, exito -> 202.
 /// </summary>
-public class EndpointTests
+public class FunctionEndpointTests
 {
     private static CrearTurno.Franja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
@@ -35,7 +35,7 @@ public class EndpointTests
     {
         var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var router = new FakeCommandRouter();
-        var function = new Endpoint(validator, router);
+        var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -48,7 +48,7 @@ public class EndpointTests
     {
         var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var router = new FakeCommandRouter(lanzarInvalidOperationException: true);
-        var function = new Endpoint(validator, router);
+        var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -62,7 +62,7 @@ public class EndpointTests
         var errorDeValidacion = new BadRequestObjectResult("El body es invalido o esta malformado");
         var validator = new FakeRequestValidator<CrearTurno>(error: errorDeValidacion);
         var router = new FakeCommandRouter();
-        var function = new Endpoint(validator, router);
+        var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -76,7 +76,7 @@ public class EndpointTests
         var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var erroresDeNegocio = new ArgumentException[] { new("La franja ordinaria es invalida") };
         var router = new FakeCommandRouter(erroresAggregateException: erroresDeNegocio);
-        var function = new Endpoint(validator, router);
+        var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 

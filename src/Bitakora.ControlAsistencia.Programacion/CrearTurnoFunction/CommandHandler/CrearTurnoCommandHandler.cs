@@ -1,5 +1,5 @@
-using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Entities;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 

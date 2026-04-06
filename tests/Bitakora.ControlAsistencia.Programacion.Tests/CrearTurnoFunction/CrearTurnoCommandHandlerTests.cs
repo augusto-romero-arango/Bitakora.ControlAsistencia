@@ -1,27 +1,28 @@
 // HU-4: Implementar comando CrearTurno con aggregate, handler y endpoint HTTP
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Entities;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
-using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
+
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
-public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<ComandoCrearTurno>
+public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 {
     private const string NombreTurno = "Turno Manana";
 
     // Factory method compartido entre las clases anidadas
-    private static ComandoCrearTurno.Franja FranjaDiurnaSimple() =>
+    private static CrearTurno.Franja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
 
-    private static ComandoCrearTurno ComandoConUnaFranja(Guid turnoId) =>
+    private static CrearTurno ComandoConUnaFranja(Guid turnoId) =>
         new(turnoId, NombreTurno, [FranjaDiurnaSimple()]);
 
-    protected override ICommandHandlerAsync<ComandoCrearTurno> Handler =>
+    protected override ICommandHandlerAsync<CrearTurno> Handler =>
         new CrearTurnoCommandHandler(EventStore);
 
     // CA-3: handler persiste evento cuando turno no existe
