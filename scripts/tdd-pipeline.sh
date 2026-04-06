@@ -535,8 +535,9 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
     if [ "$IS_REFACTOR" = false ]; then
         # Gate 1b: los tests nuevos deben FALLAR (exit code 2 = tests fallando)
         log "Gate: verificando fase roja (tests deben fallar)..."
-        local g1_rc=0
-        dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" --no-build 2>&1 | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null || g1_rc=$?
+        g1_rc=0
+        TEST_OUTPUT_G1=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" --no-build 2>&1) || g1_rc=$?
+        echo "$TEST_OUTPUT_G1" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if [ "$g1_rc" -ne 2 ]; then
             abort "Stage 1 fallido: no se detectaron tests fallando (exit code: $g1_rc) — el test-writer pudo haber escrito implementación real en lugar de stubs"
         fi
@@ -548,7 +549,7 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
     if [ "$IS_REFACTOR" = true ]; then
         # Baseline: verificar que todos los tests pasan antes del refactoring
         log "Gate: verificando baseline verde para refactoring..."
-        local baseline_rc=0
+        baseline_rc=0
         TEST_OUTPUT_BASELINE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || baseline_rc=$?
         echo "$TEST_OUTPUT_BASELINE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if [ "$baseline_rc" -ne 0 ]; then
@@ -603,7 +604,7 @@ Tu tarea: implementa la lógica de negocio para hacer pasar todos los tests. Sig
 
     # Gate 2: TODOS los tests deben pasar (exit code 0 = verde)
     log "Gate: verificando fase verde (todos los tests deben pasar)..."
-    local g2_rc=0
+    g2_rc=0
     TEST_OUTPUT_G2=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g2_rc=$?
     echo "$TEST_OUTPUT_G2" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$g2_rc" -ne 0 ]; then
@@ -671,7 +672,7 @@ Tu tarea: revisa la calidad del código, refactoriza si es necesario, y verifica
 
     # Gate 3: tests deben seguir pasando (exit code 0 = verde)
     log "Gate: verificando que refactor no rompió tests..."
-    local g3_rc=0
+    g3_rc=0
     TEST_OUTPUT_G3=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g3_rc=$?
     echo "$TEST_OUTPUT_G3" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$g3_rc" -ne 0 ]; then
@@ -750,7 +751,7 @@ NO elimines código de ninguna de las dos ramas — integra ambos cambios."
 
     # Re-correr tests post-merge
     log "Verificando tests después del merge..."
-    local merge_rc=0
+    merge_rc=0
     TEST_OUTPUT_MERGE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || merge_rc=$?
     echo "$TEST_OUTPUT_MERGE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$merge_rc" -ne 0 ]; then
