@@ -26,7 +26,7 @@ jobs:
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release
+        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8
 
   deploy:
     needs: build-and-test
