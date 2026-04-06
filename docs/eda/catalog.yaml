@@ -1,4 +1,4 @@
-# Catalogo EDA — Bitakora.ControlAsistencia
+# Catalogo EDA -- Bitakora.ControlAsistencia
 #
 # Fuente de verdad para eventos, comandos, policies y value objects del sistema.
 # Actualizado por el agente `eda-modeler` al modelar flujos y por `planner` al crear issues.
@@ -11,12 +11,13 @@
 # - Comandos: PascalCase imperativo (RegistrarMarcacion, AsignarTurno)
 # - Policies: PascalCase descriptivo (DepuracionAutomatica)
 #
-# Ultima actualizacion: 2026-04-05 (TurnoCreado marcado como evento privado de event sourcing)
+# Ultima actualizacion: 2026-04-06 (TurnoCreado sealed class, CrearTurno estructura anidada)
 
 events:
   - name: TurnoCreado
     context: Programacion
     description: Un nuevo turno fue creado en el catalogo con su estructura de franjas completa
+    form: sealed class  # ADR-0015: evento con precondiciones, no record
     visibility: private  # evento de event sourcing del aggregate, no se publica a Service Bus
     payload:
       - field: TurnoId
@@ -24,7 +25,7 @@ events:
       - field: Nombre
         type: string
       - field: FranjasOrdinarias
-        type: List<FranjaOrdinaria>
+        type: IReadOnlyList<FranjaOrdinaria>
         note: "Cada FranjaOrdinaria contiene sus Descansos y Extras ya asignados, con offsets inferidos"
     published_to: null  # se publicara cuando haya consumidores externos
     used_in: ["#3", "#4"]
@@ -41,11 +42,16 @@ commands:
       - field: Nombre
         type: string
       - field: Ordinarias
-        type: "List<(TimeOnly inicio, TimeOnly fin)>"
-      - field: Descansos
-        type: "List<(TimeOnly inicio, TimeOnly fin)>"
-      - field: Extras
-        type: "List<(TimeOnly inicio, TimeOnly fin)>"
+        type: "List<CrearTurno.Franja>"
+        note: "Estructura anidada -- cada ordinaria agrupa sus descansos y extras"
+    nested_types:
+      - name: CrearTurno.Franja
+        type: record DTO
+        fields:
+          - { field: Inicio, type: TimeOnly }
+          - { field: Fin, type: TimeOnly }
+          - { field: Descansos, type: "List<(TimeOnly, TimeOnly)>" }
+          - { field: Extras, type: "List<(TimeOnly, TimeOnly)>" }
     produces: [TurnoCreado]
     used_in: ["#3", "#4"]
 
@@ -57,14 +63,14 @@ value_objects:
     description: "Segmento continuo de trabajo. Contiene descansos y extras. HoraInicio, HoraFin, DiaOffsetFin, Descansos, Extras."
     used_in: ["#2"]
 
-  - name: FranjaDescanso
-    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/FranjaDescanso.cs
-    description: "Pausa operativa dentro de una ordinaria. HoraInicio, HoraFin, DiaOffsetInicio, DiaOffsetFin."
+  - name: SubFranja
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/SubFranja.cs
+    description: "Segmento temporal dentro de una ordinaria. Puede ser descanso o extra segun la lista que lo contenga. HoraInicio, HoraFin, DiaOffsetInicio, DiaOffsetFin."
     used_in: ["#2"]
 
-  - name: FranjaExtra
-    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/FranjaExtra.cs
-    description: "Horas extras programadas dentro de una ordinaria. HoraInicio, HoraFin, DiaOffsetInicio, DiaOffsetFin."
+  - name: FranjaTemporal
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/FranjaTemporal.cs
+    description: "Clase abstracta base para franjas. Encapsula estado temporal, calculo de duracion, formato ToString."
     used_in: ["#2"]
 
   - name: Turno
