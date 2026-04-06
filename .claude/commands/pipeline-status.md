@@ -1,18 +1,17 @@
 Eres un dashboard del pipeline TDD. Toda la información necesaria está en dos archivos pequeños.
 
-## Paso 1: Leer los datos (un solo comando Bash)
+## Paso 1: Leer los datos (sin Bash — usa Read y Glob)
 
-```bash
-echo "===STATUS===" && cat .claude/pipeline/status.json 2>/dev/null || echo "null" && \
-echo "===PARALLEL===" && for f in .claude/pipeline/status-*.json; do [ -f "$f" ] && echo "---FILE:$f---" && cat "$f"; done 2>/dev/null || true && \
-echo "===HISTORY===" && tail -10 .claude/pipeline/history.jsonl 2>/dev/null || true && \
-echo "===TIME===" && date '+%Y-%m-%d %H:%M:%S'
-```
+Lee estos archivos en paralelo usando las herramientas Read y Glob (NO uses Bash):
+
+1. `Read .claude/pipeline/status.json` — estado actual del pipeline (puede no existir)
+2. `Glob .claude/pipeline/status-*.json` — archivos de pipelines paralelos (puede no haber ninguno); lee cada uno con Read
+3. `Read .claude/pipeline/history.jsonl` — historial de pipelines completados (una linea JSON por entrada)
+4. `Bash(date '+%Y-%m-%d %H:%M:%S')` — solo para obtener la hora actual
 
 - `status.json`: estado actual de un pipeline individual con agents, tests, pr, last_error ya incluidos
 - `status-*.json`: archivos de estado de pipelines paralelos (uno por issue cuando se usa parallel-pipeline.sh)
-- `history.jsonl`: una línea JSON por pipeline completado (más recientes al final)
-- `date`: para calcular tiempo transcurrido y determinar "última hora"
+- `history.jsonl`: una linea JSON por pipeline completado (mas recientes al final)
 
 ## Paso 2: Generar el dashboard
 
@@ -111,14 +110,14 @@ La duración total = suma de duraciones de los 3 agentes.
 
 ## Paso 3: Responder preguntas
 
-Para responder preguntas, ejecuta un segundo Bash leyendo SOLO el archivo necesario:
+Para responder preguntas, usa Read sobre el archivo necesario (NO uses Bash):
 
-- **¿Por qué falló?**: `last_error` ya está en status.json. Para más detalle: `tail -30 <log_path>` usando el campo `log` del status.json
-- **Tests escritos**: `cat .claude/pipeline/logs/stage-1-test-writer-{{TIMESTAMP}}.log`
-- **Resumen del reviewer**: `cat .claude/pipeline/logs/stage-3-reviewer-{{TIMESTAMP}}.log`
-- **Duración de agentes**: ya en `status.json` → campo `agents`
+- **¿Por que fallo?**: `last_error` ya esta en status.json. Para mas detalle: `Read <log_path>` usando el campo `log` del status.json (lee las ultimas 30 lineas con offset)
+- **Tests escritos**: `Read .claude/pipeline/logs/stage-1-test-writer-{{TIMESTAMP}}.log`
+- **Resumen del reviewer**: `Read .claude/pipeline/logs/stage-3-reviewer-{{TIMESTAMP}}.log`
+- **Duracion de agentes**: ya en `status.json` → campo `agents`
 - **PR**: campo `pr` en status.json o history.jsonl
 
-El timestamp del log coincide con el campo `started` del pipeline. Si el usuario no especifica issue, usa el más reciente del historial.
+El timestamp del log coincide con el campo `started` del pipeline. Si el usuario no especifica issue, usa el mas reciente del historial.
 
-Responde en español, conciso, con listas `◆` o tablas cuando sea apropiado.
+Responde en espanol, conciso, con listas `◆` o tablas cuando sea apropiado.
