@@ -1,13 +1,13 @@
 using System.Resources;
 
-namespace Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 
 // ADR-0012: mensajes de error del evento TurnoCreado en archivo .resx separado
 // internal: accesible desde tests via InternalsVisibleTo en el .csproj
 public sealed partial class TurnoCreado
 {
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Programacion.Dominio.Eventos.TurnoCreadoMensajes",
+        "Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos.TurnoCreadoMensajes",
         typeof(TurnoCreado).Assembly);
 
     internal static class Mensajes

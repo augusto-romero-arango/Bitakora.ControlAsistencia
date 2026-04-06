@@ -99,7 +99,8 @@ Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, cor
 - Eventos de fallo: participio pasado + contexto (`AsignacionEmpleadoFallida`)
 - Comandos: verbo infinitivo + sustantivo (`CrearTurno`, `AsignarEmpleadoATurno`)
 - CommandHandlers: `{Comando}CommandHandler`
-- Funciones HTTP: `[Function(nameof(Comando))]`
+- Clase del endpoint: `FunctionEndpoint` (no `Endpoint`)
+- Funciones HTTP: `[Function(nameof(FunctionEndpoint))]`
 - Funciones ServiceBus: `[Function("{Accion}Cuando{Evento}")]` — siempre describe la accion Y el estimulo
 
 #### Infraestructura (ADR-0004)
@@ -111,9 +112,18 @@ Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions
 
 #### Organizacion vertical
 
-- Feature folders por comando: `src/{Dominio}/{NombreComando}/`
-- `Entities/` para AggregateRoots y eventos del dominio
-- `Infraestructura/` para servicios transversales
+**Feature folders de produccion:**
+- HTTP triggers: sufijo `Function` en el feature folder (`{Comando}Function/`). ServiceBus triggers sin sufijo
+- Clase del endpoint: `FunctionEndpoint.cs` (no `Endpoint.cs`)
+- Subcarpeta `CommandHandler/` dentro del feature folder para handler, validator y mensajes
+- `Entities/` siempre a nivel raiz del dominio — las entities son de dominio, no de funcion. Nunca dentro de un feature folder
+- `Infraestructura/` a nivel raiz para servicios transversales
+- No deben existir carpetas horizontales (`Dominio/`, `Functions/`) a nivel raiz
+
+**Feature folders de tests:**
+- Espejo de produccion: `tests/.../{Comando}Function/`
+- Un archivo por responsabilidad: `{Comando}CommandHandlerTests.cs`, `{Comando}ValidatorTests.cs`, `FunctionEndpointTests.cs`, `{Evento}Tests.cs`
+- No mezclar tests de handler, validator y endpoint en un solo archivo
 
 #### Mensajes de error
 
