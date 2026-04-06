@@ -16,9 +16,29 @@ namespace Bitakora.ControlAsistencia.Programacion.Functions;
 public class CrearTurno(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function(nameof(CrearTurno))]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/turnos")]
         HttpRequest req,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<ComandoCrearTurno>(req, ct);
+        if (error is not null)
+            return error;
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(
+                ex.InnerExceptions.Select(e => e.Message));
+        }
+
+        return new AcceptedResult();
+    }
 }

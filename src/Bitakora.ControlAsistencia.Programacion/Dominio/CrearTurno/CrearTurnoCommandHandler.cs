@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Programacion.Dominio.Entities;
+using Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.Dominio.Comandos.CrearTurno;
@@ -16,6 +18,14 @@ public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrea
     public CrearTurnoCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(ComandoCrearTurno command, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task HandleAsync(ComandoCrearTurno command, CancellationToken ct = default)
+    {
+        var existe = await _eventStore.ExistsAsync<CatalogoTurnos>(command.TurnoId, ct);
+        if (existe)
+            throw new InvalidOperationException(Mensajes.TurnoYaExiste);
+
+        var evento = TurnoCreado.Crear(command);
+        var catalogo = CatalogoTurnos.Iniciar(evento);
+        _eventStore.StartStream(catalogo);
+    }
 }
