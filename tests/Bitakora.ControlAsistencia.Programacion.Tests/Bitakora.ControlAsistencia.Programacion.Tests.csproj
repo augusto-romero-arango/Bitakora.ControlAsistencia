@@ -17,4 +17,8 @@
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.Programacion\Bitakora.ControlAsistencia.Programacion.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
 </Project>
