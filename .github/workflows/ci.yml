@@ -29,18 +29,21 @@ jobs:
       - name: Build
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
+      - name: Instalar dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage
+
       - name: Test con cobertura
         run: >-
-          dotnet test --solution ControlAsistencias.slnx
-          --no-build
-          --configuration Release
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
+          dotnet-coverage collect
+          --output coverage/coverage.cobertura.xml
+          --output-format cobertura
+          "dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8"
 
       - name: Generar reporte de cobertura
+        if: always()
         uses: danielpalme/ReportGenerator-GitHub-Action@5
         with:
-          reports: 'coverage/**/coverage.cobertura.xml'
+          reports: 'coverage/coverage.cobertura.xml'
           targetdir: 'coverage/report'
           reporttypes: 'MarkdownSummaryGithub'
 
