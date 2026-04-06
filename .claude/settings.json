@@ -23,8 +23,10 @@
       "Bash(claude *)",
       "Bash(tail *)",
       "Bash(head *)",
+      "Bash(date *)",
       "Bash(terraform *)",
       "Bash(az *)",
+      "Read(.claude/pipeline/**)",
       "Read(//Users/augusto-romero-arango/.claude/plans/**)",
       "Read(//Users/augusto-romero-arango/Codigo/Personal/experimentos/**)"
     ]
