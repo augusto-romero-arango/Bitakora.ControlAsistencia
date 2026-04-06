@@ -1,26 +1,26 @@
 // HU-4: Tests del endpoint HTTP CrearTurno
+
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using CrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
+using Endpoint = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Endpoint;
 
-using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.Dominio.Comandos.CrearTurno;
-using FunctionCrearTurno = Bitakora.ControlAsistencia.Programacion.Functions.CrearTurno;
-
-namespace Bitakora.ControlAsistencia.Programacion.Tests.Functions;
+namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
 /// <summary>
 /// Tests del endpoint HTTP POST /programacion/turnos.
 /// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
 /// ADR-0007: InvalidOperationException -> 409, AggregateException -> 400, exito -> 202.
 /// </summary>
-public class CrearTurnoFunctionTests
+public class EndpointTests
 {
-    private static ComandoCrearTurno.Franja FranjaDiurnaSimple() =>
+    private static CrearTurno.Franja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
 
-    private static ComandoCrearTurno ComandoValido() =>
+    private static CrearTurno ComandoValido() =>
         new(Guid.NewGuid(), "Turno Manana", [FranjaDiurnaSimple()]);
 
     private static HttpRequest FakeHttpRequest()
@@ -33,9 +33,9 @@ public class CrearTurnoFunctionTests
     [Fact]
     public async Task DebeRetornar202_CuandoComandoEsValido()
     {
-        var validator = new FakeRequestValidator<ComandoCrearTurno>(ComandoValido());
+        var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var router = new FakeCommandRouter();
-        var function = new FunctionCrearTurno(validator, router);
+        var function = new Endpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -46,9 +46,9 @@ public class CrearTurnoFunctionTests
     [Fact]
     public async Task DebeRetornar409_CuandoTurnoYaExiste()
     {
-        var validator = new FakeRequestValidator<ComandoCrearTurno>(ComandoValido());
+        var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var router = new FakeCommandRouter(lanzarInvalidOperationException: true);
-        var function = new FunctionCrearTurno(validator, router);
+        var function = new Endpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -60,9 +60,9 @@ public class CrearTurnoFunctionTests
     public async Task DebeRetornar400_CuandoRequestEsInvalido()
     {
         var errorDeValidacion = new BadRequestObjectResult("El body es invalido o esta malformado");
-        var validator = new FakeRequestValidator<ComandoCrearTurno>(error: errorDeValidacion);
+        var validator = new FakeRequestValidator<CrearTurno>(error: errorDeValidacion);
         var router = new FakeCommandRouter();
-        var function = new FunctionCrearTurno(validator, router);
+        var function = new Endpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -73,10 +73,10 @@ public class CrearTurnoFunctionTests
     [Fact]
     public async Task DebeRetornar400ConMensajes_CuandoFranjasDelComandoSonInvalidas()
     {
-        var validator = new FakeRequestValidator<ComandoCrearTurno>(ComandoValido());
+        var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var erroresDeNegocio = new ArgumentException[] { new("La franja ordinaria es invalida") };
         var router = new FakeCommandRouter(erroresAggregateException: erroresDeNegocio);
-        var function = new FunctionCrearTurno(validator, router);
+        var function = new Endpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 

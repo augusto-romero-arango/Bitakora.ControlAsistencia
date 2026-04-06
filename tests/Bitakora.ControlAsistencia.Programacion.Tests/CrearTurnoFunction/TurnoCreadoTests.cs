@@ -1,10 +1,11 @@
 // Issue #3: Implementar evento TurnoCreado con factory de construccion y validacion
+
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
-using Bitakora.ControlAsistencia.Programacion.Dominio.Comandos;
-using Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 
-namespace Bitakora.ControlAsistencia.Programacion.Tests.Dominio.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
 /// <summary>
 /// Tests del factory TurnoCreado.Crear(CrearTurno).

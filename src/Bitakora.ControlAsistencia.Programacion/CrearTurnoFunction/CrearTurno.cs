@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Programacion.Dominio.Comandos;
+namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 
 // Issue #3: comando DTO para crear un turno de trabajo
 // ADR-0015: record = DTO sin invariantes, constructor primario publico

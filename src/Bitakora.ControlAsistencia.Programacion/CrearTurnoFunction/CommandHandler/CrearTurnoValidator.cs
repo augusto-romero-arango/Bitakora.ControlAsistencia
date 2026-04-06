@@ -1,8 +1,7 @@
 using FluentValidation;
+using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
-using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.Dominio.Comandos.CrearTurno;
-
-namespace Bitakora.ControlAsistencia.Programacion.Dominio.CrearTurno;
+namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
 // HU-4: Validacion de estructura del request antes del command handler
 // CA-5: TurnoId no vacio, Nombre no vacio, Ordinarias no vacia

@@ -1,10 +1,9 @@
-using Bitakora.ControlAsistencia.Programacion.Dominio.Entities;
-using Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Entities;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
-using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.Dominio.Comandos.CrearTurno;
-
-namespace Bitakora.ControlAsistencia.Programacion.Dominio.CrearTurno;
+namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
 // HU-4: Handler que crea un nuevo turno de trabajo
 // Flujo: verificar idempotencia -> construir evento via TurnoCreado.Crear(comando)

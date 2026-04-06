@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 
-namespace Bitakora.ControlAsistencia.Programacion.Functions;
+namespace Bitakora.ControlAsistencia.Programacion;
 
 public class HealthCheck
 {

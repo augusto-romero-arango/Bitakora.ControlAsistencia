@@ -32,4 +32,9 @@
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Programacion.Tests" />
   </ItemGroup>
 
+<!--  <ItemGroup>-->
+<!--    <EmbeddedResource Include="CrearTurnoFunction\Eventos\TurnoCreadoMensajes.resx" />-->
+<!--    <EmbeddedResource Include="CrearTurnoFunction\CommandHandler\CrearTurnoCommandHandlerMensajes.resx" />-->
+<!--  </ItemGroup>-->
+
 </Project>

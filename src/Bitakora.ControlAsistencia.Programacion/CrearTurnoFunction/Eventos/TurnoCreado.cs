@@ -1,8 +1,7 @@
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
-using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.Dominio.Comandos.CrearTurno;
-
-namespace Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 
 // Issue #3: evento que registra la creacion de un turno de trabajo
 // ADR-0015: sealed class porque contiene IReadOnlyList<FranjaOrdinaria> -- record no puede

@@ -1,8 +1,8 @@
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
-using Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 using Cosmos.EventSourcing.Abstractions;
 
-namespace Bitakora.ControlAsistencia.Programacion.Dominio.Entities;
+namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Entities;
 
 // HU-4: Aggregate root del catalogo de turnos de trabajo
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado
