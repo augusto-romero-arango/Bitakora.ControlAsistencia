@@ -221,26 +221,33 @@ validate_tests() {
     # Limpiar artefactos de build incremental (necesario en worktrees post-merge)
     dotnet clean "$worktree" > /dev/null 2>&1 || true
 
-    test_output=$(dotnet test --solution "$worktree/ControlAsistencias.slnx" 2>&1 || true)
+    local test_rc=0
+    test_output=$(dotnet test --solution "$worktree/ControlAsistencias.slnx" 2>&1) || test_rc=$?
     echo "$test_output" >> "$LOG_FILE_ABS"
 
-    # P3: Verificar errores de compilación
-    if echo "$test_output" | grep -qE "error CS[0-9]+:|error MSB[0-9]+:|Build FAILED"; then
-        echo "$test_output"
-        return 2  # código 2 = error de compilación
-    fi
-
-    # P3: Verificar que realmente se ejecutaron tests
-    if ! echo "$test_output" | grep -qE "(Passed|Superado|Correctas)"; then
-        echo "$test_output"
-        return 3  # código 3 = no se ejecutaron tests
-    fi
-
-    # Verificar tests fallidos
-    if echo "$test_output" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
-        echo "$test_output"
-        return 1  # código 1 = tests fallidos
-    fi
+    # Exit codes de Microsoft.Testing.Platform:
+    #   0 = todos pasan, 2 = tests fallando, 8 = sin tests
+    # Errores de compilación producen exit code 1 con "error CS/MSB" en la salida
+    case "$test_rc" in
+        0) ;;  # todo bien, continuar
+        2)
+            echo "$test_output"
+            return 1  # tests fallidos
+            ;;
+        8)
+            echo "$test_output"
+            return 3  # no se ejecutaron tests
+            ;;
+        *)
+            # Exit code 1 u otro: verificar si es error de compilación
+            if echo "$test_output" | grep -qE "error CS[0-9]+:|error MSB[0-9]+:|Build FAILED"; then
+                echo "$test_output"
+                return 2  # error de compilación
+            fi
+            echo "$test_output"
+            return 1  # otro error de tests
+            ;;
+    esac
 
     echo "$test_output"
     return 0
