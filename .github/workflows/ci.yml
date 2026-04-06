@@ -31,7 +31,7 @@ jobs:
 
       - name: Test con cobertura
         run: >-
-          dotnet test ControlAsistencias.slnx
+          dotnet test --solution ControlAsistencias.slnx
           --no-build
           --configuration Release
           --collect:"XPlat Code Coverage"
