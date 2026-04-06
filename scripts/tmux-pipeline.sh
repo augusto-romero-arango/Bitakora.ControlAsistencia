@@ -118,13 +118,15 @@ cmd_single() {
 
     log "Creando sesion tmux '$session' para issue #$issue..."
 
-    # Crear sesion con ventana dashboard
-    tmux new-session -d -s "$session" -n "dashboard" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:dashboard" "tail -f '$EVENTS_LOG'" Enter
+    # Crear sesion con ventana unica y panes lado a lado
+    tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
-    # Crear ventana pipeline
-    tmux new-window -t "$session" -n "pipeline" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:pipeline" "./scripts/tdd-pipeline.sh $issue $extra_args" Enter
+    # Pane derecho: pipeline
+    tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main.1" "./scripts/tdd-pipeline.sh $issue $extra_args" Enter
+
+    tmux select-layout -t "$session:main" even-horizontal
 
     success "Pipeline iniciado para issue #$issue"
     print_connect_hint "$session"
@@ -142,13 +144,15 @@ cmd_batch() {
 
     log "Creando sesion tmux '$session' para batch: issues ${issues_str}..."
 
-    # Crear sesion con ventana dashboard
-    tmux new-session -d -s "$session" -n "dashboard" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:dashboard" "tail -f '$EVENTS_LOG'" Enter
+    # Crear sesion con ventana unica y panes lado a lado
+    tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
-    # Crear ventana pipeline con el comando batch
-    tmux new-window -t "$session" -n "pipeline" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:pipeline" "./scripts/batch-pipeline.sh $issues_str" Enter
+    # Pane derecho: batch pipeline
+    tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main.1" "./scripts/batch-pipeline.sh $issues_str" Enter
+
+    tmux select-layout -t "$session:main" even-horizontal
 
     success "Batch pipeline iniciado: issues $issues_str"
     print_connect_hint "$session"
@@ -192,19 +196,17 @@ cmd_parallel() {
 
     log "Creando sesion tmux '$session' para issues paralelos: $issues_str..."
 
-    # Crear sesion con ventana dashboard
-    tmux new-session -d -s "$session" -n "dashboard" -c "$PROJECT_ROOT"
+    # Crear sesion con ventana unica y panes lado a lado
+    tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
-    # Dashboard: muestra events.log en tiempo real
-    tmux send-keys -t "$session:dashboard" "tail -f '$EVENTS_LOG'" Enter
-
-    # Una ventana por issue
+    # Un pane por issue
     for issue in "${issues[@]}"; do
-        local win_name
-        win_name=$(safe_session_name "issue-$issue")
-        tmux new-window -t "$session" -n "$win_name" -c "$PROJECT_ROOT"
-        tmux send-keys -t "$session:$win_name" "./scripts/tdd-pipeline.sh $issue" Enter
+        tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
+        tmux send-keys "./scripts/tdd-pipeline.sh $issue" Enter
     done
+
+    tmux select-layout -t "$session:main" even-horizontal
 
     success "Pipeline paralelo iniciado: issues $issues_str"
     print_connect_hint "$session"
@@ -234,7 +236,7 @@ ${BOLD}En iTerm2 (recomendado):${NC}
   1. Corre el comando anterior desde tu terminal normal
   2. El script crea la sesion en background y te dice como conectarte
   3. Ejecuta: tmux -CC attach -t <nombre-sesion>
-  4. iTerm2 abre nuevas tabs nativas: 'dashboard' y 'pipeline' (o una por issue)
+  4. iTerm2 muestra los panes lado a lado: 'dashboard' + 'pipeline' (o uno por issue)
 
 ${BOLD}Ver sesiones activas:${NC}
   tmux ls
