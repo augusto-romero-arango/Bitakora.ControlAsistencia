@@ -10,9 +10,9 @@ namespace Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
 // CA-13: constructor vacio privado solo para Marten/JSON
 public sealed partial class TurnoCreado
 {
-    public Guid TurnoId { get; }
-    public string Nombre { get; }
-    public IReadOnlyList<FranjaOrdinaria> FranjasOrdinarias { get; }
+    public Guid TurnoId { get; private set; }
+    public string Nombre { get; private set; }
+    public IReadOnlyList<FranjaOrdinaria> FranjasOrdinarias { get; private set; }
 
     // CA-12: constructor real privado -- solo el factory lo invoca
     private TurnoCreado(Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias)

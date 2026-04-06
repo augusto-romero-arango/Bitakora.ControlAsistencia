@@ -79,7 +79,7 @@ public class TurnoCreadoTests
     // ---------- CA-5: turno nocturno que cruza medianoche ----------
 
     [Fact]
-    public void Crear_RetornaTurnoCreadoNocturno_CuandoOrdinaraCruzaMedianoche()
+    public void Crear_RetornaTurnoCreadoNocturno_CuandoOrdinariaCruzaMedianoche()
     {
         var comando = new CrearTurno(
             TurnoId,
@@ -171,6 +171,25 @@ public class TurnoCreadoTests
             .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.FranjasOrdinariasSeSolapan));
     }
 
+    [Fact]
+    public void Crear_LanzaAggregateException_CuandoFranjasNocturnasSeSolapan()
+    {
+        // 22:00-06:00+1 se solapa con 23:00-07:00+1 (ambas cruzan medianoche)
+        var comando = new CrearTurno(
+            TurnoId,
+            NombreValido,
+            [
+                new CrearTurno.Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), [], []),
+                new CrearTurno.Franja(new TimeOnly(23, 0), new TimeOnly(7, 0), [], [])
+            ]);
+
+        var act = () => TurnoCreado.Crear(comando);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.FranjasOrdinariasSeSolapan));
+    }
+
     // ---------- CA-9: errores de FranjaOrdinaria.Crear() se capturan y acumulan ----------
 
     [Fact]
@@ -205,6 +224,27 @@ public class TurnoCreadoTests
 
         var ex = act.Should().ThrowExactly<AggregateException>().Which;
         ex.InnerExceptions.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Crear_LanzaAggregateExceptionConErroresPropiosYDelegados_CuandoNombreVacioYSubFranjaInvalida()
+    {
+        // Nombre vacio (error propio) + descanso fuera del contenedor (error delegado de VO)
+        var descansoFuera = (new TimeOnly(14, 0), new TimeOnly(15, 0));
+        var comando = new CrearTurno(
+            TurnoId,
+            "",
+            [new CrearTurno.Franja(
+                new TimeOnly(8, 0), new TimeOnly(12, 0),
+                [descansoFuera], [])]);
+
+        var act = () => TurnoCreado.Crear(comando);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.Should().HaveCount(2);
+        ex.InnerExceptions.Should().Contain(e => e.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+        ex.InnerExceptions.Should().Contain(e =>
+            e.Message.Contains(FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor));
     }
 
     // ---------- CA-11: cada error individual es ArgumentException ----------
