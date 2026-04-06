@@ -388,6 +388,14 @@ Y agregar en su lugar (en el mismo `<ItemGroup>` o en uno nuevo):
 <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.{PascalCase}\Bitakora.ControlAsistencia.{PascalCase}.csproj" />
 ```
 
+**5. Agregar el global using de Xunit.** Los tests usan `[Fact]`, `[Theory]` y demas atributos de xunit sin `using Xunit;` explicito en cada archivo. Agrega un `<ItemGroup>` con el global using:
+
+```xml
+<ItemGroup>
+  <Using Include="Xunit" />
+</ItemGroup>
+```
+
 ---
 
 ## Paso 3 - Agregar a la solucion y verificar global.json
