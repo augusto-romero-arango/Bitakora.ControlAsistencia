@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
-using Bitakora.ControlAsistencia.Programacion.Dominio.Comandos;
+
+using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.Dominio.Comandos.CrearTurno;
 
 namespace Bitakora.ControlAsistencia.Programacion.Dominio.Eventos;
 
@@ -32,7 +33,7 @@ public sealed partial class TurnoCreado
     // CA-14: el evento nunca se construye en estado invalido
     // CA-10: acumula TODOS los errores antes de lanzar AggregateException
     // CA-11: cada error individual es una ArgumentException
-    public static TurnoCreado Crear(CrearTurno comando)
+    public static TurnoCreado Crear(ComandoCrearTurno comando)
     {
         var errores = new List<Exception>();
 
@@ -72,7 +73,7 @@ public sealed partial class TurnoCreado
 
     // Detecta si algún par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
     // No puede usar FranjaTemporal.MinutosAbsoluto* (internal en Contracts) -- calcula directo desde el DTO.
-    private static bool HaySolapamientoEntreOrdinarias(List<CrearTurno.Franja> franjas)
+    private static bool HaySolapamientoEntreOrdinarias(List<ComandoCrearTurno.Franja> franjas)
     {
         const int minsPorHora = 60;
         const int minsPorDia = 1440;
