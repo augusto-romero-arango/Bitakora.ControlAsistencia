@@ -450,7 +450,7 @@ run_agent() {
                         ;;
                     2|3|merge)
                         local test_out
-                        test_out=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+                        test_out=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1 || true)
                         if ! echo "$test_out" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
                             gate_passes=true
                         fi
@@ -533,7 +533,7 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
     if [ "$IS_REFACTOR" = false ]; then
         # Gate 1b: los tests nuevos deben FALLAR
         log "Gate: verificando fase roja (tests deben fallar)..."
-        TEST_OUTPUT_G1=$(dotnet test "$WORKTREE_PATH" --no-build 2>&1 || true)
+        TEST_OUTPUT_G1=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" --no-build 2>&1 || true)
         echo "$TEST_OUTPUT_G1" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if ! echo "$TEST_OUTPUT_G1" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
             abort "Stage 1 fallido: no se detectaron tests fallando — el test-writer pudo haber escrito implementación real en lugar de stubs"
@@ -546,7 +546,7 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
     if [ "$IS_REFACTOR" = true ]; then
         # Baseline: verificar que todos los tests pasan antes del refactoring
         log "Gate: verificando baseline verde para refactoring..."
-        TEST_OUTPUT_BASELINE=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+        TEST_OUTPUT_BASELINE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1 || true)
         echo "$TEST_OUTPUT_BASELINE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if echo "$TEST_OUTPUT_BASELINE" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
             abort "Refactoring señalizado pero hay tests fallando. No se puede refactorizar sobre una base roja."
@@ -600,7 +600,7 @@ Tu tarea: implementa la lógica de negocio para hacer pasar todos los tests. Sig
 
     # Gate 2: TODOS los tests deben pasar
     log "Gate: verificando fase verde (todos los tests deben pasar)..."
-    TEST_OUTPUT_G2=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+    TEST_OUTPUT_G2=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1 || true)
     echo "$TEST_OUTPUT_G2" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if echo "$TEST_OUTPUT_G2" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
         echo "$TEST_OUTPUT_G2" | tail -20
@@ -667,7 +667,7 @@ Tu tarea: revisa la calidad del código, refactoriza si es necesario, y verifica
 
     # Gate 3: tests deben seguir pasando
     log "Gate: verificando que refactor no rompió tests..."
-    TEST_OUTPUT_G3=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+    TEST_OUTPUT_G3=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1 || true)
     echo "$TEST_OUTPUT_G3" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if echo "$TEST_OUTPUT_G3" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
         echo "$TEST_OUTPUT_G3" | tail -20
@@ -745,7 +745,7 @@ NO elimines código de ninguna de las dos ramas — integra ambos cambios."
 
     # Re-correr tests post-merge
     log "Verificando tests después del merge..."
-    TEST_OUTPUT_MERGE=$(dotnet test "$WORKTREE_PATH" 2>&1 || true)
+    TEST_OUTPUT_MERGE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1 || true)
     echo "$TEST_OUTPUT_MERGE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if echo "$TEST_OUTPUT_MERGE" | grep -qE "(Failed|Con error):[[:space:]]+[1-9]"; then
         abort "Tests fallan después del merge con main. Revisa manualmente: cd $WORKTREE_PATH"
