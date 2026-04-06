@@ -20,6 +20,8 @@
     <PackageReference Include="Cosmos.EventDriven.CritterStack.AzureServiceBus" Version="0.0.6" />
     <PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="0.0.12" />
     <PackageReference Include="Cosmos.EventSourcing.CritterStack" Version="0.1.9" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
   </ItemGroup>
 
   <ItemGroup>

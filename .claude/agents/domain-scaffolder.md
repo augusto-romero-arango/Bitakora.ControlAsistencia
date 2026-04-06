@@ -240,10 +240,11 @@ public interface I{PascalCase}AssemblyMarker;
 }
 ```
 
-**9. Actualizar `local.settings.json`** para incluir `MartenConnectionString` para desarrollo local. Lee el archivo y agrega la clave dentro de `Values`:
+**9. Actualizar `local.settings.json`** para incluir las variables de entorno que `Program.cs` necesita para desarrollo local. Lee el archivo y agrega las siguientes claves dentro de `Values`:
 
 ```json
-"MartenConnectionString": "Host=localhost;Database=controlasistencias;Username=postgres;Password=postgres"
+"MartenConnectionString": "Host=localhost;Database=controlasistencias;Username=postgres;Password=postgres",
+"SERVICE_BUS_CONNECTION": "<pendiente-configurar>"
 ```
 
 **10. Verificar que Contracts tenga `Cosmos.EventDriven.Abstractions`:**
@@ -389,13 +390,29 @@ Y agregar en su lugar (en el mismo `<ItemGroup>` o en uno nuevo):
 
 ---
 
-## Paso 3 - Agregar a la solucion
+## Paso 3 - Agregar a la solucion y verificar global.json
 
 ```bash
 cd "$REPO_ROOT"
 dotnet sln ControlAsistencias.slnx add "src/Bitakora.ControlAsistencia.{PascalCase}/"
 dotnet sln ControlAsistencias.slnx add "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/"
 ```
+
+**Verificar `global.json`:** .NET 10 con xunit v3 mtp-v2 requiere que `global.json` en la raiz del repo tenga la seccion `test` para que `dotnet test` funcione. Lee el archivo `global.json` en `$REPO_ROOT`. Si no existe, crealo. Si existe, verifica que contenga la seccion `test`. El contenido minimo necesario es:
+
+```json
+{
+    "sdk": {
+        "version": "10.0.201",
+        "rollForward": "latestPatch"
+    },
+    "test": {
+        "runner": "Microsoft.Testing.Platform"
+    }
+}
+```
+
+Si el archivo ya existe con otras propiedades (ej: `sdk`), solo agrega la seccion `"test"` sin modificar lo existente.
 
 ---
 
@@ -487,7 +504,7 @@ jobs:
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test ControlAsistencias.slnx --no-build --configuration Release
+        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release
 
   deploy:
     needs: build-and-test
@@ -559,10 +576,10 @@ dotnet build ControlAsistencias.slnx
 
 ```bash
 cd "$REPO_ROOT"
-dotnet test "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/"
+dotnet test --project "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/"
 ```
 
-(El proyecto de tests estara vacio; un resultado de 0 tests pasando con exit code 0 es correcto.)
+(El proyecto de tests estara vacio; un resultado de 0 tests con exit code 8 es correcto — el codigo 8 significa "no se encontraron tests".)
 
 **Validacion de Terraform:**
 
@@ -584,6 +601,7 @@ git add \
   "src/Bitakora.ControlAsistencia.{PascalCase}/" \
   "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/" \
   "ControlAsistencias.slnx" \
+  "global.json" \
   "infra/environments/dev/main.tf" \
   ".github/workflows/deploy-{kebab}.yml"
 
