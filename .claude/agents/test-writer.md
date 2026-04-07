@@ -45,13 +45,18 @@ await WhenAsync(new MiComando(...));   // handler async
 When(new MiComando(...));             // handler sync
 
 // Verificar eventos emitidos al stream del agregado (en orden exacto)
+// IMPORTANTE: UNA SOLA llamada Then/ThenIsPublished* con TODOS los eventos
 Then(new EventoEmitido(...));
-Then(new Evento1(...), new Evento2(...));
+Then(new Evento1(...), new Evento2(...));   // multiples eventos = una llamada
 
 // Verificar publicacion de eventos distribuidos
 ThenIsPublishedPrivately(AggregateId, new EventoPrivado(...));
 ThenIsPublishedPrivately();           // verificar que NO se publico nada privado
 ThenIsPublishedPublicly(new EventoPublico(...));
+ThenIsPublishedPublicly(              // multiples eventos = una llamada
+    new EventoDiario(..., fecha1, ...),
+    new EventoDiario(..., fecha2, ...));
+// NUNCA llamadas separadas — el harness valida count exacto y falla en CI
 
 // Verificar estado del agregado despues de aplicar todos los eventos
 And<MiAggregateRoot, TipoPropiedad>(agg => agg.Propiedad, valorEsperado);
@@ -551,3 +556,4 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 10. **NUNCA** uses strings literales para mensajes de error en tests. Siempre referencia `Clase.Mensajes.Clave`. Crea el .resx y la clase Mensajes antes de escribir el test que los necesite.
 11. Los **aggregate roots y command handlers SIEMPRE deben ser `partial class`** para soportar la clase Mensajes anidada en un archivo separado.
 12. **Cuando el issue tiene seccion "Interfaz publica"**, los stubs SOLO exponen como `public` lo listado ahi. Todo lo demas es `protected`, `private` o `internal`. No tomes decisiones de visibilidad que no te corresponden — el planner ya las tomo.
+13. **Multiples eventos = UNA sola llamada a `Then`, `ThenIsPublishedPublicly` o `ThenIsPublishedPrivately`** con todos los eventos como argumentos. NUNCA hagas llamadas separadas — el harness valida count exacto contra el total de eventos y falla en CI.
