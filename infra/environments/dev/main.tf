@@ -44,6 +44,9 @@ module "service_bus" {
     "eventos-programacion" = {
       subscriptions = []
     }
+    "programacion-turno-diario-solicitada" = {
+      subscriptions = []
+    }
   }
   tags                = local.tags
 }

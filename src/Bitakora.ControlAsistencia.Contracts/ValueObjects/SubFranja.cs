@@ -28,6 +28,10 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
         return new SubFranja(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
     }
 
+    // Conversion a DTO plano para eventos entre dominios
+    public DetalleSubFranja ToDetalle() =>
+        new(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin);
+
     // CA-20, CA-21: formato legible con offsets
     public override string ToString() =>
         $"({FormatearHora(_horaInicio, _diaOffsetInicio)}-{FormatearHora(_horaFin, _diaOffsetFin)})";
