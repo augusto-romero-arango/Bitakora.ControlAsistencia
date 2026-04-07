@@ -22,13 +22,14 @@ lowercase forzado de Azure Service Bus.
 
 ### Funciones HTTP
 
-El nombre de la funcion Azure es el nombre del comando:
+El nombre de la funcion Azure es el nombre del comando, como string literal:
 
 ```csharp
-[Function(nameof(CrearTurno))]
+[Function("CrearTurno")]
 ```
 
-El atributo `nameof()` garantiza consistencia con el tipo del comando.
+El string literal evita la necesidad de `using` aliases por colision de namespaces
+en la organizacion vertical (el record del comando y la clase del endpoint comparten namespace).
 
 ### Funciones ServiceBus
 
@@ -55,27 +56,31 @@ Cada comando o reaccion a evento vive en su propio directorio:
 
 ```
 src/Bitakora.ControlAsistencia.{Dominio}/
-  CrearTurno/                            <- feature folder por comando HTTP
+  CrearTurnoFunction/                    <- sufijo Function para evitar colision con el record
     CrearTurno.cs                        <- record del comando
-    CrearTurnoCommandHandler.cs
-    CrearTurnoValidator.cs
-    Endpoint.cs                          <- Function HTTP
-  AsignarEmpleadoATurno/
+    FunctionEndpoint.cs                  <- [Function("CrearTurno")]
+    CommandHandler/
+      CrearTurnoCommandHandler.cs
+      CrearTurnoValidator.cs
+  AsignarEmpleadoATurnoFunction/
     AsignarEmpleadoATurno.cs
-    AsignarEmpleadoATurnoCommandHandler.cs
-    Endpoint.cs
+    FunctionEndpoint.cs                  <- [Function("AsignarEmpleadoATurno")]
+    CommandHandler/
+      AsignarEmpleadoATurnoCommandHandler.cs
   Entities/                              <- AggregateRoots + eventos del dominio
     TurnoAggregateRoot.cs
     TurnoCreado.cs
     AsignacionEmpleadoFallida.cs
   Infraestructura/                       <- servicios transversales del dominio
     RequestValidator.cs
-  DepurarMarcacionesCuandoTurnoCreado/   <- feature folder por reaccion a evento
-    Endpoint.cs                          <- Function ServiceBus
+  DepurarMarcacionesCuandoTurnoCreado/   <- feature folder por reaccion a evento (sin sufijo Function)
+    FunctionEndpoint.cs                  <- [Function("DepurarMarcacionesCuandoTurnoCreado")]
 ```
 
-- `Endpoint.cs` como nombre de clase en cada directorio. No colisiona porque cada
+- `FunctionEndpoint.cs` como nombre de clase en cada directorio. No colisiona porque cada
   directorio es un namespace diferente.
+- Sufijo `Function` en directorios HTTP para evitar colision entre el namespace y el record del comando.
+  ServiceBus triggers sin sufijo (no tienen record con nombre colisionante).
 - El directorio comunica la intencion; la clase es generica.
 
 ### Convenciones de nombramiento en codigo C#

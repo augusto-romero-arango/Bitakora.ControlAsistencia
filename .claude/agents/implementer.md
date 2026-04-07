@@ -159,7 +159,7 @@ public partial class AsignarEmpleadoATurnoCommandHandler(IEventStore eventStore,
 ```csharp
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
-    [Function(nameof(FunctionEndpoint))]
+    [Function("CrearTurno")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "Programacion/Turnos")]
         HttpRequest req,
@@ -498,12 +498,12 @@ public override string ToString()
 | AggregateRoot | `{Entidad}AggregateRoot` | `TurnoAggregateRoot` |
 
 **Funciones Azure:**
-- HTTP trigger: `[Function(nameof(FunctionEndpoint))]` — la clase del endpoint es el nombre de la funcion
+- HTTP trigger: `[Function("NombreDelComando")]` — el nombre de la funcion es el nombre del comando
 - ServiceBus trigger: `[Function("{Accion}Cuando{Evento}")]` — siempre describe la accion Y el estimulo
 
 ```csharp
-// HTTP
-[Function(nameof(FunctionEndpoint))]
+// HTTP — string literal con el nombre del comando
+[Function("CrearTurno")]
 
 // ServiceBus - siempre accion + estimulo, a prueba de crecimiento
 [Function("DepurarMarcacionesCuandoTurnoCreado")]
@@ -522,7 +522,7 @@ src/Bitakora.ControlAsistencia.{Dominio}/
     TurnoCreadoMensajes.resx
   CrearTurnoFunction/                    <- HTTP trigger (sufijo Function para evitar colision con el record)
     CrearTurno.cs                        <- record del comando
-    FunctionEndpoint.cs                  <- [Function(nameof(FunctionEndpoint))]
+    FunctionEndpoint.cs                  <- [Function("CrearTurno")] — nombre del comando
     CommandHandler/                      <- subcarpeta para handler + validator
       CrearTurnoCommandHandler.cs
       CrearTurnoCommandHandler.Mensajes.cs

@@ -100,7 +100,7 @@ Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, cor
 - Comandos: verbo infinitivo + sustantivo (`CrearTurno`, `AsignarEmpleadoATurno`)
 - CommandHandlers: `{Comando}CommandHandler`
 - Clase del endpoint: `FunctionEndpoint` (no `Endpoint`)
-- Funciones HTTP: `[Function(nameof(FunctionEndpoint))]`
+- Funciones HTTP: `[Function("NombreDelComando")]` — el nombre es el del comando, no el de la clase
 - Funciones ServiceBus: `[Function("{Accion}Cuando{Evento}")]` — siempre describe la accion Y el estimulo
 
 #### Infraestructura (ADR-0004)
