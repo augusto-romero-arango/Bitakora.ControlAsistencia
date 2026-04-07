@@ -11,7 +11,7 @@
 # - Comandos: PascalCase imperativo (RegistrarMarcacion, AsignarTurno)
 # - Policies: PascalCase descriptivo (DepuracionAutomatica)
 #
-# Ultima actualizacion: 2026-04-06 (TurnoCreado sealed class, CrearTurno estructura anidada)
+# Ultima actualizacion: 2026-04-06 (ControlHoras: TurnoDiarioAsignado, ControlDiarioAggregateRoot)
 
 events:
   - name: TurnoCreado
@@ -29,6 +29,60 @@ events:
         note: "Cada FranjaOrdinaria contiene sus Descansos y Extras ya asignados, con offsets inferidos"
     published_to: null  # se publicara cuando haya consumidores externos
     used_in: ["#3", "#4"]
+
+  - name: ProgramacionTurnoSolicitada
+    context: Programacion
+    description: Se registro una solicitud de programacion de turno para un empleado en N dias
+    visibility: private  # evento de event sourcing del aggregate SolicitudProgramacion
+    payload:
+      - field: Id
+        type: Guid
+        note: "Identidad de la solicitud, generado por el cliente"
+      - field: Empleado
+        type: InformacionEmpleado
+      - field: Fechas
+        type: List<DateOnly>
+      - field: DetalleTurno
+        type: DetalleTurno
+        note: "Turno completo resuelto del catalogo al momento de la solicitud"
+    published_to: null
+    used_in: ["#10"]
+
+  - name: ProgramacionTurnoDiarioSolicitada
+    context: Programacion
+    description: Solicitud de programacion de turno para un empleado en un dia especifico
+    visibility: public  # se publica a Service Bus para que ControlHoras lo consuma
+    payload:
+      - field: SolicitudId
+        type: Guid
+        note: "CorrelationId que apunta a la solicitud original"
+      - field: Empleado
+        type: InformacionEmpleado
+      - field: Fecha
+        type: DateOnly
+        note: "Un solo dia"
+      - field: DetalleTurno
+        type: DetalleTurno
+    published_to: "topic de Service Bus (nombre segun convenciones ADR)"
+    consumed_by: [ControlHoras]
+    used_in: ["#10"]
+
+  - name: TurnoDiarioAsignado
+    context: ControlHoras
+    description: Se asigno (o reasigno) un turno a un empleado para un dia especifico en ControlHoras
+    visibility: private  # evento de event sourcing del aggregate ControlDiario
+    payload:
+      - field: InformacionEmpleado
+        type: InformacionEmpleado
+      - field: Fecha
+        type: DateOnly
+      - field: DetalleTurno
+        type: DetalleTurno
+      - field: SolicitudId
+        type: Guid
+        note: "Trazabilidad hacia la solicitud original en Programacion"
+    published_to: null
+    used_in: ["#12"]
 
 commands:
   - name: CrearTurno
@@ -55,7 +109,43 @@ commands:
     produces: [TurnoCreado]
     used_in: ["#3", "#4"]
 
+  - name: SolicitarProgramacionTurno
+    context: Programacion
+    description: Solicita la programacion de un turno del catalogo para un empleado en N dias
+    trigger: HTTP POST
+    payload:
+      - field: Id
+        type: Guid
+        note: "Generado por el cliente"
+      - field: TurnoId
+        type: Guid
+        note: "Referencia al turno en el catalogo"
+      - field: Empleado
+        type: "SolicitarProgramacionTurno.DatosEmpleado"
+        note: "Tipo anidado con EmpleadoId, TipoIdentificacion, NumeroIdentificacion, Nombres, Apellidos"
+      - field: Fechas
+        type: "List<DateOnly>"
+    produces: [ProgramacionTurnoSolicitada, ProgramacionTurnoDiarioSolicitada]
+    used_in: ["#10"]
+
 policies: []
+
+aggregates:
+  - name: CatalogoTurnos
+    context: Programacion
+    description: "Catalogo de turnos disponibles. Ver docs/eda/aggregates/catalogo-turnos.yaml"
+    used_in: ["#3", "#4", "#10"]
+
+  - name: SolicitudProgramacionAggregateRoot
+    context: Programacion
+    description: "Registra la intencion de programar un turno para un empleado en N dias. Identidad por invocacion (Guid)."
+    used_in: ["#10"]
+
+  - name: ControlDiarioAggregateRoot
+    context: ControlHoras
+    description: "Dia de trabajo de un empleado. Identidad: EmpleadoId + Fecha. Recibe programaciones y marcaciones, produce desglose de horas."
+    identity: "EmpleadoId (string) + Fecha (DateOnly), compuesto como string para Marten"
+    used_in: ["#12"]
 
 value_objects:
   - name: FranjaOrdinaria
@@ -72,6 +162,26 @@ value_objects:
     source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/FranjaTemporal.cs
     description: "Clase abstracta base para franjas. Encapsula estado temporal, calculo de duracion, formato ToString."
     used_in: ["#2"]
+
+  - name: DetalleTurno
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DetalleTurno.cs
+    description: "Representacion plana del turno que viaja en eventos entre dominios. Nombre, FranjasOrdinarias. Record inmutable sin comportamiento de dominio."
+    used_in: ["#10", "#12"]
+
+  - name: DetalleFranjaOrdinaria
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DetalleFranjaOrdinaria.cs
+    description: "Representacion plana de una franja ordinaria para eventos. HoraInicio, HoraFin, DiaOffsetFin, Descansos, Extras."
+    used_in: ["#10"]
+
+  - name: DetalleSubFranja
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DetalleSubFranja.cs
+    description: "Representacion plana de una sub-franja para eventos. HoraInicio, HoraFin, DiaOffsetInicio, DiaOffsetFin."
+    used_in: ["#10"]
+
+  - name: InformacionEmpleado
+    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/InformacionEmpleado.cs
+    description: "Informacion basica del empleado que viaja en eventos. EmpleadoId (string opaco decidido por el cliente), TipoIdentificacion, NumeroIdentificacion, Nombres, Apellidos. Record inmutable."
+    used_in: ["#10", "#12"]
 
   - name: Turno
     source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/Turno.cs
