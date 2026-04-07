@@ -128,7 +128,7 @@ if [ -n "$ISSUE_NUM" ]; then
 
     # Extraer dominio del body si no fue dado explicitamente
     if [ -z "$DOMAIN_NAME" ]; then
-        DOMAIN_NAME=$(echo "$ISSUE_BODY" | grep -ioP '(?<=Dominio:\s)[a-z][a-z0-9-]*' | head -1 || true)
+        DOMAIN_NAME=$(echo "$ISSUE_BODY" | sed -n 's/.*[Dd]ominio:[[:space:]]*\([a-zA-Z][a-zA-Z0-9-]*\).*/\1/p' | head -1 || true)
         if [ -n "$DOMAIN_NAME" ]; then
             log "Dominio extraido del issue: $DOMAIN_NAME"
         fi
@@ -147,7 +147,7 @@ DOMAIN_NAME=$(echo "$DOMAIN_NAME" \
     | tr '[:upper:]' '[:lower:]')
 
 # Validar formato kebab-case
-if ! echo "$DOMAIN_NAME" | grep -qP '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'; then
+if ! echo "$DOMAIN_NAME" | grep -qE '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'; then
     abort "El nombre del dominio no se pudo normalizar a kebab-case. Recibido: $DOMAIN_NAME"
 fi
 
