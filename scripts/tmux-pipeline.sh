@@ -219,6 +219,63 @@ cmd_parallel() {
     fi
 }
 
+# --- Modo SCAFFOLD (un dominio) ---
+cmd_scaffold() {
+    local issue=""
+    local domain=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --domain)
+                domain="$2"
+                shift 2
+                ;;
+            --domain=*)
+                domain="${1#*=}"
+                shift
+                ;;
+            [0-9]*)
+                issue="$1"
+                shift
+                ;;
+            *)
+                abort "Argumento desconocido para --scaffold: $1"
+                ;;
+        esac
+    done
+
+    [ -n "$domain" ] || abort "Falta --domain para --scaffold. Uso: --scaffold [issue] --domain nombre"
+
+    local session
+    session=$(safe_session_name "scaffold-$domain")
+
+    check_tmux
+    ensure_events_log
+
+    if session_exists "$session"; then
+        warn "Ya existe una sesion '$session'."
+        print_connect_hint "$session"
+        exit 0
+    fi
+
+    local pipeline_args=""
+    [ -n "$issue" ] && pipeline_args="$issue "
+    pipeline_args="${pipeline_args}--domain $domain"
+
+    log "Creando sesion tmux '$session' para scaffold del dominio '$domain'..."
+
+    tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
+
+    tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main.1" "./scripts/scaffold-pipeline.sh $pipeline_args" Enter
+
+    tmux select-layout -t "$session:main" even-horizontal
+
+    success "Pipeline de scaffold iniciado para dominio '$domain'"
+    print_connect_hint "$session"
+}
+
 # --- Mostrar ayuda ---
 cmd_help() {
     cat <<EOF
@@ -226,11 +283,13 @@ cmd_help() {
 ${CYAN}${BOLD}tmux-pipeline.sh${NC} — Wrapper para pipelines en sesiones tmux
 
 ${BOLD}Uso:${NC}
-  ./scripts/tmux-pipeline.sh 42                          Issue unico
-  ./scripts/tmux-pipeline.sh --batch 42 43 44            Secuencial (uno a la vez, merge incluido)
-  ./scripts/tmux-pipeline.sh --parallel 42 43 44         Paralelo (un tab por issue)
-  ./scripts/tmux-pipeline.sh --attach                    Reconectar sesion tmux activa
-  ./scripts/tmux-pipeline.sh --attach tdd-42             Reconectar sesion especifica
+  ./scripts/tmux-pipeline.sh 42                                   Issue unico (TDD)
+  ./scripts/tmux-pipeline.sh --scaffold 42 --domain nombre        Scaffold de dominio
+  ./scripts/tmux-pipeline.sh --scaffold --domain nombre           Scaffold sin issue
+  ./scripts/tmux-pipeline.sh --batch 42 43 44                     Secuencial (uno a la vez)
+  ./scripts/tmux-pipeline.sh --parallel 42 43 44                  Paralelo (un tab por issue)
+  ./scripts/tmux-pipeline.sh --attach                             Reconectar sesion tmux activa
+  ./scripts/tmux-pipeline.sh --attach tdd-42                      Reconectar sesion especifica
 
 ${BOLD}En iTerm2 (recomendado):${NC}
   1. Corre el comando anterior desde tu terminal normal
@@ -280,6 +339,10 @@ main() {
         --attach)
             shift
             cmd_attach "${1:-}"
+            ;;
+        --scaffold)
+            shift
+            cmd_scaffold "$@"
             ;;
         --batch)
             shift
