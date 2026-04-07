@@ -29,6 +29,12 @@ variable "database_name" {
   type        = string
 }
 
+variable "zone" {
+  description = "Zona de disponibilidad del servidor PostgreSQL"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags comunes del proyecto"
   type        = map(string)
@@ -42,6 +48,8 @@ resource "azurerm_postgresql_flexible_server" "this" {
   version                = "17"
   administrator_login    = var.administrator_login
   administrator_password = var.administrator_password
+
+  zone = var.zone
 
   sku_name   = "B_Standard_B1ms"
   storage_mb = 32768
