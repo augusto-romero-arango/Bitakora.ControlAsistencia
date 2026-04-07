@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Programacion;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.Eventos;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -24,6 +25,8 @@ builder.Services.AgregarWolverineParaComandosServerless(
     options =>
     {
         options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
+        options.PublicarEventoServerless<ProgramacionTurnoDiarioSolicitada>(
+            "programacion-turno-diario-solicitada");
     });
 
 builder.Services.AgregarMartenEventStore();
