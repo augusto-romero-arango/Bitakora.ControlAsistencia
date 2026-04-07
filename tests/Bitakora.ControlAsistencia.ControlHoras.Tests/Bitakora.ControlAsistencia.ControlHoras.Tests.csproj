@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cosmos.EventSourcing.Testing.Utilities" Version="0.1.*" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.ControlHoras\Bitakora.ControlAsistencia.ControlHoras.csproj" />
+  </ItemGroup>
+
+</Project>

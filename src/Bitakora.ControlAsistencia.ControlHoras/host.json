@@ -1,0 +1,31 @@
+{
+    "version": "2.0",
+    "logging": {
+        "logLevel": {
+            "default": "Warning",
+            "Function": "Information",
+            "Host.Results": "Information",
+            "Host.Aggregator": "Information",
+            "Marten": "Warning",
+            "Wolverine": "Warning"
+        },
+        "applicationInsights": {
+            "samplingSettings": {
+                "isEnabled": true,
+                "maxTelemetryItemsPerSecond": 5,
+                "excludedTypes": "Request;Event"
+            },
+            "enableLiveMetricsFilters": true
+        }
+    },
+    "extensions": {
+        "serviceBus": {
+            "autoCompleteMessages": false,
+            "maxAutoLockRenewalDuration": "00:05:00",
+            "maxConcurrentCalls": 1,
+            "maxConcurrentSessions": 16,
+            "prefetchCount": 10,
+            "sessionIdleTimeout": "00:00:01"
+        }
+    }
+}
