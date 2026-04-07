@@ -33,11 +33,20 @@ jobs:
         run: dotnet tool install --global dotnet-coverage
 
       - name: Test con cobertura
-        run: >-
-          dotnet-coverage collect
-          --output coverage/coverage.cobertura.xml
-          --output-format cobertura
-          "bash -c 'exit_code=0; for proj in tests/Bitakora.ControlAsistencia.*.Tests/; do dotnet test --project \"$proj\" --no-build --configuration Release --ignore-exit-code 8 || exit_code=$?; done; exit $exit_code'"
+        run: |
+          mkdir -p coverage
+          i=0
+          for proj in tests/Bitakora.ControlAsistencia.*.Tests/; do
+            dotnet-coverage collect \
+              --output "coverage/coverage-$i.cobertura.xml" \
+              --output-format cobertura \
+              "dotnet test --project $proj --no-build --configuration Release --ignore-exit-code 8"
+            i=$((i + 1))
+          done
+          dotnet-coverage merge \
+            --output coverage/coverage.cobertura.xml \
+            --output-format cobertura \
+            coverage/coverage-*.cobertura.xml
 
       - name: Generar reporte de cobertura
         if: always()
