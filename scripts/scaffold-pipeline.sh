@@ -140,9 +140,15 @@ if [ -z "$DOMAIN_NAME" ]; then
     abort "No se pudo determinar el nombre del dominio. Usa --domain <nombre> o incluye 'Dominio: nombre' en el body del issue."
 fi
 
+# Normalizar dominio a kebab-case (acepta PascalCase, camelCase, snake_case)
+DOMAIN_NAME=$(echo "$DOMAIN_NAME" \
+    | sed 's/_/-/g' \
+    | sed 's/\([a-z0-9]\)\([A-Z]\)/\1-\2/g' \
+    | tr '[:upper:]' '[:lower:]')
+
 # Validar formato kebab-case
 if ! echo "$DOMAIN_NAME" | grep -qP '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'; then
-    abort "El nombre del dominio debe estar en kebab-case (ej: calculo-horas). Recibido: $DOMAIN_NAME"
+    abort "El nombre del dominio no se pudo normalizar a kebab-case. Recibido: $DOMAIN_NAME"
 fi
 
 # Derivar PascalCase

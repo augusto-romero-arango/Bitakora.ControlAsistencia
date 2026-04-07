@@ -44,6 +44,11 @@ Opciones:
   Agregar "Dominio: nombre" al body del issue
 ```
 
+### 3b. Normalizar a kebab-case
+
+Si el dominio viene en PascalCase (ej: `ControlHoras`), convertirlo a kebab-case (`control-horas`).
+Guardar ambas formas: `DOMAIN_NAME_KEBAB` (para el script) y `DOMAIN_NAME_PASCAL` (para verificar directorio).
+
 ### 4. Verificar que el dominio no existe
 
 Convierte a PascalCase (ej: `calculo-horas` -> `CalculoHoras`) y verifica:

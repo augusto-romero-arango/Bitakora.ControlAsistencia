@@ -120,6 +120,7 @@ cmd_single() {
 
     # Crear sesion con ventana unica y panes lado a lado
     tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux set-option -t "$session" remain-on-exit on
     tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
     # Pane derecho: pipeline
@@ -146,6 +147,7 @@ cmd_batch() {
 
     # Crear sesion con ventana unica y panes lado a lado
     tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux set-option -t "$session" remain-on-exit on
     tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
     # Pane derecho: batch pipeline
@@ -198,12 +200,13 @@ cmd_parallel() {
 
     # Crear sesion con ventana unica y panes lado a lado
     tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux set-option -t "$session" remain-on-exit on
     tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
     # Un pane por issue
     for issue in "${issues[@]}"; do
         tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
-        tmux send-keys "./scripts/tdd-pipeline.sh $issue" Enter
+        tmux send-keys -t "$session:main" "./scripts/tdd-pipeline.sh $issue" Enter
     done
 
     tmux select-layout -t "$session:main" even-horizontal
@@ -246,6 +249,12 @@ cmd_scaffold() {
 
     [ -n "$domain" ] || abort "Falta --domain para --scaffold. Uso: --scaffold [issue] --domain nombre"
 
+    # Normalizar dominio a kebab-case (acepta PascalCase, camelCase, snake_case)
+    domain=$(echo "$domain" \
+        | sed 's/_/-/g' \
+        | sed 's/\([a-z0-9]\)\([A-Z]\)/\1-\2/g' \
+        | tr '[:upper:]' '[:lower:]')
+
     local session
     session=$(safe_session_name "scaffold-$domain")
 
@@ -265,6 +274,7 @@ cmd_scaffold() {
     log "Creando sesion tmux '$session' para scaffold del dominio '$domain'..."
 
     tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux set-option -t "$session" remain-on-exit on
     tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
     tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
