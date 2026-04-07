@@ -498,3 +498,6 @@ $RECYCLE.BIN/
 
 # Azure Functions
 **/local.settings.json
+
+# Smoke Tests - configuracion local
+**/appsettings.local.json

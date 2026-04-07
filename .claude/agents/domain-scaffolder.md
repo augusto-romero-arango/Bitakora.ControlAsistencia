@@ -60,6 +60,7 @@ PascalCase:       {PascalCase}
 Function App:     func-{prefix_func}-{kebab} (N chars)
 Proyecto src:     src/Bitakora.ControlAsistencia.{PascalCase}/
 Proyecto tests:   tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
+Smoke tests:      tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
 Workflow deploy:  .github/workflows/deploy-{kebab}.yml
 
 Suscripciones a:  [lista si la proporcionaron, o "ninguna"]
@@ -398,12 +399,119 @@ Y agregar en su lugar (en el mismo `<ItemGroup>` o en uno nuevo):
 
 ---
 
+## Paso 2b - Crear el proyecto de Smoke Tests
+
+Crea el directorio y los archivos del proyecto de smoke tests. Este proyecto es independiente del codigo de produccion (sin ProjectReference).
+
+```bash
+cd "$REPO_ROOT"
+mkdir -p "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Fixtures"
+```
+
+**1. Crear el `.csproj`:**
+
+Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.csproj`:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.*" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="appsettings.local.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('appsettings.local.json')" />
+  </ItemGroup>
+
+</Project>
+```
+
+**Nota:** No tiene `<ProjectReference>` al proyecto de produccion. Los smoke tests son 100% independientes.
+
+**2. Crear `appsettings.json`:**
+
+```json
+{
+  "Api": {
+    "BaseUrl": "https://func-{prefix_func}-{kebab}.azurewebsites.net"
+  }
+}
+```
+
+**3. Crear `Fixtures/ApiFixture.cs`:**
+
+```csharp
+using System.Net;
+using Microsoft.Extensions.Configuration;
+
+namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+
+public class ApiFixture : IAsyncLifetime
+{
+    public HttpClient Client { get; private set; } = null!;
+
+    public async ValueTask InitializeAsync()
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.local.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var baseUrl = configuration["Api:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "Api:BaseUrl no esta configurado. Usa appsettings.json, appsettings.local.json o la variable de entorno Api__BaseUrl.");
+
+        Client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+
+        var response = await Client.GetAsync("/api/health");
+        if (response.StatusCode != HttpStatusCode.OK)
+            throw new InvalidOperationException(
+                $"El entorno {baseUrl} no esta disponible. Health check retorno {response.StatusCode}.");
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Client.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}
+```
+
+**4. Crear `Fixtures/AssemblyFixture.cs`:**
+
+```csharp
+using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+
+[assembly: AssemblyFixture(typeof(ApiFixture))]
+```
+
+---
+
 ## Paso 3 - Agregar a la solucion y verificar global.json
 
 ```bash
 cd "$REPO_ROOT"
 dotnet sln ControlAsistencias.slnx add "src/Bitakora.ControlAsistencia.{PascalCase}/"
 dotnet sln ControlAsistencias.slnx add "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/"
+dotnet sln ControlAsistencias.slnx add "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/"
 ```
 
 **Verificar `global.json`:** .NET 10 con xunit v3 mtp-v2 requiere que `global.json` en la raiz del repo tenga la seccion `test` para que `dotnet test` funcione. Lee el archivo `global.json` en `$REPO_ROOT`. Si no existe, crealo. Si existe, verifica que contenga la seccion `test`. El contenido minimo necesario es:
@@ -512,7 +620,7 @@ jobs:
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8
+        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8 --filter "Category!=Smoke"
 
   deploy:
     needs: build-and-test
@@ -560,11 +668,16 @@ jobs:
           app-name: func-{prefix_func}-{kebab}
           package: ./publish
 
-      - name: Smoke test
+      - name: Esperar arranque de Function App
         run: |
           echo "Esperando 30s para que la Function App arranque..."
           sleep 30
-          curl -f "https://func-{prefix_func}-{kebab}.azurewebsites.net/api/health"
+
+  smoke-tests:
+    needs: deploy
+    uses: ./.github/workflows/smoke-tests.yml
+    with:
+      base_url: https://func-{prefix_func}-{kebab}.azurewebsites.net
 ```
 
 ---
@@ -608,6 +721,7 @@ cd "$REPO_ROOT"
 git add \
   "src/Bitakora.ControlAsistencia.{PascalCase}/" \
   "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/" \
+  "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/" \
   "ControlAsistencias.slnx" \
   "global.json" \
   "infra/environments/dev/main.tf" \
@@ -633,17 +747,24 @@ Scaffold completado para el dominio "{kebab}":
     Entities/                              - AggregateRoots y eventos del dominio (siempre raiz)
 
   tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
-                                           - Proyecto de tests (xUnit v3 + AwesomeAssertions)
+                                           - Proyecto de tests unitarios (xUnit v3 + AwesomeAssertions)
+
+  tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
+    Fixtures/ApiFixture.cs                 - HttpClient + config + health check fail-fast
+    Fixtures/AssemblyFixture.cs            - Registro de IAssemblyFixture
+    appsettings.json                       - URL del entorno dev (commiteado)
+                                           - Proyecto de smoke tests black-box contra dev
 
   infra/environments/dev/main.tf           - module storage + module function_app
                                              (topics se crean bajo demanda con implementer)
 
-  .github/workflows/deploy-{kebab}.yml     - Workflow de deploy automatico
+  .github/workflows/deploy-{kebab}.yml     - Workflow de deploy automatico + smoke tests post-deploy
 
 Proximos pasos:
   1. Asegurate de que el secret AZURE_CREDENTIALS este configurado en GitHub
   2. Ejecuta "terraform apply" en infra/environments/dev/ para crear la infraestructura
   3. Usa el agente test-writer para escribir los primeros tests del dominio
+  4. Usa el agente smoke-test-writer para escribir los smoke tests contra dev
 ```
 
 ---

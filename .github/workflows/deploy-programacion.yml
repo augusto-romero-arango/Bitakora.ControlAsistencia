@@ -26,7 +26,7 @@ jobs:
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8
+        run: dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8 --filter "Category!=Smoke"
 
   deploy:
     needs: build-and-test
@@ -74,8 +74,11 @@ jobs:
           app-name: func-asist-dev-programacion
           package: ./publish
 
-      - name: Smoke test
+      - name: Esperar arranque de Function App
         run: |
           echo "Esperando 30s para que la Function App arranque..."
           sleep 30
-          curl -f "https://func-asist-dev-programacion.azurewebsites.net/api/health"
+
+  smoke-tests:
+    needs: deploy
+    uses: ./.github/workflows/smoke-tests.yml

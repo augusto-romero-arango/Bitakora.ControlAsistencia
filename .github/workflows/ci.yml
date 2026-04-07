@@ -37,7 +37,7 @@ jobs:
           dotnet-coverage collect
           --output coverage/coverage.cobertura.xml
           --output-format cobertura
-          "dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8"
+          "dotnet test --solution ControlAsistencias.slnx --no-build --configuration Release --ignore-exit-code 8 --filter Category!=Smoke"
 
       - name: Generar reporte de cobertura
         if: always()

@@ -6,5 +6,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Bitakora.ControlAsistencia.Contracts.Tests/Bitakora.ControlAsistencia.Contracts.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.Tests/Bitakora.ControlAsistencia.Programacion.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/Bitakora.ControlAsistencia.Programacion.SmokeTests.csproj" />
   </Folder>
 </Solution>

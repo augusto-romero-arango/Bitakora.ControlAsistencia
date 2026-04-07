@@ -1,0 +1,30 @@
+name: Smoke Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL base de la Function App'
+        required: false
+        default: 'https://func-asist-dev-programacion.azurewebsites.net'
+  workflow_call:
+    inputs:
+      base_url:
+        type: string
+        required: false
+        default: 'https://func-asist-dev-programacion.azurewebsites.net'
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Smoke tests
+        env:
+          Api__BaseUrl: ${{ inputs.base_url }}
+        run: dotnet test --project tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/ --configuration Release
