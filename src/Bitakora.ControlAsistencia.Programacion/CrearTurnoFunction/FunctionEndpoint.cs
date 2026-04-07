@@ -14,7 +14,7 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 //           AggregateException (del factory) -> 400 Bad Request con mensajes
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
-    [Function(nameof(FunctionEndpoint))]
+    [Function("CrearTurno")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/turnos")]
         HttpRequest req,
