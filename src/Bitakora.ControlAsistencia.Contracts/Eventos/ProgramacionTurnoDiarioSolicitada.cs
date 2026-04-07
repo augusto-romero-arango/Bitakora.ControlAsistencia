@@ -1,7 +1,7 @@
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 using Cosmos.EventDriven.Abstractions;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.Eventos;
+namespace Bitakora.ControlAsistencia.Contracts.Eventos;
 
 /// <summary>
 /// Evento publico que se publica al Service Bus via IPublicEventSender.

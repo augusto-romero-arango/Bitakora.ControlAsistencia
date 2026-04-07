@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Contracts.Tests" />
-    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Programacion" />
   </ItemGroup>
 
 </Project>

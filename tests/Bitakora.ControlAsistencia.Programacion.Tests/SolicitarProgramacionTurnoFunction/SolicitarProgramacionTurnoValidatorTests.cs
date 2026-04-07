@@ -1,6 +1,7 @@
 // HU-10: Solicitar programacion de turno del catalogo - tests del validator
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
@@ -10,7 +11,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 {
     private readonly SolicitarProgramacionTurnoValidator _validator = new();
 
-    private static SolicitarProgramacionTurno.DatosEmpleado DatosEmpleadoValidos() =>
+    private static InformacionEmpleado DatosEmpleadoValidos() =>
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     private static SolicitarProgramacionTurno ComandoValido() => new(
@@ -69,7 +70,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(SolicitarProgramacionTurno.DatosEmpleado.EmpleadoId)));
+            e.PropertyName.Contains(nameof(InformacionEmpleado.EmpleadoId)));
     }
 
     // CA-3: TipoIdentificacion no puede estar vacio
@@ -84,7 +85,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(SolicitarProgramacionTurno.DatosEmpleado.TipoIdentificacion)));
+            e.PropertyName.Contains(nameof(InformacionEmpleado.TipoIdentificacion)));
     }
 
     // CA-3: NumeroIdentificacion no puede estar vacio
@@ -99,7 +100,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(SolicitarProgramacionTurno.DatosEmpleado.NumeroIdentificacion)));
+            e.PropertyName.Contains(nameof(InformacionEmpleado.NumeroIdentificacion)));
     }
 
     // CA-3: Nombres no puede estar vacio
@@ -114,7 +115,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(SolicitarProgramacionTurno.DatosEmpleado.Nombres)));
+            e.PropertyName.Contains(nameof(InformacionEmpleado.Nombres)));
     }
 
     // CA-3: Apellidos no puede estar vacio
@@ -129,7 +130,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(SolicitarProgramacionTurno.DatosEmpleado.Apellidos)));
+            e.PropertyName.Contains(nameof(InformacionEmpleado.Apellidos)));
     }
 
     // CA-4: Fechas debe tener al menos un elemento

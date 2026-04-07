@@ -28,11 +28,9 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
         return new SubFranja(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
     }
 
-    // Propiedades internas para mapeo a DetalleSubFranja en eventos entre dominios
-    internal TimeOnly HoraInicio => _horaInicio;
-    internal TimeOnly HoraFin => _horaFin;
-    internal int DiaOffsetInicio => _diaOffsetInicio;
-    internal int DiaOffsetFin => _diaOffsetFin;
+    // Conversion a DTO plano para eventos entre dominios
+    public DetalleSubFranja ToDetalle() =>
+        new(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin);
 
     // CA-20, CA-21: formato legible con offsets
     public override string ToString() =>

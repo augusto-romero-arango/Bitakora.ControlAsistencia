@@ -1,6 +1,7 @@
 // HU-10: Solicitar programacion de turno del catalogo - tests del endpoint HTTP
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -22,7 +23,7 @@ public class FunctionEndpointTests
     private static SolicitarProgramacionTurno ComandoValido() => new(
         Guid.NewGuid(),
         Guid.NewGuid(),
-        new SolicitarProgramacionTurno.DatosEmpleado("E001", "CC", "12345678", "Juan", "Perez"),
+        new InformacionEmpleado("E001", "CC", "12345678", "Juan", "Perez"),
         [new DateOnly(2026, 4, 7)]);
 
     private static HttpRequest FakeHttpRequest()
