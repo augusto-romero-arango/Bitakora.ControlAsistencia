@@ -305,7 +305,7 @@ else
             --output-format text \
             >"$log_scaffold" 2>&1) &
         local SCAFFOLD_PID=$!
-        (sleep $SCAFFOLD_TIMEOUT && kill -9 $SCAFFOLD_PID 2>/dev/null && \
+        (sleep $SCAFFOLD_TIMEOUT && kill -9 -$SCAFFOLD_PID 2>/dev/null && \
             echo "[$(date +%H:%M:%S)] TIMEOUT: domain-scaffolder supero ${SCAFFOLD_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
         local SCAFFOLD_WATCHDOG=$!
 
@@ -378,7 +378,7 @@ run_agent() {
         >"$log_stage" 2>&1) &
     local CLAUDE_PID=$!
     # M3: usar SIGKILL para garantizar que el proceso muere al timeout
-    (sleep $AGENT_TIMEOUT_SECONDS && kill -9 $CLAUDE_PID 2>/dev/null && echo "[$(date +%H:%M:%S)] TIMEOUT: $agent superó ${AGENT_TIMEOUT_SECONDS}s — eliminado con SIGKILL" >> "$EVENTS_LOG_ABS") &
+    (sleep $AGENT_TIMEOUT_SECONDS && kill -9 -$CLAUDE_PID 2>/dev/null && echo "[$(date +%H:%M:%S)] TIMEOUT: $agent superó ${AGENT_TIMEOUT_SECONDS}s — eliminado con SIGKILL" >> "$EVENTS_LOG_ABS") &
     local WATCHDOG_PID=$!
 
     local CLAUDE_EXIT=0
