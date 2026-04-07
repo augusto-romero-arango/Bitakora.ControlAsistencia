@@ -86,10 +86,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, EmpleadoEsperado, [Fecha1, Fecha2], DetalleEsperado));
-        ThenIsPublishedPublicly(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoEsperado, Fecha1, DetalleEsperado));
-        ThenIsPublishedPublicly(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoEsperado, Fecha2, DetalleEsperado));
+        ThenIsPublishedPublicly(
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, EmpleadoEsperado, Fecha1, DetalleEsperado),
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, EmpleadoEsperado, Fecha2, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 
