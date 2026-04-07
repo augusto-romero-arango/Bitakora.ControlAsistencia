@@ -30,6 +30,7 @@ LOG_FILE="$LOG_DIR/pipeline-$TIMESTAMP.log"
 # ─── Tracking de estado enriquecido ──────────────────────────────────────────
 AGENT_TW_DUR="" AGENT_TW_RES="pending"
 AGENT_IM_DUR="" AGENT_IM_RES="pending"
+AGENT_ST_DUR="" AGENT_ST_RES="pending"   # smoke-test-writer
 AGENT_RV_DUR="" AGENT_RV_RES="pending"
 PIPELINE_TESTS=""
 PIPELINE_PR=""
@@ -67,9 +68,10 @@ abort() {
 update_status() {
     local stage="$1" state="$2"
     CURRENT_STAGE="$stage"
-    local tw_dur="null" im_dur="null" rv_dur="null"
+    local tw_dur="null" im_dur="null" st_dur="null" rv_dur="null"
     [ -n "$AGENT_TW_DUR" ] && tw_dur="$AGENT_TW_DUR"
     [ -n "$AGENT_IM_DUR" ] && im_dur="$AGENT_IM_DUR"
+    [ -n "$AGENT_ST_DUR" ] && st_dur="$AGENT_ST_DUR"
     [ -n "$AGENT_RV_DUR" ] && rv_dur="$AGENT_RV_DUR"
     local tests_val="null" pr_val="null" error_val="null"
     [ -n "$PIPELINE_TESTS" ] && tests_val="$PIPELINE_TESTS"
@@ -86,9 +88,10 @@ update_status() {
   "worktree": "${WORKTREE_PATH:-}",
   "log": "${LOG_FILE_ABS:-$LOG_FILE}",
   "agents": {
-    "test-writer": {"duration": $tw_dur, "result": "$AGENT_TW_RES"},
-    "implementer": {"duration": $im_dur, "result": "$AGENT_IM_RES"},
-    "reviewer":    {"duration": $rv_dur, "result": "$AGENT_RV_RES"}
+    "test-writer":       {"duration": $tw_dur, "result": "$AGENT_TW_RES"},
+    "implementer":       {"duration": $im_dur, "result": "$AGENT_IM_RES"},
+    "smoke-test-writer": {"duration": $st_dur, "result": "$AGENT_ST_RES"},
+    "reviewer":          {"duration": $rv_dur, "result": "$AGENT_RV_RES"}
   },
   "tests": $tests_val,
   "pr": $pr_val,
@@ -627,6 +630,71 @@ else
     log "Saltando Stage 2 (--from-stage $FROM_STAGE)"
 fi
 
+# ─── STAGE 2b: Smoke Test Writer (condicional) ───────────────────────────────
+# Solo se ejecuta si hay Function Apps modificadas y el proyecto SmokeTests existe
+if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 2 ]; then
+    SMOKE_FILES=$(git -C "$WORKTREE_PATH" diff --name-only "$SNAPSHOT_COMMIT"..HEAD | grep -E 'Function/' || true)
+
+    if [ -n "$SMOKE_FILES" ]; then
+        # Detectar dominio desde los archivos modificados
+        SMOKE_DOMAIN=$(echo "$SMOKE_FILES" | head -1 | sed 's|src/Bitakora.ControlAsistencia.\([^/]*\)/.*|\1|')
+        SMOKE_TEST_PROJECT="tests/Bitakora.ControlAsistencia.${SMOKE_DOMAIN}.SmokeTests"
+
+        if [ -d "$WORKTREE_PATH/$SMOKE_TEST_PROJECT" ]; then
+            header "Stage 2b: Smoke Test Writer"
+
+            STAGE2B_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+
+Contexto de la historia de usuario:
+
+$ISSUE_CONTEXT
+
+El implementer creó/modificó los siguientes endpoints:
+$SMOKE_FILES
+
+Tu tarea: escribe smoke tests para los endpoints nuevos o modificados.
+IMPORTANTE: Solo escribe y compila. NO ejecutes los tests (el entorno dev puede no tener este código desplegado aún).
+Usa 'dotnet build' para verificar compilación, pero NO uses 'dotnet test'.
+
+Sigue todas las instrucciones de tu rol de smoke-test-writer."
+
+            run_agent "2b" "smoke-test-writer" "$STAGE2B_PROMPT"
+
+            # Gate: solo compilación del proyecto de smoke tests
+            log "Gate: verificando que smoke tests compilan..."
+            st_build_rc=0
+            ST_BUILD_OUTPUT=$(dotnet build "$WORKTREE_PATH/$SMOKE_TEST_PROJECT" 2>&1) || st_build_rc=$?
+            echo "$ST_BUILD_OUTPUT" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+            if [ "$st_build_rc" -ne 0 ]; then
+                echo "$ST_BUILD_OUTPUT" | tail -20
+                abort "Stage 2b fallido: smoke tests no compilan (exit code: $st_build_rc). Revisa el log."
+            fi
+
+            auto_commit_if_needed "smoke" "test(hu-${ISSUE_NUM:-?}): smoke tests para endpoints"
+
+            AGENT_ST_DUR=$LAST_AGENT_DURATION
+            AGENT_ST_RES="passed"
+            update_status "2b-smoke-test-writer" "passed"
+            success "Stage 2b completado — smoke tests escritos"
+        else
+            log "Proyecto SmokeTests no existe para $SMOKE_DOMAIN — saltando smoke tests"
+            AGENT_ST_RES="skipped"
+            update_status "2b-smoke-test-writer" "skipped"
+        fi
+    else
+        log "No se detectaron Function Apps modificadas — saltando smoke tests"
+        AGENT_ST_RES="skipped"
+        update_status "2b-smoke-test-writer" "skipped"
+    fi
+else
+    if [ "$IS_REFACTOR" = true ]; then
+        log "Saltando Stage 2b (refactoring puro)"
+    else
+        log "Saltando Stage 2b (--from-stage $FROM_STAGE)"
+    fi
+    AGENT_ST_RES="skipped"
+fi
+
 # ─── STAGE 3: Reviewer (fase refactor) ───────────────────────────────────────
 if [ "$FROM_STAGE" -le 3 ]; then
     header "Stage 3: Reviewer (fase refactor)"
@@ -665,7 +733,9 @@ Diff completo de las fases roja y verde:
 
 $FULL_DIFF
 
-Tu tarea: revisa la calidad del código, refactoriza si es necesario, y verifica que los criterios de aceptación estén bien cubiertos. Sigue todas las instrucciones de tu rol de reviewer."
+Tu tarea: revisa la calidad del código, refactoriza si es necesario, y verifica que los criterios de aceptación estén bien cubiertos.
+Si el diff incluye smoke tests (archivos en *SmokeTests/), revísalos también: verifica que cubran los escenarios principales del endpoint (camino feliz, validación, duplicados) y que sigan las convenciones del proyecto.
+Sigue todas las instrucciones de tu rol de reviewer."
     fi
 
     run_agent "3" "reviewer" "$STAGE3_PROMPT"
@@ -778,12 +848,14 @@ log "Creando PR..."
 # Recolectar resumenes de agentes
 TW_SUMMARY=$(collect_summary "1" "test-writer")
 IM_SUMMARY=$(collect_summary "2" "implementer")
+ST_SUMMARY=$(collect_summary "2b" "smoke-test-writer")
 RV_SUMMARY=$(collect_summary "3" "reviewer")
 
 # Formatear duraciones
 _fmt_dur() { local s="${1:-0}"; echo "$((s/60))m $((s%60))s"; }
 TW_DUR_FMT=$(_fmt_dur "${AGENT_TW_DUR:-0}")
 IM_DUR_FMT=$(_fmt_dur "${AGENT_IM_DUR:-0}")
+ST_DUR_FMT=$(_fmt_dur "${AGENT_ST_DUR:-0}")
 RV_DUR_FMT=$(_fmt_dur "${AGENT_RV_DUR:-0}")
 
 if [ "$IS_REFACTOR" = true ]; then
@@ -793,11 +865,20 @@ if [ "$IS_REFACTOR" = true ]; then
 - Baseline: $BASELINE_TEST_COUNT tests pasando
 - Refactoring ejecutado manteniendo todos los tests verdes"
     IMPLEMENTER_SECTION=""
+    SMOKE_TEST_SECTION=""
 else
-    PR_BODY_SUMMARY="Pipeline TDD completado:
+    if [ "$AGENT_ST_RES" = "passed" ]; then
+        PR_BODY_SUMMARY="Pipeline TDD completado:
+- Fase roja: tests escritos con stubs
+- Fase verde: implementación completa
+- Smoke tests: escritos para endpoints detectados
+- Fase refactor: revisión de calidad"
+    else
+        PR_BODY_SUMMARY="Pipeline TDD completado:
 - Fase roja: tests escritos con stubs
 - Fase verde: implementación completa
 - Fase refactor: revisión de calidad"
+    fi
     IMPLEMENTER_SECTION="<details>
 <summary>Implementer (fase verde) — ${IM_DUR_FMT}</summary>
 
@@ -805,6 +886,17 @@ ${IM_SUMMARY}
 
 </details>
 "
+    if [ "$AGENT_ST_RES" = "passed" ]; then
+        SMOKE_TEST_SECTION="<details>
+<summary>Smoke Test Writer — ${ST_DUR_FMT}</summary>
+
+${ST_SUMMARY}
+
+</details>
+"
+    else
+        SMOKE_TEST_SECTION=""
+    fi
 fi
 
 PR_URL=$(gh pr create \
@@ -823,7 +915,7 @@ ${TW_SUMMARY}
 
 </details>
 
-${IMPLEMENTER_SECTION}<details>
+${IMPLEMENTER_SECTION}${SMOKE_TEST_SECTION}<details>
 <summary>Reviewer (fase refactor) — ${RV_DUR_FMT}</summary>
 
 ${RV_SUMMARY}
