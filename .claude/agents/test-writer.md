@@ -557,3 +557,26 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 11. Los **aggregate roots y command handlers SIEMPRE deben ser `partial class`** para soportar la clase Mensajes anidada en un archivo separado.
 12. **Cuando el issue tiene seccion "Interfaz publica"**, los stubs SOLO exponen como `public` lo listado ahi. Todo lo demas es `protected`, `private` o `internal`. No tomes decisiones de visibilidad que no te corresponden — el planner ya las tomo.
 13. **Multiples eventos = UNA sola llamada a `Then`, `ThenIsPublishedPublicly` o `ThenIsPublishedPrivately`** con todos los eventos como argumentos. NUNCA hagas llamadas separadas — el harness valida count exacto contra el total de eventos y falla en CI.
+14. **Pre-carga de aggregates externos con Given()**: cuando un handler lee otro aggregate del EventStore (ej. `GetAggregateRootAsync<CatalogoTurnos>(turnoId)`), pre-cargalo con `Given(aggregateId, eventoDeCreacion)`. El TestStore reconstruye CUALQUIER aggregate por reflection (crea instancia via `Activator.CreateInstance` y aplica eventos via `Apply(TEvento)`). Para el test de "aggregate externo no encontrado", simplemente no llames Given para ese ID — el TestStore retorna null. **NUNCA crees clases que implementen `IEventStore`** — el unico EventStore valido en tests es el que provee `CommandHandlerTestBase`.
+    ```csharp
+    // CORRECTO: pre-cargar catalogo con Given
+    Given(TurnoId.ToString(), turnoCreado);
+    await WhenAsync(new SolicitarProgramacion(...));
+
+    // INCORRECTO: crear wrapper de IEventStore
+    private sealed class EventStoreConCatalogo : IEventStore { ... }  // NUNCA
+    ```
+15. **Reusar tipos de Contracts en commands**: antes de crear un record anidado en un command, verifica si ya existe un tipo equivalente en `Contracts/ValueObjects/` o `Contracts/Eventos/`. Si existe y tiene la misma estructura, usalo directamente. Duplicar tipos genera mapeos manuales innecesarios en el handler.
+    ```csharp
+    // CORRECTO: reusar InformacionEmpleado de Contracts
+    public record SolicitarProgramacionTurno(
+        Guid Id, Guid TurnoId,
+        InformacionEmpleado Empleado,
+        List<DateOnly> Fechas);
+
+    // INCORRECTO: crear record anidado que duplica un tipo existente
+    public record SolicitarProgramacionTurno(...)
+    {
+        public record DatosEmpleado(string EmpleadoId, ...);  // NUNCA si ya existe InformacionEmpleado
+    }
+    ```

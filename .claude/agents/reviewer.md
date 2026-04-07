@@ -125,6 +125,14 @@ Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, cor
 - **Nested classes cuando corresponde**: si multiples handlers operan sobre el mismo aggregate, deben estar en nested classes con factory methods compartidos.
 - **Factory methods para precondiciones repetidas**: si el mismo evento de precondicion se repite en muchos tests, debe existir un factory method estatico.
 
+#### Boundaries entre proyectos
+
+- **`IPublicEvent` SOLO en `Contracts/Eventos/`**: si encuentras un evento publico en un proyecto de dominio, moverlo a Contracts. El consumidor solo debe depender de Contracts.
+- **CERO `InternalsVisibleTo` de Contracts hacia proyectos de dominio**: si existe, es senal de que falta un metodo publico de conversion en el VO (ej. `ToDetalle()`). Agregar el metodo y quitar el `InternalsVisibleTo`.
+- **VOs que necesitan proyectarse a DTOs**: verificar que la conversion vive como metodo publico `To{Dto}()` en el propio VO, no como logica externa que accede a internals.
+- **Records duplicados**: si un record de dominio (ej. `DatosEmpleado` anidado en un command) tiene la misma estructura que uno de Contracts (ej. `InformacionEmpleado`), flaggearlo. El command debe usar el tipo de Contracts directamente.
+- **Wrappers de IEventStore en tests**: si un test crea una clase que implementa `IEventStore` solo para servir un aggregate pre-construido, verificar si `Given(aggregateId, evento)` del framework lo resuelve. El TestStore reconstruye cualquier aggregate por reflection.
+
 #### Naming (ADR-0005, ADR-0008)
 
 - Eventos de exito: sustantivo + participio pasado PascalCase (`TurnoCreado`, `EmpleadoAsignado`)
@@ -335,6 +343,10 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 | Tests verifican mensaje de excepcion (.WithMessage) | ok / falla / n/a | ... |
 | Tests de IEquatable para value objects | ok / n/a | ... |
 | Tests de serializacion round-trip | ok / n/a | ... |
+| IPublicEvent solo en Contracts/Eventos/ | ok / falla / n/a | ... |
+| Sin InternalsVisibleTo de Contracts a dominio | ok / falla | ... |
+| Sin records duplicados (command vs Contracts) | ok / falla / n/a | ... |
+| Sin wrappers de IEventStore en tests | ok / falla / n/a | ... |
 
 ### Elegancia del codigo
 - [Hallazgos sobre compacidad, legibilidad, idiomatismo, robustez, eficiencia o limpieza]

@@ -484,6 +484,40 @@ public override string ToString()
 
 ---
 
+## Ubicacion de eventos y boundaries entre proyectos
+
+### Donde vive cada tipo de evento
+
+| Tipo | Interfaz | Ubicacion | Namespace |
+|------|----------|-----------|-----------|
+| Publico (entre dominios) | `IPublicEvent` | `Contracts/Eventos/` | `Bitakora.ControlAsistencia.Contracts.Eventos` |
+| Privado (dentro del dominio) | `IPrivateEvent` | `{Dominio}/{Feature}/Eventos/` | `...{Dominio}.{Feature}.Eventos` |
+| Event sourcing (aggregate) | ninguna | `{Dominio}/Entities/` o `{Feature}/Eventos/` | segun organizacion vertical |
+
+Un evento es publico si otro dominio lo consume (via ServiceBus). La verdad viaja en el evento — el consumidor solo depende de Contracts.
+
+### No exponer internals entre proyectos
+
+**NUNCA agregues `InternalsVisibleTo` de Contracts a un proyecto de dominio.** Si necesitas acceder a estado interno de un VO para construir un DTO, agrega un metodo publico de conversion en el propio VO (ej. `ToDetalle()`). La logica de conversion pertenece al objeto que tiene los datos (Tell Don't Ask).
+
+### Reusar tipos de Contracts
+
+Antes de crear un record en el dominio, busca en `Contracts/ValueObjects/` y `Contracts/Eventos/`. Si existe un tipo con la misma estructura semantica, usarlo directamente en el command o evento. Duplicar tipos genera mapeos manuales innecesarios.
+
+### Cast inline sobre .Cast<>() en LINQ
+
+Cuando necesites convertir el tipo de una secuencia LINQ (ej. `IEnumerable<Derived>` a `IEnumerable<IBase>`), prefiere el cast inline dentro del Select sobre `.Cast<T>()` despues:
+
+```csharp
+// Preferido: cast explicito en el Select
+.Select(x => (IPublicEvent)new MiEvento(...))
+
+// Evitar: Cast<> despues del Select
+.Select(x => new MiEvento(...)).Cast<IPublicEvent>()
+```
+
+---
+
 ## Convenciones de nombramiento
 
 **Codigo C# (PascalCase, espanol excepto patrones reconocidos):**
