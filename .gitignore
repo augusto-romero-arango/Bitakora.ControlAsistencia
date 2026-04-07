@@ -389,7 +389,7 @@ FodyWeavers.xsd
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
-!.vscode/extensions.json
+## extensions.json no se trackea — cada Function App genera el suyo via func init
 *.code-workspace
 
 # Local History for Visual Studio Code
@@ -498,6 +498,7 @@ $RECYCLE.BIN/
 
 # Azure Functions
 **/local.settings.json
+**/Properties/launchSettings.json
 
 # Smoke Tests - configuracion local
 **/appsettings.local.json

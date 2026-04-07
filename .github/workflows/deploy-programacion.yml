@@ -85,3 +85,5 @@ jobs:
   smoke-tests:
     needs: deploy
     uses: ./.github/workflows/smoke-tests.yml
+    with:
+      test_project: tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/

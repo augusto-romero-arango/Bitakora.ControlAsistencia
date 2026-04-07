@@ -87,6 +87,14 @@ func init "src/Bitakora.ControlAsistencia.{PascalCase}" \
   --target-framework net10.0
 ```
 
+Despues de `func init`, elimina los archivos que no deben trackearse (ya cubiertos por el .gitignore raiz):
+
+```bash
+rm -f "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/.gitignore"
+rm -rf "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/.vscode"
+rm -f "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Properties/launchSettings.json"
+```
+
 Una vez creado, lee el archivo `.csproj` generado para ver su contenido actual antes de modificarlo.
 
 Luego aplica los siguientes ajustes al `.csproj`:
@@ -602,6 +610,7 @@ on:
       - 'src/Bitakora.ControlAsistencia.{PascalCase}/**'
       - 'src/Bitakora.ControlAsistencia.Contracts/**'
       - 'infra/environments/dev/**'
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -681,6 +690,7 @@ jobs:
     uses: ./.github/workflows/smoke-tests.yml
     with:
       base_url: https://func-{prefix_func}-{kebab}.azurewebsites.net
+      test_project: tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
 ```
 
 ---

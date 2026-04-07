@@ -7,12 +7,20 @@ on:
         description: 'URL base de la Function App'
         required: false
         default: 'https://func-asist-dev-programacion.azurewebsites.net'
+      test_project:
+        description: 'Ruta al proyecto de smoke tests'
+        required: false
+        default: 'tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/'
   workflow_call:
     inputs:
       base_url:
         type: string
         required: false
         default: 'https://func-asist-dev-programacion.azurewebsites.net'
+      test_project:
+        type: string
+        required: false
+        default: 'tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/'
 
 jobs:
   smoke-tests:
@@ -27,4 +35,4 @@ jobs:
       - name: Smoke tests
         env:
           Api__BaseUrl: ${{ inputs.base_url }}
-        run: dotnet test --project tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/ --configuration Release
+        run: dotnet test --project ${{ inputs.test_project }} --configuration Release

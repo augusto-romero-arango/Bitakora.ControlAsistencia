@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "Bitakora_ControlAsistencia_Programacion": {
-      "commandName": "Project",
-      "commandLineArgs": "--port 7018",
-      "launchBrowser": false
-    }
-  }
-}
