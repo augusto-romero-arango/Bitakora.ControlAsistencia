@@ -10,8 +10,19 @@ public partial class SolicitudProgramacionAggregateRoot : AggregateRoot
     internal IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
     internal DetalleTurno? DetalleTurno { get; private set; }
 
-    private void Apply(ProgramacionTurnoSolicitada e) => throw new NotImplementedException();
+    public void Apply(ProgramacionTurnoSolicitada e)
+    {
+        Id = e.Id.ToString();
+        Empleado = e.Empleado;
+        Fechas = e.Fechas;
+        DetalleTurno = e.DetalleTurno;
+    }
 
     internal static SolicitudProgramacionAggregateRoot Iniciar(ProgramacionTurnoSolicitada evento)
-        => throw new NotImplementedException();
+    {
+        var solicitud = new SolicitudProgramacionAggregateRoot();
+        solicitud._uncommittedEvents.Add(evento);
+        solicitud.Apply(evento);
+        return solicitud;
+    }
 }

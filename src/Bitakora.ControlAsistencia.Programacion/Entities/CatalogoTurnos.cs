@@ -29,6 +29,19 @@ public partial class CatalogoTurnos : AggregateRoot
     public override string ToString() =>
         $"{_nombre} {string.Join("", _franjasOrdinarias)}";
 
+    // Devuelve una representacion plana del turno para usar en eventos entre dominios
+    internal DetalleTurno ObtenerDetalle() => new(
+        _nombre,
+        _franjasOrdinarias.Select(f => new DetalleFranjaOrdinaria(
+            f.HoraInicio,
+            f.HoraFin,
+            f.DiaOffsetFin,
+            f.Descansos.Select(d => new DetalleSubFranja(
+                d.HoraInicio, d.HoraFin, d.DiaOffsetInicio, d.DiaOffsetFin)).ToList().AsReadOnly(),
+            f.Extras.Select(e => new DetalleSubFranja(
+                e.HoraInicio, e.HoraFin, e.DiaOffsetInicio, e.DiaOffsetFin)).ToList().AsReadOnly()
+        )).ToList().AsReadOnly());
+
     // Factory interno: crea el aggregate con el evento en _uncommittedEvents
     // Usado por el handler para StartStream -- no es parte de la interfaz publica del dominio
     internal static CatalogoTurnos Iniciar(TurnoCreado evento)

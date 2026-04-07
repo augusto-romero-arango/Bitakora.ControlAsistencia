@@ -66,6 +66,13 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         return ordinaria;
     }
 
+    // Propiedades internas para mapeo a DetalleFranjaOrdinaria en eventos entre dominios
+    internal TimeOnly HoraInicio => _horaInicio;
+    internal TimeOnly HoraFin => _horaFin;
+    internal int DiaOffsetFin => _diaOffsetFin;
+    internal IReadOnlyList<SubFranja> Descansos => _descansos.AsReadOnly();
+    internal IReadOnlyList<SubFranja> Extras => _extras.AsReadOnly();
+
     // CA-20, CA-21: formato "(06:00-12:00)" o "(22:00-06:00+1)"
     public override string ToString()
     {
@@ -115,10 +122,10 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     private static void ValidarSolapamiento(List<FranjaTemporal> hijas)
     {
         for (var i = 0; i < hijas.Count; i++)
-        for (var j = i + 1; j < hijas.Count; j++)
-            if (hijas[i].MinutosAbsolutoInicio < hijas[j].MinutosAbsolutoFin
-                && hijas[j].MinutosAbsolutoInicio < hijas[i].MinutosAbsolutoFin)
-                throw new ArgumentException(Mensajes.FranjasHijasSeSuperponen);
+            for (var j = i + 1; j < hijas.Count; j++)
+                if (hijas[i].MinutosAbsolutoInicio < hijas[j].MinutosAbsolutoFin
+                    && hijas[j].MinutosAbsolutoInicio < hijas[i].MinutosAbsolutoFin)
+                    throw new ArgumentException(Mensajes.FranjasHijasSeSuperponen);
     }
 
     // Mapping de serializacion - vive aqui porque cambia con la clase
