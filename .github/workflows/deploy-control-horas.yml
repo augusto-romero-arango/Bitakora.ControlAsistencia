@@ -7,6 +7,7 @@ on:
       - 'src/Bitakora.ControlAsistencia.ControlHoras/**'
       - 'src/Bitakora.ControlAsistencia.Contracts/**'
       - 'infra/environments/dev/**'
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -86,3 +87,4 @@ jobs:
     uses: ./.github/workflows/smoke-tests.yml
     with:
       base_url: https://func-asist-dev-control-horas.azurewebsites.net
+      test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
