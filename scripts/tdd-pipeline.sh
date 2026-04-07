@@ -34,6 +34,7 @@ AGENT_ST_DUR="" AGENT_ST_RES="pending"   # smoke-test-writer
 AGENT_RV_DUR="" AGENT_RV_RES="pending"
 PIPELINE_TESTS=""
 PIPELINE_PR=""
+HAS_BLOCKAGE=false
 PIPELINE_ERROR=""
 LAST_AGENT_DURATION=0
 CURRENT_STAGE="setup"
@@ -605,14 +606,21 @@ Tu tarea: implementa la lógica de negocio para hacer pasar todos los tests. Sig
 
     run_agent "2" "implementer" "$STAGE2_PROMPT"
 
-    # Gate 2: TODOS los tests deben pasar (exit code 0 = verde)
-    log "Gate: verificando fase verde (todos los tests deben pasar)..."
+    # Gate 2: verificar tests
+    log "Gate: verificando fase verde..."
     g2_rc=0
     TEST_OUTPUT_G2=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g2_rc=$?
     echo "$TEST_OUTPUT_G2" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$g2_rc" -ne 0 ]; then
-        echo "$TEST_OUTPUT_G2" | tail -20
-        abort "Stage 2 fallido: no todos los tests pasan después del implementer (exit code: $g2_rc). Revisa $LOG_DIR_ABS/stage-2-implementer.log"
+        BLOCKAGE_REPORT="$WORKTREE_PATH/.claude/pipeline/blockage-report.md"
+        if [ -f "$BLOCKAGE_REPORT" ]; then
+            warn "Stage 2: hay tests rojos pero el implementer reporto bloqueo — continuando al reviewer"
+            echo "[$(date +%H:%M:%S)] BLOCKAGE: implementer reporto tests bloqueados, continuando" >> "$EVENTS_LOG_ABS"
+            HAS_BLOCKAGE=true
+        else
+            echo "$TEST_OUTPUT_G2" | tail -20
+            abort "Stage 2 fallido: no todos los tests pasan después del implementer (exit code: $g2_rc). Revisa $LOG_DIR_ABS/stage-2-implementer.log"
+        fi
     fi
 
     TEST_COUNT=$(extract_test_count "$TEST_OUTPUT_G2")
@@ -623,9 +631,15 @@ Tu tarea: implementa la lógica de negocio para hacer pasar todos los tests. Sig
     auto_commit_if_needed "verde" "feat(hu-${ISSUE_NUM:-?}): implementación fase verde"
 
     AGENT_IM_DUR=$LAST_AGENT_DURATION
-    AGENT_IM_RES="passed"
-    update_status "2-implementer" "passed"
-    success "Stage 2 completado — fase verde confirmada"
+    if [ "$HAS_BLOCKAGE" = true ]; then
+        AGENT_IM_RES="blocked"
+        update_status "2-implementer" "blocked"
+        warn "Stage 2 completado con tests bloqueados — el reviewer intentara resolverlos"
+    else
+        AGENT_IM_RES="passed"
+        update_status "2-implementer" "passed"
+        success "Stage 2 completado — fase verde confirmada"
+    fi
 else
     log "Saltando Stage 2 (--from-stage $FROM_STAGE)"
 fi
@@ -738,6 +752,16 @@ Si el diff incluye smoke tests (archivos en *SmokeTests/), revísalos también: 
 Sigue todas las instrucciones de tu rol de reviewer."
     fi
 
+    # Agregar contexto de bloqueo al prompt si el implementer reporto tests bloqueados
+    if [ "${HAS_BLOCKAGE:-false}" = true ]; then
+        BLOCKAGE_REPORT="$WORKTREE_PATH/.claude/pipeline/blockage-report.md"
+        if [ -f "$BLOCKAGE_REPORT" ]; then
+            STAGE3_PROMPT="$STAGE3_PROMPT
+
+ATENCION: El implementer reporto tests bloqueados. Lee el reporte en .claude/pipeline/blockage-report.md y sigue las instrucciones de tu seccion 2b para intentar resolverlos."
+        fi
+    fi
+
     run_agent "3" "reviewer" "$STAGE3_PROMPT"
 
     # Gate 3: tests deben seguir pasando (exit code 0 = verde)
@@ -746,8 +770,14 @@ Sigue todas las instrucciones de tu rol de reviewer."
     TEST_OUTPUT_G3=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g3_rc=$?
     echo "$TEST_OUTPUT_G3" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$g3_rc" -ne 0 ]; then
-        echo "$TEST_OUTPUT_G3" | tail -20
-        abort "Stage 3 fallido: el reviewer rompió tests al refactorizar (exit code: $g3_rc). Revisa $LOG_DIR_ABS/stage-3-reviewer.log"
+        BLOCKAGE_REPORT="$WORKTREE_PATH/.claude/pipeline/blockage-report.md"
+        if [ "${HAS_BLOCKAGE:-false}" = true ] && [ -f "$BLOCKAGE_REPORT" ]; then
+            warn "Stage 3: hay tests rojos pero el bloqueo persiste desde el implementer — continuando a PR"
+            echo "[$(date +%H:%M:%S)] BLOCKAGE_PERSISTS: reviewer no resolvio tests bloqueados" >> "$EVENTS_LOG_ABS"
+        else
+            echo "$TEST_OUTPUT_G3" | tail -20
+            abort "Stage 3 fallido: el reviewer rompió tests al refactorizar (exit code: $g3_rc). Revisa $LOG_DIR_ABS/stage-3-reviewer.log"
+        fi
     fi
 
     # Verificación adicional para refactoring: no deben perderse tests
@@ -934,6 +964,31 @@ EOF
     --repo "$(git -C "$WORKTREE_PATH" remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')" \
     2>>"$LOG_FILE") \
     || abort "No se pudo crear el PR"
+
+# Si hay bloqueo, agregar label y nota al PR
+if [ "${HAS_BLOCKAGE:-false}" = true ]; then
+    PR_NUM=$(echo "$PR_URL" | grep -o '[0-9]*$')
+    REPO_SLUG=$(git -C "$WORKTREE_PATH" remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')
+    gh pr edit "$PR_NUM" --add-label "bloqueado" --repo "$REPO_SLUG" >>"$LOG_FILE" 2>&1 \
+        || warn "No se pudo agregar label 'bloqueado' al PR"
+    BLOCKAGE_REPORT="$WORKTREE_PATH/.claude/pipeline/blockage-report.md"
+    if [ -f "$BLOCKAGE_REPORT" ]; then
+        BLOCKAGE_CONTENT=$(cat "$BLOCKAGE_REPORT")
+        gh pr comment "$PR_NUM" \
+            --body "## Tests bloqueados
+
+Este PR tiene tests en rojo que ni el implementer ni el reviewer pudieron resolver. Se requiere atencion humana.
+
+<details>
+<summary>Reporte de bloqueo</summary>
+
+$BLOCKAGE_CONTENT
+
+</details>" \
+            --repo "$REPO_SLUG" >>"$LOG_FILE" 2>&1 \
+            || warn "No se pudo comentar reporte de bloqueo en el PR"
+    fi
+fi
 
 PIPELINE_PR="$PR_URL"
 update_status "done" "completed"

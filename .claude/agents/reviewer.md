@@ -61,7 +61,39 @@ Leelo todo antes de hacer cualquier cambio.
 dotnet test
 ```
 
-Si hay tests fallando al inicio, algo salio mal en las etapas anteriores. Corrigelo antes de continuar.
+Si hay tests fallando al inicio, verifica si existe reporte de bloqueo (paso 2b). Si no existe reporte, algo salio mal — intenta corregirlo antes de continuar.
+
+### 2b. Manejo de tests rojos heredados del implementer
+
+Si hay tests fallando al inicio, verifica si existe `.claude/pipeline/blockage-report.md`.
+
+Si el reporte existe:
+1. **Lee el reporte** — entiende que se intento y por que fallo
+2. **Intenta resolver los tests rojos** cambiando SOLO codigo de implementacion (nunca tests)
+3. Tienes **5 intentos enfocados** por cada test bloqueado (misma definicion de "intento" que el implementer: un enfoque distinto deliberado, no un test run incidental)
+4. Si despues de 5 intentos no lo resuelves:
+   - Continua con tu trabajo normal de revision y refactor sobre el codigo que SI funciona
+   - **Actualiza el reporte** `.claude/pipeline/blockage-report.md` agregando tu seccion:
+
+```markdown
+## Reporte de bloqueo - Reviewer
+
+### Tests que siguen bloqueados
+| Test | Error | Intentos adicionales |
+|------|-------|---------------------|
+| `NombreDelTest` | Mensaje de error | 5 |
+
+### Enfoques adicionales intentados
+1. [Descripcion y por que fallo]
+...
+
+### Diagnostico final
+[Tu evaluacion como arquitecto senior de por que estos tests no pasan]
+```
+
+5. **Termina normalmente** — el pipeline creara el PR con los tests rojos documentados.
+
+**Importante**: NO modifiques tests para hacerlos pasar. NO elimines tests. Solo cambia implementaciones.
 
 ### 3. Checklist de patrones ES
 

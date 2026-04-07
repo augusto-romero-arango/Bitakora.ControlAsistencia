@@ -613,6 +613,63 @@ Itera hasta que todos los tests pasen. Lee los mensajes de error de AwesomeAsser
 
 **Mensajes**: el test-writer ya creo los archivos .resx y las clases `{Clase}.Mensajes.cs` con las constantes necesarias. Usa `Mensajes.ClaveMensaje` en tu implementacion (dentro del aggregate: `Mensajes.X`, desde afuera: `TurnoAggregateRoot.Mensajes.X`). No modifiques los .resx ni las clases Mensajes a menos que el implementer necesite un mensaje adicional no previsto por el test-writer — en ese caso, agrega la entrada al .resx y la propiedad a la clase Mensajes siguiendo el mismo patron.
 
+### 4b. Deteccion de bloqueo
+
+#### Que es un intento
+
+Un **intento** cuenta solo cuando **deliberadamente enfocas tu trabajo en resolver un test especifico**, cambias la implementacion con un enfoque distinto para hacerlo pasar, y el test sigue fallando.
+
+**NO cuentan como intentos:**
+- Fallos incidentales mientras trabajas en otros tests (Test B falla porque aun no implementaste lo que necesita — eso no es un intento sobre Test B)
+- Correr tests para verificar el estado general despues de un cambio no relacionado
+- Fallos por errores de compilacion que corriges inmediatamente
+
+**SI cuentan como intentos:**
+- "Me enfoque en Test X, cambie la implementacion con enfoque A, corri tests, sigue fallando" → intento 1
+- "Probe enfoque B diferente para Test X, corri tests, sigue fallando" → intento 2
+
+#### Orden de trabajo: primero lo que puedes, despues lo dificil
+
+Antes de declarar un bloqueo, asegurate de haber completado todo lo que puedes:
+1. **Implementa primero todos los tests que puedes resolver** — no te detengas en uno dificil si hay otros pendientes
+2. **Solo despues**, enfocate en los tests que quedan
+3. Un test que falla porque depende de codigo que aun no escribiste NO esta bloqueado — primero escribe ese codigo
+
+#### Cuando reportar bloqueo
+
+Si despues de **5 intentos enfocados** (5 enfoques distintos) el mismo test sigue fallando:
+
+1. **Deja de intentar** ese test especifico. No sigas en loop.
+2. **Haz commit de tu progreso parcial** — los tests que si pusiste verdes se preservan.
+3. **Escribe el reporte de bloqueo** en `.claude/pipeline/blockage-report.md`:
+
+```markdown
+## Reporte de bloqueo - Implementer
+
+### Tests bloqueados
+| Test | Error | Intentos enfocados |
+|------|-------|--------------------|
+| `NombreDelTest` | Mensaje de error resumido | 5 |
+
+### Enfoques intentados
+1. [Descripcion del enfoque y por que fallo]
+2. [Descripcion del enfoque y por que fallo]
+...
+
+### Hipotesis
+[Que crees que es el problema de fondo - puede ser un bug en el test,
+una limitacion del framework, o un malentendido del requisito]
+
+### Tests resueltos
+- N tests puestos en verde de M totales
+
+### Estado final
+- Tests pasando: X/Y
+- Tests bloqueados: Z
+```
+
+4. **Termina normalmente** (exit 0). No es un error — es un yield controlado.
+
 ### 5. Verificar infraestructura (si aplica)
 
 Si el handler publica eventos publicos (`IPublicEventSender`), verifica que el topic y las subscriptions existen en `infra/environments/dev/main.tf`. Agrega lo que falte.
@@ -684,3 +741,4 @@ Crea el archivo `.claude/pipeline/summaries/stage-2-implementer.md`:
 13. **NUNCA** crees objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
 14. **NUNCA** uses `record` para value objects con invariantes — usa `sealed class`. Con campos privados, el `record` no aporta nada util: `ToString()` queda vacio, `with {}` queda paralizado, el copy constructor no es invocable. Usa `class` e implementa `IEquatable<T>`.
 15. **Value objects como `sealed class`**: cuando implementes un value object con factory static, incluye siempre el metodo `internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)` en la misma clase. Este metodo registra los campos privados para serializacion STJ sin poner atributos en la clase. Ver ADR-0015 para el patron completo.
+16. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.
