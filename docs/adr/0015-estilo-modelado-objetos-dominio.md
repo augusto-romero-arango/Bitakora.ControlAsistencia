@@ -85,7 +85,7 @@ public sealed class Cedula : IEquatable<Cedula>
     public override int GetHashCode() => _numero.GetHashCode();
 
     // Mapping de serializacion -- vive aqui porque cambia con la clase
-    internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var fNumero = typeof(Cedula)
             .GetField("_numero", BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -193,7 +193,7 @@ externamente -- el mismo principio que el Fluent API de EF Core para persistenci
 **El mapping vive en la misma clase** porque cambia junto con ella:
 
 ```csharp
-internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
 {
     // Capturar FieldInfo una sola vez (se cachea en la clase estatica)
     var fCampo = typeof(MiValueObject)
@@ -218,25 +218,40 @@ internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolve
 }
 ```
 
-**Nota sobre eventos con propiedades publicas get-only**: si el evento expone propiedades
-publicas con `{ get; }` (no campos privados), STJ puede serializarlas directamente sin
-necesidad de `ConfigurarSerializacion`. Solo se necesita el mapping cuando hay campos
-privados que STJ no puede ver. El constructor vacio privado es necesario en ambos casos
-para la deserializacion.
+**Nota sobre eventos con propiedades publicas get-only**: aunque STJ puede serializar
+propiedades publicas `{ get; }` directamente, la deserializacion falla si el constructor
+es privado -- STJ no puede construir el objeto ni setear propiedades con `private set`.
+Por eso, **todo tipo con constructor privado necesita `ConfigurarSerializacion`**,
+independientemente de si sus propiedades son publicas o privadas.
 
-**Registro en infraestructura** -- cada dominio llama a sus mappings al inicializar Marten:
+**`[JsonConstructor]` NO funciona con Marten**: Marten crea sus propias instancias de
+`JsonSerializerOptions` que no respetan `[JsonConstructor]` en constructores privados.
+El unico mecanismo confiable es `ConfigurarSerializacion` con `typeInfo.CreateObject`
+via reflexion del constructor vacio privado.
+
+**Registro en infraestructura** -- cada dominio registra sus mappings via `ConfigureMarten`
+en el `Program.cs`, accediendo al serializador existente para no pisar la configuracion
+del Cosmos library (EnumStorage, Casing, etc.):
 
 ```csharp
-// En MartenEventStoreExtensions o en el Program.cs del dominio
-options.UseSystemTextJsonForSerialization(configure: jsonOptions =>
+// En el Program.cs del dominio
+builder.Services.ConfigureMarten(options =>
 {
-    var resolver = new DefaultJsonTypeInfoResolver();
-    MiValueObject.ConfigurarSerializacion(resolver);
-    OtroValueObject.ConfigurarSerializacion(resolver);
-    jsonOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(resolver,
-        jsonOptions.TypeInfoResolver ?? new DefaultJsonTypeInfoResolver());
+    if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
+    {
+        stj.Configure(jsonOptions =>
+        {
+            var resolver = new DefaultJsonTypeInfoResolver();
+            MiValueObject.ConfigurarSerializacion(resolver);
+            MiEvento.ConfigurarSerializacion(resolver);
+            jsonOptions.TypeInfoResolver = resolver;
+        });
+    }
 });
 ```
+
+**Sin este registro, `ConfigurarSerializacion` es codigo muerto** -- solo funciona en
+tests unitarios con opciones propias, nunca en produccion a traves de Marten.
 
 **Riesgo documentado:** `FieldInfo.SetValue` en campos `readonly` funciona en .NET 10
 con el runtime JIT. No es compatible con NativeAOT/trimming. Este proyecto usa Azure
