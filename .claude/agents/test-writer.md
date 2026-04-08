@@ -491,6 +491,64 @@ franja.DiaOffsetFin.Should().Be(0);                 // DiaOffsetFin es internal/
 
 Esta heuristica te ayuda a detectar si el implementer rompió el encapsulamiento: si los tests necesitan getters de propiedades internas para verificar, esas propiedades no deberian ser publicas.
 
+### 6d. Tests de serializacion roundtrip para eventos
+
+Todo evento que se persiste en Marten (event sourcing) **DEBE** tener un test de serializacion roundtrip. Esto aplica tanto a eventos con constructor privado (sealed class con factory) como a records con propiedades complejas (VOs anidados).
+
+**Por que**: Marten usa STJ internamente con `JsonSerializerOptions` propias. Si el evento tiene constructor privado, la deserializacion falla silenciosamente en produccion (500 al leer el stream). `[JsonConstructor]` en privado NO funciona con Marten. El unico mecanismo confiable es `ConfigurarSerializacion` + registro con Marten.
+
+**Patron del test:**
+
+```csharp
+public class MiEventoSerializacionTests
+{
+    private static readonly Guid Id = Guid.Parse("019600a0-0000-7000-8000-000000000001");
+
+    // Replica las opciones que Marten usa: PropertyNamingPolicy = null (PascalCase)
+    private static JsonSerializerOptions CrearOpcionesMarten()
+    {
+        var resolver = new DefaultJsonTypeInfoResolver();
+        // Registrar ConfigurarSerializacion de TODOS los tipos involucrados
+        SubFranja.ConfigurarSerializacion(resolver);
+        FranjaOrdinaria.ConfigurarSerializacion(resolver);
+        MiEvento.ConfigurarSerializacion(resolver);
+        return new JsonSerializerOptions
+        {
+            TypeInfoResolver = resolver,
+            PropertyNamingPolicy = null // Marten fuerza null
+        };
+    }
+
+    [Fact]
+    public void Deserializar_ReconstruyeEvento_ConDatosCompletos()
+    {
+        // Construir via factory con datos COMPLETOS (VOs anidados con sub-objetos)
+        var evento = MiEvento.Crear(...);
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<MiEvento>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        // Verificar TODOS los campos
+        deserializado!.Id.Should().Be(Id);
+        // Para VOs complejos, verificar ToString()
+        deserializado.Franjas[0].ToString()
+            .Should().Be("(06:00-16:00)[Descansos:(10:00-10:15)]");
+    }
+}
+```
+
+**Reglas criticas:**
+- Usar datos reales y completos — listas vacias para evitar configurar VOs anidados **es trampa**
+- Registrar `ConfigurarSerializacion` de TODOS los tipos en la cadena (el evento + sus VOs)
+- `PropertyNamingPolicy = null` es obligatorio (Marten lo fuerza)
+- Verificar campos escalares Y `ToString()` de objetos complejos
+
+**Ubicacion**: `tests/.../{Feature}/Eventos/{Evento}SerializacionTests.cs`
+
+**Referencia canonica**: `TurnoCreadoSerializacionTests.cs` en el dominio Programacion
+
 ---
 
 ### 7. Verificar que compila
@@ -566,7 +624,8 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
     // INCORRECTO: crear wrapper de IEventStore
     private sealed class EventStoreConCatalogo : IEventStore { ... }  // NUNCA
     ```
-15. **Reusar tipos de Contracts en commands**: antes de crear un record anidado en un command, verifica si ya existe un tipo equivalente en `Contracts/ValueObjects/` o `Contracts/Eventos/`. Si existe y tiene la misma estructura, usalo directamente. Duplicar tipos genera mapeos manuales innecesarios en el handler.
+16. **Todo evento persistido en Marten DEBE tener un test de serializacion roundtrip** que verifique `Serialize -> Deserialize` con opciones que replican Marten (`PropertyNamingPolicy = null` + `ConfigurarSerializacion` registrados). Incluir VOs anidados con datos reales — listas vacias son trampa. Ver seccion 6d.
+17. **Reusar tipos de Contracts en commands**: antes de crear un record anidado en un command, verifica si ya existe un tipo equivalente en `Contracts/ValueObjects/` o `Contracts/Eventos/`. Si existe y tiene la misma estructura, usalo directamente. Duplicar tipos genera mapeos manuales innecesarios en el handler.
     ```csharp
     // CORRECTO: reusar InformacionEmpleado de Contracts
     public record SolicitarProgramacionTurno(

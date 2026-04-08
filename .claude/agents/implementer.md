@@ -368,6 +368,8 @@ public record TurnoAsignado
 }
 ```
 
+**Importante**: todo evento con constructor privado necesita ademas `ConfigurarSerializacion` (regla 15) y registro en Program.cs (regla 17). Sin esto, Marten no puede deserializar el evento al reconstruir el aggregate.
+
 ### Encapsulamiento: propiedades internas
 
 Las propiedades que existen para facilitar calculos internos del objeto (ej: `MinutosAbsolutoInicio`, `DiaOffsetFin`, `HoraInicio`) deben ser `protected` o `private`. **La interfaz publica son los metodos de comportamiento** (`DuracionEnMinutos()`, `ToString()`, etc.).
@@ -774,5 +776,20 @@ Crea el archivo `.claude/pipeline/summaries/stage-2-implementer.md`:
 12. **NUNCA** crees constructores publicos vacios — si la persistencia lo necesita, hazlo `private`.
 13. **NUNCA** crees objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
 14. **NUNCA** uses `record` para value objects con invariantes — usa `sealed class`. Con campos privados, el `record` no aporta nada util: `ToString()` queda vacio, `with {}` queda paralizado, el copy constructor no es invocable. Usa `class` e implementa `IEquatable<T>`.
-15. **Value objects como `sealed class`**: cuando implementes un value object con factory static, incluye siempre el metodo `internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)` en la misma clase. Este metodo registra los campos privados para serializacion STJ sin poner atributos en la clase. Ver ADR-0015 para el patron completo.
-16. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.
+15. **Tipos con constructor privado (value objects y eventos)**: cuando implementes un value object `sealed class` o un evento con factory static y constructor privado, incluye siempre el metodo `public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)` en la misma clase. Este metodo registra campos/propiedades privados para serializacion STJ sin poner atributos en la clase. **Debe ser `public`** (no internal) porque los dominios consumidores necesitan registrarlo. `[JsonConstructor]` NO funciona con Marten en constructores privados. Ver ADR-0015 para el patron completo.
+17. **Registrar `ConfigurarSerializacion` con Marten en Program.cs**: cada tipo con `ConfigurarSerializacion` debe registrarse en el bloque `ConfigureMarten` del `Program.cs` del dominio. Si el bloque no existe, crearlo. Sin este registro, `ConfigurarSerializacion` es **codigo muerto** — solo funciona en tests unitarios con opciones propias, nunca en produccion. Patron:
+    ```csharp
+    builder.Services.ConfigureMarten(options =>
+    {
+        if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
+        {
+            stj.Configure(jsonOptions =>
+            {
+                var resolver = new DefaultJsonTypeInfoResolver();
+                MiTipo.ConfigurarSerializacion(resolver);
+                jsonOptions.TypeInfoResolver = resolver;
+            });
+        }
+    });
+    ```
+18. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.
