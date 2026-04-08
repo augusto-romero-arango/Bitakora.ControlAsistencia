@@ -20,8 +20,32 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
     public static string ComputarStreamId(string empleadoId, DateOnly fecha) =>
-        throw new NotImplementedException();
+        $"{empleadoId}:{fecha:yyyy-MM-dd}";
 
     // CA-6: actualiza estado interno al aplicar el evento
-    private void Apply(TurnoDiarioAsignado e) => throw new NotImplementedException();
+    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
+    public void Apply(TurnoDiarioAsignado e)
+    {
+        Id = ComputarStreamId(e.InformacionEmpleado.EmpleadoId, e.Fecha);
+        InformacionEmpleado = e.InformacionEmpleado;
+        Fecha = e.Fecha;
+        DetalleTurno = e.DetalleTurno;
+        UltimaSolicitudId = e.SolicitudId;
+    }
+
+    // Factory: crea el aggregate con el evento en _uncommittedEvents para StartStream
+    internal static ControlDiarioAggregateRoot Iniciar(TurnoDiarioAsignado evento)
+    {
+        var control = new ControlDiarioAggregateRoot();
+        control._uncommittedEvents.Add(evento);
+        control.Apply(evento);
+        return control;
+    }
+
+    // Agrega un nuevo turno al aggregate existente (caso CA-4)
+    internal void AsignarTurno(TurnoDiarioAsignado evento)
+    {
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
 }

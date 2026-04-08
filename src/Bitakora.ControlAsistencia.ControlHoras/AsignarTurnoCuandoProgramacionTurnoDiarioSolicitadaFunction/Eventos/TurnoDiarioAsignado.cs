@@ -36,6 +36,27 @@ public sealed class TurnoDiarioAsignado : IPrivateEvent
 
     // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
     // y propiedades con private set. Ver ADR-0013 y TurnoCreadoSerializacionTests.
-    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver) =>
-        throw new NotImplementedException();
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    {
+        var ctor = typeof(TurnoDiarioAsignado)
+            .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+
+        resolver.Modifiers.Add(typeInfo =>
+        {
+            if (typeInfo.Type != typeof(TurnoDiarioAsignado)) return;
+            if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+
+            typeInfo.CreateObject = () => (TurnoDiarioAsignado)ctor.Invoke(null);
+
+            foreach (var prop in typeInfo.Properties)
+            {
+                if (prop.Set is not null) continue;
+                var backingField = typeof(TurnoDiarioAsignado).GetField(
+                    $"<{prop.Name}>k__BackingField",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                if (backingField is not null)
+                    prop.Set = (obj, val) => backingField.SetValue(obj, val);
+            }
+        });
+    }
 }
