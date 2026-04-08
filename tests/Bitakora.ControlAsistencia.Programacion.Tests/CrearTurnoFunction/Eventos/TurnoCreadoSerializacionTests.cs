@@ -15,12 +15,18 @@ public class TurnoCreadoSerializacionTests
 {
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000001");
 
-    private static JsonSerializerOptions CrearOpciones()
+    // Replica las opciones que Marten usa: PropertyNamingPolicy = null (PascalCase)
+    private static JsonSerializerOptions CrearOpcionesMarten()
     {
         var resolver = new DefaultJsonTypeInfoResolver();
         SubFranja.ConfigurarSerializacion(resolver);
         FranjaOrdinaria.ConfigurarSerializacion(resolver);
-        return new JsonSerializerOptions { TypeInfoResolver = resolver };
+        TurnoCreado.ConfigurarSerializacion(resolver);
+        return new JsonSerializerOptions
+        {
+            TypeInfoResolver = resolver,
+            PropertyNamingPolicy = null // Marten fuerza null
+        };
     }
 
     [Fact]
@@ -35,7 +41,7 @@ public class TurnoCreadoSerializacionTests
                 [descanso], [extra])]);
 
         var evento = TurnoCreado.Crear(comando);
-        var opciones = CrearOpciones();
+        var opciones = CrearOpcionesMarten();
         var json = JsonSerializer.Serialize(evento, opciones);
         var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
 
