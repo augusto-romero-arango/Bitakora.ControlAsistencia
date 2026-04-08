@@ -128,7 +128,7 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     }
 
     // Mapping de serializacion - vive aqui porque cambia con la clase
-    internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(FranjaOrdinaria)
             .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
