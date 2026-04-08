@@ -1,15 +1,17 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.ControlHoras;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
 using Cosmos.EventSourcing.CritterStack.Commands;
 using FluentValidation;
+using Marten;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry.Trace;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
@@ -30,6 +32,20 @@ builder.Services.AgregarWolverineParaComandosServerless(
 builder.Services.AgregarMartenEventStore();
 builder.Services.AgregarWolverineCommandRouter();
 builder.Services.AgregarWolverineEventSender();
+
+// Registrar serializacion custom para tipos con constructores privados
+builder.Services.ConfigureMarten(options =>
+{
+    if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
+    {
+        stj.Configure(jsonOptions =>
+        {
+            var resolver = new DefaultJsonTypeInfoResolver();
+            TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
+            jsonOptions.TypeInfoResolver = resolver;
+        });
+    }
+});
 
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing

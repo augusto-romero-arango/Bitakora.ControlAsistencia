@@ -46,7 +46,12 @@ module "service_bus" {
       subscriptions = []
     }
     "programacion-turno-diario-solicitada" = {
-      subscriptions = []
+      subscriptions = [
+        {
+          name   = "control-horas"
+          filter = null
+        }
+      ]
     }
   }
   tags                = local.tags

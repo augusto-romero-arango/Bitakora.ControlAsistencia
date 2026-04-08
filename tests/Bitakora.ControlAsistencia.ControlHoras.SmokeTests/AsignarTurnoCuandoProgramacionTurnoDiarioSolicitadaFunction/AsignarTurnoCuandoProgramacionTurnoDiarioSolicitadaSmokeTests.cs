@@ -5,7 +5,7 @@ using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
 // HU-12: AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada es un trigger de Service Bus.
-// No expone ningun endpoint HTTP propio — es un consumidor de eventos del dominio Programacion.
+// No expone ningun endpoint HTTP propio - es un consumidor de eventos del dominio Programacion.
 // Lo que se puede verificar en smoke tests:
 //   1. El Function App de ControlHoras esta desplegado y disponible (health check).
 //   2. El dominio responde correctamente (gateway check).
