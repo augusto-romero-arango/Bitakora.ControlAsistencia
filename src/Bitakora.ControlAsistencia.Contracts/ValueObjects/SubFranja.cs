@@ -50,7 +50,7 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
         HashCode.Combine(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin);
 
     // Mapping de serializacion - vive aqui porque cambia con la clase
-    internal static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(SubFranja)
             .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;

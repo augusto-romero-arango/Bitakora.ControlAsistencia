@@ -15,6 +15,8 @@ public sealed partial class TurnoCreado
     public IReadOnlyList<FranjaOrdinaria> FranjasOrdinarias { get; private set; }
 
     // CA-12: constructor real privado -- solo el factory lo invoca
+    // JsonConstructor permite a STJ/Marten deserializar sin exponer el constructor
+    [System.Text.Json.Serialization.JsonConstructor]
     private TurnoCreado(Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias)
     {
         TurnoId = turnoId;
