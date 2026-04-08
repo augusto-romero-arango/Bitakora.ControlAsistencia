@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
@@ -15,8 +17,6 @@ public sealed partial class TurnoCreado
     public IReadOnlyList<FranjaOrdinaria> FranjasOrdinarias { get; private set; }
 
     // CA-12: constructor real privado -- solo el factory lo invoca
-    // JsonConstructor permite a STJ/Marten deserializar sin exponer el constructor
-    [System.Text.Json.Serialization.JsonConstructor]
     private TurnoCreado(Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias)
     {
         TurnoId = turnoId;
@@ -29,6 +29,32 @@ public sealed partial class TurnoCreado
     {
         Nombre = string.Empty;
         FranjasOrdinarias = [];
+    }
+
+    // Mapping de serializacion para STJ/Marten - mismo patron que FranjaOrdinaria
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    {
+        var ctor = typeof(TurnoCreado)
+            .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+
+        resolver.Modifiers.Add(typeInfo =>
+        {
+            if (typeInfo.Type != typeof(TurnoCreado)) return;
+            if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+
+            typeInfo.CreateObject = () => (TurnoCreado)ctor.Invoke(null);
+
+            // Propiedades con private set: registrar setters via backing fields
+            foreach (var prop in typeInfo.Properties)
+            {
+                if (prop.Set is not null) continue;
+                var backingField = typeof(TurnoCreado).GetField(
+                    $"<{prop.Name}>k__BackingField",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                if (backingField is not null)
+                    prop.Set = (obj, val) => backingField.SetValue(obj, val);
+            }
+        });
     }
 
     // CA-14: el evento nunca se construye en estado invalido
