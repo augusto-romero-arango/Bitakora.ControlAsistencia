@@ -1,11 +1,14 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.ControlHoras/Bitakora.ControlAsistencia.ControlHoras.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Programacion/Bitakora.ControlAsistencia.Programacion.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bitakora.ControlAsistencia.Contracts.Tests/Bitakora.ControlAsistencia.Contracts.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.Tests/Bitakora.ControlAsistencia.Programacion.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.Tests/Bitakora.ControlAsistencia.ControlHoras.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/Bitakora.ControlAsistencia.Programacion.SmokeTests.csproj" />
   </Folder>
 </Solution>
