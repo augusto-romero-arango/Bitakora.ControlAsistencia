@@ -30,4 +30,30 @@ public static class Polling
         throw new TimeoutException(
             $"Polling agoto el timeout de {timeout.TotalSeconds}s sin obtener resultado.");
     }
+
+    public static async Task<bool> WaitUntilTrueAsync(
+        Func<Task<bool>> condition,
+        TimeSpan timeout,
+        TimeSpan? interval = null)
+    {
+        var delay = interval ?? TimeSpan.FromSeconds(1);
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await condition())
+                return true;
+
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            await Task.Delay(remaining < delay ? remaining : delay);
+
+            if (delay < TimeSpan.FromSeconds(5))
+                delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
+        }
+
+        return false;
+    }
 }

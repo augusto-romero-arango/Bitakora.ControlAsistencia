@@ -26,13 +26,10 @@ public class PostgresFixture : IAsyncLifetime
         await conn.OpenAsync();
     }
 
-    public async Task<bool> ExisteEventoAsync(
+    public Task<bool> ExisteEventoAsync(
         string schema, string streamId, string tipoEvento, TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
-        var delay = TimeSpan.FromSeconds(1);
-
-        while (DateTime.UtcNow < deadline)
+        return Polling.WaitUntilTrueAsync(async () =>
         {
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -48,19 +45,8 @@ public class PostgresFixture : IAsyncLifetime
             cmd.Parameters.AddWithValue("tipoEvento", tipoEvento);
 
             var count = (long)(await cmd.ExecuteScalarAsync())!;
-            if (count > 0)
-                return true;
-
-            var remaining = deadline - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
-                break;
-
-            await Task.Delay(remaining < delay ? remaining : delay);
-            if (delay < TimeSpan.FromSeconds(5))
-                delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
-        }
-
-        return false;
+            return count > 0;
+        }, timeout);
     }
 
     public async Task<List<T>> ObtenerEventosAsync<T>(

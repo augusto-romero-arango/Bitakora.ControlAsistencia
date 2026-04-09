@@ -8,7 +8,7 @@ public class ServiceBusFixture : IAsyncLifetime
 {
     private ServiceBusClient _client = null!;
 
-    public async ValueTask InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
@@ -23,9 +23,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
         _client = new ServiceBusClient(connectionString);
 
-        // Verificacion basica: intentar crear un sender (no envia nada, solo valida la conexion)
-        await using var sender = _client.CreateSender("programacion-turno-diario-solicitada");
-        await Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
