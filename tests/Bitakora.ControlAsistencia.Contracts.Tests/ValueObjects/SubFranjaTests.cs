@@ -1,6 +1,6 @@
 // Issue #2: Modelar value objects de franja temporal para turnos
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
 

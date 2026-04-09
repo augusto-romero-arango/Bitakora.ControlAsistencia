@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
+namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 /// <summary>
 /// Representacion plana del turno que viaja en eventos entre dominios.

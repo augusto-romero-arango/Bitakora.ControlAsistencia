@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;

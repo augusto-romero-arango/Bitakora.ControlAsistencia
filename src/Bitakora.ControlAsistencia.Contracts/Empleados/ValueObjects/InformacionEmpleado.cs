@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
+namespace Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 
 /// <summary>
 /// Datos de identificacion del empleado que viajan en eventos entre dominios.

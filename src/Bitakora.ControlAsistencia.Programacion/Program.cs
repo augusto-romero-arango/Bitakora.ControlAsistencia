@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.Contracts.Eventos;
-using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
