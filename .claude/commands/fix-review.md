@@ -204,6 +204,102 @@ Listo. PR #N:
 
 ---
 
+## Fase 5: Mejora continua
+
+Cada comentario de review es evidencia de un gap en las instrucciones de un agente. Esta fase traza las correcciones hasta su origen y propone mejoras.
+
+### 5.1 Trazar correcciones a su origen
+
+Lee el body del PR — el pipeline TDD registra decisiones de cada agente (test-writer, implementer, reviewer) en secciones `<details>`. Para cada comentario clasificado como "corregir":
+
+- **¿Que agente produjo el codigo?** (test-writer, implementer, reviewer, infra-writer, domain-scaffolder, etc.)
+- **¿Que tipo de gap causo el error?**
+  - Regla faltante: el agente no tenia instruccion sobre este caso
+  - Regla ignorada: la instruccion existe pero no se siguio (reforzar o reformular)
+  - Conocimiento de dominio: el agente no tenia contexto de negocio o arquitectura
+  - Limitacion del framework: el agente no conocia un overload, API o patron del framework
+
+### 5.2 Proponer ajustes concretos
+
+Para cada gap identificado, proponer:
+
+```
+## Propuesta de mejora — PR #N
+
+### Ajuste 1: [descripcion breve]
+- **Agente/skill afectado**: .claude/agents/implementer.md (o skill, o script)
+- **Seccion**: [nombre de la seccion donde iria el cambio]
+- **Tipo de gap**: regla faltante | regla ignorada | conocimiento dominio | limitacion framework
+- **Causa raiz**: [por que el agente tomo la decision incorrecta]
+- **Cambio propuesto**: [descripcion del ajuste — nueva regla, ejemplo, reformulacion]
+
+### Ajuste 2: ...
+```
+
+Si el PR no tuvo correcciones que ameriten mejoras (todos los comentarios eran "explicar" o "resuelto"), indica que no hay ajustes necesarios y salta a la field note.
+
+### 5.3 Presentar plan de mejora al usuario
+
+Muestra las propuestas. **Espera aprobacion explicita.** El usuario puede:
+- Aprobar todas
+- Descartar algunas
+- Reformular la redaccion de una regla
+- Agregar contexto que enriquezca la mejora
+
+### 5.4 Aplicar ajustes aprobados
+
+Edita los archivos de agentes/skills con los cambios aprobados. Usa `Edit` para modificar archivos existentes.
+
+Commit separado del de correcciones de codigo:
+
+```
+docs(agentes): mejorar instrucciones a partir de review del PR #N
+
+- [resumen de ajustes por agente]
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+Push a main (los agentes viven en main, no en ramas de feature).
+
+### 5.5 Field note
+
+Genera una field note en `docs/bitacora/field-notes/` con el registro de las lecciones aprendidas. Nombre: `review-pr-<numero>.md`.
+
+Estructura:
+
+```markdown
+# Field Note: Review del PR #<numero>
+
+**Fecha**: <fecha>
+**PR**: <url del PR>
+**Issue**: #<numero del issue original>
+
+## Comentarios del review
+
+| # | Categoria  | Resumen                          |
+|---|------------|----------------------------------|
+| 1 | corregir   | ...                              |
+| 2 | explicar   | ...                              |
+
+## Correcciones aplicadas
+
+[Resumen breve de los cambios de codigo hechos en Fase 3]
+
+## Mejoras a agentes
+
+| Agente       | Gap              | Ajuste aplicado                  |
+|--------------|------------------|----------------------------------|
+| implementer  | regla faltante   | Agregar regla sobre StreamId...  |
+| test-writer  | limitacion fw    | Documentar overload de Then()... |
+
+## Lecciones
+
+[1-3 bullet points con las lecciones clave para el proyecto]
+```
+
+---
+
 ## Reglas
 
 - **Nunca publiques una respuesta sin aprobacion del usuario.** Los borradores siempre se presentan primero.
@@ -212,4 +308,6 @@ Listo. PR #N:
 - **Agrupa cambios relacionados en un solo commit.** No hagas un commit por comentario.
 - **Si el triaje revela que todos los comentarios ya estan resueltos**, salta directamente a la Fase 4 (responder).
 - **Siempre verifica build + tests antes de hacer push.** Si fallan, no hagas push.
+- **Las mejoras a agentes van en commit separado y se pushean a main**, no a la rama del PR.
+- **La field note siempre se genera**, incluso si no hubo mejoras a agentes — el registro del review tiene valor historico.
 - Comunica en espanol. Las respuestas a los comentarios del PR se redactan en el mismo idioma del comentario original.
