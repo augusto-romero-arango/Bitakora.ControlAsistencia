@@ -85,6 +85,7 @@ public class CrearTurnoSmokeTests(ApiFixture api)
 - Cada test genera IDs unicos con `Guid.CreateVersion7()`
 - Los nombres de entidades llevan prefijo `[TEST]`
 - No se necesita cleanup: los GUIDs son unicos por ejecucion
+- **Fechas fijas**: usa fechas literales (ej: `new DateOnly(2026, 4, 9)`), nunca `DateTime.UtcNow` ni `DateTimeOffset.Now`. Las fechas dinamicas hacen los tests no deterministas
 
 ---
 
@@ -161,10 +162,28 @@ Para descubrir la estructura del payload:
 
 ---
 
+## Smoke tests de Service Bus y eventos persistidos
+
+Cuando el smoke test verifica eventos persistidos en PostgreSQL (no solo respuestas HTTP):
+
+### Fixtures
+
+- Los fixtures NO exponen colecciones de eventos — encapsulan la busqueda internamente
+- Los metodos de fixture reciben parametros de filtro (ej: `campoJson`, `valorJson`) y retornan resultados especificos
+- Ejemplo: `ExisteEventoAsync(schema, streamId, tipoEvento, timeout, campoJson: "SolicitudId", valorJson: id)` — no `ObtenerTodosLosEventosAsync()`
+
+### Aserciones
+
+- Siempre filtrar por un campo identificador unico del evento (ej: `SolicitudId`), nunca asumir posicion (`eventos[^1]`)
+- Para comparar value objects, referenciar `Bitakora.ControlAsistencia.Contracts` y usar la igualdad natural de los records
+- Usar `BeEquivalentTo` para value objects con colecciones (`IReadOnlyList`)
+
+---
+
 ## Que NO hacer
 
 - **NO crear proyectos** - el proyecto ya existe, solo escribes tests
-- **NO referenciar proyectos de produccion** - los smoke tests son 100% independientes
+- **NO referenciar proyectos de dominio** - los smoke tests no dependen de implementaciones internas. Los Contracts (value objects compartidos) SI se pueden referenciar para aserciones de igualdad
 - **NO usar mocks ni fakes** - son tests contra el entorno real
 - **NO verificar el body de la respuesta en detalle** - verifica status codes y estructura basica
 - **NO duplicar logica de unit tests** - no verificar reglas de negocio, solo que el endpoint responde correctamente
