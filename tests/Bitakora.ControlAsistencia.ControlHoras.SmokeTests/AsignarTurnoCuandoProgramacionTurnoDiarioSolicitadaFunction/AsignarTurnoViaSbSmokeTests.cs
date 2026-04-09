@@ -19,7 +19,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
         Assert.SkipWhen(!postgres.IsConfigured,
-            "Postgres no configurado. Usa appsettings.local.json o variable Postgres__ConnectionString.");
+            postgres.SkipReason ?? "Postgres no disponible.");
 
         // Arrange
         var correlationId = Guid.CreateVersion7().ToString();
