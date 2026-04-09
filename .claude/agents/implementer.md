@@ -243,7 +243,7 @@ public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndp
 {
     [Function("DepurarMarcacionesCuandoTurnoCreado")]
     public async Task DepurarMarcacionesCuandoTurnoCreado(
-        [ServiceBusTrigger("turno-creado", "depuracion",
+        [ServiceBusTrigger("turno-creado", "depuracion-escucha-programacion",
             Connection = "ServiceBusConnectionString")]
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
@@ -583,7 +583,7 @@ Cuando implementas un handler que publica eventos publicos (usando `IPublicEvent
 
 **Nomenclatura ServiceBus:**
 - Topics: kebab-case, nombre del evento en pasado. Ej: `turno-creado`, `empleado-asignado`
-- Subscriptions: kebab-case, nombre del consumidor (sin repetir el topic). Ej: `depuracion`, `calculo-horas`
+- Subscriptions: kebab-case, patron `{consumidor}-escucha-{productor}` (ADR-0005). Ej: `depuracion-escucha-marcaciones`, `calculo-horas-escucha-programacion`
 - Sin prefijos artificiales (ni `sbt-`, ni `eventos-`)
 
 **Archivo a modificar:** solo `infra/environments/dev/main.tf` — bloque `topics_config` del modulo `service_bus`. No toques los modulos ni otros ambientes.
@@ -595,7 +595,7 @@ module "service_bus" {
   topics_config = {
     "turno-creado" = {          # <- agregar el topic si no existe
       subscriptions = [
-        { name = "depuracion", filter = null }   # <- agregar subscription del consumidor
+        { name = "depuracion-escucha-programacion", filter = null }   # <- patron: {consumidor}-escucha-{productor}
       ]
     }
     "empleado-asignado" = {

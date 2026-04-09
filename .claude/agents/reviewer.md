@@ -147,7 +147,7 @@ Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, cor
 
 Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions existen en `infra/environments/dev/main.tf`:
 - Topics en kebab-case, nombre del evento en pasado (`turno-creado`)
-- Subscriptions en kebab-case, nombre del consumidor (`depuracion`, `calculo-horas`)
+- Subscriptions en kebab-case, patron `{consumidor}-escucha-{productor}` (`depuracion-escucha-marcaciones`, `calculo-horas-escucha-programacion`)
 - Si faltan, agregarlos al bloque `topics_config` del modulo `service_bus`
 
 #### Organizacion vertical

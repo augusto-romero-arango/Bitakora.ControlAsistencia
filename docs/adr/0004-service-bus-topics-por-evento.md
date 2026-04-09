@@ -31,7 +31,7 @@ Se usa un topic de Service Bus por tipo de evento publicado. La nomenclatura sig
 reglas:
 
 - Topics: kebab-case, nombre del evento en pasado. Ej: `turno-creado`, `empleado-asignado`
-- Subscriptions: kebab-case, nombre del dominio consumidor. Ej: `depuracion`, `calculo-horas`
+- Subscriptions: kebab-case, patron `{consumidor}-escucha-{productor}`. Ej: `depuracion-escucha-marcaciones`, `calculo-horas-escucha-programacion`
 - Sin prefijos artificiales (ni `sbt-`, ni `eventos-`). El nombre comunica el contrato de dominio.
 
 Cada dominio publica **unicamente** a los topics de los eventos que produce. Ningun dominio
