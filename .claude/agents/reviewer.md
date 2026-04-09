@@ -95,6 +95,14 @@ Si el reporte existe:
 
 **Importante**: NO modifiques tests para hacerlos pasar. NO elimines tests. Solo cambia implementaciones.
 
+**Excepcion: bugs en el uso del framework de testing.** Si un test usa un overload incorrecto del harness (`Then(evento)` en lugar de `Then(streamId, null, evento)`, o `And<T,P>(selector, valor)` en lugar de `And<T,P>(streamId, selector, valor)`) y el aggregate tiene stream ID compuesto (no GUID), esto es un **bug en el test**, no una modificacion para hacerlo pasar. Corregir el overload es equivalente a corregir un typo — el intent del test no cambia. En este caso:
+1. Identifica el stream ID correcto (busca `ComputarStreamId` en el aggregate)
+2. Reemplaza `Then(eventos)` por `Then(streamId, null, eventos)`
+3. Reemplaza `And<T,P>(selector, valor)` por `And<T,P>(streamId, selector, valor)`
+4. Reemplaza `Given(evento)` por `Given(streamId, evento)` si aplica
+5. Corre `dotnet test` para confirmar
+6. Documenta la correccion en el reporte como "bug de framework, no cambio de especificacion"
+
 ### 3. Checklist de patrones ES
 
 Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, corre `dotnet test`, y si pasa continua; si falla, revierte con `git checkout -- <archivo>`.
@@ -124,6 +132,7 @@ Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, cor
 - **Fakes manuales, no NSubstitute**: las dependencias del handler (distintas del event store y event senders) deben ser clases fake concretas, no mocks de NSubstitute.
 - **Nested classes cuando corresponde**: si multiples handlers operan sobre el mismo aggregate, deben estar en nested classes con factory methods compartidos.
 - **Factory methods para precondiciones repetidas**: si el mismo evento de precondicion se repite en muchos tests, debe existir un factory method estatico.
+- **Overloads correctos para stream IDs compuestos**: si el aggregate bajo test tiene `ComputarStreamId(...)` o asigna `Id` desde datos del payload en `Apply()`, verificar que los tests usan `Then(streamId, null, ...)`, `And<T,P>(streamId, ...)` y `Given(streamId, ...)`. Si usan los overloads sin `aggregateId`, es un bug — corregirlo (ver excepcion en paso 2b).
 
 #### Boundaries entre proyectos
 

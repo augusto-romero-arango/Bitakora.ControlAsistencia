@@ -129,6 +129,35 @@ public partial class CrearTurnoCommandHandler(IEventStore eventStore, IPrivateEv
 }
 ```
 
+**Stream con ID compuesto (Crear-o-actualizar con identidad determinista):**
+
+Algunos aggregates tienen stream ID calculado desde el payload (ej. `EmpleadoId:Fecha`), no un GUID del comando. En estos casos:
+- Computa el stream ID con el metodo estatico del aggregate: `MiAggregate.ComputarStreamId(...)`
+- Usa `ExistsAsync` y `GetAggregateRootAsync` con ese stream ID calculado
+- En `StartStream`, el aggregate ya tiene su `Id` asignado via `Apply()`
+
+```csharp
+public async Task HandleAsync(MiEvento evento, CancellationToken ct)
+{
+    var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
+        evento.EmpleadoId, evento.Fecha);
+
+    var existe = await eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
+
+    if (!existe)
+    {
+        var control = ControlDiarioAggregateRoot.Iniciar(evento);
+        eventStore.StartStream(control);
+    }
+    else
+    {
+        var control = await eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(
+            streamId, ct);
+        control!.AsignarTurno(evento);
+    }
+}
+```
+
 **Stream existente (Modificar):**
 ```csharp
 public partial class AsignarEmpleadoATurnoCommandHandler(IEventStore eventStore, IPrivateEventSender eventSender)
