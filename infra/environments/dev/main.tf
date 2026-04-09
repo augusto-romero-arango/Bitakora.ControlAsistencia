@@ -50,6 +50,10 @@ module "service_bus" {
         {
           name   = "control-horas-escucha-programacion"
           filter = null
+        },
+        {
+          name   = "smoke-tests"
+          filter = null
         }
       ]
     }
