@@ -16,7 +16,7 @@ public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndp
     public async Task Run(
         [ServiceBusTrigger(
             topicName: "programacion-turno-diario-solicitada",
-            subscriptionName: "control-horas",
+            subscriptionName: "control-horas-escucha-programacion",
             Connection = "SERVICE_BUS_CONNECTION")]
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,

@@ -48,11 +48,11 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
         // Sin Given - el stream no existe para este EmpleadoId+Fecha
         await WhenAsync(CrearEvento());
 
-        Then(CrearTurnoDiarioAsignado());
-        And<ControlDiarioAggregateRoot, string>(c => c.Id, StreamId);
-        And<ControlDiarioAggregateRoot, InformacionEmpleado?>(c => c.InformacionEmpleado, Empleado);
-        And<ControlDiarioAggregateRoot, DateOnly>(c => c.Fecha, Fecha);
-        And<ControlDiarioAggregateRoot, string?>(c => c.DetalleTurno!.Nombre, DetalleTurnoTest.Nombre);
+        Then(StreamId, null, CrearTurnoDiarioAsignado());
+        And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
+        And<ControlDiarioAggregateRoot, InformacionEmpleado?>(StreamId, c => c.InformacionEmpleado, Empleado);
+        And<ControlDiarioAggregateRoot, DateOnly>(StreamId, c => c.Fecha, Fecha);
+        And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, DetalleTurnoTest.Nombre);
     }
 
     // CA-4: YA existe ControlDiario para EmpleadoId+Fecha - el handler agrega al stream existente
@@ -68,8 +68,8 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
         Given(StreamId, turnoAnterior);
         await WhenAsync(CrearEvento());
 
-        Then(CrearTurnoDiarioAsignado());
-        And<ControlDiarioAggregateRoot, Guid>(c => c.UltimaSolicitudId, SolicitudId);
-        And<ControlDiarioAggregateRoot, string?>(c => c.DetalleTurno!.Nombre, DetalleTurnoTest.Nombre);
+        Then(StreamId, null, CrearTurnoDiarioAsignado());
+        And<ControlDiarioAggregateRoot, Guid>(StreamId, c => c.UltimaSolicitudId, SolicitudId);
+        And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, DetalleTurnoTest.Nombre);
     }
 }

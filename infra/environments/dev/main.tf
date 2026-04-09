@@ -48,7 +48,7 @@ module "service_bus" {
     "programacion-turno-diario-solicitada" = {
       subscriptions = [
         {
-          name   = "control-horas"
+          name   = "control-horas-escucha-programacion"
           filter = null
         }
       ]
