@@ -6,7 +6,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
-    private ServiceBusClient _client = null!;
+    private ServiceBusClient? _client;
 
     public ValueTask InitializeAsync()
     {
@@ -28,7 +28,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
     public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
     {
-        await using var sender = _client.CreateSender(topicName);
+        await using var sender = _client!.CreateSender(topicName);
 
         var json = JsonSerializer.Serialize(message);
         var sbMessage = new ServiceBusMessage(json)
@@ -48,7 +48,7 @@ public class ServiceBusFixture : IAsyncLifetime
         string correlationId,
         TimeSpan timeout)
     {
-        await using var receiver = _client.CreateReceiver(topicName, subscriptionName);
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
 
         var deadline = DateTime.UtcNow + timeout;
 
@@ -79,6 +79,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        await _client.DisposeAsync();
+        if (_client is not null)
+            await _client.DisposeAsync();
     }
 }
