@@ -413,7 +413,8 @@ Crea el directorio y los archivos del proyecto de smoke tests. Este proyecto es 
 
 ```bash
 cd "$REPO_ROOT"
-mkdir -p "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Fixtures"
+mkdir -p "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Fixtures" \
+         "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Health"
 ```
 
 **1. Crear el `.csproj`:**
@@ -509,6 +510,32 @@ public class ApiFixture : IAsyncLifetime
 using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
 
 [assembly: AssemblyFixture(typeof(ApiFixture))]
+```
+
+**5. Crear `Health/HealthSmokeTests.cs`:**
+
+Todo dominio expone `/api/health`. Este smoke test verifica que el Function App esta desplegado y disponible.
+
+```csharp
+using System.Net;
+using AwesomeAssertions;
+using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+
+namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Health;
+
+public class HealthSmokeTests(ApiFixture api)
+{
+    private readonly HttpClient _client = api.Client;
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeEstarDisponible_CuandoSeConsultaHealthCheck()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+}
 ```
 
 ---
