@@ -26,7 +26,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(TurnoDiarioAsignado e)
     {
-        Id = ComputarStreamId(e.InformacionEmpleado.EmpleadoId, e.Fecha);
+        Id = e.Id;
         InformacionEmpleado = e.InformacionEmpleado;
         Fecha = e.Fecha;
         DetalleTurno = e.DetalleTurno;

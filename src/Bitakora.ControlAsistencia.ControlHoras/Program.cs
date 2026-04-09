@@ -1,7 +1,5 @@
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.ControlHoras;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -40,8 +38,8 @@ builder.Services.ConfigureMarten(options =>
     {
         stj.Configure(jsonOptions =>
         {
-            var resolver = new DefaultJsonTypeInfoResolver();
-            TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
+            var resolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
+            ConfiguracionSerializacionControlHoras.ConfigurarResolver(resolver);
             jsonOptions.TypeInfoResolver = resolver;
         });
     }

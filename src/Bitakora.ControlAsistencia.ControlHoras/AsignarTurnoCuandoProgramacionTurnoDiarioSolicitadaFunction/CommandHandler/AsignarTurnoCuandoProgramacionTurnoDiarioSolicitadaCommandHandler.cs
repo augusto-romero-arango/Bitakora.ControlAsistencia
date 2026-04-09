@@ -27,7 +27,7 @@ public partial class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandH
             command.Empleado.EmpleadoId, command.Fecha);
 
         var evento = new TurnoDiarioAsignado(
-            command.Empleado, command.Fecha, command.DetalleTurno, command.SolicitudId);
+            streamId, command.Empleado, command.Fecha, command.DetalleTurno, command.SolicitudId);
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 

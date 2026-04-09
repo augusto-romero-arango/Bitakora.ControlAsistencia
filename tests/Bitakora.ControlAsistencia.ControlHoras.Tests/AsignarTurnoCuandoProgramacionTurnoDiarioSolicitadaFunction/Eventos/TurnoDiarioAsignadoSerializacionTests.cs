@@ -1,10 +1,10 @@
 // HU-12: Asignar turno diario al control cuando se solicita programacion
 
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 
@@ -28,31 +28,22 @@ public class TurnoDiarioAsignadoSerializacionTests
         "Turno Manana",
         [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [])]);
 
-    // Replica las opciones que Marten usa: PropertyNamingPolicy = null (PascalCase)
-    private static JsonSerializerOptions CrearOpcionesMarten()
-    {
-        var resolver = new DefaultJsonTypeInfoResolver();
-        TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
-        return new JsonSerializerOptions
-        {
-            TypeInfoResolver = resolver,
-            PropertyNamingPolicy = null // Marten fuerza null
-        };
-    }
+    private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
     // Regla 16: todo evento persistido en Marten debe tener test de serializacion roundtrip
     // Verifica con datos reales y completos (no listas vacias para VOs anidados)
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
     {
-        var evento = new TurnoDiarioAsignado(Empleado, Fecha, DetalleTurnoTest, SolicitudId);
-        var opciones = CrearOpcionesMarten();
+        var evento = new TurnoDiarioAsignado(StreamId, Empleado, Fecha, DetalleTurnoTest, SolicitudId);
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
         var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json, opciones);
 
         deserializado.Should().NotBeNull();
-        deserializado!.SolicitudId.Should().Be(SolicitudId);
+        deserializado!.Id.Should().Be(StreamId);
+        deserializado.SolicitudId.Should().Be(SolicitudId);
         deserializado.Fecha.Should().Be(Fecha);
         deserializado.InformacionEmpleado.EmpleadoId.Should().Be(Empleado.EmpleadoId);
         deserializado.InformacionEmpleado.Nombres.Should().Be(Empleado.Nombres);

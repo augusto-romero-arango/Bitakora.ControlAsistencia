@@ -14,17 +14,20 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacion
 // CA-5: contiene InformacionEmpleado, Fecha, DetalleTurno y SolicitudId (trazabilidad)
 public sealed class TurnoDiarioAsignado : IPrivateEvent
 {
+    public string Id { get; private set; } = null!;
     public InformacionEmpleado InformacionEmpleado { get; private set; } = null!;
     public DateOnly Fecha { get; private set; }
     public DetalleTurno DetalleTurno { get; private set; } = null!;
     public Guid SolicitudId { get; private set; }
 
     public TurnoDiarioAsignado(
+        string id,
         InformacionEmpleado informacionEmpleado,
         DateOnly fecha,
         DetalleTurno detalleTurno,
         Guid solicitudId)
     {
+        Id = id;
         InformacionEmpleado = informacionEmpleado;
         Fecha = fecha;
         DetalleTurno = detalleTurno;

@@ -36,7 +36,7 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
         new(SolicitudId, Empleado, Fecha, DetalleTurnoTest);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado() =>
-        new(Empleado, Fecha, DetalleTurnoTest, SolicitudId);
+        new(StreamId, Empleado, Fecha, DetalleTurnoTest, SolicitudId);
 
     // CA-3: NO existe ControlDiario para EmpleadoId+Fecha - el handler inicia el stream
     // CA-5: el evento incluye InformacionEmpleado, Fecha, DetalleTurno y SolicitudId
@@ -62,7 +62,7 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
     public async Task DebeEmitirTurnoDiarioAsignado_CuandoYaExisteControlDiario()
     {
         var solicitudAnteriorId = Guid.Parse("019600b0-0000-7000-8000-000000000002");
-        var turnoAnterior = new TurnoDiarioAsignado(Empleado, Fecha, DetalleTurnoTest, solicitudAnteriorId);
+        var turnoAnterior = new TurnoDiarioAsignado(StreamId, Empleado, Fecha, DetalleTurnoTest, solicitudAnteriorId);
 
         // Pre-carga el stream con el mismo StreamId que usara el handler (CA-8)
         Given(StreamId, turnoAnterior);
