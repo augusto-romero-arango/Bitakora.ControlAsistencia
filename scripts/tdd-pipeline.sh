@@ -537,14 +537,20 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
     fi
 
     if [ "$IS_REFACTOR" = false ]; then
-        # Gate 1b: los tests nuevos deben FALLAR (exit code 2 = tests fallando)
+        # Gate 1b: los tests nuevos deben FALLAR (exit code != 0)
+        # Exit codes de Microsoft Testing Platform: 0=pasan, 2=fallan, 8=no hay tests, 1=agregado mixto
+        # Gate 1a ya verifico compilacion, asi que exit != 0 aqui significa tests fallando
         log "Gate: verificando fase roja (tests deben fallar)..."
         g1_rc=0
         TEST_OUTPUT_G1=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" --no-build 2>&1) || g1_rc=$?
         echo "$TEST_OUTPUT_G1" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
-        if [ "$g1_rc" -ne 2 ]; then
-            abort "Stage 1 fallido: no se detectaron tests fallando (exit code: $g1_rc) — el test-writer pudo haber escrito implementación real en lugar de stubs"
+        if [ "$g1_rc" -eq 0 ]; then
+            abort "Stage 1 fallido: todos los tests pasan (exit code: 0) — el test-writer pudo haber escrito implementacion real en lugar de stubs"
         fi
+        if [ "$g1_rc" -eq 8 ]; then
+            abort "Stage 1 fallido: no se encontraron tests para ejecutar (exit code: 8) — el test-writer no genero tests validos"
+        fi
+        log "Fase roja confirmada (exit code: $g1_rc)"
     fi
 
     # Auto-commit de seguridad (solo si hay cambios uncommitted en tests/ o src/)
