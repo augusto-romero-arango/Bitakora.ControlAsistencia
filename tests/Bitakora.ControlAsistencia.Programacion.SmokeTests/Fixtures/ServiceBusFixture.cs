@@ -29,9 +29,10 @@ public class ServiceBusFixture : IAsyncLifetime
     public async Task<T?> WaitForMessageAsync<T>(
         string topicName,
         string subscriptionName,
-        string correlationId,
+        Func<T, bool> match,
         TimeSpan timeout)
     {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
 
         var deadline = DateTime.UtcNow + timeout;
@@ -48,13 +49,21 @@ public class ServiceBusFixture : IAsyncLifetime
             if (received is null)
                 continue;
 
-            if (received.CorrelationId == correlationId)
+            try
             {
-                await receiver.CompleteMessageAsync(received);
-                return JsonSerializer.Deserialize<T>(received.Body.ToString());
+                var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
+                if (deserialized is not null && match(deserialized))
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    return deserialized;
+                }
+            }
+            catch (JsonException)
+            {
+                // Mensaje con formato incompatible, ignorar
             }
 
-            // Mensaje de otro test, abandonar para que vuelva a la cola
+            // Mensaje de otro test o formato distinto, abandonar para que vuelva a la cola
             await receiver.AbandonMessageAsync(received);
         }
 

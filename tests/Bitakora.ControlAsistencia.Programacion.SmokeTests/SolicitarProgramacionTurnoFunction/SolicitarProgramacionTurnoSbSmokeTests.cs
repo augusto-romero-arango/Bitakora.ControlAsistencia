@@ -44,7 +44,6 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
 
         // Arrange: preparar solicitud con una sola fecha para simplificar verificacion
         var solicitudId = Guid.CreateVersion7();
-        var correlationId = solicitudId.ToString();
         var empleadoId = Guid.CreateVersion7().ToString();
         var fecha = "2026-04-15";
         var payload = new
@@ -67,8 +66,10 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Assert: consumir el evento publicado desde la suscripcion smoke-tests
+        // La FA publica via Wolverine, que no establece CorrelationId.
+        // Matching por contenido (SolicitudId) para aislar el mensaje de este test.
         var eventoRecibido = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
-            TopicSalida, Suscripcion, correlationId, Timeout);
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
 
         eventoRecibido.Should().NotBeNull(
             "la Function App deberia publicar ProgramacionTurnoDiarioSolicitada al topic de Service Bus");
