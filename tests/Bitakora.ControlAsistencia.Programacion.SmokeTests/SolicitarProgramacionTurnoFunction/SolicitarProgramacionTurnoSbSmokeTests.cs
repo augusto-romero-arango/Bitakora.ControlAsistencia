@@ -20,6 +20,9 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
     [Trait("Category", "Smoke")]
     public async Task DebePublicarProgramacionTurnoDiarioSolicitada_CuandoSolicitudEsAceptada()
     {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
         var ct = TestContext.Current.CancellationToken;
 
         // Arrange: crear turno en catalogo

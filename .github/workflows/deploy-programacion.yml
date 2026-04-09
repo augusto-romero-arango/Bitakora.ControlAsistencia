@@ -87,3 +87,5 @@ jobs:
     uses: ./.github/workflows/smoke-tests.yml
     with:
       test_project: tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/
+    secrets:
+      SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}

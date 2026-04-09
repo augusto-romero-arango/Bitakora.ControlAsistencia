@@ -8,6 +8,8 @@ public class ServiceBusFixture : IAsyncLifetime
 {
     private ServiceBusClient? _client;
 
+    public bool IsConfigured { get; private set; }
+
     public ValueTask InitializeAsync()
     {
         var configuration = new ConfigurationBuilder()
@@ -17,10 +19,14 @@ public class ServiceBusFixture : IAsyncLifetime
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration["ServiceBus:ConnectionString"]
-            ?? throw new InvalidOperationException(
-                "ServiceBus:ConnectionString no esta configurado. Usa appsettings.json, appsettings.local.json o la variable de entorno ServiceBus__ConnectionString.");
+        var connectionString = configuration["ServiceBus:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            IsConfigured = false;
+            return ValueTask.CompletedTask;
+        }
 
+        IsConfigured = true;
         _client = new ServiceBusClient(connectionString);
 
         return ValueTask.CompletedTask;
