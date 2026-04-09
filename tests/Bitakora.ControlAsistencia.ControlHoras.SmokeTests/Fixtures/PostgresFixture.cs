@@ -27,59 +27,70 @@ public class PostgresFixture : IAsyncLifetime
     }
 
     public Task<bool> ExisteEventoAsync(
-        string schema, string streamId, string tipoEvento, TimeSpan timeout)
+        string schema, string streamId, string tipoEvento, TimeSpan timeout,
+        string? campoJson = null, string? valorJson = null)
     {
         return Polling.WaitUntilTrueAsync(async () =>
         {
-            await using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
+            var eventos = await ObtenerEventosInternoAsync(schema, streamId, tipoEvento);
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"""
-                SELECT COUNT(1)
-                FROM {EscaparSchema(schema)}.mt_events
-                WHERE stream_id = @streamId
-                  AND type = @tipoEvento
-                """;
-            cmd.Parameters.AddWithValue("streamId", streamId);
-            cmd.Parameters.AddWithValue("tipoEvento", tipoEvento);
+            if (campoJson is null || valorJson is null)
+                return eventos.Count > 0;
 
-            var count = (long)(await cmd.ExecuteScalarAsync())!;
-            return count > 0;
+            return eventos.Any(e =>
+                e.TryGetProperty(campoJson, out var prop) &&
+                prop.ToString() == valorJson);
         }, timeout);
     }
 
-    public async Task<List<T>> ObtenerEventosAsync<T>(
-        string schema, string streamId, TimeSpan timeout)
+    public async Task<T> ObtenerEventoAsync<T>(
+        string schema, string streamId, string tipoEvento,
+        string campoJson, string valorJson, TimeSpan timeout)
     {
-        var result = await Polling.WaitUntilAsync(async () =>
+        var json = await Polling.WaitUntilAsync(async () =>
         {
-            await using var conn = new NpgsqlConnection(_connectionString);
-            await conn.OpenAsync();
+            var eventos = await ObtenerEventosInternoAsync(schema, streamId, tipoEvento);
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"""
-                SELECT data
-                FROM {EscaparSchema(schema)}.mt_events
-                WHERE stream_id = @streamId
-                ORDER BY seq_id
-                """;
-            cmd.Parameters.AddWithValue("streamId", streamId);
+            var match = eventos.FirstOrDefault(e =>
+                e.TryGetProperty(campoJson, out var prop) &&
+                prop.ToString() == valorJson);
 
-            var eventos = new List<T>();
-            await using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var json = reader.GetString(0);
-                var evento = JsonSerializer.Deserialize<T>(json);
-                if (evento is not null)
-                    eventos.Add(evento);
-            }
+            if (match.ValueKind == JsonValueKind.Undefined)
+                return null;
 
-            return eventos.Count > 0 ? eventos : null;
+            return JsonSerializer.Serialize(match);
         }, timeout);
 
-        return result;
+        return JsonSerializer.Deserialize<T>(json)!;
+    }
+
+    private async Task<List<JsonElement>> ObtenerEventosInternoAsync(
+        string schema, string streamId, string tipoEvento)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT data
+            FROM {EscaparSchema(schema)}.mt_events
+            WHERE stream_id = @streamId
+              AND type = @tipoEvento
+            ORDER BY seq_id
+            """;
+        cmd.Parameters.AddWithValue("streamId", streamId);
+        cmd.Parameters.AddWithValue("tipoEvento", tipoEvento);
+
+        var eventos = new List<JsonElement>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var json = reader.GetString(0);
+            var elemento = JsonSerializer.Deserialize<JsonElement>(json);
+            eventos.Add(elemento);
+        }
+
+        return eventos;
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

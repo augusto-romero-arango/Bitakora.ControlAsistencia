@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Contracts.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
@@ -18,7 +19,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var correlationId = Guid.CreateVersion7().ToString();
         var solicitudId = Guid.CreateVersion7();
         var empleadoId = Guid.CreateVersion7().ToString();
-        var fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30));
+        var fecha = new DateOnly(2026, 4, 9);
 
         var evento = new
         {
@@ -57,23 +58,30 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(
-            SchemaControlHoras, streamId, tipoEvento, Timeout);
+            SchemaControlHoras, streamId, tipoEvento, Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
 
         existe.Should().BeTrue(
-            $"el evento {tipoEvento} deberia existir en el stream {streamId} despues de publicar al topic {TopicEntrada}");
+            $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir en el stream {streamId}");
 
-        // Assert detallado: obtener los eventos y verificar campos
-        var eventos = await postgres.ObtenerEventosAsync<JsonElement>(
-            SchemaControlHoras, streamId, TimeSpan.FromSeconds(5));
+        // Assert detallado: obtener el evento especifico y comparar value objects
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaControlHoras, streamId, tipoEvento,
+            "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        eventos.Should().NotBeEmpty();
+        var infoEmpleadoEsperada = new InformacionEmpleado(
+            empleadoId, "CC", "999888777", "[TEST] Smoke ServiceBus", "[TEST] Verificacion");
+        var infoEmpleadoPersistida = eventoPersistido
+            .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
+        infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
 
-        var ultimo = eventos[^1];
-        ultimo.GetProperty("SolicitudId").GetGuid().Should().Be(solicitudId);
-        ultimo.GetProperty("InformacionEmpleado").GetProperty("EmpleadoId").GetString()
-            .Should().Be(empleadoId);
-        ultimo.GetProperty("Fecha").GetString().Should().Be(fecha.ToString("yyyy-MM-dd"));
-        ultimo.GetProperty("DetalleTurno").GetProperty("Nombre").GetString()
-            .Should().Be("[TEST] Turno Smoke SB");
+        var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Smoke SB", [
+            new DetalleFranjaOrdinaria(
+                new TimeOnly(8, 0), new TimeOnly(16, 0), 0,
+                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>())
+        ]);
+        var detalleTurnoPersistido = eventoPersistido
+            .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
+        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
     }
 }
