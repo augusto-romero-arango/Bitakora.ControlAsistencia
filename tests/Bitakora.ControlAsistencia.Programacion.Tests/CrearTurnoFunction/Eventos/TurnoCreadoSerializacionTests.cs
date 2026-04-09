@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 

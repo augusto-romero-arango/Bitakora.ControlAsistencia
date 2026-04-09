@@ -1,7 +1,8 @@
-using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Cosmos.EventDriven.Abstractions;
 
-namespace Bitakora.ControlAsistencia.Contracts.Eventos;
+namespace Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 
 /// <summary>
 /// Evento publico que se publica al Service Bus via IPublicEventSender.

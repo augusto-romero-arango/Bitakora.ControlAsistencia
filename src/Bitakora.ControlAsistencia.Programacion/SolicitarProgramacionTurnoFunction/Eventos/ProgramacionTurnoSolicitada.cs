@@ -1,4 +1,5 @@
-using Bitakora.ControlAsistencia.Contracts.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.Eventos;
 

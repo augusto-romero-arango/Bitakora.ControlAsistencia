@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
+namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 // Segmento continuo de trabajo dentro de un turno.
 // Contiene sub-franjas de descanso y extras.
