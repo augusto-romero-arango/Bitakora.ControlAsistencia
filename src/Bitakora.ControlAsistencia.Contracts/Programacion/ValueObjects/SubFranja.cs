@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
+namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 // Segmento temporal dentro de una franja ordinaria.
 // Puede representar un descanso o una hora extra segun la lista que lo contenga.

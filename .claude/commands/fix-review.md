@@ -189,9 +189,12 @@ Respuesta: "El patron es correcto segun ADR-005 porque..."
 Para cada respuesta aprobada:
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments/<comment-id>/replies \
-  -f body="<respuesta>"
+gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments \
+  -f body="<respuesta>" \
+  -F in_reply_to=<comment-id>
 ```
+
+> **Importante:** El endpoint correcto para responder a un review comment es `POST /pulls/{pr}/comments` con el parametro `in_reply_to` apuntando al ID del comentario original. NO uses el sub-endpoint `/replies` — no existe y retorna 404.
 
 Confirma al final:
 

@@ -1,5 +1,5 @@
 using Azure.Messaging.ServiceBus;
-using Bitakora.ControlAsistencia.Contracts.Eventos;
+using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;

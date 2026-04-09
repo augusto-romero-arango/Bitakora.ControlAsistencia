@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Resources;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.Contracts.ValueObjects;
+namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 // Clase abstracta base para todas las franjas temporales de un turno.
 // Encapsula estado interno y expone solo comportamiento.
@@ -13,7 +13,7 @@ public abstract class FranjaTemporal
     protected const int MinutosPorDia = 1440;
 
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Contracts.ValueObjects.FranjaTemporalMensajes",
+        "Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects.FranjaTemporalMensajes",
         typeof(FranjaTemporal).Assembly);
 
     public static class Mensajes
