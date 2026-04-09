@@ -16,6 +16,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
     [Trait("Category", "Smoke")]
     public async Task DebeAsignarTurnoDiario_CuandoSeBusPublicaProgramacionTurnoDiarioSolicitada()
     {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            "Postgres no configurado. Usa appsettings.local.json o variable Postgres__ConnectionString.");
+
         // Arrange
         var correlationId = Guid.CreateVersion7().ToString();
         var solicitudId = Guid.CreateVersion7();

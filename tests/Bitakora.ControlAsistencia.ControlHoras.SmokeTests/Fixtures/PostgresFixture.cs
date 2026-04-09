@@ -8,6 +8,8 @@ public class PostgresFixture : IAsyncLifetime
 {
     private string _connectionString = null!;
 
+    public bool IsConfigured { get; private set; }
+
     public async ValueTask InitializeAsync()
     {
         var configuration = new ConfigurationBuilder()
@@ -17,9 +19,15 @@ public class PostgresFixture : IAsyncLifetime
             .AddEnvironmentVariables()
             .Build();
 
-        _connectionString = configuration["Postgres:ConnectionString"]
-            ?? throw new InvalidOperationException(
-                "Postgres:ConnectionString no esta configurado. Usa appsettings.json, appsettings.local.json o la variable de entorno Postgres__ConnectionString.");
+        var connectionString = configuration["Postgres:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            IsConfigured = false;
+            return;
+        }
+
+        IsConfigured = true;
+        _connectionString = connectionString;
 
         // Verificar conectividad
         await using var conn = new NpgsqlConnection(_connectionString);

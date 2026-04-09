@@ -88,3 +88,6 @@ jobs:
     with:
       base_url: https://func-asist-dev-control-horas.azurewebsites.net
       test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
+    secrets:
+      SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}

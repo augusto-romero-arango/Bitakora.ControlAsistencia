@@ -21,6 +21,11 @@ on:
         type: string
         required: false
         default: 'tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/'
+    secrets:
+      SERVICEBUS_CONNECTION_STRING:
+        required: false
+      POSTGRES_CONNECTION_STRING:
+        required: false
 
 jobs:
   smoke-tests:
@@ -35,4 +40,6 @@ jobs:
       - name: Smoke tests
         env:
           Api__BaseUrl: ${{ inputs.base_url }}
+          ServiceBus__ConnectionString: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+          Postgres__ConnectionString: ${{ secrets.POSTGRES_CONNECTION_STRING }}
         run: dotnet test --project ${{ inputs.test_project }} --configuration Release
