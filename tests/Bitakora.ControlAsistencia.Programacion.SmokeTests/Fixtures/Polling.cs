@@ -9,12 +9,20 @@ public static class Polling
     {
         var delay = interval ?? TimeSpan.FromSeconds(1);
         var deadline = DateTime.UtcNow + timeout;
+        Exception? lastException = null;
 
         while (DateTime.UtcNow < deadline)
         {
-            var result = await probe();
-            if (result is not null)
-                return result;
+            try
+            {
+                var result = await probe();
+                if (result is not null)
+                    return result;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
 
             var remaining = deadline - DateTime.UtcNow;
             if (remaining <= TimeSpan.Zero)
@@ -27,6 +35,11 @@ public static class Polling
                 delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
         }
 
+        if (lastException is not null)
+            throw new TimeoutException(
+                $"Polling agoto el timeout de {timeout.TotalSeconds}s. Ultima excepcion: {lastException.Message}",
+                lastException);
+
         throw new TimeoutException(
             $"Polling agoto el timeout de {timeout.TotalSeconds}s sin obtener resultado.");
     }
@@ -38,11 +51,19 @@ public static class Polling
     {
         var delay = interval ?? TimeSpan.FromSeconds(1);
         var deadline = DateTime.UtcNow + timeout;
+        Exception? lastException = null;
 
         while (DateTime.UtcNow < deadline)
         {
-            if (await condition())
-                return true;
+            try
+            {
+                if (await condition())
+                    return true;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
 
             var remaining = deadline - DateTime.UtcNow;
             if (remaining <= TimeSpan.Zero)
@@ -53,6 +74,11 @@ public static class Polling
             if (delay < TimeSpan.FromSeconds(5))
                 delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
         }
+
+        if (lastException is not null)
+            throw new TimeoutException(
+                $"Polling agoto el timeout de {timeout.TotalSeconds}s. Ultima excepcion: {lastException.Message}",
+                lastException);
 
         return false;
     }

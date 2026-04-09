@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
@@ -9,6 +10,8 @@ public class PostgresFixture : IAsyncLifetime
     private string _connectionString = null!;
 
     public bool IsConfigured { get; private set; }
+
+    public string? SkipReason { get; private set; }
 
     public async ValueTask InitializeAsync()
     {
@@ -23,15 +26,24 @@ public class PostgresFixture : IAsyncLifetime
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             IsConfigured = false;
+            SkipReason = "Postgres no configurado. Usa appsettings.local.json o variable Postgres__ConnectionString.";
+            return;
+        }
+
+        try
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+        }
+        catch (NpgsqlException ex) when (ex.InnerException is SocketException or TimeoutException)
+        {
+            IsConfigured = false;
+            SkipReason = $"No se pudo conectar a Postgres. Verifica que tu IP este en el firewall de Azure (psql-asist-dev). Detalle: {ex.InnerException.Message}";
             return;
         }
 
         IsConfigured = true;
         _connectionString = connectionString;
-
-        // Verificar conectividad
-        await using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync();
     }
 
     public Task<bool> ExisteEventoAsync(
