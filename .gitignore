@@ -390,6 +390,7 @@ FodyWeavers.xsd
 !.vscode/tasks.json
 !.vscode/launch.json
 ## extensions.json no se trackea — cada Function App genera el suyo via func init
+**/.vscode/extensions.json
 *.code-workspace
 
 # Local History for Visual Studio Code
