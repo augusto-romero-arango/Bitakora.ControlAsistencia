@@ -38,6 +38,7 @@ jobs:
           i=0
           for proj in tests/Bitakora.ControlAsistencia.*.Tests/; do
             dotnet-coverage collect \
+              --include "Bitakora.ControlAsistencia.*" \
               --output "coverage/coverage-$i.cobertura.xml" \
               --output-format cobertura \
               "dotnet test --project $proj --no-build --configuration Release --ignore-exit-code 8"
