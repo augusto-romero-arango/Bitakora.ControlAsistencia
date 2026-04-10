@@ -63,6 +63,7 @@ Proyecto tests:   tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
 Smoke tests:      tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
 Workflow deploy:  .github/workflows/deploy-{kebab}.yml
 
+Fixtures:         ApiFixture, ServiceBusFixture, PostgresFixture, Polling
 Suscripciones a:  [lista si la proporcionaron, o "ninguna"]
 
 Continuar? (s/n)
@@ -434,9 +435,15 @@ Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitako
 
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" Version="*" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.*" />
+    <PackageReference Include="Npgsql" Version="9.*" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -451,7 +458,7 @@ Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitako
 </Project>
 ```
 
-**Nota:** No tiene `<ProjectReference>` al proyecto de produccion. Los smoke tests son 100% independientes.
+**Nota:** Incluye `<ProjectReference>` a Contracts para usar la igualdad natural de records en aserciones de eventos.
 
 **2. Crear `appsettings.json`:**
 
@@ -459,9 +466,17 @@ Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitako
 {
   "Api": {
     "BaseUrl": "https://func-{prefix_func}-{kebab}.azurewebsites.net"
+  },
+  "ServiceBus": {
+    "ConnectionString": ""
+  },
+  "Postgres": {
+    "ConnectionString": ""
   }
 }
 ```
+
+> Los valores reales se configuran en `appsettings.local.json` (gitignored) o via variables de entorno (`ServiceBus__ConnectionString`, `Postgres__ConnectionString`).
 
 **3. Crear `Fixtures/ApiFixture.cs`:**
 
@@ -504,15 +519,380 @@ public class ApiFixture : IAsyncLifetime
 }
 ```
 
-**4. Crear `Fixtures/AssemblyFixture.cs`:**
+**4. Crear `Fixtures/ServiceBusFixture.cs`:**
+
+El fixture incluye ambas variantes de interaccion con Service Bus: `PublishAsync` (para enviar comandos/eventos) y `WaitForMessageAsync` con dos overloads (por `correlationId` y por predicado `Func<T, bool>`). Usa el patron `IsConfigured` para skip graceful.
+
+```csharp
+using System.Text.Json;
+using Azure.Messaging.ServiceBus;
+using Microsoft.Extensions.Configuration;
+
+namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+
+public class ServiceBusFixture : IAsyncLifetime
+{
+    private ServiceBusClient? _client;
+
+    public bool IsConfigured { get; private set; }
+
+    public ValueTask InitializeAsync()
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.local.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var connectionString = configuration["ServiceBus:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            IsConfigured = false;
+            return ValueTask.CompletedTask;
+        }
+
+        IsConfigured = true;
+        _client = new ServiceBusClient(connectionString);
+
+        return ValueTask.CompletedTask;
+    }
+
+    public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
+    {
+        await using var sender = _client!.CreateSender(topicName);
+
+        var json = JsonSerializer.Serialize(message);
+        var sbMessage = new ServiceBusMessage(json)
+        {
+            ContentType = "application/json"
+        };
+
+        if (correlationId is not null)
+            sbMessage.CorrelationId = correlationId;
+
+        await sender.SendMessageAsync(sbMessage);
+    }
+
+    public async Task<T?> WaitForMessageAsync<T>(
+        string topicName,
+        string subscriptionName,
+        string correlationId,
+        TimeSpan timeout)
+    {
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
+
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            var maxWait = remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5);
+            var received = await receiver.ReceiveMessageAsync(maxWait);
+
+            if (received is null)
+                continue;
+
+            if (received.CorrelationId == correlationId)
+            {
+                await receiver.CompleteMessageAsync(received);
+                return JsonSerializer.Deserialize<T>(received.Body.ToString());
+            }
+
+            await receiver.AbandonMessageAsync(received);
+        }
+
+        return default;
+    }
+
+    public async Task<T?> WaitForMessageAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
+        TimeSpan timeout)
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
+
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            var maxWait = remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5);
+            var received = await receiver.ReceiveMessageAsync(maxWait);
+
+            if (received is null)
+                continue;
+
+            try
+            {
+                var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
+                if (deserialized is not null && match(deserialized))
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    return deserialized;
+                }
+            }
+            catch (JsonException)
+            {
+                // Mensaje con formato incompatible, ignorar
+            }
+
+            await receiver.AbandonMessageAsync(received);
+        }
+
+        return default;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_client is not null)
+            await _client.DisposeAsync();
+    }
+}
+```
+
+**5. Crear `Fixtures/PostgresFixture.cs`:**
+
+Incluye `IsConfigured`, `SkipReason` con mensaje descriptivo de firewall, y metodos para consultar eventos en Marten.
+
+```csharp
+using System.Net.Sockets;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
+using Npgsql;
+
+namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+
+public class PostgresFixture : IAsyncLifetime
+{
+    private string _connectionString = null!;
+
+    public bool IsConfigured { get; private set; }
+
+    public string? SkipReason { get; private set; }
+
+    public async ValueTask InitializeAsync()
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.local.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var connectionString = configuration["Postgres:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            IsConfigured = false;
+            SkipReason = "Postgres no configurado. Usa appsettings.local.json o variable Postgres__ConnectionString.";
+            return;
+        }
+
+        try
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+        }
+        catch (NpgsqlException ex) when (ex.InnerException is SocketException or TimeoutException)
+        {
+            IsConfigured = false;
+            SkipReason = $"No se pudo conectar a Postgres. Verifica que tu IP este en el firewall de Azure. Detalle: {ex.InnerException.Message}";
+            return;
+        }
+
+        IsConfigured = true;
+        _connectionString = connectionString;
+    }
+
+    public Task<bool> ExisteEventoAsync(
+        string schema, string streamId, string tipoEvento, TimeSpan timeout,
+        string? campoJson = null, string? valorJson = null)
+    {
+        return Polling.WaitUntilTrueAsync(async () =>
+        {
+            var eventos = await ObtenerEventosInternoAsync(schema, streamId, tipoEvento);
+
+            if (campoJson is null || valorJson is null)
+                return eventos.Count > 0;
+
+            return eventos.Any(e =>
+                e.TryGetProperty(campoJson, out var prop) &&
+                prop.ToString() == valorJson);
+        }, timeout);
+    }
+
+    public async Task<T> ObtenerEventoAsync<T>(
+        string schema, string streamId, string tipoEvento,
+        string campoJson, string valorJson, TimeSpan timeout)
+    {
+        var json = await Polling.WaitUntilAsync(async () =>
+        {
+            var eventos = await ObtenerEventosInternoAsync(schema, streamId, tipoEvento);
+
+            var match = eventos.FirstOrDefault(e =>
+                e.TryGetProperty(campoJson, out var prop) &&
+                prop.ToString() == valorJson);
+
+            if (match.ValueKind == JsonValueKind.Undefined)
+                return null;
+
+            return JsonSerializer.Serialize(match);
+        }, timeout);
+
+        return JsonSerializer.Deserialize<T>(json)!;
+    }
+
+    private async Task<List<JsonElement>> ObtenerEventosInternoAsync(
+        string schema, string streamId, string tipoEvento)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT data
+            FROM {EscaparSchema(schema)}.mt_events
+            WHERE stream_id = @streamId
+              AND type = @tipoEvento
+            ORDER BY seq_id
+            """;
+        cmd.Parameters.AddWithValue("streamId", streamId);
+        cmd.Parameters.AddWithValue("tipoEvento", tipoEvento);
+
+        var eventos = new List<JsonElement>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var json = reader.GetString(0);
+            var elemento = JsonSerializer.Deserialize<JsonElement>(json);
+            eventos.Add(elemento);
+        }
+
+        return eventos;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    private static string EscaparSchema(string schema)
+    {
+        if (!System.Text.RegularExpressions.Regex.IsMatch(schema, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
+            throw new ArgumentException($"Nombre de schema invalido: {schema}");
+        return schema;
+    }
+}
+```
+
+**6. Crear `Fixtures/Polling.cs`:**
+
+Helper de polling tolerante a excepciones transitorias. Captura excepciones dentro del loop en vez de propagar al primer error, y reporta la ultima excepcion en el `TimeoutException`.
+
+```csharp
+namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+
+public static class Polling
+{
+    public static async Task<T> WaitUntilAsync<T>(
+        Func<Task<T?>> probe,
+        TimeSpan timeout,
+        TimeSpan? interval = null) where T : class
+    {
+        var delay = interval ?? TimeSpan.FromSeconds(1);
+        var deadline = DateTime.UtcNow + timeout;
+        Exception? lastException = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                var result = await probe();
+                if (result is not null)
+                    return result;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            await Task.Delay(remaining < delay ? remaining : delay);
+
+            // Backoff simple: incrementar 50% hasta max 5s
+            if (delay < TimeSpan.FromSeconds(5))
+                delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
+        }
+
+        if (lastException is not null)
+            throw new TimeoutException(
+                $"Polling agoto el timeout de {timeout.TotalSeconds}s. Ultima excepcion: {lastException.Message}",
+                lastException);
+
+        throw new TimeoutException(
+            $"Polling agoto el timeout de {timeout.TotalSeconds}s sin obtener resultado.");
+    }
+
+    public static async Task<bool> WaitUntilTrueAsync(
+        Func<Task<bool>> condition,
+        TimeSpan timeout,
+        TimeSpan? interval = null)
+    {
+        var delay = interval ?? TimeSpan.FromSeconds(1);
+        var deadline = DateTime.UtcNow + timeout;
+        Exception? lastException = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                if (await condition())
+                    return true;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            await Task.Delay(remaining < delay ? remaining : delay);
+
+            if (delay < TimeSpan.FromSeconds(5))
+                delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
+        }
+
+        if (lastException is not null)
+            throw new TimeoutException(
+                $"Polling agoto el timeout de {timeout.TotalSeconds}s. Ultima excepcion: {lastException.Message}",
+                lastException);
+
+        return false;
+    }
+}
+```
+
+**7. Crear `Fixtures/AssemblyFixture.cs`:**
 
 ```csharp
 using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
 
 [assembly: AssemblyFixture(typeof(ApiFixture))]
+[assembly: AssemblyFixture(typeof(ServiceBusFixture))]
+[assembly: AssemblyFixture(typeof(PostgresFixture))]
 ```
 
-**5. Crear `Health/HealthSmokeTests.cs`:**
+**8. Crear `Health/HealthSmokeTests.cs`:**
 
 Todo dominio expone `/api/health`. Este smoke test verifica que el Function App esta desplegado y disponible.
 
@@ -537,6 +917,27 @@ public class HealthSmokeTests(ApiFixture api)
     }
 }
 ```
+
+> **Patron Assert.SkipWhen para tests con fixtures opcionales:** Cuando el smoke-test-writer cree tests que dependan de ServiceBus o Postgres, debe iniciar cada test con guards de skip graceful. Ejemplo:
+>
+> ```csharp
+> public class MiSmokeTest(ServiceBusFixture serviceBus, PostgresFixture postgres)
+> {
+>     [Fact]
+>     [Trait("Category", "Smoke")]
+>     public async Task MiTest()
+>     {
+>         Assert.SkipWhen(!serviceBus.IsConfigured,
+>             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+>         Assert.SkipWhen(!postgres.IsConfigured,
+>             postgres.SkipReason ?? "Postgres no disponible.");
+>
+>         // ... logica del test ...
+>     }
+> }
+> ```
+>
+> **Importante**: es `Assert.SkipWhen()` de xUnit v3, NO `Skip.When()` (no existe y no compila).
 
 ---
 
@@ -718,7 +1119,12 @@ jobs:
     with:
       base_url: https://func-{prefix_func}-{kebab}.azurewebsites.net
       test_project: tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
+    secrets:
+      SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
 ```
+
+> `smoke-tests.yml` acepta estos secrets como opcionales (`required: false`). Si no estan configurados en el repo, los smoke tests que dependen de ServiceBus o Postgres se skipean gracefully via `Assert.SkipWhen`.
 
 ---
 
@@ -791,9 +1197,12 @@ Scaffold completado para el dominio "{kebab}":
 
   tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
     Fixtures/ApiFixture.cs                 - HttpClient + config + health check fail-fast
-    Fixtures/AssemblyFixture.cs            - Registro de IAssemblyFixture
-    appsettings.json                       - URL del entorno dev (commiteado)
-                                           - Proyecto de smoke tests black-box contra dev
+    Fixtures/ServiceBusFixture.cs          - PublishAsync + WaitForMessageAsync (correlationId y predicado)
+    Fixtures/PostgresFixture.cs            - IsConfigured + SkipReason + firewall catch + consulta Marten
+    Fixtures/Polling.cs                    - Polling tolerante a excepciones con backoff
+    Fixtures/AssemblyFixture.cs            - Registra ApiFixture, ServiceBusFixture, PostgresFixture
+    Health/HealthSmokeTests.cs             - Smoke test del health check
+    appsettings.json                       - URL + placeholders vacios para ServiceBus y Postgres
 
   infra/environments/dev/main.tf           - module storage + module function_app
                                              (topics se crean bajo demanda con implementer)
@@ -801,10 +1210,14 @@ Scaffold completado para el dominio "{kebab}":
   .github/workflows/deploy-{kebab}.yml     - Workflow de deploy automatico + smoke tests post-deploy
 
 Proximos pasos:
-  1. Asegurate de que el secret AZURE_CREDENTIALS este configurado en GitHub
+  1. Asegurate de que los secrets esten configurados en GitHub:
+     - AZURE_CREDENTIALS (deploy)
+     - SERVICEBUS_CONNECTION_STRING (smoke tests, opcional)
+     - POSTGRES_CONNECTION_STRING (smoke tests, opcional)
   2. Ejecuta "terraform apply" en infra/environments/dev/ para crear la infraestructura
-  3. Usa el agente test-writer para escribir los primeros tests del dominio
-  4. Usa el agente smoke-test-writer para escribir los smoke tests contra dev
+  3. Crea appsettings.local.json (gitignored) con las cadenas reales para desarrollo local
+  4. Usa el agente test-writer para escribir los primeros tests del dominio
+  5. Usa el agente smoke-test-writer para escribir los smoke tests contra dev
 ```
 
 ---
