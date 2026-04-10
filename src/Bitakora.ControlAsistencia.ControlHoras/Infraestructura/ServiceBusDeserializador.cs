@@ -9,6 +9,13 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 /// </summary>
 public static class ServiceBusDeserializador
 {
+    private static readonly JsonSerializerOptions Opciones = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public static T Deserializar<T>(BinaryData body)
-        => throw new NotImplementedException();
+        => JsonSerializer.Deserialize<T>(body.ToString(), Opciones)
+           ?? throw new InvalidOperationException(
+               $"No se pudo deserializar el mensaje como {typeof(T).Name}");
 }
