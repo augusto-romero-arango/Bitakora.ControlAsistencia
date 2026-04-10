@@ -30,6 +30,7 @@ dotnet test --filter "NombreTest"                                 # correr una p
 planner modo 7 →  refina → estado:listo
 /implement 42  →  pipeline TDD → PR → cierra issue
 /tooling 18    →  pipeline tooling → PR → cierra issue
+/infra 42      →  pipeline IaC → PR → cierra issue
 /bug "sintoma" →  investiga → issue(s) estado:listo
 ```
 
@@ -37,7 +38,8 @@ planner modo 7 →  refina → estado:listo
 2. Usa el agente `planner` para refinar borradores (modo 7) o crear issues completos directamente
 3. Lanza el pipeline TDD con `/implement <numero>` — corre en tmux, no bloquea tu terminal
 4. Lanza el pipeline tooling con `/tooling <numero>` — para tareas sin ciclo TDD (scripts, fixtures, config)
-5. Investiga errores en producción con `/bug [sintoma]` — consulta App Insights, correlaciona con código y crea issues
+5. Lanza el pipeline IaC con `/infra <numero>` — corre en tmux, worktree aislado, default env=dev
+6. Investiga errores en producción con `/bug [sintoma]` — consulta App Insights, correlaciona con código y crea issues
 
 ### Bitácora y field notes
 
@@ -94,16 +96,20 @@ Cada issue corre en su propio worktree aislado. Al terminar, los PRs se crean pe
 Para crear o modificar infraestructura Azure con Terraform:
 
 ```bash
-# Via agente (recomendado)
-claude --agent infra-workflow
+# Via skill (recomendado)
+/infra 42
 
 # Directamente via script
-./scripts/iac-pipeline.sh 42 --env dev
-./scripts/iac-pipeline.sh 42 --env dev --auto-apply    # Omite confirmacion (solo dev)
-./scripts/iac-pipeline.sh 42 --env dev --skip-apply    # Solo write + review, crea PR
+./scripts/iac-pipeline.sh 42                          # env=dev por defecto
+./scripts/iac-pipeline.sh 42 --env dev --auto-apply   # Omite confirmacion (solo dev)
+./scripts/iac-pipeline.sh 42 --skip-apply             # Solo write + review, crea PR
+./scripts/iac-pipeline.sh 42 --from-stage 2           # Retomar desde Stage 2
 ```
 
 Stages: **Write (HCL)** → **Review (plan)** → **Apply**
+
+**El script crea su propio worktree, hace los commits, crea el PR y limpia el worktree.**
+Si algo falla, el worktree queda disponible para inspección y el log de error muestra la causa.
 
 ## Pipeline Tooling
 
