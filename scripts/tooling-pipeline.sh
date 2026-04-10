@@ -362,9 +362,9 @@ auto_commit_if_needed() {
 
     git -C "$WORKTREE_PATH" checkout -- .claude/settings.json 2>/dev/null || true
 
-    if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/)" ]; then
+    if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/)" ]; then
         log "Haciendo commit automatico (fase $phase)..."
-        git -C "$WORKTREE_PATH" add tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ 2>/dev/null || true
+        git -C "$WORKTREE_PATH" add tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/ 2>/dev/null || true
         git -C "$WORKTREE_PATH" commit -m "$msg" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 || true
     fi
 }
