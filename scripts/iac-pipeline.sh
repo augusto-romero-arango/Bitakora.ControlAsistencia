@@ -2,12 +2,13 @@
 # iac-pipeline.sh -- Pipeline IaC automatizado para ControlAsistencias
 #
 # Uso:
+#   ./scripts/iac-pipeline.sh 42
 #   ./scripts/iac-pipeline.sh 42 --env dev
-#   ./scripts/iac-pipeline.sh 42 --env dev --auto-apply    # Omite confirmacion (solo dev)
-#   ./scripts/iac-pipeline.sh 42 --env dev --skip-apply    # Solo write + review, crea PR
-#   ./scripts/iac-pipeline.sh 42 --env dev --from-stage 2  # Retomar desde Stage 2
+#   ./scripts/iac-pipeline.sh 42 --auto-apply    # Omite confirmacion (solo dev)
+#   ./scripts/iac-pipeline.sh 42 --skip-apply    # Solo write + review, crea PR
+#   ./scripts/iac-pipeline.sh 42 --from-stage 2  # Retomar desde Stage 2
 #
-# Ciclo completo: Issue -> Write (HCL) -> Review (plan) -> Apply -> PR
+# Ciclo completo: Issue -> Worktree -> Write (HCL) -> Review (plan) -> Apply -> PR -> Cleanup
 
 set -euo pipefail
 
@@ -45,8 +46,14 @@ abort() {
     PIPELINE_ERROR="$(echo "$1" | sed 's/"/\\"/g' | tr '\n' ' ')"
     echo -e "\n${RED}${BOLD}x ERROR: $1${NC}" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}"
     echo -e "${YELLOW}Revisa el log: ${LOG_FILE_ABS:-$LOG_FILE}${NC}"
+    if [ -n "${WORKTREE_PATH:-}" ] && [ -d "$WORKTREE_PATH" ]; then
+        echo -e "${YELLOW}El worktree queda en: $WORKTREE_PATH${NC}"
+        echo -e "${YELLOW}Para inspeccionar: cd $WORKTREE_PATH${NC}"
+    fi
     if [ -n "${PIPELINE_DIR_ABS:-}" ]; then
         update_status "$CURRENT_STAGE" "failed"
+        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"environment\":\"${ENVIRONMENT:-}\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
+            >> "$PIPELINE_DIR_ABS/infra-history.jsonl" 2>/dev/null || true
     fi
     exit 1
 }
@@ -65,10 +72,12 @@ update_status() {
   "issue": "${ISSUE_NUM:-null}",
   "title": "$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')",
   "environment": "${ENVIRONMENT:-?}",
+  "pipeline": "infra",
   "started": "$TIMESTAMP",
   "stage": "$stage",
   "state": "$state",
   "updated": "$(date +%Y-%m-%dT%H:%M:%S)",
+  "worktree": "${WORKTREE_PATH:-}",
   "log": "${LOG_FILE_ABS:-$LOG_FILE}",
   "agents": {
     "infra-writer":   {"duration": $wr_dur, "result": "$AGENT_WR_RES"},
@@ -82,13 +91,13 @@ EOJSON
 
 # --- Parsear argumentos ---
 ISSUE_NUM=""
-ENVIRONMENT=""
+ENVIRONMENT="dev"
 FROM_STAGE=1
 AUTO_APPLY=false
 SKIP_APPLY=false
 
 if [ $# -eq 0 ]; then
-    echo "Uso: $0 <issue-num> --env <dev|staging|prod> [--auto-apply] [--skip-apply] [--from-stage N]"
+    echo "Uso: $0 <issue-num> [--env <dev|staging|prod>] [--auto-apply] [--skip-apply] [--from-stage N]"
     exit 1
 fi
 
@@ -128,7 +137,6 @@ if [ ${#POSITIONAL_ARGS[@]} -gt 0 ] && [ -z "$ISSUE_NUM" ]; then
 fi
 
 [ -z "$ISSUE_NUM" ] && abort "Falta el numero de issue"
-[ -z "$ENVIRONMENT" ] && abort "Falta --env (dev|staging|prod)"
 
 if ! [[ "$FROM_STAGE" =~ ^[1-3]$ ]]; then
     abort "--from-stage debe ser 1, 2, o 3"
@@ -156,7 +164,6 @@ PIPELINE_DIR_ABS="$(realpath "$PIPELINE_DIR")"
 LOG_DIR_ABS="$(realpath "$LOG_DIR")"
 LOG_FILE_ABS="$(realpath "$LOG_FILE")"
 EVENTS_LOG_ABS="$PIPELINE_DIR_ABS/events.log"
-INFRA_ENV_DIR_ABS="$(realpath "$INFRA_ENV_DIR")"
 
 echo "=== SESSION IAC $TIMESTAMP issue:$ISSUE_NUM env:$ENVIRONMENT from-stage:$FROM_STAGE ===" >> "$EVENTS_LOG_ABS"
 
@@ -180,30 +187,70 @@ log "Issue: $ISSUE_TITLE"
 
 echo "$ISSUE_CONTEXT" > "$PIPELINE_DIR/infra-input.md"
 
-# --- Preparar rama de trabajo ---
-header "Preparando rama"
+# --- Preparar worktree ---
+header "Preparando worktree"
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g' | tr -s '-' | cut -c1-40 | sed 's/-$//')
 BRANCH_NAME="infra-issue-${ISSUE_NUM}-${SLUG}"
+WORKTREE_PATH="${REPO_ROOT}/../${BRANCH_NAME}"
 
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Ruta absoluta al directorio del ambiente dentro del worktree
+INFRA_ENV_DIR_ABS_WT="$WORKTREE_PATH/$INFRA_ENV_DIR"
 
 if [ "$FROM_STAGE" -gt 1 ]; then
-    log "Retomando desde Stage $FROM_STAGE en rama actual: $CURRENT_BRANCH"
+    [ -d "$WORKTREE_PATH" ] || abort "No existe el worktree en $WORKTREE_PATH. No se puede retomar desde Stage $FROM_STAGE."
+    log "Retomando desde Stage $FROM_STAGE -- worktree existente: $WORKTREE_PATH"
+    SNAPSHOT_COMMIT=$(git -C "$WORKTREE_PATH" merge-base HEAD main)
+    log "Snapshot detectado: $SNAPSHOT_COMMIT"
+    INFRA_ENV_DIR_ABS="$(realpath "$INFRA_ENV_DIR_ABS_WT")"
 else
-    if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
-        log "Rama $BRANCH_NAME ya existe, cambiando a ella..."
-        git checkout "$BRANCH_NAME" >>"$LOG_FILE" 2>&1
-    else
-        git pull origin "${CURRENT_BRANCH}" >>"$LOG_FILE" 2>&1 || warn "No se pudo hacer pull (continuando)"
-        log "Creando rama: $BRANCH_NAME"
-        git checkout -b "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 \
-            || abort "No se pudo crear la rama $BRANCH_NAME"
+    if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+        warn "No estas en main/master (rama actual: $CURRENT_BRANCH)"
     fi
-    success "Rama lista: $BRANCH_NAME"
+
+    log "Actualizando desde origin..."
+    git pull origin "${CURRENT_BRANCH}" >>"$LOG_FILE" 2>&1 || warn "No se pudo hacer pull (continuando)"
+
+    # Idempotencia: si el worktree ya existe, limpiarlo
+    if [ -d "$WORKTREE_PATH" ]; then
+        warn "El worktree ya existe: $WORKTREE_PATH -- limpiando para reiniciar..."
+        git worktree remove --force "$WORKTREE_PATH" >>"$LOG_FILE" 2>&1 || true
+        git branch -D "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 || true
+    fi
+    if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" 2>/dev/null; then
+        warn "La rama $BRANCH_NAME ya existe sin worktree -- eliminandola..."
+        git branch -D "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 || true
+    fi
+
+    log "Creando worktree: $WORKTREE_PATH"
+    git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" >>"$LOG_FILE" 2>&1 \
+        || abort "No se pudo crear el worktree"
+
+    success "Worktree creado: $WORKTREE_PATH"
+
+    mkdir -p "$WORKTREE_PATH/.claude/pipeline/summaries"
+
+    # Parchear settings.json del worktree con ruta absoluta del events.log
+    sed "s|\.claude/pipeline/events\.log|${EVENTS_LOG_ABS}|g" \
+        "$REPO_ROOT/.claude/settings.json" > "$WORKTREE_PATH/.claude/settings.json"
+
+    INFRA_ENV_DIR_ABS="$(realpath "$INFRA_ENV_DIR_ABS_WT")"
+
+    update_status "setup" "running"
+
+    SNAPSHOT_COMMIT=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
+    log "Snapshot: $SNAPSHOT_COMMIT"
 fi
 
-update_status "setup" "running"
+# --- Funcion auxiliar: recolectar resumen de agente ---
+collect_summary() {
+    local stage="$1" agent="$2"
+    local f="$WORKTREE_PATH/.claude/pipeline/summaries/stage-${stage}-${agent}.md"
+    if [ -f "$f" ]; then cat "$f"; else echo "_(El agente no genero resumen)_"; fi
+}
 
 # --- Funcion auxiliar para invocar agentes ---
 run_agent() {
@@ -224,11 +271,11 @@ run_agent() {
     log "Invocando $agent..."
 
     local AGENT_TIMEOUT_SECONDS=1800
-    claude -p "$prompt" \
+    (cd "$WORKTREE_PATH" && claude -p "$prompt" \
         --agent "$agent" \
         --permission-mode bypassPermissions \
         --output-format text \
-        >"$log_stage" 2>&1 &
+        >"$log_stage" 2>&1) &
     local CLAUDE_PID=$!
     (sleep $AGENT_TIMEOUT_SECONDS && kill $CLAUDE_PID 2>/dev/null && echo "[$(date +%H:%M:%S)] TIMEOUT: $agent supero ${AGENT_TIMEOUT_SECONDS}s" >> "$EVENTS_LOG_ABS") &
     local WATCHDOG_PID=$!
@@ -283,10 +330,10 @@ Tu tarea: escribe o modifica los archivos Terraform necesarios para implementar 
     success "Gate 1: HCL valido"
 
     # Auto-commit si hay cambios
-    if [ -n "$(git status --porcelain -- infra/)" ]; then
+    if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- infra/)" ]; then
         log "Commiteando cambios de HCL..."
-        git add infra/
-        git commit -m "infra($ENVIRONMENT): escritura HCL issue #${ISSUE_NUM}"
+        git -C "$WORKTREE_PATH" add infra/
+        git -C "$WORKTREE_PATH" commit -m "infra($ENVIRONMENT): escritura HCL issue #${ISSUE_NUM}"
     fi
 
     update_status "1-infra-writer" "passed"
@@ -296,7 +343,7 @@ fi
 if [ "$FROM_STAGE" -le 2 ]; then
     header "Stage 2: infra-reviewer (revision y plan)"
 
-    DIFF_CONTEXT=$(git diff main...HEAD -- infra/ 2>/dev/null | head -200 || echo "(sin diff disponible)")
+    DIFF_CONTEXT=$(git -C "$WORKTREE_PATH" diff main...HEAD -- infra/ 2>/dev/null | head -200 || echo "(sin diff disponible)")
 
     STAGE2_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
 
@@ -323,10 +370,10 @@ Tu tarea: revisa el HCL producido por infra-writer, corrige problemas de segurid
     success "Gate 2: tfplan generado"
 
     # Commit de correcciones del reviewer si las hubo
-    if [ -n "$(git status --porcelain -- infra/)" ]; then
+    if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- infra/)" ]; then
         log "Commiteando correcciones del reviewer..."
-        git add infra/
-        git commit -m "infra($ENVIRONMENT): correcciones de revision issue #${ISSUE_NUM}"
+        git -C "$WORKTREE_PATH" add infra/
+        git -C "$WORKTREE_PATH" commit -m "infra($ENVIRONMENT): correcciones de revision issue #${ISSUE_NUM}"
     fi
 
     update_status "2-infra-reviewer" "passed"
@@ -361,18 +408,50 @@ Tu tarea: aplica el plan Terraform pre-generado siguiendo todas las instruccione
     fi
 fi
 
-# --- Crear PR ---
-header "Creando Pull Request"
+# --- Verificar que hay commits ---
+COMMITS_LIST=$(git -C "$WORKTREE_PATH" log "${SNAPSHOT_COMMIT}..HEAD" --oneline)
+if [ -z "$COMMITS_LIST" ]; then
+    abort "No hay commits en la rama $BRANCH_NAME."
+fi
 
-git push origin "$BRANCH_NAME" >>"$LOG_FILE_ABS" 2>&1 \
+# --- Sincronizar con main ---
+header "Sincronizando con main"
+
+log "Actualizando main desde origin..."
+git -C "$WORKTREE_PATH" fetch origin main >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 \
+    || abort "No se pudo hacer fetch de origin/main"
+
+BEHIND_COUNT=$(git -C "$WORKTREE_PATH" rev-list HEAD..origin/main --count)
+if [ "$BEHIND_COUNT" -eq 0 ]; then
+    log "La rama ya esta al dia con main"
+else
+    log "main tiene $BEHIND_COUNT commit(s) nuevos. Haciendo merge..."
+    git -C "$WORKTREE_PATH" merge origin/main --no-edit >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 \
+        || abort "Merge con main tiene conflictos. Resuelve manualmente en: $WORKTREE_PATH"
+    success "Merge automatico exitoso"
+fi
+
+# --- Crear PR ---
+header "Creando PR"
+
+log "Haciendo push de la rama..."
+git -C "$WORKTREE_PATH" push -u origin "$BRANCH_NAME" >>"$LOG_FILE_ABS" 2>&1 \
     || abort "No se pudo hacer push de la rama $BRANCH_NAME"
 
 APPLY_STATUS="pendiente de aplicar"
 [ "$SKIP_APPLY" = false ] && [ "$AGENT_AP_RES" = "passed" ] && APPLY_STATUS="aplicado en $ENVIRONMENT"
 
+WR_SUMMARY=$(collect_summary "1" "infra-writer")
+RV_SUMMARY=$(collect_summary "2" "infra-reviewer")
+
+_fmt_dur() { local s="${1:-0}"; echo "$((s/60))m $((s%60))s"; }
+WR_DUR_FMT=$(_fmt_dur "${AGENT_WR_DUR:-0}")
+RV_DUR_FMT=$(_fmt_dur "${AGENT_RV_DUR:-0}")
+AP_DUR_FMT=$(_fmt_dur "${AGENT_AP_DUR:-0}")
+
 PR_URL=$(gh pr create \
     --title "infra($ENVIRONMENT): #$ISSUE_NUM $ISSUE_TITLE" \
-    --body "$(cat <<PREOF
+    --body "$(cat <<EOF
 ## Infraestructura
 
 Implementa los cambios de infraestructura del issue #$ISSUE_NUM.
@@ -381,26 +460,74 @@ Implementa los cambios de infraestructura del issue #$ISSUE_NUM.
 - **Estado**: $APPLY_STATUS
 - **Pipeline**: iac-pipeline.sh
 
+## Decisiones del pipeline
+
+<details>
+<summary>infra-writer -- ${WR_DUR_FMT}</summary>
+
+${WR_SUMMARY}
+
+</details>
+
+<details>
+<summary>infra-reviewer -- ${RV_DUR_FMT}</summary>
+
+${RV_SUMMARY}
+
+</details>
+
 ## Cambios Terraform
 
-$(git diff main...HEAD --stat -- infra/ 2>/dev/null || echo "(ver diff del PR)")
+$(git -C "$WORKTREE_PATH" diff main...HEAD --stat -- infra/ 2>/dev/null || echo "(ver diff del PR)")
+
+## Commits
+
+$COMMITS_LIST
 
 Closes #$ISSUE_NUM
-PREOF
+EOF
 )" \
     --base main \
+    --head "$BRANCH_NAME" \
+    --repo "$(git -C "$WORKTREE_PATH" remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')" \
     2>>"$LOG_FILE_ABS") || warn "No se pudo crear el PR automaticamente"
 
 [ -n "${PR_URL:-}" ] && success "PR creado: $PR_URL"
 
+PIPELINE_PR="${PR_URL:-}"
+
+gh issue comment "$ISSUE_NUM" \
+    --body "Pipeline IaC completado. PR: ${PR_URL:-pendiente}" \
+    --repo "$(git -C "$WORKTREE_PATH" remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')" \
+    >>"$LOG_FILE" 2>&1 || warn "No se pudo comentar en el issue #$ISSUE_NUM"
+
 # --- Historial ---
-echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"environment\":\"$ENVIRONMENT\",\"started\":\"$TIMESTAMP\",\"completed\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"agents\":{\"infra-writer\":{\"duration\":${AGENT_WR_DUR:-null},\"result\":\"$AGENT_WR_RES\"},\"infra-reviewer\":{\"duration\":${AGENT_RV_DUR:-null},\"result\":\"$AGENT_RV_RES\"},\"infra-applier\":{\"duration\":${AGENT_AP_DUR:-null},\"result\":\"$AGENT_AP_RES\"}},\"pr\":\"${PR_URL:-}\"}" \
+echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"environment\":\"$ENVIRONMENT\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"infra-writer\":{\"duration\":${AGENT_WR_DUR:-null},\"result\":\"$AGENT_WR_RES\"},\"infra-reviewer\":{\"duration\":${AGENT_RV_DUR:-null},\"result\":\"$AGENT_RV_RES\"},\"infra-applier\":{\"duration\":${AGENT_AP_DUR:-null},\"result\":\"$AGENT_AP_RES\"}},\"pr\":\"${PR_URL:-}\"}" \
     >> "$PIPELINE_DIR_ABS/infra-history.jsonl"
 
 update_status "completed" "completed"
 
-echo -e "\n${GREEN}${BOLD}Pipeline IaC completado${NC}"
-echo -e "  Issue:     #$ISSUE_NUM — $ISSUE_TITLE"
+# --- Cleanup ---
+header "Cleanup"
+
+log "Eliminando worktree..."
+cd "$REPO_ROOT"
+git -C "$WORKTREE_PATH" checkout -- .claude/ 2>/dev/null || true
+git worktree remove --force "$WORKTREE_PATH" >>"$LOG_FILE" 2>&1 \
+    || warn "No se pudo eliminar el worktree. Eliminalo manualmente: git worktree remove --force $WORKTREE_PATH"
+
+WORKTREE_PATH=""
+
+success "Worktree eliminado"
+
+echo ""
+echo -e "${CYAN}${BOLD}=== Pipeline IaC completado ===${NC}"
+echo ""
+echo -e "  Issue:     #$ISSUE_NUM -- $ISSUE_TITLE"
 echo -e "  Ambiente:  $ENVIRONMENT"
+TOTAL_COMMITS=$(echo "$COMMITS_LIST" | wc -l | tr -d ' ')
+echo -e "  Commits:   $TOTAL_COMMITS"
+echo -e "  Rama:      $BRANCH_NAME"
 [ -n "${PR_URL:-}" ] && echo -e "  PR:        $PR_URL"
 echo -e "  Log:       $LOG_FILE_ABS"
+echo ""

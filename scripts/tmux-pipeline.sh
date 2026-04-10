@@ -252,6 +252,36 @@ cmd_tooling() {
     print_connect_hint "$session"
 }
 
+# --- Modo INFRA (un issue, pipeline IaC) ---
+cmd_infra() {
+    local issue="$1"
+    local session
+    session=$(safe_session_name "infra-$issue")
+
+    check_tmux
+    ensure_events_log
+
+    if session_exists "$session"; then
+        warn "Ya existe una sesion '$session'."
+        print_connect_hint "$session"
+        exit 0
+    fi
+
+    log "Creando sesion tmux '$session' para infra issue #$issue..."
+
+    tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
+    tmux set-option -t "$session" remain-on-exit on
+    tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
+
+    tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
+    tmux send-keys -t "$session:main.1" "./scripts/iac-pipeline.sh $issue" Enter
+
+    tmux select-layout -t "$session:main" even-horizontal
+
+    success "Pipeline infra iniciado para issue #$issue"
+    print_connect_hint "$session"
+}
+
 # --- Modo SCAFFOLD (un dominio) ---
 cmd_scaffold() {
     local issue=""
@@ -325,6 +355,7 @@ ${CYAN}${BOLD}tmux-pipeline.sh${NC} — Wrapper para pipelines en sesiones tmux
 ${BOLD}Uso:${NC}
   ./scripts/tmux-pipeline.sh 42                                   Issue unico (TDD)
   ./scripts/tmux-pipeline.sh --tooling 42                         Issue de tooling (sin TDD)
+  ./scripts/tmux-pipeline.sh --infra 42                           Issue de infraestructura (IaC)
   ./scripts/tmux-pipeline.sh --scaffold 42 --domain nombre        Scaffold de dominio
   ./scripts/tmux-pipeline.sh --scaffold --domain nombre           Scaffold sin issue
   ./scripts/tmux-pipeline.sh --batch 42 43 44                     Secuencial (uno a la vez)
@@ -387,6 +418,13 @@ main() {
                 abort "Debes especificar un issue. Uso: --tooling 42"
             fi
             cmd_tooling "$1"
+            ;;
+        --infra)
+            shift
+            if [ $# -eq 0 ]; then
+                abort "Debes especificar un issue. Uso: --infra 42"
+            fi
+            cmd_infra "$1"
             ;;
         --scaffold)
             shift
