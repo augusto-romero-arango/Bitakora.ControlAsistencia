@@ -28,7 +28,7 @@ module "postgresql" {
   name                   = "psql-${local.prefix_short}"
   resource_group_name    = module.resource_group.name
   location               = "centralus" # eastus2 restringida para PostgreSQL Flexible Server
-  zone                   = "2"        # zona asignada por Azure al crear el servidor
+  zone                   = "2"         # zona asignada por Azure al crear el servidor
   administrator_login    = "pgadmin"
   administrator_password = var.postgresql_admin_password
   database_name          = "controlasistencias"
@@ -52,13 +52,14 @@ module "service_bus" {
           filter = null
         },
         {
-          name   = "smoke-tests"
-          filter = null
+          name                = "smoke-tests"
+          filter              = null
+          default_message_ttl = "PT5M"
         }
       ]
     }
   }
-  tags                = local.tags
+  tags = local.tags
 }
 
 resource "random_string" "storage_suffix_programacion" {
