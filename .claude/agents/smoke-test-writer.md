@@ -23,9 +23,12 @@ tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/
 
 Fue creado por el `domain-scaffolder` e incluye:
 - `.csproj` con HttpClient, xUnit v3, AwesomeAssertions, ConfigurationBuilder
-- `appsettings.json` con la URL del entorno dev
+- `appsettings.json` con la URL del entorno dev y connection strings vacios (`""`)
 - `Fixtures/ApiFixture.cs` con HttpClient configurado y health check fail-fast
-- `Fixtures/AssemblyFixture.cs` con registro de `IAssemblyFixture`
+- `Fixtures/ServiceBusFixture.cs` con `PublishAsync` (publicar al topic) y `WaitForMessageAsync` (consumir de suscripcion), patron `IsConfigured` para skip graceful
+- `Fixtures/PostgresFixture.cs` con `ExisteEventoAsync` y `ObtenerEventoAsync`, patron `IsConfigured` + `SkipReason` (incluye diagnostico de firewall)
+- `Fixtures/Polling.cs` con `WaitUntilAsync` y `WaitUntilTrueAsync`, tolerante a excepciones transitorias dentro del loop (no muere al primer error SQL); lanza `TimeoutException` con la ultima excepcion al agotar el timeout
+- `Fixtures/AssemblyFixture.cs` con registro de los tres fixtures via `[assembly: AssemblyFixture(typeof(...))]`
 
 Si el proyecto no existe, informa al usuario:
 > "El proyecto de smoke tests no existe. Ejecuta primero el domain-scaffolder para crearlo."
@@ -44,11 +47,12 @@ Cada feature tiene su propio archivo de tests dentro de la carpeta correspondien
 tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/
   {Comando}Function/
     {Comando}SmokeTests.cs
+    {Comando}SbSmokeTests.cs      <-- si verifica Service Bus
 ```
 
 ### Naming
 
-- Clase: `{Comando}SmokeTests`
+- Clase: `{Comando}SmokeTests` (HTTP) o `{Comando}SbSmokeTests` (Service Bus)
 - Metodos: `{Endpoint}_{ResultadoEsperado}_{Condicion}` en espanol
 - Prefijo de datos: `"[TEST] "` en nombres de entidades creadas
 
@@ -71,14 +75,34 @@ var response = await _client.PostAsJsonAsync("/api/...", payload, ct);
 
 ### Constructor injection
 
-Los tests reciben el `ApiFixture` via constructor primario:
+Los tests reciben fixtures via constructor primario. El constructor puede recibir uno o multiples fixtures segun lo que necesite el test:
 
 ```csharp
+// Solo HTTP
 public class CrearTurnoSmokeTests(ApiFixture api)
 {
     private readonly HttpClient _client = api.Client;
 }
+
+// HTTP + Service Bus (dominio publicador)
+public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+{
+    private readonly HttpClient _client = api.Client;
+}
+
+// Service Bus + Postgres (dominio consumidor)
+public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
+{
+}
+
+// Los tres fixtures (si el test necesita HTTP + Service Bus + Postgres)
+public class MiFeatureSbSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
+{
+    private readonly HttpClient _client = api.Client;
+}
 ```
+
+Los fixtures se inyectan automaticamente porque estan registrados en `AssemblyFixture.cs` como `IAssemblyFixture`. Mismo patron que `ApiFixture`, no requiere configuracion adicional.
 
 ### Aislamiento de datos
 
@@ -164,19 +188,188 @@ Para descubrir la estructura del payload:
 
 ## Smoke tests de Service Bus y eventos persistidos
 
-Cuando el smoke test verifica eventos persistidos en PostgreSQL (no solo respuestas HTTP):
+Los smoke tests no solo verifican respuestas HTTP. Tambien verifican que los eventos se publiquen a Service Bus y que los consumidores los persistan correctamente. Hay dos patrones segun el rol del dominio:
 
-### Fixtures
+### Patron 1: Dominio publicador (HTTP -> Service Bus)
 
-- Los fixtures NO exponen colecciones de eventos — encapsulan la busqueda internamente
-- Los metodos de fixture reciben parametros de filtro (ej: `campoJson`, `valorJson`) y retornan resultados especificos
-- Ejemplo: `ExisteEventoAsync(schema, streamId, tipoEvento, timeout, campoJson: "SolicitudId", valorJson: id)` — no `ObtenerTodosLosEventosAsync()`
+El dominio recibe un comando HTTP y publica un evento a Service Bus. El smoke test verifica que el evento llega al topic.
 
-### Aserciones
+**Flujo:** HTTP POST -> Function App procesa -> evento publicado al topic -> smoke test consume de suscripcion `smoke-tests`
 
-- Siempre filtrar por un campo identificador unico del evento (ej: `SolicitudId`), nunca asumir posicion (`eventos[^1]`)
-- Para comparar value objects, referenciar `Bitakora.ControlAsistencia.Contracts` y usar la igualdad natural de los records
-- Usar `BeEquivalentTo` para value objects con colecciones (`IReadOnlyList`)
+```csharp
+public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+{
+    private readonly HttpClient _client = api.Client;
+
+    private const string TopicSalida = "programacion-turno-diario-solicitada";
+    private const string Suscripcion = "smoke-tests";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebePublicarEvento_CuandoSolicitudEsAceptada()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: preparar y enviar comando HTTP
+        var solicitudId = Guid.CreateVersion7();
+        var payload = new { id = solicitudId, /* ... campos del comando ... */ };
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Assert: consumir el evento de la suscripcion smoke-tests
+        var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+
+        evento.Should().NotBeNull(
+            "la Function App deberia publicar ProgramacionTurnoDiarioSolicitada al topic");
+
+        // Verificar contenido usando records de Contracts (igualdad natural)
+        var empleadoEsperado = new InformacionEmpleado(
+            empleadoId, "CC", "555666777", "[TEST] Smoke", "[TEST] SB");
+        evento!.Empleado.Should().Be(empleadoEsperado);
+    }
+}
+```
+
+**Claves del patron publicador:**
+- Constructor recibe `ApiFixture` + `ServiceBusFixture`
+- `WaitForMessageAsync<T>` consume de la suscripcion `smoke-tests` del topic
+- El predicate `match` filtra por un campo identificador unico (ej: `SolicitudId`), **nunca por posicion**
+- Timeout estandar: `TimeSpan.FromSeconds(30)`
+- El tipo `T` del mensaje es el evento publico de `Contracts` (igualdad natural de records)
+
+### Patron 2: Dominio consumidor (Service Bus -> Postgres)
+
+El dominio recibe un evento de Service Bus y persiste el resultado en PostgreSQL. El smoke test publica al topic y verifica la persistencia.
+
+**Flujo:** smoke test publica al topic -> Function App consume -> procesa y persiste -> smoke test verifica en Postgres
+
+```csharp
+public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
+{
+    private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string SchemaControlHoras = "control_horas";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeAsignarTurno_CuandoRecibeEventoDeServiceBus()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        // Arrange: construir el evento como objeto anonimo
+        var correlationId = Guid.CreateVersion7().ToString();
+        var solicitudId = Guid.CreateVersion7();
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var evento = new
+        {
+            SolicitudId = solicitudId,
+            Empleado = new { EmpleadoId = empleadoId, /* ... */ },
+            Fecha = "2026-04-15",
+            DetalleTurno = new { Nombre = "[TEST] Turno Smoke SB", /* ... */ }
+        };
+
+        // Act: publicar al topic de Service Bus
+        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+
+        // Assert: verificar persistencia en PostgreSQL
+        var streamId = $"{empleadoId}:2026-04-15";
+        var tipoEvento = "turno_diario_asignado";
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, tipoEvento, Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+
+        existe.Should().BeTrue(
+            $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir");
+
+        // Assert detallado: obtener evento y comparar value objects de Contracts
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaControlHoras, streamId, tipoEvento,
+            "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
+
+        var empleadoEsperado = new InformacionEmpleado(
+            empleadoId, "CC", "999888777", "[TEST] Smoke", "[TEST] Verificacion");
+        var empleadoPersistido = eventoPersistido
+            .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
+        empleadoPersistido.Should().Be(empleadoEsperado);
+    }
+}
+```
+
+**Claves del patron consumidor:**
+- Constructor recibe `ServiceBusFixture` + `PostgresFixture` (no necesita `ApiFixture` si no hay HTTP)
+- `PublishAsync` envia el evento al topic que la Function App consume en produccion
+- El evento se construye como objeto anonimo (no usa clases de produccion) con PascalCase (Service Bus no aplica JsonNamingPolicy)
+- `ExisteEventoAsync` y `ObtenerEventoAsync` verifican persistencia filtrando por campo unico
+- **Siempre** filtrar por campo identificador (ej: `SolicitudId`), nunca por posicion en el stream
+
+### Fixtures: cuando usar cada uno
+
+| Fixture | Cuando usarlo | Metodos principales |
+|---|---|---|
+| `ApiFixture` | Siempre que el test haga llamadas HTTP | `.Client` (HttpClient preconfigurado) |
+| `ServiceBusFixture` | Publicar eventos o consumir de suscripciones | `.PublishAsync(topic, mensaje, correlationId)`, `.WaitForMessageAsync<T>(topic, suscripcion, match, timeout)` |
+| `PostgresFixture` | Verificar eventos persistidos en Marten/Postgres | `.ExisteEventoAsync(schema, streamId, tipo, timeout, campoJson, valorJson)`, `.ObtenerEventoAsync<T>(schema, streamId, tipo, campo, valor, timeout)` |
+| `Polling` | Usado internamente por PostgresFixture; no lo uses directamente en tests | `.WaitUntilAsync<T>(probe, timeout)`, `.WaitUntilTrueAsync(condition, timeout)` |
+
+### Convenciones de Service Bus
+
+- **Topic**: nombre del evento en kebab-case (`programacion-turno-diario-solicitada`, `turno-diario-asignado`)
+- **Suscripcion de smoke tests**: siempre `smoke-tests` (nombre generico, una por topic)
+- **Suscripcion de produccion**: `{consumidor}-escucha-{productor}` (no usarla en smoke tests)
+- **Timeout estandar**: `TimeSpan.FromSeconds(30)` para esperar mensajes o persistencia
+
+### Aserciones con Contracts
+
+Los smoke tests de Service Bus **si** referencian `Bitakora.ControlAsistencia.Contracts` para usar la igualdad natural de records:
+
+```csharp
+// Comparar value objects simples con Be() (igualdad de record)
+var empleadoEsperado = new InformacionEmpleado(id, "CC", "123", "Nombre", "Apellido");
+empleadoPersistido.Should().Be(empleadoEsperado);
+
+// Comparar value objects con colecciones (IReadOnlyList) con BeEquivalentTo()
+var detalleTurnoEsperado = new DetalleTurno("Turno", [franjaOrdinaria]);
+detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
+```
+
+- `Be()` para records simples (sin colecciones)
+- `BeEquivalentTo()` para records con `IReadOnlyList` (la igualdad de referencia de listas no funciona con `Be`)
+
+### Assert.SkipWhen - patron obligatorio
+
+**Todo** smoke test que dependa de `ServiceBusFixture` o `PostgresFixture` DEBE iniciar con guardas de skip:
+
+```csharp
+[Fact]
+[Trait("Category", "Smoke")]
+public async Task DebeVerificarAlgo()
+{
+    Assert.SkipWhen(!serviceBus.IsConfigured,
+        "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+    Assert.SkipWhen(!postgres.IsConfigured,
+        postgres.SkipReason ?? "Postgres no disponible.");
+
+    // ... test logic
+}
+```
+
+Esto permite que:
+- En CI sin secrets: tests se marcan como "skipped" (no fallan)
+- En desarrollo local sin config: misma behavior, el dev sabe que le falta
+- En CI con secrets (post-deploy): tests se ejecutan normalmente
+
+**IMPORTANTE: es `Assert.SkipWhen()` (xUnit v3).** Si escribes `Skip.When()`, no compilara. Detecta y corrige esto siempre.
+
+**PostgresFixture tiene `SkipReason`**: usa `postgres.SkipReason ?? "Postgres no disponible."` para incluir diagnostico especifico (ej: problema de firewall en Azure).
 
 ---
 
@@ -189,6 +382,8 @@ Cuando el smoke test verifica eventos persistidos en PostgreSQL (no solo respues
 - **NO duplicar logica de unit tests** - no verificar reglas de negocio, solo que el endpoint responde correctamente
 - **NO agregar librerias adicionales** - HttpClient + xUnit + AwesomeAssertions es suficiente
 - **NO modificar codigo de produccion** - si algo no funciona, informa al usuario
+- **NO usar `Skip.When()`** - no existe en xUnit v3, usa `Assert.SkipWhen()`
+- **NO filtrar eventos por posicion** (`eventos[^1]`) - siempre filtrar por campo identificador unico
 
 ---
 
