@@ -1,0 +1,12 @@
+<Configuration>
+  <CodeCoverage>
+    <ModulePaths>
+      <Include>
+        <ModulePath>.*Bitakora\.ControlAsistencia\..*\.dll$</ModulePath>
+      </Include>
+      <Exclude>
+        <ModulePath>.*\.Tests\.dll$</ModulePath>
+      </Exclude>
+    </ModulePaths>
+  </CodeCoverage>
+</Configuration>
