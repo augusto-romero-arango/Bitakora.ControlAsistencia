@@ -34,7 +34,7 @@ variable "postgresql_admin_password" {
 }
 
 locals {
-  prefix      = "${var.project}-${var.environment}"
+  prefix       = "${var.project}-${var.environment}"
   prefix_short = "${var.project_short}-${var.environment}"
 
   tags = {

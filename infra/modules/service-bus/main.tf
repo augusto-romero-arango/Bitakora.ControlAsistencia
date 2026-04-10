@@ -23,8 +23,9 @@ variable "topics_config" {
   description = "Topics con sus subscriptions opcionales"
   type = map(object({
     subscriptions = optional(list(object({
-      name   = string
-      filter = optional(string)
+      name                = string
+      filter              = optional(string)
+      default_message_ttl = optional(string)
     })), [])
   }))
   default = {}
@@ -58,10 +59,11 @@ locals {
   subscriptions_flat = flatten([
     for topic_name, topic in var.topics_config : [
       for sub in topic.subscriptions : {
-        key        = "${topic_name}/${sub.name}"
-        topic_name = topic_name
-        sub_name   = sub.name
-        filter     = sub.filter
+        key                 = "${topic_name}/${sub.name}"
+        topic_name          = topic_name
+        sub_name            = sub.name
+        filter              = sub.filter
+        default_message_ttl = sub.default_message_ttl
       }
     ]
   ])
@@ -69,10 +71,11 @@ locals {
 }
 
 resource "azurerm_servicebus_subscription" "subs" {
-  for_each           = local.subscriptions_map
-  name               = each.value.sub_name
-  topic_id           = azurerm_servicebus_topic.topics[each.value.topic_name].id
-  max_delivery_count = 10
+  for_each            = local.subscriptions_map
+  name                = each.value.sub_name
+  topic_id            = azurerm_servicebus_topic.topics[each.value.topic_name].id
+  max_delivery_count  = 10
+  default_message_ttl = each.value.default_message_ttl
 }
 
 resource "azurerm_servicebus_subscription_rule" "filters" {
