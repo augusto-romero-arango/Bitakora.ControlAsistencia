@@ -30,12 +30,14 @@ dotnet test --filter "NombreTest"                                 # correr una p
 planner modo 7 →  refina → estado:listo
 /implement 42  →  pipeline TDD → PR → cierra issue
 /tooling 18    →  pipeline tooling → PR → cierra issue
+/bug "sintoma" →  investiga → issue(s) estado:listo
 ```
 
 1. Captura ideas rápidas con `/draft [idea]` — crea un issue borrador sin fricción
 2. Usa el agente `planner` para refinar borradores (modo 7) o crear issues completos directamente
 3. Lanza el pipeline TDD con `/implement <numero>` — corre en tmux, no bloquea tu terminal
 4. Lanza el pipeline tooling con `/tooling <numero>` — para tareas sin ciclo TDD (scripts, fixtures, config)
+5. Investiga errores en producción con `/bug [sintoma]` — consulta App Insights, correlaciona con código y crea issues
 
 ### Bitácora y field notes
 
@@ -119,6 +121,22 @@ Para tareas que no son lógica de dominio (scripts, fixtures de test, configurac
 Stages: **Writer (implementación)** → **Reviewer (revisión)** → **PR**
 
 A diferencia del pipeline TDD, no tiene fases roja/verde. Los gates son compilación y que los tests existentes sigan pasando.
+
+## Pipeline de debugging
+
+Para investigar errores en el entorno desplegado:
+
+```bash
+# Via skill (recomendado)
+/bug "las funciones de liquidacion estan fallando con NullReferenceException"
+
+# Via agente directamente
+claude --agent bug-investigator "sintoma aqui"
+```
+
+Stages: **Recolección (App Insights)** → **Correlación (código + fuentes)** → **Diagnóstico (hipótesis)** → **Acción (issues)**
+
+El agente solo puede escribir en `docs/bitacora/field-notes/` — no modifica código. Requiere `az login` activo y el script `scripts/appinsights-query.sh`.
 
 ## Definición de agentes y skills
 
