@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-# --- Colores ----------------------------------------------------------------
+# --- Colores -----------------------------------------------------------------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -86,10 +86,18 @@ shift
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --hours)
+            if [[ -z "${2:-}" ]]; then
+                error "--hours requiere un valor numerico"
+                exit 1
+            fi
             HOURS="$2"
             shift 2
             ;;
         --filter)
+            if [[ -z "${2:-}" ]]; then
+                error "--filter requiere un valor de texto"
+                exit 1
+            fi
             FILTER="$2"
             shift 2
             ;;
@@ -123,6 +131,12 @@ run_query() {
 }
 
 # --- Queries KQL predefinidas ------------------------------------------------
+
+# Sanitizar filtro para uso seguro en KQL (escapar comillas simples)
+sanitize_kql_filter() {
+    echo "${1//\'/\\\'}"
+}
+
 case "$COMMAND" in
     exceptions)
         run_query \
@@ -144,8 +158,9 @@ case "$COMMAND" in
 
     traces)
         if [ -n "$FILTER" ]; then
+            SAFE_FILTER=$(sanitize_kql_filter "$FILTER")
             run_query \
-                "traces | where timestamp > ago(${HOURS}h) | where message has '${FILTER}' | project timestamp, message, severityLevel, operation_Name | order by timestamp desc | take ${MAX_ROWS}" \
+                "traces | where timestamp > ago(${HOURS}h) | where message has '${SAFE_FILTER}' | project timestamp, message, severityLevel, operation_Name | order by timestamp desc | take ${MAX_ROWS}" \
                 "Traces filtradas por '${FILTER}'"
         else
             run_query \
@@ -158,25 +173,19 @@ case "$COMMAND" in
         log "Health summary (ultimas ${HOURS}h)"
 
         echo -e "\n${CYAN}${BOLD}--- Excepciones ---${NC}"
-        az monitor app-insights query \
-            --app "$APPINSIGHTS_APP" \
-            --resource-group "$APPINSIGHTS_RG" \
-            --analytics-query "exceptions | where timestamp > ago(${HOURS}h) | summarize totalExceptions=count(), distinctTypes=dcount(type) | project totalExceptions, distinctTypes" \
-            --output table 2>&1 || true
+        run_query \
+            "exceptions | where timestamp > ago(${HOURS}h) | summarize totalExceptions=count(), distinctTypes=dcount(type) | project totalExceptions, distinctTypes" \
+            "Resumen de excepciones"
 
         echo -e "\n${CYAN}${BOLD}--- Requests fallidas ---${NC}"
-        az monitor app-insights query \
-            --app "$APPINSIGHTS_APP" \
-            --resource-group "$APPINSIGHTS_RG" \
-            --analytics-query "requests | where timestamp > ago(${HOURS}h) | summarize totalRequests=count(), failedRequests=countif(success == false), availabilityPct=round(100.0 * countif(success == true) / count(), 2)" \
-            --output table 2>&1 || true
+        run_query \
+            "requests | where timestamp > ago(${HOURS}h) | summarize totalRequests=count(), failedRequests=countif(success == false), availabilityPct=round(100.0 * countif(success == true) / count(), 2)" \
+            "Resumen de requests"
 
         echo -e "\n${CYAN}${BOLD}--- Top 5 errores ---${NC}"
-        az monitor app-insights query \
-            --app "$APPINSIGHTS_APP" \
-            --resource-group "$APPINSIGHTS_RG" \
-            --analytics-query "exceptions | where timestamp > ago(${HOURS}h) | summarize count() by type | order by count_ desc | take 5" \
-            --output table 2>&1 || true
+        run_query \
+            "exceptions | where timestamp > ago(${HOURS}h) | summarize count() by type | order by count_ desc | take 5" \
+            "Top 5 tipos de error"
 
         success "Health summary completado"
         ;;
