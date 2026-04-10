@@ -9,6 +9,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoP
 public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string SuscripcionConsumidor = "control-horas-escucha-programacion";
     private const string SchemaControlHoras = "control_horas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -89,5 +90,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var detalleTurnoPersistido = eventoPersistido
             .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
         detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
+
+        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor
+        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicEntrada, SuscripcionConsumidor);
+
+        deadLetters.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' - si los hay, el consumidor fallo al procesar el evento",
+            SuscripcionConsumidor);
     }
 }

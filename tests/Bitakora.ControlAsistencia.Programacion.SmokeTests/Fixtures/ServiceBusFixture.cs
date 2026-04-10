@@ -76,6 +76,18 @@ public class ServiceBusFixture : IAsyncLifetime
         return default;
     }
 
+    public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
+        string topicName,
+        string subscriptionName,
+        int maxMessages = 10)
+    {
+        var options = new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter };
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName, options);
+
+        var messages = await receiver.PeekMessagesAsync(maxMessages);
+        return messages;
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_client is not null)

@@ -14,6 +14,7 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
 
     private const string TopicSalida = "programacion-turno-diario-solicitada";
     private const string Suscripcion = "smoke-tests";
+    private const string SuscripcionConsumidor = "control-horas-escucha-programacion";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     [Fact]
@@ -87,5 +88,16 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
         eventoRecibido.DetalleTurno.Should().NotBeNull();
         eventoRecibido.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
         eventoRecibido.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
+
+        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor real.
+        // Esperar a que el consumidor haya tenido tiempo de procesar el mensaje.
+        await Task.Delay(TimeSpan.FromSeconds(5), ct);
+
+        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicSalida, SuscripcionConsumidor);
+
+        deadLetters.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' - si los hay, el consumidor fallo al procesar el evento",
+            SuscripcionConsumidor);
     }
 }
