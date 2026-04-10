@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,7 @@ public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndp
     {
         try
         {
-            var evento = message.Body.ToObjectFromJson<ProgramacionTurnoDiarioSolicitada>()!;
+            var evento = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(message.Body);
             await commandRouter.InvokeAsync(evento, ct);
             await messageActions.CompleteMessageAsync(message, ct);
         }
