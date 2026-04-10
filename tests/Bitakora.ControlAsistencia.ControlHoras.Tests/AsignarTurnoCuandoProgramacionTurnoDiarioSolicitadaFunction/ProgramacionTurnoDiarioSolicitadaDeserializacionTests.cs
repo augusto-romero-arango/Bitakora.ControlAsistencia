@@ -1,5 +1,6 @@
 // HU-29: Corregir deserializacion de mensajes Service Bus en endpoints consumidores
 
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
@@ -59,12 +60,24 @@ public class ProgramacionTurnoDiarioSolicitadaDeserializacionTests
         evento.Empleado.Should().NotBeNull();
         evento.Empleado.EmpleadoId.Should().Be("EMP-001");
         evento.Empleado.TipoIdentificacion.Should().Be("CC");
+        evento.Empleado.NumeroIdentificacion.Should().Be("1234567890");
         evento.Empleado.Nombres.Should().Be("Luis Augusto");
+        evento.Empleado.Apellidos.Should().Be("Barreto");
         evento.Fecha.Should().Be(new DateOnly(2026, 3, 15));
         evento.DetalleTurno.Should().NotBeNull();
         evento.DetalleTurno.Nombre.Should().Be("Turno Manana");
         evento.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         evento.DetalleTurno.FranjasOrdinarias[0].HoraInicio.Should().Be(new TimeOnly(8, 0));
         evento.DetalleTurno.FranjasOrdinarias[0].HoraFin.Should().Be(new TimeOnly(16, 0));
+    }
+
+    [Fact]
+    public void Deserializar_LanzaExcepcion_CuandoJsonEsInvalido()
+    {
+        var body = BinaryData.FromString("esto no es json");
+
+        var act = () => ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(body);
+
+        act.Should().ThrowExactly<JsonException>();
     }
 }
