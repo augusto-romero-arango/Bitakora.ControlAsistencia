@@ -52,7 +52,7 @@ El proyecto mantiene una bitácora en `docs/bitacora/` con una entrada por día 
 
 - **Titles**: `[verbo infinitivo] [qué cosa]` — sin prefijos (EMP001, feat:, HU-)
 - **Labels obligatorios**: `tipo:X` + `dom:X` + `estado:listo` (el planner los asigna)
-- **Task Graph**: issues `epic` con task lists → sub-issues con sección "Dependencias"
+- **Dependencias**: cada issue declara sus dependencias en la sección `## Dependencias` — no se usan issues contenedor/epic
 - **Bloqueados**: label `bloqueado` en issues que dependen de otro no cerrado
 - **Nuevos dominios**: al crear con `domain-scaffolder`, agregar `dom:X` con `gh label create`
 

@@ -34,7 +34,6 @@ gh label create "estado:listo"    --color "B60205" --description "Refinado y lis
 echo ""
 echo "Creando labels especiales..."
 gh label create "bloqueado" --color "D93F0B" --description "Depende de otro issue aun no cerrado"
-gh label create "epic"      --color "5319E7" --description "Issue padre que agrupa sub-issues"
 
 echo ""
 echo "Listo. Labels actuales:"

@@ -114,18 +114,12 @@ Tu rol:
 - Identifica riesgos técnicos en cada parte
 - Cada sub-issue debe llevar su propia sección "Modelo de eventos"
 
-Al crear los issues del desglose, sigue este orden:
-1. Crea primero los issues hijos como **`estado:borrador`** (no como `estado:listo`) con cuerpo enriquecido que incluya: Contexto, Modelo de eventos (sketch del desglose), Dependencias entre sub-issues. No es necesario que tengan CAs detallados ni notas tecnicas completas — cada sub-issue se refinara individualmente antes de ir a desarrollo.
-2. Anota los números asignados
-3. Crea el issue `epic` padre como `estado:listo` con la task list completa referenciando los números reales:
-   ```
-   ## Task Graph
-   - [ ] #N1 Titulo del primer sub-issue
-   - [ ] #N2 Titulo del segundo sub-issue (depende de #N1)
-   - [ ] #N3 Titulo del tercer sub-issue (depende de #N1)
-   ```
-4. Agrega `--label "epic"` al issue padre
-5. Agrega `--label "bloqueado"` a los issues hijos que dependen de otro no cerrado
+Al crear los issues del desglose:
+1. Crea cada issue como **`estado:borrador`** con cuerpo enriquecido que incluya: Contexto, Modelo de eventos (sketch del desglose), Dependencias entre sub-issues. No es necesario que tengan CAs detallados ni notas tecnicas completas — cada issue se refinara individualmente antes de ir a desarrollo.
+2. Usa la sección `## Dependencias` de cada issue para declarar las relaciones entre ellos (ej: "Depende de #N1"). Esto es suficiente para establecer el orden de implementación — no se necesita un issue padre contenedor.
+3. Agrega `--label "bloqueado"` a los issues que dependen de otro no cerrado
+
+**No crear issues tipo epic ni issues padre contenedor.** La relación entre issues se establece exclusivamente a través de la sección `## Dependencias`. Los issues contenedores agregan mantenimiento manual sin valor.
 
 ### backlog
 El usuario quiere ver qué hay pendiente y reorganizar prioridades.
@@ -142,7 +136,6 @@ Adicionalmente, señala estas situaciones que requieren acción:
 - Issues con label `bloqueado` cuya dependencia referenciada ya está cerrada → sugiere quitar el label con `gh issue edit <num> --remove-label "bloqueado"`
 - Issues con label `estado:borrador` creados hace más de 7 días → sugiere refinar o cerrar
 - Issues sin labels de tipo o dominio → sugiere completarlos con `gh issue edit <num> --add-label "tipo:X"`
-- Issues `epic` con task lists → muestra su progreso (N/M completadas)
 - Issues que el usuario podría querer descartar → sugiere pasar al modo **limpiar**
 
 ### analizar
@@ -297,13 +290,6 @@ Tu rol:
    # Cerrar como completado
    gh issue close <num> --reason "completed" --comment "Completado en PR #XX"
    ```
-
-5. Si el issue descartado era hijo de un `epic`, actualiza la task list del padre:
-   - Lee el body actual: `gh issue view <epic-num> --json body -q .body`
-   - Marca el item como tachado o eliminado en la task list
-   - Actualiza con: `gh issue edit <epic-num> --body "$(cat <<'EOF' ... EOF)"`
-
-6. Si descartar un hijo deja al `epic` sin sentido, sugiere cerrar el epic también.
 
 **Nunca elimines issues** (`gh issue delete`). Cerrar con "not planned" preserva el historial y es reversible. La eliminación solo aplica para spam o issues creados por error accidental.
 
