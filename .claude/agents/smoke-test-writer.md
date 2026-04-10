@@ -203,6 +203,7 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
 
     private const string TopicSalida = "programacion-turno-diario-solicitada";
     private const string Suscripcion = "smoke-tests";
+    private const string SuscripcionConsumidor = "{consumidor}-escucha-{productor}";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     [Fact]
@@ -231,6 +232,17 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
         var empleadoEsperado = new InformacionEmpleado(
             empleadoId, "CC", "555666777", "[TEST] Smoke", "[TEST] SB");
         evento!.Empleado.Should().Be(empleadoEsperado);
+
+        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor real.
+        // Esperar a que el consumidor haya tenido tiempo de procesar el mensaje.
+        await Task.Delay(TimeSpan.FromSeconds(5), ct);
+
+        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicSalida, SuscripcionConsumidor);
+
+        deadLetters.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' - si los hay, el consumidor fallo al procesar el evento",
+            SuscripcionConsumidor);
     }
 }
 ```
@@ -241,6 +253,7 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
 - El predicate `match` filtra por un campo identificador unico (ej: `SolicitudId`), **nunca por posicion**
 - Timeout estandar: `TimeSpan.FromSeconds(30)`
 - El tipo `T` del mensaje es el evento publico de `Contracts` (igualdad natural de records)
+- **Verificacion de dead letter obligatoria**: despues de consumir el evento, esperar ~5s y verificar que la suscripcion del consumidor real no tenga dead letters con `PeekDeadLetterMessagesAsync`
 
 ### Patron 2: Dominio consumidor (Service Bus -> Postgres)
 
@@ -252,6 +265,7 @@ El dominio recibe un evento de Service Bus y persiste el resultado en PostgreSQL
 public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string SuscripcionConsumidor = "{consumidor}-escucha-{productor}";
     private const string SchemaControlHoras = "control_horas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -300,6 +314,14 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var empleadoPersistido = eventoPersistido
             .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
         empleadoPersistido.Should().Be(empleadoEsperado);
+
+        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor
+        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicEntrada, SuscripcionConsumidor);
+
+        deadLetters.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' - si los hay, el consumidor fallo al procesar el evento",
+            SuscripcionConsumidor);
     }
 }
 ```
@@ -310,13 +332,14 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 - El evento se construye como objeto anonimo (no usa clases de produccion) con PascalCase (Service Bus no aplica JsonNamingPolicy)
 - `ExisteEventoAsync` y `ObtenerEventoAsync` verifican persistencia filtrando por campo unico
 - **Siempre** filtrar por campo identificador (ej: `SolicitudId`), nunca por posicion en el stream
+- **Verificacion de dead letter obligatoria**: despues de verificar persistencia, comprobar que no haya dead letters en la suscripcion del consumidor con `PeekDeadLetterMessagesAsync`
 
 ### Fixtures: cuando usar cada uno
 
 | Fixture | Cuando usarlo | Metodos principales |
 |---|---|---|
 | `ApiFixture` | Siempre que el test haga llamadas HTTP | `.Client` (HttpClient preconfigurado) |
-| `ServiceBusFixture` | Publicar eventos o consumir de suscripciones | `.PublishAsync(topic, mensaje, correlationId)`, `.WaitForMessageAsync<T>(topic, suscripcion, match, timeout)` |
+| `ServiceBusFixture` | Publicar eventos, consumir de suscripciones o verificar dead letters | `.PublishAsync(topic, mensaje, correlationId)`, `.WaitForMessageAsync<T>(topic, suscripcion, match, timeout)`, `.PeekDeadLetterMessagesAsync(topic, suscripcion, maxMessages)` |
 | `PostgresFixture` | Verificar eventos persistidos en Marten/Postgres | `.ExisteEventoAsync(schema, streamId, tipo, timeout, campoJson, valorJson)`, `.ObtenerEventoAsync<T>(schema, streamId, tipo, campo, valor, timeout)` |
 | `Polling` | Usado internamente por PostgresFixture; no lo uses directamente en tests | `.WaitUntilAsync<T>(probe, timeout)`, `.WaitUntilTrueAsync(condition, timeout)` |
 
@@ -324,7 +347,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
 - **Topic**: nombre del evento en kebab-case (`programacion-turno-diario-solicitada`, `turno-diario-asignado`)
 - **Suscripcion de smoke tests**: siempre `smoke-tests` (nombre generico, una por topic)
-- **Suscripcion de produccion**: `{consumidor}-escucha-{productor}` (no usarla en smoke tests)
+- **Suscripcion de produccion**: `{consumidor}-escucha-{productor}` (usarla solo para verificar dead letters, no para consumir mensajes)
 - **Timeout estandar**: `TimeSpan.FromSeconds(30)` para esperar mensajes o persistencia
 
 ### Aserciones con Contracts
