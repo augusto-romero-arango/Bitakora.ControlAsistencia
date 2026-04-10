@@ -381,6 +381,8 @@ $ISSUE_CONTEXT
 
 Tu tarea: implementa lo descrito en el issue. Esto es una tarea de TOOLING (scripts, fixtures de test, configuracion, agentes, skills, etc.), NO logica de dominio.
 
+IMPORTANTE: Tienes permisos completos para leer y escribir cualquier archivo del proyecto. Esto incluye .claude/agents/, .claude/skills/, scripts/, tests/, src/, .github/, infra/ y cualquier otra ruta. No pidas permisos ni confirmacion -- escribe directamente.
+
 Instrucciones:
 1. Lee los archivos existentes relevantes antes de escribir codigo nuevo.
 2. Reutiliza patrones y convenciones del proyecto (mira archivos similares).
@@ -390,10 +392,19 @@ Instrucciones:
 
     run_agent "1" "writer" "$STAGE1_PROMPT"
 
-    # Validar que genero cambios
-    if git -C "$WORKTREE_PATH" diff --quiet "$SNAPSHOT_COMMIT" HEAD 2>/dev/null \
-       && [ -z "$(git -C "$WORKTREE_PATH" status --porcelain)" ]; then
-        abort "El writer no genero ningun cambio."
+    # Validar que genero cambios reales (excluir .claude/settings.json y .claude/pipeline/
+    # que el pipeline modifica antes de invocar al agente)
+    git -C "$WORKTREE_PATH" checkout -- .claude/settings.json 2>/dev/null || true
+    HAS_COMMITS=false
+    HAS_UNSTAGED=false
+    if ! git -C "$WORKTREE_PATH" diff --quiet "$SNAPSHOT_COMMIT" HEAD 2>/dev/null; then
+        HAS_COMMITS=true
+    fi
+    if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/ 2>/dev/null)" ]; then
+        HAS_UNSTAGED=true
+    fi
+    if [ "$HAS_COMMITS" = false ] && [ "$HAS_UNSTAGED" = false ]; then
+        abort "El writer no genero ningun cambio. Revisa el log: $LOG_DIR_ABS/tooling-stage-1-writer-${TIMESTAMP}.log"
     fi
 
     # Gate 1: debe compilar (si hay codigo C#)
@@ -432,6 +443,8 @@ Diff completo de los cambios del writer:
 $FULL_DIFF
 
 Tu tarea: revisa la calidad del codigo producido por el writer.
+
+IMPORTANTE: Tienes permisos completos para leer y escribir cualquier archivo del proyecto. Esto incluye .claude/agents/, .claude/skills/, scripts/, tests/, src/, .github/, infra/ y cualquier otra ruta. No pidas permisos ni confirmacion -- corrige directamente.
 
 Instrucciones:
 1. Verifica que los cambios cumplen con lo pedido en el issue.
