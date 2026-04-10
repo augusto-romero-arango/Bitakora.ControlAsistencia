@@ -29,6 +29,12 @@ public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndp
             await commandRouter.InvokeAsync(evento, ct);
             await messageActions.CompleteMessageAsync(message, ct);
         }
+        catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
+        {
+            logger.LogWarning(ex,
+                "Lock perdido para mensaje {MessageId} - Service Bus lo re-entregara automaticamente",
+                message.MessageId);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error procesando mensaje {MessageId}", message.MessageId);
