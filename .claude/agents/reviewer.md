@@ -159,6 +159,16 @@ Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions
 - Subscriptions en kebab-case, patron `{consumidor}-escucha-{productor}` (`depuracion-escucha-marcaciones`, `calculo-horas-escucha-programacion`)
 - Si faltan, agregarlos al bloque `topics_config` del modulo `service_bus`
 
+#### Smoke tests (post-#23)
+
+Cuando el diff incluye smoke tests o cuando el dominio publica/consume eventos, verificar:
+
+- **Suscripcion `smoke-tests` en infra**: para cada topic de un dominio publicador, debe existir la suscripcion `smoke-tests` en `infra/environments/dev/main.tf`. Si falta, agregarla al `topics_config`
+- **`appsettings.json` sin secrets reales**: el archivo `appsettings.json` del proyecto de smoke tests debe tener connection strings vacios (`""`), nunca secrets reales. Los secrets se pasan via `appsettings.local.json` (local) o variables de entorno (CI)
+- **`deploy-{dominio}.yml` pasa secrets**: verificar que el workflow de deploy pasa los secrets correspondientes (`ServiceBus__ConnectionString`, `Postgres__ConnectionString`) al job de smoke tests
+- **`Assert.SkipWhen` en tests con fixtures opcionales**: todo test que dependa de `ServiceBusFixture` o `PostgresFixture` debe iniciar con `Assert.SkipWhen(!fixture.IsConfigured, ...)`. Nunca debe fallar por connection string ausente. **Es `Assert.SkipWhen()` (xUnit v3), no `Skip.When()` (no compila)**
+- **Aserciones filtran por campo identificador unico**: los smoke tests de Service Bus deben filtrar eventos por un campo unico (ej: `SolicitudId`), nunca por posicion (`eventos[^1]`, `First()` sin filtro). Esto evita colisiones entre ejecuciones concurrentes
+
 #### Organizacion vertical
 
 **Feature folders de produccion:**
