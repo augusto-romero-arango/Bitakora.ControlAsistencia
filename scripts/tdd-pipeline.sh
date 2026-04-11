@@ -7,8 +7,9 @@
 #   ./scripts/tdd-pipeline.sh --file "docs/Historias de usuario/HU-25.md"
 #   ./scripts/tdd-pipeline.sh 42 --from-stage 2   # Retomar desde Stage 2
 #   ./scripts/tdd-pipeline.sh 42 --from-stage 3   # Retomar desde Stage 3
+#   ./scripts/tdd-pipeline.sh 42 --from-stage 4   # Retomar desde Stage 4 (coverage gate)
 #
-# Ciclo completo: Issue → Worktree → Test Writer → Implementer → Reviewer → Sync main → PR → Cleanup
+# Ciclo completo: Issue → Worktree → Test Writer → Implementer → Reviewer → Sync main → Coverage Gate → PR → Cleanup
 
 set -euo pipefail
 
@@ -32,6 +33,10 @@ AGENT_TW_DUR="" AGENT_TW_RES="pending"
 AGENT_IM_DUR="" AGENT_IM_RES="pending"
 AGENT_ST_DUR="" AGENT_ST_RES="pending"   # smoke-test-writer
 AGENT_RV_DUR="" AGENT_RV_RES="pending"
+AGENT_CG_DUR="" AGENT_CG_RES="pending"   # coverage-gate
+COV_PATCH_APPLIED=false
+COV_GAPS_REMAINING=0
+COV_TABLE=""
 PIPELINE_TESTS=""
 PIPELINE_PR=""
 HAS_BLOCKAGE=false
@@ -69,11 +74,12 @@ abort() {
 update_status() {
     local stage="$1" state="$2"
     CURRENT_STAGE="$stage"
-    local tw_dur="null" im_dur="null" st_dur="null" rv_dur="null"
+    local tw_dur="null" im_dur="null" st_dur="null" rv_dur="null" cg_dur="null"
     [ -n "$AGENT_TW_DUR" ] && tw_dur="$AGENT_TW_DUR"
     [ -n "$AGENT_IM_DUR" ] && im_dur="$AGENT_IM_DUR"
     [ -n "$AGENT_ST_DUR" ] && st_dur="$AGENT_ST_DUR"
     [ -n "$AGENT_RV_DUR" ] && rv_dur="$AGENT_RV_DUR"
+    [ -n "$AGENT_CG_DUR" ] && cg_dur="$AGENT_CG_DUR"
     local tests_val="null" pr_val="null" error_val="null"
     [ -n "$PIPELINE_TESTS" ] && tests_val="$PIPELINE_TESTS"
     [ -n "$PIPELINE_PR" ]    && pr_val="\"$PIPELINE_PR\""
@@ -92,7 +98,8 @@ update_status() {
     "test-writer":       {"duration": $tw_dur, "result": "$AGENT_TW_RES"},
     "implementer":       {"duration": $im_dur, "result": "$AGENT_IM_RES"},
     "smoke-test-writer": {"duration": $st_dur, "result": "$AGENT_ST_RES"},
-    "reviewer":          {"duration": $rv_dur, "result": "$AGENT_RV_RES"}
+    "reviewer":          {"duration": $rv_dur, "result": "$AGENT_RV_RES"},
+    "coverage-gate":     {"duration": $cg_dur, "result": "$AGENT_CG_RES"}
   },
   "tests": $tests_val,
   "pr": $pr_val,
@@ -167,8 +174,8 @@ if [ ${#POSITIONAL_ARGS[@]} -gt 0 ] && [ -z "$ISSUE_NUM" ]; then
 fi
 
 # [Cambio 3] Validar --from-stage
-if ! [[ "$FROM_STAGE" =~ ^[1-3]$ ]]; then
-    abort "--from-stage debe ser 1, 2, o 3 (recibido: $FROM_STAGE)"
+if ! [[ "$FROM_STAGE" =~ ^[1-4]$ ]]; then
+    abort "--from-stage debe ser 1, 2, 3 o 4 (recibido: $FROM_STAGE)"
 fi
 
 # ─── Verificar dependencias ───────────────────────────────────────────────────
@@ -292,44 +299,42 @@ else
         header "Stage 0: Scaffold del dominio '$SCAFFOLD_DOMAIN'"
         update_status "scaffold" "running"
 
-        local log_scaffold="$LOG_DIR_ABS/stage-0-scaffold-${TIMESTAMP}.log"
-        local scaffold_start
-        scaffold_start=$(date +%s)
+        LOG_SCAFFOLD="$LOG_DIR_ABS/stage-0-scaffold-${TIMESTAMP}.log"
+        SCAFFOLD_START_TS=$(date +%s)
         echo "[$(date +%H:%M:%S)] === STAGE 0: domain-scaffolder ===" >> "$EVENTS_LOG_ABS"
 
         SCAFFOLD_PROMPT="Crea el scaffold para el dominio '$SCAFFOLD_DOMAIN'. El usuario ya confirmo la creacion — omite la confirmacion del Paso 0 y procede directamente a crear el proyecto."
 
-        local SCAFFOLD_TIMEOUT=1800
+        SCAFFOLD_TIMEOUT=1800
         (cd "$WORKTREE_PATH" && claude -p "$SCAFFOLD_PROMPT" \
             --agent domain-scaffolder \
             --permission-mode bypassPermissions \
             --output-format text \
-            >"$log_scaffold" 2>&1) &
-        local SCAFFOLD_PID=$!
+            >"$LOG_SCAFFOLD" 2>&1) &
+        SCAFFOLD_PID=$!
         (sleep $SCAFFOLD_TIMEOUT && kill -9 -$SCAFFOLD_PID 2>/dev/null && \
             echo "[$(date +%H:%M:%S)] TIMEOUT: domain-scaffolder supero ${SCAFFOLD_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
-        local SCAFFOLD_WATCHDOG=$!
+        SCAFFOLD_WATCHDOG=$!
 
-        local SCAFFOLD_EXIT=0
+        SCAFFOLD_EXIT=0
         wait $SCAFFOLD_PID || SCAFFOLD_EXIT=$?
         kill $SCAFFOLD_WATCHDOG 2>/dev/null || true
         wait $SCAFFOLD_WATCHDOG 2>/dev/null || true
-        local scaffold_elapsed=$(( $(date +%s) - scaffold_start ))
+        SCAFFOLD_ELAPSED=$(( $(date +%s) - SCAFFOLD_START_TS ))
 
         if [ "$SCAFFOLD_EXIT" -ne 0 ]; then
-            echo "[$(date +%H:%M:%S)] FALLO domain-scaffolder (${scaffold_elapsed}s, exit $SCAFFOLD_EXIT)" >> "$EVENTS_LOG_ABS"
-            abort "El scaffold del dominio '$SCAFFOLD_DOMAIN' fallo despues de ${scaffold_elapsed}s. Revisa: $log_scaffold"
+            echo "[$(date +%H:%M:%S)] FALLO domain-scaffolder (${SCAFFOLD_ELAPSED}s, exit $SCAFFOLD_EXIT)" >> "$EVENTS_LOG_ABS"
+            abort "El scaffold del dominio '$SCAFFOLD_DOMAIN' fallo despues de ${SCAFFOLD_ELAPSED}s. Revisa: $LOG_SCAFFOLD"
         fi
 
         # Verificar que el proyecto fue creado
-        local PASCAL_CASE
         PASCAL_CASE=$(echo "$SCAFFOLD_DOMAIN" | awk -F'-' '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1' OFS='')
         if [ ! -d "$WORKTREE_PATH/src/Bitakora.ControlAsistencia.$PASCAL_CASE" ]; then
-            abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE — revisa: $log_scaffold"
+            abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE — revisa: $LOG_SCAFFOLD"
         fi
 
-        echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${scaffold_elapsed}s)" >> "$EVENTS_LOG_ABS"
-        success "Scaffold del dominio '$SCAFFOLD_DOMAIN' completado en ${scaffold_elapsed}s"
+        echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${SCAFFOLD_ELAPSED}s)" >> "$EVENTS_LOG_ABS"
+        success "Scaffold del dominio '$SCAFFOLD_DOMAIN' completado en ${SCAFFOLD_ELAPSED}s"
         update_status "scaffold" "completed"
 
         # Actualizar snapshot: los diffs de Stage 1-3 solo muestran la implementacion, no el scaffold
@@ -866,6 +871,572 @@ NO elimines código de ninguna de las dos ramas — integra ambos cambios."
     success "Tests pasan después del merge con main"
 fi
 
+# ─── STAGE 4: Coverage Gate ─────────────────────────────────────────────────
+# Mide cobertura de lineas sobre archivos de logica del PR.
+# Si hay brechas, genera patch spec y relanza test-writer (+implementer si necesario).
+# Maximo 1 iteracion de remediacion.
+if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 4 ]; then
+    header "Stage 4: Coverage Gate"
+
+    CG_START=$(date +%s)
+    update_status "4-coverage-gate" "running"
+    echo "[$(date +%H:%M:%S)] === STAGE 4: coverage-gate ===" >> "$EVENTS_LOG_ABS"
+    AGENT_CG_RES="running"
+
+    # --- 4a: Verificar que dotnet-coverage esta disponible ---
+    if ! command -v dotnet-coverage &>/dev/null; then
+        warn "dotnet-coverage no encontrado — saltando coverage gate"
+        echo "[$(date +%H:%M:%S)] SKIP coverage-gate: dotnet-coverage no disponible" >> "$EVENTS_LOG_ABS"
+        AGENT_CG_RES="skipped"
+        AGENT_CG_DUR=$(( $(date +%s) - CG_START ))
+        update_status "4-coverage-gate" "skipped"
+    else
+
+    # --- 4b: Identificar archivos .cs del PR (src/ solamente, excluir tests/obj/bin) ---
+    PR_SRC_FILES=$(git -C "$WORKTREE_PATH" diff --name-only "$SNAPSHOT_COMMIT"..HEAD -- 'src/*.cs' \
+        | grep -v '/obj/' | grep -v '/bin/' || true)
+
+    if [ -z "$PR_SRC_FILES" ]; then
+        log "No hay archivos .cs en src/ modificados — saltando coverage gate"
+        AGENT_CG_RES="skipped"
+        AGENT_CG_DUR=$(( $(date +%s) - CG_START ))
+        update_status "4-coverage-gate" "skipped"
+    else
+
+    log "Archivos .cs del PR:"
+    echo "$PR_SRC_FILES" | while read -r f; do log "  $f"; done
+
+    # --- 4c: Clasificar archivos ---
+    # Resultado: LOGIC_FILES (requiere 95%) y EXCLUDED_FILES
+    LOGIC_FILES=""
+    EXCLUDED_FILES=""
+    NOT_EVALUATED_FILES=""
+
+    classify_file() {
+        local filepath="$1"
+        local basename
+        basename=$(basename "$filepath")
+        local dirname
+        dirname=$(dirname "$filepath")
+
+        # Excluidos por nombre
+        case "$basename" in
+            HealthCheck.cs|Program.cs|*Mensajes.cs|*AssemblyMarker.cs|ConfiguracionSerializacion*.cs|*.resx)
+                echo "excluded"; return ;;
+        esac
+
+        # Excluidos por directorio de infraestructura (wiring puro)
+        if echo "$dirname" | grep -q '/Infraestructura/'; then
+            case "$basename" in
+                RequestValidator.cs|ServiceBusDeserializador.cs)
+                    echo "excluded"; return ;;
+            esac
+        fi
+
+        # Logica: patrones que requieren 95%
+        case "$basename" in
+            *CommandHandler.cs|*AggregateRoot.cs|*Validator.cs|FunctionEndpoint.cs)
+                echo "logic"; return ;;
+        esac
+
+        # Logica: Eventos con factory Crear()
+        if echo "$dirname" | grep -q '/Eventos/\|/Entities/'; then
+            if [ -f "$WORKTREE_PATH/$filepath" ] && grep -q 'static.*Crear(' "$WORKTREE_PATH/$filepath" 2>/dev/null; then
+                echo "logic"; return
+            fi
+        fi
+
+        # Logica: ValueObjects con factory Crear()
+        if echo "$dirname" | grep -q '/ValueObjects/'; then
+            if [ -f "$WORKTREE_PATH/$filepath" ] && grep -q 'static.*Crear(' "$WORKTREE_PATH/$filepath" 2>/dev/null; then
+                echo "logic"; return
+            fi
+        fi
+
+        # Excluir: records DTO puros (solo 'public record X(...)' sin metodos)
+        if [ -f "$WORKTREE_PATH/$filepath" ]; then
+            local content
+            content=$(grep -v '^\s*//' "$WORKTREE_PATH/$filepath" | grep -v '^\s*$' | grep -v '^using ' | grep -v '^namespace ' || true)
+            local line_count
+            line_count=$(echo "$content" | wc -l | tr -d ' ')
+            if [ "$line_count" -le 3 ] && echo "$content" | grep -qE '^\s*public\s+record\s+\w+\(' 2>/dev/null; then
+                echo "excluded"; return
+            fi
+        fi
+
+        echo "not_evaluated"
+    }
+
+    while IFS= read -r file; do
+        classification=$(classify_file "$file")
+        case "$classification" in
+            logic) LOGIC_FILES="${LOGIC_FILES:+$LOGIC_FILES
+}$file" ;;
+            excluded) EXCLUDED_FILES="${EXCLUDED_FILES:+$EXCLUDED_FILES
+}$file" ;;
+            not_evaluated) NOT_EVALUATED_FILES="${NOT_EVALUATED_FILES:+$NOT_EVALUATED_FILES
+}$file" ;;
+        esac
+    done <<< "$PR_SRC_FILES"
+
+    if [ -n "$LOGIC_FILES" ]; then
+        log "Archivos de logica (requieren 95%):"
+        echo "$LOGIC_FILES" | while read -r f; do log "  * $f"; done
+    fi
+    if [ -n "$EXCLUDED_FILES" ]; then
+        log "Archivos excluidos:"
+        echo "$EXCLUDED_FILES" | while read -r f; do log "  - $f"; done
+    fi
+    if [ -n "$NOT_EVALUATED_FILES" ]; then
+        log "Archivos no evaluados:"
+        echo "$NOT_EVALUATED_FILES" | while read -r f; do log "  ? $f"; done
+    fi
+
+    if [ -z "$LOGIC_FILES" ]; then
+        log "No hay archivos de logica para evaluar — coverage gate pasa trivialmente"
+        # Construir tabla solo con excluidos/no-evaluados
+        COV_TABLE="| Archivo | Cobertura | Umbral | Estado |
+|---|---|---|---|"
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            COV_TABLE="$COV_TABLE
+| $(basename "$f") | - | excluido | - |"
+        done <<< "$EXCLUDED_FILES"
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            COV_TABLE="$COV_TABLE
+| $(basename "$f") | - | no evaluado | - |"
+        done <<< "$NOT_EVALUATED_FILES"
+
+        AGENT_CG_RES="passed"
+        AGENT_CG_DUR=$(( $(date +%s) - CG_START ))
+        update_status "4-coverage-gate" "passed"
+        success "Stage 4 completado — sin archivos de logica que evaluar"
+    else
+
+    # --- 4d: Instrumentar y recoger cobertura ---
+    measure_coverage() {
+        # Retorna 0 si exito, 1 si fallo. Deja coverage.cobertura.xml en el worktree.
+        log "Compilando proyecto para instrumentacion..."
+        if ! dotnet build "$WORKTREE_PATH" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
+            warn "Build fallo antes de instrumentacion"
+            return 1
+        fi
+
+        log "Instrumentando DLLs..."
+        local settings_xml="$WORKTREE_PATH/dotnet-coverage.settings.xml"
+        local instrumented=0
+        for dll in "$WORKTREE_PATH"/tests/Bitakora.ControlAsistencia.*.Tests/bin/Debug/net10.0/Bitakora.ControlAsistencia.*.dll; do
+            [[ "$dll" == *Tests* ]] && continue
+            [[ ! -f "$dll" ]] && continue
+            if dotnet-coverage instrument "$dll" --settings "$settings_xml" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
+                instrumented=$((instrumented + 1))
+            else
+                warn "No se pudo instrumentar: $(basename "$dll")"
+            fi
+        done
+
+        if [ "$instrumented" -eq 0 ]; then
+            warn "No se instrumento ninguna DLL"
+            return 1
+        fi
+        log "$instrumented DLL(s) instrumentada(s)"
+
+        log "Recolectando cobertura..."
+        local cov_output="$WORKTREE_PATH/coverage.cobertura.xml"
+        if ! dotnet-coverage collect \
+            --output "$cov_output" \
+            --output-format cobertura \
+            "dotnet test --solution $WORKTREE_PATH/ControlAsistencias.slnx --no-build" \
+            >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
+            warn "dotnet-coverage collect fallo"
+            return 1
+        fi
+
+        if [ ! -f "$cov_output" ]; then
+            warn "No se genero archivo de cobertura"
+            return 1
+        fi
+
+        log "Cobertura recolectada: $cov_output"
+        return 0
+    }
+
+    # Extraer cobertura por archivo del XML cobertura.
+    # Usa python3 para parsear XML de forma confiable.
+    # Recibe: archivo cobertura XML, lista de archivos de logica (newline-separated)
+    # Imprime: archivo|line_rate por cada archivo encontrado
+    extract_file_coverage() {
+        local cov_xml="$1"
+        local logic_files="$2"
+        python3 -c "
+import xml.etree.ElementTree as ET
+import sys, os
+
+tree = ET.parse('$cov_xml')
+root = tree.getroot()
+
+# Archivos de logica a buscar (basenames)
+logic_basenames = {}
+for line in '''$logic_files'''.strip().split('\n'):
+    if line.strip():
+        bn = os.path.basename(line.strip())
+        logic_basenames[bn] = line.strip()
+
+# Buscar en el XML
+for pkg in root.findall('.//package'):
+    for cls in pkg.findall('.//class'):
+        filename = cls.get('filename', '')
+        bn = os.path.basename(filename)
+        if bn in logic_basenames:
+            line_rate = cls.get('line-rate', '0')
+            pct = round(float(line_rate) * 100, 1)
+            print(f'{logic_basenames[bn]}|{pct}')
+            del logic_basenames[bn]
+
+# Archivos de logica no encontrados en el reporte
+for bn, fullpath in logic_basenames.items():
+    print(f'{fullpath}|N/A')
+" 2>>"${LOG_FILE_ABS:-$LOG_FILE}" || true
+    }
+
+    # --- 4d: Medir cobertura ---
+    CG_MEASUREMENT_OK=false
+    CG_TIMEOUT_MEASURE=600  # 10 minutos para medicion
+
+    (
+        measure_coverage
+    ) &
+    CG_MEASURE_PID=$!
+    (sleep $CG_TIMEOUT_MEASURE && kill -9 $CG_MEASURE_PID 2>/dev/null && \
+        echo "[$(date +%H:%M:%S)] TIMEOUT: coverage measurement supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") &
+    CG_MEASURE_WATCHDOG=$!
+
+    CG_MEASURE_EXIT=0
+    wait $CG_MEASURE_PID || CG_MEASURE_EXIT=$?
+    kill $CG_MEASURE_WATCHDOG 2>/dev/null || true
+    wait $CG_MEASURE_WATCHDOG 2>/dev/null || true
+
+    if [ "$CG_MEASURE_EXIT" -eq 0 ] && [ -f "$WORKTREE_PATH/coverage.cobertura.xml" ]; then
+        CG_MEASUREMENT_OK=true
+    fi
+
+    if [ "$CG_MEASUREMENT_OK" = false ]; then
+        warn "La instrumentacion/medicion de cobertura fallo — continuando sin coverage gate"
+        echo "[$(date +%H:%M:%S)] SKIP coverage-gate: instrumentacion fallo" >> "$EVENTS_LOG_ABS"
+        AGENT_CG_RES="skipped"
+        AGENT_CG_DUR=$(( $(date +%s) - CG_START ))
+        update_status "4-coverage-gate" "skipped"
+    else
+
+    # --- 4e: Extraer y evaluar cobertura ---
+    COVERAGE_DATA=$(extract_file_coverage "$WORKTREE_PATH/coverage.cobertura.xml" "$LOGIC_FILES")
+    THRESHOLD=95
+
+    COV_TABLE="| Archivo | Cobertura | Umbral | Estado |
+|---|---|---|---|"
+
+    GAPS=""
+    GAPS_COUNT=0
+
+    while IFS='|' read -r filepath pct; do
+        [ -z "$filepath" ] && continue
+        local_basename=$(basename "$filepath")
+        if [ "$pct" = "N/A" ]; then
+            COV_TABLE="$COV_TABLE
+| $local_basename | N/A | ${THRESHOLD}% | sin datos |"
+        else
+            pct_int=${pct%.*}
+            if [ "$pct_int" -ge "$THRESHOLD" ]; then
+                COV_TABLE="$COV_TABLE
+| $local_basename | ${pct}% | ${THRESHOLD}% | ok |"
+            else
+                COV_TABLE="$COV_TABLE
+| $local_basename | ${pct}% | ${THRESHOLD}% | gap |"
+                GAPS="${GAPS:+$GAPS
+}$filepath|$pct"
+                GAPS_COUNT=$((GAPS_COUNT + 1))
+            fi
+        fi
+    done <<< "$COVERAGE_DATA"
+
+    # Agregar excluidos y no evaluados a la tabla
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        COV_TABLE="$COV_TABLE
+| $(basename "$f") | - | excluido | - |"
+    done <<< "$EXCLUDED_FILES"
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        COV_TABLE="$COV_TABLE
+| $(basename "$f") | - | no evaluado | - |"
+    done <<< "$NOT_EVALUATED_FILES"
+
+    log "Tabla de cobertura:"
+    echo "$COV_TABLE" | while read -r line; do log "  $line"; done
+
+    # --- 4f: Remediacion si hay gaps ---
+    COV_REMEDIATION_SUMMARY=""
+    if [ "$GAPS_COUNT" -gt 0 ]; then
+        log "Detectados $GAPS_COUNT archivo(s) con cobertura insuficiente"
+        echo "[$(date +%H:%M:%S)] GAPS: $GAPS_COUNT archivos bajo ${THRESHOLD}%" >> "$EVENTS_LOG_ABS"
+
+        # Generar coverage-patch-spec.md
+        PATCH_SPEC="$WORKTREE_PATH/.claude/pipeline/coverage-patch-spec.md"
+        mkdir -p "$(dirname "$PATCH_SPEC")"
+
+        {
+            echo "## Coverage Patch Spec"
+            echo ""
+            echo "Archivos con cobertura insuficiente detectados en Stage 4."
+            echo "El test-writer debe agregar tests para cubrir los metodos/lineas listados."
+            echo ""
+            while IFS='|' read -r gpath gpct; do
+                [ -z "$gpath" ] && continue
+                echo "### $gpath (${gpct}% - requiere ${THRESHOLD}%)"
+                echo ""
+                # Extraer lineas no cubiertas del XML
+                python3 -c "
+import xml.etree.ElementTree as ET
+import os
+
+tree = ET.parse('$WORKTREE_PATH/coverage.cobertura.xml')
+root = tree.getroot()
+target_bn = os.path.basename('$gpath')
+
+for pkg in root.findall('.//package'):
+    for cls in pkg.findall('.//class'):
+        filename = cls.get('filename', '')
+        if os.path.basename(filename) == target_bn:
+            uncovered = []
+            for line in cls.findall('.//line'):
+                if line.get('hits', '0') == '0':
+                    uncovered.append(int(line.get('number', 0)))
+            if uncovered:
+                # Agrupar lineas consecutivas en rangos
+                ranges = []
+                start = uncovered[0]
+                end = uncovered[0]
+                for ln in uncovered[1:]:
+                    if ln == end + 1:
+                        end = ln
+                    else:
+                        ranges.append((start, end))
+                        start = ln
+                        end = ln
+                ranges.append((start, end))
+                print('Lineas no cubiertas:')
+                for s, e in ranges:
+                    if s == e:
+                        print(f'- L{s}')
+                    else:
+                        print(f'- L{s}-L{e}')
+            else:
+                print('No se detectaron lineas sin cubrir en el XML (posible error de instrumentacion)')
+            break
+" 2>>"${LOG_FILE_ABS:-$LOG_FILE}" || echo "_(no se pudieron extraer lineas no cubiertas)_"
+                echo ""
+            done <<< "$GAPS"
+        } > "$PATCH_SPEC"
+
+        log "Patch spec generado: $PATCH_SPEC"
+        COV_PATCH_APPLIED=true
+
+        # Relanzar test-writer con prompt de patch
+        PATCH_SPEC_CONTENT=$(cat "$PATCH_SPEC")
+        PATCH_TW_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+
+El pipeline detecto brechas de cobertura en la implementacion existente. Tu tarea es agregar tests adicionales para cubrir los metodos y lineas que no estan siendo ejecutados por los tests existentes.
+
+$PATCH_SPEC_CONTENT
+
+IMPORTANTE:
+- Lee los archivos de produccion listados para entender que hacen los metodos/branches no cubiertos
+- Escribe tests que ejerciten esos paths especificos
+- Dado que la implementacion ya existe, los tests nuevos probablemente PASARAN directamente
+- Sigue las mismas convenciones de testing del proyecto (Given/When/Then, AwesomeAssertions)
+- Haz commit con mensaje: test(hu-${ISSUE_NUM:-?}): tests de cobertura para brechas detectadas"
+
+        CG_REMEDIATION_TIMEOUT=1800  # 30 minutos para remediacion
+
+        log "Relanzando test-writer para remediacion..."
+        LOG_CG_TW="$LOG_DIR_ABS/stage-4-test-writer-patch-${TIMESTAMP}.log"
+        echo "[$(date +%H:%M:%S)] REMEDIATION: relanzando test-writer" >> "$EVENTS_LOG_ABS"
+
+        (cd "$WORKTREE_PATH" && claude -p "$PATCH_TW_PROMPT" \
+            --agent test-writer \
+            --permission-mode bypassPermissions \
+            --output-format text \
+            >"$LOG_CG_TW" 2>&1) &
+        CG_TW_PID=$!
+        (sleep $CG_REMEDIATION_TIMEOUT && kill -9 $CG_TW_PID 2>/dev/null && \
+            echo "[$(date +%H:%M:%S)] TIMEOUT: coverage test-writer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
+        CG_TW_WATCHDOG=$!
+
+        CG_TW_EXIT=0
+        wait $CG_TW_PID || CG_TW_EXIT=$?
+        kill $CG_TW_WATCHDOG 2>/dev/null || true
+        wait $CG_TW_WATCHDOG 2>/dev/null || true
+
+        if [ "$CG_TW_EXIT" -ne 0 ]; then
+            warn "Test-writer de remediacion fallo (exit $CG_TW_EXIT) — continuando con gaps pendientes"
+            echo "[$(date +%H:%M:%S)] REMEDIATION_FAILED: test-writer exit $CG_TW_EXIT" >> "$EVENTS_LOG_ABS"
+            COV_REMEDIATION_SUMMARY="El test-writer de remediacion fallo (exit $CG_TW_EXIT). Los gaps quedan pendientes."
+        else
+            # Auto-commit si necesario
+            auto_commit_if_needed "cobertura" "test(hu-${ISSUE_NUM:-?}): tests de cobertura para brechas detectadas"
+
+            # Verificar compilacion y tests
+            log "Gate: verificando compilacion post-remediacion..."
+            cg_build_rc=0
+            dotnet build "$WORKTREE_PATH" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 || cg_build_rc=$?
+
+            if [ "$cg_build_rc" -ne 0 ]; then
+                warn "Build fallo post-remediacion — relanzando implementer..."
+                echo "[$(date +%H:%M:%S)] REMEDIATION: build fallo, relanzando implementer" >> "$EVENTS_LOG_ABS"
+
+                PATCH_IM_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+
+El coverage gate detecto brechas de cobertura y el test-writer agrego tests adicionales, pero no compilan.
+Tu tarea: haz que SOLO los tests nuevos de cobertura compilen y pasen. No modifiques la logica de negocio existente.
+
+Pista: revisa los ultimos archivos de test creados/modificados y corrige errores de compilacion."
+
+                LOG_CG_IM="$LOG_DIR_ABS/stage-4-implementer-patch-${TIMESTAMP}.log"
+                echo "[$(date +%H:%M:%S)] REMEDIATION: relanzando implementer" >> "$EVENTS_LOG_ABS"
+
+                (cd "$WORKTREE_PATH" && claude -p "$PATCH_IM_PROMPT" \
+                    --agent implementer \
+                    --permission-mode bypassPermissions \
+                    --output-format text \
+                    >"$LOG_CG_IM" 2>&1) &
+                CG_IM_PID=$!
+                (sleep $CG_REMEDIATION_TIMEOUT && kill -9 $CG_IM_PID 2>/dev/null && \
+                    echo "[$(date +%H:%M:%S)] TIMEOUT: coverage implementer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
+                CG_IM_WATCHDOG=$!
+
+                CG_IM_EXIT=0
+                wait $CG_IM_PID || CG_IM_EXIT=$?
+                kill $CG_IM_WATCHDOG 2>/dev/null || true
+                wait $CG_IM_WATCHDOG 2>/dev/null || true
+
+                if [ "$CG_IM_EXIT" -ne 0 ]; then
+                    warn "Implementer de remediacion fallo (exit $CG_IM_EXIT)"
+                    echo "[$(date +%H:%M:%S)] REMEDIATION_FAILED: implementer exit $CG_IM_EXIT" >> "$EVENTS_LOG_ABS"
+                fi
+
+                auto_commit_if_needed "cobertura" "feat(hu-${ISSUE_NUM:-?}): fix compilacion tests de cobertura"
+            fi
+
+            # Gate: verificar tests verdes post-remediacion
+            log "Gate: verificando tests post-remediacion..."
+            cg_test_rc=0
+            CG_TEST_OUTPUT=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || cg_test_rc=$?
+            echo "$CG_TEST_OUTPUT" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
+
+            if [ "$cg_test_rc" -ne 0 ]; then
+                warn "Tests fallan post-remediacion (exit $cg_test_rc) — continuando con gaps pendientes"
+                echo "[$(date +%H:%M:%S)] REMEDIATION: tests fallan post-remediacion" >> "$EVENTS_LOG_ABS"
+                COV_REMEDIATION_SUMMARY="Se agregaron tests de remediacion pero hay tests fallando (exit $cg_test_rc). Requiere atencion humana."
+            else
+                # Re-medir cobertura una vez (con timeout de medicion)
+                log "Re-midiendo cobertura post-remediacion..."
+                CG_REMEASURE_OK=false
+                (measure_coverage) &
+                CG_REMEASURE_PID=$!
+                (sleep $CG_TIMEOUT_MEASURE && kill -9 $CG_REMEASURE_PID 2>/dev/null && \
+                    echo "[$(date +%H:%M:%S)] TIMEOUT: re-medicion cobertura supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") &
+                CG_REMEASURE_WATCHDOG=$!
+                CG_REMEASURE_EXIT=0
+                wait $CG_REMEASURE_PID || CG_REMEASURE_EXIT=$?
+                kill $CG_REMEASURE_WATCHDOG 2>/dev/null || true
+                wait $CG_REMEASURE_WATCHDOG 2>/dev/null || true
+                if [ "$CG_REMEASURE_EXIT" -eq 0 ] && [ -f "$WORKTREE_PATH/coverage.cobertura.xml" ]; then
+                    CG_REMEASURE_OK=true
+                fi
+                if [ "$CG_REMEASURE_OK" = true ]; then
+                    COVERAGE_DATA_POST=$(extract_file_coverage "$WORKTREE_PATH/coverage.cobertura.xml" "$LOGIC_FILES")
+
+                    # Reconstruir tabla
+                    COV_TABLE="| Archivo | Cobertura | Umbral | Estado |
+|---|---|---|---|"
+                    GAPS_COUNT=0
+                    REMAINING_GAPS=""
+
+                    while IFS='|' read -r filepath pct; do
+                        [ -z "$filepath" ] && continue
+                        local_basename=$(basename "$filepath")
+                        if [ "$pct" = "N/A" ]; then
+                            COV_TABLE="$COV_TABLE
+| $local_basename | N/A | ${THRESHOLD}% | sin datos |"
+                        else
+                            pct_int=${pct%.*}
+                            if [ "$pct_int" -ge "$THRESHOLD" ]; then
+                                COV_TABLE="$COV_TABLE
+| $local_basename | ${pct}% | ${THRESHOLD}% | ok |"
+                            else
+                                COV_TABLE="$COV_TABLE
+| $local_basename | ${pct}% | ${THRESHOLD}% | gap |"
+                                GAPS_COUNT=$((GAPS_COUNT + 1))
+                                REMAINING_GAPS="${REMAINING_GAPS:+$REMAINING_GAPS, }$local_basename (${pct}%)"
+                            fi
+                        fi
+                    done <<< "$COVERAGE_DATA_POST"
+
+                    # Agregar excluidos y no evaluados
+                    while IFS= read -r f; do
+                        [ -z "$f" ] && continue
+                        COV_TABLE="$COV_TABLE
+| $(basename "$f") | - | excluido | - |"
+                    done <<< "$EXCLUDED_FILES"
+                    while IFS= read -r f; do
+                        [ -z "$f" ] && continue
+                        COV_TABLE="$COV_TABLE
+| $(basename "$f") | - | no evaluado | - |"
+                    done <<< "$NOT_EVALUATED_FILES"
+
+                    if [ "$GAPS_COUNT" -gt 0 ]; then
+                        COV_REMEDIATION_SUMMARY="Se agregaron tests de remediacion. Gaps restantes: $REMAINING_GAPS"
+                    else
+                        COV_REMEDIATION_SUMMARY="Se agregaron tests de remediacion y todos los gaps fueron cerrados."
+                    fi
+                else
+                    warn "Re-medicion de cobertura fallo — manteniendo tabla anterior"
+                    COV_REMEDIATION_SUMMARY="Se agregaron tests de remediacion pero la re-medicion fallo. Gaps originales pueden persistir."
+                fi
+            fi
+        fi
+
+        COV_GAPS_REMAINING=$GAPS_COUNT
+    else
+        log "Todos los archivos de logica superan el umbral de ${THRESHOLD}%"
+        COV_GAPS_REMAINING=0
+    fi
+
+    AGENT_CG_DUR=$(( $(date +%s) - CG_START ))
+    if [ "$COV_GAPS_REMAINING" -gt 0 ]; then
+        AGENT_CG_RES="gaps"
+        update_status "4-coverage-gate" "gaps"
+        warn "Stage 4 completado con $COV_GAPS_REMAINING gap(s) pendiente(s)"
+    else
+        AGENT_CG_RES="passed"
+        update_status "4-coverage-gate" "passed"
+        success "Stage 4 completado — cobertura verificada"
+    fi
+    echo "[$(date +%H:%M:%S)] DONE coverage-gate: ${AGENT_CG_DUR}s, result=$AGENT_CG_RES, gaps=$COV_GAPS_REMAINING" >> "$EVENTS_LOG_ABS"
+
+    fi  # cierre de CG_MEASUREMENT_OK
+    fi  # cierre de LOGIC_FILES no vacio
+    fi  # cierre de PR_SRC_FILES no vacio
+    fi  # cierre de dotnet-coverage disponible
+else
+    if [ "$IS_REFACTOR" = true ]; then
+        log "Saltando Stage 4 (refactoring puro)"
+    else
+        log "Saltando Stage 4 (--from-stage $FROM_STAGE)"
+    fi
+    AGENT_CG_RES="skipped"
+fi
 
 # ─── Crear PR ─────────────────────────────────────────────────────────────────
 header "Creando PR"
@@ -893,6 +1464,7 @@ TW_DUR_FMT=$(_fmt_dur "${AGENT_TW_DUR:-0}")
 IM_DUR_FMT=$(_fmt_dur "${AGENT_IM_DUR:-0}")
 ST_DUR_FMT=$(_fmt_dur "${AGENT_ST_DUR:-0}")
 RV_DUR_FMT=$(_fmt_dur "${AGENT_RV_DUR:-0}")
+CG_DUR_FMT=$(_fmt_dur "${AGENT_CG_DUR:-0}")
 
 if [ "$IS_REFACTOR" = true ]; then
     PR_BODY_SUMMARY="Pipeline TDD completado (refactoring puro):
@@ -935,6 +1507,27 @@ ${ST_SUMMARY}
     fi
 fi
 
+# Construir seccion de cobertura para el PR
+COVERAGE_SECTION=""
+if [ -n "$COV_TABLE" ]; then
+    COVERAGE_SECTION="## Cobertura
+
+$COV_TABLE
+"
+    if [ "$COV_PATCH_APPLIED" = true ] && [ -n "$COV_REMEDIATION_SUMMARY" ]; then
+        COVERAGE_SECTION="${COVERAGE_SECTION}
+### Remediacion
+
+$COV_REMEDIATION_SUMMARY
+"
+    fi
+    if [ "$COV_GAPS_REMAINING" -gt 0 ]; then
+        COVERAGE_SECTION="${COVERAGE_SECTION}
+> **Gaps pendientes**: $COV_GAPS_REMAINING archivo(s) no alcanzan el umbral de cobertura. Requiere revision humana.
+"
+    fi
+fi
+
 PR_URL=$(gh pr create \
     --title "$ISSUE_TITLE" \
     --body "$(cat <<EOF
@@ -958,7 +1551,7 @@ ${RV_SUMMARY}
 
 </details>
 
-## Commits
+${COVERAGE_SECTION}## Commits
 
 $COMMITS_LIST
 
@@ -1008,7 +1601,7 @@ if [ -n "$ISSUE_NUM" ]; then
 fi
 
 # Append al historial
-echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"test-writer\":{\"duration\":${AGENT_TW_DUR:-null}},\"implementer\":{\"duration\":${AGENT_IM_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
+echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"test-writer\":{\"duration\":${AGENT_TW_DUR:-null}},\"implementer\":{\"duration\":${AGENT_IM_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}},\"coverage-gate\":{\"duration\":${AGENT_CG_DUR:-null},\"result\":\"$AGENT_CG_RES\",\"gaps\":$COV_GAPS_REMAINING,\"patch_applied\":$COV_PATCH_APPLIED}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
     >> "$PIPELINE_DIR_ABS/history.jsonl"
 
 # ─── Cleanup ──────────────────────────────────────────────────────────────────
