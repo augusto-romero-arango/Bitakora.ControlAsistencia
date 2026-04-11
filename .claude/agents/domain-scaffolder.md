@@ -1127,7 +1127,7 @@ jobs:
 
   smoke-tests:
     needs: deploy
-    uses: ./.github/workflows/smoke-tests.yml
+    uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
       base_url: https://func-{prefix_func}-{kebab}.azurewebsites.net
       test_project: tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
@@ -1136,7 +1136,33 @@ jobs:
       POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
 ```
 
-> `smoke-tests.yml` acepta estos secrets como opcionales (`required: false`). Si no estan configurados en el repo, los smoke tests que dependen de ServiceBus o Postgres se skipean gracefully via `Assert.SkipWhen`.
+> `smoke-tests-dominio.yml` acepta estos secrets como opcionales (`required: false`). Si no estan configurados en el repo, los smoke tests que dependen de ServiceBus o Postgres se skipean gracefully via `Assert.SkipWhen`.
+
+---
+
+## Paso 6b - Registrar dominio en smoke tests global
+
+Agrega el nuevo dominio al archivo `.github/smoke-tests-dominios.json` para que el workflow global de smoke tests lo incluya en su matrix.
+
+**Si el archivo existe**, lee su contenido, agrega la nueva entrada al array y escribe el archivo actualizado.
+
+**Si el archivo no existe**, crealo con la entrada del nuevo dominio:
+
+```json
+[
+  {
+    "dominio": "{PascalCase}",
+    "base_url": "https://func-{prefix_func}-{kebab}.azurewebsites.net",
+    "test_project": "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/"
+  }
+]
+```
+
+**Validacion**: verifica que el JSON resultante sea valido:
+
+```bash
+cat .github/smoke-tests-dominios.json | python3 -m json.tool > /dev/null
+```
 
 ---
 
