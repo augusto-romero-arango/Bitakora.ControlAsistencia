@@ -103,7 +103,7 @@ extract_test_count() {
 # --- Parsear argumentos ---
 ISSUE_NUM=""
 FROM_STAGE=1
-STATUS_FILENAME="tooling-status.json"  # Se actualiza a tooling-status-{issue}.json despues de parsear args
+STATUS_FILENAME="tooling-status.json"  # Nombre del archivo de status (parametrizable para paralelismo)
 
 if [ $# -eq 0 ]; then
     echo "Uso: $0 [--issue NUM | NUM] [--from-stage N]"
@@ -144,8 +144,10 @@ fi
 
 [ -z "$ISSUE_NUM" ] && abort "Falta el numero de issue"
 
-# Actualizar STATUS_FILENAME para soportar multiples pipelines en paralelo
-STATUS_FILENAME="tooling-status-${ISSUE_NUM}.json"
+# Si no se paso --status-file, usar tooling-status-{issue}.json para soportar paralelismo
+if [ "$STATUS_FILENAME" = "tooling-status.json" ]; then
+    STATUS_FILENAME="tooling-status-${ISSUE_NUM}.json"
+fi
 
 if ! [[ "$FROM_STAGE" =~ ^[1-2]$ ]]; then
     abort "--from-stage debe ser 1 o 2 (recibido: $FROM_STAGE)"
