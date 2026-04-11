@@ -56,6 +56,7 @@ jobs:
           reports: 'coverage/coverage.cobertura.xml'
           targetdir: 'coverage/report'
           reporttypes: 'MarkdownSummaryGithub'
+          assemblyfilters: '+Bitakora.ControlAsistencia.*;-*.Tests'
 
       - name: Publicar resumen en Job Summary
         run: cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
