@@ -364,7 +364,9 @@ auto_commit_if_needed() {
 
     if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/)" ]; then
         log "Haciendo commit automatico (fase $phase)..."
-        git -C "$WORKTREE_PATH" add tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/ 2>/dev/null || true
+        for dir in tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/; do
+            git -C "$WORKTREE_PATH" add "$dir" 2>/dev/null || true
+        done
         git -C "$WORKTREE_PATH" commit -m "$msg" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 || true
     fi
 }
