@@ -32,6 +32,16 @@ jobs:
       - name: Instalar dotnet-coverage
         run: dotnet tool install --global dotnet-coverage
 
+      - name: Instrumentar assemblies (cobertura estatica)
+        run: |
+          # El profiler dinamico de dotnet-coverage no se inicializa en .NET 10.
+          # La instrumentacion estatica produce datos reales de cobertura.
+          for dll in tests/Bitakora.ControlAsistencia.*.Tests/bin/Release/net10.0/Bitakora.ControlAsistencia.*.dll; do
+            [[ "$(basename "$dll")" == *Tests* ]] && continue
+            echo "Instrumentando: $dll"
+            dotnet-coverage instrument "$dll" --settings dotnet-coverage.settings.xml
+          done
+
       - name: Test con cobertura
         run: |
           mkdir -p coverage
@@ -55,11 +65,24 @@ jobs:
         with:
           reports: 'coverage/coverage.cobertura.xml'
           targetdir: 'coverage/report'
-          reporttypes: 'MarkdownSummaryGithub'
+          reporttypes: 'MarkdownSummaryGithub;TextSummary'
           assemblyfilters: '+Bitakora.ControlAsistencia.*;-*.Tests'
+          classfilters: '-*DirectFunctionExecutor;-*WorkerExtensionStartupCodeExecutor;-*GeneratedFunctionMetadataProvider;-*FunctionExecutorAutoStartup;-*FunctionExecutorHostBuilderExtensions;-*FunctionMetadataProviderAutoStartup;-*WorkerHostBuilderFunctionMetadataProviderExtension;-*HealthCheck;-*Program'
 
       - name: Publicar resumen en Job Summary
-        run: cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+        run: |
+          if [ -f coverage/report/SummaryGithub.md ]; then
+            cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # TextSummary incluye branch coverage cuando la instrumentacion lo soporta.
+          # Si .NET 10 no produce datos de branches, TextSummary muestra solo line coverage
+          # como fallback — evaluar coverlet cuando soporte .NET 10.
+          if [ -f coverage/report/Summary.txt ]; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat coverage/report/Summary.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Comentar cobertura en el PR
         if: github.event_name == 'pull_request'
