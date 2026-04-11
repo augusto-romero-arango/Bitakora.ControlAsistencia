@@ -72,7 +72,9 @@ jobs:
       - name: Publicar resumen en Job Summary
         if: always()
         run: |
-          cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f coverage/report/SummaryGithub.md ]; then
+            cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          fi
           # TextSummary incluye branch coverage cuando la instrumentacion lo soporta.
           # Si .NET 10 no produce datos de branches, TextSummary muestra solo line coverage
           # como fallback — evaluar coverlet cuando soporte .NET 10.
