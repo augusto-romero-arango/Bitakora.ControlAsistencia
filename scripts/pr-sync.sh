@@ -218,9 +218,6 @@ validate_tests() {
     local test_output
 
 
-    # Limpiar artefactos de build incremental (necesario en worktrees post-merge)
-    dotnet clean "$worktree" > /dev/null 2>&1 || true
-
     local test_rc=0
     test_output=$(dotnet test --solution "$worktree/ControlAsistencias.slnx" 2>&1) || test_rc=$?
     echo "$test_output" >> "$LOG_FILE_ABS"
