@@ -70,7 +70,7 @@ update_status() {
     [ -n "$PIPELINE_TESTS" ] && tests_val="$PIPELINE_TESTS"
     [ -n "$PIPELINE_PR" ]    && pr_val="\"$PIPELINE_PR\""
     [ -n "$PIPELINE_ERROR" ] && error_val="\"$PIPELINE_ERROR\""
-    cat > "$PIPELINE_DIR_ABS/tooling-status.json" <<EOJSON
+    cat > "$PIPELINE_DIR_ABS/$STATUS_FILENAME" <<EOJSON
 {
   "issue": "${ISSUE_NUM:-null}",
   "title": "$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')",
@@ -103,7 +103,7 @@ extract_test_count() {
 # --- Parsear argumentos ---
 ISSUE_NUM=""
 FROM_STAGE=1
-STATUS_FILENAME="tooling-status.json"
+STATUS_FILENAME="tooling-status.json"  # Se actualiza a tooling-status-{issue}.json despues de parsear args
 
 if [ $# -eq 0 ]; then
     echo "Uso: $0 [--issue NUM | NUM] [--from-stage N]"
@@ -143,6 +143,9 @@ if [ ${#POSITIONAL_ARGS[@]} -gt 0 ] && [ -z "$ISSUE_NUM" ]; then
 fi
 
 [ -z "$ISSUE_NUM" ] && abort "Falta el numero de issue"
+
+# Actualizar STATUS_FILENAME para soportar multiples pipelines en paralelo
+STATUS_FILENAME="tooling-status-${ISSUE_NUM}.json"
 
 if ! [[ "$FROM_STAGE" =~ ^[1-2]$ ]]; then
     abort "--from-stage debe ser 1 o 2 (recibido: $FROM_STAGE)"
@@ -604,6 +607,9 @@ gh issue comment "$ISSUE_NUM" \
 # Historial
 echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"writer\":{\"duration\":${AGENT_WR_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
     >> "$PIPELINE_DIR_ABS/tooling-history.jsonl"
+
+# Eliminar archivo de estado individual (ya esta en el historial)
+rm -f "$PIPELINE_DIR_ABS/$STATUS_FILENAME"
 
 # --- Cleanup ---
 header "Cleanup"
