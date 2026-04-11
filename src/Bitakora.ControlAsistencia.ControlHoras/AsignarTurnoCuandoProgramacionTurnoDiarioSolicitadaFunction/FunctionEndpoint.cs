@@ -12,6 +12,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacion
 // CA-2: Deserializa el evento del mensaje y lo despacha al CommandHandler.
 // ADR-0008: [Function("{Accion}Cuando{Evento}")]
 public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndpoint> logger)
+    : ServiceBusEndpointBase<ProgramacionTurnoDiarioSolicitada>(commandRouter, logger)
 {
     [Function("AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada")]
     public async Task Run(
@@ -22,23 +23,5 @@ public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndp
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
         CancellationToken ct)
-    {
-        try
-        {
-            var evento = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(message.Body);
-            await commandRouter.InvokeAsync(evento, ct);
-            await messageActions.CompleteMessageAsync(message, ct);
-        }
-        catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
-        {
-            logger.LogWarning(ex,
-                "Lock perdido para mensaje {MessageId} - Service Bus lo re-entregara automaticamente",
-                message.MessageId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error procesando mensaje {MessageId}", message.MessageId);
-            await messageActions.DeadLetterMessageAsync(message, cancellationToken: ct);
-        }
-    }
+        => await ProcesarMensaje(message, messageActions, ct);
 }
