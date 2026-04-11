@@ -1,0 +1,12 @@
+[
+  {
+    "dominio": "Programacion",
+    "base_url": "https://func-asist-dev-programacion.azurewebsites.net",
+    "test_project": "tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/"
+  },
+  {
+    "dominio": "ControlHoras",
+    "base_url": "https://func-asist-dev-control-horas.azurewebsites.net",
+    "test_project": "tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/"
+  }
+]
