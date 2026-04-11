@@ -299,44 +299,42 @@ else
         header "Stage 0: Scaffold del dominio '$SCAFFOLD_DOMAIN'"
         update_status "scaffold" "running"
 
-        local log_scaffold="$LOG_DIR_ABS/stage-0-scaffold-${TIMESTAMP}.log"
-        local scaffold_start
-        scaffold_start=$(date +%s)
+        LOG_SCAFFOLD="$LOG_DIR_ABS/stage-0-scaffold-${TIMESTAMP}.log"
+        SCAFFOLD_START_TS=$(date +%s)
         echo "[$(date +%H:%M:%S)] === STAGE 0: domain-scaffolder ===" >> "$EVENTS_LOG_ABS"
 
         SCAFFOLD_PROMPT="Crea el scaffold para el dominio '$SCAFFOLD_DOMAIN'. El usuario ya confirmo la creacion — omite la confirmacion del Paso 0 y procede directamente a crear el proyecto."
 
-        local SCAFFOLD_TIMEOUT=1800
+        SCAFFOLD_TIMEOUT=1800
         (cd "$WORKTREE_PATH" && claude -p "$SCAFFOLD_PROMPT" \
             --agent domain-scaffolder \
             --permission-mode bypassPermissions \
             --output-format text \
-            >"$log_scaffold" 2>&1) &
-        local SCAFFOLD_PID=$!
+            >"$LOG_SCAFFOLD" 2>&1) &
+        SCAFFOLD_PID=$!
         (sleep $SCAFFOLD_TIMEOUT && kill -9 -$SCAFFOLD_PID 2>/dev/null && \
             echo "[$(date +%H:%M:%S)] TIMEOUT: domain-scaffolder supero ${SCAFFOLD_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
-        local SCAFFOLD_WATCHDOG=$!
+        SCAFFOLD_WATCHDOG=$!
 
-        local SCAFFOLD_EXIT=0
+        SCAFFOLD_EXIT=0
         wait $SCAFFOLD_PID || SCAFFOLD_EXIT=$?
         kill $SCAFFOLD_WATCHDOG 2>/dev/null || true
         wait $SCAFFOLD_WATCHDOG 2>/dev/null || true
-        local scaffold_elapsed=$(( $(date +%s) - scaffold_start ))
+        SCAFFOLD_ELAPSED=$(( $(date +%s) - SCAFFOLD_START_TS ))
 
         if [ "$SCAFFOLD_EXIT" -ne 0 ]; then
-            echo "[$(date +%H:%M:%S)] FALLO domain-scaffolder (${scaffold_elapsed}s, exit $SCAFFOLD_EXIT)" >> "$EVENTS_LOG_ABS"
-            abort "El scaffold del dominio '$SCAFFOLD_DOMAIN' fallo despues de ${scaffold_elapsed}s. Revisa: $log_scaffold"
+            echo "[$(date +%H:%M:%S)] FALLO domain-scaffolder (${SCAFFOLD_ELAPSED}s, exit $SCAFFOLD_EXIT)" >> "$EVENTS_LOG_ABS"
+            abort "El scaffold del dominio '$SCAFFOLD_DOMAIN' fallo despues de ${SCAFFOLD_ELAPSED}s. Revisa: $LOG_SCAFFOLD"
         fi
 
         # Verificar que el proyecto fue creado
-        local PASCAL_CASE
         PASCAL_CASE=$(echo "$SCAFFOLD_DOMAIN" | awk -F'-' '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1' OFS='')
         if [ ! -d "$WORKTREE_PATH/src/Bitakora.ControlAsistencia.$PASCAL_CASE" ]; then
-            abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE — revisa: $log_scaffold"
+            abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE — revisa: $LOG_SCAFFOLD"
         fi
 
-        echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${scaffold_elapsed}s)" >> "$EVENTS_LOG_ABS"
-        success "Scaffold del dominio '$SCAFFOLD_DOMAIN' completado en ${scaffold_elapsed}s"
+        echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${SCAFFOLD_ELAPSED}s)" >> "$EVENTS_LOG_ABS"
+        success "Scaffold del dominio '$SCAFFOLD_DOMAIN' completado en ${SCAFFOLD_ELAPSED}s"
         update_status "scaffold" "completed"
 
         # Actualizar snapshot: los diffs de Stage 1-3 solo muestran la implementacion, no el scaffold
@@ -1262,20 +1260,20 @@ IMPORTANTE:
         CG_REMEDIATION_TIMEOUT=1800  # 30 minutos para remediacion
 
         log "Relanzando test-writer para remediacion..."
-        local log_cg_tw="$LOG_DIR_ABS/stage-4-test-writer-patch-${TIMESTAMP}.log"
+        LOG_CG_TW="$LOG_DIR_ABS/stage-4-test-writer-patch-${TIMESTAMP}.log"
         echo "[$(date +%H:%M:%S)] REMEDIATION: relanzando test-writer" >> "$EVENTS_LOG_ABS"
 
         (cd "$WORKTREE_PATH" && claude -p "$PATCH_TW_PROMPT" \
             --agent test-writer \
             --permission-mode bypassPermissions \
             --output-format text \
-            >"$log_cg_tw" 2>&1) &
-        local CG_TW_PID=$!
+            >"$LOG_CG_TW" 2>&1) &
+        CG_TW_PID=$!
         (sleep $CG_REMEDIATION_TIMEOUT && kill -9 $CG_TW_PID 2>/dev/null && \
             echo "[$(date +%H:%M:%S)] TIMEOUT: coverage test-writer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
-        local CG_TW_WATCHDOG=$!
+        CG_TW_WATCHDOG=$!
 
-        local CG_TW_EXIT=0
+        CG_TW_EXIT=0
         wait $CG_TW_PID || CG_TW_EXIT=$?
         kill $CG_TW_WATCHDOG 2>/dev/null || true
         wait $CG_TW_WATCHDOG 2>/dev/null || true
@@ -1304,20 +1302,20 @@ Tu tarea: haz que SOLO los tests nuevos de cobertura compilen y pasen. No modifi
 
 Pista: revisa los ultimos archivos de test creados/modificados y corrige errores de compilacion."
 
-                local log_cg_im="$LOG_DIR_ABS/stage-4-implementer-patch-${TIMESTAMP}.log"
+                LOG_CG_IM="$LOG_DIR_ABS/stage-4-implementer-patch-${TIMESTAMP}.log"
                 echo "[$(date +%H:%M:%S)] REMEDIATION: relanzando implementer" >> "$EVENTS_LOG_ABS"
 
                 (cd "$WORKTREE_PATH" && claude -p "$PATCH_IM_PROMPT" \
                     --agent implementer \
                     --permission-mode bypassPermissions \
                     --output-format text \
-                    >"$log_cg_im" 2>&1) &
-                local CG_IM_PID=$!
+                    >"$LOG_CG_IM" 2>&1) &
+                CG_IM_PID=$!
                 (sleep $CG_REMEDIATION_TIMEOUT && kill -9 $CG_IM_PID 2>/dev/null && \
                     echo "[$(date +%H:%M:%S)] TIMEOUT: coverage implementer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
-                local CG_IM_WATCHDOG=$!
+                CG_IM_WATCHDOG=$!
 
-                local CG_IM_EXIT=0
+                CG_IM_EXIT=0
                 wait $CG_IM_PID || CG_IM_EXIT=$?
                 kill $CG_IM_WATCHDOG 2>/dev/null || true
                 wait $CG_IM_WATCHDOG 2>/dev/null || true
@@ -1341,9 +1339,22 @@ Pista: revisa los ultimos archivos de test creados/modificados y corrige errores
                 echo "[$(date +%H:%M:%S)] REMEDIATION: tests fallan post-remediacion" >> "$EVENTS_LOG_ABS"
                 COV_REMEDIATION_SUMMARY="Se agregaron tests de remediacion pero hay tests fallando (exit $cg_test_rc). Requiere atencion humana."
             else
-                # Re-medir cobertura una vez
+                # Re-medir cobertura una vez (con timeout de medicion)
                 log "Re-midiendo cobertura post-remediacion..."
-                if measure_coverage && [ -f "$WORKTREE_PATH/coverage.cobertura.xml" ]; then
+                CG_REMEASURE_OK=false
+                (measure_coverage) &
+                CG_REMEASURE_PID=$!
+                (sleep $CG_TIMEOUT_MEASURE && kill -9 $CG_REMEASURE_PID 2>/dev/null && \
+                    echo "[$(date +%H:%M:%S)] TIMEOUT: re-medicion cobertura supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") &
+                CG_REMEASURE_WATCHDOG=$!
+                CG_REMEASURE_EXIT=0
+                wait $CG_REMEASURE_PID || CG_REMEASURE_EXIT=$?
+                kill $CG_REMEASURE_WATCHDOG 2>/dev/null || true
+                wait $CG_REMEASURE_WATCHDOG 2>/dev/null || true
+                if [ "$CG_REMEASURE_EXIT" -eq 0 ] && [ -f "$WORKTREE_PATH/coverage.cobertura.xml" ]; then
+                    CG_REMEASURE_OK=true
+                fi
+                if [ "$CG_REMEASURE_OK" = true ]; then
                     COVERAGE_DATA_POST=$(extract_file_coverage "$WORKTREE_PATH/coverage.cobertura.xml" "$LOGIC_FILES")
 
                     # Reconstruir tabla
