@@ -84,7 +84,7 @@ jobs:
 
   smoke-tests:
     needs: deploy
-    uses: ./.github/workflows/smoke-tests.yml
+    uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
       base_url: https://func-asist-dev-control-horas.azurewebsites.net
       test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
