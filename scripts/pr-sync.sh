@@ -218,8 +218,19 @@ validate_tests() {
     local test_output
 
 
+    # Build explícito: dotnet test con compilación implícita falla en worktrees
+    # por FileNotFoundException en assemblies de proyecto (Contracts).
+    local build_output
+    build_output=$(dotnet build "$worktree/ControlAsistencias.slnx" 2>&1)
+    local build_rc=$?
+    echo "$build_output" >> "$LOG_FILE_ABS"
+    if [ "$build_rc" -ne 0 ]; then
+        echo "$build_output"
+        return 2  # error de compilación
+    fi
+
     local test_rc=0
-    test_output=$(dotnet test --solution "$worktree/ControlAsistencias.slnx" 2>&1) || test_rc=$?
+    test_output=$(dotnet test --solution "$worktree/ControlAsistencias.slnx" --no-build 2>&1) || test_rc=$?
     echo "$test_output" >> "$LOG_FILE_ABS"
 
     # Exit codes de Microsoft.Testing.Platform:
@@ -331,8 +342,9 @@ for PR_NUM in "${PR_NUMS[@]}"; do
 
     log "main tiene $BEHIND commit(s) nuevos respecto a la rama."
 
-    # Crear worktree temporal
-    TEMP_WORKTREE="/tmp/pr-sync-${PR_NUM}-$(date +%s)"
+    # Crear worktree temporal (realpath evita el symlink /tmp→/private/tmp en macOS
+    # que confunde a dotnet con rutas duplicadas para el mismo proyecto)
+    TEMP_WORKTREE="$(realpath /tmp)/pr-sync-${PR_NUM}-$(date +%s)"
     CURRENT_WORKTREE="$TEMP_WORKTREE"
 
     log "Creando worktree temporal en $TEMP_WORKTREE..."
