@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# parallel-pipeline.sh — Ejecuta el pipeline TDD para múltiples issues en paralelo
+# parallel-pipeline.sh — Ejecuta pipelines para múltiples issues en paralelo
 #
 # Uso:
-#   ./scripts/parallel-pipeline.sh 42 43 44            # procesar issues en paralelo
-#   ./scripts/parallel-pipeline.sh 42 43 44 --max-parallel 2  # limitar concurrencia
-#   ./scripts/parallel-pipeline.sh 42 43 44 --keep-status     # no borrar status files al terminar
+#   ./scripts/parallel-pipeline.sh 42 43 44                              # pipeline TDD (default)
+#   ./scripts/parallel-pipeline.sh --pipeline tooling 60 62 63           # pipeline tooling
+#   ./scripts/parallel-pipeline.sh --pipeline tooling --max-parallel 2 60 62 63
+#   ./scripts/parallel-pipeline.sh 42 43 44 --max-parallel 2            # limitar concurrencia
+#   ./scripts/parallel-pipeline.sh 42 43 44 --keep-status               # no borrar status files al terminar
 #
-# Flujo: lanza N tdd-pipeline.sh en background (cada uno en su worktree aislado),
+# Flujo: lanza N pipelines en background (cada uno en su worktree aislado),
 # monitorea el progreso consolidado, y crea los PRs sin merge automático.
 #
 # Compatible con bash 3.2+ (macOS nativo)
@@ -45,9 +47,11 @@ abort() {
 ISSUE_NUMS=()
 MAX_PARALLEL=0   # 0 = sin limite
 KEEP_STATUS=false
+PIPELINE_SCRIPT="./scripts/tdd-pipeline.sh"
 
 if [ $# -eq 0 ]; then
-    echo "Uso: $0 <issue1> <issue2> ... [--max-parallel N] [--keep-status]"
+    echo "Uso: $0 [--pipeline tdd|tooling] <issue1> <issue2> ... [--max-parallel N] [--keep-status]"
+    echo "  --pipeline TYPE    Pipeline a usar: 'tdd' (default) o 'tooling'"
     echo "  issue1 ...         Números de issues a procesar en paralelo"
     echo "  --max-parallel N   Limitar a N pipelines simultáneos (por defecto: sin límite)"
     echo "  --keep-status      No borrar los archivos status-N.json al terminar"
@@ -56,6 +60,15 @@ fi
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --pipeline)
+            [ $# -lt 2 ] && { echo "Falta el valor de --pipeline"; exit 1; }
+            case "$2" in
+                tdd)     PIPELINE_SCRIPT="./scripts/tdd-pipeline.sh" ;;
+                tooling) PIPELINE_SCRIPT="./scripts/tooling-pipeline.sh" ;;
+                *)       echo "Pipeline desconocido: $2. Usa 'tdd' o 'tooling'"; exit 1 ;;
+            esac
+            shift 2
+            ;;
         --max-parallel)
             [ $# -lt 2 ] && { echo "Falta el valor de --max-parallel"; exit 1; }
             MAX_PARALLEL="$2"
@@ -108,6 +121,7 @@ fi
 
 # ─── Cabecera ─────────────────────────────────────────────────────────────────
 header "parallel-pipeline — Procesamiento paralelo de issues"
+log "Pipeline: $PIPELINE_SCRIPT"
 log "Issues a procesar: ${ISSUE_NUMS[*]}"
 log "Paralelismo máximo: $([ "$MAX_PARALLEL" -gt 0 ] && echo "$MAX_PARALLEL" || echo 'sin límite')"
 log "Log: $LOG_FILE_ABS"
@@ -144,7 +158,7 @@ launch_pipeline() {
     local issue_log="$REPO_ROOT/$LOG_DIR/parallel-issue-${issue}-${TIMESTAMP}.log"
     touch "$issue_log"
 
-    ./scripts/tdd-pipeline.sh "$issue" --status-file "$status_file" \
+    $PIPELINE_SCRIPT "$issue" --status-file "$status_file" \
         >"$issue_log" 2>&1 &
 
     PIDS+=($!)
@@ -152,7 +166,7 @@ launch_pipeline() {
     ISSUE_LOGS+=("$issue_log")
     START_TIMES+=("$(date +%s)")
 
-    log "Lanzado issue #$issue (PID $!) → $status_file"
+    log "Lanzado issue #$issue con $PIPELINE_SCRIPT (PID $!) → $status_file"
 }
 
 if [ "$MAX_PARALLEL" -eq 0 ] || [ "$TOTAL" -le "$MAX_PARALLEL" ]; then
