@@ -158,7 +158,7 @@ launch_pipeline() {
     local issue_log="$REPO_ROOT/$LOG_DIR/parallel-issue-${issue}-${TIMESTAMP}.log"
     touch "$issue_log"
 
-    $PIPELINE_SCRIPT "$issue" --status-file "$status_file" \
+    "$PIPELINE_SCRIPT" "$issue" --status-file "$status_file" \
         >"$issue_log" 2>&1 &
 
     PIDS+=($!)
