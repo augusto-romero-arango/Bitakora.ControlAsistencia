@@ -321,7 +321,7 @@ Cuando una idea esté lista para convertirse en issue, confirma con el usuario e
 ```bash
 gh issue create \
   --title "[verbo infinitivo] [que cosa]" \
-  --label "tipo:[feature|refactor|bug|tooling]" \
+  --label "tipo:[feature|refactor|tooling]" \
   --label "dom:[programacion|contracts|asistencia]" \
   --label "estado:listo" \
   --body "$(cat <<'ISSUEEOF'
@@ -383,6 +383,8 @@ La sección **Interfaz pública** es obligatoria para issues que crean value obj
 Si el issue depende de otro no cerrado, agrega también `--label "bloqueado"`.
 
 Si el dominio no aplica (tooling, cross-cutting), omite el label `dom:`.
+
+Si el issue corrige un defecto (bug), agrega `--label "bug"` ademas del `tipo:` que corresponda. El label `bug` indica origen (el issue existe porque se descubrio un defecto), mientras que `tipo:` indica el pipeline de implementacion. Ejemplo: `--label "bug" --label "tipo:refactor"`.
 
 ### Template para issues de infraestructura
 

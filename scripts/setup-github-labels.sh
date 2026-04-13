@@ -8,7 +8,7 @@
 set -e
 
 echo "Eliminando labels default de GitHub..."
-for label in "bug" "documentation" "duplicate" "enhancement" "good first issue" "help wanted" "invalid" "question" "wontfix"; do
+for label in "documentation" "duplicate" "enhancement" "good first issue" "help wanted" "invalid" "question" "wontfix"; do
   gh label delete "$label" --yes 2>/dev/null && echo "  - eliminado: $label" || echo "  - no encontrado (ok): $label"
 done
 
@@ -17,8 +17,11 @@ echo "Creando labels de tipo (azul)..."
 gh label create "tipo:feature"   --color "0052CC" --description "Funcionalidad nueva de dominio"
 gh label create "tipo:infra"     --color "0052CC" --description "Infraestructura Azure / Terraform"
 gh label create "tipo:refactor"  --color "0052CC" --description "Reestructuracion sin comportamiento nuevo"
-gh label create "tipo:bug"       --color "0052CC" --description "Correccion de defecto"
 gh label create "tipo:tooling"   --color "0052CC" --description "Mejoras a pipeline, agentes o scripts"
+
+echo ""
+echo "Creando labels de origen (naranja)..."
+gh label create "bug"            --color "D93F0B" --description "Correccion de defecto — siempre acompanado de un tipo: que indica el pipeline"
 
 echo ""
 echo "Creando labels de dominio (verde)..."
