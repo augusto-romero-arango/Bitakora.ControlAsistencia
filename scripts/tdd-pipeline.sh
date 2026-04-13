@@ -65,8 +65,8 @@ abort() {
     if [ -n "${PIPELINE_DIR_ABS:-}" ]; then
         update_status "$CURRENT_STAGE" "failed"
         # M4: Registrar falla en historial para analisis de patrones
-        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
-            >> "$PIPELINE_DIR_ABS/history.jsonl" 2>/dev/null || true
+        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"pipeline\":\"tdd\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
+            >> "$PIPELINE_DIR_ABS/pipeline-history.jsonl" 2>/dev/null || true
     fi
     exit 1
 }
@@ -88,6 +88,7 @@ update_status() {
 {
   "issue": "${ISSUE_NUM:-null}",
   "title": "$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')",
+  "pipeline": "tdd",
   "started": "$TIMESTAMP",
   "stage": "$stage",
   "state": "$state",
@@ -121,7 +122,7 @@ extract_test_count() {
 ISSUE_NUM=""
 INPUT_FILE=""
 FROM_STAGE=1        # Por defecto, empezar desde Stage 1
-STATUS_FILENAME="status.json"  # Nombre del archivo de status (parametrizable para paralelismo)
+STATUS_FILENAME=""  # Se asigna despues del parseo (necesita ISSUE_NUM); override con --status-file
 SCAFFOLD_DOMAIN=""  # Nombre del dominio a scaffoldear antes de Stage 1 (kebab-case)
 
 if [ $# -eq 0 ]; then
@@ -176,6 +177,13 @@ fi
 # [Cambio 3] Validar --from-stage
 if ! [[ "$FROM_STAGE" =~ ^[1-4]$ ]]; then
     abort "--from-stage debe ser 1, 2, 3 o 4 (recibido: $FROM_STAGE)"
+fi
+
+# Si no se paso --status-file, usar convención normalizada con ISSUE_NUM
+if [ -z "$STATUS_FILENAME" ] && [ -n "$ISSUE_NUM" ]; then
+    STATUS_FILENAME="pipeline-status-tdd-${ISSUE_NUM}.json"
+elif [ -z "$STATUS_FILENAME" ]; then
+    STATUS_FILENAME="pipeline-status-tdd.json"
 fi
 
 # ─── Verificar dependencias ───────────────────────────────────────────────────
@@ -1601,8 +1609,11 @@ if [ -n "$ISSUE_NUM" ]; then
 fi
 
 # Append al historial
-echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"test-writer\":{\"duration\":${AGENT_TW_DUR:-null}},\"implementer\":{\"duration\":${AGENT_IM_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}},\"coverage-gate\":{\"duration\":${AGENT_CG_DUR:-null},\"result\":\"$AGENT_CG_RES\",\"gaps\":$COV_GAPS_REMAINING,\"patch_applied\":$COV_PATCH_APPLIED}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
-    >> "$PIPELINE_DIR_ABS/history.jsonl"
+echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"pipeline\":\"tdd\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"test-writer\":{\"duration\":${AGENT_TW_DUR:-null}},\"implementer\":{\"duration\":${AGENT_IM_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}},\"coverage-gate\":{\"duration\":${AGENT_CG_DUR:-null},\"result\":\"$AGENT_CG_RES\",\"gaps\":$COV_GAPS_REMAINING,\"patch_applied\":$COV_PATCH_APPLIED}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
+    >> "$PIPELINE_DIR_ABS/pipeline-history.jsonl"
+
+# Eliminar archivo de estado individual (ya esta en el historial)
+rm -f "$PIPELINE_DIR_ABS/$STATUS_FILENAME"
 
 # ─── Cleanup ──────────────────────────────────────────────────────────────────
 header "Cleanup"
