@@ -32,6 +32,21 @@ public class ServiceBusFixture : IAsyncLifetime
         return ValueTask.CompletedTask;
     }
 
+    public async Task PurgeAsync(string topicName, string subscriptionName)
+    {
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
+        var maxWait = TimeSpan.FromSeconds(2);
+
+        while (true)
+        {
+            var message = await receiver.ReceiveMessageAsync(maxWait);
+            if (message is null)
+                break;
+
+            await receiver.CompleteMessageAsync(message);
+        }
+    }
+
     public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
     {
         await using var sender = _client!.CreateSender(topicName);
@@ -46,41 +61,6 @@ public class ServiceBusFixture : IAsyncLifetime
             sbMessage.CorrelationId = correlationId;
 
         await sender.SendMessageAsync(sbMessage);
-    }
-
-    public async Task<T?> WaitForMessageAsync<T>(
-        string topicName,
-        string subscriptionName,
-        string correlationId,
-        TimeSpan timeout)
-    {
-        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
-
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            var remaining = deadline - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
-                break;
-
-            var maxWait = remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5);
-            var received = await receiver.ReceiveMessageAsync(maxWait);
-
-            if (received is null)
-                continue;
-
-            if (received.CorrelationId == correlationId)
-            {
-                await receiver.CompleteMessageAsync(received);
-                return JsonSerializer.Deserialize<T>(received.Body.ToString());
-            }
-
-            // Mensaje de otro test, abandonar para que vuelva a la cola
-            await receiver.AbandonMessageAsync(received);
-        }
-
-        return default;
     }
 
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
