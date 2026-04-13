@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
-# parallel-pipeline.sh — Ejecuta pipelines para múltiples issues en paralelo
+# parallel-pipeline.sh --- Ejecuta pipelines para multiples issues en paralelo
 #
 # Uso:
-#   ./scripts/parallel-pipeline.sh 42 43 44                              # pipeline TDD (default)
-#   ./scripts/parallel-pipeline.sh --pipeline tooling 60 62 63           # pipeline tooling
+#   ./scripts/parallel-pipeline.sh 42 43 44                              # enrutamiento automatico por label
+#   ./scripts/parallel-pipeline.sh --pipeline tooling 60 62 63           # forzar pipeline tooling
+#   ./scripts/parallel-pipeline.sh --pipeline tdd 42 43                  # forzar pipeline tdd
 #   ./scripts/parallel-pipeline.sh --pipeline tooling --max-parallel 2 60 62 63
 #   ./scripts/parallel-pipeline.sh 42 43 44 --max-parallel 2            # limitar concurrencia
 #   ./scripts/parallel-pipeline.sh 42 43 44 --keep-status               # no borrar status files al terminar
 #
+# Enrutamiento automatico: sin --pipeline, cada issue se enruta segun su label tipo:*
+#   tipo:feature|refactor|bug  -> tdd-pipeline.sh
+#   tipo:tooling               -> tooling-pipeline.sh
+#   tipo:infra                 -> SKIP (warning, no aborta)
+#   sin label tipo:*           -> SKIP (warning, no aborta)
+#
 # Flujo: lanza N pipelines en background (cada uno en su worktree aislado),
-# monitorea el progreso consolidado, y crea los PRs sin merge automático.
+# monitorea el progreso consolidado, y crea los PRs sin merge automatico.
 #
 # Compatible con bash 3.2+ (macOS nativo)
 
 set -euo pipefail
+
+# ─── Funciones compartidas ───────────────────────────────────────────────────
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
 
 # ─── Colores ────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -47,13 +57,13 @@ abort() {
 ISSUE_NUMS=()
 MAX_PARALLEL=0   # 0 = sin limite
 KEEP_STATUS=false
-PIPELINE_SCRIPT="./scripts/tdd-pipeline.sh"
+PIPELINE_OVERRIDE=""  # vacio = enrutamiento automatico por label
 
 if [ $# -eq 0 ]; then
     echo "Uso: $0 [--pipeline tdd|tooling] <issue1> <issue2> ... [--max-parallel N] [--keep-status]"
-    echo "  --pipeline TYPE    Pipeline a usar: 'tdd' (default) o 'tooling'"
-    echo "  issue1 ...         Números de issues a procesar en paralelo"
-    echo "  --max-parallel N   Limitar a N pipelines simultáneos (por defecto: sin límite)"
+    echo "  --pipeline TYPE    Forzar pipeline: 'tdd' o 'tooling' (sin flag: enruta por label tipo:*)"
+    echo "  issue1 ...         Numeros de issues a procesar en paralelo"
+    echo "  --max-parallel N   Limitar a N pipelines simultaneos (por defecto: sin limite)"
     echo "  --keep-status      No borrar los archivos status-N.json al terminar"
     exit 1
 fi
@@ -63,9 +73,8 @@ while [ $# -gt 0 ]; do
         --pipeline)
             [ $# -lt 2 ] && { echo "Falta el valor de --pipeline"; exit 1; }
             case "$2" in
-                tdd)     PIPELINE_SCRIPT="./scripts/tdd-pipeline.sh" ;;
-                tooling) PIPELINE_SCRIPT="./scripts/tooling-pipeline.sh" ;;
-                *)       echo "Pipeline desconocido: $2. Usa 'tdd' o 'tooling'"; exit 1 ;;
+                tdd|tooling) PIPELINE_OVERRIDE="$2" ;;
+                *)           echo "Pipeline desconocido: $2. Usa 'tdd' o 'tooling'"; exit 1 ;;
             esac
             shift 2
             ;;
@@ -120,31 +129,42 @@ if [ -n "$MISSING_DEPS" ]; then
 fi
 
 # ─── Cabecera ─────────────────────────────────────────────────────────────────
-header "parallel-pipeline — Procesamiento paralelo de issues"
-log "Pipeline: $PIPELINE_SCRIPT"
+header "parallel-pipeline --- Procesamiento paralelo de issues"
+log "Pipeline: $([ -n "$PIPELINE_OVERRIDE" ] && echo "$PIPELINE_OVERRIDE (override)" || echo 'automatico por label')"
 log "Issues a procesar: ${ISSUE_NUMS[*]}"
-log "Paralelismo máximo: $([ "$MAX_PARALLEL" -gt 0 ] && echo "$MAX_PARALLEL" || echo 'sin límite')"
+log "Paralelismo maximo: $([ "$MAX_PARALLEL" -gt 0 ] && echo "$MAX_PARALLEL" || echo 'sin limite')"
 log "Log: $LOG_FILE_ABS"
 
-# ─── Pre-validación: verificar que todos los issues están abiertos ───────────
-log "Verificando estado de los issues..."
+# ─── Pre-validacion: verificar estado y resolver pipeline por issue ──────────
+log "Verificando estado de los issues y resolviendo pipelines..."
 VALID_ISSUES=()
+ISSUE_PIPELINES=()
 for ISSUE_NUM in "${ISSUE_NUMS[@]}"; do
     ISSUE_STATE=$(gh issue view "$ISSUE_NUM" --json state -q .state 2>/dev/null || echo "UNKNOWN")
     if [ "$ISSUE_STATE" != "OPEN" ]; then
-        warn "Issue #$ISSUE_NUM está $ISSUE_STATE — saltando."
-    else
-        VALID_ISSUES+=("$ISSUE_NUM")
+        warn "Issue #$ISSUE_NUM esta $ISSUE_STATE --- saltando."
+        continue
     fi
+
+    RESOLVED=$(resolve_pipeline "$ISSUE_NUM" "$PIPELINE_OVERRIDE")
+    if [[ "$RESOLVED" == SKIP:* ]]; then
+        local_reason="${RESOLVED#SKIP:}"
+        warn "Issue #$ISSUE_NUM saltado ($local_reason) --- no se puede enrutar a un pipeline."
+        continue
+    fi
+
+    VALID_ISSUES+=("$ISSUE_NUM")
+    ISSUE_PIPELINES+=("$RESOLVED")
+    log "Issue #$ISSUE_NUM -> $(basename "$RESOLVED")"
 done
 
 if [ ${#VALID_ISSUES[@]} -eq 0 ]; then
-    abort "No hay issues válidos (abiertos) para procesar."
+    abort "No hay issues validos para procesar."
 fi
 
 ISSUE_NUMS=("${VALID_ISSUES[@]}")
 TOTAL=${#ISSUE_NUMS[@]}
-log "$TOTAL issue(s) válido(s): ${ISSUE_NUMS[*]}"
+log "$TOTAL issue(s) valido(s): ${ISSUE_NUMS[*]}"
 
 # ─── Lanzar pipelines en paralelo ─────────────────────────────────────────────
 PIDS=()          # PID de cada proceso background
@@ -154,11 +174,12 @@ START_TIMES=()   # Timestamp de inicio de cada pipeline
 
 launch_pipeline() {
     local issue="$1"
+    local pipeline_script="$2"
     local status_file="status-${issue}.json"
     local issue_log="$REPO_ROOT/$LOG_DIR/parallel-issue-${issue}-${TIMESTAMP}.log"
     touch "$issue_log"
 
-    "$PIPELINE_SCRIPT" "$issue" --status-file "$status_file" \
+    "$pipeline_script" "$issue" --status-file "$status_file" \
         >"$issue_log" 2>&1 &
 
     PIDS+=($!)
@@ -166,20 +187,20 @@ launch_pipeline() {
     ISSUE_LOGS+=("$issue_log")
     START_TIMES+=("$(date +%s)")
 
-    log "Lanzado issue #$issue con $PIPELINE_SCRIPT (PID $!) → $status_file"
+    log "Lanzado issue #$issue con $(basename "$pipeline_script") (PID $!) -> $status_file"
 }
 
 if [ "$MAX_PARALLEL" -eq 0 ] || [ "$TOTAL" -le "$MAX_PARALLEL" ]; then
     # Lanzar todos de una vez
-    for ISSUE_NUM in "${ISSUE_NUMS[@]}"; do
-        launch_pipeline "$ISSUE_NUM"
+    for i in "${!ISSUE_NUMS[@]}"; do
+        launch_pipeline "${ISSUE_NUMS[$i]}" "${ISSUE_PIPELINES[$i]}"
     done
 else
-    # Lanzar los primeros N y agregar más a medida que terminan
+    # Lanzar los primeros N y agregar mas a medida que terminan
     PENDING_IDX=0
     # Lanzar los primeros MAX_PARALLEL
     for ((i=0; i<MAX_PARALLEL && i<TOTAL; i++)); do
-        launch_pipeline "${ISSUE_NUMS[$i]}"
+        launch_pipeline "${ISSUE_NUMS[$i]}" "${ISSUE_PIPELINES[$i]}"
         PENDING_IDX=$((PENDING_IDX + 1))
     done
 
@@ -188,9 +209,9 @@ else
         sleep 5
         for i in "${!PIDS[@]}"; do
             if [ -n "${PIDS[$i]}" ] && ! kill -0 "${PIDS[$i]}" 2>/dev/null; then
-                # Este slot terminó, lanzar el siguiente pendiente
+                # Este slot termino, lanzar el siguiente pendiente
                 if [ "$PENDING_IDX" -lt "$TOTAL" ]; then
-                    launch_pipeline "${ISSUE_NUMS[$PENDING_IDX]}"
+                    launch_pipeline "${ISSUE_NUMS[$PENDING_IDX]}" "${ISSUE_PIPELINES[$PENDING_IDX]}"
                     PENDING_IDX=$((PENDING_IDX + 1))
                 fi
             fi
