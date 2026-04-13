@@ -99,7 +99,7 @@ Responde con:
 Pipeline de scaffold lanzado en tmux. Para monitorear:
   tmux -CC attach -t scaffold-{domain}
 
-Usa /pipeline-status para ver el progreso sin salir de aqui.
+Usa /work-status para ver el progreso sin salir de aqui.
 ```
 
 ## Reglas

@@ -44,7 +44,7 @@ Pipeline paralelo lanzado en tmux. Para monitorear:
   tmux -CC attach -t parallel-<timestamp>
 
 Cada issue tiene su propio tab. Los PRs NO se mergean automaticamente.
-Usa /pipeline-status para ver el progreso sin salir de aqui.
+Usa /work-status para ver el progreso sin salir de aqui.
 ```
 
 ## Reglas

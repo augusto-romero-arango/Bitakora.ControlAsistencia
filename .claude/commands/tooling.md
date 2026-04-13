@@ -55,7 +55,7 @@ Responde con:
 Pipeline tooling lanzado en tmux. Para monitorear:
   tmux -CC attach -t tooling-<numero>
 
-Usa /tooling-status para ver el progreso sin salir de aqui.
+Usa /work-status para ver el progreso sin salir de aqui.
 ```
 
 ## Reglas

@@ -48,7 +48,7 @@ Secuencial lanzado en tmux. Para monitorear:
   tmux -CC attach -t batch-<timestamp>
 
 Los issues se procesaran en orden: pipeline -> PR -> merge -> siguiente.
-Usa /pipeline-status para ver el progreso sin salir de aqui.
+Usa /work-status para ver el progreso sin salir de aqui.
 ```
 
 ## Reglas
