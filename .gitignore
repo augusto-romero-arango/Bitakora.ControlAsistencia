@@ -489,6 +489,9 @@ $RECYCLE.BIN/
 # Pipeline TDD
 .claude/pipeline/
 
+# KQL audit log (queries ad-hoc del bug-investigator)
+scripts/.kql-audit.log
+
 # Terraform
 **/.terraform/
 *.tfstate
