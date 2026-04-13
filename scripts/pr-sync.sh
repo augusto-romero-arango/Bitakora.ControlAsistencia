@@ -337,12 +337,9 @@ desbloquear_issues_dependientes() {
         bloqueado_title=$(echo "$bloqueados_json" | jq -r ".[$idx].title // \"\"")
 
         # Extraer seccion ## Dependencias del body
+        # Usa awk para compatibilidad con macOS (head -n -1 no funciona en BSD)
         local deps_section
-        deps_section=$(echo "$bloqueado_body" | sed -n '/^## Dependencias/,/^## /p' | head -n -1)
-        if [ -z "$deps_section" ]; then
-            # Intentar sin trailing section
-            deps_section=$(echo "$bloqueado_body" | sed -n '/^## Dependencias/,$p')
-        fi
+        deps_section=$(echo "$bloqueado_body" | awk '/^## Dependencias/{found=1; next} /^## /{found=0} found{print}')
 
         # Verificar si este issue bloqueado referencia alguno de los issues cerrados
         local referencia_cerrado=false
