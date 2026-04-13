@@ -341,7 +341,7 @@ public static class ServiceBusDeserializador
     public static T Deserializar<T>(BinaryData body)
         => JsonSerializer.Deserialize<T>(body.ToString(), Opciones)
            ?? throw new InvalidOperationException(
-               \$"No se pudo deserializar el mensaje como {typeof(T).Name}");
+               $"No se pudo deserializar el mensaje como {typeof(T).Name}");
 }
 ```
 
