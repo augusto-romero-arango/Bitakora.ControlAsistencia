@@ -130,19 +130,27 @@ A diferencia del pipeline TDD, no tiene fases roja/verde. Los gates son compilac
 
 ## Pipeline de debugging
 
-Para investigar errores en el entorno desplegado:
+Para investigar errores, tanto del entorno desplegado como del tooling local:
 
 ```bash
-# Via skill (recomendado)
+# Via skill (recomendado) — clasifica automaticamente el tipo de bug
 /bug "las funciones de liquidacion estan fallando con NullReferenceException"
+/bug "tooling-status no muestra progreso del pipeline"
+
+# Forzar tipo con flags explicitos
+/bug --deployed "error en funciones"
+/bug --tooling "el script falla"
 
 # Via agente directamente
-claude --agent bug-investigator "sintoma aqui"
+claude --agent bug-investigator "sintoma de entorno desplegado"
+claude --agent tooling-investigator "sintoma de tooling local"
 ```
 
-Stages: **Recolección (App Insights)** → **Correlación (código + fuentes)** → **Diagnóstico (hipótesis)** → **Acción (issues)**
+El skill `/bug` clasifica el sintoma por heuristica de palabras clave y enruta al agente apropiado:
+- **`bug-investigator`**: errores del entorno desplegado (Azure Functions, Service Bus, App Insights). Requiere `az login` y `scripts/appinsights-query.sh`.
+- **`tooling-investigator`**: errores de tooling local (pipelines, skills, agentes, scripts, worktrees). No requiere Azure.
 
-El agente solo puede escribir en `docs/bitacora/field-notes/` — no modifica código. Requiere `az login` activo y el script `scripts/appinsights-query.sh`.
+Ambos agentes solo pueden escribir en `docs/bitacora/field-notes/` — no modifican código.
 
 ## Definición de agentes y skills
 
