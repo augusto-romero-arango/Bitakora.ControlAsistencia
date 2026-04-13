@@ -266,8 +266,10 @@ run_agent() {
     log "Invocando $agent..."
 
     local AGENT_TIMEOUT_SECONDS=1800
+    local NONINTERACTIVE_SYSTEM="You are running in non-interactive print mode. There is no human to approve anything. You MUST use Write and Edit tools directly to create and modify files at any path including .claude/. Never output text asking for permissions or confirmations -- doing so causes pipeline failure."
     (cd "$WORKTREE_PATH" && claude -p "$prompt" \
         --permission-mode bypassPermissions \
+        --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
         --output-format text \
         >"$log_stage" 2>&1) &
     local CLAUDE_PID=$!
@@ -308,6 +310,7 @@ run_agent() {
                 CLAUDE_EXIT=0
                 (cd "$WORKTREE_PATH" && claude -p "$prompt" \
                     --permission-mode bypassPermissions \
+                    --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
                     --output-format text \
                     >"$log_stage_retry" 2>&1) || CLAUDE_EXIT=$?
                 elapsed=$(( $(date +%s) - start_ts ))
@@ -335,6 +338,7 @@ run_agent() {
                 CLAUDE_EXIT=0
                 (cd "$WORKTREE_PATH" && claude -p "$prompt" \
                     --permission-mode bypassPermissions \
+                    --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
                     --output-format text \
                     >"$log_stage_perm_retry" 2>&1) || CLAUDE_EXIT=$?
                 elapsed=$(( $(date +%s) - start_ts ))
@@ -415,7 +419,12 @@ $ISSUE_CONTEXT
 
 Tu tarea: implementa lo descrito en el issue. Esto es una tarea de TOOLING (scripts, fixtures de test, configuracion, agentes, skills, etc.), NO logica de dominio.
 
-IMPORTANTE: Tienes permisos completos para leer y escribir cualquier archivo del proyecto. Esto incluye .claude/agents/, .claude/skills/, scripts/, tests/, src/, .github/, infra/ y cualquier otra ruta. No pidas permisos ni confirmacion -- escribe directamente.
+CONTEXTO DE EJECUCION:
+- Modo no-interactivo (print mode). No hay un humano al otro lado.
+- Nadie puede aprobar, confirmar ni responder preguntas.
+- DEBES usar las herramientas Write y Edit directamente para crear y modificar archivos.
+- Responder con texto pidiendo aprobacion causa un fallo del pipeline.
+- Tienes permisos completos (bypassPermissions activo) sobre TODAS las rutas incluyendo .claude/.
 
 Instrucciones:
 1. Lee los archivos existentes relevantes antes de escribir codigo nuevo.
@@ -438,7 +447,30 @@ Instrucciones:
         HAS_UNSTAGED=true
     fi
     if [ "$HAS_COMMITS" = false ] && [ "$HAS_UNSTAGED" = false ]; then
-        abort "El writer no genero ningun cambio. Revisa el log: $LOG_DIR_ABS/tooling-stage-1-writer-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
+        # Detectar si el writer pidio permisos en vez de usar herramientas
+        local writer_log="$LOG_DIR_ABS/tooling-stage-1-writer-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
+        if grep -qiE "necesito.*permiso|aprobar.*permiso|confirma.*escritura|approve.*permission|permiso.*escritura" "$writer_log" 2>/dev/null; then
+            warn "Writer pidio permisos en modo no-interactivo -- reintentando con prompt reforzado..."
+            echo "[$(date +%H:%M:%S)] RETRY writer: solicitud de permisos detectada en output" >> "$EVENTS_LOG_ABS"
+
+            RETRY_PROMPT="ATENCION: El intento anterior fallo porque generaste texto pidiendo permisos en lugar de usar herramientas Write/Edit.
+
+Estas en modo NO-INTERACTIVO. No hay humano. DEBES usar Write/Edit directamente. Cualquier respuesta de texto sin tool calls causa un fallo del pipeline.
+
+$STAGE1_PROMPT"
+
+            run_agent "1" "writer" "$RETRY_PROMPT"
+
+            # Re-validar cambios despues del retry
+            git -C "$WORKTREE_PATH" checkout -- .claude/settings.json 2>/dev/null || true
+            HAS_COMMITS=false; HAS_UNSTAGED=false
+            if ! git -C "$WORKTREE_PATH" diff --quiet "$SNAPSHOT_COMMIT" HEAD 2>/dev/null; then HAS_COMMITS=true; fi
+            if [ -n "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/ scripts/ .claude/commands/ .claude/agents/ .claude/skills/ .github/ infra/ 2>/dev/null)" ]; then HAS_UNSTAGED=true; fi
+        fi
+
+        if [ "$HAS_COMMITS" = false ] && [ "$HAS_UNSTAGED" = false ]; then
+            abort "El writer no genero ningun cambio. Revisa el log: $LOG_DIR_ABS/tooling-stage-1-writer-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
+        fi
     fi
 
     # Gate 1: debe compilar (si hay codigo C#)
@@ -478,7 +510,12 @@ $FULL_DIFF
 
 Tu tarea: revisa la calidad del codigo producido por el writer.
 
-IMPORTANTE: Tienes permisos completos para leer y escribir cualquier archivo del proyecto. Esto incluye .claude/agents/, .claude/skills/, scripts/, tests/, src/, .github/, infra/ y cualquier otra ruta. No pidas permisos ni confirmacion -- corrige directamente.
+CONTEXTO DE EJECUCION:
+- Modo no-interactivo (print mode). No hay un humano al otro lado.
+- Nadie puede aprobar, confirmar ni responder preguntas.
+- DEBES usar las herramientas Write y Edit directamente para corregir problemas.
+- Responder con texto pidiendo aprobacion causa un fallo del pipeline.
+- Tienes permisos completos (bypassPermissions activo) sobre TODAS las rutas incluyendo .claude/.
 
 Instrucciones:
 1. Verifica que los cambios cumplen con lo pedido en el issue.

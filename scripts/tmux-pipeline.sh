@@ -268,10 +268,15 @@ cmd_parallel() {
         abort "No hay issues validos para abrir en paralelo."
     fi
 
-    # Un pane por issue
+    # Un pane por issue (escalonado para evitar contencion de API)
     for i in "${!resolved_issues[@]}"; do
         tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
         tmux send-keys -t "$session:main" "${resolved_pipelines[$i]} ${resolved_issues[$i]}" Enter
+        # Escalonar lanzamientos: 30s entre cada uno para evitar que multiples
+        # invocaciones de claude -p compitan por recursos de API simultaneamente
+        if [ "$i" -lt "$(( ${#resolved_issues[@]} - 1 ))" ]; then
+            sleep 30
+        fi
     done
 
     tmux select-layout -t "$session:main" even-horizontal

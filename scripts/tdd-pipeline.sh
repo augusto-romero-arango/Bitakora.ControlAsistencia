@@ -314,9 +314,11 @@ else
         SCAFFOLD_PROMPT="Crea el scaffold para el dominio '$SCAFFOLD_DOMAIN'. El usuario ya confirmo la creacion — omite la confirmacion del Paso 0 y procede directamente a crear el proyecto."
 
         SCAFFOLD_TIMEOUT=1800
+        local NONINTERACTIVE_SYSTEM="You are running in non-interactive print mode. There is no human to approve anything. You MUST use Write and Edit tools directly to create and modify files at any path including .claude/. Never output text asking for permissions or confirmations -- doing so causes pipeline failure."
         (cd "$WORKTREE_PATH" && claude -p "$SCAFFOLD_PROMPT" \
             --agent domain-scaffolder \
             --permission-mode bypassPermissions \
+            --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
             --output-format text \
             >"$LOG_SCAFFOLD" 2>&1) &
         SCAFFOLD_PID=$!
@@ -385,9 +387,11 @@ run_agent() {
     log "Invocando $agent..."
 
     local AGENT_TIMEOUT_SECONDS=1800  # 30 minutos por agente
+    local NONINTERACTIVE_SYSTEM="You are running in non-interactive print mode. There is no human to approve anything. You MUST use Write and Edit tools directly to create and modify files at any path including .claude/. Never output text asking for permissions or confirmations -- doing so causes pipeline failure."
     (cd "$WORKTREE_PATH" && claude -p "$prompt" \
         --agent "$agent" \
         --permission-mode bypassPermissions \
+        --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
         --output-format text \
         >"$log_stage" 2>&1) &
     local CLAUDE_PID=$!
@@ -433,6 +437,7 @@ run_agent() {
                 (cd "$WORKTREE_PATH" && claude -p "$prompt" \
                     --agent "$agent" \
                     --permission-mode bypassPermissions \
+                    --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
                     --output-format text \
                     >"$log_stage_retry" 2>&1) || CLAUDE_EXIT=$?
                 elapsed=$(( $(date +%s) - start_ts ))
@@ -1274,6 +1279,7 @@ IMPORTANTE:
         (cd "$WORKTREE_PATH" && claude -p "$PATCH_TW_PROMPT" \
             --agent test-writer \
             --permission-mode bypassPermissions \
+            --append-system-prompt "You are running in non-interactive print mode. No human is present. Use Write and Edit tools directly. Never ask for permissions." \
             --output-format text \
             >"$LOG_CG_TW" 2>&1) &
         CG_TW_PID=$!
@@ -1316,6 +1322,7 @@ Pista: revisa los ultimos archivos de test creados/modificados y corrige errores
                 (cd "$WORKTREE_PATH" && claude -p "$PATCH_IM_PROMPT" \
                     --agent implementer \
                     --permission-mode bypassPermissions \
+                    --append-system-prompt "You are running in non-interactive print mode. No human is present. Use Write and Edit tools directly. Never ask for permissions." \
                     --output-format text \
                     >"$LOG_CG_IM" 2>&1) &
                 CG_IM_PID=$!

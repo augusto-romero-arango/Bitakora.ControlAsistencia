@@ -282,9 +282,11 @@ run_agent() {
     log "Invocando $agent..."
 
     local AGENT_TIMEOUT_SECONDS=1800
+    local NONINTERACTIVE_SYSTEM="You are running in non-interactive print mode. There is no human to approve anything. You MUST use Write and Edit tools directly to create and modify files at any path including .claude/. Never output text asking for permissions or confirmations -- doing so causes pipeline failure."
     (cd "$WORKTREE_PATH" && claude -p "$prompt" \
         --agent "$agent" \
         --permission-mode bypassPermissions \
+        --append-system-prompt "$NONINTERACTIVE_SYSTEM" \
         --output-format text \
         >"$log_stage" 2>&1) &
     local CLAUDE_PID=$!
