@@ -196,16 +196,17 @@ for ISSUE_NUM in "${ISSUE_NUMS[@]}"; do
     CURRENT=$((COMPLETED + FAILED + 1))
     header "Issue #$ISSUE_NUM ($CURRENT/$TOTAL)"
 
-    # ── Pre-validacion: verificar que el issue esta abierto ───────────────────
-    ISSUE_STATE=$(gh issue view "$ISSUE_NUM" --json state -q .state 2>/dev/null || echo "UNKNOWN")
+    # ── Pre-validacion y resolucion de pipeline (una sola llamada API) ──────
+    STATE_AND_PIPELINE=$(resolve_pipeline_with_state "$ISSUE_NUM" "$PIPELINE_OVERRIDE")
+    ISSUE_STATE="${STATE_AND_PIPELINE%%|*}"
+    PIPELINE_SCRIPT="${STATE_AND_PIPELINE#*|}"
+
     if [ "$ISSUE_STATE" != "OPEN" ]; then
         log "Issue #$ISSUE_NUM esta $ISSUE_STATE --- saltando."
         FAILED=$((FAILED + 1))
         continue
     fi
 
-    # ── Resolver pipeline ────────────────────────────────────────────────────
-    PIPELINE_SCRIPT=$(resolve_pipeline "$ISSUE_NUM" "$PIPELINE_OVERRIDE")
     if [[ "$PIPELINE_SCRIPT" == SKIP:* ]]; then
         local_reason="${PIPELINE_SCRIPT#SKIP:}"
         warn "Issue #$ISSUE_NUM saltado ($local_reason) --- no se puede enrutar a un pipeline."

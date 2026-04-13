@@ -136,17 +136,20 @@ log "Paralelismo maximo: $([ "$MAX_PARALLEL" -gt 0 ] && echo "$MAX_PARALLEL" || 
 log "Log: $LOG_FILE_ABS"
 
 # ─── Pre-validacion: verificar estado y resolver pipeline por issue ──────────
+# Una sola llamada a gh por issue (estado + labels combinados)
 log "Verificando estado de los issues y resolviendo pipelines..."
 VALID_ISSUES=()
 ISSUE_PIPELINES=()
 for ISSUE_NUM in "${ISSUE_NUMS[@]}"; do
-    ISSUE_STATE=$(gh issue view "$ISSUE_NUM" --json state -q .state 2>/dev/null || echo "UNKNOWN")
+    STATE_AND_PIPELINE=$(resolve_pipeline_with_state "$ISSUE_NUM" "$PIPELINE_OVERRIDE")
+    ISSUE_STATE="${STATE_AND_PIPELINE%%|*}"
+    RESOLVED="${STATE_AND_PIPELINE#*|}"
+
     if [ "$ISSUE_STATE" != "OPEN" ]; then
         warn "Issue #$ISSUE_NUM esta $ISSUE_STATE --- saltando."
         continue
     fi
 
-    RESOLVED=$(resolve_pipeline "$ISSUE_NUM" "$PIPELINE_OVERRIDE")
     if [[ "$RESOLVED" == SKIP:* ]]; then
         local_reason="${RESOLVED#SKIP:}"
         warn "Issue #$ISSUE_NUM saltado ($local_reason) --- no se puede enrutar a un pipeline."

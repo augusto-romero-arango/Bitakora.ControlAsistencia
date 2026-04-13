@@ -248,7 +248,9 @@ cmd_parallel() {
     tmux set-option -t "$session" remain-on-exit on
     tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
-    # Un pane por issue, resolviendo pipeline individualmente
+    # Pre-resolver pipelines y filtrar issues no enrutables
+    local resolved_issues=()
+    local resolved_pipelines=()
     for issue in "${issues[@]}"; do
         local resolved
         resolved=$(resolve_pipeline "$issue" "$pipeline_override")
@@ -257,13 +259,24 @@ cmd_parallel() {
             warn "Issue #$issue saltado ($reason) --- no se abre tab."
             continue
         fi
+        resolved_issues+=("$issue")
+        resolved_pipelines+=("$resolved")
+    done
+
+    if [ ${#resolved_issues[@]} -eq 0 ]; then
+        tmux kill-session -t "$session" 2>/dev/null
+        abort "No hay issues validos para abrir en paralelo."
+    fi
+
+    # Un pane por issue
+    for i in "${!resolved_issues[@]}"; do
         tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
-        tmux send-keys -t "$session:main" "$resolved $issue" Enter
+        tmux send-keys -t "$session:main" "${resolved_pipelines[$i]} ${resolved_issues[$i]}" Enter
     done
 
     tmux select-layout -t "$session:main" even-horizontal
 
-    success "Pipeline paralelo iniciado: issues $issues_str"
+    success "Pipeline paralelo iniciado: issues ${resolved_issues[*]}"
     print_connect_hint "$session"
 
     # Nota: el flag --max-parallel se ignora aqui porque cada issue tiene su propio tab
