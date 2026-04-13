@@ -43,16 +43,6 @@ else
     exit 1
 fi
 
-if [ -z "${APPINSIGHTS_APP:-}" ]; then
-    error "Variable APPINSIGHTS_APP no definida en $ENV_FILE"
-    exit 1
-fi
-
-if [ -z "${APPINSIGHTS_RG:-}" ]; then
-    error "Variable APPINSIGHTS_RG no definida en $ENV_FILE"
-    exit 1
-fi
-
 # --- Verificar az login ------------------------------------------------------
 if ! az account show &>/dev/null; then
     error "No hay sesion activa de Azure CLI. Ejecuta 'az login' primero."
@@ -117,6 +107,15 @@ done
 run_query() {
     local query="$1"
     local description="$2"
+
+    if [ -z "${APPINSIGHTS_APP:-}" ]; then
+        error "Variable APPINSIGHTS_APP no definida en $ENV_FILE"
+        exit 1
+    fi
+    if [ -z "${APPINSIGHTS_RG:-}" ]; then
+        error "Variable APPINSIGHTS_RG no definida en $ENV_FILE"
+        exit 1
+    fi
 
     log "$description (ultimas ${HOURS}h)"
 
@@ -336,6 +335,11 @@ for i, m in enumerate(msgs):
         if [ -z "${FUNCTIONAPP_NAMES:-}" ]; then
             error "Variable FUNCTIONAPP_NAMES no definida en $ENV_FILE"
             echo "  Agrega FUNCTIONAPP_NAMES al archivo $ENV_FILE (ver .env.template)"
+            exit 1
+        fi
+        if [ -z "${APPINSIGHTS_RG:-}" ]; then
+            error "Variable APPINSIGHTS_RG no definida en $ENV_FILE (usada como resource group de las Function Apps)"
+            echo "  Agrega APPINSIGHTS_RG al archivo $ENV_FILE (ver .env.template)"
             exit 1
         fi
 

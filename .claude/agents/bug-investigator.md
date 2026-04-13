@@ -37,6 +37,19 @@ Ejecuta queries predefinidas contra App Insights usando el script del proyecto:
 
 # Filtrar por el sintoma reportado
 ./scripts/appinsights-query.sh traces --filter "SINTOMA_AQUI"
+
+# Estado de Service Bus - dead letters en todas las subscriptions
+./scripts/appinsights-query.sh servicebus-dlq
+
+# Estado de Azure Functions - running/stopped
+./scripts/appinsights-query.sh function-status
+```
+
+**Heuristica DLQ**: si el sintoma menciona "dead letter", "mensaje perdido", "cola" o "DLQ", ejecuta tambien:
+
+```bash
+# Peek al contenido de dead letters (sin consumir)
+./scripts/appinsights-query.sh servicebus-dlq-peek
 ```
 
 Ajusta el rango temporal con `--hours N` si el usuario reporta que el error fue hace mas de 24h.
@@ -51,6 +64,7 @@ Con los datos de App Insights en mano:
 2. **Mapea el flujo**: identifica que funcion, comando o evento esta involucrado
 3. **Investiga errores desconocidos**: si el error es de una libreria, framework o servicio externo, usa WebSearch y WebFetch para buscar la causa conocida. Cita las fuentes.
 4. **Revisa cambios recientes**: consulta el historial git para ver si hay commits recientes en los archivos afectados
+5. **Revisa configuracion de messaging**: si el problema involucra Service Bus, lee el `host.json` del dominio afectado para verificar `prefetchCount`, `maxConcurrentCalls`, `lockDuration` (leccion de Bug #47/#48)
 
 ```bash
 # Ejemplo: ver commits recientes en un archivo sospechoso
