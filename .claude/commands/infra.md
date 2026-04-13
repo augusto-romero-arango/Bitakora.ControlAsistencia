@@ -56,7 +56,7 @@ Responde con:
 Pipeline infra lanzado en tmux. Para monitorear:
   tmux -CC attach -t infra-<numero>
 
-Usa /infra-status para ver el progreso sin salir de aqui.
+Usa /work-status para ver el progreso sin salir de aqui.
 ```
 
 ## Reglas
