@@ -68,16 +68,21 @@ MAX_ROWS=50
 if [ -z "$COMMAND" ]; then
     echo -e "${CYAN}${BOLD}appinsights-query.sh${NC} - Consultas KQL contra App Insights"
     echo ""
-    echo "Comandos disponibles:"
-    echo "  exceptions       Top 20 excepciones agrupadas por tipo y mensaje"
-    echo "  dead-letters     Mensajes dead-lettered en traces"
-    echo "  function-errors  Funciones con requests fallidas"
-    echo "  traces           Traces (usar con --filter para filtrar)"
-    echo "  health-summary   Vista rapida: excepciones + requests fallidas + disponibilidad"
+    echo "Comandos KQL (App Insights):"
+    echo "  exceptions         Top 20 excepciones agrupadas por tipo y mensaje"
+    echo "  dead-letters       Mensajes dead-lettered en traces"
+    echo "  function-errors    Funciones con requests fallidas"
+    echo "  traces             Traces (usar con --filter para filtrar)"
+    echo "  health-summary     Vista rapida: excepciones + requests fallidas + disponibilidad"
+    echo ""
+    echo "Comandos Azure Resource Manager:"
+    echo "  servicebus-dlq     Conteo de dead letters por subscription en Service Bus"
+    echo "  servicebus-dlq-peek  Peek a mensajes en DLQ sin consumirlos (max 5)"
+    echo "  function-status    Estado y funciones registradas de cada Function App"
     echo ""
     echo "Opciones:"
-    echo "  --hours N        Ventana temporal en horas (default: 24)"
-    echo "  --filter TEXT    Filtrar por texto (solo para 'traces')"
+    echo "  --hours N          Ventana temporal en horas (default: 24, solo KQL)"
+    echo "  --filter TEXT      Filtrar por texto (solo para 'traces')"
     exit 1
 fi
 
@@ -188,6 +193,202 @@ case "$COMMAND" in
             "Top 5 tipos de error"
 
         success "Health summary completado"
+        ;;
+
+    servicebus-dlq)
+        if [ -z "${SERVICEBUS_NAMESPACE:-}" ]; then
+            error "Variable SERVICEBUS_NAMESPACE no definida en $ENV_FILE"
+            echo "  Agrega SERVICEBUS_NAMESPACE al archivo $ENV_FILE (ver .env.template)"
+            exit 1
+        fi
+        if [ -z "${SERVICEBUS_RG:-}" ]; then
+            error "Variable SERVICEBUS_RG no definida en $ENV_FILE"
+            echo "  Agrega SERVICEBUS_RG al archivo $ENV_FILE (ver .env.template)"
+            exit 1
+        fi
+
+        log "Conteo de dead letters en Service Bus namespace: $SERVICEBUS_NAMESPACE"
+
+        topics=$(az servicebus topic list \
+            --namespace-name "$SERVICEBUS_NAMESPACE" \
+            --resource-group "$SERVICEBUS_RG" \
+            --query "[].name" -o tsv 2>&1) || {
+            error "Fallo al listar topics de Service Bus"
+            echo "$topics" >&2
+            exit 1
+        }
+
+        if [ -z "$topics" ]; then
+            warn "No se encontraron topics en el namespace $SERVICEBUS_NAMESPACE"
+        else
+            for topic in $topics; do
+                subs=$(az servicebus topic subscription list \
+                    --namespace-name "$SERVICEBUS_NAMESPACE" \
+                    --resource-group "$SERVICEBUS_RG" \
+                    --topic-name "$topic" \
+                    --query "[].name" -o tsv 2>&1) || {
+                    warn "Fallo al listar subscriptions del topic $topic"
+                    continue
+                }
+
+                for sub in $subs; do
+                    dlq_count=$(az servicebus topic subscription show \
+                        --namespace-name "$SERVICEBUS_NAMESPACE" \
+                        --resource-group "$SERVICEBUS_RG" \
+                        --topic-name "$topic" \
+                        --name "$sub" \
+                        --query "countDetails.deadLetterMessageCount" -o tsv 2>&1) || {
+                        warn "Fallo al consultar subscription $topic/$sub"
+                        continue
+                    }
+
+                    if [ "${dlq_count:-0}" -gt 0 ] 2>/dev/null; then
+                        echo -e "${RED}${BOLD}DLQ${NC} $topic/$sub: ${RED}$dlq_count${NC} mensajes"
+                    else
+                        echo -e "${GREEN}ok${NC}  $topic/$sub: $dlq_count mensajes"
+                    fi
+                done
+            done
+        fi
+
+        success "Consulta de dead letters completada"
+        ;;
+
+    servicebus-dlq-peek)
+        if [ -z "${SERVICEBUS_NAMESPACE:-}" ]; then
+            error "Variable SERVICEBUS_NAMESPACE no definida en $ENV_FILE"
+            echo "  Agrega SERVICEBUS_NAMESPACE al archivo $ENV_FILE (ver .env.template)"
+            exit 1
+        fi
+        if [ -z "${SERVICEBUS_RG:-}" ]; then
+            error "Variable SERVICEBUS_RG no definida en $ENV_FILE"
+            echo "  Agrega SERVICEBUS_RG al archivo $ENV_FILE (ver .env.template)"
+            exit 1
+        fi
+
+        log "Peek a dead letters en Service Bus namespace: $SERVICEBUS_NAMESPACE"
+
+        topics=$(az servicebus topic list \
+            --namespace-name "$SERVICEBUS_NAMESPACE" \
+            --resource-group "$SERVICEBUS_RG" \
+            --query "[].name" -o tsv 2>&1) || {
+            error "Fallo al listar topics de Service Bus"
+            echo "$topics" >&2
+            exit 1
+        }
+
+        if [ -z "$topics" ]; then
+            warn "No se encontraron topics en el namespace $SERVICEBUS_NAMESPACE"
+        else
+            for topic in $topics; do
+                subs=$(az servicebus topic subscription list \
+                    --namespace-name "$SERVICEBUS_NAMESPACE" \
+                    --resource-group "$SERVICEBUS_RG" \
+                    --topic-name "$topic" \
+                    --query "[].name" -o tsv 2>&1) || {
+                    warn "Fallo al listar subscriptions del topic $topic"
+                    continue
+                }
+
+                for sub in $subs; do
+                    echo -e "\n${CYAN}${BOLD}--- $topic/$sub/\$deadletterqueue ---${NC}"
+                    messages=$(az servicebus topic subscription receive \
+                        --namespace-name "$SERVICEBUS_NAMESPACE" \
+                        --resource-group "$SERVICEBUS_RG" \
+                        --topic-name "$topic" \
+                        --subscription-name "$sub" \
+                        --is-dead-letter-queue true \
+                        --peek-lock \
+                        --max-messages 5 \
+                        --output json 2>&1) || {
+                        warn "Fallo al hacer peek en $topic/$sub DLQ"
+                        continue
+                    }
+
+                    msg_count=$(echo "$messages" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+                    if [ "$msg_count" = "0" ]; then
+                        echo "  (vacio)"
+                    else
+                        echo "$messages" | python3 -c "
+import sys, json
+msgs = json.load(sys.stdin)
+for i, m in enumerate(msgs):
+    body = m.get('body', '(sin body)')
+    props = m.get('applicationProperties', {})
+    reason = m.get('deadLetterReason', '(sin razon)')
+    print(f'  [{i+1}] reason={reason}')
+    if props:
+        print(f'      props={json.dumps(props, ensure_ascii=False)}')
+    body_str = body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)
+    if len(body_str) > 200:
+        body_str = body_str[:200] + '...'
+    print(f'      body={body_str}')
+" 2>/dev/null || echo "$messages"
+                    fi
+                done
+            done
+        fi
+
+        success "Peek de dead letters completado"
+        ;;
+
+    function-status)
+        if [ -z "${FUNCTIONAPP_NAMES:-}" ]; then
+            error "Variable FUNCTIONAPP_NAMES no definida en $ENV_FILE"
+            echo "  Agrega FUNCTIONAPP_NAMES al archivo $ENV_FILE (ver .env.template)"
+            exit 1
+        fi
+
+        log "Estado de Azure Functions"
+
+        IFS=',' read -ra APPS <<< "$FUNCTIONAPP_NAMES"
+        for app_name in "${APPS[@]}"; do
+            app_name=$(echo "$app_name" | xargs)  # trim whitespace
+            echo -e "\n${CYAN}${BOLD}--- $app_name ---${NC}"
+
+            status=$(az functionapp show \
+                --name "$app_name" \
+                --resource-group "${APPINSIGHTS_RG}" \
+                --query "{state:state, defaultHostName:defaultHostName, kind:kind}" \
+                --output json 2>&1) || {
+                warn "Fallo al consultar Function App $app_name"
+                echo "$status" >&2
+                continue
+            }
+
+            state=$(echo "$status" | python3 -c "import sys,json; print(json.load(sys.stdin).get('state','unknown'))" 2>/dev/null || echo "unknown")
+            if [ "$state" = "Running" ]; then
+                echo -e "  Estado: ${GREEN}${BOLD}$state${NC}"
+            else
+                echo -e "  Estado: ${RED}${BOLD}$state${NC}"
+            fi
+
+            functions=$(az functionapp function list \
+                --name "$app_name" \
+                --resource-group "${APPINSIGHTS_RG}" \
+                --query "[].{name:name, isDisabled:isDisabled}" \
+                --output json 2>&1) || {
+                warn "Fallo al listar funciones de $app_name"
+                continue
+            }
+
+            func_count=$(echo "$functions" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+            echo "  Funciones registradas: $func_count"
+
+            if [ "$func_count" != "0" ]; then
+                echo "$functions" | python3 -c "
+import sys, json
+funcs = json.load(sys.stdin)
+for f in funcs:
+    name = f.get('name', '?').split('/')[-1]
+    disabled = f.get('isDisabled', False)
+    status = 'DISABLED' if disabled else 'ok'
+    print(f'    - {name} ({status})')
+" 2>/dev/null || echo "$functions"
+            fi
+        done
+
+        success "Consulta de estado de Functions completada"
         ;;
 
     *)
