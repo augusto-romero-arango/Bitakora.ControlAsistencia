@@ -419,7 +419,13 @@ for f in funcs:
 
         # Guardrail: inyectar ventana temporal si no contiene ago(
         if ! echo "$CUSTOM_QUERY" | grep -qi 'ago('; then
-            CUSTOM_QUERY=$(echo "$CUSTOM_QUERY" | sed 's/|/| where timestamp > ago(1h) |/' )
+            if echo "$CUSTOM_QUERY" | grep -q '|'; then
+                # Insertar despues del primer pipe: "tabla | where timestamp > ago(1h) | resto"
+                CUSTOM_QUERY=$(echo "$CUSTOM_QUERY" | sed 's/|/| where timestamp > ago(1h) |/')
+            else
+                # Query sin pipes (ej: "exceptions"): agregar filtro al final
+                CUSTOM_QUERY="$CUSTOM_QUERY | where timestamp > ago(1h)"
+            fi
         fi
 
         # Guardrail: inyectar take si no contiene take
@@ -431,6 +437,7 @@ for f in funcs:
         AUDIT_LOG="$SCRIPT_DIR/.kql-audit.log"
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] QUERY: $CUSTOM_QUERY" >> "$AUDIT_LOG"
 
+        HOURS=1  # Reflejar la ventana real en el log de run_query
         run_query "$CUSTOM_QUERY" "Query ad-hoc"
         ;;
 
