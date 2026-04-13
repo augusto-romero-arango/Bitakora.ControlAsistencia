@@ -775,7 +775,9 @@ public class ApiFixture : IAsyncLifetime
 
 **4. Crear `Fixtures/ServiceBusFixture.cs`:**
 
-El fixture incluye ambas variantes de interaccion con Service Bus: `PublishAsync` (para enviar comandos/eventos) y `WaitForMessageAsync` con dos overloads (por `correlationId` y por predicado `Func<T, bool>`). Usa el patron `IsConfigured` para skip graceful.
+El fixture incluye: `PurgeAsync` (para limpiar mensajes residuales antes de cada test), `PublishAsync` (para enviar comandos/eventos) y `WaitForMessageAsync` (por predicado `Func<T, bool>`). Usa el patron `IsConfigured` para skip graceful.
+
+> **Importante**: Se usa `CompleteMessageAsync` en todas las ramas (match, no-match, JsonException) en vez de `AbandonMessageAsync`. Abandonar mensajes los devuelve a la suscripcion y, tras agotar los reintentos, los envia a dead letters, acumulando basura en la suscripcion `smoke-tests`. Completar siempre evita este problema.
 
 ```csharp
 using System.Text.Json;
@@ -812,6 +814,21 @@ public class ServiceBusFixture : IAsyncLifetime
         return ValueTask.CompletedTask;
     }
 
+    public async Task PurgeAsync(string topicName, string subscriptionName)
+    {
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
+        var maxWait = TimeSpan.FromSeconds(2);
+
+        while (true)
+        {
+            var message = await receiver.ReceiveMessageAsync(maxWait);
+            if (message is null)
+                break;
+
+            await receiver.CompleteMessageAsync(message);
+        }
+    }
+
     public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
     {
         await using var sender = _client!.CreateSender(topicName);
@@ -828,41 +845,10 @@ public class ServiceBusFixture : IAsyncLifetime
         await sender.SendMessageAsync(sbMessage);
     }
 
-    public async Task<T?> WaitForMessageAsync<T>(
-        string topicName,
-        string subscriptionName,
-        string correlationId,
-        TimeSpan timeout)
-    {
-        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
-
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            var remaining = deadline - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
-                break;
-
-            var maxWait = remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5);
-            var received = await receiver.ReceiveMessageAsync(maxWait);
-
-            if (received is null)
-                continue;
-
-            if (received.CorrelationId == correlationId)
-            {
-                await receiver.CompleteMessageAsync(received);
-                return JsonSerializer.Deserialize<T>(received.Body.ToString());
-            }
-
-            await receiver.AbandonMessageAsync(received);
-        }
-
-        return default;
-    }
-
-    public async Task<T?> WaitForMessageAsync<T>(
+    // Se usa CompleteMessageAsync en todas las ramas para evitar acumulacion
+    // de dead letters en la suscripcion smoke-tests. AbandonMessageAsync devuelve
+    // el mensaje a la cola y, tras agotar reintentos, lo envia a dead letters.
+    public async Task<T> WaitForMessageAsync<T>(
         string topicName,
         string subscriptionName,
         Func<T, bool> match,
@@ -888,21 +874,33 @@ public class ServiceBusFixture : IAsyncLifetime
             try
             {
                 var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
-                if (deserialized is not null && match(deserialized))
+                if (deserialized is null)
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    continue;
+                }
+
+                if (match(deserialized))
                 {
                     await receiver.CompleteMessageAsync(received);
                     return deserialized;
                 }
+
+                await receiver.CompleteMessageAsync(received);
+                throw new InvalidOperationException(
+                    $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
+                    $"Contenido: {received.Body}");
             }
             catch (JsonException)
             {
-                // Mensaje con formato incompatible, ignorar
+                await receiver.CompleteMessageAsync(received);
+                continue;
             }
-
-            await receiver.AbandonMessageAsync(received);
         }
 
-        return default;
+        throw new TimeoutException(
+            $"No se recibio ningun mensaje en la suscripcion {subscriptionName} " +
+            $"del topic {topicName} en {timeout.TotalSeconds}s");
     }
 
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
@@ -1153,6 +1151,7 @@ public static class Polling
 ```csharp
 using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
 
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 [assembly: AssemblyFixture(typeof(ApiFixture))]
 [assembly: AssemblyFixture(typeof(ServiceBusFixture))]
 [assembly: AssemblyFixture(typeof(PostgresFixture))]
@@ -1492,7 +1491,7 @@ Scaffold completado para el dominio "{kebab}":
 
   tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
     Fixtures/ApiFixture.cs                 - HttpClient + config + health check fail-fast
-    Fixtures/ServiceBusFixture.cs          - PublishAsync + WaitForMessageAsync (correlationId y predicado)
+    Fixtures/ServiceBusFixture.cs          - PurgeAsync + PublishAsync + WaitForMessageAsync (predicado)
     Fixtures/PostgresFixture.cs            - IsConfigured + SkipReason + firewall catch + consulta Marten
     Fixtures/Polling.cs                    - Polling tolerante a excepciones con backoff
     Fixtures/AssemblyFixture.cs            - Registra ApiFixture, ServiceBusFixture, PostgresFixture
