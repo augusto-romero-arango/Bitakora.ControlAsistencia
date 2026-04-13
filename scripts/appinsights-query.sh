@@ -65,6 +65,10 @@ if [ -z "$COMMAND" ]; then
     echo "  traces             Traces (usar con --filter para filtrar)"
     echo "  health-summary     Vista rapida: excepciones + requests fallidas + disponibilidad"
     echo ""
+    echo "Comandos ad-hoc:"
+    echo "  custom \"QUERY\"    Query KQL ad-hoc con guardrails (take 20, ventana 1h)"
+    echo "                     Ej: custom \"exceptions | where type has 'NullRef' | take 5\""
+    echo ""
     echo "Comandos Azure Resource Manager:"
     echo "  servicebus-dlq     Conteo de dead letters por subscription en Service Bus"
     echo "  servicebus-dlq-peek  Peek a mensajes en DLQ sin consumirlos (max 5)"
@@ -77,6 +81,13 @@ if [ -z "$COMMAND" ]; then
 fi
 
 shift
+
+# Capturar argumento posicional para el comando custom
+CUSTOM_ARG=""
+if [ "$COMMAND" = "custom" ] && [[ $# -gt 0 ]] && [[ "$1" != --* ]]; then
+    CUSTOM_ARG="$1"
+    shift
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -393,6 +404,34 @@ for f in funcs:
         done
 
         success "Consulta de estado de Functions completada"
+        ;;
+
+    custom)
+        CUSTOM_QUERY="$CUSTOM_ARG"
+        if [ -z "$CUSTOM_QUERY" ]; then
+            error "El comando 'custom' requiere una query KQL como argumento"
+            echo "  Ejemplo: ./scripts/appinsights-query.sh custom \"exceptions | where type has 'NullRef' | take 5\""
+            exit 1
+        fi
+
+        # Advertencia de daily cap en stderr
+        echo -e "${YELLOW}ADVERTENCIA: query ad-hoc. Daily cap: 0.5GB. Ver ADR-0009.${NC}" >&2
+
+        # Guardrail: inyectar ventana temporal si no contiene ago(
+        if ! echo "$CUSTOM_QUERY" | grep -qi 'ago('; then
+            CUSTOM_QUERY=$(echo "$CUSTOM_QUERY" | sed 's/|/| where timestamp > ago(1h) |/' )
+        fi
+
+        # Guardrail: inyectar take si no contiene take
+        if ! echo "$CUSTOM_QUERY" | grep -qi 'take'; then
+            CUSTOM_QUERY="$CUSTOM_QUERY | take 20"
+        fi
+
+        # Audit log
+        AUDIT_LOG="$SCRIPT_DIR/.kql-audit.log"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] QUERY: $CUSTOM_QUERY" >> "$AUDIT_LOG"
+
+        run_query "$CUSTOM_QUERY" "Query ad-hoc"
         ;;
 
     *)
