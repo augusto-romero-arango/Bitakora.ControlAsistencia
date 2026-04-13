@@ -54,8 +54,8 @@ abort() {
     fi
     if [ -n "${PIPELINE_DIR_ABS:-}" ]; then
         update_status "$CURRENT_STAGE" "failed"
-        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
-            >> "$PIPELINE_DIR_ABS/tooling-history.jsonl" 2>/dev/null || true
+        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"pipeline\":\"tooling\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
+            >> "$PIPELINE_DIR_ABS/pipeline-history.jsonl" 2>/dev/null || true
     fi
     exit 1
 }
@@ -103,7 +103,7 @@ extract_test_count() {
 # --- Parsear argumentos ---
 ISSUE_NUM=""
 FROM_STAGE=1
-STATUS_FILENAME="tooling-status.json"  # Nombre del archivo de status (parametrizable para paralelismo)
+STATUS_FILENAME="pipeline-status-tooling.json"  # Nombre del archivo de status (parametrizable para paralelismo)
 
 if [ $# -eq 0 ]; then
     echo "Uso: $0 [--issue NUM | NUM] [--from-stage N]"
@@ -145,8 +145,8 @@ fi
 [ -z "$ISSUE_NUM" ] && abort "Falta el numero de issue"
 
 # Si no se paso --status-file, usar tooling-status-{issue}.json para soportar paralelismo
-if [ "$STATUS_FILENAME" = "tooling-status.json" ]; then
-    STATUS_FILENAME="tooling-status-${ISSUE_NUM}.json"
+if [ "$STATUS_FILENAME" = "pipeline-status-tooling.json" ]; then
+    STATUS_FILENAME="pipeline-status-tooling-${ISSUE_NUM}.json"
 fi
 
 if ! [[ "$FROM_STAGE" =~ ^[1-2]$ ]]; then
@@ -607,8 +607,8 @@ gh issue comment "$ISSUE_NUM" \
     >>"$LOG_FILE" 2>&1 || warn "No se pudo comentar en el issue #$ISSUE_NUM"
 
 # Historial
-echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"writer\":{\"duration\":${AGENT_WR_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
-    >> "$PIPELINE_DIR_ABS/tooling-history.jsonl"
+echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"pipeline\":\"tooling\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"writer\":{\"duration\":${AGENT_WR_DUR:-null}},\"reviewer\":{\"duration\":${AGENT_RV_DUR:-null}}},\"tests\":${PIPELINE_TESTS:-null},\"pr\":\"$PR_URL\"}" \
+    >> "$PIPELINE_DIR_ABS/pipeline-history.jsonl"
 
 # Eliminar archivo de estado individual (ya esta en el historial)
 rm -f "$PIPELINE_DIR_ABS/$STATUS_FILENAME"

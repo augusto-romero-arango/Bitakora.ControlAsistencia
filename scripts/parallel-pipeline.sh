@@ -178,7 +178,13 @@ START_TIMES=()   # Timestamp de inicio de cada pipeline
 launch_pipeline() {
     local issue="$1"
     local pipeline_script="$2"
-    local status_file="status-${issue}.json"
+    # Determinar tipo de pipeline segun el script
+    local pipeline_type="tdd"
+    case "$(basename "$pipeline_script")" in
+        *tooling*) pipeline_type="tooling" ;;
+        *iac*)     pipeline_type="infra" ;;
+    esac
+    local status_file="pipeline-status-${pipeline_type}-${issue}.json"
     local issue_log="$REPO_ROOT/$LOG_DIR/parallel-issue-${issue}-${TIMESTAMP}.log"
     touch "$issue_log"
 
@@ -423,8 +429,10 @@ echo ""
 # ─── Cleanup de status files ──────────────────────────────────────────────────
 if [ "$KEEP_STATUS" = "false" ]; then
     for issue in "${ISSUE_NUMS[@]}"; do
-        STATUS_FILE="$PIPELINE_DIR_ABS/status-${issue}.json"
-        [ -f "$STATUS_FILE" ] && rm -f "$STATUS_FILE"
+        # Borrar archivos de status con patron normalizado (cualquier tipo de pipeline)
+        for sf in "$PIPELINE_DIR_ABS"/pipeline-status-*-"${issue}.json"; do
+            [ -f "$sf" ] && rm -f "$sf"
+        done
     done
 fi
 

@@ -52,8 +52,8 @@ abort() {
     fi
     if [ -n "${PIPELINE_DIR_ABS:-}" ]; then
         update_status "$CURRENT_STAGE" "failed"
-        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"environment\":\"${ENVIRONMENT:-}\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
-            >> "$PIPELINE_DIR_ABS/infra-history.jsonl" 2>/dev/null || true
+        echo "{\"issue\":\"${ISSUE_NUM:-}\",\"title\":\"$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')\",\"pipeline\":\"infra\",\"environment\":\"${ENVIRONMENT:-}\",\"started\":\"${TIMESTAMP:-}\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"failed\",\"stage\":\"$CURRENT_STAGE\",\"error\":\"$PIPELINE_ERROR\"}" \
+            >> "$PIPELINE_DIR_ABS/pipeline-history.jsonl" 2>/dev/null || true
     fi
     exit 1
 }
@@ -67,7 +67,7 @@ update_status() {
     [ -n "$AGENT_AP_DUR" ] && ap_dur="$AGENT_AP_DUR"
     local error_val="null"
     [ -n "$PIPELINE_ERROR" ] && error_val="\"$PIPELINE_ERROR\""
-    cat > "$PIPELINE_DIR_ABS/infra-status.json" <<EOJSON
+    cat > "$PIPELINE_DIR_ABS/$STATUS_FILENAME" <<EOJSON
 {
   "issue": "${ISSUE_NUM:-null}",
   "title": "$(echo "${ISSUE_TITLE:-}" | sed 's/"/\\"/g')",
@@ -95,6 +95,7 @@ ENVIRONMENT="dev"
 FROM_STAGE=1
 AUTO_APPLY=false
 SKIP_APPLY=false
+STATUS_FILENAME=""  # Se asigna despues del parseo (necesita ISSUE_NUM); override con --status-file
 
 if [ $# -eq 0 ]; then
     echo "Uso: $0 <issue-num> [--env <dev|staging|prod>] [--auto-apply] [--skip-apply] [--from-stage N]"
@@ -122,6 +123,11 @@ while [[ $# -gt 0 ]]; do
             SKIP_APPLY=true
             shift
             ;;
+        --status-file)
+            [ $# -lt 2 ] && abort "Falta el nombre del archivo de status"
+            STATUS_FILENAME="$2"
+            shift 2
+            ;;
         [0-9]*)
             POSITIONAL_ARGS+=("$1")
             shift
@@ -137,6 +143,11 @@ if [ ${#POSITIONAL_ARGS[@]} -gt 0 ] && [ -z "$ISSUE_NUM" ]; then
 fi
 
 [ -z "$ISSUE_NUM" ] && abort "Falta el numero de issue"
+
+# Si no se paso --status-file, usar convención normalizada con ISSUE_NUM
+if [ -z "$STATUS_FILENAME" ]; then
+    STATUS_FILENAME="pipeline-status-infra-${ISSUE_NUM}.json"
+fi
 
 if ! [[ "$FROM_STAGE" =~ ^[1-3]$ ]]; then
     abort "--from-stage debe ser 1, 2, o 3"
@@ -502,10 +513,13 @@ gh issue comment "$ISSUE_NUM" \
     >>"$LOG_FILE" 2>&1 || warn "No se pudo comentar en el issue #$ISSUE_NUM"
 
 # --- Historial ---
-echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"environment\":\"$ENVIRONMENT\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"infra-writer\":{\"duration\":${AGENT_WR_DUR:-null},\"result\":\"$AGENT_WR_RES\"},\"infra-reviewer\":{\"duration\":${AGENT_RV_DUR:-null},\"result\":\"$AGENT_RV_RES\"},\"infra-applier\":{\"duration\":${AGENT_AP_DUR:-null},\"result\":\"$AGENT_AP_RES\"}},\"pr\":\"${PR_URL:-}\"}" \
-    >> "$PIPELINE_DIR_ABS/infra-history.jsonl"
+echo "{\"issue\":\"$ISSUE_NUM\",\"title\":\"$(echo "$ISSUE_TITLE" | sed 's/"/\\"/g')\",\"pipeline\":\"infra\",\"environment\":\"$ENVIRONMENT\",\"started\":\"$TIMESTAMP\",\"finished\":\"$(date +%Y-%m-%dT%H:%M:%S)\",\"state\":\"completed\",\"agents\":{\"infra-writer\":{\"duration\":${AGENT_WR_DUR:-null},\"result\":\"$AGENT_WR_RES\"},\"infra-reviewer\":{\"duration\":${AGENT_RV_DUR:-null},\"result\":\"$AGENT_RV_RES\"},\"infra-applier\":{\"duration\":${AGENT_AP_DUR:-null},\"result\":\"$AGENT_AP_RES\"}},\"pr\":\"${PR_URL:-}\"}" \
+    >> "$PIPELINE_DIR_ABS/pipeline-history.jsonl"
 
 update_status "completed" "completed"
+
+# Eliminar archivo de estado individual (ya esta en el historial)
+rm -f "$PIPELINE_DIR_ABS/$STATUS_FILENAME"
 
 # --- Cleanup ---
 header "Cleanup"
