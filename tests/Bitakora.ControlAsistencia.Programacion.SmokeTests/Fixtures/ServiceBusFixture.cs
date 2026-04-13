@@ -73,19 +73,22 @@ public class ServiceBusFixture : IAsyncLifetime
             try
             {
                 var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
-                if (deserialized is not null && match(deserialized))
+                if (deserialized is null)
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    continue;
+                }
+
+                if (match(deserialized))
                 {
                     await receiver.CompleteMessageAsync(received);
                     return deserialized;
                 }
 
-                if (deserialized is not null)
-                {
-                    await receiver.CompleteMessageAsync(received);
-                    throw new InvalidOperationException(
-                        $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
-                        $"Contenido: {received.Body}");
-                }
+                await receiver.CompleteMessageAsync(received);
+                throw new InvalidOperationException(
+                    $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
+                    $"Contenido: {received.Body}");
             }
             catch (JsonException)
             {
