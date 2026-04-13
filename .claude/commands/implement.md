@@ -30,7 +30,34 @@ Determina el tipo del issue buscando el label `tipo:X`. Luego verifica los 5 cri
 
 Si **uno o mas criterios fallan**: muestra la lista completa de lo que falta, sugiere `claude --agent planner` en modo `refinar` para completarlos, y **detente**.
 
-Si **todos los criterios pasan**: continua al paso 2.
+Si **todos los criterios pasan**: continua al paso 1.6.
+
+### 1.6. Verificar label bloqueado
+
+Si el issue tiene el label `bloqueado`, lee la seccion `## Dependencias` del body y extrae todos los numeros de issue/PR referenciados (patron `#NNN`).
+
+Para cada referencia, consulta su estado:
+
+```bash
+gh issue view <num> --json state -q '.state'
+gh pr view <num> --json state -q '.state'
+```
+
+- Si **todas** las dependencias estan cerradas (`CLOSED`) o mergeadas (`MERGED`): quita el label y continua:
+
+```bash
+gh issue edit $ARGUMENTS --remove-label "bloqueado"
+```
+
+- Si **alguna** dependencia sigue abierta: muestra cuales y **detente**:
+
+```
+El issue #$ARGUMENTS esta bloqueado. Dependencias abiertas:
+  - #42: [titulo] (OPEN)
+  - #55: [titulo] (OPEN)
+
+Resuelve estas dependencias antes de lanzar el pipeline.
+```
 
 ### 2. Detectar dominio
 
