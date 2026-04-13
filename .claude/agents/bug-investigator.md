@@ -64,7 +64,14 @@ Con los datos de App Insights en mano:
 2. **Mapea el flujo**: identifica que funcion, comando o evento esta involucrado
 3. **Investiga errores desconocidos**: si el error es de una libreria, framework o servicio externo, usa WebSearch y WebFetch para buscar la causa conocida. Cita las fuentes.
 4. **Revisa cambios recientes**: consulta el historial git para ver si hay commits recientes en los archivos afectados
-5. **Revisa configuracion de messaging**: si el problema involucra Service Bus, lee el `host.json` del dominio afectado para verificar `prefetchCount`, `maxConcurrentCalls`, `lockDuration` (leccion de Bug #47/#48)
+5. **Query ad-hoc (si las predefinidas no alcanzan)**: si las queries del Stage 1 no contienen la informacion necesaria para correlacionar, puedes usar el comando `custom` con una query KQL minima. Principios: filtrar agresivamente con `where`, usar `take 10`, preferir `summarize` sobre `project`. Maximo 3 queries custom por sesion de investigacion.
+
+```bash
+# Ejemplo: contar eventos procesados de un tipo especifico
+./scripts/appinsights-query.sh custom "customEvents | where name == 'ProgramacionTurnoDiarioSolicitada' | summarize count() by bin(timestamp, 10m)"
+```
+
+6. **Revisa configuracion de messaging**: si el problema involucra Service Bus, lee el `host.json` del dominio afectado para verificar `prefetchCount`, `maxConcurrentCalls`, `lockDuration` (leccion de Bug #47/#48)
 
 ```bash
 # Ejemplo: ver commits recientes en un archivo sospechoso
