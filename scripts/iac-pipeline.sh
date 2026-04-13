@@ -268,7 +268,7 @@ run_agent() {
     local stage="$1"
     local agent="$2"
     local prompt="$3"
-    local log_stage="$LOG_DIR_ABS/iac-stage-${stage}-${agent}-${TIMESTAMP}.log"
+    local log_stage="$LOG_DIR_ABS/iac-stage-${stage}-${agent}-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
     local start_ts
     start_ts=$(date +%s)
 

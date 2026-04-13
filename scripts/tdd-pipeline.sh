@@ -371,7 +371,7 @@ run_agent() {
     local stage="$1"
     local agent="$2"
     local prompt="$3"
-    local log_stage="$LOG_DIR_ABS/stage-${stage}-${agent}-${TIMESTAMP}.log"
+    local log_stage="$LOG_DIR_ABS/stage-${stage}-${agent}-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
     local start_ts
     start_ts=$(date +%s)
 
@@ -426,7 +426,7 @@ run_agent() {
             if [ "$has_work" = false ]; then
                 warn "$agent: API error 5xx — reintentando una vez..."
                 echo "[$(date +%H:%M:%S)] RETRY $agent: API error 5xx, reintentando" >> "$EVENTS_LOG_ABS"
-                local log_stage_retry="$LOG_DIR_ABS/stage-${stage}-${agent}-${TIMESTAMP}-retry.log"
+                local log_stage_retry="$LOG_DIR_ABS/stage-${stage}-${agent}-${TIMESTAMP}-issue-${ISSUE_NUM}-retry.log"
                 local retry_start
                 retry_start=$(date +%s)
                 CLAUDE_EXIT=0

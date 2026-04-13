@@ -253,7 +253,7 @@ run_agent() {
     local stage="$1"
     local agent="$2"
     local prompt="$3"
-    local log_stage="$LOG_DIR_ABS/tooling-stage-${stage}-${agent}-${TIMESTAMP}.log"
+    local log_stage="$LOG_DIR_ABS/tooling-stage-${stage}-${agent}-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
     local start_ts
     start_ts=$(date +%s)
 
@@ -304,7 +304,7 @@ run_agent() {
             if [ "$has_work" = false ]; then
                 warn "$agent: API error 5xx -- reintentando una vez..."
                 echo "[$(date +%H:%M:%S)] RETRY $agent: API error 5xx" >> "$EVENTS_LOG_ABS"
-                local log_stage_retry="$LOG_DIR_ABS/tooling-stage-${stage}-${agent}-${TIMESTAMP}-retry.log"
+                local log_stage_retry="$LOG_DIR_ABS/tooling-stage-${stage}-${agent}-${TIMESTAMP}-issue-${ISSUE_NUM}-retry.log"
                 CLAUDE_EXIT=0
                 (cd "$WORKTREE_PATH" && claude -p "$prompt" \
                     --permission-mode bypassPermissions \
@@ -318,6 +318,33 @@ run_agent() {
                 else
                     log "$agent: reintento exitoso en ${elapsed}s"
                     echo "[$(date +%H:%M:%S)] RETRY_OK $agent" >> "$EVENTS_LOG_ABS"
+                fi
+            fi
+        fi
+
+        # Retry para bloqueo por permisos (race condition en ejecucion paralela)
+        if [ "$CLAUDE_EXIT" -ne 0 ] && grep -qiE "permisos|permission|bloqueado|blocked|approve" "$log_stage" 2>/dev/null; then
+            local has_work_perm=false
+            if ! git -C "$WORKTREE_PATH" diff --quiet "${SNAPSHOT_COMMIT:-HEAD}..HEAD" 2>/dev/null; then
+                has_work_perm=true
+            fi
+            if [ "$has_work_perm" = false ]; then
+                warn "$agent: bloqueo por permisos detectado -- reintentando una vez..."
+                echo "[$(date +%H:%M:%S)] RETRY $agent: bloqueo por permisos" >> "$EVENTS_LOG_ABS"
+                local log_stage_perm_retry="$LOG_DIR_ABS/tooling-stage-${stage}-${agent}-${TIMESTAMP}-issue-${ISSUE_NUM}-perm-retry.log"
+                CLAUDE_EXIT=0
+                (cd "$WORKTREE_PATH" && claude -p "$prompt" \
+                    --permission-mode bypassPermissions \
+                    --output-format text \
+                    >"$log_stage_perm_retry" 2>&1) || CLAUDE_EXIT=$?
+                elapsed=$(( $(date +%s) - start_ts ))
+                log_stage="$log_stage_perm_retry"
+                if [ "$CLAUDE_EXIT" -ne 0 ]; then
+                    log "$agent fallo tambien en reintento por permisos"
+                    echo "[$(date +%H:%M:%S)] RETRY_PERM_FALLO $agent" >> "$EVENTS_LOG_ABS"
+                else
+                    log "$agent: reintento por permisos exitoso en ${elapsed}s"
+                    echo "[$(date +%H:%M:%S)] RETRY_PERM_OK $agent" >> "$EVENTS_LOG_ABS"
                 fi
             fi
         fi
@@ -411,7 +438,7 @@ Instrucciones:
         HAS_UNSTAGED=true
     fi
     if [ "$HAS_COMMITS" = false ] && [ "$HAS_UNSTAGED" = false ]; then
-        abort "El writer no genero ningun cambio. Revisa el log: $LOG_DIR_ABS/tooling-stage-1-writer-${TIMESTAMP}.log"
+        abort "El writer no genero ningun cambio. Revisa el log: $LOG_DIR_ABS/tooling-stage-1-writer-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
     fi
 
     # Gate 1: debe compilar (si hay codigo C#)
