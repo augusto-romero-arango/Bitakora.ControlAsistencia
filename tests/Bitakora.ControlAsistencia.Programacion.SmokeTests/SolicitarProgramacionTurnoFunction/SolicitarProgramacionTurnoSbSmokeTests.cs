@@ -26,6 +26,9 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
 
         var ct = TestContext.Current.CancellationToken;
 
+        // Arrange: purgar mensajes preexistentes de ejecuciones anteriores
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
         // Arrange: crear turno en catalogo
         var turnoId = Guid.CreateVersion7();
         var turnoPayload = new
@@ -75,10 +78,7 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
         var eventoRecibido = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
 
-        eventoRecibido.Should().NotBeNull(
-            "la Function App deberia publicar ProgramacionTurnoDiarioSolicitada al topic de Service Bus");
-
-        eventoRecibido!.SolicitudId.Should().Be(solicitudId);
+        eventoRecibido.SolicitudId.Should().Be(solicitudId);
         eventoRecibido.Fecha.Should().Be(DateOnly.Parse(fecha));
 
         var empleadoEsperado = new InformacionEmpleado(

@@ -32,7 +32,22 @@ public class ServiceBusFixture : IAsyncLifetime
         return ValueTask.CompletedTask;
     }
 
-    public async Task<T?> WaitForMessageAsync<T>(
+    public async Task PurgeAsync(string topicName, string subscriptionName)
+    {
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
+        var maxWait = TimeSpan.FromSeconds(2);
+
+        while (true)
+        {
+            var message = await receiver.ReceiveMessageAsync(maxWait);
+            if (message is null)
+                break;
+
+            await receiver.CompleteMessageAsync(message);
+        }
+    }
+
+    public async Task<T> WaitForMessageAsync<T>(
         string topicName,
         string subscriptionName,
         Func<T, bool> match,
@@ -58,22 +73,33 @@ public class ServiceBusFixture : IAsyncLifetime
             try
             {
                 var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
-                if (deserialized is not null && match(deserialized))
+                if (deserialized is null)
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    continue;
+                }
+
+                if (match(deserialized))
                 {
                     await receiver.CompleteMessageAsync(received);
                     return deserialized;
                 }
+
+                await receiver.CompleteMessageAsync(received);
+                throw new InvalidOperationException(
+                    $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
+                    $"Contenido: {received.Body}");
             }
             catch (JsonException)
             {
-                // Mensaje con formato incompatible, ignorar
+                await receiver.CompleteMessageAsync(received);
+                continue;
             }
-
-            // Mensaje de otro test o formato distinto, abandonar para que vuelva a la cola
-            await receiver.AbandonMessageAsync(received);
         }
 
-        return default;
+        throw new TimeoutException(
+            $"No se recibio ningun mensaje en la suscripcion {subscriptionName} " +
+            $"del topic {topicName} en {timeout.TotalSeconds}s");
     }
 
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
