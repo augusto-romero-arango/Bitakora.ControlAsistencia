@@ -32,6 +32,7 @@ planner modo 7 →  refina → estado:listo
 /tooling 18    →  pipeline tooling → PR → cierra issue
 /infra 42      →  pipeline IaC → PR → cierra issue
 /bug "sintoma" →  investiga → issue(s) estado:listo
+/health-check  →  dashboard de salud del entorno
 ```
 
 1. Captura ideas rápidas con `/draft [idea]` — crea un issue borrador sin fricción
@@ -40,6 +41,8 @@ planner modo 7 →  refina → estado:listo
 4. Lanza el pipeline tooling con `/tooling <numero>` — para tareas sin ciclo TDD (scripts, fixtures, config)
 5. Lanza el pipeline IaC con `/infra <numero>` — corre en tmux, worktree aislado, default env=dev
 6. Investiga errores en producción con `/bug [sintoma]` — consulta App Insights, correlaciona con código y crea issues
+7. Monitorea el entorno con `/health-check` — dashboard de excepciones, requests, dead letters
+   - Para monitoreo continuo: `/loop 30m /health-check`
 
 ### Bitácora y field notes
 
