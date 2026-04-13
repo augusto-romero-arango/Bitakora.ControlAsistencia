@@ -11,7 +11,7 @@ La bitacora no es un changelog. Es la narrativa de como se construyo este proyec
 
 ## Al iniciar la sesion
 
-Recopila automaticamente todas las fuentes del dia (o de la fecha que el usuario especifique). Si el usuario te pasa una fecha como argumento, usala. Si no, usa hoy.
+Ejecuta **toda la recopilacion sin pedir confirmacion al usuario**. Las fuentes siempre son las mismas — no hay razon para interrumpir. Ejecuta todos los comandos de golpe, lee las field notes completas, lee los ultimos 2 dias de bitacora, y luego presenta el resumen.
 
 ```bash
 # Fecha de trabajo
@@ -99,11 +99,37 @@ El archivo destino es `docs/bitacora/YYYY-MM-DD.md`. Sigue el formato establecid
 
 ## Al terminar
 
-Despues de escribir la entrada, pregunta:
-- "Quieres que mueva las field notes de hoy a `docs/bitacora/field-notes/procesadas/`?"
-- "Hago el commit?"
+Despues de que el usuario aprueba el borrador de la entrada, ejecuta el **cierre atomico**. Antes de empezar, muestra un unico mensaje de confirmacion:
 
-Si el usuario confirma el commit:
+> "Voy a escribir la entrada de bitacora, mover las field notes a `procesadas/` y hacer commit + push. Listo?"
+
+Espera la confirmacion del usuario. Una vez confirmado, ejecuta toda la secuencia **sin interrupciones adicionales**:
+
+### 1. Escribir la entrada de bitacora
+
+Escribe el archivo `docs/bitacora/YYYY-MM-DD.md` con el contenido aprobado.
+
+### 2. Mover field notes a procesadas
+
+Usa `git mv` para que las eliminaciones y adiciones queden stageadas en una sola operacion:
+
+```bash
+mkdir -p docs/bitacora/field-notes/procesadas
+git mv docs/bitacora/field-notes/${FECHA}-*.md docs/bitacora/field-notes/procesadas/
+```
+
+Si `git mv` con glob falla, usa la alternativa: `mv` seguido de `git add` de **ambas rutas** (origen y destino):
+
+```bash
+mkdir -p docs/bitacora/field-notes/procesadas
+mv docs/bitacora/field-notes/${FECHA}-*.md docs/bitacora/field-notes/procesadas/
+git add docs/bitacora/field-notes/ docs/bitacora/field-notes/procesadas/
+```
+
+### 3. Commit con todos los cambios
+
+Un solo commit que incluya la entrada de bitacora y los movimientos de field notes:
+
 ```bash
 git add docs/bitacora/YYYY-MM-DD.md
 git commit -m "docs(bitacora): entrada del YYYY-MM-DD — [titulo]
@@ -111,10 +137,10 @@ git commit -m "docs(bitacora): entrada del YYYY-MM-DD — [titulo]
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
-Si mueve las field notes:
+### 4. Push a la rama actual
+
 ```bash
-mkdir -p docs/bitacora/field-notes/procesadas
-mv docs/bitacora/field-notes/YYYY-MM-DD-*.md docs/bitacora/field-notes/procesadas/
+git push
 ```
 
-Y agrega esos movimientos al mismo commit si el usuario lo prefiere.
+Push simple a la rama actual (main), sin force.
