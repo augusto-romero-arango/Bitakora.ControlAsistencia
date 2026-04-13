@@ -98,7 +98,7 @@ SKIP_APPLY=false
 STATUS_FILENAME=""  # Se asigna despues del parseo (necesita ISSUE_NUM); override con --status-file
 
 if [ $# -eq 0 ]; then
-    echo "Uso: $0 <issue-num> [--env <dev|staging|prod>] [--auto-apply] [--skip-apply] [--from-stage N]"
+    echo "Uso: $0 <issue-num> [--env <dev|staging|prod>] [--auto-apply] [--skip-apply] [--from-stage N] [--status-file NOMBRE]"
     exit 1
 fi
 

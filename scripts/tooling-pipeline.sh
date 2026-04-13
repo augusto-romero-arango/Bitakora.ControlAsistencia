@@ -144,7 +144,7 @@ fi
 
 [ -z "$ISSUE_NUM" ] && abort "Falta el numero de issue"
 
-# Si no se paso --status-file, usar tooling-status-{issue}.json para soportar paralelismo
+# Si no se paso --status-file, usar pipeline-status-tooling-{issue}.json para soportar paralelismo
 if [ "$STATUS_FILENAME" = "pipeline-status-tooling.json" ]; then
     STATUS_FILENAME="pipeline-status-tooling-${ISSUE_NUM}.json"
 fi
