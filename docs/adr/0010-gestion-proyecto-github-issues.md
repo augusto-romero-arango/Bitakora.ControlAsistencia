@@ -15,7 +15,7 @@ El proyecto es de un solo desarrollador en fase de exploracion y aprendizaje. La
 
 ## Decision
 
-### 1. Labels dimensionales (3 ejes, 14 labels)
+### 1. Labels dimensionales (4 ejes + especiales)
 
 Reemplazar los 9 labels default de GitHub con un esquema por facetas:
 

@@ -21,7 +21,7 @@ gh label create "tipo:tooling"   --color "0052CC" --description "Mejoras a pipel
 
 echo ""
 echo "Creando labels de origen (naranja)..."
-gh label create "bug"            --color "D93F0B" --description "Correccion de defecto — siempre acompanado de un tipo: que indica el pipeline"
+gh label create "bug"            --color "D93F0B" --description "Correccion de defecto — siempre acompanado de un tipo: que indica el pipeline" --force
 
 echo ""
 echo "Creando labels de dominio (verde)..."
