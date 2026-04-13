@@ -15,14 +15,17 @@ El proyecto es de un solo desarrollador en fase de exploracion y aprendizaje. La
 
 ## Decision
 
-### 1. Labels dimensionales (3 ejes, 14 labels)
+### 1. Labels dimensionales (4 ejes + especiales)
 
 Reemplazar los 9 labels default de GitHub con un esquema por facetas:
 
-- **Tipo** (`tipo:feature`, `tipo:infra`, `tipo:refactor`, `tipo:bug`, `tipo:tooling`)
+- **Tipo** — indica el pipeline de implementacion (`tipo:feature`, `tipo:infra`, `tipo:refactor`, `tipo:tooling`)
+- **Origen** — indica por que existe el issue (`bug`)
 - **Dominio** (`dom:programacion`, `dom:contracts`, `dom:asistencia`, + nuevos conforme crecen)
 - **Estado** (`estado:borrador`, `estado:listo`)
 - **Especiales** (`bloqueado`, `epic`)
+
+El label `bug` es ortogonal al `tipo:`: un issue de bug siempre lleva un `tipo:` que indica que pipeline lo implementa (ej: `bug` + `tipo:refactor` + `dom:asistencia`).
 
 ### 2. Convencion de titulos sin prefijos
 

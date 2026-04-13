@@ -23,21 +23,23 @@ Establecer un **Definition of Ready (DoR)** que define los criterios minimos que
 
 ### Tabla DoR por tipo de issue
 
-| Seccion | `feature` | `refactor` | `bug` | `infra` | `tooling` |
-|---|---|---|---|---|---|
-| Titulo: `[verbo infinitivo] [que cosa]` | Obligatorio | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
-| Label `tipo:X` | Obligatorio | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
-| Label `dom:X` | Obligatorio | Obligatorio | Obligatorio | Opcional | Opcional |
-| Label `estado:listo` | Obligatorio | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
-| `## Contexto` | Obligatorio | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
-| `## Dependencias` | Obligatorio | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
-| `## Modelo de eventos` | **Critico** | No aplica | Condicional* | No aplica | No aplica |
-| `## Criterios de aceptacion` | **Critico** | **Critico** | **Critico** | **Critico** | **Critico** |
-| `## Notas tecnicas` | Recomendado | Recomendado | Obligatorio | Recomendado | Recomendado |
-| `## Impacto en archivos` | Recomendado | Obligatorio | Recomendado | Obligatorio | Recomendado |
-| `## Ambiente` | No aplica | No aplica | No aplica | Obligatorio | No aplica |
+| Seccion | `feature` | `refactor` | `infra` | `tooling` |
+|---|---|---|---|---|
+| Titulo: `[verbo infinitivo] [que cosa]` | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
+| Label `tipo:X` | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
+| Label `dom:X` | Obligatorio | Obligatorio | Opcional | Opcional |
+| Label `estado:listo` | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
+| `## Contexto` | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
+| `## Dependencias` | Obligatorio | Obligatorio | Obligatorio | Obligatorio |
+| `## Modelo de eventos` | **Critico** | No aplica | No aplica | No aplica |
+| `## Criterios de aceptacion` | **Critico** | **Critico** | **Critico** | **Critico** |
+| `## Notas tecnicas` | Recomendado | Recomendado | Recomendado | Recomendado |
+| `## Impacto en archivos` | Recomendado | Obligatorio | Obligatorio | Recomendado |
+| `## Ambiente` | No aplica | No aplica | Obligatorio | No aplica |
 
-*Condicional: obligatorio si el bug involucra comportamiento del aggregate.
+**Nota sobre bugs**: un issue con label `bug` siempre lleva un `tipo:` valido (`feature`, `refactor`, `tooling` o `infra`). Los criterios DoR se aplican segun ese `tipo:`, no segun el label `bug`. Si el bug involucra comportamiento del aggregate, el `## Modelo de eventos` es obligatorio (esto aplica cuando el tipo es `feature`).
+
+Los issues con label `bug` aplican los criterios de la columna correspondiente a su `tipo:`.
 
 ### Por que cada campo critico
 
@@ -61,7 +63,7 @@ El skill valida programaticamente un subconjunto del DoR antes de lanzar el pipe
 
 1. Label `estado:listo` presente
 2. Label `tipo:X` presente
-3. Label `dom:X` presente (si tipo es `feature`, `refactor` o `bug`)
+3. Label `dom:X` presente (si tipo es `feature` o `refactor`)
 4. Body contiene `## Criterios de aceptaci` (prefijo, tolera tildes)
 5. Body contiene `## Modelo de eventos` (solo si tipo es `feature`)
 

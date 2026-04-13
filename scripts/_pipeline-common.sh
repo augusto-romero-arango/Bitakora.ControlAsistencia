@@ -35,7 +35,7 @@ resolve_pipeline() {
 # Funcion interna: determina el pipeline a partir de texto de labels (una por linea).
 _resolve_from_labels() {
     local labels="$1"
-    if echo "$labels" | grep -qE '^tipo:(feature|refactor|bug)$'; then
+    if echo "$labels" | grep -qE '^tipo:(feature|refactor)$'; then
         echo "./scripts/tdd-pipeline.sh"
     elif echo "$labels" | grep -q '^tipo:tooling$'; then
         echo "./scripts/tooling-pipeline.sh"

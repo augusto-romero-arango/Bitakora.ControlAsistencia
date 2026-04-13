@@ -12,7 +12,8 @@ El texto de la idea esta en: $ARGUMENTS
 
 2. Infiere:
    - **Titulo**: usa el formato `[verbo infinitivo] [que cosa]`. Maximo 70 caracteres.
-   - **Tipo probable**: `tipo:feature` (default), `tipo:infra`, `tipo:refactor`, `tipo:bug`, o `tipo:tooling`
+   - **Tipo probable**: `tipo:feature` (default), `tipo:infra`, `tipo:refactor`, o `tipo:tooling`
+   - **Es un defecto?**: si la idea describe un bug o defecto, agregar tambien el label `bug` (ademas del `tipo:` que corresponda; default `tipo:refactor` para bugs)
    - **Dominio probable**: `dom:programacion`, `dom:contracts`, `dom:asistencia`. Si no queda claro, omite el label de dominio.
 
 3. Crea el issue:

@@ -10,7 +10,7 @@
 #   ./scripts/parallel-pipeline.sh 42 43 44 --keep-status               # no borrar status files al terminar
 #
 # Enrutamiento automatico: sin --pipeline, cada issue se enruta segun su label tipo:*
-#   tipo:feature|refactor|bug  -> tdd-pipeline.sh
+#   tipo:feature|refactor       -> tdd-pipeline.sh
 #   tipo:tooling               -> tooling-pipeline.sh
 #   tipo:infra                 -> SKIP (warning, no aborta)
 #   sin label tipo:*           -> SKIP (warning, no aborta)

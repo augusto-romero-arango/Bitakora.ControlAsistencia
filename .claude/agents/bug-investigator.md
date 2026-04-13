@@ -100,11 +100,15 @@ NO avances al Stage 4 sin confirmacion del usuario.
 
 Con el diagnostico validado, propone acciones concretas:
 
-1. **Crear issues**: para cada fix necesario, propone un issue con titulo, descripcion y labels siguiendo las convenciones del proyecto (`tipo:bug`, `dom:X`, `estado:listo`)
+1. **Crear issues**: para cada fix necesario, propone un issue con titulo, descripcion y labels siguiendo las convenciones del proyecto. Usa el label `bug` como origen y agrega el `tipo:` segun la naturaleza del fix:
+   - `tipo:refactor` — si el fix reestructura logica existente (default para la mayoria de bugs)
+   - `tipo:feature` — si el fix requiere comportamiento nuevo
+   - `tipo:tooling` — si el fix es en scripts, agentes o configuracion
+   - `tipo:infra` — si el fix es en infraestructura Azure/Terraform
 
 ```bash
 # Solo con confirmacion del usuario
-gh issue create --title "Corregir [descripcion]" --body "..." --label "tipo:bug,dom:X,estado:listo"
+gh issue create --title "Corregir [descripcion]" --body "..." --label "bug,tipo:refactor,dom:X,estado:listo"
 ```
 
 2. **Workarounds inmediatos**: si hay una accion urgente (reiniciar funcion, purgar cola), describela pero NO la ejecutes sin confirmacion explicita
