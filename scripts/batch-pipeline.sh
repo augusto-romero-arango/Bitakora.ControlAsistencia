@@ -1,15 +1,26 @@
 #!/usr/bin/env bash
-# batch-pipeline.sh — Ejecuta el pipeline TDD para múltiples issues secuencialmente
+# batch-pipeline.sh --- Ejecuta pipelines para multiples issues secuencialmente
 #
 # Uso:
-#   ./scripts/batch-pipeline.sh 42 43 44               # procesar issues en orden
-#   ./scripts/batch-pipeline.sh 42 43 --stop-on-error  # abortar en primer fallo
+#   ./scripts/batch-pipeline.sh 42 43 44                          # enrutamiento automatico por label
+#   ./scripts/batch-pipeline.sh --pipeline tooling 60 62 63       # forzar pipeline tooling
+#   ./scripts/batch-pipeline.sh --pipeline tdd 42 43              # forzar pipeline tdd
+#   ./scripts/batch-pipeline.sh 42 43 --stop-on-error             # abortar en primer fallo
 #
-# Flujo por issue: tdd-pipeline.sh → extraer PR → pr-sync.sh --merge → siguiente issue
+# Enrutamiento automatico: sin --pipeline, cada issue se enruta segun su label tipo:*
+#   tipo:feature|refactor|bug  -> tdd-pipeline.sh
+#   tipo:tooling               -> tooling-pipeline.sh
+#   tipo:infra                 -> SKIP (warning, no aborta)
+#   sin label tipo:*           -> SKIP (warning, no aborta)
+#
+# Flujo por issue: pipeline -> extraer PR -> pr-sync.sh --merge -> siguiente issue
 #
 # Compatible con bash 3.2+ (macOS nativo)
 
 set -euo pipefail
+
+# ─── Funciones compartidas ───────────────────────────────────────────────────
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
 
 # ─── Colores ────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -107,16 +118,26 @@ fail_issue() {
 # ─── Parsear argumentos ───────────────────────────────────────────────────────
 ISSUE_NUMS=()
 STOP_ON_ERROR=false
+PIPELINE_OVERRIDE=""  # vacio = enrutamiento automatico por label
 
 if [ $# -eq 0 ]; then
-    echo "Uso: $0 <issue1> <issue2> ... [--stop-on-error]"
-    echo "  issue1 ...       Números de issues a procesar (en orden)"
-    echo "  --stop-on-error  Abortar en el primer fallo (por defecto: continuar)"
+    echo "Uso: $0 [--pipeline tdd|tooling] <issue1> <issue2> ... [--stop-on-error]"
+    echo "  --pipeline TYPE    Forzar pipeline: 'tdd' o 'tooling' (sin flag: enruta por label tipo:*)"
+    echo "  issue1 ...         Numeros de issues a procesar (en orden)"
+    echo "  --stop-on-error    Abortar en el primer fallo (por defecto: continuar)"
     exit 1
 fi
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --pipeline)
+            [ $# -lt 2 ] && { echo "Falta el valor de --pipeline"; exit 1; }
+            case "$2" in
+                tdd|tooling) PIPELINE_OVERRIDE="$2" ;;
+                *)           echo "Pipeline desconocido: $2. Usa 'tdd' o 'tooling'"; exit 1 ;;
+            esac
+            shift 2
+            ;;
         --stop-on-error) STOP_ON_ERROR=true; shift ;;
         [0-9]*)          ISSUE_NUMS+=("$1"); shift ;;
         *)
@@ -160,7 +181,8 @@ if [ -n "$MISSING_DEPS" ]; then
 fi
 
 # ─── Cabecera ─────────────────────────────────────────────────────────────────
-header "batch-pipeline — Procesamiento secuencial de issues"
+header "batch-pipeline --- Procesamiento secuencial de issues"
+log "Pipeline: $([ -n "$PIPELINE_OVERRIDE" ] && echo "$PIPELINE_OVERRIDE (override)" || echo 'automatico por label')"
 log "Issues a procesar: ${ISSUE_NUMS[*]}"
 log "Modo en error: $([ "$STOP_ON_ERROR" = true ] && echo 'detener' || echo 'continuar')"
 log "Log: $LOG_FILE_ABS"
@@ -174,28 +196,40 @@ for ISSUE_NUM in "${ISSUE_NUMS[@]}"; do
     CURRENT=$((COMPLETED + FAILED + 1))
     header "Issue #$ISSUE_NUM ($CURRENT/$TOTAL)"
 
-    # ── Pre-validación: verificar que el issue está abierto ───────────────────
-    ISSUE_STATE=$(gh issue view "$ISSUE_NUM" --json state -q .state 2>/dev/null || echo "UNKNOWN")
+    # ── Pre-validacion y resolucion de pipeline (una sola llamada API) ──────
+    STATE_AND_PIPELINE=$(resolve_pipeline_with_state "$ISSUE_NUM" "$PIPELINE_OVERRIDE")
+    ISSUE_STATE="${STATE_AND_PIPELINE%%|*}"
+    PIPELINE_SCRIPT="${STATE_AND_PIPELINE#*|}"
+
     if [ "$ISSUE_STATE" != "OPEN" ]; then
-        log "⚠ Issue #$ISSUE_NUM está $ISSUE_STATE — saltando."
+        log "Issue #$ISSUE_NUM esta $ISSUE_STATE --- saltando."
         FAILED=$((FAILED + 1))
         continue
     fi
 
-    # ── Stage 1: Pipeline TDD ─────────────────────────────────────────────────
-    log "Ejecutando pipeline TDD para issue #$ISSUE_NUM..."
+    if [[ "$PIPELINE_SCRIPT" == SKIP:* ]]; then
+        local_reason="${PIPELINE_SCRIPT#SKIP:}"
+        warn "Issue #$ISSUE_NUM saltado ($local_reason) --- no se puede enrutar a un pipeline."
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    PIPELINE_NAME=$(basename "$PIPELINE_SCRIPT")
+
+    # ── Stage 1: Ejecutar pipeline ────────────────────────────────────────────
+    log "Ejecutando $PIPELINE_NAME para issue #$ISSUE_NUM..."
 
     ISSUE_LOG="$REPO_ROOT/$LOG_DIR/batch-issue-${ISSUE_NUM}-${TIMESTAMP}.log"
     touch "$ISSUE_LOG"
 
     PIPELINE_EXIT=0
-    ./scripts/tdd-pipeline.sh "$ISSUE_NUM" 2>&1 | tee "$ISSUE_LOG" || PIPELINE_EXIT=$?
+    "$PIPELINE_SCRIPT" "$ISSUE_NUM" 2>&1 | tee "$ISSUE_LOG" || PIPELINE_EXIT=$?
 
     # Agregar el log del issue al log general
     cat "$ISSUE_LOG" | _strip_ansi >> "$LOG_FILE_ABS"
 
     if [ "$PIPELINE_EXIT" -ne 0 ]; then
-        fail_issue "$ISSUE_NUM" "pipeline TDD falló (exit $PIPELINE_EXIT). Log: $ISSUE_LOG"
+        fail_issue "$ISSUE_NUM" "pipeline fallo (exit $PIPELINE_EXIT). Log: $ISSUE_LOG"
         FAILED=$((FAILED + 1))
         if [ "$STOP_ON_ERROR" = true ]; then
             abort "Detenido por --stop-on-error en issue #$ISSUE_NUM"
