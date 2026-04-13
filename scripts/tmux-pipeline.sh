@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
-# tmux-pipeline.sh — Wrapper opcional para ejecutar pipelines dentro de sesiones tmux
+# tmux-pipeline.sh --- Wrapper para ejecutar pipelines dentro de sesiones tmux
 #
 # Uso:
-#   ./scripts/tmux-pipeline.sh 42                        # issue unico
-#   ./scripts/tmux-pipeline.sh --batch 42 43 44          # secuencial (batch)
-#   ./scripts/tmux-pipeline.sh --parallel 42 43 44       # paralelo
+#   ./scripts/tmux-pipeline.sh 42                        # issue unico (enruta por label)
+#   ./scripts/tmux-pipeline.sh --pipeline tooling 42     # forzar pipeline tooling
+#   ./scripts/tmux-pipeline.sh --batch 42 43 44          # secuencial (enruta por label)
+#   ./scripts/tmux-pipeline.sh --parallel 42 43 44       # paralelo (enruta por label)
 #   ./scripts/tmux-pipeline.sh --parallel 42 43 --max-parallel 2
 #   ./scripts/tmux-pipeline.sh --attach                  # reconectar sesion existente
 #   ./scripts/tmux-pipeline.sh --attach tdd-42           # reconectar sesion especifica
+#
+# Enrutamiento automatico: sin --pipeline, cada issue se enruta segun su label tipo:*
 #
 # Recomendado: ejecutar desde iTerm2 con tmux -CC para UI nativa.
 # Los scripts subyacentes (tdd-pipeline.sh, batch-pipeline.sh, parallel-pipeline.sh)
 # no se modifican y siguen funcionando independientemente.
 
 set -euo pipefail
+
+# --- Funciones compartidas ---
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
 
 # --- Colores ---
 RED='\033[0;31m'
@@ -104,8 +110,20 @@ cmd_attach() {
 cmd_single() {
     local issue="$1"
     local extra_args="${2:-}"
+    local pipeline_override="${3:-}"
+
+    # Resolver pipeline por label o override
+    local resolved
+    resolved=$(resolve_pipeline "$issue" "$pipeline_override")
+    if [[ "$resolved" == SKIP:* ]]; then
+        local reason="${resolved#SKIP:}"
+        abort "Issue #$issue no se puede enrutar a un pipeline ($reason)."
+    fi
+
+    local pipeline_name
+    pipeline_name=$(basename "$resolved" .sh)
     local session
-    session=$(safe_session_name "tdd-$issue")
+    session=$(safe_session_name "$pipeline_name-$issue")
 
     check_tmux
     ensure_events_log
@@ -116,7 +134,7 @@ cmd_single() {
         exit 0
     fi
 
-    log "Creando sesion tmux '$session' para issue #$issue..."
+    log "Creando sesion tmux '$session' para issue #$issue ($pipeline_name)..."
 
     # Crear sesion con ventana unica y panes lado a lado
     tmux new-session -d -s "$session" -n "main" -c "$PROJECT_ROOT"
@@ -125,20 +143,42 @@ cmd_single() {
 
     # Pane derecho: pipeline
     tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:main.1" "./scripts/tdd-pipeline.sh $issue $extra_args" Enter
+    tmux send-keys -t "$session:main.1" "$resolved $issue $extra_args" Enter
 
     tmux select-layout -t "$session:main" even-horizontal
 
-    success "Pipeline iniciado para issue #$issue"
+    success "Pipeline $pipeline_name iniciado para issue #$issue"
     print_connect_hint "$session"
 }
 
 # --- Modo BATCH (secuencial) ---
 cmd_batch() {
-    local issues=("$@")
+    local pipeline_override=""
+    local issues=()
+
+    # Parsear --pipeline de los args
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --pipeline)
+                pipeline_override="$2"
+                shift 2
+                ;;
+            *)
+                issues+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [ ${#issues[@]} -eq 0 ]; then
+        abort "Debes especificar al menos un issue. Uso: --batch 42 43 44"
+    fi
+
     local session
     session=$(safe_session_name "batch-$(date +%H%M%S)")
     local issues_str="${issues[*]}"
+    local pipeline_flag=""
+    [ -n "$pipeline_override" ] && pipeline_flag="--pipeline $pipeline_override"
 
     check_tmux
     ensure_events_log
@@ -152,7 +192,7 @@ cmd_batch() {
 
     # Pane derecho: batch pipeline
     tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
-    tmux send-keys -t "$session:main.1" "./scripts/batch-pipeline.sh $issues_str" Enter
+    tmux send-keys -t "$session:main.1" "./scripts/batch-pipeline.sh $pipeline_flag $issues_str" Enter
 
     tmux select-layout -t "$session:main" even-horizontal
 
@@ -163,9 +203,10 @@ cmd_batch() {
 # --- Modo PARALELO (un tab por issue) ---
 cmd_parallel() {
     local max_parallel=""
+    local pipeline_override=""
     local issues=()
 
-    # Parsear --max-parallel de los args restantes
+    # Parsear args
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --max-parallel)
@@ -175,6 +216,10 @@ cmd_parallel() {
             --max-parallel=*)
                 max_parallel="${1#*=}"
                 shift
+                ;;
+            --pipeline)
+                pipeline_override="$2"
+                shift 2
                 ;;
             *)
                 issues+=("$1")
@@ -203,10 +248,17 @@ cmd_parallel() {
     tmux set-option -t "$session" remain-on-exit on
     tmux send-keys -t "$session:main" "tail -f '$EVENTS_LOG'" Enter
 
-    # Un pane por issue
+    # Un pane por issue, resolviendo pipeline individualmente
     for issue in "${issues[@]}"; do
+        local resolved
+        resolved=$(resolve_pipeline "$issue" "$pipeline_override")
+        if [[ "$resolved" == SKIP:* ]]; then
+            local reason="${resolved#SKIP:}"
+            warn "Issue #$issue saltado ($reason) --- no se abre tab."
+            continue
+        fi
         tmux split-window -h -t "$session:main" -c "$PROJECT_ROOT"
-        tmux send-keys -t "$session:main" "./scripts/tdd-pipeline.sh $issue" Enter
+        tmux send-keys -t "$session:main" "$resolved $issue" Enter
     done
 
     tmux select-layout -t "$session:main" even-horizontal
@@ -215,7 +267,6 @@ cmd_parallel() {
     print_connect_hint "$session"
 
     # Nota: el flag --max-parallel se ignora aqui porque cada issue tiene su propio tab
-    # Si se necesita limitar concurrencia, usar parallel-pipeline.sh directamente
     if [ -n "$max_parallel" ]; then
         warn "--max-parallel no aplica en modo tmux (cada issue tiene su propio tab)."
         warn "Para limitar concurrencia usa: ./scripts/parallel-pipeline.sh $max_flag $issues_str"
@@ -350,18 +401,27 @@ cmd_scaffold() {
 cmd_help() {
     cat <<EOF
 
-${CYAN}${BOLD}tmux-pipeline.sh${NC} — Wrapper para pipelines en sesiones tmux
+${CYAN}${BOLD}tmux-pipeline.sh${NC} --- Wrapper para pipelines en sesiones tmux
 
 ${BOLD}Uso:${NC}
-  ./scripts/tmux-pipeline.sh 42                                   Issue unico (TDD)
-  ./scripts/tmux-pipeline.sh --tooling 42                         Issue de tooling (sin TDD)
+  ./scripts/tmux-pipeline.sh 42                                   Issue unico (enruta por label)
+  ./scripts/tmux-pipeline.sh --pipeline tooling 42                Forzar pipeline tooling
+  ./scripts/tmux-pipeline.sh --tooling 42                         Issue de tooling (override explicito)
   ./scripts/tmux-pipeline.sh --infra 42                           Issue de infraestructura (IaC)
   ./scripts/tmux-pipeline.sh --scaffold 42 --domain nombre        Scaffold de dominio
   ./scripts/tmux-pipeline.sh --scaffold --domain nombre           Scaffold sin issue
-  ./scripts/tmux-pipeline.sh --batch 42 43 44                     Secuencial (uno a la vez)
-  ./scripts/tmux-pipeline.sh --parallel 42 43 44                  Paralelo (un tab por issue)
+  ./scripts/tmux-pipeline.sh --batch 42 43 44                     Secuencial (enruta por label)
+  ./scripts/tmux-pipeline.sh --batch --pipeline tooling 42 43     Secuencial forzando tooling
+  ./scripts/tmux-pipeline.sh --parallel 42 43 44                  Paralelo (enruta por label)
+  ./scripts/tmux-pipeline.sh --parallel --pipeline tdd 42 43      Paralelo forzando tdd
   ./scripts/tmux-pipeline.sh --attach                             Reconectar sesion tmux activa
   ./scripts/tmux-pipeline.sh --attach tdd-42                      Reconectar sesion especifica
+
+${BOLD}Enrutamiento automatico:${NC}
+  Sin --pipeline ni --tooling/--infra, el pipeline se determina por el label tipo:* del issue:
+    tipo:feature|refactor|bug  -> tdd-pipeline.sh
+    tipo:tooling               -> tooling-pipeline.sh
+    tipo:infra                 -> SKIP (usar --infra explicitamente)
 
 ${BOLD}En iTerm2 (recomendado):${NC}
   1. Corre el comando anterior desde tu terminal normal
@@ -385,15 +445,20 @@ main() {
         exit 0
     fi
 
-    # Pre-parsear --scaffold-domain antes del dispatch de modo,
-    # para que no interfiera con la deteccion de multiples issues
+    # Pre-parsear --scaffold-domain y --pipeline antes del dispatch de modo
     local scaffold_extra=""
+    local pipeline_override=""
     local filtered_args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --scaffold-domain)
                 [ $# -lt 2 ] && abort "Falta el nombre del dominio para --scaffold-domain"
                 scaffold_extra="--scaffold-domain $2"
+                shift 2
+                ;;
+            --pipeline)
+                [ $# -lt 2 ] && abort "Falta el valor de --pipeline"
+                pipeline_override="$2"
                 shift 2
                 ;;
             *)
@@ -435,22 +500,36 @@ main() {
             if [ $# -eq 0 ]; then
                 abort "Debes especificar al menos un issue. Uso: --batch 42 43 44"
             fi
-            cmd_batch "$@"
+            # Pasar --pipeline al cmd_batch si se proporciono
+            if [ -n "$pipeline_override" ]; then
+                cmd_batch --pipeline "$pipeline_override" "$@"
+            else
+                cmd_batch "$@"
+            fi
             ;;
         --parallel)
             shift
             if [ $# -eq 0 ]; then
                 abort "Debes especificar al menos un issue. Uso: --parallel 42 43 44"
             fi
-            cmd_parallel "$@"
+            # Pasar --pipeline al cmd_parallel si se proporciono
+            if [ -n "$pipeline_override" ]; then
+                cmd_parallel --pipeline "$pipeline_override" "$@"
+            else
+                cmd_parallel "$@"
+            fi
             ;;
         [0-9]*)
             # Modo single: argumento directo es un issue
             if [ $# -gt 1 ]; then
                 warn "Multiples issues sin modo especificado. Usando --parallel."
-                cmd_parallel "$@"
+                if [ -n "$pipeline_override" ]; then
+                    cmd_parallel --pipeline "$pipeline_override" "$@"
+                else
+                    cmd_parallel "$@"
+                fi
             else
-                cmd_single "$1" "$scaffold_extra"
+                cmd_single "$1" "$scaffold_extra" "$pipeline_override"
             fi
             ;;
         *)
