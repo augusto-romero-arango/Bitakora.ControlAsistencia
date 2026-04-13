@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: set-matrix
-        run: echo "matrix=$(cat .github/smoke-tests-dominios.json)" >> $GITHUB_OUTPUT
+        run: echo "matrix=$(jq -c . .github/smoke-tests-dominios.json)" >> $GITHUB_OUTPUT
 
   smoke-test:
     needs: discovery
