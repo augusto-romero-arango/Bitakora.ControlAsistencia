@@ -290,6 +290,115 @@ merge_pr_with_retry() {
     return 1
 }
 
+# ─── Función: desbloquear issues dependientes tras merge ─────────────────
+desbloquear_issues_dependientes() {
+    local pr_num="$1"
+
+    # Obtener body del PR para extraer "Closes #N"
+    local pr_body
+    pr_body=$(gh pr view "$pr_num" --json body -q '.body' 2>/dev/null || echo "")
+    if [ -z "$pr_body" ]; then
+        return 0
+    fi
+
+    # Extraer todos los issue numbers cerrados por este PR
+    local closed_issues=()
+    local match
+    while IFS= read -r match; do
+        [ -n "$match" ] && closed_issues+=("$match")
+    done < <(echo "$pr_body" | grep -ioE 'Closes #[0-9]+' | grep -oE '[0-9]+')
+
+    if [ ${#closed_issues[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    log "PR #$pr_num cierra issue(s): ${closed_issues[*]}. Buscando issues bloqueados dependientes..."
+
+    # Obtener todos los issues abiertos con label "bloqueado"
+    local bloqueados_json
+    bloqueados_json=$(gh issue list --state open --label "bloqueado" --json number,body,title 2>/dev/null || echo "[]")
+
+    if [ "$bloqueados_json" = "[]" ] || [ -z "$bloqueados_json" ]; then
+        log "No hay issues con label 'bloqueado'."
+        return 0
+    fi
+
+    # Para cada issue bloqueado, verificar si depende de alguno de los issues cerrados
+    local bloqueado_count
+    bloqueado_count=$(echo "$bloqueados_json" | jq 'length')
+
+    local idx=0
+    while [ "$idx" -lt "$bloqueado_count" ]; do
+        local bloqueado_num
+        bloqueado_num=$(echo "$bloqueados_json" | jq -r ".[$idx].number")
+        local bloqueado_body
+        bloqueado_body=$(echo "$bloqueados_json" | jq -r ".[$idx].body // \"\"")
+        local bloqueado_title
+        bloqueado_title=$(echo "$bloqueados_json" | jq -r ".[$idx].title // \"\"")
+
+        # Extraer seccion ## Dependencias del body
+        local deps_section
+        deps_section=$(echo "$bloqueado_body" | sed -n '/^## Dependencias/,/^## /p' | head -n -1)
+        if [ -z "$deps_section" ]; then
+            # Intentar sin trailing section
+            deps_section=$(echo "$bloqueado_body" | sed -n '/^## Dependencias/,$p')
+        fi
+
+        # Verificar si este issue bloqueado referencia alguno de los issues cerrados
+        local referencia_cerrado=false
+        local closed_num
+        for closed_num in "${closed_issues[@]}"; do
+            if echo "$deps_section" | grep -qE "#${closed_num}([^0-9]|$)"; then
+                referencia_cerrado=true
+                break
+            fi
+        done
+
+        if [ "$referencia_cerrado" = true ]; then
+            # Extraer TODAS las dependencias del issue bloqueado
+            local all_deps=()
+            local dep_num
+            while IFS= read -r dep_num; do
+                [ -n "$dep_num" ] && all_deps+=("$dep_num")
+            done < <(echo "$deps_section" | grep -oE '#[0-9]+' | grep -oE '[0-9]+' | sort -u)
+
+            # Verificar si TODAS las dependencias estan cerradas/mergeadas
+            local todas_cerradas=true
+            local dep_abierta=""
+            for dep_num in "${all_deps[@]}"; do
+                local dep_state
+                # Intentar como issue primero
+                dep_state=$(gh issue view "$dep_num" --json state -q '.state' 2>/dev/null || echo "")
+                if [ "$dep_state" = "CLOSED" ]; then
+                    continue
+                fi
+                # Intentar como PR
+                dep_state=$(gh pr view "$dep_num" --json state -q '.state' 2>/dev/null || echo "")
+                if [ "$dep_state" = "MERGED" ] || [ "$dep_state" = "CLOSED" ]; then
+                    continue
+                fi
+                # Si llegamos aqui, la dependencia sigue abierta
+                todas_cerradas=false
+                dep_abierta="$dep_num"
+                break
+            done
+
+            if [ "$todas_cerradas" = true ]; then
+                log "Desbloqueando issue #$bloqueado_num: $bloqueado_title"
+                if gh issue edit "$bloqueado_num" --remove-label "bloqueado" >>"$LOG_FILE_ABS" 2>&1; then
+                    success "Issue #$bloqueado_num desbloqueado: $bloqueado_title"
+                else
+                    warn "No se pudo quitar el label 'bloqueado' del issue #$bloqueado_num"
+                fi
+            else
+                log "Issue #$bloqueado_num sigue bloqueado (dependencia #$dep_abierta aun abierta)"
+            fi
+        fi
+
+        idx=$((idx + 1))
+    done
+}
+
 # ─── Loop principal ───────────────────────────────────────────────────────────
 for PR_NUM in "${PR_NUMS[@]}"; do
     header "PR #$PR_NUM"
@@ -332,6 +441,7 @@ for PR_NUM in "${PR_NUMS[@]}"; do
             if merge_pr_with_retry "$PR_NUM"; then
                 success "PR #$PR_NUM mergeado a main"
                 set_status "$PR_NUM" "mergeado"
+                desbloquear_issues_dependientes "$PR_NUM"
                 git fetch origin main >>"$LOG_FILE_ABS" 2>&1 || true
             else
                 fail_pr "$PR_NUM" "No se pudo mergear después de reintentos"
@@ -462,6 +572,7 @@ Cuando termines, haz commit de los cambios."
         if merge_pr_with_retry "$PR_NUM"; then
             success "PR #$PR_NUM mergeado a main"
             set_status "$PR_NUM" "mergeado"
+            desbloquear_issues_dependientes "$PR_NUM"
             git fetch origin main >>"$LOG_FILE_ABS" 2>&1 || true
         else
             fail_pr "$PR_NUM" "No se pudo mergear después de reintentos"
