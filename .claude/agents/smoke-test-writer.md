@@ -41,18 +41,19 @@ Y detente sin hacer nada mas.
 
 ### Estructura de archivos
 
-Cada feature tiene su propio archivo de tests dentro de la carpeta correspondiente:
+Cada comando tiene **un solo archivo** de tests dentro de la carpeta correspondiente. Todos los tests del comando (HTTP, Service Bus, persistencia) van en la misma clase:
 
 ```
 tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/
   {Comando}Function/
-    {Comando}SmokeTests.cs
-    {Comando}SbSmokeTests.cs      <-- si verifica Service Bus
+    {Comando}SmokeTests.cs    <-- una sola clase con todos los tests del comando
 ```
+
+**No crear archivos separados** como `{Comando}SbSmokeTests.cs` para el mismo comando. Si la funcion tiene trigger HTTP y publica a Service Bus, ambas verificaciones van en `{Comando}SmokeTests.cs`. Un consumidor que solo tiene trigger Service Bus (sin contraparte HTTP) tiene su propia clase `{Comando}SmokeTests.cs` -- esto no viola la regla.
 
 ### Naming
 
-- Clase: `{Comando}SmokeTests` (HTTP) o `{Comando}SbSmokeTests` (Service Bus)
+- Clase: `{Comando}SmokeTests` -- una sola clase por comando, sin variantes
 - Metodos: `{Endpoint}_{ResultadoEsperado}_{Condicion}` en espanol
 - Prefijo de datos: `"[TEST] "` en nombres de entidades creadas
 
@@ -75,28 +76,28 @@ var response = await _client.PostAsJsonAsync("/api/...", payload, ct);
 
 ### Constructor injection
 
-Los tests reciben fixtures via constructor primario. El constructor puede recibir uno o multiples fixtures segun lo que necesite el test:
+Los tests reciben fixtures via constructor primario. El constructor recibe todos los fixtures que necesite segun los efectos secundarios del handler:
 
 ```csharp
-// Solo HTTP
+// Solo HTTP (comando sin efectos secundarios adicionales)
 public class CrearTurnoSmokeTests(ApiFixture api)
 {
     private readonly HttpClient _client = api.Client;
 }
 
-// HTTP + Service Bus (dominio publicador)
-public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+// HTTP + Service Bus (comando que persiste + publica eventos)
+public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 }
 
-// Service Bus + Postgres (dominio consumidor)
-public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
+// Service Bus + Postgres (consumidor que persiste)
+public class AsignarTurnoSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
 }
 
 // Los tres fixtures (si el test necesita HTTP + Service Bus + Postgres)
-public class MiFeatureSbSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
+public class MiFeatureSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 }
@@ -115,9 +116,26 @@ Los fixtures se inyectan automaticamente porque estan registrados en `AssemblyFi
 
 ## Que testear por cada endpoint
 
+### Regla de cobertura completa de efectos secundarios
+
+**Todo test donde el comando se ejecuta exitosamente (202, 201, etc.) DEBE verificar todos los efectos secundarios de la funcion bajo prueba.** Un smoke test no esta completo si solo verifica el status code HTTP -- debe verificar que los efectos realmente ocurrieron:
+
+| Efecto secundario | Como detectarlo en el handler | Como verificarlo en el smoke test |
+|---|---|---|
+| Publicacion a topic | `IPublicEventSender.PublishAsync(eventos)` | `PurgeAsync` previo + `WaitForMessageAsync` desde suscripcion `smoke-tests` |
+| Persistencia en event store | `IEventStore.StartStream(...)` o `AppendToStream(...)` | `PostgresFixture.ExisteEventoAsync` / `ObtenerEventoAsync` |
+| Envio a queue (futuro) | `ISender.SendAsync(...)` o similar | Consumir de la queue y verificar contenido |
+
+Para descubrir los efectos secundarios del comando:
+1. Lee el command handler en `src/Bitakora.ControlAsistencia.{Dominio}/{Comando}Function/CommandHandler/{Comando}CommandHandler.cs`
+2. Busca llamadas a `IPublicEventSender.PublishAsync` (publicacion a topics)
+3. Busca llamadas a `IEventStore.StartStream` o `AppendToStream` (persistencia)
+4. En el futuro, busca llamadas a `ISender.SendAsync` (queues)
+5. Cada efecto encontrado DEBE tener su verificacion en el test del camino feliz
+
 ### Endpoint POST (crear/modificar)
 
-1. **Camino feliz** - payload valido retorna el status esperado (202 Accepted, 201 Created, etc.)
+1. **Camino feliz** - payload valido retorna el status esperado (202 Accepted, 201 Created, etc.) **y se verifican todos los efectos secundarios** (publicaciones a Service Bus, persistencia en Postgres, etc.)
 2. **Duplicado/conflicto** - si aplica, enviar el mismo payload dos veces y verificar 409 Conflict
 3. **Validacion** - payload con campos vacios/invalidos retorna 400 Bad Request
 
@@ -171,12 +189,13 @@ Para descubrir la estructura del payload:
 1. **Lee el issue** para entender que endpoints y escenarios cubrir
 2. **Verifica que el proyecto SmokeTests existe** en `tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
 3. **Lee los endpoints** del dominio buscando `[Function(` y `[HttpTrigger(` en el codigo fuente
-4. **Lee los records de comandos** para entender la estructura de los payloads
-5. **Crea la carpeta del feature** si no existe (ej: `CrearTurnoFunction/`)
-6. **Escribe los tests** siguiendo las convenciones
-7. **Compila** con `dotnet build tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
-8. **Ejecuta contra dev** con `dotnet test --project tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
-9. **Commitea** los tests
+4. **Lee los command handlers** para descubrir los efectos secundarios de cada comando: busca `IPublicEventSender.PublishAsync` (publicacion a topics), `IEventStore.StartStream`/`AppendToStream` (persistencia), y en el futuro `ISender.SendAsync` (queues). Cada efecto encontrado sera verificado en el test del camino feliz.
+5. **Lee los records de comandos** para entender la estructura de los payloads
+6. **Crea la carpeta del feature** si no existe (ej: `CrearTurnoFunction/`)
+7. **Escribe los tests** siguiendo las convenciones -- una sola clase por comando con todos sus efectos
+8. **Compila** con `dotnet build tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
+9. **Ejecuta contra dev** con `dotnet test --project tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
+10. **Commitea** los tests
 
 ### Gate de salida
 
@@ -197,7 +216,7 @@ El dominio recibe un comando HTTP y publica un evento a Service Bus. El smoke te
 **Flujo:** HTTP POST -> Function App procesa -> evento publicado al topic -> smoke test consume de suscripcion `smoke-tests`
 
 ```csharp
-public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
@@ -214,6 +233,10 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
 
         var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: limpiar mensajes de ejecuciones anteriores de la suscripcion smoke-tests.
+        // PurgeAsync elimina mensajes residuales que podrian causar falsos positivos.
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         // Arrange: preparar y enviar comando HTTP
         var solicitudId = Guid.CreateVersion7();
@@ -249,8 +272,10 @@ public class SolicitarProgramacionTurnoSbSmokeTests(ApiFixture api, ServiceBusFi
 
 **Claves del patron publicador:**
 - Constructor recibe `ApiFixture` + `ServiceBusFixture`
+- **`PurgeAsync` en el Arrange**: antes de ejecutar el comando, limpiar la suscripcion `smoke-tests` del topic de salida para eliminar mensajes residuales de ejecuciones anteriores
 - `WaitForMessageAsync<T>` consume de la suscripcion `smoke-tests` del topic
 - El predicate `match` filtra por un campo identificador unico (ej: `SolicitudId`), **nunca por posicion**
+- **Consumo de multiples eventos**: cuando el handler publica mas de un evento (ej: un evento por fecha), usar un predicado amplio que matchee por un campo compartido (ej: `SolicitudId`) en lugar de campos especificos (ej: `Fecha`). Esto evita fallos por orden de llegada -- si el primer mensaje que llega no matchea el predicado especifico, el fail-on-mismatch del fixture lanzara excepcion
 - Timeout estandar: `TimeSpan.FromSeconds(30)`
 - El tipo `T` del mensaje es el evento publico de `Contracts` (igualdad natural de records)
 - **Verificacion de dead letter obligatoria**: despues de consumir el evento, esperar ~5s y verificar que la suscripcion del consumidor real no tenga dead letters con `PeekDeadLetterMessagesAsync`
@@ -262,7 +287,7 @@ El dominio recibe un evento de Service Bus y persiste el resultado en PostgreSQL
 **Flujo:** smoke test publica al topic -> Function App consume -> procesa y persiste -> smoke test verifica en Postgres
 
 ```csharp
-public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
+public class AsignarTurnoSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
     private const string SuscripcionConsumidor = "{consumidor}-escucha-{productor}";
@@ -339,7 +364,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 | Fixture | Cuando usarlo | Metodos principales |
 |---|---|---|
 | `ApiFixture` | Siempre que el test haga llamadas HTTP | `.Client` (HttpClient preconfigurado) |
-| `ServiceBusFixture` | Publicar eventos, consumir de suscripciones o verificar dead letters | `.PublishAsync(topic, mensaje, correlationId)`, `.WaitForMessageAsync<T>(topic, suscripcion, match, timeout)`, `.PeekDeadLetterMessagesAsync(topic, suscripcion, maxMessages)` |
+| `ServiceBusFixture` | Publicar eventos, consumir de suscripciones o verificar dead letters | `.PublishAsync(topic, mensaje, correlationId)`, `.WaitForMessageAsync<T>(topic, suscripcion, match, timeout)`, `.PeekDeadLetterMessagesAsync(topic, suscripcion, maxMessages)`, `.PurgeAsync(topic, suscripcion)` |
 | `PostgresFixture` | Verificar eventos persistidos en Marten/Postgres | `.ExisteEventoAsync(schema, streamId, tipo, timeout, campoJson, valorJson)`, `.ObtenerEventoAsync<T>(schema, streamId, tipo, campo, valor, timeout)` |
 | `Polling` | Usado internamente por PostgresFixture; no lo uses directamente en tests | `.WaitUntilAsync<T>(probe, timeout)`, `.WaitUntilTrueAsync(condition, timeout)` |
 
@@ -407,6 +432,7 @@ Esto permite que:
 - **NO modificar codigo de produccion** - si algo no funciona, informa al usuario
 - **NO usar `Skip.When()`** - no existe en xUnit v3, usa `Assert.SkipWhen()`
 - **NO filtrar eventos por posicion** (`eventos[^1]`) - siempre filtrar por campo identificador unico
+- **NO escribir un test que genera una operacion exitosa sin verificar todos sus efectos secundarios** - un 202 sin verificar los eventos publicados es cobertura incompleta. Lee el command handler para identificar todos los efectos (`PublishAsync`, `StartStream`, `AppendToStream`) y verificalos en el test
 
 ---
 
