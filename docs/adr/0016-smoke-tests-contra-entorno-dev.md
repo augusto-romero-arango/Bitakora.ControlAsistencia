@@ -2,7 +2,7 @@
 
 ## Estado
 
-Aceptado (actualizado 2026-04-09: verificacion de Service Bus, Postgres y skip graceful)
+Aceptado (actualizado 2026-04-13: cobertura completa de efectos secundarios, una clase por comando, ejecucion secuencial, patron purge-before-act)
 
 ## Contexto
 
@@ -27,20 +27,110 @@ Se adoptan smoke tests con HttpClient puro contra el entorno dev desplegado. Los
 llaman a los endpoints HTTP reales y verifican status codes. No tienen dependencia de la implementacion
 interna.
 
-### Estructura
+### Alcance de un smoke test: cobertura completa de efectos secundarios
+
+**Un smoke test debe verificar todos los efectos secundarios de la funcion bajo prueba.** Verificar
+solo el status code HTTP es cobertura incompleta. Si una funcion retorna 202 y ademas publica eventos
+a Service Bus, el test debe consumir y verificar esos eventos. Si persiste en Postgres, debe verificar
+la persistencia. Si hace ambas cosas, verifica ambas.
+
+Esta regla existe porque los efectos secundarios no verificados generan mensajes huerfanos en Service
+Bus que terminan en dead letter, contaminando la senal operacional. Dead letters en la suscripcion
+`smoke-tests` deben significar que algo esta roto, no que hay basura de tests con cobertura incompleta.
+
+Efectos secundarios conocidos y como verificarlos:
+
+| Efecto | Como detectarlo en el handler | Como verificarlo en el smoke test |
+|---|---|---|
+| Publicacion a topic | `IPublicEventSender.PublishAsync(eventos)` | `PurgeAsync` previo + `WaitForMessageAsync` desde suscripcion `smoke-tests` |
+| Persistencia en event store | `IEventStore.StartStream(...)` o `AppendToStream(...)` | `PostgresFixture.ExisteEventoAsync` / `ObtenerEventoAsync` |
+| Envio a queue (futuro) | `ISender.SendAsync(...)` o similar | Consumir de la queue y verificar contenido |
+
+Los tests que no generan operaciones exitosas (400, 404) no producen efectos secundarios y no necesitan
+verificarlos.
+
+### Estructura: una clase por comando
+
+Todos los tests de un comando van en una sola clase. No se separan los tests HTTP de los tests de
+Service Bus en archivos distintos. Una funcion es una unidad con todos sus efectos — si el trigger es
+HTTP y publica a Service Bus, una sola clase testea ambas cosas.
 
 ```
 tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/
-  appsettings.json              -- URL + placeholders vacios (commiteado)
-  appsettings.local.json        -- cadenas reales (gitignored)
-  Fixtures/
-    ApiFixture.cs               -- HttpClient + health check fail-fast
-    ServiceBusFixture.cs        -- PublishAsync + WaitForMessageAsync
-    PostgresFixture.cs          -- consultas a Marten (mt_events)
-    Polling.cs                  -- polling tolerante a excepciones
-    AssemblyFixture.cs          -- registra los 3 fixtures
-  CrearTurnoFunction/           -- tests por feature
+  {Comando}Function/
+    {Comando}SmokeTests.cs    <-- una sola clase con todos los tests del comando
 ```
+
+La clase recibe los fixtures que necesite segun los efectos secundarios del handler:
+
+```csharp
+// Comando que solo persiste (sin publicacion a SB)
+public class CrearTurnoSmokeTests(ApiFixture api)
+
+// Comando que persiste + publica a Service Bus
+public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+
+// Consumidor Service Bus que persiste en Postgres
+public class AsignarTurnoSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
+```
+
+Los tests que no generan efectos secundarios (400, 404) simplemente no usan los fixtures adicionales.
+
+### Ejecucion secuencial
+
+Los smoke tests de cada dominio corren secuencialmente (`[assembly: DisableParallelization]`). Los tests
+de Service Bus comparten la suscripcion `smoke-tests` como recurso externo. Si dos tests corren en
+paralelo contra la misma suscripcion, una purga de uno podria consumir el mensaje que el otro espera.
+La ejecucion secuencial elimina este riesgo. Los smoke tests son pocos y contra infraestructura real —
+el paralelismo no aporta valor aqui.
+
+### Patron purge-before-act
+
+Antes de ejecutar el Act (enviar el comando HTTP), el test purga la suscripcion `smoke-tests`
+consumiendo y completando (`ReceiveMessageAsync` + `CompleteMessageAsync`) todos los mensajes
+preexistentes. Esto limpia basura de ejecuciones anteriores. Completar un mensaje lo elimina
+permanentemente de la suscripcion — no va al dead letter.
+
+```
+Arrange: PurgeAsync(topic, suscripcion)   <- recibe+completa toda la basura historica
+Act:     POST /api/...                    <- la FA procesa y publica al topic
+Assert:  WaitForMessageAsync(...)         <- cualquier mensaje aqui es de ESTE test
+```
+
+`PurgeAsync` se invoca en el Arrange del test, nunca dentro de `WaitForMessageAsync`. Si se purga
+despues del Act, la Function App podria haber publicado el mensaje antes de que empiece la purga,
+y se eliminaria el mensaje que el test necesita verificar.
+
+### Fail-on-mismatch en WaitForMessageAsync
+
+Despues del Act, `WaitForMessageAsync` aplica estas reglas:
+
+| Situacion | Accion |
+|---|---|
+| Mensaje deserializa OK y cumple el predicado | `CompleteMessageAsync` + retornar (verde) |
+| Mensaje deserializa OK pero NO cumple el predicado | `CompleteMessageAsync` + lanzar excepcion con diagnostico |
+| Mensaje no deserializa al tipo esperado (JsonException) | `CompleteMessageAsync` + continuar esperando |
+| Timeout sin ningun mensaje | Lanzar `TimeoutException` con diagnostico |
+
+Ninguna rama usa `AbandonMessageAsync`. Todos los mensajes se completan (eliminan) de la suscripcion.
+Un mensaje post-Act que no matchea el predicado es un fallo legitimo, no basura.
+
+### Consumo de multiples eventos
+
+Cuando un handler publica N eventos (ej: uno por fecha), el test debe consumirlos todos. El predicado
+debe ser amplio (ej: `SolicitudId`) porque el orden de llegada no esta garantizado y el fail-on-mismatch
+lanza excepcion si un mensaje no matchea:
+
+```csharp
+// CORRECTO - matchea por SolicitudId (ambos eventos lo comparten)
+e => e.SolicitudId == solicitudId
+
+// INCORRECTO - si el primer mensaje que llega es de fecha2, explota
+e => e.SolicitudId == solicitudId && e.Fecha == fecha1
+```
+
+Se llama `WaitForMessageAsync` N veces con el predicado amplio. Cada llamada consume un mensaje. Las
+verificaciones de campos especificos (Fecha, etc.) se hacen sobre los objetos retornados.
 
 ### Fixtures obligatorios
 
@@ -63,8 +153,8 @@ sin cambiar codigo y sin exponer secrets en el repositorio.
 
 ### Aislamiento de datos
 
-Cada test genera un TurnoId con `Guid.CreateVersion7()`. No hay interferencia entre ejecuciones ni
-necesidad de cleanup.
+Cada test genera IDs unicos con `Guid.CreateVersion7()`. No hay interferencia entre ejecuciones ni
+necesidad de cleanup. Los nombres de entidades llevan prefijo `[TEST]`.
 
 ### Ejecucion
 
@@ -112,9 +202,10 @@ Responsabilidades separadas:
 - **domain-scaffolder**: crea `tests/*.SmokeTests/` con los 3 fixtures, Polling, appsettings.json
   con placeholders, csproj con ProjectReference a Contracts (para igualdad de records), y el job
   `smoke-tests` con secrets opcionales en el workflow de deploy.
-- **smoke-test-writer**: escribe tests dentro de ese proyecto. Usa `Assert.SkipWhen` para tests
-  que dependen de ServiceBus o Postgres. Puede verificar publicacion de eventos (WaitForMessageAsync)
-  y persistencia en Marten (ExisteEventoAsync, ObtenerEventoAsync).
+- **smoke-test-writer**: escribe tests dentro de ese proyecto. Verifica todos los efectos secundarios
+  de cada funcion. Usa `Assert.SkipWhen` para tests que dependen de ServiceBus o Postgres.
+- **reviewer**: verifica que cada smoke test con operacion exitosa cubra todos los efectos secundarios
+  del command handler. La cobertura incompleta es defecto bloqueante.
 
 ### CI/CD
 
@@ -136,12 +227,15 @@ Los smoke tests tambien se pueden ejecutar manualmente desde GitHub Actions via 
 ### Positivas
 
 - **Verificacion real**: confirma que el sistema desplegado funciona end-to-end (HTTP -> validacion ->
-  handler -> Marten -> PostgreSQL).
+  handler -> Marten -> PostgreSQL -> Service Bus).
 - **Cero acoplamiento**: los tests no conocen la implementacion. Si se cambia Marten por otro event
   store, los smoke tests siguen funcionando sin modificacion.
 - **Cero infraestructura local**: no requiere Docker, emuladores ni containers. Solo un entorno
   desplegado.
 - **Integracion natural en CI/CD**: se ejecutan como job post-deploy en GitHub Actions.
+- **Senal operacional limpia**: dead letters en `smoke-tests` significan un problema real, no basura
+  acumulada. La purga previa y el fail-on-mismatch eliminan los falsos positivos.
+- **Cobertura completa**: cada efecto secundario de una funcion se verifica, no solo el status code HTTP.
 
 ### Negativas
 
@@ -151,3 +245,6 @@ Los smoke tests tambien se pueden ejecutar manualmente desde GitHub Actions via 
   tener prefijo `[TEST]`, no interfieren con datos reales, pero se acumulan.
 - **Firewall de Azure**: las conexiones a Postgres desde desarrollo local requieren IP whitelisted
   en el portal de Azure. PostgresFixture detecta esto y omite los tests con un mensaje claro.
+- **Ejecucion secuencial**: los smoke tests no se paralelizan dentro de un dominio. Esto es aceptable
+  porque son pocos tests contra infraestructura real donde el cuello de botella es la latencia de red,
+  no la concurrencia del runner.
