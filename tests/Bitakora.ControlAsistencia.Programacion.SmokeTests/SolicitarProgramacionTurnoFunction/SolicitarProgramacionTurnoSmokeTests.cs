@@ -64,10 +64,11 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        // Arrange: preparar solicitud con una sola fecha para simplificar verificacion
+        // Arrange: preparar solicitud con dos fechas para verificar emision de un evento por fecha
         var solicitudId = Guid.CreateVersion7();
         var empleadoId = Guid.CreateVersion7().ToString();
-        var fecha = "2026-04-15";
+        var fecha1 = "2026-04-15";
+        var fecha2 = "2026-04-16";
         var payload = new
         {
             id = solicitudId,
@@ -80,27 +81,31 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
                 nombres = "[TEST] Smoke ServiceBus",
                 apellidos = "[TEST] Publicacion"
             },
-            fechas = new[] { fecha }
+            fechas = new[] { fecha1, fecha2 }
         };
 
         // Act: enviar solicitud via HTTP
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        // Assert: consumir el evento publicado desde la suscripcion smoke-tests
-        var eventoRecibido = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+        // Assert: consumir los 2 eventos publicados desde la suscripcion smoke-tests
+        var evento1 = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+        var evento2 = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
 
-        eventoRecibido.SolicitudId.Should().Be(solicitudId);
-        eventoRecibido.Fecha.Should().Be(DateOnly.Parse(fecha));
+        // Verificar que las fechas recibidas corresponden a las enviadas (sin importar orden)
+        new[] { evento1.Fecha, evento2.Fecha }.Should()
+            .BeEquivalentTo(new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
 
+        // Verificar datos del empleado y turno en uno de los eventos
         var empleadoEsperado = new InformacionEmpleado(
             empleadoId, "CC", "555666777", "[TEST] Smoke ServiceBus", "[TEST] Publicacion");
-        eventoRecibido.Empleado.Should().Be(empleadoEsperado);
+        evento1.Empleado.Should().Be(empleadoEsperado);
 
-        eventoRecibido.DetalleTurno.Should().NotBeNull();
-        eventoRecibido.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
-        eventoRecibido.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
+        evento1.DetalleTurno.Should().NotBeNull();
+        evento1.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
+        evento1.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
 
         // Assert: verificar ausencia de dead letters en la suscripcion del consumidor real
         await Task.Delay(TimeSpan.FromSeconds(5), ct);
