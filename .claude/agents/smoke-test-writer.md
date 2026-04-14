@@ -138,6 +138,7 @@ Para descubrir los efectos secundarios del comando:
 1. **Camino feliz** - payload valido retorna el status esperado (202 Accepted, 201 Created, etc.) **y se verifican todos los efectos secundarios** (publicaciones a Service Bus, persistencia en Postgres, etc.)
 2. **Duplicado/conflicto** - si aplica, enviar el mismo payload dos veces y verificar 409 Conflict
 3. **Validacion** - payload con campos vacios/invalidos retorna 400 Bad Request
+4. **Fan-out de arreglos** - cuando el payload contiene un arreglo que produce un evento por elemento (fan-out), el test del camino feliz debe enviar al menos 2 elementos y verificar que se emitan N eventos correspondientes. No testear fan-out con un solo elemento — eso no distingue "emite 1 evento" de "emite N eventos".
 
 ### Endpoint GET (consultar)
 
