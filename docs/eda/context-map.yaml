@@ -10,11 +10,13 @@
 # - AntiCorruptionLayer: el downstream traduce el modelo del upstream a su propio lenguaje
 # - SharedKernel: ambos contextos comparten un subdominio comun (en nuestro caso: Contracts/)
 #
-# Nota: Los dominios del sistema estan en revision (ver open_questions en ubiquitous-language.yaml).
-# ADR-0001 menciona Marcaciones, Empleados, Liquidacion, Notificaciones.
-# El lenguaje ubicuo emergente sugiere: Programacion, Depuracion, CalculoHoras, Empleados.
+# Ultima actualizacion: 2026-04-15 (sesion de diseno flujo reactivo post-marcacion)
 #
-# Ultima actualizacion: 2026-04-04 (seed inicial - arquitectura planificada)
+# Contextos descartados:
+# - Depuracion (2026-04-04 — 2026-04-15): absorbido por ControlHoras. La depuracion es logica
+#   interna de ControlDiarioAggregateRoot, no un bounded context separado.
+# - CalculoHoras (2026-04-04 — 2026-04-15): absorbido por ControlHoras. El calculo de horas
+#   es logica interna de ControlDiarioAggregateRoot (la calculadora).
 
 # -------------------------
 # SHARED KERNEL
@@ -24,9 +26,8 @@ shared_kernel:
   location: src/Bitakora.ControlAsistencia.Contracts/
   description: Value objects y tipos de eventos compartidos entre todos los dominios
   contains:
-    - Turno
-    - DiaOperativo
-    - Marcacion
+    - DetalleTurno
+    - InformacionEmpleado
     - DesgloseHoras
 
 # -------------------------
@@ -37,33 +38,28 @@ contexts:
     namespace: Bitakora.ControlAsistencia.Programacion
     status: en-desarrollo
     description: Gestiona turnos (definicion y asignacion a empleados). Ciclos y patrones semanales.
-    aggregates: [CatalogoTurnos, CatalogoCiclos]
+    aggregates: [CatalogoTurnos, SolicitudProgramacionAggregateRoot]
     actors_served: [Programador de turnos]
-    upstream_of: [Depuracion]
+    upstream_of: [ControlHoras]
     external_producers: []
-    note: "Actualmente es el unico dominio con scaffold. Contiene CatalogoTurnos y CatalogoCiclos segun el eda-modeler."
+    note: "Publica ProgramacionTurnoDiarioSolicitada a Service Bus para que ControlHoras lo consuma."
 
-  - name: Depuracion
-    namespace: Bitakora.ControlAsistencia.Depuracion
-    status: planificado
-    description: Transforma marcaciones crudas del sistema externo en dias operativos limpios con intervalos de presencia.
-    aggregates: [DiaOperativo]
+  - name: ControlHoras
+    namespace: Bitakora.ControlAsistencia.ControlHoras
+    status: en-desarrollo
+    description: >
+      Recibe marcaciones del sistema externo y programaciones de Programacion.
+      Depura marcaciones contra franjas del turno, calcula desglose de horas
+      y emite DiaCalculado. Es reactivo: cada cambio de estado dispara recalculo.
+    aggregates: [RegistroDeMarcacionAggregateRoot, ControlDiarioAggregateRoot]
     actors_served: [Aprobador]
-    upstream_of: [CalculoHoras]
     downstream_of: [Programacion]
     external_producers: [Sistema de marcacion]
-    note: "Recibe marcaciones del sistema externo y el turno de Programacion. Produce DiaDepurado para CalculoHoras."
-
-  - name: CalculoHoras
-    namespace: Bitakora.ControlAsistencia.CalculoHoras
-    status: planificado
-    description: Calcula el desglose de horas segun legislacion laboral colombiana (la CalculadoraHoras ya existe como logica).
-    aggregates: []
-    actors_served: [Aprobador]
-    downstream_of: [Depuracion]
-    relationship_with_depuracion: Conformist
     external_consumers: [Sistema de nomina]
-    note: "CalculadoraHoras ya existe en el codigo. Recibe DiaOperativo depurado y produce DesgloseHoras."
+    note: >
+      Absorbe la logica de Depuracion y CalculoHoras como metodos internos
+      de ControlDiarioAggregateRoot (depurador y calculadora).
+      Publica DiaCalculado a Service Bus.
 
   - name: Empleados
     namespace: Bitakora.ControlAsistencia.Empleados
@@ -71,7 +67,7 @@ contexts:
     description: Gestiona el registro maestro de empleados.
     aggregates: []
     actors_served: [Programador de turnos, Aprobador]
-    upstream_of: [Programacion, Depuracion, CalculoHoras]
+    upstream_of: [Programacion, ControlHoras]
     external_producers: [Sistema de empleados / RRHH]
     open_questions:
       - "Que datos del empleado necesitamos? Solo los que importan para el control de asistencia."
@@ -81,18 +77,23 @@ contexts:
 # -------------------------
 relationships:
   - from: Programacion
-    to: Depuracion
+    to: ControlHoras
     type: Customer-Supplier
-    description: "Depuracion (cliente) necesita el Turno de Programacion (proveedor) para poder depurar marcaciones"
-    mechanism: "El Turno viaja COMPLETO en el evento — nunca como ID. Principio: 'la verdad viaja en el evento'."
+    description: "ControlHoras (cliente) necesita el Turno de Programacion (proveedor) para depurar marcaciones y calcular horas"
+    mechanism: "ProgramacionTurnoDiarioSolicitada publicado en Service Bus. El Turno viaja COMPLETO en el evento — nunca como ID."
     adr: ADR-0002
 
-  - from: Depuracion
-    to: CalculoHoras
+  - from: Sistema de marcacion
+    to: ControlHoras
     type: Upstream-Downstream
-    description: "Cuando Depuracion produce un DiaOperativo limpio, CalculoHoras lo consume para discriminar horas"
-    mechanism: "Evento DiaDepurado publicado en Service Bus"
-    relationship_detail: Conformist
+    description: "ControlHoras recibe Registros de Marcacion del sistema externo"
+    mechanism: "Por definir (HTTP o Service Bus). RegistroDeMarcacionAggregateRoot normaliza y emite MarcacionRegistrada internamente."
+
+  - from: ControlHoras
+    to: Sistema de nomina
+    type: Upstream-Downstream
+    description: "ControlHoras publica DiaCalculado con el desglose de horas para que nomina lo consuma"
+    mechanism: "Evento DiaCalculado publicado en Service Bus"
 
   - from: Empleados
     to: Programacion
@@ -101,7 +102,7 @@ relationships:
     mechanism: "Por definir"
 
   - from: Empleados
-    to: Depuracion
+    to: ControlHoras
     type: Upstream-Downstream
-    description: "Depuracion necesita identificar a quien corresponde cada marcacion"
+    description: "ControlHoras necesita identificar a quien corresponde cada marcacion"
     mechanism: "Por definir"

@@ -4,17 +4,64 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-04-05 (sesion de diseno evento TurnoCreado)
+# Ultima actualizacion: 2026-04-15 (sesion de diseno flujo reactivo post-marcacion)
 
 # -------------------------
 # VOCABULARIO DEL DOMINIO
 # -------------------------
 terms:
   - name: Marcacion
-    definition: Registro crudo de entrada/salida proveniente de un sistema externo. Contiene dia/hora, identificador de persona, opcionalmente tipo (entrada/salida), y lugar/dispositivo donde sucedio.
-    context: Depuracion
+    definition: Acto de capturar el instante de entrada o salida de un empleado en un dispositivo. Concepto puro del sistema de marcacion, con toda su riqueza (huella, PIN, foto). Le pertenece al dispositivo, no a nuestro sistema.
+    context: Externo
     rejected_synonyms: [fichaje, registro de entrada]
-    rejection_reason: "fichaje es termino de España; registro de entrada es ambiguo"
+    rejection_reason: "fichaje es termino de Espana; registro de entrada es ambiguo"
+    note: "Diferenciado de 'Registro de Marcacion', que es lo que nuestro sistema recibe y persiste."
+
+  - name: Registro de Marcacion
+    definition: >
+      Dato destilado de una marcacion que nuestro sistema recibe de forma asincrona.
+      Contiene solo los campos minimos (EmpleadoId, Timestamp, opcionalmente TipoMarcacion y DispositivoId).
+      Es lo que persistimos y procesamos. Aggregate independiente en ControlHoras con stream ID
+      determinista "{EmpleadoId}:{TimestampCrudo}". Responsable de idempotencia por duplicado exacto
+      y normalizacion (truncar segundos).
+    context: ControlHoras
+    note: >
+      Interfaz minima convergente para cualquier sistema de marcacion (propio o externo).
+      Principio de conservacion total: todo registro interpretable se guarda.
+      La idempotencia por minuto normalizado la resuelve ControlDiario, no este aggregate.
+
+  - name: TipoMarcacion
+    definition: Indica si el registro corresponde a una entrada o una salida. Enum cerrado con valores "entrada" y "salida". Opcional — si el dispositivo no lo sabe, se omite y el depurador de ControlDiario lo infiere.
+    context: ControlHoras
+    rejected_synonyms: [direccion, sentido, movimiento]
+    rejection_reason: "direccion es ambiguo (puede sonar a direccion postal); sentido y movimiento son menos naturales que tipo"
+
+  - name: DispositivoId
+    definition: Identificador alfanumerico del dispositivo que capturo la marcacion. Opcional en el Registro de Marcacion. El cliente le asocia metadata (centro de costos, sede, ciudad, etc.) en configuracion.
+    context: ControlHoras
+    rejected_synonyms: [ubicacion, origen, fuente, sede, lugar, punto de marcacion]
+    rejection_reason: "ubicacion/sede/lugar insinuan un concepto geografico; lo que recibimos es un ID de dispositivo. La geografia es metadata del dispositivo en configuracion. Origen/fuente suenan a metadata tecnica de integracion."
+
+  - name: Normalizacion de marcacion
+    definition: >
+      Proceso de truncar los segundos del timestamp de una marcacion al registrarla.
+      Ejemplo: 08:09:59 se normaliza a 08:09:00. La regla por defecto es truncar al minuto (floor).
+      Configurable por empresa en el futuro para soportar otros redondeos.
+    context: ControlHoras
+    date_added: 2026-04-15
+
+  - name: Ventana de traslape nocturno
+    definition: >
+      Rango de horas de madrugada (00:00 a HoraCorte) durante el cual una marcacion
+      se envia tanto al dia calendario del timestamp como al dia anterior. Permite que
+      turnos nocturnos que cruzan medianoche reciban sus marcaciones de salida.
+      Default: 4AM. Configurable por empresa.
+    context: ControlHoras
+    date_added: 2026-04-15
+    note: >
+      Solo las marcaciones dentro de esta ventana generan doble envio.
+      El depurador de cada ControlDiario decide si la marcacion le es relevante
+      segun sus franjas. Si no le sirve, la ignora y no recalcula.
 
   - name: Turno
     definition: Plantilla reutilizable compuesta por franjas ordinarias, cada una con posibles descansos y extras contenidos. Se almacena en el catalogo con un Id (Guid generado por el cliente) y un nombre. Concepto operativo.
@@ -35,55 +82,72 @@ terms:
   - name: Franja de Extra
     definition: Horas extras programadas dentro de una franja ordinaria. Representan un compromiso del empleado. Es hoja — no contiene otras franjas.
     context: Programacion
-    note: "Las extras NO programadas (el jefe pidio quedarse) se resuelven en Depuracion/CalculoHoras, no en Programacion."
+    note: "Las extras NO programadas (el jefe pidio quedarse) se resuelven en ControlHoras, no en Programacion."
 
   - name: Offset de dia
     definition: "Indicador relativo que marca si una hora pertenece al mismo dia (+0, implicito) o al dia siguiente (+1, explicito) respecto al dia de asignacion del turno. Se usa para representar turnos que cruzan medianoche."
     context: Programacion
-    note: "El factory del evento infiere +1 cuando fin < inicio en la tupla del comando. No existe hora de corte — la particion legal por medianoche es responsabilidad de CalculoHoras."
+    note: "El factory del evento infiere +1 cuando fin < inicio en la tupla del comando."
 
   - name: Programacion de turnos
     definition: Asignacion de turnos a empleados para periodos especificos.
     context: Programacion
 
   - name: Depuracion
-    definition: Proceso automatico que cruza marcaciones con el turno asignado y produce intervalos de presencia. Decide que marcaciones son relevantes y cuales se descartan, dejando rastro de su razonamiento.
-    context: Depuracion
-    note: "A diferencia de la Conciliacion (manual), la Depuracion es automatica"
+    definition: >
+      Proceso automatico interno de ControlDiarioAggregateRoot que cruza marcaciones
+      con las franjas del turno asignado y produce parejas entrada-salida por franja.
+      Algoritmo: secuencial por rango. El corte entre franjas adyacentes es el punto
+      medio del gap. Primera marcacion en el rango es entrada, ultima es salida,
+      intermedias se descartan.
+    context: ControlHoras
+    note: "No es un bounded context separado. Es logica interna del aggregate ControlDiario."
 
-  - name: Intervalo de presencia
-    definition: Pareja inicio-fin que representa un periodo continuo de presencia del empleado.
-    context: Depuracion
-    note: "No es lo mismo que 'tiempo trabajado' porque puede contener descansos dentro"
+  - name: Marcacion depurada
+    definition: >
+      Pareja entrada-salida producida por el depurador para una franja ordinaria.
+      Si solo hay una marcacion en la franja, es entrada con salida nula (anomala).
+      Si no hay marcaciones para la franja, es anomala (sin presencia).
+    context: ControlHoras
+    date_added: 2026-04-15
 
   - name: Anomalia
-    definition: Caso sospechoso o incompleto detectado automaticamente por el sistema durante la depuracion.
-    context: Depuracion
+    definition: Caso sospechoso o incompleto detectado automaticamente por el sistema durante la depuracion. Ejemplo: franja con entrada pero sin salida, o dia sin programacion.
+    context: ControlHoras
     note: "Termino elegido por su peso estadistico, pensando en escalabilidad futura hacia deteccion por IA"
 
   - name: Conciliacion
     definition: Proceso manual donde un humano (el Aprobador) resuelve anomalias o corrige resultados de la depuracion.
-    context: Depuracion
-    note: "A diferencia de la Depuracion (automatica), la Conciliacion es humana y deliberada"
+    context: ControlHoras
+    note: "A diferencia de la Depuracion (automatica), la Conciliacion es humana y deliberada. El flujo de aprobacion se define en una sesion futura."
 
   - name: Discriminacion de horas
     definition: Desglose del tiempo trabajado por concepto (hora ordinaria diurna, recargo nocturno, hora extra, etc.). El sistema discrimina tiempo, no dinero.
-    context: CalculoHoras
+    context: ControlHoras
     rejected_synonyms: [liquidacion de horas]
     rejection_reason: "liquidacion suena a pago; este sistema solo clasifica tiempo — los porcentajes y valores son responsabilidad del sistema de nomina"
 
   - name: Concepto
     definition: Categoria de clasificacion del tiempo (hora ordinaria diurna, recargo nocturno, hora extra diurna, hora extra nocturna, recargo dominical, etc.).
-    context: CalculoHoras
+    context: ControlHoras
 
   - name: Retardo
     definition: Llegada tarde del empleado respecto al inicio de su turno asignado.
-    context: Depuracion
+    context: ControlHoras
 
   - name: Jornada
     definition: "Concepto JURIDICO: habla de duraciones y limites legales (jornada maxima, jornada ordinaria). NO es un termino operativo del sistema."
     context: General
     note: "Usar 'Turno' para el concepto operativo. 'Jornada' solo aparece en contextos legislativos."
+
+  - name: DiaCalculado
+    definition: >
+      Evento publico emitido por ControlDiarioAggregateRoot cada vez que su estado cambia
+      (nueva marcacion o nueva programacion). Contiene InformacionEmpleado, Fecha,
+      MarcacionesDepuradas, DesgloseHoras y ProgramacionUsada. Se emite siempre,
+      incluso con ceros, porque la presencia del evento evidencia actividad en ese dia.
+    context: ControlHoras
+    date_added: 2026-04-15
 
 # -------------------------
 # ACTORES DEL SISTEMA
@@ -100,20 +164,18 @@ actors:
       - Garantizar cobertura operativa del sitio
       - Cumplir limites legales de jornada laboral maxima y trabajo suplementario
     interacts_with: [Programacion]
-    open_questions:
-      - "Como se le llama al sitio donde trabaja el empleado? (punto de venta, sede, fabrica, obra)"
 
   - name: Aprobador
     type: user
-    definition: Persona que revisa los resultados de la depuracion, atiende anomalias y da el visto bueno para la discriminacion de horas.
+    definition: Persona que revisa los resultados de la depuracion, atiende anomalias y da el visto bueno para la transmision a nomina.
     responsibilities:
       - Revisar resultados de la depuracion automatica
       - Resolver anomalias mediante conciliacion
-      - Aprobar la discriminacion de horas para que fluya al sistema de nomina
+      - Aprobar el lote de horas discriminadas para transmision al sistema de nomina
     frustrations:
       - Tener que verificar manualmente cada empleado por no confiar en el sistema automatico
-    interacts_with: [Depuracion, CalculoHoras]
-    note: "Puede ser la misma persona que el Programador de turnos"
+    interacts_with: [ControlHoras]
+    note: "Puede ser la misma persona que el Programador de turnos. El unico lote de aprobacion es al momento de la transmision a nomina."
 
   - name: Empleado
     type: user
@@ -132,15 +194,15 @@ actors:
 external_systems:
   - name: Sistema de marcacion
     role: producer
-    definition: Sistema externo (reloj biometrico u otro) que envia las marcaciones crudas.
-    publishes_to: [Depuracion]
-    note: "No conocemos su protocolo de integracion todavia"
+    definition: Sistema externo (reloj biometrico u otro) que genera marcaciones y transmite Registros de Marcacion a nuestro sistema, de forma unitaria o en lotes.
+    publishes_to: [ControlHoras]
+    note: "Puede ser un sistema propio o del cliente. La capa de traduccion upstream convierte el formato nativo del dispositivo al Registro de Marcacion minimo."
 
   - name: Sistema de nomina
     role: consumer
     definition: Sistema que recibe la discriminacion de horas aprobada para calcular el pago.
-    consumes_from: [CalculoHoras]
-    note: "El sistema de asistencia le entrega tiempo discriminado, nunca dinero"
+    consumes_from: [ControlHoras]
+    note: "El sistema de asistencia le entrega tiempo discriminado, nunca dinero. Consume DiaCalculado."
 
   - name: Sistema de empleados / RRHH
     role: producer
@@ -152,23 +214,13 @@ external_systems:
 # Backlog de exploracion para futuras sesiones del agente `event-stormer`
 # -------------------------
 open_questions:
-  - question: "Como llamamos al lugar de trabajo? (punto de venta, sede, fabrica, obra)"
-    context: General
-    date: 2026-04-04
-    priority: high
-
   - question: "Le decimos empleado, trabajador o colaborador? Que datos nos importan de el?"
     context: Empleados
     date: 2026-04-04
     priority: high
 
-  - question: "Los dominios del sistema (ADR-0001 menciona Marcaciones, Empleados, Liquidacion, Notificaciones) siguen siendo correctos con el vocabulario nuevo? Donde viven la Depuracion, la Discriminacion de horas, la Programacion?"
-    context: Arquitectura
-    date: 2026-04-04
-    priority: high
-
   - question: "Como se delimita temporalmente la discriminacion de horas? Semanal, quincenal, mensual? Lo define cada empresa?"
-    context: CalculoHoras
+    context: ControlHoras
     date: 2026-04-04
     priority: medium
 
@@ -178,7 +230,7 @@ open_questions:
     priority: medium
 
   - question: "Lista completa de Conceptos de discriminacion. Cuales son todos los tipos que maneja la legislacion colombiana?"
-    context: CalculoHoras
+    context: ControlHoras
     date: 2026-04-04
     priority: medium
 
@@ -196,3 +248,50 @@ open_questions:
     context: Programacion
     date: 2026-04-05
     priority: medium
+
+  - question: "Donde vive la configuracion de dispositivos y la tabla de homologacion DispositivoId -> Centro de costos?"
+    context: Arquitectura
+    date: 2026-04-14
+    priority: medium
+
+  - question: "Marcaciones huerfanas (EmpleadoId sin match): como se presentan al cliente para que las resuelva?"
+    context: ControlHoras
+    date: 2026-04-14
+    priority: medium
+
+  - question: "Recepcion de lotes de Registros de Marcacion: como se extrapola el caso unitario a lotes?"
+    context: ControlHoras
+    date: 2026-04-14
+    priority: medium
+
+  - question: "Como funciona el flujo de aprobacion y transmision a nomina? El unico lote de aprobaciones es al cierre de nomina."
+    context: ControlHoras
+    date: 2026-04-15
+    priority: high
+
+  - question: "Donde vive la configuracion de la Ventana de traslape nocturno por empresa?"
+    context: Arquitectura
+    date: 2026-04-15
+    priority: medium
+
+  - question: "Donde vive la configuracion de la regla de normalizacion/redondeo de marcaciones por empresa?"
+    context: Arquitectura
+    date: 2026-04-15
+    priority: medium
+
+# -------------------------
+# PREGUNTAS RESUELTAS
+# Movidas aqui para trazabilidad
+# -------------------------
+resolved_questions:
+  - question: "Los dominios del sistema siguen siendo correctos? Donde viven la Depuracion, la Discriminacion de horas, la Programacion?"
+    context: Arquitectura
+    date_asked: 2026-04-04
+    date_resolved: 2026-04-15
+    resolution: "Tres bounded contexts: Programacion, ControlHoras (absorbe Depuracion y CalculoHoras), Empleados."
+
+  - question: "Reglas de inferencia de Depuracion: como se cruzan marcaciones sin TipoMarcacion con las franjas del turno para determinar entrada/salida?"
+    context: ControlHoras
+    date_asked: 2026-04-14
+    date_resolved: 2026-04-15
+    resolution: "Algoritmo secuencial por rango. Corte entre franjas = punto medio del gap. Primera marcacion es entrada, ultima es salida, intermedias se descartan."

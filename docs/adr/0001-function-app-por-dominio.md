@@ -2,13 +2,13 @@
 
 ## Estado
 
-Aceptado
+Aceptado (actualizado 2026-04-15: dominios definitivos)
 
 ## Contexto
 
 El sistema maneja aproximadamente 50.000 empleados distribuidos en multiples empresas. Esta
-compuesto por 4 dominios con perfiles de carga muy distintos entre si. El dominio de
-marcaciones experimenta picos brutales entre las 6 y las 8 de la manana, cuando los empleados
+compuesto por dominios con perfiles de carga muy distintos entre si. El dominio de control de
+horas experimenta picos brutales entre las 6 y las 8 de la manana, cuando los empleados
 inician jornada de forma masiva y simultanea. El dominio de empleados, en cambio, es
 practicamente un CRUD de baja frecuencia donde los cambios ocurren de manera espaciada a lo
 largo del dia.
@@ -27,14 +27,35 @@ artefacto independiente que se despliega en su propia Azure Function App. Los do
 se llaman entre si de forma directa: toda comunicacion ocurre mediante la publicacion y
 consumo de eventos en Service Bus.
 
+### Dominios del sistema
+
+Los dominios han evolucionado desde la concepcion inicial (Marcaciones, Empleados, Liquidacion,
+Notificaciones) hasta los definitivos, producto de sesiones de knowledge crunching:
+
+| Dominio | Responsabilidad | Estado |
+|---------|----------------|--------|
+| **Programacion** | Catalogo de turnos, asignacion de turnos a empleados, ciclos | En desarrollo |
+| **ControlHoras** | Recepcion de marcaciones, depuracion, calculo de horas, emision de DiaCalculado | En desarrollo |
+| **Empleados** | Registro maestro de empleados | Planificado |
+
+**Dominios descartados durante el diseno:**
+
+- **Marcaciones**: absorbido por ControlHoras. El registro de marcaciones es un aggregate
+  (RegistroDeMarcacionAggregateRoot) dentro de ControlHoras, no un dominio separado.
+- **Depuracion**: absorbido por ControlHoras. La depuracion es logica interna de
+  ControlDiarioAggregateRoot (metodo depurador), no un bounded context.
+- **CalculoHoras**: absorbido por ControlHoras. El calculo de horas es logica interna de
+  ControlDiarioAggregateRoot (metodo calculadora).
+- **Liquidacion**: renombrado a ControlHoras con alcance redefinido.
+- **Notificaciones**: no se ha identificado como dominio necesario hasta ahora.
+
 Estructura de proyectos resultante:
 
 ```
 src/
-  Bitakora.ControlAsistencia.Marcaciones/      -- Function App de marcaciones
-  Bitakora.ControlAsistencia.Empleados/        -- Function App de empleados
-  Bitakora.ControlAsistencia.Liquidacion/      -- Function App de liquidacion
-  Bitakora.ControlAsistencia.Notificaciones/   -- Function App de notificaciones
+  Bitakora.ControlAsistencia.Programacion/      -- Function App de programacion
+  Bitakora.ControlAsistencia.ControlHoras/       -- Function App de control de horas
+  Bitakora.ControlAsistencia.Empleados/          -- Function App de empleados
 ```
 
 ## Consecuencias
@@ -42,11 +63,13 @@ src/
 **Positivas**
 
 - Despliegue independiente por dominio: un cambio en empleados no requiere redesplegar
-  marcaciones.
+  control de horas.
 - Escalado independiente en Consumption Plan: cada Function App escala segun su propia
   demanda, lo que permite absorber los picos de marcaciones sin sobredimensionar los demas
   dominios.
-- Aislamiento de fallos: un error en liquidacion no interrumpe el registro de marcaciones.
+- Aislamiento de fallos: un error en programacion no interrumpe el registro de marcaciones.
+- Tres dominios en vez de los cuatro o cinco originales: menos artefactos de infraestructura
+  sin sacrificar separacion de responsabilidades.
 
 - Cada Function App tiene su propia Storage Account dedicada. Los nombres de Storage Account
   son globalmente unicos en Azure, por lo que se agrega un sufijo aleatorio de 6 caracteres
