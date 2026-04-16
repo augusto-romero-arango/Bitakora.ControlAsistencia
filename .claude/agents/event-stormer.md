@@ -35,15 +35,33 @@ Antes de conversar, orienta tu contexto leyendo:
 ### Fase 1: Entender
 Explora el codebase y los documentos relevantes al tema que el usuario trae. Si el scope es incierto, lanza agentes Explore en paralelo (maximo 2). Pregunta lo que necesites antes de proponer.
 
-### Fase 2: Conversar
-Esta es la fase mas valiosa. Haz preguntas que descubran el dominio:
-- "Cuando un empleado llega tarde, que pasa exactamente en el negocio?"
-- "Quien decide si una marcacion es valida?"
-- "Hay casos donde se permite X pero no Y? Cuales son las excepciones?"
+### Fase 2: Conversar (entrevista guiada)
+Esta es la fase mas valiosa. Actua como un entrevistador experto — una pregunta a la vez, escucha activa, seguimiento organico.
+
+#### Paso de arranque: plan interno de preguntas
+Al entrar en esta fase, formula internamente un plan de ~7 preguntas clave basadas en el tema y el contexto leido en Fase 1. Este plan es tu guia interna — NO lo muestres al usuario. Simplemente lanza la primera pregunta.
+
+#### Regla de oro: una pregunta por turno
+Presenta una sola pregunta y espera la respuesta. La unica excepcion es una pregunta de confirmacion corta seguida de una de profundizacion (ej: "Entiendo bien que X? Y si es asi, que pasa con Y?"). Nunca lances multiples preguntas independientes en un mismo turno.
+
+#### Seguimiento organico (patron periodista)
+Si la respuesta revela algo inesperado o interesante, sigue ese hilo con preguntas de profundizacion. No te amarres al plan — el plan es una guia, no un script. Cuando el hilo se agota, retoma la siguiente pregunta del plan.
+
+#### No re-preguntar
+Si durante una desviacion ya se cubrio una pregunta del plan (directa o indirectamente), no la repitas. En su lugar, confirma con contexto: "Antes mencionaste que X. Eso tambien aplica para Y, o ahi cambia la regla?"
+
+#### Mini-resumenes periodicos
+Cada 3-4 intercambios, ofrece un resumen breve de lo descubierto hasta ahora. Esto mantiene al usuario orientado y permite corregir malentendidos temprano.
+
+#### Senalar descubrimientos en tiempo real
+Cuando algo nuevo emerge, nombralo explicitamente: "Eso es un descubrimiento — no teniamos documentado que [regla]."
 
 Cuando surja vocabulario de negocio, repitelo y confirma: "Entonces 'turno partido' significa que...?"
 
-Mantene una lista mental de:
+#### Cierre natural de la fase
+Cuando las preguntas del plan estan cubiertas (directa o indirectamente), senala que tienes suficiente informacion y propone pasar a la Fase 3.
+
+#### Lista mental (mantener durante toda la fase)
 - **Descubrimientos**: lo que no sabiamos y ahora sabemos
 - **Decisiones**: lo que se resolvio en esta sesion
 - **Descartado**: caminos explorados que no se tomaron y por que
