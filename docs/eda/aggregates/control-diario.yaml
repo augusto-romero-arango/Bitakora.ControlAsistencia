@@ -1,0 +1,172 @@
+# Aggregate: ControlDiarioAggregateRoot
+# Contexto: ControlHoras
+#
+# Dia de trabajo de un empleado. Recibe programaciones y marcaciones,
+# depura, calcula y emite DiaCalculado.
+#
+# Identidad: EmpleadoId + Fecha (stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}")
+#
+# Estado: en desarrollo
+# Ultima actualizacion: 2026-04-15 (sesion de diseno flujo reactivo post-marcacion)
+
+aggregate:
+  name: ControlDiarioAggregateRoot
+  context: ControlHoras
+  description: >
+    Cerebro del dia de trabajo de un empleado. Recibe marcaciones y programacion
+    de turno, depura las marcaciones contra las franjas del turno, calcula el
+    desglose de horas y emite DiaCalculado.
+    Es reactivo: cualquier cambio de estado (nueva marcacion o nueva programacion)
+    dispara recalculo y emision de DiaCalculado.
+
+  identity:
+    fields: [EmpleadoId, Fecha]
+    stream_id: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
+
+  state:
+    - field: InformacionEmpleado
+      type: InformacionEmpleado
+    - field: Fecha
+      type: DateOnly
+    - field: DetalleTurno
+      type: DetalleTurno
+      note: "El turno viaja completo, no como ID"
+    - field: Marcaciones
+      type: List<MarcacionNormalizada>
+      note: "Marcaciones ya truncadas al minuto"
+    - field: UltimaSolicitudId
+      type: Guid
+
+  # -----------------------------------------------
+  # DEPURADOR — logica interna del aggregate
+  # -----------------------------------------------
+  # Algoritmo: secuencial por rango
+  # Cada franja ordinaria del turno tiene un rango de asignacion.
+  # El corte entre franjas adyacentes es el punto medio del gap.
+  # Todas las marcaciones que caen en el rango se ordenan cronologicamente.
+  # La primera es entrada, la ultima es salida, las intermedias se ignoran.
+  #
+  # Decision tomada: 2026-04-15
+  # Alternativa descartada: asignacion por proximidad temporal.
+  # Razon: la proximidad requiere umbrales arbitrarios y genera ambiguedades
+  # cuando una franja ya tiene pareja completa y llega una marcacion adicional.
+  # El algoritmo secuencial se autorrepara con cada marcacion nueva.
+  # -----------------------------------------------
+
+  depurador:
+    algoritmo: secuencial-por-rango
+    descripcion: >
+      Para cada franja ordinaria del turno, se define un rango de asignacion.
+      El corte entre franjas adyacentes es el punto medio del gap entre ellas.
+      Todas las marcaciones dentro del rango se ordenan cronologicamente:
+      la primera es entrada, la ultima es salida, las intermedias se descartan.
+      Si solo hay una marcacion en el rango, es entrada con salida nula (anomala).
+
+    reglas:
+      - "El rango de la primera franja comienza en -infinito (cualquier marcacion antes del punto medio con la segunda franja)"
+      - "El rango de la ultima franja termina en +infinito (cualquier marcacion despues del punto medio con la franja anterior)"
+      - "Si hay una sola franja, todas las marcaciones le pertenecen"
+      - "Si una franja tiene una sola marcacion, se marca como anomala (entrada sin salida)"
+      - "Si una franja no tiene marcaciones, se marca como anomala (sin presencia)"
+      - "Las marcaciones intermedias (ni primera ni ultima) se descartan silenciosamente"
+
+    casos_analizados:
+      - nombre: "Turno partido - flujo completo"
+        turno: "Franja 1 (6AM-12PM), Franja 2 (2PM-6PM)"
+        punto_corte: "1PM (punto medio del gap 12PM-2PM)"
+        rangos: "F1: hasta 1PM, F2: desde 1PM"
+        marcaciones_en_orden:
+          - paso: 1
+            llega: "5:50AM"
+            depuracion: "F1: Entrada 5:50 - Salida (nula) | F2: sin datos"
+            resultado: "Anomalo - F1 incompleta"
+
+          - paso: 2
+            llega: "12:05PM"
+            depuracion: "F1: Entrada 5:50 - Salida 12:05 | F2: sin datos"
+            resultado: "F1 completa, F2 sin datos"
+
+          - paso: 3
+            llega: "1:15PM"
+            depuracion: "F1: Entrada 5:50 - Salida 12:05 | F2: Entrada 1:15 - Salida (nula)"
+            resultado: "F1 completa, F2 anomala"
+
+          - paso: 4
+            llega: "1:55PM"
+            depuracion: "F1: Entrada 5:50 - Salida 12:05 | F2: Entrada 1:15 - Salida 1:55"
+            resultado: "Ambas completas (pero F2 sospechosa - dos marcaciones cercanas al inicio)"
+
+          - paso: 5
+            llega: "6:10PM"
+            depuracion: "F1: Entrada 5:50 - Salida 12:05 | F2: Entrada 1:15 - Salida 6:10 (1:55 descartada)"
+            resultado: "Ambas completas - el algoritmo se autorreparo"
+
+      - nombre: "Marcacion ambigua a las 12:50PM"
+        turno: "Franja 1 (6AM-12PM), Franja 2 (2PM-6PM)"
+        contexto: >
+          Con proximidad, 12:50PM esta mas cerca de 12PM (50min) que de 2PM (1h10m),
+          asi que iria a Franja 1 que ya tiene pareja — genera conflicto.
+          Con rango secuencial, 12:50PM < 1PM corte, cae en Franja 1,
+          se recalcula: primera y ultima marcacion.
+
+    alternativa_descartada:
+      nombre: proximidad-temporal
+      problemas:
+        - "Requiere definir umbrales de distancia (cuantos minutos es 'cerca')"
+        - "Cuando una franja ya tiene pareja completa y llega una tercera marcacion por proximidad, no hay regla clara"
+        - "No se autorrepara — el orden de llegada de las marcaciones puede cambiar el resultado final"
+
+  # -----------------------------------------------
+  # CALCULADORA — logica interna del aggregate
+  # -----------------------------------------------
+  calculadora:
+    descripcion: >
+      Recibe las marcaciones depuradas (parejas entrada-salida por franja) y
+      produce el desglose de horas. Si alguna pareja es anomala (entrada sin salida),
+      la calculadora no produce calculo para esa franja y el desglose queda en ceros
+      para esos conceptos.
+
+  # -----------------------------------------------
+  # COMPORTAMIENTO REACTIVO
+  # -----------------------------------------------
+  reactivo:
+    descripcion: >
+      Cualquier cambio de estado dispara: depurador -> calculadora -> DiaCalculado.
+      El evento DiaCalculado se emite SIEMPRE, incluso si el resultado es ceros,
+      porque el contenido del evento cambia (marcaciones depuradas, programacion usada).
+
+    triggers:
+      - MarcacionAdicionada
+      - TurnoDiarioAsignado
+
+  # -----------------------------------------------
+  # EVENTOS
+  # -----------------------------------------------
+  eventos_privados:
+    - name: TurnoDiarioAsignado
+      description: "Se asigno o reasigno un turno al dia"
+      status: implementado
+
+    - name: MarcacionAdicionada
+      description: "Se adiciono una marcacion normalizada al dia"
+      status: planificado
+
+  eventos_publicos:
+    - name: DiaCalculado
+      description: "Resultado del recalculo del dia — sale a Service Bus"
+      status: planificado
+      payload:
+        - field: InformacionEmpleado
+          type: InformacionEmpleado
+          note: "Objeto completo del empleado como llego desde Programacion"
+        - field: Fecha
+          type: DateOnly
+        - field: MarcacionesDepuradas
+          type: List<MarcacionDepurada>
+          note: "Parejas entrada-salida por franja. Si la franja es anomala, salida es nula."
+        - field: DesgloseHoras
+          type: DesgloseHoras
+          note: "Desglose por concepto. Todo en ceros si no hay informacion suficiente."
+        - field: ProgramacionUsada
+          type: DetalleTurno
+          note: "El turno completo que se uso para depurar. Nulo si no habia programacion."
