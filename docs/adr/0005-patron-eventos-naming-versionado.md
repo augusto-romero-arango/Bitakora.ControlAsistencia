@@ -26,15 +26,10 @@ Los nombres de eventos usan PascalCase en participio pasado, describiendo el hec
 ocurrio. Ejemplos: `MarcacionesRegistradas`, `HorasCalculadas`, `EmpleadoActualizado`,
 `LiquidacionGenerada`.
 
-### Naming de topics
+### Naming de topics y subscriptions
 
-Los topics de Service Bus siguen el patron `eventos-{dominio-en-kebab}`. Ejemplos:
-`eventos-marcaciones`, `eventos-empleados`, `eventos-liquidacion`.
-
-### Naming de subscriptions
-
-Las subscriptions siguen el patron `{consumidor}-escucha-{productor}`. Ejemplos:
-`liquidacion-escucha-marcaciones`, `notificaciones-escucha-liquidacion`.
+Para la convencion de naming de topics y subscriptions de Service Bus, ver
+[ADR-0004: Service Bus - un topic por tipo de evento](0004-service-bus-topics-por-evento.md).
 
 ### Versionado aditivo
 
@@ -64,8 +59,8 @@ en el proyecto Contracts con los siguientes campos:
 
 **Positivas**
 
-- Convencion unica y consistente en todo el sistema: cualquier desarrollador puede inferir
-  el nombre del topic o de la subscription a partir del nombre del dominio.
+- Convencion unica y consistente en todo el sistema para nombrar eventos en codigo
+  (PascalCase, participio pasado), evitando la dispersion de estilos entre dominios.
 - El versionado aditivo permite que productores y consumidores evolucionen de forma
   independiente sin coordinacion sincronizada.
 - El `CorrelationId` en el envelope facilita el trazado distribuido a traves de los dominios.

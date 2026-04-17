@@ -10,10 +10,10 @@
 # - Subscriptions: {consumidor}-escucha-{productor} o {consumidor-contexto}
 #
 # ESTADO ACTUAL: seed inicial
-# El unico topic provisionado en infra es 'eventos-programacion' (segun main.tf).
+# El unico topic provisionado en infra es 'programacion-turno-diario-solicitada' (segun main.tf).
 # Los topics aqui documentados son el estado objetivo de la arquitectura.
 #
-# Ultima actualizacion: 2026-04-04 (seed inicial - sin implementacion)
+# Ultima actualizacion: 2026-04-17 (alineacion con ADR-0004 tras issue #109)
 
 service_bus:
   namespace: sb-asist-dev
