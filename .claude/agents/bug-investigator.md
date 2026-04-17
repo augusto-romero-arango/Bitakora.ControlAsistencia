@@ -16,6 +16,33 @@ Antes de investigar, orienta tu contexto leyendo:
 - `docs/adr/` — decisiones ya tomadas
 - `docs/bitacora/field-notes/` — investigaciones recientes (no repetir terreno ya cubierto)
 
+## Triage inicial: errores de deploy
+
+Si el sintoma sugiere un fallo en el pipeline de deploy (Function App que no arranca, 503 tras desplegar, sync trigger failed, malformed content, el deploy termino OK pero la funcion no responde), **antes de correr queries de App Insights** sigue este checklist en orden:
+
+1. **Lee los logs reales del pipeline**:
+   ```bash
+   gh run list --workflow deploy-<dominio>.yml --limit 5
+   gh run view <run-id> --log-failed
+   ```
+2. **Compila localmente** para descartar errores de codigo:
+   ```bash
+   dotnet build src/Bitakora.ControlAsistencia.<Dominio>/ -r linux-x64
+   ```
+3. **Verifica el artefacto de publish** localmente:
+   ```bash
+   dotnet publish src/Bitakora.ControlAsistencia.<Dominio>/ -c Release -r linux-x64 --self-contained false -o /tmp/publish
+   ls /tmp/publish/functions.metadata /tmp/publish/host.json
+   ```
+4. **Verifica la infraestructura contra ADR-0020**:
+   - Plan de hosting: al menos B1, nunca Consumption Y1 con .NET 10+.
+   - App settings obligatorios: `FUNCTIONS_WORKER_RUNTIME`, `FUNCTIONS_EXTENSION_VERSION`, `WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED`, `WEBSITE_RUN_FROM_PACKAGE`.
+   - Comandos de publish: `-r linux-x64 --self-contained false`.
+
+**Principio**: nunca asumas que un error de deploy es de codigo. Errores tipo "malformed content" o "sync trigger failed" casi siempre son runtime/configuracion, no compilacion. Verifica con datos reales (logs del workflow, inspeccion del artefacto, Terraform) antes de proponer un fix.
+
+Si el triage descarta deploy como causa, continua con los cuatro stages.
+
 ## Cuatro stages de investigacion
 
 ### Stage 1: Recoleccion
