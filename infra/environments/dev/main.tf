@@ -42,9 +42,6 @@ module "service_bus" {
   location            = module.resource_group.location
   sku                 = "Standard"
   topics_config = {
-    "eventos-programacion" = {
-      subscriptions = []
-    }
     "programacion-turno-diario-solicitada" = {
       subscriptions = [
         {
