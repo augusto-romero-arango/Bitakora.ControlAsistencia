@@ -4,7 +4,7 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-04-15 (sesion de diseno flujo reactivo post-marcacion)
+# Ultima actualizacion: 2026-04-16 (ControlFranja reemplaza Marcacion depurada)
 
 # -------------------------
 # VOCABULARIO DEL DOMINIO
@@ -96,20 +96,28 @@ terms:
   - name: Depuracion
     definition: >
       Proceso automatico interno de ControlDiarioAggregateRoot que cruza marcaciones
-      con las franjas del turno asignado y produce parejas entrada-salida por franja.
+      con las franjas del turno asignado y produce un ControlFranja por cada franja ordinaria.
       Algoritmo: secuencial por rango. El corte entre franjas adyacentes es el punto
       medio del gap. Primera marcacion en el rango es entrada, ultima es salida,
       intermedias se descartan.
     context: ControlHoras
     note: "No es un bounded context separado. Es logica interna del aggregate ControlDiario."
 
-  - name: Marcacion depurada
+  - name: Control de franja
     definition: >
-      Pareja entrada-salida producida por el depurador para una franja ordinaria.
-      Si solo hay una marcacion en la franja, es entrada con salida nula (anomala).
-      Si no hay marcaciones para la franja, es anomala (sin presencia).
+      Objeto rico que combina la franja programada (DetalleFranjaOrdinaria) con la realidad
+      operativa (Entrada, Salida). Producido por el depurador de ControlDiario.
+      EsAnomala es propiedad calculada (Entrada is null || Salida is null).
+      Espeja el patron de naming de ControlDiario: el sistema controla asistencia
+      a nivel de dia (ControlDiario) y a nivel de franja (ControlFranja).
+      Futuro: absorbera calculo de desglose por franja (retardo, tiempo trabajado, conceptos).
     context: ControlHoras
-    date_added: 2026-04-15
+    date_added: 2026-04-16
+    rejected_synonyms: [MarcacionDepurada, FranjaDelDia, FranjaOperativa, FranjaEvaluada]
+    rejection_reason: >
+      MarcacionDepurada era una lista separada que requeria correlacion por indice con las franjas,
+      rompiendo encapsulamiento. Las alternativas Franja* no capturaban la consistencia con
+      ControlDiario ni el verbo del dominio (control).
 
   - name: Anomalia
     definition: Caso sospechoso o incompleto detectado automaticamente por el sistema durante la depuracion. Ejemplo: franja con entrada pero sin salida, o dia sin programacion.
@@ -144,7 +152,7 @@ terms:
     definition: >
       Evento publico emitido por ControlDiarioAggregateRoot cada vez que su estado cambia
       (nueva marcacion o nueva programacion). Contiene InformacionEmpleado, Fecha,
-      MarcacionesDepuradas, DesgloseHoras y ProgramacionUsada. Se emite siempre,
+      ControlesDeFranja (List<DetalleControlFranja>) y DesgloseHoras. Se emite siempre,
       incluso con ceros, porque la presencia del evento evidencia actividad en ese dia.
     context: ControlHoras
     date_added: 2026-04-15

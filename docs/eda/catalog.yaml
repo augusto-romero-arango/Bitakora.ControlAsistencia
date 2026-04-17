@@ -11,7 +11,7 @@
 # - Comandos: PascalCase imperativo (RegistrarMarcacion, AsignarTurno)
 # - Policies: PascalCase descriptivo (DepuracionAutomatica)
 #
-# Ultima actualizacion: 2026-04-06 (ControlHoras: TurnoDiarioAsignado, ControlDiarioAggregateRoot)
+# Ultima actualizacion: 2026-04-16 (ControlHoras: ControlFranja reemplaza MarcacionDepurada)
 
 events:
   - name: TurnoCreado
@@ -84,6 +84,66 @@ events:
     published_to: null
     used_in: ["#12"]
 
+  - name: MarcacionRegistrada
+    context: ControlHoras
+    description: Una marcacion fue recibida, normalizada y persistida en RegistroDeMarcacion
+    visibility: private  # handler interno en ControlHoras, no sale a Service Bus
+    payload:
+      - field: EmpleadoId
+        type: string
+      - field: TimestampNormalizado
+        type: DateTime
+        note: "Truncado al minuto (floor). Ej: 08:09:59 -> 08:09:00"
+      - field: TipoMarcacion
+        type: string?
+        note: "Opcional. Entrada o salida, si el dispositivo lo sabe"
+      - field: DispositivoId
+        type: string?
+        note: "Opcional. ID del dispositivo que capturo la marcacion"
+    published_to: null
+    consumed_by: ["AdicionarMarcacionCuandoMarcacionRegistrada (handler Wolverine local)"]
+    used_in: ["#105"]
+
+  - name: MarcacionAdicionada
+    context: ControlHoras
+    description: Una marcacion normalizada fue adicionada al dia de trabajo de un empleado
+    visibility: private  # evento de event sourcing del aggregate ControlDiario
+    payload:
+      - field: Id
+        type: string
+        note: "Stream ID del ControlDiario"
+      - field: EmpleadoId
+        type: string
+      - field: TimestampNormalizado
+        type: DateTime
+      - field: TipoMarcacion
+        type: string?
+      - field: DispositivoId
+        type: string?
+        note: "Opcional. Propagado desde MarcacionRegistrada"
+    published_to: null
+    used_in: ["#106"]
+
+  - name: DiaCalculado
+    context: ControlHoras
+    description: Resultado del recalculo del dia de trabajo — sale a Service Bus para nomina
+    visibility: public  # evento publico cross-domain
+    payload:
+      - field: InformacionEmpleado
+        type: InformacionEmpleado
+        note: "Objeto completo del empleado"
+      - field: Fecha
+        type: DateOnly
+      - field: ControlesDeFranja
+        type: List<DetalleControlFranja>
+        note: "DTO de cada ControlFranja: programacion + entrada/salida + anomalia. Reemplaza MarcacionesDepuradas + ProgramacionUsada separados"
+      - field: DesgloseHoras
+        type: DesgloseHoras
+        note: "Desglose por concepto. Ceros en version inicial"
+    published_to: "topic de Service Bus"
+    consumed_by: ["Sistema de nomina (externo)"]
+    used_in: ["#108"]
+
 commands:
   - name: CrearTurno
     context: Programacion
@@ -128,6 +188,25 @@ commands:
     produces: [ProgramacionTurnoSolicitada, ProgramacionTurnoDiarioSolicitada]
     used_in: ["#10"]
 
+  - name: RegistrarMarcacion
+    context: ControlHoras
+    description: Recibe una marcacion cruda del sistema externo, la normaliza y la persiste
+    trigger: HTTP POST
+    payload:
+      - field: EmpleadoId
+        type: string
+      - field: Timestamp
+        type: DateTime
+        note: "Timestamp crudo del dispositivo"
+      - field: TipoMarcacion
+        type: string?
+        note: "Opcional. Entrada o salida"
+      - field: DispositivoId
+        type: string?
+        note: "Opcional. ID del dispositivo"
+    produces: [MarcacionRegistrada]
+    used_in: ["#105"]
+
 policies: []
 
 aggregates:
@@ -143,9 +222,15 @@ aggregates:
 
   - name: ControlDiarioAggregateRoot
     context: ControlHoras
-    description: "Dia de trabajo de un empleado. Identidad: EmpleadoId + Fecha. Recibe programaciones y marcaciones, produce desglose de horas."
+    description: "Dia de trabajo de un empleado. Identidad: EmpleadoId + Fecha. Recibe programaciones y marcaciones, depura contra franjas, emite DiaCalculado."
     identity: "EmpleadoId (string) + Fecha (DateOnly), compuesto como string para Marten"
-    used_in: ["#12"]
+    used_in: ["#12", "#106", "#107", "#108"]
+
+  - name: RegistroDeMarcacionAggregateRoot
+    context: ControlHoras
+    description: "Registro individual de una marcacion. Identidad determinista: {EmpleadoId}:{TimestampCrudo}. Normaliza y emite MarcacionRegistrada."
+    identity: "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss} — stream ID determinista para idempotencia por duplicado exacto"
+    used_in: ["#105"]
 
 value_objects:
   - name: FranjaOrdinaria
@@ -183,22 +268,49 @@ value_objects:
     description: "Informacion basica del empleado que viaja en eventos. EmpleadoId (string opaco decidido por el cliente), TipoIdentificacion, NumeroIdentificacion, Nombres, Apellidos. Record inmutable."
     used_in: ["#10", "#12"]
 
+  - name: ControlFranja
+    source: null  # por crear en #107
+    description: >
+      Objeto rico en ControlHoras que combina la franja programada (DetalleFranjaOrdinaria)
+      con la realidad operativa (Entrada, Salida). EsAnomala es calculada.
+      Espeja el patron de naming de ControlDiario. Futuro: absorbera calculo de desglose por franja.
+    used_in: ["#107", "#108"]
+    note: "Reemplaza a MarcacionDepurada. Vive en ControlHoras, no en Contracts. DiaCalculado usa un DTO (DetalleControlFranja) para cruzar fronteras."
+
+  - name: DetalleControlFranja
+    source: null  # por crear en #108
+    description: >
+      DTO plano que representa un ControlFranja en el evento publico DiaCalculado.
+      Contiene la programacion de la franja + entrada/salida + anomalia.
+      Vive en Contracts para que consumidores externos lo deserialicen.
+    used_in: ["#108"]
+
+  - name: DesgloseHoras
+    source: null  # por crear en #108 (version inicial con ceros)
+    description: "Desglose del tiempo trabajado por concepto. Version inicial con campos en ceros. La discriminacion real se implementara cuando se definan los conceptos legislativos."
+    used_in: ["#108"]
+
+  # --- Value objects legacy (archivos no existen, pendientes de limpieza del catalogo) ---
   - name: Turno
     source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/Turno.cs
     description: Bloque de trabajo con franjas. Viaja completo en eventos (no como ID).
     used_in: []
+    note: "Legacy — archivo no existe. Reemplazado por DetalleTurno."
 
   - name: DiaOperativo
     source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DiaOperativo.cs
     description: "Dia de trabajo: fecha, marcaciones, indicador festivo"
     used_in: []
+    note: "Legacy — archivo no existe. Concepto descartado en sesion 2026-04-16, reemplazado por ControlDiarioAggregateRoot."
 
   - name: Marcacion
     source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/Marcacion.cs
     description: "Registro crudo: HoraEntrada, HoraSalida, EsAnomala"
     used_in: []
+    note: "Legacy — archivo no existe. Reemplazado por ControlFranja."
 
-  - name: DesgloseHoras
-    source: src/Bitakora.ControlAsistencia.Contracts/ValueObjects/DesgloseHoras.cs
-    description: "Tiempos ordinarios/nocturnos/dominicales/extra/faltantes"
+  - name: MarcacionDepurada
+    source: null
+    description: "Pareja entrada-salida para una franja ordinaria."
     used_in: []
+    note: "Legacy — nunca existio como archivo. Reemplazado por ControlFranja en sesion 2026-04-16."

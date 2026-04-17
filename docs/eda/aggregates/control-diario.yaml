@@ -7,7 +7,7 @@
 # Identidad: EmpleadoId + Fecha (stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}")
 #
 # Estado: en desarrollo
-# Ultima actualizacion: 2026-04-15 (sesion de diseno flujo reactivo post-marcacion)
+# Ultima actualizacion: 2026-04-16 (ControlFranja reemplaza MarcacionDepurada)
 
 aggregate:
   name: ControlDiarioAggregateRoot
@@ -34,6 +34,12 @@ aggregate:
     - field: Marcaciones
       type: List<MarcacionNormalizada>
       note: "Marcaciones ya truncadas al minuto"
+    - field: ControlesDeFranja
+      type: List<ControlFranja>
+      note: >
+        Resultado del depurador. Cada ControlFranja combina la franja programada
+        (DetalleFranjaOrdinaria) con la realidad operativa (Entrada, Salida).
+        EsAnomala es propiedad calculada. Reemplaza List<MarcacionDepurada>.
     - field: UltimaSolicitudId
       type: Guid
 
@@ -51,6 +57,10 @@ aggregate:
   # Razon: la proximidad requiere umbrales arbitrarios y genera ambiguedades
   # cuando una franja ya tiene pareja completa y llega una marcacion adicional.
   # El algoritmo secuencial se autorrepara con cada marcacion nueva.
+  #
+  # Salida: List<ControlFranja> — cada franja con su programacion + entrada/salida
+  # Decision 2026-04-16: composicion (ControlFranja) en vez de listas separadas
+  # (MarcacionDepurada + FranjaIndice). Ver sesion planner 2026-04-16.
   # -----------------------------------------------
 
   depurador:
@@ -60,14 +70,17 @@ aggregate:
       El corte entre franjas adyacentes es el punto medio del gap entre ellas.
       Todas las marcaciones dentro del rango se ordenan cronologicamente:
       la primera es entrada, la ultima es salida, las intermedias se descartan.
-      Si solo hay una marcacion en el rango, es entrada con salida nula (anomala).
+      Produce un ControlFranja por cada franja ordinaria, combinando la programacion
+      con la entrada/salida asignada.
+
+    salida: List<ControlFranja>
 
     reglas:
       - "El rango de la primera franja comienza en -infinito (cualquier marcacion antes del punto medio con la segunda franja)"
       - "El rango de la ultima franja termina en +infinito (cualquier marcacion despues del punto medio con la franja anterior)"
       - "Si hay una sola franja, todas las marcaciones le pertenecen"
-      - "Si una franja tiene una sola marcacion, se marca como anomala (entrada sin salida)"
-      - "Si una franja no tiene marcaciones, se marca como anomala (sin presencia)"
+      - "Si una franja tiene una sola marcacion, ControlFranja tiene Entrada sin Salida (EsAnomala = true)"
+      - "Si una franja no tiene marcaciones, ControlFranja tiene Entrada y Salida nulas (EsAnomala = true)"
       - "Las marcaciones intermedias (ni primera ni ultima) se descartan silenciosamente"
 
     casos_analizados:
@@ -121,10 +134,11 @@ aggregate:
   # -----------------------------------------------
   calculadora:
     descripcion: >
-      Recibe las marcaciones depuradas (parejas entrada-salida por franja) y
-      produce el desglose de horas. Si alguna pareja es anomala (entrada sin salida),
-      la calculadora no produce calculo para esa franja y el desglose queda en ceros
-      para esos conceptos.
+      Recibe los ControlesDeFranja y produce el desglose de horas.
+      Cada ControlFranja conoce su programacion y su marcacion, y puede
+      calcular su propio desglose internamente (futuro).
+      Si un ControlFranja es anomalo (EsAnomala = true), no produce calculo
+      para esa franja y el desglose queda en ceros para esos conceptos.
 
   # -----------------------------------------------
   # COMPORTAMIENTO REACTIVO
@@ -133,7 +147,7 @@ aggregate:
     descripcion: >
       Cualquier cambio de estado dispara: depurador -> calculadora -> DiaCalculado.
       El evento DiaCalculado se emite SIEMPRE, incluso si el resultado es ceros,
-      porque el contenido del evento cambia (marcaciones depuradas, programacion usada).
+      porque el contenido del evento cambia (ControlesDeFranja cambian con cada marcacion).
 
     triggers:
       - MarcacionAdicionada
@@ -161,12 +175,12 @@ aggregate:
           note: "Objeto completo del empleado como llego desde Programacion"
         - field: Fecha
           type: DateOnly
-        - field: MarcacionesDepuradas
-          type: List<MarcacionDepurada>
-          note: "Parejas entrada-salida por franja. Si la franja es anomala, salida es nula."
+        - field: ControlesDeFranja
+          type: List<DetalleControlFranja>
+          note: >
+            DTO de cada ControlFranja para cruzar fronteras.
+            Contiene la programacion de la franja + entrada/salida + EsAnomala.
+            Reemplaza MarcacionesDepuradas + ProgramacionUsada separados.
         - field: DesgloseHoras
           type: DesgloseHoras
           note: "Desglose por concepto. Todo en ceros si no hay informacion suficiente."
-        - field: ProgramacionUsada
-          type: DetalleTurno
-          note: "El turno completo que se uso para depurar. Nulo si no habia programacion."
