@@ -118,6 +118,40 @@ extract_test_count() {
     echo "${count:-?}"
 }
 
+# Ejecutar dotnet test solo sobre los proyectos *.Tests/ (unit + contratos),
+# excluyendo *.SmokeTests/. Los smoke tests corren post-deploy via
+# smoke-tests-dominio.yml; incluirlos en los gates del pipeline TDD hace que
+# un feature que agrega un endpoint HTTP aborte el Gate G3 porque los smoke
+# tests reciben 404 (el endpoint aun no esta desplegado en dev).
+#
+# Uso: run_tests_projects [flags-extra-de-dotnet-test...]
+# Imprime: stdout combinado de todos los proyectos.
+# Exit code: 0 si todos pasan, primer codigo de fallo (!= 0 y != 8) si alguno
+# falla, 8 si NINGUN proyecto tenia tests para ejecutar.
+run_tests_projects() {
+    local combined_output=""
+    local combined_rc=0
+    local any_tests_ran=false
+    local proj proj_rc proj_output
+    for proj in "$WORKTREE_PATH"/tests/Bitakora.ControlAsistencia.*.Tests/; do
+        [ -d "$proj" ] || continue
+        proj_rc=0
+        proj_output=$(dotnet test --project "$proj" "$@" 2>&1) || proj_rc=$?
+        combined_output+="$proj_output"$'\n'
+        if [ "$proj_rc" -ne 8 ]; then
+            any_tests_ran=true
+        fi
+        if [ "$proj_rc" -ne 0 ] && [ "$proj_rc" -ne 8 ] && [ "$combined_rc" -eq 0 ]; then
+            combined_rc=$proj_rc
+        fi
+    done
+    printf "%s" "$combined_output"
+    if [ "$combined_rc" -eq 0 ] && [ "$any_tests_ran" = false ]; then
+        return 8
+    fi
+    return $combined_rc
+}
+
 # ─── Parsear argumentos ───────────────────────────────────────────────────────
 ISSUE_NUM=""
 INPUT_FILE=""
@@ -474,7 +508,7 @@ run_agent() {
                         ;;
                     2|3|merge)
                         local test_rc=0
-                        dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 || test_rc=$?
+                        run_tests_projects >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 || test_rc=$?
                         if [ "$test_rc" -eq 0 ]; then
                             gate_passes=true
                         fi
@@ -560,7 +594,7 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
         # Gate 1a ya verifico compilacion, asi que exit != 0 aqui significa tests fallando
         log "Gate: verificando fase roja (tests deben fallar)..."
         g1_rc=0
-        TEST_OUTPUT_G1=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" --no-build 2>&1) || g1_rc=$?
+        TEST_OUTPUT_G1=$(run_tests_projects --no-build 2>&1) || g1_rc=$?
         echo "$TEST_OUTPUT_G1" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if [ "$g1_rc" -eq 0 ]; then
             abort "Stage 1 fallido: todos los tests pasan (exit code: 0) — el test-writer pudo haber escrito implementacion real en lugar de stubs"
@@ -578,7 +612,7 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
         # Baseline: verificar que todos los tests pasan antes del refactoring
         log "Gate: verificando baseline verde para refactoring..."
         baseline_rc=0
-        TEST_OUTPUT_BASELINE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || baseline_rc=$?
+        TEST_OUTPUT_BASELINE=$(run_tests_projects 2>&1) || baseline_rc=$?
         echo "$TEST_OUTPUT_BASELINE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if [ "$baseline_rc" -ne 0 ]; then
             abort "Refactoring señalizado pero hay tests fallando (exit code: $baseline_rc). No se puede refactorizar sobre una base roja."
@@ -633,7 +667,7 @@ Tu tarea: implementa la lógica de negocio para hacer pasar todos los tests. Sig
     # Gate 2: verificar tests
     log "Gate: verificando fase verde..."
     g2_rc=0
-    TEST_OUTPUT_G2=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g2_rc=$?
+    TEST_OUTPUT_G2=$(run_tests_projects 2>&1) || g2_rc=$?
     echo "$TEST_OUTPUT_G2" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$g2_rc" -ne 0 ]; then
         BLOCKAGE_REPORT="$WORKTREE_PATH/.claude/pipeline/blockage-report.md"
@@ -791,7 +825,7 @@ ATENCION: El implementer reporto tests bloqueados. Lee el reporte en .claude/pip
     # Gate 3: tests deben seguir pasando (exit code 0 = verde)
     log "Gate: verificando que refactor no rompió tests..."
     g3_rc=0
-    TEST_OUTPUT_G3=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g3_rc=$?
+    TEST_OUTPUT_G3=$(run_tests_projects 2>&1) || g3_rc=$?
     echo "$TEST_OUTPUT_G3" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$g3_rc" -ne 0 ]; then
         BLOCKAGE_REPORT="$WORKTREE_PATH/.claude/pipeline/blockage-report.md"
@@ -876,7 +910,7 @@ NO elimines código de ninguna de las dos ramas — integra ambos cambios."
     # Re-correr tests post-merge
     log "Verificando tests después del merge..."
     merge_rc=0
-    TEST_OUTPUT_MERGE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || merge_rc=$?
+    TEST_OUTPUT_MERGE=$(run_tests_projects 2>&1) || merge_rc=$?
     echo "$TEST_OUTPUT_MERGE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
     if [ "$merge_rc" -ne 0 ]; then
         abort "Tests fallan después del merge con main (exit code: $merge_rc). Revisa manualmente: cd $WORKTREE_PATH"
@@ -1346,7 +1380,7 @@ Pista: revisa los ultimos archivos de test creados/modificados y corrige errores
             # Gate: verificar tests verdes post-remediacion
             log "Gate: verificando tests post-remediacion..."
             cg_test_rc=0
-            CG_TEST_OUTPUT=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || cg_test_rc=$?
+            CG_TEST_OUTPUT=$(run_tests_projects 2>&1) || cg_test_rc=$?
             echo "$CG_TEST_OUTPUT" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
 
             if [ "$cg_test_rc" -ne 0 ]; then
