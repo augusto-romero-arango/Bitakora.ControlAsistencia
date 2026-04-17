@@ -25,25 +25,12 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-6, CA-7: POST exitoso retorna 202 Accepted
+    // CA-6, CA-7: POST exitoso retorna 202 Accepted.
+    // Cubre tanto marcacion nueva como duplicado silencioso: el endpoint no los distingue
+    // porque el handler retorna sin lanzar excepcion en ambos casos.
     [Fact]
-    public async Task DebeRetornar202_CuandoRequestEsValido()
+    public async Task DebeRetornar202_CuandoHandlerRetornaSinExcepcion()
     {
-        var validator = new FakeRequestValidatorMarcacion(ComandoValido());
-        var router = new FakeCommandRouterMarcacion();
-        var endpoint = new FunctionEndpoint(validator, router);
-
-        var result = await endpoint.Run(FakeHttpRequest(), CancellationToken.None);
-
-        result.Should().BeOfType<AcceptedResult>();
-    }
-
-    // CA-6: duplicado silencioso - el handler retorna sin lanzar excepcion -> 202 Accepted
-    // El endpoint no distingue entre nueva marcacion y duplicado: siempre 202
-    [Fact]
-    public async Task DebeRetornar202_CuandoDuplicadoSilencioso()
-    {
-        // El handler retorna Task.CompletedTask para duplicados (sin lanzar excepcion)
         var validator = new FakeRequestValidatorMarcacion(ComandoValido());
         var router = new FakeCommandRouterMarcacion();
         var endpoint = new FunctionEndpoint(validator, router);
