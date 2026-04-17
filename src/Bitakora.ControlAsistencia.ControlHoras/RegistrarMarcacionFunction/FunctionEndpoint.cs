@@ -13,9 +13,19 @@ namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarMarcacion")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "control-horas/marcaciones")]
         HttpRequest req,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<RegistrarMarcacion>(req, ct);
+        if (error is not null)
+            return error;
+
+        // CA-6: tanto creacion exitosa como duplicado silencioso terminan en 202 Accepted.
+        // El handler retorna sin excepcion en ambos casos (ver CA-4).
+        await commandRouter.InvokeAsync(comando!, ct);
+
+        return new AcceptedResult();
+    }
 }

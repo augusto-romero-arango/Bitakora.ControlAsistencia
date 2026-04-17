@@ -22,5 +22,27 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
 
     // Apply: reconstruye el estado del aggregate desde MarcacionRegistrada
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
-    public void Apply(MarcacionRegistrada e) => throw new NotImplementedException();
+    public void Apply(MarcacionRegistrada e)
+    {
+        EmpleadoId = e.EmpleadoId;
+        TimestampNormalizado = e.TimestampNormalizado;
+        TipoMarcacion = e.TipoMarcacion;
+        DispositivoId = e.DispositivoId;
+    }
+
+    // Factory interno: crea el aggregate con el evento en _uncommittedEvents para StartStream
+    // El streamId y el timestamp crudo quedan codificados en el aggregate; el evento emitido
+    // publica solo el timestamp normalizado (CA-2).
+    internal static RegistroDeMarcacionAggregateRoot Iniciar(
+        string streamId, DateTime timestampCrudo, MarcacionRegistrada evento)
+    {
+        var registro = new RegistroDeMarcacionAggregateRoot
+        {
+            Id = streamId,
+            TimestampCrudo = timestampCrudo
+        };
+        registro._uncommittedEvents.Add(evento);
+        registro.Apply(evento);
+        return registro;
+    }
 }

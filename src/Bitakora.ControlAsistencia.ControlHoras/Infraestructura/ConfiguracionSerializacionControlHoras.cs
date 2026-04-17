@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
@@ -20,5 +21,6 @@ public static class ConfiguracionSerializacionControlHoras
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
         TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
+        MarcacionRegistrada.ConfigurarSerializacion(resolver);
     }
 }

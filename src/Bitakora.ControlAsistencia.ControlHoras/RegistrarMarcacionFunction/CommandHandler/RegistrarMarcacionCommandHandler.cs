@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -19,6 +21,33 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
         _privateEventSender = privateEventSender;
     }
 
-    public Task HandleAsync(RegistrarMarcacion command, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task HandleAsync(RegistrarMarcacion command, CancellationToken ct = default)
+    {
+        var streamId = RegistroDeMarcacionAggregateRoot.ComputarStreamId(
+            command.EmpleadoId, command.Timestamp);
+
+        // CA-4, CA-9: duplicado exacto -> retorno silencioso, sin persistir ni publicar
+        var existe = await _eventStore.ExistsAsync<RegistroDeMarcacionAggregateRoot>(streamId, ct);
+        if (existe)
+            return;
+
+        // CA-2: truncar segundos al minuto (floor) antes de emitir el evento
+        var timestampNormalizado = TruncarAlMinuto(command.Timestamp);
+
+        var evento = new MarcacionRegistrada(
+            command.EmpleadoId,
+            timestampNormalizado,
+            command.TipoMarcacion,
+            command.DispositivoId);
+
+        var registro = RegistroDeMarcacionAggregateRoot.Iniciar(streamId, command.Timestamp, evento);
+        _eventStore.StartStream(registro);
+
+        // CA-8: publicar el evento para que handlers downstream reaccionen
+        await _privateEventSender.PublishAsync(evento);
+    }
+
+    private static DateTime TruncarAlMinuto(DateTime timestamp) =>
+        new(timestamp.Year, timestamp.Month, timestamp.Day,
+            timestamp.Hour, timestamp.Minute, 0, timestamp.Kind);
 }
