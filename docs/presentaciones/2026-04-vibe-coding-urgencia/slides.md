@@ -488,27 +488,28 @@ class: text-center
 
 ## El Vibe Coding Developer Loop
 
-<img src="/vibe-coding-developer-loop.png" class="mx-auto mt-4 max-w-4xl rounded-sm shadow-sm" />
+<VibeCodingLoop />
 
 <div class="mt-4 opacity-70 text-sm">
-IT Revolution · Kim &amp; Yegge · 2025
+Loop externo agéntico (1-6) con el inner loop tradicional (A-E) embebido en el paso 4.<br>
+Adaptado de Kim &amp; Yegge, <em>Vibe Coding</em>, IT Revolution, 2025.
 </div>
 
 <!--
-El diagrama del loop interno:
-1. Frame your objective — establecer el objetivo con el agente
-2. Decompose the tasks — descomponer en pasos manejables
-3. Start the conversation — pedir el plan o código inicial
-4. Review with care — revisar lo que el agente produce
-5. Test and verify — validar con pruebas
-6. Refine and iterate — iterar hasta lograr el objetivo
-7. Automate your own workflow — eliminar fricción
+Diagrama recreado en SVG para mantener la estetica del deck (antes era una captura del libro).
+Loop externo (6 pasos, agentico):
+1. Separar subtarea del trabajo grande.
+2. Iniciar conversacion con la IA.
+3. Crear el plan junto con la IA.
+4. Dejar que la IA ejecute el plan. <- aqui vive el loop interno tradicional.
+5. Probar y verificar el resultado.
+6. Refinar e iterar. -> vuelve a 1.
 
-Frase clave del artículo: "You can't fall asleep at the wheel." No se puede dormir uno al volante.
-Fuente: https://itrevolution.com/articles/the-vibe-coding-loop/
+Loop interno (5 sub-pasos, tradicional):
+A. Escribir codigo. B. Compilar. C. Ejecutar. D. Probar. E. Depurar. -> vuelve a A (o sale a 4/5).
 
-Nota: el PNG actual es una captura del libro. Si se puede recrear con fidelidad (círculos numerados, mismas etapas) sería mejor para la estética del deck.
--->
+El punto narrativo del slide: el inner loop (lo que siempre hicimos) se colapsa dentro de UN paso del outer loop. La IA reduce el inner, pero introduce un bucle externo nuevo donde vive el oficio del desarrollador (descomponer, conversar, planear, verificar, iterar).
+Fuente: Vibe Coding, capitulo 12 aprox. (pag. 177 de la edicion impresa).-->
 
 ---
 layout: default
