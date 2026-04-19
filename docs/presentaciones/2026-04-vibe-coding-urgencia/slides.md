@@ -1100,7 +1100,7 @@ layout: default
 class: text-xs
 ---
 
-## Fuentes
+# Fuentes
 
 <div class="mt-4 grid grid-cols-2 gap-8">
 
@@ -1119,7 +1119,6 @@ class: text-xs
 - Steve Yegge, *Revenge of the Junior Developer*, Sourcegraph blog, mar 2025.
 - Steve Yegge, *Welcome to Gas Town*, Medium, ene 2026.
 - Steve Yegge, *The AI Vampire*, Medium, feb 2026.
-- Kent Beck, *Augmented Coding: Beyond the Vibes*, tidyfirst.substack.com, 2025.
 - IT Revolution, *The Vibe Coding Loop*, 2025.
 - IT Revolution, *The Three Developer Loops*, 2025.
 
