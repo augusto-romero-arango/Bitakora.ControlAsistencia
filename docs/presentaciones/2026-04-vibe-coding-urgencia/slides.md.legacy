@@ -1,0 +1,964 @@
+---
+theme: seriph
+title: La ventana es ahora
+info: |
+  Presentación para los líderes de equipo y el dueño de SincoERP.
+  Impacto de la IA en el oficio del desarrollo.
+  Augusto Romero · Abril 2026.
+class: text-center
+highlighter: shiki
+lineNumbers: false
+transition: fade
+mdc: true
+fonts:
+  sans: 'Inter'
+  serif: 'EB Garamond'
+  mono: 'JetBrains Mono'
+---
+
+# La ventana es ahora
+
+### O cómo cambiamos de oficio antes de que el oficio nos cambie
+
+<div class="mt-12 opacity-60 text-sm">
+Augusto Romero · 2026
+</div>
+
+<!--
+Bienvenida breve. No arrancamos con agenda; arrancamos con una afirmación.
+Pausa larga antes del siguiente slide.
+-->
+
+---
+layout: center
+---
+
+## [PENDIENTE: hook personal]
+
+<div class="mt-8 opacity-70 text-lg italic">
+"Lo que voy a mostrarles, anoche lo construí en <strong>X horas</strong> con IA — antes me habría tomado <strong>X días</strong>."
+</div>
+
+<!--
+Hook personal: un ejemplo concreto, reciente, verificable. ControlAsistencia es candidato natural.
+La idea: tú como evidencia viva, antes de cualquier tesis abstracta. Desarma defensas.
+
+[Augusto, elige aquí la anécdota concreta para el ensayo. Me dices qué medimos y lo dejamos listo.]
+-->
+
+---
+layout: statement
+---
+
+## La ventana es **ahora**.<br>Y si entramos mal,<br>nos hace daño.
+
+<!--
+Tesis en una línea. La dejamos respirar.
+Esta frase vuelve al final, como eco.
+-->
+
+---
+layout: section
+class: text-center
+---
+
+# Acto I
+
+## El mundo se partió en dos
+
+<!--
+Acto I: instalar la tensión, no resolverla.
+Dos bandos en colisión + evidencia empírica. Cierre con la frase articuladora.
+-->
+
+---
+layout: quote
+---
+
+> Hay una nueva forma de programar que llamo *vibe coding*: te dejás llevar por las vibras, abrazás los exponenciales, y te olvidás de que el código siquiera existe.
+
+<div class="mt-6 text-right opacity-70">
+— Andrej Karpathy · 2 de febrero de 2025
+</div>
+
+<!--
+Original: "There's a new kind of coding I call 'vibe coding', where you fully give in to the vibes, embrace exponentials, and forget that the code even exists."
+Fuente: https://x.com/karpathy/status/1886192184808149383
+Contexto: tuit casual de Karpathy (ex-Tesla AI, OpenAI) que se volvió viral y acuñó el término que ahora se discute en todos lados. Un año después del tuit, ya hay un libro con ese título firmado por Gene Kim, Steve Yegge y Dario Amodei.
+-->
+
+---
+layout: quote
+---
+
+> En tres a seis meses vamos a estar en un mundo donde la IA escribe el 90% del código. En doce meses, vamos a estar en un mundo donde la IA escribe esencialmente todo el código.
+
+<div class="mt-6 text-right opacity-70">
+— Dario Amodei, CEO de Anthropic · Council on Foreign Relations, 10 de marzo de 2025
+</div>
+
+<!--
+Original: "I think we'll be there in three to six months—where AI is writing 90 percent of the code. And then in twelve months, we may be in a world where AI is writing essentially all of the code."
+Fuente: Council on Foreign Relations, 10/03/2025.
+Seis meses después Amodei confirmó: "Within Anthropic and within a number of companies that we work with, that is absolutely true now."
+Este es el pronóstico más agresivo de la industria, hecho por el CEO de una de las tres empresas que construyen los modelos.
+-->
+
+---
+layout: quote
+---
+
+> Creo que a final de año, todos vamos a ser product managers, y todos programan. El título de *software engineer* empieza a desaparecer.
+
+<div class="mt-6 text-right opacity-70">
+— Boris Cherny, Head of Claude Code, Anthropic · 2026
+</div>
+
+<!--
+Original: "I think by the end of the year, everyone is going to be a product manager, and everyone codes. The title software engineer is going to start to go away."
+Fuente: Lenny's Newsletter y Fortune. https://www.lennysnewsletter.com/p/head-of-claude-code-what-happens
+Contexto adicional: Cherny reporta que el 100% de su código desde noviembre 2025 lo escribe la IA (cero edición manual). Que el 4% de commits públicos en GitHub son de Claude Code. Que la productividad de engineering en Anthropic subió 200% por ingeniero.
+Pero también dice (cita complementaria para matizar): "Someone has to prompt the Claudes, talk to customers, coordinate with other teams, decide what to build next. Engineering is changing and great engineers are more important than ever."
+-->
+
+---
+layout: quote
+---
+
+> Los juniors que trabajan así comprimen su curva dramáticamente. Tareas que solían tomar días toman horas.
+
+<div class="mt-6 text-right opacity-70">
+— Kent Beck · <em>Augmented Coding: Beyond the Vibes</em>, 2025
+</div>
+
+<!--
+Original: "The juniors working this way compress their ramp dramatically. Tasks that used to take days take hours."
+Fuente: blog de Kent Beck, tidyfirst.substack.com. Citado por Simon Willison: https://simonwillison.net/2025/Dec/16/kent-beck/
+Kent Beck es el creador de XP, TDD, co-firmante del Agile Manifesto. Que él valide los agentes de codificación pesa.
+Su distinción clave: "augmented coding" (usar IA para acelerar el aprendizaje manteniendo la calidad) ≠ "vibe coding" (aceptar pasivamente lo que la IA produce). Beck prefiere la primera. Los autores del libro Vibe Coding también.
+-->
+
+---
+layout: quote
+---
+
+> No caigas en la trampa seductora de posponer el trabajo.<br>Decir *"en seis meses será mucho más rápido, entonces voy a esperar"* es como decir *"voy a esperar a que se calme el tráfico"*.
+
+<div class="mt-6 text-right opacity-70">
+— Steve Yegge · <em>Revenge of the Junior Developer</em>, Sourcegraph, marzo 2025
+</div>
+
+<!--
+Original: "Don't fall prey to the tempting work-deferral trap. Saying 'It'll be way faster in 6 months, so I'll just push this work out 6 months' is like saying, 'I'm going to wait until traffic dies down.'"
+Fuente: https://sourcegraph.com/blog/revenge-of-the-junior-developer
+Yegge lleva 30 años en la industria (Geoworks, Amazon, Google, Grab, Sourcegraph). No es un fanboy; es un veterano lúcido. Esta cita es el antídoto a "mejor esperamos a que madure".
+El título del post es importante: los juniors, al estar menos atascados en viejas formas, se adaptan más rápido. La IA rejuvenece — o expone — a los veteranos.
+-->
+
+---
+layout: quote
+---
+
+> El foco es *throughput*: creación y corrección a la velocidad del pensamiento.<br>En Gas Town dejás a Claude Code hacer lo suyo. Vos sos un Product Manager, y Gas Town es un compilador de ideas.
+
+<div class="mt-6 text-right opacity-70">
+— Steve Yegge · <em>Welcome to Gas Town</em>, enero 2026
+</div>
+
+<!--
+Original: "The focus is throughput: creation and correction at the speed of thought." / "In Gas Town, you let Claude Code do its thing. You are a Product Manager, and Gas Town is an Idea Compiler."
+Fuente: https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04
+Gas Town es un orquestador de agentes que Yegge construyó y liberó en enero 2026. En 12 días: 100+ PRs, ~50 contribuidores, 189k líneas de Go.
+El punto: ya no es "usar IA para escribir código" — es "orquestar decenas de agentes". Yegge dice que tiene 20-30 Claudes trabajando en paralelo. El oficio cambió.
+También mencionar su post "The AI Vampire" (feb 2026) que cuenta el lado oscuro: fatiga, burnout, "AI is starting to kill us all, Colin Robinson style". Sweet spot del día de trabajo nuevo: 3-4 horas.
+-->
+
+---
+layout: quote
+class: text-red-600
+---
+
+> Díganme que al menos vamos a probar estos sistemas generados por IA antes de empezar a cobrarle a la gente.
+
+<div class="mt-6 text-right opacity-70">
+— Jessie Young, Principal Engineer, GitLab · <em>No Vibe Coding While I'm On Call</em>, IT Revolution, 2025
+</div>
+
+<!--
+Original: "Tell me we're at least going to test these AI-generated systems before we start taking people's money."
+Fuente: https://itrevolution.com/articles/no-vibe-coding-while-im-on-call-what-happens-when-ai-writes-your-production-code/
+Publicado en el Fall 2025 Enterprise Technology Leadership Journal. Jessie Young es Principal Engineer en GitLab (área Manage y AI-Powered Stages). El artículo es una ficción que narra incidentes de producción en una empresa ficticia por adopción sin control de vibe coding.
+Esta es la contravoz legítima. No es tecnofobia; es alguien que está de guardia a las 2 a.m. El título del artículo — "no vibe coding mientras estoy de turno" — es la bandera del miedo razonable.
+También citable: "This is how we use AI responsibly."
+-->
+
+---
+layout: default
+class: text-center
+---
+
+# DORA 2024:<br>la anomalía GenAI
+
+<div class="mt-12 grid grid-cols-2 gap-12 text-5xl font-serif">
+  <div>
+    <div class="text-red-600">−1.5%</div>
+    <div class="text-base opacity-70 mt-2">throughput<br>de entrega</div>
+  </div>
+  <div>
+    <div class="text-red-600">−7.2%</div>
+    <div class="text-base opacity-70 mt-2">estabilidad<br>de entrega</div>
+  </div>
+</div>
+
+<div class="mt-12 text-sm opacity-60">
+Google Cloud / DORA · Accelerate State of DevOps 2024
+</div>
+
+<!--
+Fuente: https://dora.dev/research/2024/dora-report/ y https://dora.dev/ai/gen-ai-report/
+El 76% de los desarrolladores usan IA para alguna tarea diaria. La adopción subió la "calidad de la documentación" 7.5%, la "calidad del código" 3.4%, y la velocidad de revisión 3.1%.
+PERO: el throughput de entrega bajó 1.5% y la estabilidad 7.2%.
+Explicación candidata ("Vacuum Hypothesis"): el tiempo liberado por la IA se absorbe en otras tareas de bajo valor, en vez de traducirse en más delivery valioso.
+Nathen Harvey (DORA lead, Google Cloud): probablemente el código escrito por IA necesita arreglos antes de producción que consumen el tiempo ganado.
+Este dato es el ancla para el dueño y para el pragmatismo del relato.
+-->
+
+---
+layout: default
+class: text-center
+---
+
+# Estudio METR, julio 2025
+
+<div class="mt-10 text-2xl">
+16 desarrolladores experimentados. 246 tareas reales.
+</div>
+
+<div class="mt-10 grid grid-cols-3 gap-8 font-serif">
+  <div>
+    <div class="text-4xl">esperaban</div>
+    <div class="text-6xl mt-3">+24%</div>
+    <div class="opacity-60 mt-2 text-sm">más rápidos</div>
+  </div>
+  <div>
+    <div class="text-4xl">creyeron que fueron</div>
+    <div class="text-6xl mt-3">+20%</div>
+    <div class="opacity-60 mt-2 text-sm">más rápidos</div>
+  </div>
+  <div>
+    <div class="text-4xl text-red-600">en realidad fueron</div>
+    <div class="text-6xl mt-3 text-red-600">−19%</div>
+    <div class="opacity-60 mt-2 text-sm">más lentos</div>
+  </div>
+</div>
+
+<!--
+Fuente: https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/
+Paper: https://arxiv.org/abs/2507.09089
+El estudio es un RCT (randomized controlled trial). Los 16 developers tenían 5+ años de experiencia en repos maduros (22k+ estrellas, 1M+ líneas de código). 246 tareas asignadas aleatoriamente a "con IA" o "sin IA".
+Resultado: con IA, 19% MÁS LENTOS. Usaban principalmente Cursor Pro con Claude 3.5/3.7 Sonnet (state of the art en ese momento).
+El dato más perturbador: el 'perception gap'. Ni antes ni después del estudio los devs reconocieron la lentitud. Esto significa que "yo me siento más productivo con IA" no es evidencia de nada.
+Implicación: si no medimos, no sabemos. Y la intuición no basta.
+-->
+
+---
+layout: statement
+---
+
+## La IA amplifica<br>lo bueno y lo malo<br>de las empresas.
+
+<!--
+Esta frase es la bisagra del relato. Viene del contexto del cap 17 del libro y es la tesis que va a medir el DORA 2025.
+Si la empresa tiene prácticas rigurosas, la IA las acelera. Si tiene prácticas frágiles, la IA las vuelve catastróficas, a velocidad.
+Eso es lo que el DORA GenAI Anomaly 2024 ya mostró: amplificó la fragilidad existente.
+Pausa larga. Esta frase abre el Acto II.
+-->
+
+---
+layout: section
+class: text-center
+---
+
+# Acto II
+
+## Vibe coding es un oficio, no un estilo
+
+<!--
+Acto II: corazón del discurso. Aquí convertimos a los líderes de equipo.
+-->
+
+---
+layout: default
+---
+
+## El tuit de Karpathy fue un tuit.<br>Kim y Yegge lo convirtieron en disciplina.
+
+<div class="mt-12 opacity-70 text-lg">
+
+*Vibe Coding: Building Production-Grade Software With GenAI, Chat, Agents, and Beyond* — Gene Kim, Steve Yegge, Dario Amodei (2025).
+
+</div>
+
+<!--
+El libro desacopla el término del sentido casual original. Ya no es "aceptar lo que sale"; es un oficio con frameworks, loops, metáforas y prácticas.
+Gene Kim: autor de The Phoenix Project y The DevOps Handbook. Steve Yegge: 30 años en la industria, ex-Google y ex-Amazon. Dario Amodei: co-fundador y CEO de Anthropic, prologuista.
+El libro lo defiende como disciplina, no como fanaticismo ni como rechazo.
+-->
+
+---
+layout: default
+---
+
+# FAAFO
+
+<div class="mt-8 grid grid-cols-5 gap-6 font-serif">
+  <div>
+    <div class="text-6xl">F</div>
+    <div class="mt-2">Fast</div>
+    <div class="opacity-60 text-sm">Rápido</div>
+  </div>
+  <div>
+    <div class="text-6xl">A</div>
+    <div class="mt-2">Ambitious</div>
+    <div class="opacity-60 text-sm">Ambicioso</div>
+  </div>
+  <div>
+    <div class="text-6xl">A</div>
+    <div class="mt-2">Autonomous</div>
+    <div class="opacity-60 text-sm">Autónomo</div>
+  </div>
+  <div>
+    <div class="text-6xl">F</div>
+    <div class="mt-2">Fun</div>
+    <div class="opacity-60 text-sm">Divertido</div>
+  </div>
+  <div>
+    <div class="text-6xl">O</div>
+    <div class="mt-2">Optionality</div>
+    <div class="opacity-60 text-sm">Opcionalidad</div>
+  </div>
+</div>
+
+<div class="mt-10 opacity-70 text-sm">
+El acrónimo con el que Kim y Yegge describen el beneficio del vibe coding bien hecho.
+</div>
+
+<!--
+Este acrónimo desplaza a "debugging" como loop mental dominante. Antes pensábamos "¿cómo encuentro el bug?"; ahora pensamos "¿qué tan rápido puedo iterar entre FAAFO?".
+Ambitious: podemos atacar problemas que antes ni nos atrevíamos.
+Autonomous: podemos delegar al agente con supervisión ligera.
+Optionality: podemos probar 3 caminos cuando antes solo podíamos probar 1.
+Fuente: libro Vibe Coding + review de Mike Hadlow (https://mikehadlow.com/posts/2026-02-23-vibe-coding/).
+-->
+
+---
+layout: default
+---
+
+## Tres tiempos, tres loops
+
+<div class="mt-10 space-y-6">
+
+<div class="flex items-baseline gap-6">
+  <div class="font-serif text-3xl w-40">Inner</div>
+  <div class="flex-1">Segundos a minutos. <span class="opacity-70">La conversación momento a momento con el agente.</span></div>
+</div>
+
+<div class="flex items-baseline gap-6">
+  <div class="font-serif text-3xl w-40">Middle</div>
+  <div class="flex-1">Horas a días. <span class="opacity-70">Sesiones del agente que entran al armario y olvidan todo. Contexto, memoria, planeación táctica.</span></div>
+</div>
+
+<div class="flex items-baseline gap-6">
+  <div class="font-serif text-3xl w-40">Outer</div>
+  <div class="flex-1">Semanas a meses. <span class="opacity-70">Arquitectura, workflows, sostenibilidad del sistema.</span></div>
+</div>
+
+</div>
+
+<div class="mt-12 opacity-70 text-sm">
+Kim &amp; Yegge · <em>Vibe Coding</em>, Parte 3.
+</div>
+
+<!--
+Mismo principio aplica a los tres loops: prevenir problemas, detectar temprano, corregir rápido.
+La diferencia está en la escala temporal y en quién es el agente del loop:
+- Inner: vos y Claude Code
+- Middle: vos orquestando sesiones, preservando contexto
+- Outer: vos pensando la arquitectura que habilita o bloquea todo lo anterior
+
+La mayoría de la gente solo domina el inner. El diferenciador está en el outer.
+
+Fuente: https://itrevolution.com/articles/the-three-developer-loops-a-new-framework-for-ai-assisted-coding/
+-->
+
+---
+layout: default
+class: text-center
+---
+
+## El Vibe Coding Developer Loop
+
+<img src="/vibe-coding-developer-loop.png" class="mx-auto mt-6 max-w-4xl rounded-sm shadow-sm" />
+
+<div class="mt-6 opacity-70 text-sm">
+IT Revolution · Kim &amp; Yegge · 2025
+</div>
+
+<!--
+El diagrama completo del loop interno:
+1. Frame your objective — establecer el objetivo con el agente
+2. Decompose the tasks — descomponer en pasos manejables
+3. Start the conversation — pedir el plan o código inicial
+4. Review with care — revisar lo que el agente produce
+5. Test and verify — validar con pruebas
+6. Refine and iterate — iterar hasta lograr el objetivo
+7. Automate your own workflow — eliminar fricción
+
+Frase clave del artículo: "You can't fall asleep at the wheel." No te podés dormir al volante.
+
+Fuente: https://itrevolution.com/articles/the-vibe-coding-loop/
+-->
+
+---
+layout: statement
+---
+
+## El outer loop<br>es donde se gana<br>o se pierde.
+
+<!--
+Casi todo el mundo vibe-codea en el inner loop (una tarea, una sesión, un prompt).
+El diferenciador está en el outer: arquitectura, workflows, infra, prácticas de equipo.
+Por eso gastamos la segunda mitad del Acto II y todo el Acto III hablando del outer.
+-->
+
+---
+layout: default
+---
+
+## Head chef mindset
+
+<div class="mt-10 font-serif">
+
+El *line cook* sigue la receta.<br>
+El *sous chef* ejecuta con responsabilidad.<br>
+El *head chef* dirige la cocina.
+
+</div>
+
+<div class="mt-12 opacity-70">
+La IA nos convierte a todos en head chefs potenciales.<br>
+Pero solo si aprendemos a serlo.
+</div>
+
+<div class="mt-8 opacity-60 text-sm">
+<em>Vibe Coding</em>, capítulo 12.
+</div>
+
+<!--
+La metáfora central del libro. Un head chef no hace la sopa él mismo; decide qué sopa hay que hacer, con qué ingredientes, cuándo sale, y coordina un equipo.
+Hasta hace un año, casi todos éramos line cooks o sous chefs. Ahora, cada desarrollador puede dirigir un equipo de agentes.
+Pero eso requiere habilidades que antes no ejercíamos: diseño, criterio, delegación, verificación, gusto.
+Review de Mike Hadlow: el libro habla de la transición de "sous chef responsible for your individual work" a "head chef managing a team of chef robots". Llamativo matiz: "chef robots".
+-->
+
+---
+layout: default
+---
+
+## Caso Adidas · capítulo 17
+
+<div class="mt-12 text-center">
+  <div class="font-serif text-8xl">+50%</div>
+  <div class="mt-4 text-xl opacity-80">de Happy Time</div>
+  <div class="mt-2 text-sm opacity-60">(tiempo dedicado a trabajo creativo)</div>
+</div>
+
+<div class="mt-12 text-center opacity-70">
+Piloto con 700 desarrolladores.<br>
+Pero con un asterisco crítico.
+</div>
+
+<!--
+Fuente: libro Vibe Coding, capítulo 17 ("Theory of Constraints in Action"), caso Adidas.
+Piloto de 700 devs. 50% más Happy Time — el tiempo dedicado a trabajo creativo que disfrutan.
+Annoying Time: el tiempo peleando con el entorno (legacy, tests rotos, build frágil, deploys complejos).
+Pero el hallazgo decisivo viene en la próxima diapo.
+-->
+
+---
+layout: statement
+---
+
+## El Happy Time<br>fue significativamente mayor<br>en arquitecturas desacopladas.
+
+<!--
+Este es el pivote del Acto II al Acto III.
+Equipos Adidas con ERPs legacy integrados y mala automatización de pruebas encontraron a la IA frustrante — "chef con horno roto", dice el libro.
+Equipos con arquitecturas desacopladas, buenas pruebas, y pipelines limpios vieron el Happy Time dispararse.
+Conclusión: la arquitectura no es decoración. Es el acelerador — o el freno — del vibe coding.
+Por eso en el Acto III hablamos de atributos arquitectónicos, no de stacks.
+-->
+
+---
+layout: default
+---
+
+## Nuevas habilidades · capítulo 7
+
+<div class="mt-10 font-serif text-xl space-y-5 opacity-90">
+
+Identificar *mavens* — los que experimentan primero.<br>
+Comunicación como habilidad central.<br>
+Criterio para revisar lo que produce el agente.<br>
+Gusto — decidir qué vale la pena y qué no.<br>
+Oficio para diseñar sin escribir.<br>
+Juicio para saber cuándo parar.
+
+</div>
+
+<div class="mt-10 opacity-70 text-sm">
+<em>Vibe Coding</em>, capítulo 7 + Parte 4.
+</div>
+
+<!--
+La experiencia en resolución de problemas no se devaluó. Al contrario, ahora es la habilidad dominante.
+El cap 7 del libro — según las reseñas — propone que los líderes identifiquen "mavens" (early adopters) para pilotos, y que las skills de IA entren a las decisiones de hiring junto a las de comunicación.
+La barrera que desapareció: el lenguaje de programación. Ya no hay que "saber Python" o "saber Rust" para construir en esos lenguajes. Lo que queda es el oficio.
+Esto es gran noticia para los líderes de equipo presentes aquí — lo retomamos en el Acto IV.
+-->
+
+---
+layout: statement
+---
+
+## Prácticas de ingeniería:<br>el antídoto a la anomalía DORA.
+
+<!--
+Si la IA amplifica lo bueno y lo malo, el juego es maximizar el bueno y minimizar el malo.
+Eso no se hace con voluntarismo; se hace con prácticas.
+Lo que sigue son las prácticas que convierten "adoptar IA" de apuesta a inversión deliberada.
+-->
+
+---
+layout: default
+---
+
+## Seis prácticas innegociables
+
+<div class="mt-8 font-serif text-lg space-y-4 opacity-90">
+
+<div><strong>TDD</strong> — el agente escribe, el test verifica.</div>
+<div><strong>Scope pequeño</strong> — un agente haciendo una cosa bien.</div>
+<div><strong>PRs pequeños</strong> — revisables en minutos, no en horas.</div>
+<div><strong>Code reviews</strong> — humano y agente en diálogo.</div>
+<div><strong>CI/CD con puntos de control</strong> — gates que frenan lo que amenaza producción.</div>
+<div><strong>Documentación extensiva con ADRs</strong> — escrita y consultada por la IA.</div>
+
+</div>
+
+<!--
+Estas son las prácticas que históricamente separaban a equipos DORA "elite" de "low".
+Con IA se vuelven más urgentes, no menos: porque el volumen de cambios aumenta, el costo de un cambio malo en producción aumenta proporcionalmente.
+ADRs: la IA no solo los consulta, también los redacta y los mantiene. Esto cierra un ciclo virtuoso donde la documentación deja de ser un costo y pasa a ser un input directo al agente. A mejor doc, mejor código generado.
+Ninguna de estas es nueva. Lo nuevo es que son condición necesaria, no ornamento opcional.
+-->
+
+---
+layout: quote
+---
+
+## [PENDIENTE: cita articuladora<br>del capítulo de conclusión<br>de *Vibe Coding*]
+
+<div class="mt-6 text-right opacity-70">
+— Gene Kim &amp; Steve Yegge
+</div>
+
+<!--
+[Augusto: pasame el fragmento del capítulo de conclusión / call to action que vos señalás como IMPORTANTE — lo traduzco y lo encuadro aquí.]
+
+Esta slide es el cierre del Acto II y el pase al Acto III.
+-->
+
+---
+layout: section
+class: text-center
+---
+
+# Acto III
+
+## Atributos arquitectónicos<br>que favorecen agentes
+
+<!--
+Transición: el Happy Time de Adidas fue mayor con arquitecturas desacopladas.
+La pregunta operativa: ¿qué atributos arquitectónicos habilitan esa ventaja hoy?
+No recetamos un stack. Describimos atributos.
+-->
+
+---
+layout: default
+---
+
+## Velocidad + autonomía<br>→ Serverless + IaC
+
+<div class="mt-10 font-serif opacity-90">
+
+La IA es excelente escribiendo código.<br>
+Pésima haciendo <em>clickops</em>.
+
+</div>
+
+<div class="mt-8 opacity-70">
+Serverless sin infraestructura como código pierde la mitad del valor.<br>
+Infraestructura como código sin serverless pierde la otra mitad.
+</div>
+
+<!--
+Serverless: no hay servidores que mantener. El agente genera código de función, el deploy es instantáneo. Sin máquinas que configurar, sin SSH, sin drift.
+Pero serverless sin IaC significa configurar recursos por UI — justo lo que la IA no sabe hacer bien. Con IaC (Terraform, Bicep), toda la definición es código que el agente produce y versiona.
+Juntos, habilitan que un agente levante un dominio completo — infraestructura + código — desde un prompt hasta producción.
+-->
+
+---
+layout: default
+---
+
+## Desacoplamiento<br>→ Event-Driven Architecture
+
+<div class="mt-10 font-serif opacity-90">
+
+Un agente modifica una función y publica.<br>
+Los demás módulos no se enteran.<br>
+La aplicación queda arriba.
+
+</div>
+
+<div class="mt-8 opacity-70">
+Es el requisito para que haya <em>volumen</em> de cambios asistidos por IA sin romper el negocio.
+</div>
+
+<!--
+EDA: los módulos se comunican por eventos, no por llamadas directas. Un cambio en un productor no requiere coordinación con consumidores.
+Esto habilita lo que en monolitos acoplados es imposible: múltiples deploys al día con la aplicación siempre arriba.
+Si el agente va a producir 10x o 100x más cambios, el costo de coordinar cada cambio tiene que ser ~cero. EDA lo logra.
+Contrasta con SincoERP actual: stored procs compartidos, tablas compartidas entre equipos. Un agente ahí no puede moverse solo.
+-->
+
+---
+layout: default
+---
+
+## Evolución sin fricción<br>→ Event Sourcing
+
+<div class="mt-10 font-serif opacity-90">
+
+De migraciones costosas que bloquean el paso a producción…<br>
+a tablas genéricas que guardan cualquier estructura.
+
+</div>
+
+<div class="mt-8 opacity-70">
+El agente evoluciona el diseño sin romper cambios.<br>
+Uno menos de los cuellos de botella clásicos.
+</div>
+
+<!--
+ES: la verdad vive en los eventos (append-only). El estado se proyecta desde ahí.
+Capa de persistencia: en vez de N tablas con migraciones que bloquean, M tablas genéricas que guardan estructuras distintas sin DDL.
+Cambios de diseño = nuevas proyecciones, no ALTER TABLE con downtime.
+Esto libera al agente de uno de los cuellos de botella clásicos: cambiar el esquema sin romper lo que está en producción.
+Adicional: el historial completo es contexto para el agente. Cuando un incidente pasa, el agente puede reconstruir qué pasó y cuándo.
+-->
+
+---
+layout: default
+---
+
+## DORA como espejo
+
+<div class="mt-10 grid grid-cols-2 gap-8 font-serif">
+  <div>
+    <div class="text-2xl">Lead time</div>
+    <div class="opacity-60 text-sm mt-1">cuánto tarda una idea en llegar a producción</div>
+  </div>
+  <div>
+    <div class="text-2xl">Deploy frequency</div>
+    <div class="opacity-60 text-sm mt-1">cuántas veces por día/semana desplegamos</div>
+  </div>
+  <div>
+    <div class="text-2xl">MTTR</div>
+    <div class="opacity-60 text-sm mt-1">cuánto tardamos en recuperarnos de un incidente</div>
+  </div>
+  <div>
+    <div class="text-2xl">Change failure rate</div>
+    <div class="opacity-60 text-sm mt-1">qué porcentaje de nuestros deploys rompe algo</div>
+  </div>
+</div>
+
+<div class="mt-12 text-center opacity-80">
+Lo que no se mide, no se amplifica.
+</div>
+
+<!--
+Cuatro métricas DORA. Son el espejo que nos dice si los atributos arquitectónicos están o no presentes.
+Si tu lead time es de semanas, tu arquitectura no está habilitando vibe coding en serio.
+Si tu deploy frequency es una vez por sprint, no hay volumen de cambios.
+Si tu MTTR es de horas, tu agente no puede experimentar sin miedo.
+Si tu change failure rate es alto, la IA amplifica rotos.
+El estudio METR y la DORA Anomaly ya mostraron que "usar IA" sin medir engaña. Estas métricas son el antídoto al self-delusion.
+-->
+
+---
+layout: default
+---
+
+## ControlAsistencia · evidencia viva
+
+<div class="mt-10 space-y-4 font-serif text-lg opacity-90">
+
+Serverless desde el día 1.<br>
+Event-driven architecture.<br>
+Event sourcing en Marten.<br>
+Infraestructura como código (Terraform).
+
+</div>
+
+<div class="mt-12 opacity-70">
+[PENDIENTE: métricas concretas]<br>
+Dominios · tiempo de construcción · PRs/día con IA
+</div>
+
+<!--
+[Augusto: completá en el ensayo con los números reales que vos manejás del proyecto.]
+
+Nuestro proyecto ControlAsistencia es el piloto de estos atributos en pequeño. Funciona. Ya lo estamos probando.
+No es una apuesta hipotética; es un precedente interno verificable que los líderes pueden inspeccionar.
+Esto no es para "vender" el stack — es para mostrar que el camino existe, ya se camina, y se puede replicar.
+-->
+
+---
+layout: section
+class: text-center
+---
+
+# Acto IV
+
+## El mandato
+
+<!--
+Acto IV: el call to action.
+No imponemos arquitectura objetivo. El foco es oficio y aprendizaje individual, cada líder en su terreno.
+-->
+
+---
+layout: statement
+---
+
+## La IA es el nuevo<br>desarrollador junior<br>que cada uno de nosotros contrata.
+
+<!--
+Esta es LA metáfora del cierre. Se queda en pantalla unos segundos antes de avanzar.
+Un junior no viene terminado. Hay que enseñarle. Hay que supervisarlo. Hay que ponerle estructura, criterio, contexto.
+Pero una vez lo tenés, resuelve en masa problemas que antes te tomaban años.
+-->
+
+---
+layout: default
+class: text-center
+---
+
+## Nuestra misión
+
+<div class="mt-12 font-serif text-3xl opacity-90">
+Aprender a enseñarle.
+</div>
+
+<div class="mt-10 opacity-70">
+Cada uno, en su propio terreno.<br>
+Con los problemas que cada uno ya tiene.
+</div>
+
+<!--
+Es importante decir esto: NO vamos a imponer una arquitectura objetivo ni un stack único.
+Cada líder tiene problemas distintos. Cada equipo tiene un contexto distinto. El viaje es individual en sus detalles, colectivo en su dirección.
+-->
+
+---
+layout: default
+---
+
+## Dominá los tres loops
+
+<div class="mt-10 space-y-6">
+
+<div class="flex items-baseline gap-6">
+  <div class="font-serif text-3xl w-40 opacity-60">Inner</div>
+  <div class="flex-1 opacity-60">La conversación con el agente. La mayoría ya está acá.</div>
+</div>
+
+<div class="flex items-baseline gap-6">
+  <div class="font-serif text-3xl w-40 opacity-60">Middle</div>
+  <div class="flex-1 opacity-60">Orquestar sesiones, contexto, memoria.</div>
+</div>
+
+<div class="flex items-baseline gap-6">
+  <div class="font-serif text-3xl w-40">Outer</div>
+  <div class="flex-1">Trabajo autónomo del agente con mínima supervisión y resultados confiables. <strong>Aquí se juega todo.</strong></div>
+</div>
+
+</div>
+
+<!--
+El outer loop es donde el agente trabaja solo durante horas, resuelve problemas complejos, y vos revisás el resultado — no cada paso.
+Eso requiere:
+- Arquitectura que no castiga el error (los atributos del Acto III)
+- Prácticas de ingeniería que frenan los rotos (las seis prácticas del Acto II)
+- Un líder que sabe qué pedir y cómo medir
+
+Cada líder en esta sala tiene un camino distinto hacia el outer loop. Pero todos tienen que llegar.
+-->
+
+---
+layout: quote
+---
+
+> La barrera del lenguaje de programación se minimizó.<br>Ya no tenemos que pedir que alguien haga X.<br>También nosotros podemos hacerlo.
+
+<!--
+Este es el hallazgo que dignifica a los líderes que dejaron de programar hace años.
+Con IA, la barrera de entrada a cualquier lenguaje o framework desapareció. Lo que queda como ventaja es lo que los líderes SÍ tienen: experiencia en resolución de problemas, criterio, juicio, visión de sistemas.
+Las skills del capítulo 7 son exactamente las que los líderes con 15-20 años de oficio ejercen naturalmente.
+Es la mejor noticia de esta charla para ese perfil: tu experiencia no se devaluó. Se volvió la palanca dominante.
+-->
+
+---
+layout: default
+---
+
+## Problemas antes imposibles,<br>ahora abordables
+
+<div class="mt-10 font-serif text-lg opacity-90 space-y-3">
+
+Cobertura de pruebas exhaustiva.<br>
+Documentación técnica y funcional completa — que a su vez alimenta al agente.<br>
+Pruebas end-to-end automatizadas.<br>
+Desacople gradual de módulos del ERP del lastre legacy.<br>
+Nuevos productos autocontenidos que antes nos parecían inabordables.
+
+</div>
+
+<!--
+Estos son los candidatos naturales para el "primer problema" que cada líder puede elegir atacar.
+No los imponemos. Cada líder elige el que le hable.
+La idea: antes estos problemas requerían un equipo y seis meses. Ahora requieren un líder, su junior IA, y dos semanas.
+Esto es lo que la IA hace posible: revisitar la lista de "cosas que dejamos pendientes porque no valía la pena el tiempo".
+-->
+
+---
+layout: statement
+---
+
+## Todos, de cabeza,<br>al vibe coding.
+
+<div class="mt-8 opacity-70 text-xl">
+Con prácticas deliberadas.<br>Con arquitecturas que aceleran.<br>Con DORA como espejo.
+</div>
+
+<!--
+El call to action colectivo. No pedimos presupuesto, no pedimos aprobación de proyecto. Pedimos que nos metamos.
+"Con prácticas deliberadas" = las seis del Acto II.
+"Con arquitecturas que aceleran" = los atributos del Acto III.
+"Con DORA como espejo" = medición para evitar el self-delusion que mostró METR.
+-->
+
+---
+layout: statement
+---
+
+## ¿A qué junior<br>vas a empezar<br>a enseñar el lunes?
+
+<!--
+La última pregunta. No una afirmación.
+El silencio que sigue es el punto.
+Queremos que cada líder en la sala salga con SU respuesta en la cabeza, no con NUESTRA instrucción.
+-->
+
+---
+layout: section
+class: text-center
+---
+
+## Referencias
+
+<!--
+Cierre: referencias + Q&A.
+-->
+
+---
+layout: default
+class: text-xs
+---
+
+## Fuentes
+
+<div class="mt-4 grid grid-cols-2 gap-8">
+
+<div>
+
+### Libros
+
+- Gene Kim, Steve Yegge, Dario Amodei. *Vibe Coding: Building Production-Grade Software With GenAI, Chat, Agents, and Beyond*. IT Revolution, 2025.
+
+### Blogs y ensayos
+
+- Andrej Karpathy, X/Twitter, 2 feb 2025 — definición original de vibe coding.
+- Steve Yegge, *Revenge of the Junior Developer*, Sourcegraph blog, mar 2025.
+- Steve Yegge, *Welcome to Gas Town*, Medium, ene 2026.
+- Steve Yegge, *The AI Vampire*, Medium, feb 2026.
+- Kent Beck, *Augmented Coding: Beyond the Vibes*, tidyfirst.substack.com.
+- Kent Beck, *Genie Wants to Leap*, tidyfirst.substack.com.
+- IT Revolution, *The Vibe Coding Loop*, 2025.
+- IT Revolution, *The Three Developer Loops*, 2025.
+
+</div>
+
+<div>
+
+### Entrevistas y conferencias
+
+- Dario Amodei, Council on Foreign Relations, 10 mar 2025.
+- Boris Cherny, Lenny's Newsletter, *Head of Claude Code: What happens after coding is solved*, 2026.
+- Boris Cherny, entrevista en Pragmatic Engineer con Gergely Orosz, 2025–2026.
+
+### Estudios
+
+- DORA / Google Cloud, *Accelerate State of DevOps 2024* — GenAI Anomaly.
+- DORA / Google Cloud, *Impact of Generative AI in Software Development*, 2024.
+- METR, *Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity*, jul 2025. arxiv.org/abs/2507.09089.
+
+### Voces críticas
+
+- Jessie Young et al., *No Vibe Coding While I'm On Call*, IT Revolution — Enterprise Technology Leadership Journal Fall 2025.
+
+</div>
+
+</div>
+
+<!--
+Todas las URLs viven en las notas del ponente y en el repo donde está este deck, por si alguien en Q&A pide una fuente específica.
+-->
+
+---
+layout: end
+class: text-center
+---
+
+# Gracias
+
+<div class="mt-8 opacity-70">
+Preguntas.
+</div>
+
+<!--
+Cierre. Abierto a preguntas.
+-->
