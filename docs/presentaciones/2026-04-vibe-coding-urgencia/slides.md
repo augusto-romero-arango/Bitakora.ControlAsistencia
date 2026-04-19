@@ -123,7 +123,7 @@ layout: quote
 
 <img src="/lennys-cherny.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Boris Cherny" />
 
-> "La codificación está en gran parte resuelta."
+> "El 100% de mi código lo escribe Claude Code.<br>No he editado una sola línea a mano desde noviembre.<br>Cada día envío 10, 20, 30 pull requests."
 
 <div class="mt-6 text-right opacity-70">
 — Boris Cherny<br>
@@ -135,13 +135,16 @@ youtu.be/We7BZVKbCVw
 </div>
 
 <!--
-Original: "At this point, it is safe to say that coding is largely solved. At least for the kind of programming that I do, it's just a solved problem because Claude can do it."
-Cherny lidera Claude Code. Es quien construye la herramienta.
-Matices de la misma entrevista (para la pasada):
-- "Claude is starting to come up with ideas... a little more like a co-worker."
-- "By the end of the year the title software engineer is going to start to go away and it's just going to be replaced by builder."
-- "Everyone codes. Our product manager codes, our engineering manager codes, our designer codes."
-Anclaje narrativo: Meijer declara el fin (futuro), Karpathy lo nombra, Amodei predice el timeline, Cherny dice "ya está resuelto, desde adentro".-->
+Original: "100% of my code is written by Claude Code. I have not edited a single line by hand since November. Every day I ship 10, 20, 30 pull requests."
+Cita tomada directamente del transcript del episodio (apertura del podcast, ~0:00).
+Cherny lidera Claude Code. Es quien construye la herramienta y habla de si mismo.
+Otras citas del mismo episodio que podrian servir para la pasada:
+- "Coding is largely solved." (min. 9:20 aprox.)
+- "By the end of the year the title software engineer is going to start to go away and it's just going to be replaced by builder. And it's going to be painful for a lot of people."
+- "Should my kid learn to code? In a year or two, it's not going to matter."
+- "On the Claude Code team, everyone codes. Our product manager codes, our engineering manager codes, our designer codes."
+Anclaje narrativo: Meijer declara el fin (futuro), Karpathy lo nombra, Amodei predice el timeline, Cherny lo vive en primera persona (ni una linea a mano, 30 PRs al dia).
+Ritmo: leer con pausas entre las tres frases. La tercera frase ("10, 20, 30 pull requests") es el puñetazo — dejar que aterrice.-->
 
 ---
 layout: quote
