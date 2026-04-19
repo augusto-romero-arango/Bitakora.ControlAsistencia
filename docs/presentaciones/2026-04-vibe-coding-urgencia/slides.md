@@ -316,28 +316,48 @@ Contexto breve en la pasada: METR es la organización que corrió el estudio má
 -->
 
 ---
-layout: default
+layout: two-cols
 ---
 
-## El tuit de Karpathy fue un tuit.<br>Kim y Yegge lo convirtieron en disciplina.
+<div class="flex justify-center items-center h-full pr-6">
+<img src="/vibe-coding-cover.jpg" class="max-h-[75vh] rounded-sm shadow-md" alt="Portada del libro Vibe Coding" />
+</div>
 
-<div class="mt-12 opacity-80 text-lg">
+::right::
 
-*Vibe Coding: Building Production-Grade Software With GenAI, Chat, Agents, and Beyond* — Gene Kim &amp; Steve Yegge (2025).
+<div class="flex flex-col justify-center h-full pl-6">
+
+# Vibe Coding
+
+<div class="mt-3 text-lg font-serif opacity-80 leading-snug">
+Building Production-Grade Software With GenAI, Chat, Agents, and Beyond
+</div>
+
+<div class="mt-10">
+
+**Gene Kim**<br>
+<span class="text-sm opacity-70">Autor de <em>The Phoenix Project</em> y <em>The DevOps Handbook</em>.</span>
 
 </div>
 
-<div class="mt-6 opacity-60 text-sm">
-Dario Amodei escribió el prólogo. El libro lo firman Kim y Yegge.
+<div class="mt-6">
+
+**Steve Yegge**<br>
+<span class="text-sm opacity-70">Amazon, Google, Grab, Sourcegraph.</span>
+
+</div>
+
+<div class="mt-10 text-sm opacity-60">
+IT Revolution · 2025
+</div>
+
 </div>
 
 <!--
-El libro desacopla el término del sentido casual original. Ya no es "aceptar lo que sale"; es un oficio con frameworks, loops, metáforas y prácticas.
-Gene Kim: autor de The Phoenix Project y The DevOps Handbook. Steve Yegge: 30 años en la industria, ex-Google y ex-Amazon.
-Dario Amodei (cofundador y CEO de Anthropic) escribió el prólogo — no es coautor.
-
-PENDIENTE visual: portada del libro Vibe Coding al lado del texto. Descargar de editorial IT Revolution.
--->
+Presentar el libro y los autores.
+Gene Kim: autor de The Phoenix Project y The DevOps Handbook.
+Steve Yegge: decadas en Amazon, Google, Grab, Sourcegraph. Blogger legendario.
+Editorial: IT Revolution, 2025.-->
 
 ---
 layout: default
