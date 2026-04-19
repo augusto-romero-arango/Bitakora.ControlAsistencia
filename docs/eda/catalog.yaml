@@ -11,7 +11,7 @@
 # - Comandos: PascalCase imperativo (RegistrarMarcacion, AsignarTurno)
 # - Policies: PascalCase descriptivo (DepuracionAutomatica)
 #
-# Ultima actualizacion: 2026-04-16 (ControlHoras: ControlFranja reemplaza MarcacionDepurada)
+# Ultima actualizacion: 2026-04-17 (ControlHoras: value objects del desglose de horas, int para minutos)
 
 events:
   - name: TurnoCreado
@@ -139,7 +139,7 @@ events:
         note: "DTO de cada ControlFranja: programacion + entrada/salida + anomalia. Reemplaza MarcacionesDepuradas + ProgramacionUsada separados"
       - field: DesgloseHoras
         type: DesgloseHoras
-        note: "Desglose por concepto. Ceros en version inicial"
+        note: "Desglose completo por concepto legislativo colombiano. 9 conceptos (8 + descanso). Minutos como int."
     published_to: "topic de Service Bus"
     consumed_by: ["Sistema de nomina (externo)"]
     used_in: ["#108"]
@@ -222,9 +222,9 @@ aggregates:
 
   - name: ControlDiarioAggregateRoot
     context: ControlHoras
-    description: "Dia de trabajo de un empleado. Identidad: EmpleadoId + Fecha. Recibe programaciones y marcaciones, depura contra franjas, emite DiaCalculado."
+    description: "Dia de trabajo de un empleado. Identidad: EmpleadoId + Fecha. Recibe programaciones y marcaciones, depura contra franjas, calcula desglose de horas, emite DiaCalculado."
     identity: "EmpleadoId (string) + Fecha (DateOnly), compuesto como string para Marten"
-    used_in: ["#12", "#106", "#107", "#108"]
+    used_in: ["#12", "#106", "#107", "#108", "#115", "#116"]
 
   - name: RegistroDeMarcacionAggregateRoot
     context: ControlHoras
@@ -273,8 +273,8 @@ value_objects:
     description: >
       Objeto rico en ControlHoras que combina la franja programada (DetalleFranjaOrdinaria)
       con la realidad operativa (Entrada, Salida). EsAnomala es calculada.
-      Espeja el patron de naming de ControlDiario. Futuro: absorbera calculo de desglose por franja.
-    used_in: ["#107", "#108"]
+      Espeja el patron de naming de ControlDiario. Absorbera calculo de desglose por franja.
+    used_in: ["#107", "#108", "#115"]
     note: "Reemplaza a MarcacionDepurada. Vive en ControlHoras, no en Contracts. DiaCalculado usa un DTO (DetalleControlFranja) para cruzar fronteras."
 
   - name: DetalleControlFranja
@@ -285,10 +285,99 @@ value_objects:
       Vive en Contracts para que consumidores externos lo deserialicen.
     used_in: ["#108"]
 
+  # --- Value objects del desglose de horas (sesion 2026-04-17) ---
+
+  - name: MomentoDelDia
+    source: null  # por crear en #112
+    context: ControlHoras
+    description: >
+      Value object atomico que combina TimeOnly + int DiaOffset en una unidad comparable y ordenable.
+      Representa un instante relativo dentro de un dia de trabajo (que puede cruzar medianoche).
+      MinutosAbsolutos = Hora.Hour * 60 + Hora.Minute + DiaOffset * 1440.
+      Implementa IComparable<MomentoDelDia>. Operador - produce int (minutos).
+    used_in: ["#112"]
+    note: >
+      Consolida el patron repetido en FranjaTemporal (4 campos separados: HoraInicio, HoraFin,
+      DiaOffsetInicio, DiaOffsetFin) en un unico tipo atomico. Es la representacion canonica
+      en contratos publicos — no se usa DateTime absoluto.
+
+  - name: IntervaloTemporal
+    source: null  # por crear en #112
+    context: ControlHoras
+    description: >
+      Rango temporal definido por dos MomentoDelDia (Inicio, Fin). DuracionEnMinutos calculada como
+      Fin - Inicio en minutos (int). Soporta Contiene(MomentoDelDia),
+      Intersectar(IntervaloTemporal) y EstaContenidoEn(IntervaloTemporal).
+      Invariante: Inicio < Fin.
+    used_in: ["#112"]
+    note: "Base para segmentar franjas contra bandas horarias (diurna/nocturna). Usado por el clasificador de horas."
+
+  - name: Concepto
+    source: null  # por crear en #114
+    context: ControlHoras
+    description: >
+      Enum cerrado con los 9 conceptos legislativos colombianos de clasificacion de tiempo:
+      OrdinariaDiurna, OrdinariaNocturna, ExtraDiurna, ExtraNocturna,
+      DominicalFestivaDiurna, DominicalFestivaNocturna,
+      ExtraDiurnaDominicalFestiva, ExtraNocturnaDominicalFestiva, Descanso.
+    used_in: ["#114"]
+    note: >
+      Basado en CST (Ley 2466/2025): banda diurna 6AM-7PM, nocturna 7PM-6AM.
+      Domingo/festivo = dia calendario completo (00:00-24:00).
+      Recargo dominical gradual: 80% (jul 2025), 90% (jul 2026), 100% (jul 2027).
+
+  - name: IntervaloClasificado
+    source: null  # por crear en #114
+    context: ControlHoras
+    description: >
+      Tupla (IntervaloTemporal, Concepto) que representa un segmento de tiempo ya clasificado.
+      Producido al segmentar un intervalo de trabajo contra las bandas horarias y el tipo de dia.
+      La suma de duraciones de todos los IntervaloClasificado de una franja == duracion total trabajada en esa franja.
+    used_in: ["#114", "#115"]
+
+  - name: DesgloseFranja
+    source: null  # por crear en #114 (estructura), #115 (logica de calculo que la produce)
+    context: ControlHoras
+    description: >
+      Resultado del calculo de desglose para una franja individual. Contiene los intervalos
+      clasificados, el retardo (si aplica) y los minutos por concepto (int). Producido por
+      ControlFranja al clasificar el tiempo trabajado contra bandas horarias y tipo de dia.
+    used_in: ["#114", "#115"]
+
+  - name: DetalleRetardo
+    source: null  # por crear en #114 (estructura), #115 y #116 (uso)
+    context: ControlHoras
+    description: >
+      Informacion del retardo en una franja: minutos de retardo (int) y minutos compensados (int)
+      (por exceso en otra franja). El retardo neto = MinutosRetardados - MinutosCompensados.
+      Solo se produce cuando la entrada real es posterior al inicio programado de la franja.
+    used_in: ["#114", "#115", "#116"]
+
   - name: DesgloseHoras
-    source: null  # por crear en #108 (version inicial con ceros)
-    description: "Desglose del tiempo trabajado por concepto. Version inicial con campos en ceros. La discriminacion real se implementara cuando se definan los conceptos legislativos."
-    used_in: ["#108"]
+    source: null  # por crear en #114 (estructura), #116 (consolidacion real)
+    context: ControlHoras
+    description: >
+      Consolidado del dia completo. Contiene un diccionario Concepto -> int (minutos)
+      con los 9 conceptos legislativos colombianos. Producido por ControlDiario al consolidar
+      los DesgloseFranja de todas las franjas, aplicando compensacion cross-franja de retardos.
+      Invariante: para cada franja no anomala, (Salida - EntradaEfectiva) == suma de minutos
+      de todos los conceptos de esa franja.
+    used_in: ["#108", "#114", "#116"]
+    note: >
+      Reemplaza la version inicial (ceros) del #108. La estructura se crea en #114,
+      la consolidacion con compensacion de retardos se implementa en #116.
+      Todos los campos de minutos son int (resolucion al minuto, sin fracciones).
+
+  - name: CalendarioFestivosColombia
+    source: null  # por crear en #113
+    context: ControlHoras
+    description: >
+      Funcion estatica que genera la lista de festivos colombianos para un ano dado.
+      18 festivos: 8 fijos + 10 movibles (Ley 51/1983 - Ley Emiliani).
+      Incluye calculo de Pascua via algoritmo de Computus y traslado al lunes siguiente
+      para festivos sujetos a Ley Emiliani.
+    used_in: ["#113", "#115"]
+    note: "Funcion pura sin estado. Puede vivir como metodo estatico en una clase utilitaria de ControlHoras."
 
   # --- Value objects legacy (archivos no existen, pendientes de limpieza del catalogo) ---
   - name: Turno

@@ -4,7 +4,7 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-04-16 (ControlFranja reemplaza Marcacion depurada)
+# Ultima actualizacion: 2026-04-17 (desglose de horas: conceptos legislativos, festivos, retardos)
 
 # -------------------------
 # VOCABULARIO DEL DOMINIO
@@ -75,9 +75,14 @@ terms:
     rejected_synonyms: [tramo, bloque, segmento]
 
   - name: Franja de Descanso
-    definition: Pausa operativa dentro de una franja ordinaria (ej. almuerzo). Su tiempo se descuenta del trabajo al momento del calculo. Es hoja — no contiene otras franjas.
+    definition: >
+      Pausa operativa dentro de una franja ordinaria (ej. almuerzo). Su tiempo se descuenta
+      del trabajo al momento del calculo. Es hoja — no contiene otras franjas.
+      No requiere marcaciones: se asume que se toma como programado. Si el cliente
+      quiere control de marcaciones durante descansos, debe crear franjas ordinarias separadas.
     context: Programacion
     note: "No modela derechos laborales (lactancia) ni actividades (pausas activas, reuniones). Solo pausas operativas del horario."
+    date_updated: 2026-04-17
 
   - name: Franja de Extra
     definition: Horas extras programadas dentro de una franja ordinaria. Representan un compromiso del empleado. Es hoja — no contiene otras franjas.
@@ -110,9 +115,10 @@ terms:
       EsAnomala es propiedad calculada (Entrada is null || Salida is null).
       Espeja el patron de naming de ControlDiario: el sistema controla asistencia
       a nivel de dia (ControlDiario) y a nivel de franja (ControlFranja).
-      Futuro: absorbera calculo de desglose por franja (retardo, tiempo trabajado, conceptos).
+      Absorbe calculo de desglose por franja (retardo, tiempo trabajado, conceptos).
     context: ControlHoras
     date_added: 2026-04-16
+    date_updated: 2026-04-17
     rejected_synonyms: [MarcacionDepurada, FranjaDelDia, FranjaOperativa, FranjaEvaluada]
     rejection_reason: >
       MarcacionDepurada era una lista separada que requeria correlacion por indice con las franjas,
@@ -130,18 +136,83 @@ terms:
     note: "A diferencia de la Depuracion (automatica), la Conciliacion es humana y deliberada. El flujo de aprobacion se define en una sesion futura."
 
   - name: Discriminacion de horas
-    definition: Desglose del tiempo trabajado por concepto (hora ordinaria diurna, recargo nocturno, hora extra, etc.). El sistema discrimina tiempo, no dinero.
+    definition: >
+      Desglose del tiempo trabajado por concepto legislativo colombiano. El sistema discrimina
+      tiempo en minutos, no dinero. Los 3 ejes de clasificacion son: tipo de dia (habil/domingo/festivo),
+      banda horaria (diurna 6AM-7PM / nocturna 7PM-6AM), y posicion (dentro/fuera del turno programado).
     context: ControlHoras
     rejected_synonyms: [liquidacion de horas]
     rejection_reason: "liquidacion suena a pago; este sistema solo clasifica tiempo — los porcentajes y valores son responsabilidad del sistema de nomina"
+    date_updated: 2026-04-17
 
   - name: Concepto
-    definition: Categoria de clasificacion del tiempo (hora ordinaria diurna, recargo nocturno, hora extra diurna, hora extra nocturna, recargo dominical, etc.).
+    definition: >
+      Categoria de clasificacion del tiempo segun legislacion laboral colombiana.
+      9 conceptos: OrdinariaDiurna, OrdinariaNocturna, ExtraDiurna, ExtraNocturna,
+      DominicalFestivaDiurna, DominicalFestivaNocturna, ExtraDiurnaDominicalFestiva,
+      ExtraNocturnaDominicalFestiva, Descanso. Enum cerrado.
     context: ControlHoras
+    date_updated: 2026-04-17
+    note: >
+      Basado en CST reformado por Ley 2466/2025. Banda nocturna: 7PM-6AM (antes 9PM).
+      Los recargos son aditivos, no multiplicativos (Circular 0101/2025 Mintrabajo).
 
   - name: Retardo
-    definition: Llegada tarde del empleado respecto al inicio de su turno asignado.
+    definition: >
+      Llegada tarde del empleado respecto al inicio programado de su franja.
+      El retardo de una franja puede ser compensado por exceso de tiempo en otra franja del mismo dia.
+      Solo despues de compensar todos los retardos, el exceso restante se convierte en horas extras.
+      La compensacion es cross-franja a nivel del dia.
     context: ControlHoras
+    date_updated: 2026-04-17
+
+  - name: Banda horaria
+    definition: >
+      Division del dia en dos franjas legales para determinar recargos.
+      Diurna: 6:00 AM a 7:00 PM. Nocturna: 7:00 PM a 6:00 AM.
+      Definida por Art. 160 CST, modificado por Ley 2466/2025 (antes el limite era 9PM).
+      Una franja de trabajo que cruza el limite 7PM se segmenta: la parte antes es diurna, la parte despues es nocturna.
+    context: ControlHoras
+    date_added: 2026-04-17
+
+  - name: Dia dominical o festivo
+    definition: >
+      Dia calendario completo (00:00 a 24:00) que genera recargo por trabajo dominical/festivo.
+      Incluye todos los domingos y los 18 festivos colombianos (Ley 51/1983).
+      El recargo aplica sobre el dia calendario, independientemente de la programacion del turno.
+      Si alguien trabaja un domingo, todo el tiempo trabajado ese dia lleva recargo dominical,
+      segmentado ademas por banda diurna/nocturna.
+    context: ControlHoras
+    date_added: 2026-04-17
+    note: >
+      Art. 179 CST: recargo del 75% (incrementado a 100% gradualmente por Ley 2466/2025:
+      80% jul 2025, 90% jul 2026, 100% jul 2027).
+
+  - name: Momento del dia
+    definition: >
+      Value object atomico que combina una hora (TimeOnly) con un offset de dia (int) para
+      representar un instante relativo dentro de un dia de trabajo que puede cruzar medianoche.
+      MinutosAbsolutos = Hora.Hour * 60 + Hora.Minute + DiaOffset * 1440.
+      Es la representacion canonica en contratos publicos — no se usa DateTime absoluto.
+    context: ControlHoras
+    date_added: 2026-04-17
+    note: "Consolida el patron de 4 campos separados de FranjaTemporal en un tipo atomico comparable."
+
+  - name: Intervalo temporal
+    definition: >
+      Rango definido por dos MomentoDelDia (Inicio, Fin). Soporta operaciones de interseccion,
+      contencion y calculo de duracion en minutos (decimal). Invariante: Inicio < Fin.
+      Base para segmentar franjas contra bandas horarias.
+    context: ControlHoras
+    date_added: 2026-04-17
+
+  - name: Festivo colombiano
+    definition: >
+      Dia feriado legal en Colombia. 18 por ano: 8 fijos (1 ene, 1 may, 20 jul, 7 ago,
+      8 dic, 25 dic, mas 2 religiosos fijos) y 10 movibles trasladados al lunes siguiente
+      (Ley 51/1983 - Ley Emiliani). Incluye festivos dependientes de Pascua (Computus).
+    context: ControlHoras
+    date_added: 2026-04-17
 
   - name: Jornada
     definition: "Concepto JURIDICO: habla de duraciones y limites legales (jornada maxima, jornada ordinaria). NO es un termino operativo del sistema."
@@ -237,11 +308,6 @@ open_questions:
     date: 2026-04-04
     priority: medium
 
-  - question: "Lista completa de Conceptos de discriminacion. Cuales son todos los tipos que maneja la legislacion colombiana?"
-    context: ControlHoras
-    date: 2026-04-04
-    priority: medium
-
   - question: "Como se implementa el patron de acumulacion de errores en el factory del evento TurnoCreado?"
     context: Programacion
     date: 2026-04-05
@@ -287,6 +353,12 @@ open_questions:
     date: 2026-04-15
     priority: medium
 
+  - question: "Como manejar el recargo dominical gradual (80%/90%/100%) segun Ley 2466/2025? Necesitamos parametrizacion por fecha de vigencia?"
+    context: ControlHoras
+    date: 2026-04-17
+    priority: low
+    note: "El sistema clasifica tiempo, no calcula dinero. Los porcentajes son del sistema de nomina. Pero la gradualidad podria afectar si hubiera conceptos distintos por porcentaje."
+
 # -------------------------
 # PREGUNTAS RESUELTAS
 # Movidas aqui para trazabilidad
@@ -303,3 +375,14 @@ resolved_questions:
     date_asked: 2026-04-14
     date_resolved: 2026-04-15
     resolution: "Algoritmo secuencial por rango. Corte entre franjas = punto medio del gap. Primera marcacion es entrada, ultima es salida, intermedias se descartan."
+
+  - question: "Lista completa de Conceptos de discriminacion. Cuales son todos los tipos que maneja la legislacion colombiana?"
+    context: ControlHoras
+    date_asked: 2026-04-04
+    date_resolved: 2026-04-17
+    resolution: >
+      9 conceptos basados en CST + Ley 2466/2025: OrdinariaDiurna, OrdinariaNocturna,
+      ExtraDiurna, ExtraNocturna, DominicalFestivaDiurna, DominicalFestivaNocturna,
+      ExtraDiurnaDominicalFestiva, ExtraNocturnaDominicalFestiva, Descanso.
+      Ejes: tipo de dia (habil/domingo-festivo), banda horaria (diurna 6AM-7PM / nocturna 7PM-6AM),
+      posicion (ordinaria/extra). Banda nocturna cambio de 9PM a 7PM con Ley 2466/2025.
