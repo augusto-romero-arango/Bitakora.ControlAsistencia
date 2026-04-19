@@ -53,6 +53,8 @@ PENDIENTE: elegir con Augusto en ensayo.
 layout: quote
 ---
 
+<img src="/meijer-myconf.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Erik Meijer" />
+
 > "Los días de escribir código a mano están llegando a su fin."
 
 <div class="mt-6 text-right opacity-70">
@@ -69,14 +71,13 @@ Original: "The days of writing code by hand are coming to an end."
 Meijer dedicó su vida a hacer más fácil escribir código. Que él diga esto no es marketing.
 Frase hermana: "We are going to be the last generation of developers to write code by hand, so let's have fun doing it."
 Kim & Yegge abren Vibe Coding con esta cita — anchor narrativo del libro.
-Ritmo: leer, pausa larga, pasar sin comentar.
-
-PENDIENTE visual: foto de Meijer o screenshot del video/página del libro para acompañar.
--->
+Ritmo: leer, pausa larga, pasar sin comentar.-->
 
 ---
 layout: quote
 ---
+
+<img src="/karpathy.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Andrej Karpathy" />
 
 > "Hay una nueva forma de codificar a la que llamo *vibe coding*: te entregas por completo a las vibras, abrazas lo exponencial y olvidas que el código siquiera existe."
 
@@ -94,14 +95,13 @@ Original: "There's a new kind of coding I call 'vibe coding', where you fully gi
 Tweet "throwaway" un sábado por la noche; 4.5M views; dio nombre al movimiento.
 Karpathy fundó OpenAI y lideró Autopilot en Tesla.
 Kim & Yegge tomaron el término y lo convirtieron en disciplina.
-Ritmo: leer despacio, pausa larga, pasar sin comentar.
-
-PENDIENTE visual: screenshot del tuit o foto de Karpathy.
--->
+Ritmo: leer despacio, pausa larga, pasar sin comentar.-->
 
 ---
 layout: quote
 ---
+
+<img src="/amodei-cfr.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Dario Amodei" />
 
 > "Estamos a tres o seis meses de un mundo en el que la IA escribe el 90 % del código. Y en doce meses, podríamos estar en un mundo en el que la IA escribe prácticamente todo el código."
 
@@ -115,14 +115,13 @@ Original: "What we are finding is that we're 3 to 6 months from a world where AI
 Amodei fue VP of Research en OpenAI (lideró GPT-2 y GPT-3) antes de fundar Anthropic.
 Habla desde quien construye los modelos.
 Hoy (abril 2026) el timeline no se cumplió en el pie de la letra — Daring Fireball publicó un "claim chowder" en marzo 2026. Fuera del slide. Se maneja en Q&A.
-Seis meses después del primer anuncio Amodei confirmó: "Within Anthropic and within a number of companies that we work with, that is absolutely true now."
-
-PENDIENTE visual: foto de Amodei o del evento CFR.
--->
+Seis meses después del primer anuncio Amodei confirmó: "Within Anthropic and within a number of companies that we work with, that is absolutely true now."-->
 
 ---
 layout: quote
 ---
+
+<img src="/lennys-cherny.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Boris Cherny" />
 
 > "La codificación está en gran parte resuelta."
 
@@ -142,14 +141,13 @@ Matices de la misma entrevista (para la pasada):
 - "Claude is starting to come up with ideas... a little more like a co-worker."
 - "By the end of the year the title software engineer is going to start to go away and it's just going to be replaced by builder."
 - "Everyone codes. Our product manager codes, our engineering manager codes, our designer codes."
-Anclaje narrativo: Meijer declara el fin (futuro), Karpathy lo nombra, Amodei predice el timeline, Cherny dice "ya está resuelto, desde adentro".
-
-PENDIENTE visual (instrucción del speaker): portada del episodio de Lenny's Podcast. Descargar de https://img.youtube.com/vi/We7BZVKbCVw/maxresdefault.jpg a public/lennys-cherny.jpg.
--->
+Anclaje narrativo: Meijer declara el fin (futuro), Karpathy lo nombra, Amodei predice el timeline, Cherny dice "ya está resuelto, desde adentro".-->
 
 ---
 layout: quote
 ---
+
+<img src="/kent-beck.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Kent Beck" />
 
 > "Los juniors que trabajan así comprimen su curva dramáticamente. Tareas que antes tomaban días, ahora toman horas."
 
@@ -166,14 +164,13 @@ tidyfirst.substack.com
 Original: "The juniors working this way compress their ramp dramatically. Tasks that used to take days take hours."
 Citado por Simon Willison: https://simonwillison.net/2025/Dec/16/kent-beck/
 Kent Beck es creador de XP, TDD, cofirmante del Agile Manifesto. Su validación pesa.
-Distinción clave que hace Beck: "augmented coding" (usar IA para acelerar manteniendo calidad) ≠ "vibe coding" en el sentido pasivo. Los autores del libro también hacen esa distinción.
-
-PENDIENTE visual: foto de Kent Beck o logo del blog.
--->
+Distinción clave que hace Beck: "augmented coding" (usar IA para acelerar manteniendo calidad) ≠ "vibe coding" en el sentido pasivo. Los autores del libro también hacen esa distinción.-->
 
 ---
 layout: quote
 ---
+
+<img src="/yegge-revenge.png" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Steve Yegge" />
 
 > "No caigas en la tentadora trampa de aplazar el trabajo. Decir 'en seis meses será mucho más rápido, así que voy a posponer esto seis meses' es como decir 'voy a esperar a que el tráfico baje'. Tu trayecto será más corto, claro. Pero llegarás de último."
 
@@ -191,14 +188,13 @@ Original: "Don't fall prey to the tempting work-deferral trap. Saying 'It'll be 
 Kim & Yegge usan este pasaje en el arranque del libro como anclaje del work-deferral trap.
 Por qué pega: el líder senior con poca mano en el código es el target exacto del argumento. "Mejor espero a que madure" es la trampa concreta que queremos desmontar.
 Quién es Yegge: décadas en Amazon, Google, Grab, Sourcegraph. Blogger legendario.
-Ritmo: leer completo. Pausa larga tras "llegarás de último".
-
-PENDIENTE visual: foto de Yegge o header del post en Sourcegraph.
--->
+Ritmo: leer completo. Pausa larga tras "llegarás de último".-->
 
 ---
 layout: quote
 ---
+
+<img src="/gas-town.png" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Gas Town (Steve Yegge)" />
 
 > "El foco es *throughput*: creación y corrección a la velocidad del pensamiento. En Gas Town dejas que Claude Code haga lo suyo. Tú eres el Product Manager y Gas Town es un compilador de ideas."
 
@@ -215,10 +211,7 @@ steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04
 Original: "The focus is throughput: creation and correction at the speed of thought." / "In Gas Town, you let Claude Code do its thing. You are a Product Manager, and Gas Town is an Idea Compiler."
 Gas Town es un orquestador de agentes que Yegge construyó y liberó en enero 2026. En 12 días: 100+ PRs, ~50 contribuidores, 189k líneas de Go.
 El punto: ya no es "usar IA para escribir código" — es "orquestar decenas de agentes". Yegge dice que tiene 20-30 Claudes trabajando en paralelo. El oficio cambió.
-Mencionar al pasar "The AI Vampire" (feb 2026) que cuenta el lado oscuro: fatiga, burnout. Sweet spot del día de trabajo nuevo: 3-4 horas.
-
-PENDIENTE visual: header/logo de Gas Town.
--->
+Mencionar al pasar "The AI Vampire" (feb 2026) que cuenta el lado oscuro: fatiga, burnout. Sweet spot del día de trabajo nuevo: 3-4 horas.-->
 
 ---
 layout: statement
@@ -237,6 +230,8 @@ layout: quote
 class: text-red-600
 ---
 
+<img src="/young.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Jessie Young" />
+
 > "Díganme que al menos vamos a probar estos sistemas generados por IA antes de empezar a cobrarle a la gente."
 
 <div class="mt-6 text-right opacity-70">
@@ -254,10 +249,7 @@ Publicado en el Fall 2025 Enterprise Technology Leadership Journal. Jessie Young
 El artículo es una ficción que narra incidentes de producción en una empresa ficticia por adopción sin control de vibe coding.
 Esta es la contravoz legítima. No es tecnofobia; es alguien que está de guardia a las 2 a.m.
 El título del artículo — "no vibe coding mientras estoy de turno" — es la bandera del miedo razonable.
-Frase hermana: "This is how we use AI responsibly."
-
-PENDIENTE visual: foto de Jessie Young o header del artículo.
--->
+Frase hermana: "This is how we use AI responsibly."-->
 
 ---
 layout: default
