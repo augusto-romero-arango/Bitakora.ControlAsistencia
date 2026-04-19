@@ -147,29 +147,6 @@ Anclaje narrativo: Meijer declara el fin (futuro), Karpathy lo nombra, Amodei pr
 layout: quote
 ---
 
-<img src="/kent-beck.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Kent Beck" />
-
-> "Los juniors que trabajan así comprimen su curva dramáticamente. Tareas que antes tomaban días, ahora toman horas."
-
-<div class="mt-6 text-right opacity-70">
-— Kent Beck<br>
-<span class="text-sm">Creador de XP y TDD · <em>Augmented Coding: Beyond the Vibes</em> · 2025</span>
-</div>
-
-<div class="mt-8 text-xs opacity-50">
-tidyfirst.substack.com
-</div>
-
-<!--
-Original: "The juniors working this way compress their ramp dramatically. Tasks that used to take days take hours."
-Citado por Simon Willison: https://simonwillison.net/2025/Dec/16/kent-beck/
-Kent Beck es creador de XP, TDD, cofirmante del Agile Manifesto. Su validación pesa.
-Distinción clave que hace Beck: "augmented coding" (usar IA para acelerar manteniendo calidad) ≠ "vibe coding" en el sentido pasivo. Los autores del libro también hacen esa distinción.-->
-
----
-layout: quote
----
-
 <img src="/yegge-revenge.png" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Steve Yegge" />
 
 > "No caigas en la tentadora trampa de aplazar el trabajo. Decir 'en seis meses será mucho más rápido, así que voy a posponer esto seis meses' es como decir 'voy a esperar a que el tráfico baje'. Tu trayecto será más corto, claro. Pero llegarás de último."
