@@ -197,7 +197,7 @@ Mencionar al pasar "The AI Vampire" (feb 2026) que cuenta el lado oscuro: fatiga
 layout: statement
 ---
 
-## Pero no todo es promesa.
+## Pero no todo es promesa
 
 <!--
 Slide de transición entre voces de la promesa y voces críticas.
@@ -520,32 +520,32 @@ layout: default
 <div class="mt-8 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
 
 <div>
-<div class="font-serif text-base font-bold">Asumimos el rol de orquestador.</div>
+<div class="font-serif text-base font-bold">Asumimos el rol de orquestador</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">Ya no picamos verduras: diseñamos el menú, gestionamos la cocina y aseguramos que cada plato cumpla el estándar Michelin.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">Tratamos a la IA como compañera — rápida, incansable.</div>
+<div class="font-serif text-base font-bold">Tratamos a la IA como compañera — rápida, incansable</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">La guiamos, iteramos con ella, le damos contexto como a un aprendiz humano. Y le pedimos rehacer el trabajo sin dudar: no tiene sentimientos que herir.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">Descomponemos sin piedad.</div>
+<div class="font-serif text-base font-bold">Descomponemos sin piedad</div>
 <div class="text-sm opacity-75 mt-1 leading-snug"><em>Task graphs</em> y <em>tracer bullets</em>: partimos la visión ambiciosa en trozos manejables por IA y probamos los caminos críticos temprano.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">Nuestra cocina, nuestras reglas, nuestra responsabilidad.</div>
+<div class="font-serif text-base font-bold">Nuestra cocina, nuestras reglas, nuestra responsabilidad</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">Cada línea de código, cada bug, cada factura de un proceso de IA fuera de control cae sobre nuestro <em>toque</em>. Revisamos y validamos con rigor.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">Le exigimos a la IA todo lo que necesitamos.</div>
+<div class="font-serif text-base font-bold">Le exigimos a la IA todo lo que necesitamos</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">El <em>sous chef</em> prospera con el volumen. Lo usamos para explorar opciones, refactorizar a fondo, y generar los tests y la documentación que nunca tuvimos tiempo de hacer.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">Pensamos como team lead.</div>
+<div class="font-serif text-base font-bold">Pensamos como team lead</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">Al orquestar varios agentes a la vez adoptamos desarrollo en paralelo, integración de cambios y fijación de estándares. Ahí escala la ambición — y el FAAFO.</div>
 </div>
 
@@ -727,22 +727,22 @@ layout: default
 <div class="mt-6 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
 
 <div>
-<div class="font-serif text-base font-bold">1 · Empecemos pequeño. Empecemos hoy.</div>
+<div class="font-serif text-base font-bold">1 · Empecemos pequeño, empecemos hoy</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">Démosle a la IA una tarea acotada. Veámosla tropezar, corrijámosla, tensemos el loop. Luego dupliquemos el alcance. <em>"A la décima iteración, la conversación ya no se siente como usar una herramienta — se siente como dirigir."</em></div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">2 · Documentemos las reglas de la cocina.</div>
+<div class="font-serif text-base font-bold">2 · Documentemos las reglas de la cocina</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">Repositorio impecable. <em>Pager test</em>: si un commit escrito por un agente puede despertar a alguien a las 2 a.m., el nombre del dueño tiene que quedar clarísimo.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">3 · Contagiemos la curiosidad.</div>
+<div class="font-serif text-base font-bold">3 · Contagiemos la curiosidad</div>
 <div class="text-sm opacity-75 mt-1 leading-snug"><em>Demos</em> en el almuerzo, PRs al catálogo de prompts del equipo, tableros de consumo compartidos. La forma más rápida de subir la calidad es que la exploración se contagie.</div>
 </div>
 
 <div>
-<div class="font-serif text-base font-bold">4 · Guardemos el mindset, no la matriz de features.</div>
+<div class="font-serif text-base font-bold">4 · Guardemos el mindset, no la matriz de features</div>
 <div class="text-sm opacity-75 mt-1 leading-snug">Los modelos, los contextos y las flotas de agentes van a seguir mutando. Lo que nos sostiene es la mentalidad: <strong>modularidad, feedback, juicio.</strong></div>
 </div>
 
@@ -790,7 +790,7 @@ layout: default
 
 # Event-Driven Architecture
 
-<div class="mt-4 text-2xl font-serif">**El chasis del desacople.**</div>
+<div class="mt-4 text-2xl font-serif">**El chasis del desacople**</div>
 
 <div class="mt-10 font-serif text-lg space-y-3 opacity-90">
 
@@ -813,7 +813,7 @@ layout: default
 
 # Event Sourcing
 
-<div class="mt-4 text-2xl font-serif">**La historia es la verdad.**</div>
+<div class="mt-4 text-2xl font-serif">**La historia es la verdad**</div>
 
 <div class="mt-10 font-serif text-lg space-y-3 opacity-90">
 
@@ -838,7 +838,7 @@ layout: default
 
 # Serverless
 
-<div class="mt-4 text-2xl font-serif">**El código es un pasivo.**</div>
+<div class="mt-4 text-2xl font-serif">**El código es un pasivo**</div>
 
 <div class="mt-8 font-serif text-base space-y-2 opacity-90">
 
@@ -871,7 +871,7 @@ layout: default
 
 # Infrastructure as Code
 
-<div class="mt-4 text-2xl font-serif">**Clickops no escala, no se automatiza.**</div>
+<div class="mt-4 text-2xl font-serif">**Clickops no escala, no se automatiza**</div>
 
 <div class="mt-10 font-serif text-lg space-y-3 opacity-90">
 
@@ -893,7 +893,7 @@ layout: default
 
 # DORA como espejo
 
-<div class="mt-4 text-2xl font-serif">**Si es Happy Time, se ve en las métricas.**</div>
+<div class="mt-4 text-2xl font-serif">**Si es Happy Time, se ve en las métricas**</div>
 
 <div class="mt-10 grid grid-cols-2 gap-8 font-serif">
   <div>
