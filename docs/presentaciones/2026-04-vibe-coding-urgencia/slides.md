@@ -719,20 +719,49 @@ Ritmo: leer los titulos, no las descripciones. El detalle lo discutimos despues 
 Punto narrativo para lideres: su experiencia no se devaluo. Se volvio la palanca dominante.-->
 
 ---
-layout: quote
+layout: default
 ---
 
-## [PENDIENTE: cita articuladora<br>del capítulo de conclusión<br>de *Vibe Coding*]
+## Para empezar hoy
 
-<div class="mt-6 text-right opacity-70">
-— Gene Kim &amp; Steve Yegge
+<div class="mt-6 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
+
+<div>
+<div class="font-serif text-base font-bold">1 · Empecemos pequeño. Empecemos hoy.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Démosle a la IA una tarea acotada. Veámosla tropezar, corrijámosla, tensemos el loop. Luego dupliquemos el alcance. <em>"A la décima iteración, la conversación ya no se siente como usar una herramienta — se siente como dirigir."</em></div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">2 · Documentemos las reglas de la cocina.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Repositorio impecable. <em>Pager test</em>: si un commit escrito por un agente puede despertar a alguien a las 2 a.m., el nombre del dueño tiene que quedar clarísimo.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">3 · Contagiemos la curiosidad.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug"><em>Demos</em> en el almuerzo, PRs al catálogo de prompts del equipo, tableros de consumo compartidos. La forma más rápida de subir la calidad es que la exploración se contagie.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">4 · Guardemos el mindset, no la matriz de features.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Los modelos, los contextos y las flotas de agentes van a seguir mutando. Lo que nos sostiene es la mentalidad: <strong>modularidad, feedback, juicio.</strong></div>
+</div>
+
+</div>
+
+<div class="mt-6 opacity-60 text-xs">
+Kim &amp; Yegge, <em>Vibe Coding</em> · Conclusión, pág. 311.
 </div>
 
 <!--
-PENDIENTE — Augusto: pásame el fragmento del capítulo de conclusión / call to action que señalas como IMPORTANTE. Lo traduzco y lo encuadro aquí.
-Referencia: la foto que pasaste en la conversación de ayer es la página 21 del libro donde está la cita articuladora.
-Esta slide cierra "Vibe coding como oficio" y abre "Arquitectura que favorece al agente".
--->
+4 consejos accionables extraidos del capitulo de conclusion del libro (pag. 311).
+Conjugacion en imperativo exhortativo 1ra plural (nosotros: empecemos, documentemos, contagiemos, guardemos).
+
+1. Start small, start today. Tomado del parrafo de apertura de la conclusion. "By the tenth iteration you'll notice the conversation feels less like tooling and more like leading."
+2. Pager test. "Document your kitchen rules, keep the repo immaculate, and remember the pager test: If an agent-authored commit can wake someone at 2 a.m., the owner's name had better be crystal clear." Conecta con Jessie Young del acto anterior.
+3. Make curiosity contagious. "Put a token-burn leaderboard on the wall, host a lunchtime demo, file a pull request to the team prompt catalog. The fastest way to raise quality is to make curiosity contagious."
+4. Mindset > feature matrix. "Your advantage is not memorizing these feature matrices; it's the mindset you carry forward: modularity, feedback, judgment." BISAGRA al acto siguiente: modularidad = EDA/Serverless, feedback = DORA, juicio = arquitectura.
+
+Este slide cierra "Vibe coding como oficio" y abre "Arquitectura que favorece al agente" (slide 24: ¿Que hacemos para vivir del lado del Happy Time?).-->
 
 ---
 layout: center
