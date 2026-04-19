@@ -486,7 +486,7 @@ layout: default
 class: text-center
 ---
 
-<div class="text-xl font-serif mb-2">El Vibe Coding Developer Loop</div>
+# El Vibe Coding Developer Loop
 
 <VibeCodingLoop />
 
@@ -515,7 +515,7 @@ Fuente: Vibe Coding, capitulo 12 aprox. (pag. 177 de la edicion impresa).-->
 layout: default
 ---
 
-## Principios del outer loop
+# Principios del outer loop
 
 <div class="mt-8 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
 
@@ -566,7 +566,7 @@ Fuente: Kim & Yegge, Vibe Coding, IT Revolution, 2025, cap. 12.-->
 layout: default
 ---
 
-## Caso Adidas · 700 desarrolladores
+# Caso Adidas · 700 desarrolladores
 
 <div class="mt-8 grid grid-cols-3 gap-6 max-w-5xl text-center">
 
@@ -613,7 +613,7 @@ Datos textuales del libro. Nada inventado.
 layout: default
 ---
 
-## Dos arquitecturas, dos realidades
+# Dos arquitecturas, dos realidades
 
 <div class="mt-6 grid grid-cols-2 gap-10 max-w-5xl">
 
@@ -660,7 +660,7 @@ Punto narrativo: esto es la bisagra hacia el acto III. La IA amplifica la arquit
 layout: default
 ---
 
-## Nuevas habilidades · capítulo 19
+# Nuevas habilidades · capítulo 19
 
 <div class="mt-4 opacity-80 text-sm max-w-5xl">
 Las herramientas cambian rápido. Por eso los principios tradicionales de ingeniería de software juegan un rol al menos tan grande — si no mayor.
@@ -722,7 +722,7 @@ Punto narrativo para lideres: su experiencia no se devaluo. Se volvio la palanca
 layout: default
 ---
 
-## Para empezar hoy
+# Para empezar hoy
 
 <div class="mt-6 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
 
