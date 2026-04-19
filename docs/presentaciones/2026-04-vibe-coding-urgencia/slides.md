@@ -660,29 +660,63 @@ Punto narrativo: esto es la bisagra hacia el acto III. La IA amplifica la arquit
 layout: default
 ---
 
-## Nuevas habilidades · capítulo 7
+## Nuevas habilidades · capítulo 19
 
-<div class="mt-10 font-serif text-lg space-y-4 opacity-90">
+<div class="mt-4 opacity-80 text-sm max-w-5xl">
+Las herramientas cambian rápido. Por eso los principios tradicionales de ingeniería de software juegan un rol al menos tan grande — si no mayor.
+</div>
 
-Identificar <em>mavens</em> — quienes experimentan primero.<br>
-Comunicación como habilidad central.<br>
-Criterio para revisar lo que produce el agente.<br>
-Gusto — decidir qué vale la pena y qué no.<br>
-Oficio para diseñar sin escribir.<br>
-Juicio para saber cuándo parar.
+<div class="mt-6 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
+
+<div>
+<div class="font-serif text-base font-bold">Code Reading <span class="opacity-70 font-normal">· Lectura de código</span></div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Cientos de cambios, miles de líneas al día. Necesitamos leer rápido, con ojo de águila para las anomalías. <em>Los humanos somos el backstop cuando la IA falla.</em></div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Precise Communication <span class="opacity-70 font-normal">· Comunicación precisa</span></div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Nuestro éxito depende de cómo dirigimos a la IA. Escribir claro es pensar claro.<br><em>"Writing is thinking."</em> — David McCullough</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Concentration <span class="opacity-70 font-normal">· Concentración</span></div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Mantener problemas cada vez más grandes — y más de ellos — en la cabeza mientras orquestamos varios agentes en paralelo.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Version Control &amp; Merging <span class="opacity-70 font-normal">· Control de versiones</span></div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Mergeamos cambios de múltiples fuentes humanas y de IA. <em>Three-way</em> y <em>N-way merges</em> requieren método, no reflejos.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Software Architecture <span class="opacity-70 font-normal">· Arquitectura y modularidad</span></div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Cómo se diseñan sistemas grandes, cómo se habilita independencia, cómo se comportan bajo carga. Más importante que memorizar sintaxis.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Entrepreneurial Awareness <span class="opacity-70 font-normal">· Conciencia de negocio</span></div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Equipos pequeños <em>AI-driven</em> pueden disrumpir mercados. Modelos de negocio, <em>pitch</em>, colaboración multidisciplinar.</div>
+</div>
 
 </div>
 
-<div class="mt-10 opacity-60 text-sm">
-<em>Vibe Coding</em>, capítulo 7 + Parte 4.
+<div class="mt-6 opacity-60 text-xs">
+Kim &amp; Yegge, <em>Vibe Coding</em>, cap. 19 — "Building Standards for Human-AI Development Teams".
 </div>
 
 <!--
-La experiencia en resolución de problemas no se devaluó. Al contrario, ahora es la habilidad dominante.
-El cap. 7 propone que los líderes identifiquen "mavens" (early adopters) para pilotos, y que las skills de IA entren a las decisiones de hiring junto a las de comunicación.
-La barrera que desapareció: el lenguaje de programación. Ya no es necesario "saber Python" o "saber Rust" para construir en esos lenguajes. Lo que queda es el oficio.
-Buena noticia para los líderes de equipo presentes: su experiencia no se devaluó. Se volvió la palanca dominante.
--->
+Las 6 habilidades del capitulo 19 del libro, tomadas textualmente de los subtitulos de seccion:
+1. Code Reading - ser speed-reader con ojo para anomalias. El humano es backstop.
+2. Precise and Articulate Communication - "Writing is thinking" (David McCullough). Dirigir a la IA con claridad.
+3. Concentration - varios agentes en paralelo, problemas grandes en la cabeza.
+4. Version control discipline + merge expertise - multiples fuentes humanas y de IA.
+5. Software Modularity and Architecture - disenar sistemas grandes es lo central, no memorizar sintaxis.
+6. Entrepreneurial Awareness - conocer business models, pitchar, colaborar cross-discipline.
+
+La bajada del slide viene del parrafo de apertura de la seccion "What Skills to Learn": los principios tradicionales no se devaluaron — se volvieron MAS importantes porque las herramientas cambian rapido.
+
+Ritmo: leer los titulos, no las descripciones. El detalle lo discutimos despues si preguntan.
+Punto narrativo para lideres: su experiencia no se devaluo. Se volvio la palanca dominante.-->
 
 ---
 layout: quote
