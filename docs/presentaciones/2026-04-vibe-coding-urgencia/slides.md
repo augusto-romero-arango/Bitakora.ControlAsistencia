@@ -316,19 +316,6 @@ Contexto breve en la pasada: METR es la organización que corrió el estudio má
 -->
 
 ---
-layout: statement
----
-
-## La IA amplifica<br>lo bueno y lo malo<br>de las empresas.
-
-<!--
-Esta frase es la bisagra del relato. Viene del contexto del cap. 17 del libro y es la tesis que va a medir el DORA 2025.
-Si la empresa tiene prácticas rigurosas, la IA las acelera. Si tiene prácticas frágiles, la IA las vuelve catastróficas a velocidad.
-Eso es lo que el DORA GenAI Anomaly 2024 ya mostró: amplificó la fragilidad existente.
-Pausa larga. Esta frase abre la siguiente sección.
--->
-
----
 layout: default
 ---
 
