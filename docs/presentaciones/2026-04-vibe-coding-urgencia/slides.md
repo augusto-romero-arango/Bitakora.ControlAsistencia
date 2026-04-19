@@ -1159,7 +1159,7 @@ class: text-center
 # Gracias
 
 <div class="mt-8 opacity-70">
-Preguntas.
+Preguntas
 </div>
 
 <!--
