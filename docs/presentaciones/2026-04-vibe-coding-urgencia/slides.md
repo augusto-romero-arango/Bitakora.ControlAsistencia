@@ -207,12 +207,11 @@ El auditorio necesita saber que no vamos a ignorar el miedo legítimo.
 
 ---
 layout: default
-class: text-red-600
 ---
 
 <img src="/young.jpg" class="mx-auto mb-6 h-32 rounded-sm shadow-sm object-cover" alt="Jessie Young" />
 
-<div class="text-3xl font-serif leading-snug text-center max-w-4xl mx-auto">
+<div class="text-3xl font-serif leading-snug text-center max-w-4xl mx-auto text-red-600">
 
 "Le dije a mi equipo:<br>no habrá *vibe coding* mientras yo esté de guardia."
 
