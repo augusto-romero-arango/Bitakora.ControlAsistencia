@@ -515,30 +515,52 @@ Fuente: Vibe Coding, capitulo 12 aprox. (pag. 177 de la edicion impresa).-->
 layout: default
 ---
 
-## Head chef mindset
+## Principios del outer loop
 
-<div class="mt-10 font-serif text-xl space-y-2">
+<div class="mt-8 grid grid-cols-2 gap-x-10 gap-y-5 max-w-5xl text-left">
 
-El *line cook* sigue la receta.<br>
-El *sous chef* ejecuta con responsabilidad.<br>
-El *head chef* dirige la cocina.
+<div>
+<div class="font-serif text-base font-bold">Asumimos el rol de orquestador.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Ya no picamos verduras: diseñamos el menú, gestionamos la cocina y aseguramos que cada plato cumpla el estándar Michelin.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Tratamos a la IA como compañera — rápida, incansable.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">La guiamos, iteramos con ella, le damos contexto como a un aprendiz humano. Y le pedimos rehacer el trabajo sin dudar: no tiene sentimientos que herir.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Descomponemos sin piedad.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug"><em>Task graphs</em> y <em>tracer bullets</em>: partimos la visión ambiciosa en trozos manejables por IA y probamos los caminos críticos temprano.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Nuestra cocina, nuestras reglas, nuestra responsabilidad.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Cada línea de código, cada bug, cada factura de un proceso de IA fuera de control cae sobre nuestro <em>toque</em>. Revisamos y validamos con rigor.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Le exigimos a la IA todo lo que necesitamos.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">El <em>sous chef</em> prospera con el volumen. Lo usamos para explorar opciones, refactorizar a fondo, y generar los tests y la documentación que nunca tuvimos tiempo de hacer.</div>
+</div>
+
+<div>
+<div class="font-serif text-base font-bold">Pensamos como team lead.</div>
+<div class="text-sm opacity-75 mt-1 leading-snug">Al orquestar varios agentes a la vez adoptamos desarrollo en paralelo, integración de cambios y fijación de estándares. Ahí escala la ambición — y el FAAFO.</div>
+</div>
 
 </div>
 
-<div class="mt-12 opacity-80 max-w-3xl">
-La IA convierte a cada desarrollador en head chef potencial. Pero solo si se aprende a serlo.
-</div>
-
-<div class="mt-8 opacity-60 text-sm">
-<em>Vibe Coding</em>, capítulo 12.
+<div class="mt-6 opacity-60 text-xs">
+Adaptado de Kim &amp; Yegge, <em>Vibe Coding</em>, cap. 12 — "Key practices to remember as you set out".
 </div>
 
 <!--
-Un head chef no hace la sopa él mismo; decide qué sopa hay que hacer, con qué ingredientes, cuándo sale, y coordina al equipo.
-Hasta hace un año, casi todos éramos line cooks o sous chefs. Ahora, cada desarrollador puede dirigir un equipo de agentes.
-Eso requiere habilidades que antes no se ejercían: diseño, criterio, delegación, verificación, gusto.
-El libro habla de la transición de "sous chef responsible for your individual work" a "head chef managing a team of chef robots".
--->
+Los 6 principios que hacen que el outer loop funcione, tomados textualmente del libro.
+Metafora de cocina del autor: tu cocina, tu toque (gorro de chef), aprendiz, sous chef, team lead. Mantenerla al narrar — es el anclaje del libro.
+Ritmo al leer: rapido, sin detenerse. No son para memorizar. La imagen que queda: dirigir una IA es un oficio nuevo que se aprende haciendolo, no ES "usar IA".
+Hacer notar FAAFO en el ultimo punto (ya presentado en el acto II): Fast, Ambitious, Autonomous, Fun, Optionality.
+Fuente: Kim & Yegge, Vibe Coding, IT Revolution, 2025, cap. 12.-->
 
 ---
 layout: default
