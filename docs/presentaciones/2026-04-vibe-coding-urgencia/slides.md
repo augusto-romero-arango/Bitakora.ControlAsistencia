@@ -194,7 +194,7 @@ Ritmo: leer completo. Pausa larga tras "llegarás de último".-->
 layout: quote
 ---
 
-<img src="/gas-town.png" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Gas Town (Steve Yegge)" />
+<img src="/gas-town.webp" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Gas Town (Steve Yegge)" />
 
 > "El foco es *throughput*: creación y corrección a la velocidad del pensamiento. En Gas Town dejas que Claude Code haga lo suyo. Tú eres el Product Manager y Gas Town es un compilador de ideas."
 
