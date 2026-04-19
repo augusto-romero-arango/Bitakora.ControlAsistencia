@@ -486,11 +486,11 @@ layout: default
 class: text-center
 ---
 
-## El Vibe Coding Developer Loop
+<div class="text-xl font-serif mb-2">El Vibe Coding Developer Loop</div>
 
 <VibeCodingLoop />
 
-<div class="mt-4 opacity-70 text-sm">
+<div class="mt-2 opacity-70 text-xs">
 Loop externo agéntico (1-6) con el inner loop tradicional (A-E) embebido en el paso 4.<br>
 Adaptado de Kim &amp; Yegge, <em>Vibe Coding</em>, IT Revolution, 2025.
 </div>
