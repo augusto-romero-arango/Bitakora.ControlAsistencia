@@ -566,38 +566,95 @@ Fuente: Kim & Yegge, Vibe Coding, IT Revolution, 2025, cap. 12.-->
 layout: default
 ---
 
-## Caso Adidas · capítulo 17
+## Caso Adidas · 700 desarrolladores
 
-<div class="mt-10 text-center">
-  <div class="font-serif text-8xl">+50%</div>
-  <div class="mt-4 text-xl opacity-80">de Happy Time</div>
-  <div class="mt-2 text-sm opacity-60">tiempo dedicado a trabajo creativo</div>
+<div class="mt-8 grid grid-cols-3 gap-6 max-w-5xl text-center">
+
+<div>
+<div class="font-serif text-6xl">500→700</div>
+<div class="mt-2 text-sm opacity-75">desarrolladores en un año</div>
 </div>
 
-<div class="mt-10 text-center opacity-70 max-w-2xl mx-auto">
-Piloto con 700 desarrolladores.<br>
-Pero con un asterisco crítico.
+<div>
+<div class="font-serif text-6xl">91%</div>
+<div class="mt-2 text-sm opacity-75">satisfacción</div>
+</div>
+
+<div>
+<div class="font-serif text-6xl">82%</div>
+<div class="mt-2 text-sm opacity-75">engagement diario</div>
+</div>
+
+</div>
+
+<div class="mt-10 max-w-4xl">
+<div class="font-serif text-3xl">Happy Time: <strong>47% → 65%</strong> <span class="opacity-70 text-xl">(2018 → 2024)</span></div>
+<div class="mt-3 text-base opacity-80">El tiempo en <em>coding, testing, analysis, design, documentation</em> — la zona — subió 18 puntos.</div>
+</div>
+
+<div class="mt-8 opacity-70 text-sm max-w-3xl">
+Pero los promedios engañan: dentro del piloto convivían dos poblaciones muy distintas.
+</div>
+
+<div class="mt-6 opacity-60 text-xs">
+Kim &amp; Yegge, <em>Vibe Coding</em>, cap. 17 — "From Line Cook to Head Chef".
 </div>
 
 <!--
-Fuente: libro Vibe Coding, capítulo 17 ("Theory of Constraints in Action"), caso Adidas.
-Happy Time: tiempo dedicado a trabajo creativo que disfrutan.
-Annoying Time: tiempo peleando con el entorno (legacy, tests rotos, build frágil, deploys complejos).
-El hallazgo decisivo viene en la siguiente diapo.
--->
+Datos textuales del libro. Nada inventado.
+- Piloto que escalo de 500 a 700 devs en un ano. El mas grande del espacio enterprise.
+- Outcomes oficiales: 91% satisfaccion, 20-30% ganancias de productividad, 82% engagement diario.
+- Happy Time promedio: 47% (estudio 2018 de Adidas) vs 65% (2024, post vibe coding). +18 puntos porcentuales.
+- Adidas ya partia arriba de la media Gartner (20-25% en IDE). Llegaban a 36% en "coding and testing" por su inversion previa en plataformas.
+- Happy Time = trabajo valioso (coding, testing, analysis, design, docs). Annoying Time = troubleshooting de envs, wrestling legacy, permisos, meetings innecesarias, friccion organizacional.
+- Narrativa: el numero global se ve bien, pero oculta dos realidades. Esa es la transicion al siguiente slide.-->
 
 ---
-layout: statement
+layout: default
 ---
 
-## El Happy Time<br>fue significativamente mayor<br>en arquitecturas desacopladas.
+## Dos arquitecturas, dos realidades
+
+<div class="mt-6 grid grid-cols-2 gap-10 max-w-5xl">
+
+<div class="border-l-2 border-current pl-5 opacity-95">
+<div class="font-serif text-lg font-bold">Arquitectura desacoplada</div>
+<div class="mt-1 text-sm opacity-75">E-commerce · <em>fast feedback loops</em> · deploys frecuentes</div>
+<div class="mt-5 font-serif text-5xl">80%</div>
+<div class="text-sm opacity-75">Happy Time</div>
+<div class="mt-4 text-sm opacity-80">FAAFO funcionó.</div>
+</div>
+
+<div class="border-l-2 border-current pl-5 opacity-95">
+<div class="font-serif text-lg font-bold">ERP legacy acoplado</div>
+<div class="mt-1 text-sm opacity-75">Deploys dos veces al año · testing que tomaba días</div>
+<div class="mt-5 font-serif text-5xl">30%</div>
+<div class="text-sm opacity-75">Happy Time</div>
+<div class="mt-4 text-sm opacity-80">FAAFO falló.</div>
+</div>
+
+</div>
+
+<div class="mt-8 max-w-4xl text-base italic opacity-90 leading-snug">
+"Si les hubiera ofrecido Copilot a esos equipos, me habrían insultado. Me habrían dicho: <em>Fernando, ¿estás loco? Arregla el entorno, arregla el testing primero.</em>"
+</div>
+<div class="mt-1 text-sm opacity-70">— Fernando Cornago, VP of Software Engineering, Adidas</div>
+
+<div class="mt-6 max-w-4xl text-sm opacity-80 leading-snug">
+El diferenciador no fue el <em>skill</em> (Layer 1) ni el <em>tooling</em> (Layer 2). Fue la arquitectura (Layer 3).<br>
+<strong>Theory of Constraints</strong>: toda mejora que no se hace en el cuello de botella es una ilusión.
+</div>
 
 <!--
-Este es el pivote hacia la sección de arquitectura.
-Equipos con ERPs legacy integrados y mala automatización de pruebas encontraron a la IA frustrante — "chef con horno roto", dice el libro.
-Equipos con arquitecturas desacopladas, buenas pruebas y pipelines limpios vieron el Happy Time dispararse.
-Conclusión: la arquitectura no es decoración. Es el acelerador — o el freno — del vibe coding.
--->
+Segundo slide del caso Adidas. Aqui aterriza el "asterisco critico" del slide anterior.
+Numeros textuales del libro (pag. 278):
+- Equipos loosely coupled (e-commerce): up to 80% Happy Time, uno llegaba a 70% solo en el IDE.
+- Equipos tightly coupled al ERP corporativo: solo 30% Happy Time, 70% perdido en friccion.
+Diferenciador: Layer 3 (arquitectura organizacional/tecnica), no Layer 1 (skill del dev) ni Layer 2 (tooling de IA).
+Cita de Fernando literal del libro (pag. 279, traducida).
+Theory of Constraints (Goldratt, The Goal): "any improvement not made at the constraint is an illusion". El libro lo compara con optimizar el prep station mientras el horno esta roto.
+Punto narrativo: esto es la bisagra hacia el acto III. La IA amplifica la arquitectura que ya tenes. Si es buena, FAAFO. Si es legacy + testing manual + deploys semestrales, la IA ni se nota — o incluso frustra.-->
+
 
 ---
 layout: default
