@@ -206,30 +206,37 @@ El auditorio necesita saber que no vamos a ignorar el miedo legítimo.
 -->
 
 ---
-layout: quote
+layout: default
 class: text-red-600
 ---
 
-<img src="/young.jpg" class="mx-auto mb-8 h-40 rounded-sm shadow-sm object-cover" alt="Jessie Young" />
+<img src="/young.jpg" class="mx-auto mb-6 h-32 rounded-sm shadow-sm object-cover" alt="Jessie Young" />
 
-> "Díganme que al menos vamos a probar estos sistemas generados por IA antes de empezar a cobrarle a la gente."
+<div class="text-3xl font-serif leading-snug text-center max-w-4xl mx-auto">
 
-<div class="mt-6 text-right opacity-70">
-— Jessie Young<br>
-<span class="text-sm">Principal Engineer, GitLab · <em>No Vibe Coding While I'm On Call</em> · IT Revolution, 2025</span>
+"Le dije a mi equipo:<br>no habrá *vibe coding* mientras yo esté de guardia."
+
 </div>
 
-<div class="mt-8 text-xs opacity-50">
-itrevolution.com/articles/no-vibe-coding-while-im-on-call-what-happens-when-ai-writes-your-production-code
+<div class="mt-6 text-center text-sm opacity-80">
+— Jessie Young · Principal Engineer, GitLab<br>
+<span class="opacity-70">Citada en <em>Vibe Coding</em> (Kim &amp; Yegge, 2025)</span>
+</div>
+
+<div class="mt-10 text-base opacity-80 max-w-3xl mx-auto leading-relaxed">
+
+Pertenece al grupo que recibe la alerta cuando un servicio core de GitLab se cae. Si codificar se vuelve sin fricción, **la responsabilidad se difumina**.
+
+Su pesadilla: que cada equipo apague el cerebro, empuje código a medio hacer a producción — y a ella la despierten a las 2 a.m. a apagar incendios.
+
 </div>
 
 <!--
-Original: "Tell me we're at least going to test these AI-generated systems before we start taking people's money."
-Publicado en el Fall 2025 Enterprise Technology Leadership Journal. Jessie Young es Principal Engineer en GitLab (área Manage y AI-Powered Stages).
-El artículo es una ficción que narra incidentes de producción en una empresa ficticia por adopción sin control de vibe coding.
-Esta es la contravoz legítima. No es tecnofobia; es alguien que está de guardia a las 2 a.m.
-El título del artículo — "no vibe coding mientras estoy de turno" — es la bandera del miedo razonable.
-Frase hermana: "This is how we use AI responsibly."-->
+Fuente: libro "Vibe Coding" (Kim & Yegge, 2025). Cita textual (pag. mostrada en la foto del capitulo de Part 1): "I told my team, there will be no vibe coding while I'm on call."
+Resumen del parrafo (traducido): Jessie Young, Principal Engineer en GitLab, traza una linea dura. Entiende que si codificar se vuelve sin friccion, la responsabilidad se puede difuminar demasiado. Hace la declaracion porque pertenece a un grupo central de ingenieria que recibe la pagina cuando cualquier servicio core de GitLab tiene un outage en produccion. Su peor pesadilla es un escenario donde cada equipo apaga el cerebro, empieza a vibe coding con abandono imprudente, empuja codigo a medio hacer a produccion, y la despiertan a las 2 a.m. a apagar incendios.
+Frase hermana del articulo original de Jessie en IT Revolution: "Tell me we're at least going to test these AI-generated systems before we start taking people's money."
+Esta es la contravoz legitima. No es tecnofobia: es responsabilidad real sobre produccion con SLA.
+Ritmo: leer la cita dura con fuerza. Pausar. Bajar la voz para el contexto — la imagen mental que queda es la de una ingeniera responsable limpiando a las 2 a.m. lo que otros vibe-codearon sin pensar.-->
 
 ---
 layout: default
