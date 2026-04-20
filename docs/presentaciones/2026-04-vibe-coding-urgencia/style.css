@@ -16,3 +16,26 @@
 .slidev-layout hr {
   border-color: #d8d2c4;
 }
+
+.slidev-layout.quote blockquote {
+  background-color: #efe9da;
+  border-left: 4px solid #7a5b3e;
+  padding: 1.25rem 1.75rem;
+  margin: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.slidev-layout.quote .opacity-50 {
+  opacity: 0.75;
+}
+
+.slidev-layout a {
+  color: #7a5b3e;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.slidev-layout a:hover {
+  color: #5a4329;
+}

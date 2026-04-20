@@ -64,7 +64,7 @@ layout: quote
 </div>
 
 <div class="mt-8 text-xs opacity-50">
-youtube.com/watch?v=SsJqmV3Wtkg · citado en Kim &amp; Yegge, <em>Vibe Coding</em>
+<a href="https://www.youtube.com/watch?v=SsJqmV3Wtkg" target="_blank" rel="noopener">youtube.com/watch?v=SsJqmV3Wtkg</a> · citado en Kim &amp; Yegge, <em>Vibe Coding</em>
 </div>
 
 <!--
@@ -88,7 +88,7 @@ layout: quote
 </div>
 
 <div class="mt-8 text-xs opacity-50">
-x.com/karpathy/status/1886192184808149383
+<a href="https://x.com/karpathy/status/1886192184808149383" target="_blank" rel="noopener">x.com/karpathy/status/1886192184808149383</a>
 </div>
 
 <!--
@@ -132,7 +132,7 @@ layout: quote
 </div>
 
 <div class="mt-8 text-xs opacity-50">
-youtu.be/We7BZVKbCVw
+<a href="https://youtu.be/We7BZVKbCVw" target="_blank" rel="noopener">youtu.be/We7BZVKbCVw</a>
 </div>
 
 <!--
@@ -161,7 +161,7 @@ layout: quote
 </div>
 
 <div class="mt-8 text-xs opacity-50">
-sourcegraph.com/blog/revenge-of-the-junior-developer · citado en Kim &amp; Yegge, <em>Vibe Coding</em>
+<a href="https://sourcegraph.com/blog/revenge-of-the-junior-developer" target="_blank" rel="noopener">sourcegraph.com/blog/revenge-of-the-junior-developer</a> · citado en Kim &amp; Yegge, <em>Vibe Coding</em>
 </div>
 
 <!--
@@ -185,7 +185,7 @@ layout: quote
 </div>
 
 <div class="mt-8 text-xs opacity-50">
-steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04
+<a href="https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04" target="_blank" rel="noopener">steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04</a>
 </div>
 
 <!--
@@ -261,7 +261,7 @@ DORA (DevOps Research and Assessment) es el programa de investigación fundado p
 </div>
 
 <div class="mt-8 text-sm opacity-60">
-Accelerate State of DevOps 2024 · dora.dev
+Accelerate State of DevOps 2024 · <a href="https://dora.dev" target="_blank" rel="noopener">dora.dev</a>
 </div>
 
 <!--
@@ -303,7 +303,7 @@ METR (Model Evaluation & Threat Research) es una organización sin ánimo de luc
 </div>
 
 <div class="mt-6 text-xs opacity-60">
-metr.org · arxiv.org/abs/2507.09089
+<a href="https://metr.org" target="_blank" rel="noopener">metr.org</a> · <a href="https://arxiv.org/abs/2507.09089" target="_blank" rel="noopener">arxiv.org/abs/2507.09089</a>
 </div>
 
 <!--
@@ -1130,14 +1130,14 @@ class: text-xs
 ### Entrevistas y conferencias
 
 - Dario Amodei, Council on Foreign Relations, 10 mar 2025.
-- Boris Cherny, *Head of Claude Code: What happens after coding is solved*, Lenny's Podcast, feb 2026. youtu.be/We7BZVKbCVw
-- Dr. Erik Meijer — charla YouTube, 2024 (youtube.com/watch?v=SsJqmV3Wtkg).
+- Boris Cherny, *Head of Claude Code: What happens after coding is solved*, Lenny's Podcast, feb 2026. <a href="https://youtu.be/We7BZVKbCVw" target="_blank" rel="noopener">youtu.be/We7BZVKbCVw</a>
+- Dr. Erik Meijer — charla YouTube, 2024 (<a href="https://www.youtube.com/watch?v=SsJqmV3Wtkg" target="_blank" rel="noopener">youtube.com/watch?v=SsJqmV3Wtkg</a>).
 
 ### Estudios
 
 - DORA / Google Cloud, *Accelerate State of DevOps 2024* — GenAI Anomaly.
 - DORA / Google Cloud, *Impact of Generative AI in Software Development*, 2024.
-- METR, *Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity*, jul 2025. arxiv.org/abs/2507.09089.
+- METR, *Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity*, jul 2025. <a href="https://arxiv.org/abs/2507.09089" target="_blank" rel="noopener">arxiv.org/abs/2507.09089</a>.
 
 ### Voces críticas
 
