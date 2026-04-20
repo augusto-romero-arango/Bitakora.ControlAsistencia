@@ -21,33 +21,147 @@ fonts:
 ### ¿el *"Silver Bullet"*?
 
 <div class="mt-12 text-base opacity-80 max-w-3xl mx-auto leading-relaxed">
-En 1986, Fred Brooks sentenció que el software no tendría bala de plata: ninguna tecnología entregaría un orden de magnitud de mejora en productividad, confiabilidad ni simplicidad. Cuarenta años después, parece que ahora sí la tenemos.
+En 1986, Fred Brooks sentenció que el software no tendría bala de plata: ninguna tecnología entregaría un orden de magnitud de mejora en productividad, confiabilidad ni simplicidad.
 </div>
 
 <!--
 Referencia: Fred Brooks, "No Silver Bullet — Essence and Accident in Software Engineering", 1986 (ensayo integrado después a la 2ª ed. de The Mythical Man-Month, 1995).
-El interrogante es intencional: la charla es la demostración. No se afirma que la tenemos — se explora si lo que tenemos cumple el criterio de Brooks.
+El interrogante del título es intencional: la charla es la demostración. No se adelanta respuesta aquí. Se instala la sentencia de Brooks y se deja la pregunta abierta para que los próximos slides la respondan con el marco accidental/esencial.
 Tono interno corporativo — no es TEDx ni conferencia pública.
-Durante 40 años nadie refutó a Brooks sin ser ridiculizado. La hipótesis: los agentes de IA sí lo hacen.
 -->
 
 ---
-layout: center
+layout: two-cols
 ---
 
-## [PENDIENTE: tesis en una línea]
+# Esencia
 
-<div class="mt-8 opacity-60 text-sm max-w-3xl mx-auto">
-Tesis articuladora de la charla. Se define después del análisis de Brooks (las cuatro dificultades esenciales: complejidad, conformidad, cambiabilidad, invisibilidad) y dónde los agentes las rompen — principalmente cambiabilidad, y amplifican los "ataques prometedores" que el propio Brooks respaldó (buy vs build, refinamiento iterativo, desarrollo incremental, grandes diseñadores).
+Las dificultades **inherentes a la naturaleza del software**.
+
+Brooks las agrupa en cuatro:
+
+- Complejidad
+- Conformidad
+- Cambiabilidad
+- Invisibilidad
+
+Ninguna desaparece por progreso técnico.
+
+::right::
+
+# Accidente
+
+Las dificultades **contingentes** — presentes hoy, pero no inherentes.
+
+Lenguajes de bajo nivel, herramientas primitivas, traducción a interfaces arbitrarias, ciclos de compilación.
+
+Estas sí se pueden solucionar. Y se han solucionado.
+
+<!--
+Marco de evaluacion. Brooks sigue a Aristoteles: essence and accident.
+No adelantar conclusion aqui. Solo instalar el marco para los dos slides siguientes.
+Ritmo: leer con calma. Enfatizar "inherentes" vs "contingentes".
+-->
+
+---
+layout: default
+---
+
+# La IA solucionó lo accidental
+
+<div class="mt-8 grid grid-cols-2 gap-12 max-w-5xl mx-auto">
+
+<div>
+
+### Qué facilita
+
+- Traducción entre lenguajes y stacks
+- Plantillas, boilerplate, plumbing
+- Adaptadores a APIs e interfaces arbitrarias
+- Migraciones y transformaciones de datos
+- Búsqueda y refactor a escala del repo
+- Generación de tests y documentación
+- Explicación y síntesis de código ajeno
+
+</div>
+
+<div>
+
+### Impacto
+
+Brooks (1986) advertía que las ganancias en lo accidental ya estaban agotándose.
+
+Cuarenta años después, la IA abrió otro orden de magnitud justo ahí.
+
+- **Amodei**: *90% del código escrito por IA en meses* (CFR, 2025).
+- **Cherny**: *100% de mi código lo escribe Claude Code* (Lenny's, 2026).
+- **DORA 2024**: aumento medible de throughput con GenAI.
+
+</div>
+
 </div>
 
 <!--
-Direcciones candidatas para la tesis:
-- La IA amplifica, no resuelve. El oficio, la arquitectura y la organización deciden el signo.
-- La codificación agéntica es capacidad nueva; convertirla en resultados exige oficio, arquitectura y organización deliberados.
-- Si la codificación agéntica es el Silver Bullet, lo es con oficio, con arquitectura y con una organización preparada — nunca sola.
+Punto explicito: la IA ataco el accidente con exito real.
+Brooks era claro: el accidente si es atacable. Su argumento era que ya habiamos agotado el jugo. La IA demostro que no del todo.
+No adelantar la critica — eso viene en el siguiente slide.
+-->
 
-PENDIENTE: elegir con Augusto en ensayo.
+---
+layout: default
+---
+
+# La esencia sigue intacta
+
+<div class="mt-6 grid grid-cols-2 gap-8 max-w-5xl mx-auto text-sm leading-relaxed">
+
+<div>
+
+### Complejidad
+
+La IA traslada la complejidad; no la reduce. Más código generado más rápido — y los estados, acoplamientos y race conditions siguen ahí.
+
+**METR 2025**: desarrolladores experimentados con IA en código maduro fueron **19% más lentos**.
+
+</div>
+
+<div>
+
+### Conformidad
+
+La IA traduce arbitrariedad a código en minutos. Pero la arbitrariedad — regulación, protocolo legacy, API propietaria — sigue siendo arbitraria.
+
+Baja el costo de conformarse, no elimina aquello a lo que hay que conformarse.
+
+</div>
+
+<div>
+
+### Cambiabilidad
+
+El costo marginal de rehacer un módulo colapsa. Pero **DORA 2024** midió la *GenAI Anomaly* — más cambio, menos estabilidad.
+
+La presión para cambiar no desaparece; se amplifica.
+
+</div>
+
+<div>
+
+### Invisibilidad
+
+Doble filo. Como lente — explicar, mapear, documentar — la IA hace el software más visible.
+
+Como generador sin lector, *"forget that the code even exists"*, lo hace menos.
+
+</div>
+
+</div>
+
+<!--
+Scorecard explicito de las 4 dificultades esenciales contra la IA.
+No hay tesis de cierre — los puntos hablan solos (decision explicita del usuario).
+Citas ya presentes en otras partes del deck: METR, DORA, Karpathy.
+Ritmo: leer los 4 en secuencia. No enfatizar ninguno. Dejar que el publico ate cabos.
 -->
 
 ---
