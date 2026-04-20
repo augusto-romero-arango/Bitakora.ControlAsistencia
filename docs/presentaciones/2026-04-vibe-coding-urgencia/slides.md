@@ -1,5 +1,6 @@
 ---
 theme: seriph
+colorSchema: light
 title: 'Codificación agéntica: ¿el "Silver Bullet"?'
 info: |
   Impacto de la IA en la codificación.

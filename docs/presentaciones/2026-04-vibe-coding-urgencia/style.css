@@ -1,0 +1,18 @@
+:root {
+  --slidev-theme-primary: #7a5b3e;
+}
+
+.slidev-layout {
+  background-color: #f7f3eb;
+  color: #2a2a2a;
+}
+
+.slidev-layout code:not(pre code) {
+  background-color: #efe9da;
+  padding: 0.125em 0.375em;
+  border-radius: 3px;
+}
+
+.slidev-layout hr {
+  border-color: #d8d2c4;
+}
