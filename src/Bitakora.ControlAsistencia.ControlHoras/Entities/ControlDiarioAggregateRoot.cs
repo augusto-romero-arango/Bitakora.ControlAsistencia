@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Cosmos.EventSourcing.Abstractions;
 
@@ -17,6 +18,14 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // Trazabilidad: id de la ultima solicitud que asigno un turno (CA-5)
     public Guid UltimaSolicitudId { get; private set; }
+
+    // HU-106: lista de marcaciones adicionadas al control diario
+    // CA-3: crece al adicionar una marcacion nueva
+    // CA-4: idempotencia nivel 2 - duplicado por minuto normalizado se ignora
+    // Expuesta como IReadOnlyList para evitar mutaciones externas; el aggregate
+    // es el unico que puede agregar marcaciones via Apply.
+    public IReadOnlyList<MarcacionNormalizada> Marcaciones => _marcaciones;
+    private readonly List<MarcacionNormalizada> _marcaciones = [];
 
     // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
@@ -46,6 +55,39 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Agrega un nuevo turno al aggregate existente (caso CA-4)
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    // HU-106: Apply que agrega la marcacion a la lista
+    // Apply solo proyecta estado; la deteccion de duplicado vive en AdicionarMarcacion (CA-4).
+    // Cuando el aggregate nace desde Iniciar(MarcacionAdicionada), este Apply asigna el Id del stream.
+    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
+    public void Apply(MarcacionAdicionada e)
+    {
+        Id = e.Id;
+        _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
+    }
+
+    // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
+    // CA-5: si no existe ControlDiario para la fecha, se crea con este factory
+    // CA-6: InformacionEmpleado y DetalleTurno quedan null
+    internal static ControlDiarioAggregateRoot Iniciar(MarcacionAdicionada evento)
+    {
+        var control = new ControlDiarioAggregateRoot();
+        control._uncommittedEvents.Add(evento);
+        control.Apply(evento);
+        return control;
+    }
+
+    // HU-106: agrega una marcacion al aggregate existente
+    // CA-4: idempotencia nivel 2 - si ya existe una marcacion con el mismo minuto
+    //        normalizado, se ignora silenciosamente sin emitir evento ni excepcion
+    internal void AdicionarMarcacion(MarcacionAdicionada evento)
+    {
+        var yaExiste = _marcaciones.Any(m => m.TimestampNormalizado == evento.TimestampNormalizado);
+        if (yaExiste) return;
+
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
