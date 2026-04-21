@@ -57,18 +57,35 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     }
 
     // HU-106: Apply que agrega la marcacion a la lista
-    // CA-4: idempotencia nivel 2 - si el minuto ya existe, no se agrega
+    // Apply solo proyecta estado; la deteccion de duplicado vive en AdicionarMarcacion (CA-4).
+    // Cuando el aggregate nace desde Iniciar(MarcacionAdicionada), este Apply asigna el Id del stream.
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
-    public void Apply(MarcacionAdicionada e) => throw new NotImplementedException();
+    public void Apply(MarcacionAdicionada e)
+    {
+        Id = e.Id;
+        Marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
+    }
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
     // CA-5: si no existe ControlDiario para la fecha, se crea con este factory
     // CA-6: InformacionEmpleado y DetalleTurno quedan null
     internal static ControlDiarioAggregateRoot Iniciar(MarcacionAdicionada evento)
-        => throw new NotImplementedException();
+    {
+        var control = new ControlDiarioAggregateRoot();
+        control._uncommittedEvents.Add(evento);
+        control.Apply(evento);
+        return control;
+    }
 
     // HU-106: agrega una marcacion al aggregate existente
-    // CA-4: el aggregate detecta el duplicado por minuto y lo ignora silenciosamente
+    // CA-4: idempotencia nivel 2 - si ya existe una marcacion con el mismo minuto
+    //        normalizado, se ignora silenciosamente sin emitir evento ni excepcion
     internal void AdicionarMarcacion(MarcacionAdicionada evento)
-        => throw new NotImplementedException();
+    {
+        var yaExiste = Marcaciones.Any(m => m.TimestampNormalizado == evento.TimestampNormalizado);
+        if (yaExiste) return;
+
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
 }
