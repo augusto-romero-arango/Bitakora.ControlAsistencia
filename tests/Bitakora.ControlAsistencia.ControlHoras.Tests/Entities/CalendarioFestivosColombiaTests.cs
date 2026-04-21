@@ -45,14 +45,14 @@ public class CalendarioFestivosColombiaTests
     }
 
     [Fact]
-    public void EsFestivo_RetornaTrue_CuandoFechaEsOchoDeDeciembre()
+    public void EsFestivo_RetornaTrue_CuandoFechaEsOchoDeDiciembre()
     {
         // CA-5: 8 dic siempre es festivo
         CalendarioFestivosColombia.EsFestivo(new DateOnly(2026, 12, 8)).Should().BeTrue();
     }
 
     [Fact]
-    public void EsFestivo_RetornaTrue_CuandoFechaEsVeinticincoDeDeciembre()
+    public void EsFestivo_RetornaTrue_CuandoFechaEsVeinticincoDeDiciembre()
     {
         // CA-6: 25 dic siempre es festivo
         CalendarioFestivosColombia.EsFestivo(new DateOnly(2026, 12, 25)).Should().BeTrue();
@@ -266,28 +266,28 @@ public class CalendarioFestivosColombiaTests
         // CA-19: lista verificada manualmente contra calendario oficial colombiano 2026
         // Festivos fijos: 1 ene, 1 may, 20 jul, 7 ago, 8 dic, 25 dic
         // Jueves y Viernes Santo (Pascua 5 abr): 2 abr, 3 abr
-        // Trasladables fijos: 6 ene(mar)→12 ene, 19 mar(jue)→23 mar, 29 jun(lun), 15 ago(sab)→17 ago,
-        //                     12 oct(lun), 1 nov(dom)→2 nov, 11 nov(mie)→16 nov
-        // Trasladables pascuales: Ascension(+39=14may jue)→18 may, Corpus(+60=4jun jue)→8 jun,
-        //                         SagradoCorazon(+68=12jun vie)→15 jun
+        // Trasladables fijos: 6 ene(mar)->12 ene, 19 mar(jue)->23 mar, 29 jun(lun), 15 ago(sab)->17 ago,
+        //                     12 oct(lun), 1 nov(dom)->2 nov, 11 nov(mie)->16 nov
+        // Trasladables pascuales: Ascension(+39=14may jue)->18 may, Corpus(+60=4jun jue)->8 jun,
+        //                         SagradoCorazon(+68=12jun vie)->15 jun
         var esperados = new[]
         {
             new DateOnly(2026, 1,  1),   // Año Nuevo
-            new DateOnly(2026, 1, 12),   // Reyes Magos (6 ene mar → lun 12 ene)
-            new DateOnly(2026, 3, 23),   // San Jose (19 mar jue → lun 23 mar)
+            new DateOnly(2026, 1, 12),   // Reyes Magos (6 ene mar -> lun 12 ene)
+            new DateOnly(2026, 3, 23),   // San Jose (19 mar jue -> lun 23 mar)
             new DateOnly(2026, 4,  2),   // Jueves Santo
             new DateOnly(2026, 4,  3),   // Viernes Santo
             new DateOnly(2026, 5,  1),   // Dia del Trabajo
-            new DateOnly(2026, 5, 18),   // Ascension (14 may jue → lun 18 may)
-            new DateOnly(2026, 6,  8),   // Corpus Christi (4 jun jue → lun 8 jun)
-            new DateOnly(2026, 6, 15),   // Sagrado Corazon (12 jun vie → lun 15 jun)
+            new DateOnly(2026, 5, 18),   // Ascension (14 may jue -> lun 18 may)
+            new DateOnly(2026, 6,  8),   // Corpus Christi (4 jun jue -> lun 8 jun)
+            new DateOnly(2026, 6, 15),   // Sagrado Corazon (12 jun vie -> lun 15 jun)
             new DateOnly(2026, 6, 29),   // San Pedro y San Pablo (lun, permanece)
             new DateOnly(2026, 7, 20),   // Independencia de Colombia
             new DateOnly(2026, 8,  7),   // Batalla de Boyaca
-            new DateOnly(2026, 8, 17),   // Asuncion de la Virgen (15 ago sab → lun 17 ago)
+            new DateOnly(2026, 8, 17),   // Asuncion de la Virgen (15 ago sab -> lun 17 ago)
             new DateOnly(2026, 10, 12),  // Dia de la Raza (lun, permanece)
-            new DateOnly(2026, 11,  2),  // Todos los Santos (1 nov dom → lun 2 nov)
-            new DateOnly(2026, 11, 16),  // Independencia de Cartagena (11 nov mie → lun 16 nov)
+            new DateOnly(2026, 11,  2),  // Todos los Santos (1 nov dom -> lun 2 nov)
+            new DateOnly(2026, 11, 16),  // Independencia de Cartagena (11 nov mie -> lun 16 nov)
             new DateOnly(2026, 12,  8),  // Inmaculada Concepcion
             new DateOnly(2026, 12, 25),  // Navidad
         };
