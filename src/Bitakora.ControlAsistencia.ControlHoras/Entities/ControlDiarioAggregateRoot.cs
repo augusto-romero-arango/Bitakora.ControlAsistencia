@@ -22,7 +22,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // HU-106: lista de marcaciones adicionadas al control diario
     // CA-3: crece al adicionar una marcacion nueva
     // CA-4: idempotencia nivel 2 - duplicado por minuto normalizado se ignora
-    public List<MarcacionNormalizada> Marcaciones { get; private set; } = [];
+    // Expuesta como IReadOnlyList para evitar mutaciones externas; el aggregate
+    // es el unico que puede agregar marcaciones via Apply.
+    public IReadOnlyList<MarcacionNormalizada> Marcaciones => _marcaciones;
+    private readonly List<MarcacionNormalizada> _marcaciones = [];
 
     // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
@@ -63,7 +66,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     public void Apply(MarcacionAdicionada e)
     {
         Id = e.Id;
-        Marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
+        _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
     }
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
@@ -82,7 +85,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     //        normalizado, se ignora silenciosamente sin emitir evento ni excepcion
     internal void AdicionarMarcacion(MarcacionAdicionada evento)
     {
-        var yaExiste = Marcaciones.Any(m => m.TimestampNormalizado == evento.TimestampNormalizado);
+        var yaExiste = _marcaciones.Any(m => m.TimestampNormalizado == evento.TimestampNormalizado);
         if (yaExiste) return;
 
         _uncommittedEvents.Add(evento);

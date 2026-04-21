@@ -1,6 +1,5 @@
 // HU-106: Adicionar marcacion a ControlDiario cuando marcacion registrada
 
-using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
@@ -31,7 +30,7 @@ public class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandlerTests
     protected override ICommandHandlerAsync<MarcacionRegistrada> Handler =>
         new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore);
 
-    // Factory para MarcacionRegistrada con hora fuera de ventana
+    // Factory para MarcacionRegistrada; el timestamp decide si cae en la ventana nocturna.
     private static MarcacionRegistrada CrearMarcacionRegistrada(
         DateTime timestampNormalizado,
         string? tipoMarcacion = "ENTRADA",
@@ -105,6 +104,24 @@ public class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandlerTests
             StreamIdDia15, c => c.Marcaciones.Count, 2);
     }
 
+    // CA-9: borde superior exclusivo de la ventana nocturna.
+    //        La hora de corte (04:00:00) ya NO esta dentro de la ventana,
+    //        por lo que la marcacion va solo al dia calendario (un stream).
+    [Fact]
+    public async Task DebeCrearUnSoloControlDiario_CuandoHoraEsIgualALaHoraDeCorte()
+    {
+        var timestampEnCorte = new DateTime(2026, 3, 15, 4, 0, 0);
+
+        await WhenAsync(CrearMarcacionRegistrada(timestampEnCorte));
+
+        Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, timestampEnCorte));
+        And<ControlDiarioAggregateRoot, int>(
+            StreamIdDia15, c => c.Marcaciones.Count, 1);
+
+        // El dia anterior no se toca: no hay eventos emitidos para StreamIdDia14
+        Then(StreamIdDia14);
+    }
+
     // CA-4: marcacion duplicada por minuto normalizado se ignora
     //        el aggregate no produce nuevo evento ni lanza excepcion
     [Fact]
@@ -122,5 +139,4 @@ public class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandlerTests
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia15, c => c.Marcaciones.Count, 1);
     }
-
 }
