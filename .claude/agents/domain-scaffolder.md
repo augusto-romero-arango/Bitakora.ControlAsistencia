@@ -1373,11 +1373,6 @@ jobs:
           app-name: func-{prefix_func}-{kebab}
           package: ./publish
 
-      - name: Esperar arranque de Function App
-        run: |
-          echo "Esperando 30s para que la Function App arranque..."
-          sleep 30
-
   smoke-tests:
     needs: deploy
     uses: ./.github/workflows/smoke-tests-dominio.yml

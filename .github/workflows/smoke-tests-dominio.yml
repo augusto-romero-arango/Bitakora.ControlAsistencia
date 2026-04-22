@@ -37,6 +37,21 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Warmup Function App
+        run: |
+          echo "Esperando health endpoint en ${{ inputs.base_url }}/api/health..."
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "${{ inputs.base_url }}/api/health" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "Health OK tras ${i} intento(s) (~$((i*2))s)."
+              exit 0
+            fi
+            echo "Intento ${i}: HTTP ${code}. Reintentando en 2s..."
+            sleep 2
+          done
+          echo "Timeout: health endpoint no respondio 200 en 120s"
+          exit 1
+
       - name: Smoke tests
         env:
           Api__BaseUrl: ${{ inputs.base_url }}
