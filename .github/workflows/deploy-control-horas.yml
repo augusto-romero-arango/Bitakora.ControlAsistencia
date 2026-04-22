@@ -77,11 +77,6 @@ jobs:
           app-name: func-asist-dev-control-horas
           package: ./publish
 
-      - name: Esperar arranque de Function App
-        run: |
-          echo "Esperando 30s para que la Function App arranque..."
-          sleep 30
-
   smoke-tests:
     needs: deploy
     uses: ./.github/workflows/smoke-tests-dominio.yml
