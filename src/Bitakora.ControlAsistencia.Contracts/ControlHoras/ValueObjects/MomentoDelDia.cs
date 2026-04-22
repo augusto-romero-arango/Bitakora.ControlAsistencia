@@ -24,10 +24,7 @@ public sealed record MomentoDelDia(TimeOnly Hora, int DiaOffset = 0)
             ? Hora.ToString("HH:mm")
             : $"{Hora:HH:mm}+{DiaOffset}";
 
-    // Compara por MinutosAbsolutos
-    public int CompareTo(MomentoDelDia? other)
-    {
-        if (other is null) return 1;
-        return MinutosAbsolutos.CompareTo(other.MinutosAbsolutos);
-    }
+    // Compara por MinutosAbsolutos (null es menor por convencion de IComparable)
+    public int CompareTo(MomentoDelDia? other) =>
+        other is null ? 1 : MinutosAbsolutos.CompareTo(other.MinutosAbsolutos);
 }

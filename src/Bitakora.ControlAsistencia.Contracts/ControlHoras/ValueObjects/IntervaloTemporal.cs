@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 
 // Issue #112: Rango temporal entre dos MomentoDelDia.
@@ -9,17 +11,14 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
     public MomentoDelDia Inicio { get; }
     public MomentoDelDia Fin { get; }
 
+    // STJ usa este ctor privado al deserializar (es el unico parametrizado).
+    // No revalidamos la invariante aqui: asumimos que los bytes provienen de
+    // un IntervaloTemporal ya validado via Crear().
+    [JsonConstructor]
     private IntervaloTemporal(MomentoDelDia inicio, MomentoDelDia fin)
     {
         Inicio = inicio;
         Fin = fin;
-    }
-
-    // Constructor vacio para STJ/Marten
-    private IntervaloTemporal()
-    {
-        Inicio = new MomentoDelDia(TimeOnly.MinValue);
-        Fin = new MomentoDelDia(TimeOnly.MinValue);
     }
 
     // Factory con invariante: Inicio < Fin; lanza ArgumentException si se viola.
