@@ -55,6 +55,9 @@ module "service_bus" {
         }
       ]
     }
+    "dia-calculado" = {
+      subscriptions = []
+    }
   }
   tags = local.tags
 }
