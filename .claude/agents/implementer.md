@@ -320,84 +320,16 @@ builder.Services.AddValidatorsFromAssemblyContaining<I{Dominio}AssemblyMarker>()
 
 ## Modelado de objetos de dominio
 
-Estas son **heurísticas de diseño**, no reglas absolutas. El diseño específico de cada caso puede ajustarse en la fase de descubrimiento con event-stormer o planner.
+Las reglas de forma (`record` vs `sealed class`), constructor (publico vs privado + vacio), serializacion (`ConfigurarSerializacion`, proscripcion de `[JsonConstructor]`) y registro en infraestructura viven **en ADR-0015**. No las duplico aqui — leelo antes de crear un value object, un evento o cualquier tipo persistido.
 
-### Tabla de heurísticas: record vs clase
+Puntos donde fallan tipicamente los agentes (detectados en reviews anteriores):
 
-| Tipo de objeto | Forma | Constructor | Validación |
-|---|---|---|---|
-| Comando (DTO) | `record` con constructor primario | Público | FluentValidation (externa) |
-| Evento sin invariantes | `record` con constructor primario | Público | Ninguna |
-| Evento con precondiciones | `record` con factory static | Privado | Factory static → throw |
-| Value Object simple | `record` con constructor primario | Público | Ninguna |
-| Value Object con invariantes | `record` con factory static | Privado + privado vacío | Factory static → throw |
-| AggregateRoot | `partial class` | Factory static (`Crear`) | Eventos de fallo (ADR-0007) |
+- **Value Object / evento con invariantes**: es `sealed class`, no `record`. La distincion clave del ADR es **invariantes**, no mutabilidad. Un `record` con `IReadOnlyList<T>` promete igualdad por valor que no cumple (compara por referencia via `EqualityComparer<T>.Default`).
+- **[JsonConstructor] en ctor privado**: no funciona con Marten (ADR-0015, "Serializacion sin atributos"). El patron canonico es ctor vacio privado + campos `private readonly` + `ConfigurarSerializacion` con `typeInfo.CreateObject` + `FieldInfo.SetValue`.
+- **`ConfigurarSerializacion` sin registro**: si agregas el metodo, agrega la linea `{Tipo}.ConfigurarSerializacion(resolver)` al `ConfigurarResolver` del dominio (clase `ConfiguracionSerializacion{Dominio}`). Sin registro, el metodo es codigo muerto (ADR-0015, "Sin este registro...").
+- **`IEquatable<T>` manual en `sealed class`**: si el tipo tiene colecciones, `Equals` debe usar `SequenceEqual` y `GetHashCode` debe combinar cada elemento con `HashCode.Add`.
 
-**La distinción es mutabilidad**: si el objeto no muta después de crearse → `record`. Si muta → `class`.
-
-### Factory static para objetos con invariantes
-
-Cuando un objeto tiene reglas que deben cumplirse en la construcción:
-
-```csharp
-// Value Object con invariantes
-public record Cedula
-{
-    public string Numero { get; }
-
-    private Cedula(string numero) => Numero = numero;
-
-    private Cedula() { } // para Marten y JSON
-
-    public static Cedula Crear(string numero)
-    {
-        ValidarFormato(numero);
-        return new Cedula(numero);
-    }
-
-    private static void ValidarFormato(string numero)
-    {
-        if (string.IsNullOrWhiteSpace(numero))
-            throw new ArgumentException("La cedula no puede estar vacia");
-    }
-}
-```
-
-- Constructor primario privado (recibe campos, no valida)
-- Constructor vacío `private` para Marten y JSON (nunca `public` ni `protected`)
-- Método estático `Crear(...)` valida y construye — throw si inválido
-- Validaciones como métodos privados estáticos del mismo objeto
-
-### Eventos con precondiciones
-
-Un evento con precondiciones estructurales usa factory static. El **CommandHandler** lo construye; si falla, el throw ocurre en el handler — no en el aggregate (ADR-0007 se mantiene):
-
-```csharp
-public record TurnoAsignado
-{
-    public Guid TurnoId { get; }
-    public Guid EmpleadoId { get; }
-    public DateOnly FechaInicio { get; }
-
-    private TurnoAsignado(Guid turnoId, Guid empleadoId, DateOnly fechaInicio)
-    {
-        TurnoId = turnoId;
-        EmpleadoId = empleadoId;
-        FechaInicio = fechaInicio;
-    }
-
-    public static TurnoAsignado Crear(Guid turnoId, Guid empleadoId, DateOnly fechaInicio)
-    {
-        if (turnoId == Guid.Empty)
-            throw new ArgumentException("El turno es requerido");
-        if (empleadoId == Guid.Empty)
-            throw new ArgumentException("El empleado es requerido");
-        return new TurnoAsignado(turnoId, empleadoId, fechaInicio);
-    }
-}
-```
-
-**Importante**: todo evento con constructor privado necesita ademas `ConfigurarSerializacion` (regla 15) y registro en Program.cs (regla 17). Sin esto, Marten no puede deserializar el evento al reconstruir el aggregate.
+Referencias canonicas en el codigo: `SubFranja` (VO con `sealed class` + `ConfigurarSerializacion` + `IEquatable` manual); `TurnoDiarioAsignado` (evento con precondiciones + `ConfigurarSerializacion`).
 
 ### Encapsulamiento: propiedades internas
 
@@ -646,6 +578,17 @@ El prompt que recibes contiene:
 
 Lee todos los archivos de test listados para entender que se espera.
 
+### 1b. Leer los ADRs aplicables del issue
+
+El issue debe tener una seccion `## ADRs aplicables` que enumera los ADRs que rigen este trabajo. **Lee cada uno de esos ADRs completo antes de escribir codigo**. Estos documentos son la fuente de verdad arquitectonica del proyecto — no hay "reglas equivalentes" en este agente ni en ningun otro lado.
+
+Si el issue **no** tiene la seccion `## ADRs aplicables` o esta vacia:
+- Detente. No asumas que no hay ADRs que apliquen.
+- Reporta el gap al llamador del pipeline (escribe en `.claude/pipeline/blockage-report.md` seccion "Issue incompleto: falta ADRs aplicables") y termina normalmente.
+- El planner debe completar el issue antes de que el pipeline reanude.
+
+**Precedente ≠ autoridad**: si vas a replicar un patron visto en otro archivo del proyecto o en un PR previo, **verifica primero que ese patron cumple los ADRs aplicables**. Si descubres que el precedente viola un ADR (por ejemplo, un archivo existente usa `[JsonConstructor]` en ctor privado cuando ADR-0015 lo proscribe), **NO lo repliques**. Reporta el hallazgo en tu resumen de decisiones y aplica el patron correcto.
+
 ### 2. Ver el estado actual
 
 ```bash
@@ -775,6 +718,24 @@ Crea el archivo `.claude/pipeline/summaries/stage-2-implementer.md`:
 ### Decisiones de diseno
 - [Cada decision relevante: por que se uso cierta estructura, patron o algoritmo]
 
+### ADRs consultados
+- [Lista de ADRs leidos del issue: ADR-XXXX nombre]
+
+### Desviaciones de ADRs
+Para cada desviacion consciente de un ADR listado en el issue (si la hay):
+
+#### Desviacion: ADR-XXXX
+- **Regla del ADR**: [cita breve]
+- **Desviacion aplicada**: [que se hizo distinto]
+- **Razon**: [por que, con evidencia tecnica]
+- **Consecuencia conocida**: [riesgo asumido]
+- **Status**: pendiente de evaluacion del usuario
+
+Si no hay desviaciones, escribe explicitamente "Ninguna desviacion — todos los ADRs aplicados al pie de la letra."
+
+### Precedentes consultados
+- Si citaste un archivo/PR del proyecto como referencia, lista aqui cada uno con nota de "alineado con ADR-XXXX" o "VIOLA ADR-XXXX — reportado como bug pero no replicado".
+
 ### Infraestructura modificada
 - [Topics y subscriptions agregados, o "ninguna" si no aplica]
 
@@ -785,40 +746,22 @@ Crea el archivo `.claude/pipeline/summaries/stage-2-implementer.md`:
 - Tests pasando: N/N
 ```
 
-**Importante:** NO incluyas este archivo en el commit. Es un artefacto del pipeline.
+**Importante:** NO incluyas este archivo en el commit. Es un artefacto del pipeline. La seccion "Desviaciones de ADRs" sera sincronizada al comentario del PR y al issue por el skill de pipeline.
 
 ---
 
 ## Reglas absolutas
 
+Estas son reglas procedimentales del pipeline. **Las reglas arquitectonicas (patrones de dominio, modelado, manejo de errores, serializacion, naming) viven exclusivamente en los ADRs del proyecto** — este agente NO las duplica. Lee los ADRs listados en el issue antes de implementar (paso 1b).
+
 1. **NUNCA** modifiques ningun archivo en `tests/`. Los tests son la especificacion.
 2. **NUNCA** agregues tests nuevos. Eso es trabajo del test-writer o reviewer.
 3. **NUNCA** elimines ni omitas un test. Todos deben pasar.
-4. **NUNCA** lances excepciones para logica de negocio en el AggregateRoot. Emite un evento de fallo.
-5. **NUNCA** lances excepciones en metodos `Apply()`. Bloquean eventos compensatorios futuros.
-6. **NUNCA** llames `AppendEvents()` ni `SaveChangesAsync()` manualmente en streams existentes. El middleware lo hace automaticamente.
-7. **NUNCA** hagas try-catch de excepciones de dominio en el CommandHandler.
-8. **NUNCA** uses for/foreach cuando LINQ resuelve el problema.
-9. **NUNCA** adornes comentarios con caracteres decorativos Unicode ni composiciones complejas de separadores. Los comentarios deben ser simples y directos.
-10. **Solo modifica** `infra/environments/dev/main.tf` para infraestructura (y solo el bloque `topics_config`).
-11. **NUNCA** uses `{ get; init; }` en objetos con invariantes — `with {}` bypasea la validacion del factory.
-12. **NUNCA** crees constructores publicos vacios — si la persistencia lo necesita, hazlo `private`.
-13. **NUNCA** crees objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
-14. **NUNCA** uses `record` para value objects con invariantes — usa `sealed class`. Con campos privados, el `record` no aporta nada util: `ToString()` queda vacio, `with {}` queda paralizado, el copy constructor no es invocable. Usa `class` e implementa `IEquatable<T>`.
-15. **Tipos con constructor privado (value objects y eventos)**: cuando implementes un value object `sealed class` o un evento con factory static y constructor privado, incluye siempre el metodo `public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)` en la misma clase. Este metodo registra campos/propiedades privados para serializacion STJ sin poner atributos en la clase. **Debe ser `public`** (no internal) porque los dominios consumidores necesitan registrarlo. `[JsonConstructor]` NO funciona con Marten en constructores privados. Ver ADR-0015 para el patron completo.
-17. **Registrar `ConfigurarSerializacion` con Marten en Program.cs**: cada tipo con `ConfigurarSerializacion` debe registrarse en el bloque `ConfigureMarten` del `Program.cs` del dominio. Si el bloque no existe, crearlo. Sin este registro, `ConfigurarSerializacion` es **codigo muerto** — solo funciona en tests unitarios con opciones propias, nunca en produccion. Patron:
-    ```csharp
-    builder.Services.ConfigureMarten(options =>
-    {
-        if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
-        {
-            stj.Configure(jsonOptions =>
-            {
-                var resolver = new DefaultJsonTypeInfoResolver();
-                MiTipo.ConfigurarSerializacion(resolver);
-                jsonOptions.TypeInfoResolver = resolver;
-            });
-        }
-    });
-    ```
-18. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.
+4. **NUNCA** hagas try-catch de excepciones de dominio en el CommandHandler.
+5. **NUNCA** uses for/foreach cuando LINQ resuelve el problema.
+6. **NUNCA** adornes comentarios con caracteres decorativos Unicode ni composiciones complejas de separadores. Los comentarios deben ser simples y directos.
+7. **Solo modifica** `infra/environments/dev/main.tf` para infraestructura (y solo el bloque `topics_config`).
+8. **Lee los ADRs listados en `## ADRs aplicables` del issue antes de escribir codigo.** Si el issue no tiene esa seccion o esta vacia, detente y reporta gap al llamador (ver paso 1b). No asumas. No improvises.
+9. **Precedente ≠ autoridad.** Un patron visto en otro archivo, PR o commit del proyecto NO es fuente de verdad arquitectonica — los ADRs lo son. Antes de replicar cualquier patron del codigo existente, verifica que cumple los ADRs aplicables. Si el precedente los viola (ejemplo tipico: `[JsonConstructor]` en ctor privado cuando ADR-0015 lo proscribe), reportalo como bug en tu resumen de decisiones y NO lo replicues. Aplica el patron correcto segun el ADR.
+10. **Documenta toda desviacion consciente de un ADR.** Si decides apartarte deliberadamente de un ADR listado en el issue (por razon tecnica legitima), registralo en la seccion "Desviaciones de ADRs" del resumen del pipeline con el formato especificado (regla del ADR, desviacion aplicada, razon, consecuencia conocida). Esto queda disponible para evaluacion del usuario. Desviarse sin documentar es el peor outcome posible.
+11. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.

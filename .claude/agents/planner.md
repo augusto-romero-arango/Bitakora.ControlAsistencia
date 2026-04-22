@@ -256,7 +256,9 @@ Tu rol:
    - Si la causa es tamaño o ejes múltiples, propón un **desglose** (cambia al modo `desglosar` para cortar el issue en sub-issues que sí pasen el checklist).
    - Si la causa es ambigüedad o falta de decisión estructural, resuélvela con el usuario antes de continuar. No es aceptable pasar al DoR con ambigüedades activas.
 
-7. Verifica el Definition of Ready antes de marcar como listo:
+7. **Enumera los ADRs aplicables** en la sección `## ADRs aplicables` del issue. Consulta el índice temático en `CLAUDE.md` y agrega cada ADR que el issue toca (serialización, errores ES, naming, topics, etc.). Esta sección es el anclaje contractual del issue a la arquitectura — el implementer y el reviewer la leen antes de decidir patrones. No copies el contenido del ADR; solo lista nombre + descripción breve.
+
+8. Verifica el Definition of Ready antes de marcar como listo:
 
    Lee `docs/adr/0014-definition-of-ready.md`, determina el tipo del issue, y verifica cada criterio obligatorio y critico de la tabla DoR correspondiente.
 
@@ -270,7 +272,7 @@ Tu rol:
      --add-label "tipo:[tipo]" \
      --add-label "dom:[dominio]"
    ```
-8. Si el issue tiene dependencias no cerradas, agrega también `--add-label "bloqueado"`
+9. Si el issue tiene dependencias no cerradas, agrega también `--add-label "bloqueado"`
 
 ### limpiar
 El usuario quiere descartar, cerrar o reorganizar issues que ya no tienen sentido.
@@ -368,6 +370,7 @@ Aplica este checklist mentalmente antes de cualquier `gh issue edit --add-label 
 - [ ] Estimación informal <30 min para un humano competente
 - [ ] Modelo de eventos inequívoco (cuando aplica por DoR)
 - [ ] Si el issue crea lógica compleja interna de un aggregate, se consideró explícitamente si conviene extraerla como clase pura
+- [ ] Sección "ADRs aplicables" enumera todos los ADRs que el issue toca (o "Ninguno" si no aplica)
 
 **Este checklist es el último paso antes de marcar `estado:listo` (o crear un issue con ese label).** Solo cuando todas las casillas están marcadas — y además se cumple el DoR (ADR-0014) — el issue pasa al estado listo.
 
@@ -428,6 +431,17 @@ gh issue create \
 
 (Si el issue no involucra comportamiento de dominio — ej: refactor, tooling — omitir esta seccion)
 
+## ADRs aplicables
+Enumera los ADRs que rigen este issue (nombre + descripcion breve, sin copiar su contenido). Referencia el indice tematico de `CLAUDE.md` para cuales aplican. Ejemplos:
+- ADR-0015: modelado de objetos de dominio (este issue crea value objects con invariantes / tipos con ctor privado).
+- ADR-0007: manejo de errores en event sourcing (si hay eventos de fallo o Apply() del aggregate).
+- ADR-0004: topics por evento (si se publica a Service Bus).
+- ADR-0012: mensajes en .resx (si se lanzan excepciones o hay labels de `ToString()`).
+
+Esta seccion es el contrato arquitectonico del issue. El implementer debe leer cada ADR listado antes de escribir codigo; el reviewer verifica cumplimiento contra ellos. Si el implementer se desvia de algun ADR, debe documentarlo en el reporte del pipeline.
+
+(Si el issue no toca decisiones arquitectonicas — ej: tooling puro, ajuste cosmetico — escribir "Ninguno".)
+
 ## Interfaz publica
 (Obligatoria cuando el issue crea value objects complejos o aggregates con comportamiento rico.
 Para command handlers simples sin value objects propios, omitir esta seccion.)
@@ -487,6 +501,13 @@ gh issue create \
 
 ## Descripcion
 [que recurso(s) exactos crear o modificar]
+
+## ADRs aplicables
+Enumera los ADRs que rigen este issue de infra. Tipicamente:
+- ADR-0004: topics por evento / subscriptions por consumidor (si provisiona recursos de Service Bus).
+- Otros ADRs de infra que apliquen al recurso en cuestion.
+
+(Si no aplica ningun ADR, escribir "Ninguno".)
 
 ## Criterios de aceptacion
 - [ ] CA-1: terraform validate pasa sin errores

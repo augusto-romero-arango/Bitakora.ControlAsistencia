@@ -55,6 +55,21 @@ El prompt que recibes contiene:
 
 Leelo todo antes de hacer cualquier cambio.
 
+### 1b. Leer los ADRs aplicables del issue y el resumen del implementer
+
+El issue debe tener una seccion `## ADRs aplicables`. **Lee cada ADR listado completo**. Son la fuente de verdad contra la cual vas a verificar el codigo — no reglas equivalentes replicadas en este agente.
+
+Lee tambien `.claude/pipeline/summaries/stage-2-implementer.md` para identificar:
+- Que ADRs declaro haber consultado.
+- Si registro **desviaciones** de algun ADR (formato: "Regla / Desviacion / Razon / Consecuencia / Status").
+- Que precedentes del codigo cito el implementer como referencia.
+
+Tu trabajo en esta fase incluye:
+- Verificar que cada ADR aplicable fue cumplido en el diff.
+- Validar las desviaciones declaradas (¿la razon es tecnica legitima? ¿la consecuencia es aceptable?).
+- **Detectar desviaciones NO declaradas por el implementer** — suelen ser las mas riesgosas porque el implementer no las noto.
+- Verificar que los precedentes citados por el implementer estan alineados con los ADRs (si un precedente viola un ADR, el reviewer debe reportarlo como bug).
+
 ### 2. Confirmar baseline verde
 
 ```bash
@@ -103,111 +118,51 @@ Si el reporte existe:
 5. Corre `dotnet test` para confirmar
 6. Documenta la correccion en el reporte como "bug de framework, no cambio de especificacion"
 
-### 3. Checklist de patrones ES
+### 3. Verificar cumplimiento de los ADRs aplicables
 
-Revisa sistematicamente cada area. Para cada problema encontrado: corrigelo, corre `dotnet test`, y si pasa continua; si falla, revierte con `git checkout -- <archivo>`.
+Esta fase reemplaza el antiguo "checklist de patrones ES" (que duplicaba reglas que viven en ADRs). **Verifica el diff directamente contra los ADRs listados en `## ADRs aplicables` del issue**. Para cada ADR:
 
-#### AggregateRoot
+1. Lee el ADR completo (si no lo hiciste en el paso 1b).
+2. Identifica sus reglas concretas (proscripciones, prescripciones, patrones canonicos).
+3. Revisa el diff verificando que cada archivo nuevo/modificado las cumple.
+4. Si encuentras un incumplimiento:
+   - Si el implementer lo declaro como desviacion en su resumen, evalua si la razon y la consecuencia son aceptables. Registra tu evaluacion.
+   - Si NO lo declaro, es una desviacion no reportada: intenta corregir el codigo (siguiendo las reglas estandar: `dotnet test` despues de cada cambio, revertir si rompe). Si no es trivial corregir, documentalo como hallazgo bloqueante.
+5. **Verifica precedentes citados por el implementer**: si cito algun archivo/PR del proyecto como referencia, valida que el precedente realmente cumple el ADR. Si el precedente viola el ADR (como paso con PR 142 vs ADR-0015), reporta el bug del precedente en tus hallazgos — pero NO lo uses para justificar replicar la violacion.
 
-- **`Apply()` solo asigna estado**: sin `if`, sin `throw`, sin logica condicional. Si encuentras logica en un `Apply()`, es un bug — refactorizalo hacia el metodo de comportamiento.
-- **Factory method estatico para creacion**: `public static MiAggregate Crear(...)`. Nunca constructor publico con parametros para crear agregados nuevos.
-- **Propiedades con `private set`**: encapsulacion real. Si una propiedad tiene `set` publico, corrigelo.
-- **Reglas de negocio → evento de fallo, nunca `throw`**: si un metodo de comportamiento lanza una excepcion para logica de dominio, refactorizalo para que emita un evento de fallo y retorne.
-- **LINQ sobre for/foreach**: para transformaciones y filtros en propiedades calculadas (mas idiomatico y compacto en C#).
+**Violaciones de ADR-0015 a detectar activamente** (patrones reales detectados en reviews previos que los agentes suelen desestimar):
 
-#### CommandHandler
+- `[JsonConstructor]` en ctor privado de VO/evento — **bloqueante** (no funciona con Marten, ADR-0015 l.227-230). Si el diff lo introduce: fallar, pedir migracion al patron canonico (ctor vacio privado + campos `private readonly` + `ConfigurarSerializacion`).
+- `record` con `IReadOnlyList<T>` / `List<T>` / `T[]` — **bloqueante** (ADR-0015 l.43-45). `EqualityComparer<IReadOnlyList<T>>.Default` usa igualdad de referencia; el `record` promete valor equality que no cumple. Migrar a `sealed class` con `IEquatable<T>` manual + `SequenceEqual`. **No desestimes este hallazgo con "el issue no pide tests de IEquatable"**: la regla del ADR aplica al **tipo**, no a los tests.
+- `ConfigurarSerializacion` sin registro en `ConfiguracionSerializacion{Dominio}.ConfigurarResolver` — **bloqueante** (ADR-0015 l.253-254). Grep `ConfigurarSerializacion` en el diff; para cada uno, verifica que hay una linea correspondiente en `ConfigurarResolver`. Sin registro es codigo muerto.
+- Tests de round-trip con `JsonSerializer.Serialize(obj)` sin opciones — **bloqueante**. Los tests pasan con STJ vanilla aunque el registro en el dominio no exista. Reemplazar por `ConfiguracionSerializacion{Dominio}.CrearOpcionesMarten()`. Si el test vive en un proyecto que no puede depender del dominio (ej `Contracts.Tests`), moverlo a `{Dominio}.Tests/Infraestructura/`.
+- Falta de test "sin registro falla" — **sugerencia**. Para cada tipo con `ConfigurarSerializacion`, debe existir un test que verifique `NotSupportedException` al deserializar con resolver vacio. Es la barrera que protege contra que alguien borre la linea de registro en `ConfigurarResolver`.
 
-- **Orquestador puro**: no debe contener logica de negocio. Si hay validaciones de reglas del dominio dentro del handler, pertenecen al AggregateRoot.
-- **Heuristica Crear/Modificar/Upsert correcta**:
-  - Crear (stream nuevo): `ExistsAsync` → si existe, `throw` (HTTP 409)
-  - Modificar (stream existente): `GetAggregateRootAsync` → si no existe, `throw` (HTTP 404)
-  - Trigger ServiceBus que modifica: si aggregate no existe → el aggregate emite evento de fallo, no throw
-- **Sin `AppendEvents()` ni `SaveChangesAsync()` manuales en streams existentes**: el `UnitOfWorkMiddleware` los ejecuta automaticamente. Solo `eventStore.StartStream(aggregate)` es manual (para streams nuevos).
-- **Sin try-catch de excepciones de dominio**: si hay un `try-catch` que atrapa excepciones de logica de negocio, eliminarlo.
+**Convenciones del pipeline que NO estan en ADRs** (revisa tambien):
 
-#### Tests
+- Cada test tiene `Then(...)` Y al menos un `And<>()` — verificar eventos Y estado del agregado. Si falta alguno, agregarlo.
+- Overloads correctos para stream IDs compuestos: si el aggregate bajo test tiene `ComputarStreamId(...)` o asigna `Id` desde datos del payload en `Apply()`, verificar que los tests usan `Then(streamId, null, ...)`, `And<T,P>(streamId, ...)` y `Given(streamId, ...)`. Si usan los overloads sin `aggregateId`, es un bug — corregirlo (ver excepcion en paso 2b).
+- Fakes manuales, no NSubstitute: las dependencias del handler (distintas del event store y event senders) deben ser clases fake concretas, no mocks de NSubstitute.
+- Nested classes cuando corresponde: si multiples handlers operan sobre el mismo aggregate, deben estar en nested classes con factory methods compartidos.
+- Factory methods para precondiciones repetidas: si el mismo evento de precondicion se repite en muchos tests, debe existir un factory method estatico.
+- Feature folders de produccion: HTTP triggers con sufijo `Function` en el feature folder (`{Comando}Function/`). ServiceBus triggers sin sufijo. Clase del endpoint: `FunctionEndpoint.cs`. Subcarpeta `CommandHandler/` dentro del feature folder. `Entities/` y `Infraestructura/` a nivel raiz del dominio.
+- Feature folders de tests: espejo de produccion. Un archivo por responsabilidad. No mezclar tests de handler, validator y endpoint en un solo archivo.
+- Tests via `ToString()` y comportamiento, no via getters expuestos solo para test.
+- Numeros magicos con significado de dominio → constantes con nombre descriptivo.
 
-- **Cada test tiene `Then(...)` Y al menos un `And<>()`**: verificar eventos emitidos Y estado del agregado. Si falta alguno, agregarlo.
-- **`ThrowExactlyAsync` solo para precondiciones del handler**: aggregate no encontrado, aggregate ya existente. Para reglas de negocio del aggregate se usa `Then(evento de fallo)` + `And<>()`.
-- **Fakes manuales, no NSubstitute**: las dependencias del handler (distintas del event store y event senders) deben ser clases fake concretas, no mocks de NSubstitute.
-- **Nested classes cuando corresponde**: si multiples handlers operan sobre el mismo aggregate, deben estar en nested classes con factory methods compartidos.
-- **Factory methods para precondiciones repetidas**: si el mismo evento de precondicion se repite en muchos tests, debe existir un factory method estatico.
-- **Overloads correctos para stream IDs compuestos**: si el aggregate bajo test tiene `ComputarStreamId(...)` o asigna `Id` desde datos del payload en `Apply()`, verificar que los tests usan `Then(streamId, null, ...)`, `And<T,P>(streamId, ...)` y `Given(streamId, ...)`. Si usan los overloads sin `aggregateId`, es un bug — corregirlo (ver excepcion en paso 2b).
-
-#### Boundaries entre proyectos
-
-- **`IPublicEvent` SOLO en `Contracts/Eventos/`**: si encuentras un evento publico en un proyecto de dominio, moverlo a Contracts. El consumidor solo debe depender de Contracts.
-- **CERO `InternalsVisibleTo` de Contracts hacia proyectos de dominio**: si existe, es senal de que falta un metodo publico de conversion en el VO (ej. `ToDetalle()`). Agregar el metodo y quitar el `InternalsVisibleTo`.
-- **VOs que necesitan proyectarse a DTOs**: verificar que la conversion vive como metodo publico `To{Dto}()` en el propio VO, no como logica externa que accede a internals.
-- **Records duplicados**: si un record de dominio (ej. `DatosEmpleado` anidado en un command) tiene la misma estructura que uno de Contracts (ej. `InformacionEmpleado`), flaggearlo. El command debe usar el tipo de Contracts directamente.
-- **Wrappers de IEventStore en tests**: si un test crea una clase que implementa `IEventStore` solo para servir un aggregate pre-construido, verificar si `Given(aggregateId, evento)` del framework lo resuelve. El TestStore reconstruye cualquier aggregate por reflection.
-
-#### Naming (ADR-0005, ADR-0008)
-
-- Eventos de exito: sustantivo + participio pasado PascalCase (`TurnoCreado`, `EmpleadoAsignado`)
-- Eventos de fallo: participio pasado + contexto (`AsignacionEmpleadoFallida`)
-- Comandos: verbo infinitivo + sustantivo (`CrearTurno`, `AsignarEmpleadoATurno`)
-- CommandHandlers: `{Comando}CommandHandler`
-- Clase del endpoint: `FunctionEndpoint` (no `Endpoint`)
-- Funciones HTTP: `[Function("NombreDelComando")]` — el nombre es el del comando, no el de la clase
-- Funciones ServiceBus: `[Function("{Accion}Cuando{Evento}")]` — siempre describe la accion Y el estimulo
-
-#### Infraestructura (ADR-0004)
-
-Si el handler usa `IPublicEventSender`, verificar que los topics y subscriptions existen en `infra/environments/dev/main.tf`:
-- Topics en kebab-case, nombre del evento en pasado (`turno-creado`)
-- Subscriptions en kebab-case, patron `{consumidor}-escucha-{productor}` (`depuracion-escucha-marcaciones`, `calculo-horas-escucha-programacion`)
-- Si faltan, agregarlos al bloque `topics_config` del modulo `service_bus`
+Para cada problema encontrado: corrigelo, corre `dotnet test`, y si pasa continua; si falla, revierte con `git checkout -- <archivo>`.
 
 #### Smoke tests (post-#23)
 
-Cuando el diff incluye smoke tests o cuando el dominio publica/consume eventos, verificar:
+Cuando el diff incluye smoke tests o cuando el dominio publica/consume eventos, verificar (estas son convenciones del pipeline de smoke testing — ver tambien ADR-0016):
 
-- **Suscripcion `smoke-tests` en infra**: para cada topic de un dominio publicador, debe existir la suscripcion `smoke-tests` en `infra/environments/dev/main.tf`. Si falta, agregarla al `topics_config`
-- **`appsettings.json` sin secrets reales**: el archivo `appsettings.json` del proyecto de smoke tests debe tener connection strings vacios (`""`), nunca secrets reales. Los secrets se pasan via `appsettings.local.json` (local) o variables de entorno (CI)
-- **`deploy-{dominio}.yml` pasa secrets**: verificar que el workflow de deploy pasa los secrets correspondientes (`ServiceBus__ConnectionString`, `Postgres__ConnectionString`) al job de smoke tests
-- **`Assert.SkipWhen` en tests con fixtures opcionales**: todo test que dependa de `ServiceBusFixture` o `PostgresFixture` debe iniciar con `Assert.SkipWhen(!fixture.IsConfigured, ...)`. Nunca debe fallar por connection string ausente. **Es `Assert.SkipWhen()` (xUnit v3), no `Skip.When()` (no compila)**
-- **Aserciones filtran por campo identificador unico**: los smoke tests de Service Bus deben filtrar eventos por un campo unico (ej: `SolicitudId`), nunca por posicion (`eventos[^1]`, `First()` sin filtro). Esto evita colisiones entre ejecuciones concurrentes
-- **Cobertura completa de efectos secundarios**: para cada smoke test que genera una operacion exitosa (202, 201, etc.), leer el command handler correspondiente y verificar que el test cubra **todos** los efectos secundarios. Buscar `IPublicEventSender.PublishAsync` (publicacion a topics), `IEventStore.StartStream`/`AppendToStream` (persistencia), y en el futuro `ISender.SendAsync` (queues). Si un test verifica el status code HTTP pero no consume los eventos publicados ni verifica la persistencia, **reportarlo como defecto bloqueante** (no como sugerencia)
-- **Sin archivos duplicados para el mismo comando**: no deben existir dos archivos de smoke test separados (ej: `{Comando}SmokeTests.cs` y `{Comando}SbSmokeTests.cs`) para un mismo comando. Todos los tests de un comando van en una sola clase `{Comando}SmokeTests.cs`. Si se detectan archivos duplicados, reportar como defecto bloqueante. Nota: un consumidor que solo tiene trigger Service Bus (sin contraparte HTTP) tiene su propia clase -- esto no viola la regla
-
-#### Organizacion vertical
-
-**Feature folders de produccion:**
-- HTTP triggers: sufijo `Function` en el feature folder (`{Comando}Function/`). ServiceBus triggers sin sufijo
-- Clase del endpoint: `FunctionEndpoint.cs` (no `Endpoint.cs`)
-- Subcarpeta `CommandHandler/` dentro del feature folder para handler, validator y mensajes
-- `Entities/` siempre a nivel raiz del dominio — las entities son de dominio, no de funcion. Nunca dentro de un feature folder
-- `Infraestructura/` a nivel raiz para servicios transversales
-- No deben existir carpetas horizontales (`Dominio/`, `Functions/`) a nivel raiz
-
-**Feature folders de tests:**
-- Espejo de produccion: `tests/.../{Comando}Function/`
-- Un archivo por responsabilidad: `{Comando}CommandHandlerTests.cs`, `{Comando}ValidatorTests.cs`, `FunctionEndpointTests.cs`, `{Evento}Tests.cs`
-- No mezclar tests de handler, validator y endpoint en un solo archivo
-
-#### Mensajes de error
-
-- **Sin strings hardcodeados en mensajes**: todos los mensajes de eventos de fallo del aggregate, excepciones del handler, **excepciones de value objects**, y **labels de presentacion en ToString()** deben venir de la clase `Mensajes` respaldada por .resx. Si encuentras un string literal en cualquiera de estos contextos, muevelo al .resx + clase Mensajes correspondiente.
-- **Aggregates y handlers son `partial class`**: necesario para que la clase Mensajes anidada exista en un archivo separado. Si encuentras `public class TurnoAggregateRoot` o `public class CrearTurnoCommandHandler`, corrigelo a `partial class`.
-- **El .resx esta co-localizado con la clase**: `TurnoAggregateRootMensajes.resx` debe estar en la misma carpeta que `TurnoAggregateRoot.cs`.
-- **Tests verifican mensaje, no solo tipo**: cada `ThrowExactly<X>()` debe incluir `.WithMessage($"*{Clase.Mensajes.Clave}*")`. Si faltan, agregarlos.
-- **Sin fallback `??` en propiedades de Mensajes**: `ResourceManager.GetString(...)!` siempre, nunca `?? "valor"`. El fallback genera ramas fantasma en cobertura.
-
-#### Modelado de objetos (ADR-0015)
-
-Estas son heurísticas — el diseño específico puede haberse ajustado durante el descubrimiento. Verifica antes de corregir ciegamente.
-
-- **Record/clase apropiado**: ¿el objeto muta después de crearse? Si no → debería ser record. Si sí → clase. Si hay un record mutable (`set` público), corregir.
-- **Factory static para objetos con invariantes**: si un Value Object o evento tiene precondiciones y usa constructor público con parámetros en lugar de factory static, refactorizarlo.
-- **Sin constructores públicos vacíos**: si encuentras `public Cedula() {}` o similar, corregirlo a `private`.
-- **Sin `{ get; init; }` en objetos con invariantes**: `init` en un objeto con factory static es una contradicción — permite bypasear la validación vía `with {}`. Corregirlo a `{ get; }` o `{ get; private set; }`.
-- **Tell Don't Ask**: si hay código fuera del objeto calculando algo usando solo datos del objeto, mover el cálculo dentro. Verificar que los aggregates ejecutan sus propios cálculos en los métodos `Apply()` o en métodos de comportamiento.
-- **Eventos con precondiciones usan factory static**: si un evento tiene campos críticos (Guids vacíos, strings nulos) y no tiene factory static, evaluar si lo merece.
-- **Propiedades internas son protected/private**: propiedades de mecanica interna (offsets, minutos absolutos, datos de calculo) no deben ser `public`. La interfaz publica de un value object son sus metodos de comportamiento (`DuracionEnMinutos()`, `ToString()`, etc.). Si un getter publico solo existe para que los tests lo verifiquen, es una señal de que: (a) la propiedad deberia ser `protected` y (b) el test deberia verificar via `ToString()` o comportamiento.
-- **Sin numeros magicos**: literales numericos con significado de dominio (60 min/hora, 1440 min/dia, 7 dias/semana) deben ser constantes con nombre descriptivo (`MinutosPorHora`, `MinutosPorDia`).
-- **Validaciones de consistencia → invariantes del constructor**: si hay metodos publicos que validan consistencia interna (`Contiene`, `SeSolapan`), evaluar si deben ser privados y ejecutarse en el factory. El objeto debe nacer valido.
-- **Diseño de factories**: cuando existen multiples factory methods, evaluar si alguno es siempre superior al otro (interfaz mas limpia, menos parametros, inferencia automatica). En ese caso, el factory inferior puede eliminarse o el superior puede convertirse en el unico `Crear`.
+- **Suscripcion `smoke-tests` en infra**: para cada topic de un dominio publicador, debe existir la suscripcion `smoke-tests` en `infra/environments/dev/main.tf`. Si falta, agregarla al `topics_config`.
+- **`appsettings.json` sin secrets reales**: el archivo `appsettings.json` del proyecto de smoke tests debe tener connection strings vacios (`""`), nunca secrets reales. Los secrets se pasan via `appsettings.local.json` (local) o variables de entorno (CI).
+- **`deploy-{dominio}.yml` pasa secrets**: verificar que el workflow de deploy pasa los secrets correspondientes (`ServiceBus__ConnectionString`, `Postgres__ConnectionString`) al job de smoke tests.
+- **`Assert.SkipWhen` en tests con fixtures opcionales**: todo test que dependa de `ServiceBusFixture` o `PostgresFixture` debe iniciar con `Assert.SkipWhen(!fixture.IsConfigured, ...)`. Nunca debe fallar por connection string ausente. **Es `Assert.SkipWhen()` (xUnit v3), no `Skip.When()` (no compila)**.
+- **Aserciones filtran por campo identificador unico**: los smoke tests de Service Bus deben filtrar eventos por un campo unico (ej: `SolicitudId`), nunca por posicion (`eventos[^1]`, `First()` sin filtro). Esto evita colisiones entre ejecuciones concurrentes.
+- **Cobertura completa de efectos secundarios**: para cada smoke test que genera una operacion exitosa (202, 201, etc.), leer el command handler correspondiente y verificar que el test cubra **todos** los efectos secundarios. Buscar `IPublicEventSender.PublishAsync` (publicacion a topics), `IEventStore.StartStream`/`AppendToStream` (persistencia), y en el futuro `ISender.SendAsync` (queues). Si un test verifica el status code HTTP pero no consume los eventos publicados ni verifica la persistencia, **reportarlo como defecto bloqueante** (no como sugerencia).
+- **Sin archivos duplicados para el mismo comando**: no deben existir dos archivos de smoke test separados (ej: `{Comando}SmokeTests.cs` y `{Comando}SbSmokeTests.cs`) para un mismo comando. Todos los tests de un comando van en una sola clase `{Comando}SmokeTests.cs`.
 
 ---
 
@@ -339,35 +294,57 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 - Calidad: [buena / aceptable / necesita mejoras]
 - Cambios realizados: [si / no]
 
-### Checklist de patrones ES
-| Patron | Estado | Observacion |
+### Cumplimiento de ADRs aplicables
+
+Para cada ADR listado en la seccion `## ADRs aplicables` del issue:
+
+| ADR | Cumplimiento | Observacion |
 |---|---|---|
-| Apply() sin logica condicional | ok / falla | ... |
-| CommandHandler orquestador puro | ok / falla | ... |
-| Sin AppendEvents/SaveChangesAsync manual | ok / falla | ... |
-| ThrowExactlyAsync solo para precondiciones | ok / falla | ... |
-| Cada test con Then() + And<>() | ok / falla | ... |
-| Naming de eventos en pasado | ok / falla | ... |
-| Naming de funciones Azure | ok / falla | ... |
-| Infraestructura Service Bus verificada | ok / falla / n/a | ... |
-| Organizacion vertical (feature folders) | ok / falla | ... |
-| Sin strings hardcodeados en mensajes | ok / falla | ... |
-| Aggregates/handlers son partial class | ok / falla | ... |
-| Modelado record/clase apropiado | ok / falla / n/a | ... |
-| Factory static en objetos con invariantes | ok / falla / n/a | ... |
-| Sin init en objetos con invariantes | ok / falla / n/a | ... |
-| Tell Don't Ask (calculos en el objeto) | ok / falla / n/a | ... |
+| ADR-XXXX: [titulo breve] | ok / desviacion declarada / desviacion NO declarada | [detalle o referencia a seccion "Desviaciones de ADRs"] |
+
+Si el issue no tenia seccion `## ADRs aplicables` o estaba vacia, reportarlo aqui y escalar al planner.
+
+### Desviaciones de ADRs
+
+**Desviaciones declaradas por el implementer** (copiadas de `stage-2-implementer.md`):
+
+#### Desviacion: ADR-XXXX
+- **Regla del ADR**: [cita breve]
+- **Desviacion aplicada**: [que se hizo distinto]
+- **Razon del implementer**: [la que dio]
+- **Consecuencia conocida**: [riesgo]
+- **Evaluacion del reviewer**: [aceptable / cuestionable / inaceptable — con justificacion]
+- **Status**: pendiente de evaluacion del usuario
+
+**Desviaciones detectadas por el reviewer (NO declaradas por el implementer)**:
+
+#### Desviacion: ADR-XXXX
+- **Regla del ADR**: [cita breve]
+- **Desviacion encontrada en el diff**: [archivo:linea y descripcion]
+- **Accion tomada**: [corregida en refactor / no corregible trivialmente — documentada como hallazgo bloqueante]
+- **Status**: pendiente de evaluacion del usuario
+
+Si no hay desviaciones en ningun lado, escribe explicitamente "Ninguna desviacion — todos los ADRs aplicables se cumplen."
+
+### Precedentes consultados por el implementer
+
+Si el implementer cito precedentes del codigo en `stage-2-implementer.md`, verificalos:
+
+| Precedente | ADR aplicable | Veredicto |
+|---|---|---|
+| `archivo.cs` o PR #XX | ADR-XXXX | alineado / VIOLA el ADR (reportado como bug separado) |
+
+### Convenciones del pipeline (no ADRs)
+
+| Convencion | Estado | Observacion |
+|---|---|---|
+| Cada test con `Then()` + `And<>()` | ok / falla | ... |
+| Overloads correctos para stream IDs compuestos | ok / falla / n/a | ... |
+| Fakes manuales (no NSubstitute) | ok / falla / n/a | ... |
+| Feature folders (produccion y tests) | ok / falla | ... |
+| Smoke tests: SkipWhen, secrets, cobertura | ok / falla / n/a | ... |
+| Tests via ToString/comportamiento | ok / falla / n/a | ... |
 | Sin numeros magicos | ok / falla / n/a | ... |
-| Propiedades internas son protected/private | ok / falla / n/a | ... |
-| Tests via ToString (no via getters internos) | ok / falla / n/a | ... |
-| Mensajes en .resx (excepciones Y labels ToString) | ok / falla | ... |
-| Tests verifican mensaje de excepcion (.WithMessage) | ok / falla / n/a | ... |
-| Tests de IEquatable para value objects | ok / n/a | ... |
-| Tests de serializacion round-trip | ok / n/a | ... |
-| IPublicEvent solo en Contracts/Eventos/ | ok / falla / n/a | ... |
-| Sin InternalsVisibleTo de Contracts a dominio | ok / falla | ... |
-| Sin records duplicados (command vs Contracts) | ok / falla / n/a | ... |
-| Sin wrappers de IEventStore en tests | ok / falla / n/a | ... |
 
 ### Elegancia del codigo
 - [Hallazgos sobre compacidad, legibilidad, idiomatismo, robustez, eficiencia o limpieza]
@@ -398,24 +375,17 @@ Crea el archivo `.claude/pipeline/summaries/stage-3-reviewer.md` con el siguient
 
 ## Reglas absolutas
 
+Estas son reglas procedimentales del pipeline. **Las reglas arquitectonicas (patrones de dominio, modelado, manejo de errores, serializacion, naming, .resx) viven exclusivamente en los ADRs del proyecto** — este agente NO las duplica. El paso 3 verifica cumplimiento de los ADRs listados en el issue.
+
 1. **NUNCA** hagas un cambio sin correr `dotnet test` despues.
 2. **NUNCA** dejes tests fallando. Si un refactor rompe algo, reviertelo.
-3. **NO** cambies la API publica (firmas de metodos, interfaces) a menos que estes corrigiendo un bug real.
+3. **NO** cambies la API publica (firmas de metodos, interfaces) a menos que estes corrigiendo un bug real o una desviacion de ADR.
 4. **NO** hagas refactors de codigo no relacionado con la HU. Solo lo que esta en el diff.
 5. Si no hay nada que mejorar, eso es un resultado valido y bueno. No refactorices por refactorizar.
 6. Los tests nuevos que agregues deben pasar (son para casos borde donde la implementacion ya existe o es trivial).
 7. **NUNCA** uses el caracter "─" (U+2500, box drawing) en comentarios ni en ningun texto dentro de archivos `.cs`. Usa siempre el guion ASCII "-" (U+002D). Si durante la revision encuentras este caracter en codigo nuevo, reemplazalo.
-8. **NUNCA** `throw` en metodos `Apply()` — si lo encuentras, corrigelo a asignacion directa de estado.
-9. **NUNCA** `throw` en el AggregateRoot para logica de negocio — debe ser un evento de fallo con `_uncommittedEvents.Add(eventoFallo)`.
-10. **NUNCA** `AppendEvents()` ni `SaveChangesAsync()` manuales en streams existentes — el middleware lo hace automaticamente.
-11. **NUNCA** try-catch de excepciones de dominio en CommandHandlers.
-12. **NUNCA** NSubstitute para fakes de dependencias del handler — solo clases fake manuales.
-13. Todo test nuevo debe tener `Then(...)` Y al menos un `And<>()` — sin excepcion.
-14. **NUNCA** `{ get; init; }` en objetos con invariantes — `with {}` bypasea la validacion del factory.
-15. **NUNCA** constructores publicos vacios en objetos con factory static — `private` para persistencia.
-16. **NUNCA** objetos auxiliares para calculos que el propio objeto puede resolver con sus datos.
-17. **NUNCA** strings literales en `throw`, eventos de fallo, ni en `ToString()` — todo a .resx + clase Mensajes.
-18. **NUNCA** tests que solo verifican el tipo de excepcion sin `.WithMessage(...)` — el mensaje da contexto.
-19. **NUNCA** propiedades de mecanica interna (offsets, minutos absolutos) como `public` en value objects.
-20. **NUNCA** numeros magicos con significado de dominio — extraelos como constantes con nombre.
-21. **NUNCA** `ResourceManager.GetString(...) ?? "fallback"` en propiedades de Mensajes — usar `!` (null-forgiving). El `??` genera ramas no cubiertas en cobertura.
+8. **NUNCA** NSubstitute para fakes de dependencias del handler — solo clases fake manuales.
+9. **Todo test nuevo debe tener `Then(...)` Y al menos un `And<>()`** — sin excepcion.
+10. **Lee los ADRs listados en `## ADRs aplicables` del issue antes de verificar.** Si el issue no tiene esa seccion o esta vacia, reportalo como hallazgo bloqueante y escala al planner para que lo complete.
+11. **Precedente ≠ autoridad.** Si el implementer cito un precedente del codigo, verificalo contra el ADR correspondiente. Si el precedente viola el ADR, reportalo como bug separado pero **NO permitas que la violacion se propague**: exige al implementer aplicar el patron correcto.
+12. **Documenta toda desviacion de un ADR en el reporte** — tanto las declaradas por el implementer (con tu evaluacion) como las detectadas por ti que el implementer no declaro. Las desviaciones no documentadas son el peor outcome posible.

@@ -102,6 +102,28 @@ Setup inicial de labels: `./scripts/setup-github-labels.sh`. Al crear un dominio
 
 Cuando trabajes en una decisión arquitectónica (nueva estrategia de testing, cambio de patrones, adopción de librerías, cambios en comunicación entre dominios), evalúa si merece un ADR en `docs/adr/`. Si lo merece, propónlo como parte del plan. Formato: contexto, decisión, consecuencias.
 
+**Los ADRs son la única fuente de verdad arquitectónica del proyecto.** Los agentes no duplican sus reglas: las consultan, las aplican y documentan cuando se desvían de ellas. El planner evidencia los ADRs aplicables en cada issue; implementer y reviewer los leen y verifican.
+
+### Índice temático de ADRs
+
+Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de tomar decisiones estructurales:
+
+| Tema | ADR |
+|---|---|
+| Serialización, value objects con ctor privado, records vs sealed class, `ConfigurarSerializacion`, proscripción de `[JsonConstructor]` | ADR-0015 |
+| Manejo de errores en event sourcing, eventos de fallo, no-throw en `Apply()` | ADR-0007 |
+| Naming de eventos, versionado | ADR-0005 |
+| Naming de funciones Azure (HTTP y Service Bus) | ADR-0008 |
+| Topics y subscriptions de Service Bus, un topic por evento | ADR-0004 |
+| Estrategia de testing con event sourcing, DSL de tests | ADR-0006 |
+| Contracts: eventos públicos y value objects compartidos | ADR-0002 |
+| Mensajes en `.resx` por aggregate/handler | ADR-0012 |
+| Definition of Ready | ADR-0014 |
+| Smoke tests contra entorno dev | ADR-0016 |
+| Snapshots de Marten (excepción) | ADR-0021 |
+
+Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
+
 ## Notas para definir agentes y skills
 
 - Las herramientas **MCP requieren declaración explícita** cuando un agente usa allowlist `tools:` en su frontmatter. Usa wildcard: `mcp__<servidor>__*` (ej: `mcp__terraform__*`, `mcp__jetbrains__*`).
