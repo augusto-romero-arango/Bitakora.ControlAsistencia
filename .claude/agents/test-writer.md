@@ -74,8 +74,8 @@ var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
 // Given con stream ID explicito (pre-cargar el aggregate bajo test)
 Given(streamId, eventoAnterior);
 
-// Then con stream ID explicito (segundo parametro null = opciones por defecto)
-Then(streamId, null, new EventoEmitido(...));
+// Then con stream ID explicito (sobrecarga de dos argumentos - patron idiomatico del proyecto)
+Then(streamId, new EventoEmitido(...));
 
 // And con stream ID explicito
 And<MiAggregateRoot, string>(streamId, c => c.Id, streamId);
@@ -84,7 +84,7 @@ And<MiAggregateRoot, DateOnly>(streamId, c => c.Fecha, fecha);
 
 **Regla de decision:**
 - Si el aggregate usa `GuidAggregateId` como identidad (caso comun) → usa los overloads sin `aggregateId`: `Then(evento)`, `And<T,P>(selector, valor)`
-- Si el aggregate computa su stream ID desde datos del comando (ej. `ComputarStreamId(empleadoId, fecha)`) → usa los overloads con `aggregateId` explicito: `Then(streamId, null, evento)`, `And<T,P>(streamId, selector, valor)`
+- Si el aggregate computa su stream ID desde datos del comando (ej. `ComputarStreamId(empleadoId, fecha)`) → usa los overloads con `aggregateId` explicito: `Then(streamId, evento)`, `And<T,P>(streamId, selector, valor)`
 
 **Como detectarlo:** busca en el aggregate un metodo estatico `ComputarStreamId(...)` o un `Apply()` que asigne `Id` a un valor calculado (no al GUID del comando). Si existe, el stream ID es compuesto y debes usar overloads explicitos.
 
@@ -742,4 +742,4 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
         public record DatosEmpleado(string EmpleadoId, ...);  // NUNCA si ya existe InformacionEmpleado
     }
     ```
-18. **Aggregates con stream ID compuesto**: si el aggregate computa su `Id` desde datos del payload (ej. `ComputarStreamId(empleadoId, fecha)`) en lugar de usar un GUID, DEBES usar los overloads con `aggregateId` explicito: `Then(streamId, null, eventos)`, `And<T,P>(streamId, selector, valor)`, y `Given(streamId, evento)`. Usar los overloads implicitos producira tests que buscan por el `GuidAggregateId` del harness y nunca encontraran el aggregate.
+18. **Aggregates con stream ID compuesto**: si el aggregate computa su `Id` desde datos del payload (ej. `ComputarStreamId(empleadoId, fecha)`) en lugar de usar un GUID, DEBES usar los overloads con `aggregateId` explicito: `Then(streamId, eventos)` (sobrecarga de dos argumentos - patron idiomatico del proyecto), `And<T,P>(streamId, selector, valor)`, y `Given(streamId, evento)`. Usar los overloads implicitos producira tests que buscan por el `GuidAggregateId` del harness y nunca encontraran el aggregate.
