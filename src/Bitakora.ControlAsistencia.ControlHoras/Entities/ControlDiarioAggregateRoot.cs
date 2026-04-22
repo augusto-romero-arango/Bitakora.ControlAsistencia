@@ -27,6 +27,16 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     public IReadOnlyList<MarcacionNormalizada> Marcaciones => _marcaciones;
     private readonly List<MarcacionNormalizada> _marcaciones = [];
 
+    // HU-123: resultado del depurador de marcaciones aplicado reactivamente en cada Apply.
+    // Se recalcula completo en cada Apply(MarcacionAdicionada) y Apply(TurnoDiarioAsignado).
+    // Expuesta como IReadOnlyList para que los handlers y tests externos puedan consultar.
+    public IReadOnlyList<ControlFranja> ControlesDeFranja => _controlesDeFranja;
+    private readonly List<ControlFranja> _controlesDeFranja = [];
+
+    // HU-123: recalculo reactivo invocado al final de cada Apply
+    // Reemplaza completamente el contenido de _controlesDeFranja con el resultado del depurador
+    private void Depurar() => throw new NotImplementedException();
+
     // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
     public static string ComputarStreamId(string empleadoId, DateOnly fecha) =>
