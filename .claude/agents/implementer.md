@@ -320,16 +320,11 @@ builder.Services.AddValidatorsFromAssemblyContaining<I{Dominio}AssemblyMarker>()
 
 ## Modelado de objetos de dominio
 
-Las reglas de forma (`record` vs `sealed class`), constructor (publico vs privado + vacio), serializacion (`ConfigurarSerializacion`, proscripcion de `[JsonConstructor]`) y registro en infraestructura viven **en ADR-0015**. No las duplico aqui — leelo antes de crear un value object, un evento o cualquier tipo persistido.
+Las reglas de forma (`record` vs `sealed class`), constructor, serializacion (`ConfigurarSerializacion`, proscripcion de `[JsonConstructor]`) y registro en infraestructura viven **en ADR-0015**. Este agente **no las duplica** — leelo completo antes de crear un value object, un evento o cualquier tipo persistido.
 
-Puntos donde fallan tipicamente los agentes (detectados en reviews anteriores):
+Aviso de "precedente ≠ autoridad" (didactico, no reglas enumeradas): reviews pasados (PR 142, PR 144) replicaron violaciones de ADR-0015 (`[JsonConstructor]` en ctor privado, `record` con `IReadOnlyList<T>`, `ConfigurarSerializacion` sin registro) porque el implementer uso el precedente como justificacion. Si tu patron parece resolverlo pero el ADR dice otra cosa, **gana el ADR**. Reportalo como bug del precedente en tu resumen.
 
-- **Value Object / evento con invariantes**: es `sealed class`, no `record`. La distincion clave del ADR es **invariantes**, no mutabilidad. Un `record` con `IReadOnlyList<T>` promete igualdad por valor que no cumple (compara por referencia via `EqualityComparer<T>.Default`).
-- **[JsonConstructor] en ctor privado**: no funciona con Marten (ADR-0015, "Serializacion sin atributos"). El patron canonico es ctor vacio privado + campos `private readonly` + `ConfigurarSerializacion` con `typeInfo.CreateObject` + `FieldInfo.SetValue`.
-- **`ConfigurarSerializacion` sin registro**: si agregas el metodo, agrega la linea `{Tipo}.ConfigurarSerializacion(resolver)` al `ConfigurarResolver` del dominio (clase `ConfiguracionSerializacion{Dominio}`). Sin registro, el metodo es codigo muerto (ADR-0015, "Sin este registro...").
-- **`IEquatable<T>` manual en `sealed class`**: si el tipo tiene colecciones, `Equals` debe usar `SequenceEqual` y `GetHashCode` debe combinar cada elemento con `HashCode.Add`.
-
-Referencias canonicas en el codigo: `SubFranja` (VO con `sealed class` + `ConfigurarSerializacion` + `IEquatable` manual); `TurnoDiarioAsignado` (evento con precondiciones + `ConfigurarSerializacion`).
+Referencias canonicas en el codigo (alineadas con ADR-0015): `SubFranja` (VO con `sealed class` + `ConfigurarSerializacion` + `IEquatable` manual); `TurnoDiarioAsignado` (evento con precondiciones + `ConfigurarSerializacion`). Antes de usarlas como plantilla, verifica que siguen alineadas — el ADR es la autoridad, no el archivo.
 
 ### Encapsulamiento: propiedades internas
 
