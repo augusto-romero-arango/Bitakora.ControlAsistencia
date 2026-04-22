@@ -357,7 +357,7 @@ else
             >"$LOG_SCAFFOLD" 2>&1) &
         SCAFFOLD_PID=$!
         (sleep $SCAFFOLD_TIMEOUT && kill -9 -$SCAFFOLD_PID 2>/dev/null && \
-            echo "[$(date +%H:%M:%S)] TIMEOUT: domain-scaffolder supero ${SCAFFOLD_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
+            echo "[$(date +%H:%M:%S)] TIMEOUT: domain-scaffolder supero ${SCAFFOLD_TIMEOUT}s" >> "$EVENTS_LOG_ABS") </dev/null >/dev/null 2>&1 &
         SCAFFOLD_WATCHDOG=$!
 
         SCAFFOLD_EXIT=0
@@ -430,7 +430,7 @@ run_agent() {
         >"$log_stage" 2>&1) &
     local CLAUDE_PID=$!
     # M3: usar SIGKILL para garantizar que el proceso muere al timeout
-    (sleep $AGENT_TIMEOUT_SECONDS && kill -9 -$CLAUDE_PID 2>/dev/null && echo "[$(date +%H:%M:%S)] TIMEOUT: $agent superó ${AGENT_TIMEOUT_SECONDS}s — eliminado con SIGKILL" >> "$EVENTS_LOG_ABS") &
+    (sleep $AGENT_TIMEOUT_SECONDS && kill -9 -$CLAUDE_PID 2>/dev/null && echo "[$(date +%H:%M:%S)] TIMEOUT: $agent superó ${AGENT_TIMEOUT_SECONDS}s — eliminado con SIGKILL" >> "$EVENTS_LOG_ABS") </dev/null >/dev/null 2>&1 &
     local WATCHDOG_PID=$!
 
     local CLAUDE_EXIT=0
@@ -1156,7 +1156,7 @@ for bn, fullpath in logic_basenames.items():
     ) &
     CG_MEASURE_PID=$!
     (sleep $CG_TIMEOUT_MEASURE && kill -9 $CG_MEASURE_PID 2>/dev/null && \
-        echo "[$(date +%H:%M:%S)] TIMEOUT: coverage measurement supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") &
+        echo "[$(date +%H:%M:%S)] TIMEOUT: coverage measurement supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") </dev/null >/dev/null 2>&1 &
     CG_MEASURE_WATCHDOG=$!
 
     CG_MEASURE_EXIT=0
@@ -1318,7 +1318,7 @@ IMPORTANTE:
             >"$LOG_CG_TW" 2>&1) &
         CG_TW_PID=$!
         (sleep $CG_REMEDIATION_TIMEOUT && kill -9 $CG_TW_PID 2>/dev/null && \
-            echo "[$(date +%H:%M:%S)] TIMEOUT: coverage test-writer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
+            echo "[$(date +%H:%M:%S)] TIMEOUT: coverage test-writer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") </dev/null >/dev/null 2>&1 &
         CG_TW_WATCHDOG=$!
 
         CG_TW_EXIT=0
@@ -1361,7 +1361,7 @@ Pista: revisa los ultimos archivos de test creados/modificados y corrige errores
                     >"$LOG_CG_IM" 2>&1) &
                 CG_IM_PID=$!
                 (sleep $CG_REMEDIATION_TIMEOUT && kill -9 $CG_IM_PID 2>/dev/null && \
-                    echo "[$(date +%H:%M:%S)] TIMEOUT: coverage implementer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") &
+                    echo "[$(date +%H:%M:%S)] TIMEOUT: coverage implementer supero ${CG_REMEDIATION_TIMEOUT}s" >> "$EVENTS_LOG_ABS") </dev/null >/dev/null 2>&1 &
                 CG_IM_WATCHDOG=$!
 
                 CG_IM_EXIT=0
@@ -1394,7 +1394,7 @@ Pista: revisa los ultimos archivos de test creados/modificados y corrige errores
                 (measure_coverage) &
                 CG_REMEASURE_PID=$!
                 (sleep $CG_TIMEOUT_MEASURE && kill -9 $CG_REMEASURE_PID 2>/dev/null && \
-                    echo "[$(date +%H:%M:%S)] TIMEOUT: re-medicion cobertura supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") &
+                    echo "[$(date +%H:%M:%S)] TIMEOUT: re-medicion cobertura supero ${CG_TIMEOUT_MEASURE}s" >> "$EVENTS_LOG_ABS") </dev/null >/dev/null 2>&1 &
                 CG_REMEASURE_WATCHDOG=$!
                 CG_REMEASURE_EXIT=0
                 wait $CG_REMEASURE_PID || CG_REMEASURE_EXIT=$?
