@@ -34,8 +34,14 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private readonly List<ControlFranja> _controlesDeFranja = [];
 
     // HU-123: recalculo reactivo invocado al final de cada Apply
-    // Reemplaza completamente el contenido de _controlesDeFranja con el resultado del depurador
-    private void Depurar() => throw new NotImplementedException();
+    // Reemplaza completamente el contenido de _controlesDeFranja con el resultado del depurador.
+    // Si DetalleTurno es null (marcacion llego antes que el turno), el depurador retorna lista vacia.
+    private void Depurar()
+    {
+        _controlesDeFranja.Clear();
+        var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones);
+        _controlesDeFranja.AddRange(resultado);
+    }
 
     // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
@@ -51,6 +57,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Fecha = e.Fecha;
         DetalleTurno = e.DetalleTurno;
         UltimaSolicitudId = e.SolicitudId;
+        Depurar();
     }
 
     // Factory: crea el aggregate con el evento en _uncommittedEvents para StartStream
@@ -77,6 +84,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     {
         Id = e.Id;
         _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
+        Depurar();
     }
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
