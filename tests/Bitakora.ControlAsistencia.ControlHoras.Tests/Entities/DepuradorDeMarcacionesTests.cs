@@ -136,10 +136,7 @@ public class DepuradorDeMarcacionesTests
         // Marcacion 22:30 del 15 y 05:30 del 16 quedan en la misma franja
         var turno = new DetalleTurno("Nocturno", [Franja22_06_Nocturna]);
 
-        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [
-            new MarcacionNormalizada(En(22, 30), null),
-            new MarcacionNormalizada(EnDiaSiguiente(5, 30), null)
-        ]);
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(22, 30), MSig(5, 30)]);
 
         resultado.Should().BeEquivalentTo(
             new[] { new ControlFranja(Franja22_06_Nocturna, En(22, 30), EnDiaSiguiente(5, 30)) },
@@ -147,7 +144,7 @@ public class DepuradorDeMarcacionesTests
     }
 
     [Fact]
-    public void Depurar_AsignaTodosMarcacionesAFranjaUnica_CuandoHayUnaSolaFranja()
+    public void Depurar_AsignaTodasLasMarcacionesAFranjaUnica_CuandoHayUnaSolaFranja()
     {
         // CA-8: Con una sola franja, el rango es (-inf, +inf) -> todas las marcaciones le pertenecen.
         // Timestamps fuera del horario nominal de la franja para verificar que no se filtra por hora.
@@ -161,7 +158,7 @@ public class DepuradorDeMarcacionesTests
     }
 
     [Fact]
-    public void Depurar_SegundaFranjaEsAnomalas_CuandoSoloPrimeraFranjaTieneMarcaciones()
+    public void Depurar_SegundaFranjaEsAnomala_CuandoSoloPrimeraFranjaTieneMarcaciones()
     {
         // CA-10: Turno partido donde solo la primera franja tiene marcaciones
         // F1 (06:00-12:00): Entrada=05:50, Salida=12:05 -> EsAnomala false
