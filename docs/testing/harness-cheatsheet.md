@@ -52,11 +52,11 @@ Propiedades heredadas de `CommandHandlerTestBase`:
 
 ### `Given` - pre-cargar eventos historicos
 
-Firmas (`CommandHandlerTestBase.cs:40,48`):
+Firmas:
 
 ```csharp
-protected void Given(params object[] events);                             // stream por defecto (AggregateId)
-protected void Given(string aggregateId, params object[] events);         // stream explicito (compuesto o externo)
+protected void Given(string aggregateId, params object[] events);         // CommandHandlerTestBase.cs:40 - stream explicito (compuesto o externo)
+protected void Given(params object[] events);                             // CommandHandlerTestBase.cs:48 - stream por defecto (AggregateId)
 ```
 
 Comportamiento:
@@ -104,21 +104,21 @@ Comportamiento:
 
 ### `Then` - verificar eventos emitidos al stream
 
-Cuatro overloads (`CommandHandlerTestBase.cs:58,66,76,87`):
+Cuatro overloads:
 
 ```csharp
-// Stream por defecto, opciones de equivalencia por defecto
+// CommandHandlerTestBase.cs:58 - stream por defecto, opciones por defecto
 protected void Then(params object[] expectedEvents);
 
-// Stream por defecto, opciones personalizadas
+// CommandHandlerTestBase.cs:66 - stream por defecto, opciones personalizadas
 protected void Then(
     Func<EquivalencyOptions<object>, EquivalencyOptions<object>> options,
     params object[] expectedEvents);
 
-// Stream explicito, opciones por defecto
+// CommandHandlerTestBase.cs:76 - stream explicito, opciones por defecto (IDIOMATICO para composite ids)
 protected void Then(string aggregateId, params object[] expectedEvents);
 
-// Stream explicito, opciones personalizadas
+// CommandHandlerTestBase.cs:87 - stream explicito, opciones personalizadas
 protected void Then(
     string aggregateId,
     Func<EquivalencyOptions<object>, EquivalencyOptions<object>> options,
@@ -143,13 +143,18 @@ Then(
     new MarcacionRegistrada(GuidAggregateId, fecha1, TipoMarcacion.Entrada),
     new MarcacionRegistrada(GuidAggregateId, fecha2, TipoMarcacion.Salida));
 
-// Stream explicito (composite id): el segundo parametro null = opciones por defecto
-Then(streamId, null, new ControlDiarioCerrado(empleadoId, fecha, ...));
+// Stream explicito (composite id) - IDIOMATICO: overload de dos argumentos
+Then(streamId, new ControlDiarioCerrado(empleadoId, fecha, ...));
 
 // Con opciones personalizadas (ignorar campos, tolerar precision de tiempo, etc.)
 Then(
     opt => opt.Excluding(e => ((dynamic)e).Timestamp),
     new EventoConTimestamp(GuidAggregateId, ...));
+
+// Stream explicito + opciones personalizadas (los dos a la vez)
+Then(streamId,
+    opt => opt.Excluding(e => ((dynamic)e).Timestamp),
+    new EventoConTimestamp(...));
 ```
 
 ### `ThenIsPublishedPrivately` - verificar publicacion privada
@@ -299,7 +304,7 @@ And<TurnoAggregateRoot, Turno>(
   Usa `Given(otroId.ToString(), new OtroAggregateCreado(...))`. El `TestStore` reconstruye cualquier aggregate por reflection - no necesitas fakes ni wrappers de `IEventStore`. Fuente: `TestStore.cs:116-159`.
 
 - **¿Que pasa si el aggregate tiene stream ID compuesto (ej. `EmpleadoId:Fecha`)?**
-  Usa los overloads con `aggregateId` explicito: `Given(streamId, evento)`, `Then(streamId, null, evento)`, `And<T, R>(streamId, selector, valor)`. Los overloads implicitos usan `AggregateId` (el GUID del harness), que no coincide con el stream calculado desde el payload.
+  Usa los overloads con `aggregateId` explicito: `Given(streamId, evento)`, `Then(streamId, evento)` (overload de dos argumentos, `CommandHandlerTestBase.cs:76`), `And<T, R>(streamId, selector, valor)`. Los overloads implicitos usan `AggregateId` (el GUID del harness), que no coincide con el stream calculado desde el payload. No uses `Then(streamId, null, evento)` - la sobrecarga de dos argumentos ya aplica opciones por defecto y es el patron idiomatico en el proyecto.
 
 - **¿Puedo sobrescribir los fakes `EventStore`/`PrivateEventSender`/`PublicEventSender`?**
   No debes. Son `protected readonly` e instanciados en la clase base (`CommandHandlerTestBase.cs:25-35`). Inyectalos tal cual en el `Handler` del test. Nunca crees clases que implementen `IEventStore` en tests - el unico valido es el heredado.
