@@ -100,7 +100,9 @@ Tu rol:
 
 No necesitas responder todas en una sola iteración. La conversación puede tomar varias vueltas. El objetivo es que al final puedas llenar la sección "Modelo de eventos" del issue.
 
-Cuando la idea esté clara, ofrece convertirla en issue(s). Al crear el issue, aplica el Definition of Ready de la sección correspondiente: si cumple todos los criterios para su tipo, crea como `estado:listo` usando el template completo; si falta informacion (ej: no se llego a definir el modelo de eventos), crea como `estado:borrador` y sugiere pasar por el modo `refinar`.
+Cuando la idea tome forma y antes de proponer "convertir a issue(s)", aplica la **Revisión de complejidad** (ver sección dedicada más abajo). Si la idea claramente pertenece a múltiples issues, sugiere el desglose desde la conversación, no después: es más barato discutir el corte antes de redactar un issue grande que partirlo cuando ya fue escrito.
+
+Cuando la idea esté clara y dimensionada, ofrece convertirla en issue(s). Al crear el issue, aplica primero el **checklist pre-listo** de la Revisión de complejidad y luego el Definition of Ready de la sección correspondiente: si cumple ambos, crea como `estado:listo` usando el template completo; si falta informacion (ej: no se llego a definir el modelo de eventos) o alguna casilla de complejidad falla, crea como `estado:borrador` y sugiere pasar por el modo `refinar`.
 
 ### desglosar
 El usuario tiene una feature clara pero es demasiado grande para un solo PR.
@@ -109,7 +111,7 @@ Tu rol:
 - Entiende la feature completa
 - Lee el código existente para identificar puntos de integración
 - **Mapea primero el flujo completo de eventos**: qué comandos, qué eventos, qué aggregates, qué cruces entre dominios. Esto determina los cortes naturales para el desglose.
-- Propón un desglose en issues pequeños e independientes. El corte natural suele ser: un issue por comando/handler, con su aggregate y eventos asociados.
+- Propón un desglose en issues pequeños e independientes. El corte natural suele ser: un issue por comando/handler, con su aggregate y eventos asociados. Usa los **puntos de corte naturales** de la Revisión de complejidad (capas, puntos de entrada, ciclos de test, testabilidad) y valida contra los anti-patrones de "Cuándo NO partir".
 - Sugiere un orden de implementación (qué va primero, qué depende de qué)
 - Identifica riesgos técnicos en cada parte
 - Cada sub-issue debe llevar su propia sección "Modelo de eventos"
@@ -118,6 +120,10 @@ Al crear los issues del desglose:
 1. Crea cada issue como **`estado:borrador`** con cuerpo enriquecido que incluya: Contexto, Modelo de eventos (sketch del desglose), Dependencias entre sub-issues. No es necesario que tengan CAs detallados ni notas tecnicas completas — cada issue se refinara individualmente antes de ir a desarrollo.
 2. Usa la sección `## Dependencias` de cada issue para declarar las relaciones entre ellos (ej: "Depende de #N1"). Esto es suficiente para establecer el orden de implementación — no se necesita un issue padre contenedor.
 3. Agrega `--label "bloqueado"` a los issues que dependen de otro no cerrado
+
+**Verifica el corte contra la Revisión de complejidad**: cada sub-issue resultante debe, por sí solo, pasar el checklist pre-listo si se creara como `estado:listo`. Si alguno todavía dispara las alertas cuantitativas o cualitativas, el corte no es suficiente: sigue partiendo o propón un desglose distinto. Ningún sub-issue debería heredar el problema del issue grande original (ambigüedad cruzada, ejes ortogonales múltiples, CAs implícitos).
+
+Si un sub-issue cumple el checklist pre-listo y su DoR al momento de crearlo, puede salir directamente como `estado:listo`; si no, créalo como `estado:borrador` (es el caso más común en desglose).
 
 **No crear issues tipo epic ni issues padre contenedor.** La relación entre issues se establece exclusivamente a través de la sección `## Dependencias`. Los issues contenedores agregan mantenimiento manual sin valor.
 
@@ -246,13 +252,17 @@ Tu rol:
    ISSUEEOF
    )"
    ```
-6. Verifica el Definition of Ready antes de marcar como listo:
+6. **Ejecuta la Revisión de complejidad ANTES del Definition of Ready.** Orden obligatorio: complejidad primero, DoR después. Razón: un issue puede ser DoR-completo y aun así estar demasiado grande o ambiguo para un solo turno del pipeline. Recorre las señales cuantitativas, las cualitativas, la regla de 30 minutos y aplica el checklist pre-listo. Si alguna casilla falla:
+   - Si la causa es tamaño o ejes múltiples, propón un **desglose** (cambia al modo `desglosar` para cortar el issue en sub-issues que sí pasen el checklist).
+   - Si la causa es ambigüedad o falta de decisión estructural, resuélvela con el usuario antes de continuar. No es aceptable pasar al DoR con ambigüedades activas.
+
+7. Verifica el Definition of Ready antes de marcar como listo:
 
    Lee `docs/adr/0014-definition-of-ready.md`, determina el tipo del issue, y verifica cada criterio obligatorio y critico de la tabla DoR correspondiente.
 
    Si el issue no cumple el DoR, completa las secciones faltantes con la informacion de la sesion antes de cambiar a `estado:listo`. Si falta informacion que solo el usuario puede dar, pregunta antes de asumir.
 
-   Una vez satisfecho el DoR, cambia el estado:
+   Una vez satisfechos la Revisión de complejidad y el DoR, cambia el estado:
    ```bash
    gh issue edit <num> \
      --remove-label "estado:borrador" \
@@ -260,7 +270,7 @@ Tu rol:
      --add-label "tipo:[tipo]" \
      --add-label "dom:[dominio]"
    ```
-7. Si el issue tiene dependencias no cerradas, agrega también `--add-label "bloqueado"`
+8. Si el issue tiene dependencias no cerradas, agrega también `--add-label "bloqueado"`
 
 ### limpiar
 El usuario quiere descartar, cerrar o reorganizar issues que ya no tienen sentido.
@@ -295,11 +305,85 @@ Tu rol:
 
 ---
 
+## Revisión de complejidad
+
+Antes de marcar un issue como `estado:listo`, aplica esta revisión. **Corre antes del Definition of Ready (ADR-0014)**: un issue puede cumplir el DoR y aun así estar demasiado grande o ambiguo para un solo turno del pipeline. Si disparan varias alertas, propone partir o refinar antes de continuar.
+
+**Origen**: field notes del 2026-04-21 (split del issue #107 después de que saturó al test-writer con rumination infinita). La política existe para prevenir recaídas de esa clase.
+
+Se aplica en los modos `explorar` (antes de proponer "convertir a issue"), `desglosar` (contra cada sub-issue resultante) y `refinar` (antes del DoR, paso 6).
+
+### Señales cuantitativas
+
+| Métrica | Alerta si | Acción sugerida |
+|---|---|---|
+| Criterios de aceptación por issue | >6 revisar; >9 casi siempre partir | Revisar si son casos del mismo eje; si tocan ejes distintos, partir |
+| Archivos CREADOS con lógica no trivial | >3 | Partir por capa |
+| Archivos MODIFICADOS (excluyendo `Program.cs` e infra) | >2 | Partir por punto de entrada |
+| Familias o clases de tests previstas | >1 | Cada familia = issue distinto |
+| Artefactos nuevos de tipo distinto (VO, aggregate, comando, handler, evento) | >2 | Secuenciar en issues separados |
+
+Las métricas son señales, no sentencias: un issue con 7 CAs donde los 7 son variaciones del mismo escenario (un único eje) puede seguir siendo legítimo — justifícalo explícitamente en la revisión. Un issue con 5 CAs que tocan 3 ejes distintos no lo es.
+
+### Señales cualitativas
+
+- **Ejes ortogonales de cambio**: ideal 1. Si el issue toca lógica + aggregate + publicación + infra, son 4 ejes — candidato fuerte a partir por capa. Cada eje ortogonal extra es un costo cognitivo que el test-writer paga leyendo el issue.
+- **Capas separables**: cuando el issue combina lógica pura + hook reactivo + publicación + infra, partir por capas produce cortes limpios porque cada capa se testea por separado (lógica pura sin harness; integración con harness).
+- **Ambigüedad cruzada entre secciones del issue**: si CA-X dice que lo cubre Familia Y, pero Familia Y no ejerce X, hay contradicción — resolver antes de `listo`. (Causa raíz del atasco de #107: CA-6 "sin turno asignado" asignado a Familia 2 cuando solo Familia 1 lo ejerce.)
+- **Indecisión estructural en nombres**: "en carpeta A o B", "junto al aggregate o en carpeta dedicada", "como VO o como clase estática" son señales claras de que no se decidió la ubicación — decidir antes de `listo`, no durante el pipeline.
+- **CAs implícitos no testeables por sí solos**: "se recalcula completamente", "se ejecuta siempre", "queda consistente" sin escenario concreto son corolarios del algoritmo, no tests. Convertir a escenario verificable (ej: "dado X, Y y Z secuenciales, la lista final contiene A, B, C") o eliminar.
+
+### Regla del turno de 30 minutos
+
+Pregúntate: **"¿Puedo imaginar a un humano competente resolviendo este issue en una sola pasada en menos de 30 minutos sin tener que volver a pensar cosas estructurales?"**
+
+- Si la respuesta es "sí, con claridad": el issue está bien dimensionado.
+- Si la respuesta es "no sé" o "probablemente no": el issue es candidato a partir.
+
+El humano imaginario es la vara de referencia porque replica la dinámica real del pipeline: un turno focalizado sin volver a decidir arquitectura a mitad de camino. Si un humano tendría que pararse a pensar "¿dónde va esto?" o "¿esto es un caso de la Familia 1 o la 2?", el test-writer hará lo mismo — y probablemente ruminará.
+
+### Puntos de corte naturales
+
+| Patrón | Cuándo aplicarlo |
+|---|---|
+| **Por capas**: VO/clase pura → hook al aggregate → publicación → infra | El issue combina lógica pura testeable aparte con integración al aggregate. La lógica extraída se testea unitariamente sin harness; la integración se testea funcionalmente. Fue el corte aplicado al split de #107 (→ #122 + #123). |
+| **Por punto de entrada**: un issue por handler/comando | El flujo toca varios handlers o varios comandos distintos. Cada handler es un turno del pipeline con su propio aggregate y sus propios eventos. |
+| **Por ciclo test**: un issue por ciclo rojo/verde autocontenido | El issue contiene varios comportamientos que se pueden testear por separado y que el pipeline TDD correría en ciclos distintos. Cada ciclo = un issue. |
+| **Por testabilidad**: extraer lógica compleja a clase estática o VO con tests unitarios puros, separado de la integración al aggregate | La lógica interna de un aggregate es lo suficientemente rica como para justificar tests unitarios propios (algoritmos, cálculos, máquinas de estado). Se extrae como pieza testeable sin harness y luego se enchufa al aggregate en un segundo issue. |
+
+### Cuándo NO partir
+
+- **VO o clase huérfana entre PRs**: si el corte deja una clase sin consumidor en el PR donde se crea, queda código muerto hasta que el siguiente PR la use. Un issue un poco grande es preferible a código huérfano.
+- **CAs fuertemente acoplados**: el CA-2 solo tiene sentido con el CA-1 del mismo issue. Partir fuerza a duplicar setup o a crear dependencias artificiales que no aportan claridad.
+- **Corte cosmético**: partir solo reduce el conteo de CAs sin mejorar claridad ni cohesión. Dos issues con los mismos ejes ortogonales no es progreso — es fragmentación.
+- **Issue ya en ejecución**: si el pipeline ya está corriendo contra el issue con un agente, partir durante la ejecución es más costoso que terminar. Deja que termine y aprende para el siguiente.
+
+### Checklist pre-listo
+
+Aplica este checklist mentalmente antes de cualquier `gh issue edit --add-label estado:listo` o `gh issue create --label estado:listo`. Si alguna casilla falla, propone partir o refinar más antes de marcar listo.
+
+- [ ] Conteo de CAs ≤ 6, o justificado con issue homogéneo (todos los CAs ejercen el mismo eje)
+- [ ] Ningún archivo del issue tiene ubicación ambigua ("A o B")
+- [ ] Ninguna sección del issue se contradice con otra (CAs asignados a familias que los ejercen)
+- [ ] Estimación informal <30 min para un humano competente
+- [ ] Modelo de eventos inequívoco (cuando aplica por DoR)
+- [ ] Si el issue crea lógica compleja interna de un aggregate, se consideró explícitamente si conviene extraerla como clase pura
+
+**Este checklist es el último paso antes de marcar `estado:listo` (o crear un issue con ese label).** Solo cuando todas las casillas están marcadas — y además se cumple el DoR (ADR-0014) — el issue pasa al estado listo.
+
+### Frase guía
+
+Cuando dudes, recuerda (y comparte con el usuario cuando sea útil):
+
+> **"Prefiero dos issues claros y pequeños a uno grande y ambiguo. Partir es reversible; saturar al test-writer no lo es sin perder trabajo."**
+
+---
+
 ## Definition of Ready
 
 Lee y aplica los criterios de `docs/adr/0014-definition-of-ready.md`. Ese documento define la tabla DoR por tipo de issue y es la fuente unica de verdad compartida con el skill `/implement`.
 
-**Regla clave**: un issue solo puede pasar a `estado:listo` si cumple todos los criterios obligatorios y criticos de su tipo segun el ADR-0014.
+**Regla clave**: un issue solo puede pasar a `estado:listo` si cumple todos los criterios obligatorios y criticos de su tipo segun el ADR-0014 **y** todas las casillas del checklist pre-listo de la Revisión de complejidad. El DoR y la Revisión de complejidad son capas complementarias: el DoR garantiza completitud de información; la Revisión de complejidad garantiza tamaño y claridad. Uno sin el otro no alcanza.
 
 ---
 
