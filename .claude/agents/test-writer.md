@@ -15,7 +15,7 @@ Eres el especialista en testing de event sourcing del proyecto ControlAsistencia
 
 ## Harness de testing disponible
 
-El proyecto usa `Cosmos.EventSourcing.Testing.Utilities`. Estas son las herramientas que tienes disponibles al heredar de las clases base:
+El proyecto usa `Cosmos.EventSourcing.Testing.Utilities`. La **referencia canonica y verificada contra la fuente** esta en [`docs/testing/harness-cheatsheet.md`](../../docs/testing/harness-cheatsheet.md). Lo que sigue es un resumen inline para consulta rapida; **ante cualquier duda del harness, ve al cheatsheet** (firmas exactas, comportamientos no obvios, dudas frecuentes resueltas). Ver tambien "Resolver dudas del harness" y "Politica anti-rumination" mas abajo.
 
 **Clases base (elige segun el tipo de handler):**
 
@@ -33,7 +33,7 @@ El proyecto usa `Cosmos.EventSourcing.Testing.Utilities`. Estas son las herramie
 - `AggregateId` — string con un UUID v7 generado para el test. Es el stream ID **por defecto** que usan `Then()`, `And<>()` y `Given()` cuando no se pasa un `aggregateId` explicito
 - `GuidAggregateId` — el mismo UUID como `Guid`
 
-**DSL de verificacion:**
+**DSL de verificacion** (resumen; ver cheatsheet para el detalle completo):
 
 ```csharp
 // Precondiciones: eventos que ya existian antes del comando
@@ -87,6 +87,84 @@ And<MiAggregateRoot, DateOnly>(streamId, c => c.Fecha, fecha);
 - Si el aggregate computa su stream ID desde datos del comando (ej. `ComputarStreamId(empleadoId, fecha)`) → usa los overloads con `aggregateId` explicito: `Then(streamId, null, evento)`, `And<T,P>(streamId, selector, valor)`
 
 **Como detectarlo:** busca en el aggregate un metodo estatico `ComputarStreamId(...)` o un `Apply()` que asigne `Id` a un valor calculado (no al GUID del comando). Si existe, el stream ID es compuesto y debes usar overloads explicitos.
+
+---
+
+## Resolver dudas del harness
+
+Cuando tengas una duda sobre el harness (¿`Given` soporta X? ¿`Then` con un solo evento hace subset o count exacto? ¿el overload acepta tal parametro?), **NO rumies — consulta**. El cheatsheet y la fuente responden todo en segundos.
+
+**Orden de consulta (de barato a caro):**
+
+1. **Cheatsheet del repo** (referencia primaria, ya verificada contra la fuente):
+   ```bash
+   # Leer el cheatsheet completo cuando la duda es conceptual
+   cat docs/testing/harness-cheatsheet.md
+
+   # O navegar directo a la seccion que te interesa
+   grep -n "^### Given"                    docs/testing/harness-cheatsheet.md
+   grep -n "^### Then"                     docs/testing/harness-cheatsheet.md
+   grep -n "ThenIsPublishedPublicly"       docs/testing/harness-cheatsheet.md
+   grep -n "^### \`And"                    docs/testing/harness-cheatsheet.md
+   grep -n "Dudas frecuentes resueltas"    docs/testing/harness-cheatsheet.md
+   ```
+
+2. **Ejemplos reales en los tests del proyecto** (si la duda es de uso idiomatico):
+   ```bash
+   find tests -name '*HandlerTests.cs' | head -3
+   grep -rn "ThenIsPublishedPublicly"   tests/ | head -5
+   grep -rn "And<.*streamId"            tests/ | head -5
+   ```
+
+3. **Fuente del package (fallback)** cuando el cheatsheet no cubre tu duda:
+   ```bash
+   # Localizar el path del NuGet cache
+   dotnet nuget locals global-packages --list
+   # Ruta esperada: /Users/<user>/.nuget/packages/cosmos.eventsourcing.testing.utilities/<version>/
+
+   # Si el package shipea DLL (sin .cs), descompilar:
+   ilspycmd "$(dotnet nuget locals global-packages --list | awk -F': ' '{print $2}')/cosmos.eventsourcing.testing.utilities/<version>/lib/net10.0/Cosmos.EventSourcing.Testing.Utilities.dll" \
+     -p -o /tmp/cosmos-testing-decompiled
+   ls /tmp/cosmos-testing-decompiled
+   ```
+
+   Archivos clave del package (los nombres son estables entre versiones menores):
+   - `CommandHandlerTestBase.cs` — define `Given`, `Then`, `ThenIsPublished*`, `And<>`
+   - `CommandHandlerAsyncTest.cs` — expone `WhenAsync`
+   - `CommandHandlerTest.cs` — expone `When`
+   - `TestStore.cs` — reconstruccion de aggregates por reflection
+   - `TestPrivateEventSender.cs`, `TestPublicEventSender.cs` — fakes de publicacion
+
+**Si actualizas el cheatsheet** con un hallazgo nuevo, inclulolo en el mismo commit de los tests. Lo que aprendiste no debe perderse.
+
+---
+
+## Politica anti-rumination
+
+Una regla dura para no quemar budget de tokens deliberando en vez de leyendo codigo:
+
+> **Si en tu thinking llevas 2 o mas reflexiones sobre si el harness soporta X, DEBES detenerte y consultar el cheatsheet o la fuente ANTES de continuar.**
+
+No dos "reflexiones" sobre temas distintos — dos ciclos sobre la **misma** duda del harness (ej: "¿puedo pasar multiples eventos a `Given`? creo que si... aunque quiza no... si es `params object[]` deberia... pero el generic podria restringir..."). Cuando notes ese patron:
+
+1. **Para el thinking inmediatamente.**
+2. **Grepea el cheatsheet** con el termino que te tiene dudando:
+   ```bash
+   grep -n "Given"      docs/testing/harness-cheatsheet.md
+   grep -n "subset"     docs/testing/harness-cheatsheet.md
+   ```
+3. **Si no encuentras respuesta en el cheatsheet**, ve a la fuente (ver arriba).
+4. **Si descubres algo que no esta en el cheatsheet**, agregalo a "Dudas frecuentes resueltas" con cita de linea.
+
+**Principio**: mejor un agente que consulta codigo una vez mas, que uno que rumia hasta agotar el budget de tokens. Leer 20 lineas de `CommandHandlerTestBase.cs` toma 1 segundo y resuelve la duda; deliberar en thinking sobre capacidades sin evidencia gasta miles de tokens y llega a la misma conclusion (o peor: una conclusion incorrecta).
+
+**Senales de que estas rumiando (no reflexionando productivamente):**
+- Estas oscilando entre dos hipotesis sin evidencia nueva ("si soporta... no, quiza no... si soporta...").
+- Estas enumerando todas las posibilidades teoricas en vez de verificar la real.
+- Has escrito "aunque podria ser que...", "pero tambien existe la posibilidad de...", "depende de si..." mas de una vez sobre el mismo tema.
+- El thinking esta desviandose de resolver la duda hacia rediseñar tu acercamiento general.
+
+Cuando detectes cualquiera de esas señales: **stop, grep, read, decide**.
 
 ---
 
