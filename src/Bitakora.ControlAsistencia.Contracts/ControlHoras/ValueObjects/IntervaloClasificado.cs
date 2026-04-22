@@ -5,5 +5,5 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 public record IntervaloClasificado(IntervaloTemporal Intervalo, Concepto Concepto)
 {
     // Delega al IntervaloTemporal contenido.
-    public int DuracionEnMinutos => throw new NotImplementedException();
+    public int DuracionEnMinutos => Intervalo.DuracionEnMinutos;
 }

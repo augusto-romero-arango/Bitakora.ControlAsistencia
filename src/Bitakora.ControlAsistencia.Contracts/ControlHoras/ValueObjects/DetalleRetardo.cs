@@ -26,14 +26,20 @@ public sealed partial record DetalleRetardo
     public int MinutosCompensados { get; }
 
     // MinutosRetardados - MinutosCompensados (seguro por invariante del factory).
-    public int RetardoNeto => throw new NotImplementedException();
+    public int RetardoNeto => MinutosRetardados - MinutosCompensados;
 
     // Factory con invariante: MinutosCompensados <= MinutosRetardados.
     public static DetalleRetardo Crear(
         IReadOnlyList<IntervaloTemporal> tiempoRetardado,
         IReadOnlyList<IntervaloTemporal> tiempoCompensado)
-        => throw new NotImplementedException();
+    {
+        var minutosRetardados = tiempoRetardado.Sum(i => i.DuracionEnMinutos);
+        var minutosCompensados = tiempoCompensado.Sum(i => i.DuracionEnMinutos);
+        if (minutosCompensados > minutosRetardados)
+            throw new ArgumentException(Mensajes.CompensadosExcedenRetardados);
+        return new DetalleRetardo(tiempoRetardado, tiempoCompensado, minutosRetardados, minutosCompensados);
+    }
 
     // Franja sin retardo ni compensacion.
-    public static DetalleRetardo Vacio => throw new NotImplementedException();
+    public static DetalleRetardo Vacio => new([], [], 0, 0);
 }
