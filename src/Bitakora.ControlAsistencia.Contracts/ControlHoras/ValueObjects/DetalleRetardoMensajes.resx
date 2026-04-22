@@ -20,7 +20,16 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="CompensadosExcedenRetardados" xml:space="preserve">
-    <value>Los minutos compensados no pueden exceder los minutos retardados</value>
+  <data name="SinRetardo" xml:space="preserve">
+    <value>Sin retardo</value>
+  </data>
+  <data name="LabelRetardo" xml:space="preserve">
+    <value>Retardo</value>
+  </data>
+  <data name="LabelCompensado" xml:space="preserve">
+    <value>Compensado</value>
+  </data>
+  <data name="LabelNeto" xml:space="preserve">
+    <value>Neto</value>
   </data>
 </root>

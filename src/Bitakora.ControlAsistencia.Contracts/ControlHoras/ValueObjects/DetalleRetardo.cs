@@ -4,8 +4,9 @@ using System.Text.Json.Serialization.Metadata;
 namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 
 // Issue #114: Detalle del retardo de una franja - intervalos retardados y compensados.
-// ADR-0015: sealed class con factory (invariante) + ctor vacio privado + ConfigurarSerializacion.
-// IEquatable manual con SequenceEqual en las listas (record no cumpliria la promesa).
+// ADR-0015: sealed class con factory + ctor vacio privado + ConfigurarSerializacion.
+// El unico observable publico es RetardoNeto (el castigo). Los datos crudos e intermedios
+// son privados; se exponen como texto via ToString() para trazabilidad/auditoria.
 public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
 {
     private readonly IReadOnlyList<IntervaloTemporal> _tiempoRetardado = [];
@@ -13,11 +14,9 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
     private readonly int _minutosRetardados;
     private readonly int _minutosCompensados;
 
-    public IReadOnlyList<IntervaloTemporal> TiempoRetardado => _tiempoRetardado;
-    public IReadOnlyList<IntervaloTemporal> TiempoCompensado => _tiempoCompensado;
-    public int MinutosRetardados => _minutosRetardados;
-    public int MinutosCompensados => _minutosCompensados;
-    public int RetardoNeto => _minutosRetardados - _minutosCompensados;
+    // Castigo efectivo: si la compensacion excede el retardo, el neto queda en cero.
+    // El excedente se contabiliza en la liquidacion de extras, no aqui.
+    public int RetardoNeto => Math.Max(0, _minutosRetardados - _minutosCompensados);
 
     private DetalleRetardo(
         IReadOnlyList<IntervaloTemporal> tiempoRetardado,
@@ -39,12 +38,21 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
     {
         var minutosRetardados = tiempoRetardado.Sum(i => i.DuracionEnMinutos);
         var minutosCompensados = tiempoCompensado.Sum(i => i.DuracionEnMinutos);
-        if (minutosCompensados > minutosRetardados)
-            throw new ArgumentException(Mensajes.CompensadosExcedenRetardados);
         return new DetalleRetardo(tiempoRetardado, tiempoCompensado, minutosRetardados, minutosCompensados);
     }
 
     public static readonly DetalleRetardo Vacio = new([], [], 0, 0);
+
+    public override string ToString()
+    {
+        if (_tiempoRetardado.Count == 0 && _tiempoCompensado.Count == 0)
+            return Mensajes.SinRetardo;
+        var retardos = string.Join(", ", _tiempoRetardado);
+        var compensaciones = string.Join(", ", _tiempoCompensado);
+        return $"{Mensajes.LabelRetardo}: [{retardos}] ({_minutosRetardados}min), " +
+               $"{Mensajes.LabelCompensado}: [{compensaciones}] ({_minutosCompensados}min), " +
+               $"{Mensajes.LabelNeto}: {RetardoNeto}min";
+    }
 
     public bool Equals(DetalleRetardo? other)
     {
