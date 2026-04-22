@@ -2,7 +2,7 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 
-public sealed partial record DetalleRetardo
+public sealed partial class DetalleRetardo
 {
     private static readonly ResourceManager ResourceManager = new(
         "Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects.DetalleRetardoMensajes",
