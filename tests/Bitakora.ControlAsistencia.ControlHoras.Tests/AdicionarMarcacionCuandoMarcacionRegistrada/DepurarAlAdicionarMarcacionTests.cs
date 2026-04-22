@@ -1,7 +1,6 @@
 // HU-123: Integrar depurador al ControlDiario de forma reactiva
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
 
-using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;

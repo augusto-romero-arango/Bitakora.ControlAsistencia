@@ -1,7 +1,6 @@
 // HU-123: Integrar depurador al ControlDiario de forma reactiva
 // Familia 2: verifica que Apply(TurnoDiarioAsignado) dispara el recalculo de ControlesDeFranja
 
-using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
