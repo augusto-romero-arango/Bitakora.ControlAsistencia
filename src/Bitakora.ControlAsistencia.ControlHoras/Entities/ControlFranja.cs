@@ -8,5 +8,5 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 public record ControlFranja(DetalleFranjaOrdinaria Programada, DateTime? Entrada, DateTime? Salida)
 {
     // CA-9: propiedad calculada; anomala cuando falta Entrada o Salida
-    public bool EsAnomala => throw new NotImplementedException();
+    public bool EsAnomala => Entrada is null || Salida is null;
 }
