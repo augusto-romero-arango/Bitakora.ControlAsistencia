@@ -56,25 +56,5 @@ public class IntervaloClasificadoTests
         clasificado.DuracionEnMinutos.Should().Be(15);
     }
 
-    // ---------- Igualdad de record (estandar de C#) ----------
-
-    [Fact]
-    public void Igualdad_EsTrue_CuandoMismoIntervaloYConcepto()
-    {
-        var intervalo = IntervaloTemporal.Crear(Las8, Las17);
-        var a = new IntervaloClasificado(intervalo, Concepto.ExtraDiurna);
-        var b = new IntervaloClasificado(intervalo, Concepto.ExtraDiurna);
-
-        a.Should().Be(b);
-    }
-
-    [Fact]
-    public void Igualdad_EsFalse_CuandoDistintoConcepto()
-    {
-        var intervalo = IntervaloTemporal.Crear(Las8, Las17);
-        var a = new IntervaloClasificado(intervalo, Concepto.ExtraDiurna);
-        var b = new IntervaloClasificado(intervalo, Concepto.OrdinariaDiurna);
-
-        a.Should().NotBe(b);
-    }
+    // Contrato IEquatable: ver IntervaloClasificadoIgualdadTests (hereda IgualdadTestBase).
 }

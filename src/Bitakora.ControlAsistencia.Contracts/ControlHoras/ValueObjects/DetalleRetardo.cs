@@ -40,6 +40,6 @@ public sealed partial record DetalleRetardo
         return new DetalleRetardo(tiempoRetardado, tiempoCompensado, minutosRetardados, minutosCompensados);
     }
 
-    // Franja sin retardo ni compensacion.
-    public static DetalleRetardo Vacio => new([], [], 0, 0);
+    // Franja sin retardo ni compensacion. Instancia unica reusable (inmutable).
+    public static readonly DetalleRetardo Vacio = new([], [], 0, 0);
 }
