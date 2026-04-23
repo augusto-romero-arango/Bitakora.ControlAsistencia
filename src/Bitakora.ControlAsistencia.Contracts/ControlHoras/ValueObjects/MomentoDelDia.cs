@@ -3,7 +3,8 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 // Issue #112: Value object que representa un punto en el tiempo con offset de dia.
 // Sin invariantes en el constructor - record segun heuristica ADR-0015.
 // DiaOffset 0 = mismo dia, 1 = dia siguiente.
-public sealed record MomentoDelDia(TimeOnly Hora, int DiaOffset = 0)
+// Issue #143: partial para soporte de Mensajes en archivo separado.
+public sealed partial record MomentoDelDia(TimeOnly Hora, int DiaOffset = 0)
     : IComparable<MomentoDelDia>
 {
     private const int MinutosPorHora = 60;
@@ -27,4 +28,15 @@ public sealed record MomentoDelDia(TimeOnly Hora, int DiaOffset = 0)
     // Compara por MinutosAbsolutos (null es menor por convencion de IComparable)
     public int CompareTo(MomentoDelDia? other) =>
         other is null ? 1 : MinutosAbsolutos.CompareTo(other.MinutosAbsolutos);
+
+    // Issue #143: Inverso de ResolverA(fecha).
+    // Calcula DiaOffset = (momento.Date - fechaAncla).Days y Hora = TimeOnly.FromDateTime(momento).
+    public static MomentoDelDia Desde(DateTime momento, DateOnly fechaAncla)
+        => throw new NotImplementedException();
+
+    // Issue #143: Conversion numerica desde minutos absolutos.
+    // DiaOffset = minutosAbsolutos / 1440, Hora desde minutosAbsolutos % 1440.
+    // Rechaza minutosAbsolutos < 0 con ArgumentException.
+    public static MomentoDelDia DesdeMinutosAbsolutos(int minutosAbsolutos)
+        => throw new NotImplementedException();
 }

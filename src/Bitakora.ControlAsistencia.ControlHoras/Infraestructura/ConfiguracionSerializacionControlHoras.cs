@@ -22,6 +22,8 @@ public static class ConfiguracionSerializacionControlHoras
 
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
+        // Issue #143: IntervaloTemporal alineado con ADR-0015 (ctor vacio + ConfigurarSerializacion).
+        IntervaloTemporal.ConfigurarSerializacion(resolver);
         TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
         MarcacionRegistrada.ConfigurarSerializacion(resolver);
         MarcacionAdicionada.ConfigurarSerializacion(resolver);

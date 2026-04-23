@@ -12,5 +12,9 @@ public sealed partial class IntervaloTemporal
     {
         public static string InicioDebeSerMenorQueFin =>
             ResourceManager.GetString(nameof(InicioDebeSerMenorQueFin))!;
+
+        // Issue #143: Validacion de Partir(int).
+        public static string PuntoDeParticionDebeSerInterior =>
+            ResourceManager.GetString(nameof(PuntoDeParticionDebeSerInterior))!;
     }
 }

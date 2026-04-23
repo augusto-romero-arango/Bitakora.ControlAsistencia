@@ -20,10 +20,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="InicioDebeSerMenorQueFin" xml:space="preserve">
-    <value>El inicio debe ser menor que el fin del intervalo</value>
-  </data>
-  <data name="PuntoDeParticionDebeSerInterior" xml:space="preserve">
-    <value>El punto de particion debe ser mayor que cero y menor que la duracion total del intervalo</value>
+  <data name="MinutosAbsolutosDebeSerPositivoOCero" xml:space="preserve">
+    <value>Los minutos absolutos deben ser cero o positivos</value>
   </data>
 </root>
