@@ -446,6 +446,8 @@ Esta seccion es el contrato arquitectonico del issue. El implementer debe leer c
 (Obligatoria cuando el issue crea value objects complejos o aggregates con comportamiento rico.
 Para command handlers simples sin value objects propios, omitir esta seccion.)
 
+**Antes de listar una propiedad como publica, pregunta si es un valor observable externamente** (lo que el caller necesita leer para tomar decisiones) **o un dato intermedio** (suma, agregado o insumo de calculo que solo tiene sentido dentro del VO). Los datos intermedios deben quedar privados; si hace falta exponerlos para auditoria/visualizacion, hazlo via `ToString()`, no via propiedades. Referencia: ADR-0015 "Encapsulamiento: Tell Don't Ask" (proscribe que calculos externos operen sobre datos crudos del VO).
+
 ### NombreClase
 - `static Crear(...): NombreClase` — factory con invariantes
 - `MetodoComportamiento(): TipoRetorno` — descripcion
