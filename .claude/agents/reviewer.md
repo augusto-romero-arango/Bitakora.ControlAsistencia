@@ -130,13 +130,7 @@ Esta fase reemplaza el antiguo "checklist de patrones ES" (que duplicaba reglas 
    - Si NO lo declaro, es una desviacion no reportada: intenta corregir el codigo (siguiendo las reglas estandar: `dotnet test` despues de cada cambio, revertir si rompe). Si no es trivial corregir, documentalo como hallazgo bloqueante.
 5. **Verifica precedentes citados por el implementer**: si cito algun archivo/PR del proyecto como referencia, valida que el precedente realmente cumple el ADR. Si el precedente viola el ADR (como paso con PR 142 vs ADR-0015), reporta el bug del precedente en tus hallazgos — pero NO lo uses para justificar replicar la violacion.
 
-**Violaciones de ADR-0015 a detectar activamente** (patrones reales detectados en reviews previos que los agentes suelen desestimar):
-
-- `[JsonConstructor]` en ctor privado de VO/evento — **bloqueante** (no funciona con Marten, ADR-0015 l.227-230). Si el diff lo introduce: fallar, pedir migracion al patron canonico (ctor vacio privado + campos `private readonly` + `ConfigurarSerializacion`).
-- `record` con `IReadOnlyList<T>` / `List<T>` / `T[]` — **bloqueante** (ADR-0015 l.43-45). `EqualityComparer<IReadOnlyList<T>>.Default` usa igualdad de referencia; el `record` promete valor equality que no cumple. Migrar a `sealed class` con `IEquatable<T>` manual + `SequenceEqual`. **No desestimes este hallazgo con "el issue no pide tests de IEquatable"**: la regla del ADR aplica al **tipo**, no a los tests.
-- `ConfigurarSerializacion` sin registro en `ConfiguracionSerializacion{Dominio}.ConfigurarResolver` — **bloqueante** (ADR-0015 l.253-254). Grep `ConfigurarSerializacion` en el diff; para cada uno, verifica que hay una linea correspondiente en `ConfigurarResolver`. Sin registro es codigo muerto.
-- Tests de round-trip con `JsonSerializer.Serialize(obj)` sin opciones — **bloqueante**. Los tests pasan con STJ vanilla aunque el registro en el dominio no exista. Reemplazar por `ConfiguracionSerializacion{Dominio}.CrearOpcionesMarten()`. Si el test vive en un proyecto que no puede depender del dominio (ej `Contracts.Tests`), moverlo a `{Dominio}.Tests/Infraestructura/`.
-- Falta de test "sin registro falla" — **sugerencia**. Para cada tipo con `ConfigurarSerializacion`, debe existir un test que verifique `NotSupportedException` al deserializar con resolver vacio. Es la barrera que protege contra que alguien borre la linea de registro en `ConfigurarResolver`.
+**Memoria de gaps pasados (no son reglas enumeradas — son recordatorios de "precedente ≠ autoridad")**: PR 142 y PR 144 pasaron el review con violaciones a ADR-0015 porque se asumio que el precedente era suficiente. Si dudas sobre un patron de serializacion o igualdad de VOs, **relee ADR-0015** antes de aceptar o rechazar el diff — no busques el patron en el codigo ya mergeado como autoridad. Incidentes documentados en `docs/bitacora/field-notes/review-pr-144.md`.
 
 **Convenciones del pipeline que NO estan en ADRs** (revisa tambien):
 
