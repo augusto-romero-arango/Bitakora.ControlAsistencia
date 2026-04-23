@@ -594,63 +594,66 @@ franja.DiaOffsetFin.Should().Be(0);                 // DiaOffsetFin es internal/
 
 Esta heuristica te ayuda a detectar si el implementer rompió el encapsulamiento: si los tests necesitan getters de propiedades internas para verificar, esas propiedades no deberian ser publicas.
 
-### 6d. Tests de serializacion roundtrip para eventos
+### 6d. Tests de serializacion roundtrip para eventos y VOs
 
-Todo evento que se persiste en Marten (event sourcing) **DEBE** tener un test de serializacion roundtrip. Esto aplica tanto a eventos con constructor privado (sealed class con factory) como a records con propiedades complejas (VOs anidados).
+Todo evento o value object persistido en Marten **DEBE** tener tests de round-trip JSON. `[JsonConstructor]` en ctor privado NO funciona con Marten — detalle en ADR-0015 seccion "Serializacion sin atributos".
 
-**Por que**: Marten usa STJ internamente con `JsonSerializerOptions` propias. Si el evento tiene constructor privado, la deserializacion falla silenciosamente en produccion (500 al leer el stream). `[JsonConstructor]` en privado NO funciona con Marten. El unico mecanismo confiable es `ConfigurarSerializacion` + registro con Marten.
+**Las opciones del test deben ser las que Marten usa en produccion**, no un resolver armado inline. Si usas un helper local que registra los tipos uno por uno, el test pasa aunque el tipo **no este registrado** en `ConfiguracionSerializacion{Dominio}.ConfigurarResolver` — y en produccion falla.
 
-**Patron del test:**
+**Patron preferido (usa las opciones reales del dominio):**
 
 ```csharp
+// El test vive en ControlHoras.Tests/Infraestructura/ (proyecto con acceso al dominio)
+using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+
 public class MiEventoSerializacionTests
 {
-    private static readonly Guid Id = Guid.Parse("019600a0-0000-7000-8000-000000000001");
-
-    // Replica las opciones que Marten usa: PropertyNamingPolicy = null (PascalCase)
-    private static JsonSerializerOptions CrearOpcionesMarten()
-    {
-        var resolver = new DefaultJsonTypeInfoResolver();
-        // Registrar ConfigurarSerializacion de TODOS los tipos involucrados
-        SubFranja.ConfigurarSerializacion(resolver);
-        FranjaOrdinaria.ConfigurarSerializacion(resolver);
-        MiEvento.ConfigurarSerializacion(resolver);
-        return new JsonSerializerOptions
-        {
-            TypeInfoResolver = resolver,
-            PropertyNamingPolicy = null // Marten fuerza null
-        };
-    }
+    private static JsonSerializerOptions CrearOpciones() =>
+        ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
     [Fact]
-    public void Deserializar_ReconstruyeEvento_ConDatosCompletos()
+    public void RoundTrip_ReconstruyeEvento_ConDatosCompletos()
     {
-        // Construir via factory con datos COMPLETOS (VOs anidados con sub-objetos)
-        var evento = MiEvento.Crear(...);
-        var opciones = CrearOpcionesMarten();
+        var evento = MiEvento.Crear(...);  // datos reales, VOs anidados, no listas vacias
+        var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(evento, opciones);
-        var deserializado = JsonSerializer.Deserialize<MiEvento>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<MiEvento>(json, opciones);
 
-        deserializado.Should().NotBeNull();
-        // Verificar TODOS los campos
-        deserializado!.Id.Should().Be(Id);
-        // Para VOs complejos, verificar ToString()
-        deserializado.Franjas[0].ToString()
-            .Should().Be("(06:00-16:00)[Descansos:(10:00-10:15)]");
+        restaurado.Should().NotBeNull();
+        restaurado.Should().Be(evento);
+    }
+
+    // CA-regresion: si alguien borra la linea de registro en ConfigurarResolver, este test falla.
+    [Fact]
+    public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeMiEvento()
+    {
+        var opciones = new JsonSerializerOptions { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
+        var json = JsonSerializer.Serialize(MiEvento.Crear(...), opciones);
+
+        var act = () => JsonSerializer.Deserialize<MiEvento>(json, opciones);
+
+        act.Should().Throw<NotSupportedException>();
     }
 }
 ```
 
+**Cuando usar helper inline en vez de `CrearOpcionesMarten()`**: solo si el test vive en un proyecto que no puede depender del dominio (ej. `Contracts.Tests` no puede referenciar `{Dominio}`). En ese caso, mueve los tests de round-trip al proyecto `{Dominio}.Tests/Infraestructura/` — eso ejercita el registro real.
+
 **Reglas criticas:**
-- Usar datos reales y completos — listas vacias para evitar configurar VOs anidados **es trampa**
-- Registrar `ConfigurarSerializacion` de TODOS los tipos en la cadena (el evento + sus VOs)
-- `PropertyNamingPolicy = null` es obligatorio (Marten lo fuerza)
-- Verificar campos escalares Y `ToString()` de objetos complejos
 
-**Ubicacion**: `tests/.../{Feature}/Eventos/{Evento}SerializacionTests.cs`
+- Usar `CrearOpcionesMarten()` del dominio — no un resolver armado inline. Si no existe, crealo (delega al implementer via stub / blocker).
+- Datos reales y completos — listas vacias para "evitar configurar VOs anidados" es trampa.
+- Incluir un test "sin registro falla" (`NotSupportedException` con resolver vacio) como barrera anti-regresion.
+- Verificar campos escalares Y `ToString()`/igualdad de objetos complejos.
 
-**Referencia canonica**: `TurnoCreadoSerializacionTests.cs` en el dominio Programacion
+**Ubicacion por tipo de test:**
+
+- Tests de round-trip con `CrearOpcionesMarten()` -> `tests/{Dominio}.Tests/Infraestructura/{Tipo}SerializacionTests.cs`.
+- Tests de invariantes y comportamiento del tipo -> `tests/Contracts.Tests/ValueObjects/.../{Tipo}Tests.cs`.
+- Tests de igualdad (heredando `IgualdadTestBase<T>`) -> `tests/Contracts.Tests/ValueObjects/.../{Tipo}IgualdadTests.cs`.
+
+**Referencia canonica**: `SubFranjaSerializacionTests.cs` (patron antiguo con helper inline) y `DetalleRetardoSerializacionTests.cs` en `ControlHoras.Tests/Infraestructura/` (patron nuevo con `CrearOpcionesMarten()` + CA-regresion).
 
 ---
 
