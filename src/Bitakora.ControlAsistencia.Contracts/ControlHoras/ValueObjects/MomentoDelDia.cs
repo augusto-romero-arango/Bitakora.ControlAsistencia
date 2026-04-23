@@ -32,11 +32,22 @@ public sealed partial record MomentoDelDia(TimeOnly Hora, int DiaOffset = 0)
     // Issue #143: Inverso de ResolverA(fecha).
     // Calcula DiaOffset = (momento.Date - fechaAncla).Days y Hora = TimeOnly.FromDateTime(momento).
     public static MomentoDelDia Desde(DateTime momento, DateOnly fechaAncla)
-        => throw new NotImplementedException();
+    {
+        var diaOffset = (momento.Date - fechaAncla.ToDateTime(TimeOnly.MinValue).Date).Days;
+        return new MomentoDelDia(TimeOnly.FromDateTime(momento), diaOffset);
+    }
 
     // Issue #143: Conversion numerica desde minutos absolutos.
     // DiaOffset = minutosAbsolutos / 1440, Hora desde minutosAbsolutos % 1440.
     // Rechaza minutosAbsolutos < 0 con ArgumentException.
     public static MomentoDelDia DesdeMinutosAbsolutos(int minutosAbsolutos)
-        => throw new NotImplementedException();
+    {
+        if (minutosAbsolutos < 0)
+            throw new ArgumentException(Mensajes.MinutosAbsolutosDebeSerPositivoOCero);
+
+        var diaOffset = minutosAbsolutos / MinutosPorDia;
+        var minutosDelDia = minutosAbsolutos % MinutosPorDia;
+        var hora = new TimeOnly(minutosDelDia / MinutosPorHora, minutosDelDia % MinutosPorHora);
+        return new MomentoDelDia(hora, diaOffset);
+    }
 }

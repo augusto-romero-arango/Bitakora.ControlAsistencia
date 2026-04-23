@@ -40,13 +40,19 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
     // Issue #143: Construye desde DateTimes anclados a una fecha ancla.
     // Usa MomentoDelDia.Desde internamente para calcular DiaOffset.
-    public static IntervaloTemporal Desde(DateTime inicio, DateTime fin, DateOnly fechaAncla)
-        => throw new NotImplementedException();
+    public static IntervaloTemporal Desde(DateTime inicio, DateTime fin, DateOnly fechaAncla) =>
+        Crear(MomentoDelDia.Desde(inicio, fechaAncla), MomentoDelDia.Desde(fin, fechaAncla));
 
     // Issue #143: Parte el intervalo en un punto intermedio.
     // Rechaza minutosDesdeInicio <= 0 || minutosDesdeInicio >= DuracionEnMinutos.
     public (IntervaloTemporal izquierdo, IntervaloTemporal derecho) Partir(int minutosDesdeInicio)
-        => throw new NotImplementedException();
+    {
+        if (minutosDesdeInicio <= 0 || minutosDesdeInicio >= DuracionEnMinutos)
+            throw new ArgumentException(Mensajes.PuntoDeParticionDebeSerInterior);
+
+        var puntoIntermedio = MomentoDelDia.DesdeMinutosAbsolutos(Inicio.MinutosAbsolutos + minutosDesdeInicio);
+        return (Crear(Inicio, puntoIntermedio), Crear(puntoIntermedio, Fin));
+    }
 
     // Fin.MinutosAbsolutos - Inicio.MinutosAbsolutos
     public int DuracionEnMinutos => Fin.MinutosAbsolutos - Inicio.MinutosAbsolutos;
@@ -75,6 +81,42 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
     // Issue #143: Registro en el resolver de Marten (ADR-0015).
     // Debe llamarse desde ConfiguracionSerializacionControlHoras.ConfigurarResolver.
+    // Sin este registro, Marten no puede deserializar IntervaloTemporal (ctor privado + readonly fields).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
-        => throw new NotImplementedException();
+    {
+        var fInicio = typeof(IntervaloTemporal)
+            .GetField("_inicio", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var fFin = typeof(IntervaloTemporal)
+            .GetField("_fin", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var ctor = typeof(IntervaloTemporal)
+            .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+
+        resolver.Modifiers.Add(typeInfo =>
+        {
+            if (typeInfo.Type != typeof(IntervaloTemporal)) return;
+            if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+
+            typeInfo.CreateObject = () => (IntervaloTemporal)ctor.Invoke(null);
+
+            // Las propiedades publicas Inicio y Fin son get-only: STJ las auto-detecta
+            // sin Set. Removerlas antes de registrar las versiones con Get+Set sobre los
+            // campos privados readonly, de lo contrario el JSON tendria duplicados.
+            for (var i = typeInfo.Properties.Count - 1; i >= 0; i--)
+            {
+                var nombre = typeInfo.Properties[i].Name;
+                if (nombre is "Inicio" or "Fin")
+                    typeInfo.Properties.RemoveAt(i);
+            }
+
+            var pInicio = typeInfo.CreateJsonPropertyInfo(typeof(MomentoDelDia), "Inicio");
+            pInicio.Get = obj => fInicio.GetValue(obj)!;
+            pInicio.Set = (obj, val) => fInicio.SetValue(obj, val);
+            typeInfo.Properties.Add(pInicio);
+
+            var pFin = typeInfo.CreateJsonPropertyInfo(typeof(MomentoDelDia), "Fin");
+            pFin.Get = obj => fFin.GetValue(obj)!;
+            pFin.Set = (obj, val) => fFin.SetValue(obj, val);
+            typeInfo.Properties.Add(pFin);
+        });
+    }
 }
