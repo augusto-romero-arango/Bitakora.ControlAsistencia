@@ -43,3 +43,47 @@ Commit `60e0e75` en main — consolidar ADRs como fuente unica de verdad:
 - **Duplicar reglas en agentes genera drift**: el ADR-0015 estaba bien escrito pero los agentes tenian su propia version paralela (y desactualizada). Cuando hay dos fuentes de verdad, una se vuelve obsoleta silenciosamente. La fix estructural es el principio "los agentes consultan, no duplican" — no solo corregir este caso.
 - **"El issue no lo pide" no es justificacion para desestimar una regla del ADR**: el reviewer vio el `record` con `IReadOnlyList` pero aplico criterio propio. Los ADRs son contratos del proyecto, no guias opcionales — aplican al tipo, no dependen de que el issue lo pida explicitamente. El reviewer ahora tiene instruccion explicita de no desestimar los 5 antipatterns comunes.
 - **Los tests deben ejercitar el contrato de produccion, no un mundo paralelo**: tests de round-trip con STJ vanilla validaron que `[JsonConstructor]` "funcionaba" — en STJ vanilla. En Marten fallaban silenciosamente. El test "sin registro falla" es la barrera mas simple y efectiva contra regresiones del tipo "alguien borra la linea de registro".
+
+---
+
+## Segunda ronda de review — 2026-04-22
+
+Despues del primer fix, el reviewer humano leyo el codigo corregido y detecto dos cambios de regla de dominio que no eran atrapables por agentes (requieren conocimiento del negocio, no de arquitectura).
+
+### Comentarios
+
+| # | Categoria | Resumen |
+|---|---|---|
+| 1 | corregir | El `throw` cuando `MinutosCompensados > MinutosRetardados` contradice el dominio: el retardo es un castigo; si la compensacion excede, el castigo satura en cero. El excedente va a la liquidacion de extras, fuera de este VO. |
+| 2a | corregir | Los 2 tests de "lanza excepcion" se reemplazan por "RetardoNeto es cero" cuando compensacion excede retardo. |
+| 2b | investigar | "Nadie externo al objeto debe acceder a los calculos intermedios o a los intervalos para hacer operaciones" -> privatizar datos crudos y exponer solo `RetardoNeto` y `ToString()`. Issue #147 creado para auditar que ningun caller esquive la encapsulacion. |
+
+### Correcciones aplicadas
+
+Commit `6255a27` en la rama del PR:
+
+- `Crear()` ya no lanza — acumula suma cruda de ambas listas.
+- `RetardoNeto = Math.Max(0, _minutosRetardados - _minutosCompensados)` — satura en cero.
+- `TiempoRetardado`, `TiempoCompensado`, `MinutosRetardados`, `MinutosCompensados` migraron a privados.
+- Interfaz publica: `Crear`, `Vacio`, `RetardoNeto`, `ToString()`, `Equals`, `GetHashCode`, `ConfigurarSerializacion`.
+- `ToString()` expone los intervalos y totales (via `Mensajes` en .resx) para trazabilidad/auditoria.
+- Tests reescritos para validar via `RetardoNeto` y `ToString()` (no acceden a privadas).
+- Se elimino la clave `CompensadosExcedenRetardados` del .resx; se agregaron `SinRetardo`, `LabelRetardo`, `LabelCompensado`, `LabelNeto`.
+
+Verificacion: 227 tests verdes en los 3 proyectos unitarios (Contracts 142 + ControlHoras 85). La reduccion vs la primera ronda se debe a que 5 tests que accedian a propiedades ahora privadas fueron absorbidos en tests de `ToString()`.
+
+### Mejoras a agentes
+
+Commit `2fdcb4d` en main:
+
+| Agente | Gap | Ajuste |
+|---|---|---|
+| `planner.md` | Al listar propiedades en "Interfaz publica", nada obliga a distinguir "valor observable externamente" de "dato intermedio". El issue #114 v2 lista 4 propiedades publicas que deberian ser privadas porque el caller no las necesita — solo las usa `ToString()`. | Nota nueva en la plantilla: "Antes de listar una propiedad como publica, pregunta si es un valor observable externamente o un dato intermedio". Referencia ADR-0015 "Encapsulamiento: Tell Don't Ask". |
+
+El resto de correcciones (eliminar `throw`, encapsular datos) fueron **decisiones de dominio** tomadas por el humano reviewer despues de leer el codigo generado. El pipeline no las habria atrapado porque seguia fielmente el issue v2. No hay regla tecnica atrapable automaticamente.
+
+### Lecciones adicionales
+
+- **Los issues evolucionan con el codigo**: incluso con DoR estricto, un issue puede cambiar despues de que el pipeline arranca — porque ver el codigo concreto revela matices del dominio que no eran obvios en la especificacion. El flujo `/fix-review` absorbe estas evoluciones en ciclos; no son fallas del pipeline.
+- **El planner no reemplaza al dueño del dominio**: listar "Interfaz publica" en un issue es una hipotesis, no un veredicto. La nota agregada al planner recuerda cuestionar cada propiedad, pero la decision final sigue siendo humana y puede iterar.
+- **Encapsulacion via `ToString()`**: cuando un VO tiene datos utiles para auditoria pero que nadie debe operar, exponerlos via `ToString()` es una alternativa limpia a propiedades publicas — el consumidor puede leer la representacion pero no puede iterar ni calcular sobre ella sin parsear el texto (friccion intencional).
