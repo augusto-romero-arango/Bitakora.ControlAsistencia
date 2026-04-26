@@ -46,7 +46,7 @@ public class DesgloseHorasTests
     }
 
     [Fact]
-    public void TotalMinutosPorConcepto_SumaConceptosParciales_CuandoConceptoApareceEnSolgunasFranjas()
+    public void TotalMinutosPorConcepto_SumaConceptosParciales_CuandoConceptoApareceEnAlgunasFranjas()
     {
         // franja1: 120 min nocturno + 240 min diurno; franja2: 240 min diurno
         // Esperado: nocturno=120, diurno=480

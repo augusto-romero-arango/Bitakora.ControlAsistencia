@@ -122,9 +122,10 @@ public class DesgloseHorasSerializacionTests
     }
 
     [Fact]
-    public void RoundTrip_PreservaIntervalosDetenidos_CuandoFranjaConRetardoEnDesglose()
+    public void RoundTrip_PreservaRetardoDeFranjaInterna_CuandoDesgloseTieneFranjaConRetardo()
     {
-        // Verifica que los intervalos dentro de cada DesgloseFranja se preservan correctamente
+        // Verifica que el Retardo dentro de cada DesgloseFranja se preserva correctamente
+        // tras anidar DesgloseFranja > DesgloseHoras y atravesar dos niveles de serializacion.
         var franja = CrearFranjaConRetardo();
         var original = new DesgloseHoras([franja], DetalleRetardo.Vacio, 0);
         var opciones = CrearOpciones();
