@@ -1,8 +1,7 @@
 // Issue #115: Segmentar intervalo trabajado por fronteras horarias.
 // Tests del metodo IntervaloTemporal.Segmentar - operacion geometrica pura.
 // Las fronteras se pasan como literales TimeOnly (medianoche, 6AM, 7PM): el VO no
-// conoce leyes colombianas. El conocimiento legal vive en
-// ControlHoras.Entities.FronterasHorariasLegales.
+// conoce leyes colombianas; el caller decide que fronteras pasar.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;

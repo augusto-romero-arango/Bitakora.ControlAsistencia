@@ -60,7 +60,7 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
     // Issue #115: corta el intervalo en cada ocurrencia diaria de las fronteras dadas
     // (exclusivo de los extremos). Operacion geometrica pura - el caller decide que
-    // fronteras pasar (en ControlHoras: FronterasHorariasLegales.Todas).
+    // fronteras pasar.
     public IReadOnlyList<IntervaloTemporal> Segmentar(IEnumerable<TimeOnly> fronterasDiarias)
     {
         var inicioMin = _inicio.MinutosAbsolutos;
