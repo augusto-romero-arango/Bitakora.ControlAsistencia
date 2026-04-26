@@ -644,7 +644,9 @@ Si despues de **5 intentos enfocados** (5 enfoques distintos) el mismo test sigu
 
 1. **Deja de intentar** ese test especifico. No sigas en loop.
 2. **Haz commit de tu progreso parcial** — los tests que si pusiste verdes se preservan.
-3. **Escribe el reporte de bloqueo** en `.claude/pipeline/blockage-report.md`:
+3. **Escribe el reporte de bloqueo** en `.claude/pipeline/blockage-report.md`.
+
+**Antes de escribir el reporte, pregunta:** ¿el test no pasa porque el test-writer dejo una contradiccion estructural sin resolver (ej. test en proyecto A que necesita API de B inaccesible; test obsoleto cuya precondicion ya no es cubrible bajo el ADR aplicado)? Si es asi, el reporte debe declararlo explicitamente en "Hipotesis" — el reviewer tiene autoridad para resolverlo como parte del refactor (ver seccion 2b de su agente). Esto cambia la naturaleza del bloqueo: no es "no se como hacer pasar el test", es "el test esta mal planteado dada la estructura del proyecto, y la fase verde no es el lugar donde se resuelve".
 
 ```markdown
 ## Reporte de bloqueo - Implementer
@@ -749,7 +751,7 @@ Si no hay desviaciones, escribe explicitamente "Ninguna desviacion — todos los
 
 Estas son reglas procedimentales del pipeline. **Las reglas arquitectonicas (patrones de dominio, modelado, manejo de errores, serializacion, naming) viven exclusivamente en los ADRs del proyecto** — este agente NO las duplica. Lee los ADRs listados en el issue antes de implementar (paso 1b).
 
-1. **NUNCA** modifiques ningun archivo en `tests/`. Los tests son la especificacion.
+1. **NUNCA** modifiques tests para hacerlos pasar artificialmente. Los tests son la especificacion. Excepciones acotadas: (a) agregar una entrada al .resx de Mensajes cuando un mensaje nuevo no previsto es necesario (ya documentado en el paso 4 de la guia); (b) si detectas que el test-writer dejo una contradiccion no resuelta entre el issue y la estructura de proyectos (ej. test en proyecto A que necesita API de proyecto B inaccesible, o test que el refactor del issue volvio imposible de pasar sin violar un ADR), **reporta bloqueo** — no lo resuelvas tu mismo. La resolucion corresponde al test-writer (idealmente en la fase roja, regla #19 de su agente) o al reviewer (como parte del refactor, seccion 2b de su agente). Tu rol sigue siendo escribir codigo de produccion.
 2. **NUNCA** agregues tests nuevos. Eso es trabajo del test-writer o reviewer.
 3. **NUNCA** elimines ni omitas un test. Todos deben pasar.
 4. **NUNCA** hagas try-catch de excepciones de dominio en el CommandHandler.
@@ -758,5 +760,5 @@ Estas son reglas procedimentales del pipeline. **Las reglas arquitectonicas (pat
 7. **Solo modifica** `infra/environments/dev/main.tf` para infraestructura (y solo el bloque `topics_config`).
 8. **Lee los ADRs listados en `## ADRs aplicables` del issue antes de escribir codigo.** Si el issue no tiene esa seccion o esta vacia, detente y reporta gap al llamador (ver paso 1b). No asumas. No improvises.
 9. **Precedente ≠ autoridad.** Un patron visto en otro archivo, PR o commit del proyecto NO es fuente de verdad arquitectonica — los ADRs lo son. Antes de replicar cualquier patron del codigo existente, verifica que cumple los ADRs aplicables. Si el precedente los viola (ejemplo tipico: `[JsonConstructor]` en ctor privado cuando ADR-0015 lo proscribe), reportalo como bug en tu resumen de decisiones y NO lo replicues. Aplica el patron correcto segun el ADR.
-10. **Documenta toda desviacion consciente de un ADR.** Si decides apartarte deliberadamente de un ADR listado en el issue (por razon tecnica legitima), registralo en la seccion "Desviaciones de ADRs" del resumen del pipeline con el formato especificado (regla del ADR, desviacion aplicada, razon, consecuencia conocida). Esto queda disponible para evaluacion del usuario. Desviarse sin documentar es el peor outcome posible.
+10. **Documenta toda desviacion consciente de un ADR o del plan del planner.** Si decides apartarte deliberadamente de un ADR listado en el issue (por razon tecnica legitima), registralo en la seccion "Desviaciones de ADRs" del resumen del pipeline con el formato especificado (regla del ADR, desviacion aplicada, razon, consecuencia conocida). Si decides apartarte de una sugerencia concreta del planner (nombre de archivo de "Impacto en archivos", visibilidad o firma de "Interfaz publica propuesta"), registralo en una seccion paralela "Desviaciones del plan del planner" con el mismo formato (sugerencia del issue, desviacion aplicada, razon tecnica, consecuencia). Recuerda: el plan del planner es una sugerencia basada en su investigacion, no un mandato — pero apartarse sin documentar es el peor outcome posible. Esto queda disponible para evaluacion del usuario.
 11. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.

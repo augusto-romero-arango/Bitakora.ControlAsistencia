@@ -258,7 +258,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 **Convenciones obligatorias:**
 - `using AwesomeAssertions;` al inicio
 - Comentario de HU al inicio: `// HU-XX: descripcion`
-- Nombres de metodos en espanol: `Debe[Resultado]_Cuando[Condicion]`
+- Nombres de metodos en espanol siguiendo ADR-0022: `<Sujeto>_<LoQuePasa>[_Cuando<Condicion>]`. Para command handlers el sujeto es el nombre del comando (`RegistrarMarcacion`, `CrearTurno`), nunca `HandleAsync` ni `Debe...`. El segmento `_Cuando<Condicion>` es opcional cuando el escenario es trivial (`Vacio_TieneRetardoNetoEnCero`). Ver `docs/adr/0022-convencion-naming-tests.md` para ejemplos completos.
 - Solo `[Fact]`, nunca `[Theory]` ni `[InlineData]`
 - Herencia de `CommandHandlerAsyncTest<TCommand>` (o la variante que corresponda)
 - Override de `Handler` inyectando las dependencias del handler (`EventStore`, `PrivateEventSender`, `PublicEventSender`)
@@ -290,7 +290,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
               new NotificarPausaCommandHandler(EventStore, PrivateEventSender);
 
           [Fact]
-          public async Task DebeEmitirPausaRegistrada_CuandoTurnoEstaActivo()
+          public async Task NotificarPausa_EmitePausaRegistrada_CuandoTurnoEstaActivo()
           {
               Given(ProgresoTurnoTests.CrearTurnoIniciado(AggregateId));
               await WhenAsync(new NotificarPausa(GuidAggregateId, ...));
@@ -313,7 +313,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 3. **Eventos de fallo del aggregate**: cuando una regla de negocio se viola, el aggregate emite un evento de fallo en `_uncommittedEvents`. El test verifica con `Then(...)` el evento de fallo y con `And<>()` que el estado NO cambio. **NUNCA uses `ThrowExactlyAsync` para reglas de negocio del aggregate.**
    ```csharp
    [Fact]
-   public async Task DebeEmitirAsignacionFallida_CuandoEmpleadoYaEstaAsignado()
+   public async Task AsignarEmpleadoATurno_EmiteAsignacionFallida_CuandoEmpleadoYaEstaAsignado()
    {
        Given(CrearTurnoIniciado(AggregateId),
              new EmpleadoAsignado(GuidAggregateId, EmpleadoId));
@@ -326,7 +326,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 4. **Aggregate no encontrado** (obligatorio cuando el comando opera sobre stream existente): el handler lanza excepcion cuando no encuentra el aggregate. Este SI usa `ThrowExactlyAsync` porque es una precondicion de orquestacion del handler, no una regla del aggregate.
    ```csharp
    [Fact]
-   public async Task DebeLanzarExcepcion_CuandoTurnoNoExiste()
+   public async Task AsignarEmpleadoATurno_LanzaInvalidOperationException_CuandoTurnoNoExiste()
    {
        // Sin Given() - el stream no existe
        var act = async () => await WhenAsync(
@@ -338,7 +338,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 5. **Aggregate ya existente** (obligatorio cuando el comando crea un stream nuevo): el handler lanza excepcion si el stream ya existe.
    ```csharp
    [Fact]
-   public async Task DebeLanzarExcepcion_CuandoTurnoYaExiste()
+   public async Task CrearTurno_LanzaInvalidOperationException_CuandoTurnoYaExiste()
    {
        Given(CrearTurnoIniciado(AggregateId));
        var act = async () => await WhenAsync(
@@ -681,7 +681,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 
 ### Tests creados
 - `NombreArchivo.cs`: N tests
-  - `DebeX_CuandoY` - criterio que cubre
+  - `<Sujeto>_<LoQuePasa>_Cuando<Condicion>` - criterio que cubre
   - ...
 
 ### Estructura elegida
@@ -699,7 +699,15 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 ### Cobertura de criterios
 | Criterio de aceptacion | Test(s) |
 |---|---|
-| CA-1: descripcion | `DebeX_CuandoY` |
+| CA-1: descripcion | `<Sujeto>_<LoQuePasa>_Cuando<Condicion>` |
+
+### Desviaciones del plan del planner
+
+(Si no hubo: "Ninguna - las sugerencias del planner fueron aplicables tal cual.")
+
+| Sugerencia del issue | Desviacion aplicada | Razon tecnica | Consecuencia |
+|---|---|---|---|
+| ej: "Impacto/Modifica: tests/.../X.cs (usar API Y)" | Test reubicado a `tests/OtroProyecto/.../X.cs` | API Y vive en proyecto Z; el proyecto original no puede depender de Z | CA cubierto por el test reubicado; el archivo viejo se elimina en el commit |
 ```
 
 **Importante:** NO incluyas este archivo en el commit. Es un artefacto del pipeline.
@@ -709,7 +717,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 ## Reglas absolutas
 
 1. **NUNCA** escribas implementacion real. Un `throw new NotImplementedException()` es todo lo que pones en metodos de produccion.
-2. **NUNCA** modifiques tests existentes.
+2. **Puedes modificar o eliminar tests existentes** solo si el issue lo requiere explicitamente (listados en "Impacto / Modifica") y tu modificacion responde al refactor que el issue pide. Toda modificacion de tests existentes se documenta en tu resumen como "Desviacion del plan del planner" o "Refactor guiado por el issue". Regla de fondo: no modifiques tests para hacerlos pasar artificialmente — solo cuando el issue mismo lo solicita o cuando una contradiccion arquitectonica del plan lo obliga.
 3. **NO** corras `dotnet test` — ya sabes que fallara. Solo verifica que **compila**.
 4. **Cada test DEBE tener tanto `Then(...)` como al menos un `And<>()`** — sin excepcion.
 5. **NUNCA** uses NSubstitute para fakes de dependencias del handler. Crea clases fake manuales.
@@ -719,7 +727,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 9. **NUNCA** uses el caracter "─" (U+2500, box drawing) en comentarios ni en ningun texto dentro de archivos `.cs`. Usa siempre el guion ASCII "-" (U+002D).
 10. **NUNCA** uses strings literales para mensajes de error en tests. Siempre referencia `Clase.Mensajes.Clave`. Crea el .resx y la clase Mensajes antes de escribir el test que los necesite.
 11. Los **aggregate roots y command handlers SIEMPRE deben ser `partial class`** para soportar la clase Mensajes anidada en un archivo separado.
-12. **Cuando el issue tiene seccion "Interfaz publica"**, los stubs SOLO exponen como `public` lo listado ahi. Todo lo demas es `protected`, `private` o `internal`. No tomes decisiones de visibilidad que no te corresponden — el planner ya las tomo.
+12. **Cuando el issue tiene seccion "Interfaz publica propuesta"** (o el nombre legado "Interfaz publica"), tratala como sugerencia del planner basada en su investigacion. Usa esa propuesta como punto de partida para los stubs: lo listado como publico se expone publicamente, lo demas queda `protected`, `private` o `internal`. **Si tu juicio tecnico difiere** (ej. la visibilidad propuesta rompe la compilacion, el nombre entra en conflicto con un precedente no visto por el planner, la firma propuesta contradice un ADR), ajusta y documenta la desviacion en tu resumen bajo "Desviaciones del plan del planner" (ver seccion 9). No inventes APIs que el issue no necesita ni "mejores" las existentes sin razon tecnica concreta.
 13. **Multiples eventos = UNA sola llamada a `Then`, `ThenIsPublishedPublicly` o `ThenIsPublishedPrivately`** con todos los eventos como argumentos. NUNCA hagas llamadas separadas — el harness valida count exacto contra el total de eventos y falla en CI.
 14. **Pre-carga de aggregates externos con Given()**: cuando un handler lee otro aggregate del EventStore (ej. `GetAggregateRootAsync<CatalogoTurnos>(turnoId)`), pre-cargalo con `Given(aggregateId, eventoDeCreacion)`. El TestStore reconstruye CUALQUIER aggregate por reflection (crea instancia via `Activator.CreateInstance` y aplica eventos via `Apply(TEvento)`). Para el test de "aggregate externo no encontrado", simplemente no llames Given para ese ID — el TestStore retorna null. **NUNCA crees clases que implementen `IEventStore`** — el unico EventStore valido en tests es el que provee `CommandHandlerTestBase`.
     ```csharp
@@ -746,3 +754,4 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
     }
     ```
 18. **Aggregates con stream ID compuesto**: si el aggregate computa su `Id` desde datos del payload (ej. `ComputarStreamId(empleadoId, fecha)`) en lugar de usar un GUID, DEBES usar los overloads con `aggregateId` explicito: `Then(streamId, eventos)` (sobrecarga de dos argumentos - patron idiomatico del proyecto), `And<T,P>(streamId, selector, valor)`, y `Given(streamId, evento)`. Usar los overloads implicitos producira tests que buscan por el `GuidAggregateId` del harness y nunca encontraran el aggregate.
+19. **Si detectas una contradiccion estructural en el issue** (ej. un test listado en "Impacto / Modifica" debe usar API de un proyecto que el test no puede referenciar; una sugerencia de "Interfaz publica propuesta" contradice un ADR; un CA exige un archivo en una ubicacion imposible), **tu decides la resolucion**: reubica el test al proyecto correcto, reemplazalo por uno equivalente, divide la cobertura en dos archivos, o elimina el test obsoleto si el refactor del issue lo vuelve insostenible y otro test cubre el CA. Documenta la decision en tu resumen bajo "Desviaciones del plan del planner" (ver seccion 9) con el formato: *regla/sugerencia del issue / desviacion aplicada / razon tecnica / consecuencia*. **No reportes bloqueo por esto** — la autoridad es tuya. Reportar bloqueo se reserva para situaciones donde no puedes decidir con la informacion disponible (no para contradicciones que tu mismo puedes resolver con criterio).

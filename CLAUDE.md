@@ -121,6 +121,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Definition of Ready | ADR-0014 |
 | Smoke tests contra entorno dev | ADR-0016 |
 | Snapshots de Marten (excepción) | ADR-0021 |
+| Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | ADR-0022 |
 
 Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
 
