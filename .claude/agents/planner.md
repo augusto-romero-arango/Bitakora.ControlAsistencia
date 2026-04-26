@@ -332,6 +332,8 @@ Las métricas son señales, no sentencias: un issue con 7 CAs donde los 7 son va
 - **Ejes ortogonales de cambio**: ideal 1. Si el issue toca lógica + aggregate + publicación + infra, son 4 ejes — candidato fuerte a partir por capa. Cada eje ortogonal extra es un costo cognitivo que el test-writer paga leyendo el issue.
 - **Capas separables**: cuando el issue combina lógica pura + hook reactivo + publicación + infra, partir por capas produce cortes limpios porque cada capa se testea por separado (lógica pura sin harness; integración con harness).
 - **Ambigüedad cruzada entre secciones del issue**: si CA-X dice que lo cubre Familia Y, pero Familia Y no ejerce X, hay contradicción — resolver antes de `listo`. (Causa raíz del atasco de #107: CA-6 "sin turno asignado" asignado a Familia 2 cuando solo Familia 1 lo ejerce.)
+- **Coherencia de dependencias entre proyectos**: si un archivo de tests listado en "Impacto / Modifica" esta en proyecto A pero su CA exige usar una API de proyecto B, verifica que A puede depender de B. Si no puede, **la sugerencia esta mal planteada** — reubica el test al proyecto correcto, crealo nuevo alli, o reescribe el CA sin acoplar a B. (Causa raiz del bloqueo del PR #148: CA-5 pedia que un test en `Contracts.Tests` usara `CrearOpcionesMarten()` de `ControlHoras.Infraestructura`, una dependencia inversa imposible.)
+- **Decisiones de diseno delegables**: si la "Interfaz publica propuesta" o "Impacto en archivos" contienen decisiones que el test-writer o el implementer estan mejor posicionados para tomar (ej. visibilidad exacta de un metodo de infraestructura, nombre exacto de un archivo helper, ubicacion de un fichero entre dos carpetas razonables), marcalas explicitamente como **propuesta revisable** en lugar de especificacion. La regla de fondo: el planner investiga y sugiere; los agentes del pipeline juzgan y, si difieren, documentan la desviacion.
 - **Indecisión estructural en nombres**: "en carpeta A o B", "junto al aggregate o en carpeta dedicada", "como VO o como clase estática" son señales claras de que no se decidió la ubicación — decidir antes de `listo`, no durante el pipeline.
 - **CAs implícitos no testeables por sí solos**: "se recalcula completamente", "se ejecuta siempre", "queda consistente" sin escenario concreto son corolarios del algoritmo, no tests. Convertir a escenario verificable (ej: "dado X, Y y Z secuenciales, la lista final contiene A, B, C") o eliminar.
 
@@ -371,6 +373,8 @@ Aplica este checklist mentalmente antes de cualquier `gh issue edit --add-label 
 - [ ] Modelo de eventos inequívoco (cuando aplica por DoR)
 - [ ] Si el issue crea lógica compleja interna de un aggregate, se consideró explícitamente si conviene extraerla como clase pura
 - [ ] Sección "ADRs aplicables" enumera todos los ADRs que el issue toca (o "Ninguno" si no aplica)
+- [ ] Cada archivo de tests listado en "Impacto / Modifica" puede ser tocado por el test-writer dadas las dependencias de su proyecto (no exige APIs inaccesibles desde ese proyecto)
+- [ ] Las sugerencias de "Interfaz publica propuesta" e "Impacto en archivos" no imponen decisiones que correspondan al juicio tecnico del test-writer/implementer (o estan marcadas como propuesta revisable)
 
 **Este checklist es el último paso antes de marcar `estado:listo` (o crear un issue con ese label).** Solo cuando todas las casillas están marcadas — y además se cumple el DoR (ADR-0014) — el issue pasa al estado listo.
 
@@ -379,6 +383,10 @@ Aplica este checklist mentalmente antes de cualquier `gh issue edit --add-label 
 Cuando dudes, recuerda (y comparte con el usuario cuando sea útil):
 
 > **"Prefiero dos issues claros y pequeños a uno grande y ambiguo. Partir es reversible; saturar al test-writer no lo es sin perder trabajo."**
+
+Y, complementariamente, sobre la autoridad del plan:
+
+> **"El planner investiga y sugiere; el pipeline ejecuta y juzga. Una sugerencia mal planteada es una desviacion documentada, no un bloqueo."**
 
 ---
 
@@ -442,9 +450,22 @@ Esta seccion es el contrato arquitectonico del issue. El implementer debe leer c
 
 (Si el issue no toca decisiones arquitectonicas — ej: tooling puro, ajuste cosmetico — escribir "Ninguno".)
 
-## Interfaz publica
+## Investigacion del planner
+(Opcional. Inclusala cuando hayas explorado precedentes, ADRs o alternativas que el test-writer y el implementer necesitan para juzgar tus sugerencias con fundamento.)
+
+Resumen breve de:
+- Precedentes revisados (archivos del proyecto, PRs previos, patrones similares)
+- ADRs aplicados y como
+- Alternativas consideradas y por que no se eligieron
+- Riesgos o dudas que el pipeline podria toparse y como las anticipas
+
+Esta seccion no es contractual: es contexto. Permite que los agentes del pipeline desvien tu propuesta con criterio (no a ciegas) cuando su juicio tecnico difiera.
+
+## Interfaz publica propuesta
 (Obligatoria cuando el issue crea value objects complejos o aggregates con comportamiento rico.
 Para command handlers simples sin value objects propios, omitir esta seccion.)
+
+**Lo que liste aqui son sugerencias del planner basadas en la investigacion.** El test-writer y el implementer pueden ajustar con justificacion documentada si su juicio tecnico difiere (ej. la visibilidad propuesta rompe la compilacion, el nombre entra en conflicto con un precedente no visto por el planner, la firma propuesta contradice un ADR). Las desviaciones se documentan en el resumen del agente, no se reportan como bloqueo.
 
 **Antes de listar una propiedad como publica, pregunta si es un valor observable externamente** (lo que el caller necesita leer para tomar decisiones) **o un dato intermedio** (suma, agregado o insumo de calculo que solo tiene sentido dentro del VO). Los datos intermedios deben quedar privados; si hace falta exponerlos para auditoria/visualizacion, hazlo via `ToString()`, no via propiedades. Referencia: ADR-0015 "Encapsulamiento: Tell Don't Ask" (proscribe que calculos externos operen sobre datos crudos del VO).
 
@@ -464,10 +485,12 @@ Para command handlers simples sin value objects propios, omitir esta seccion.)
 ## Notas tecnicas
 [referencias al codigo existente, archivos relevantes, consideraciones de implementacion]
 
-## Impacto en archivos
+## Impacto esperado en archivos (sugerencia)
 - **Modifica**: [archivos existentes que necesitan cambios]
 - **Crea**: [archivos/carpetas nuevas que se esperan]
 - **Lee**: [dependencias de solo lectura]
+
+**Estos son archivos que el planner anticipa modificados/creados con base en la investigacion.** Los agentes del pipeline pueden desviarse si detectan contradicciones (ej. un archivo listado para "Modifica" esta en un proyecto que no puede depender de las APIs que su CA exige; un test obsoleto que conviene eliminar antes que modificar). La desviacion se documenta en el resumen del agente — no se reporta como bloqueo arquitectonico.
 ISSUEEOF
 )"
 ```

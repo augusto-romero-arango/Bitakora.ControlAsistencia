@@ -106,17 +106,39 @@ Si el reporte existe:
 [Tu evaluacion como arquitecto senior de por que estos tests no pasan]
 ```
 
-5. **Termina normalmente** — el pipeline creara el PR con los tests rojos documentados.
+Si en cambio resolviste el bloqueo (no agotaste 5 intentos), **omite el bloque anterior** y registra la resolucion con esta plantilla:
 
-**Importante**: NO modifiques tests para hacerlos pasar. NO elimines tests. Solo cambia implementaciones.
+```markdown
+### Resolucion de bloqueo heredado
 
-**Excepcion: bugs en el uso del framework de testing.** Si un test usa un overload incorrecto del harness (`Then(evento)` en lugar de `Then(streamId, null, evento)`, o `And<T,P>(selector, valor)` en lugar de `And<T,P>(streamId, selector, valor)`) y el aggregate tiene stream ID compuesto (no GUID), esto es un **bug en el test**, no una modificacion para hacerlo pasar. Corregir el overload es equivalente a corregir un typo — el intent del test no cambia. En este caso:
-1. Identifica el stream ID correcto (busca `ComputarStreamId` en el aggregate)
-2. Reemplaza `Then(eventos)` por `Then(streamId, null, eventos)`
-3. Reemplaza `And<T,P>(selector, valor)` por `And<T,P>(streamId, selector, valor)`
-4. Reemplaza `Given(evento)` por `Given(streamId, evento)` si aplica
-5. Corre `dotnet test` para confirmar
-6. Documenta la correccion en el reporte como "bug de framework, no cambio de especificacion"
+(Solo cuando aplicaste la excepcion "bugs de framework o contradicciones estructurales del plan", no cuando agotaste 5 intentos sin resolverlo.)
+
+| Test afectado | Naturaleza del problema | Accion tomada | Donde queda cubierto el CA |
+|---|---|---|---|
+| ej: `IntervaloTemporalSerializacionTests.RoundTrip_*` | Contradiccion estructural: `Contracts.Tests` no puede usar `CrearOpcionesMarten()` (`ControlHoras.Infraestructura`) | Archivo eliminado: el refactor del issue volvio imposible la precondicion del test sin violar ADR-0015 | CA-5 cubierto por `IntervaloTemporalSerializacionMartenTests` en `ControlHoras.Tests/Infraestructura/` |
+```
+
+Esta tabla deja trazabilidad de cuando el reviewer actua como resolvedor de bloqueos arquitectonicos, distinta del caso de tests que siguen rojos.
+
+5. **Termina normalmente** — el pipeline creara el PR con los tests rojos documentados (si quedaron) o limpios (si los resolviste).
+
+**Importante**: NO modifiques tests para hacerlos pasar. Solo cambia implementaciones.
+
+**Excepcion: bugs de framework o contradicciones estructurales del plan.** Puedes modificar o eliminar tests en estos casos:
+
+1. **Bugs de framework** (caso original): un test usa un overload incorrecto del harness (`Then(evento)` en lugar de `Then(streamId, null, evento)`, o `And<T,P>(selector, valor)` en lugar de `And<T,P>(streamId, selector, valor)`) y el aggregate tiene stream ID compuesto (no GUID). Esto es un **bug en el test**, no una modificacion para hacerlo pasar. Corregir el overload es equivalente a corregir un typo — el intent del test no cambia. En este caso:
+   1. Identifica el stream ID correcto (busca `ComputarStreamId` en el aggregate)
+   2. Reemplaza `Then(eventos)` por `Then(streamId, null, eventos)`
+   3. Reemplaza `And<T,P>(selector, valor)` por `And<T,P>(streamId, selector, valor)`
+   4. Reemplaza `Given(evento)` por `Given(streamId, evento)` si aplica
+   5. Corre `dotnet test` para confirmar
+   6. Documenta la correccion en el reporte como "bug de framework, no cambio de especificacion".
+
+2. **Contradicciones estructurales no resueltas por el test-writer** (caso PR #148): un test en proyecto A que el issue pide modificar para usar API de proyecto B, pero A no puede depender de B; o un test que quedo obsoleto porque el refactor del issue volvio imposible su precondicion (ej. sin `[JsonConstructor]`, STJ vanilla ya no puede deserializar la clase contra ADR-0015). En estos casos: **elimina el test o reubicalo al proyecto correcto, siempre que los CAs del issue queden cubiertos por otro test** (nuevo o existente). Idealmente esta resolucion la hace el test-writer (regla #19 de su agente) en la fase roja; si no la hizo, te toca a ti como parte del refactor.
+
+Ambos casos: el intent del test no cambia (o el CA se cubre de otra forma equivalente). Documenta la accion en el reporte bajo "Resolucion de bloqueo heredado" con el formato indicado debajo del bloque "Reporte de bloqueo - Reviewer".
+
+**Lo que sigue prohibido**: eliminar tests para forzar que pase la suite cuando el codigo de produccion tiene un defecto real, o cuando los CAs no quedan cubiertos por ningun otro test. La excepcion no es licencia para "limpiar" tests legitimos.
 
 ### 3. Verificar cumplimiento de los ADRs aplicables
 
