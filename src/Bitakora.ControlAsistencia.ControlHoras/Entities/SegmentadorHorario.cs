@@ -20,6 +20,11 @@ public static class SegmentadorHorario
         FronterasHorariasLegales.InicioNocturna.Hour * MinutosPorHora
         + FronterasHorariasLegales.InicioNocturna.Minute;
 
+    // Las tres fronteras horarias del dia (offsets en minutos desde medianoche).
+    // Se reusan en cada llamada al barrer los dias del rango.
+    private static readonly int[] OffsetsHorariosDelDia =
+        [MinutosFronteraMedianoche, MinutosFronteraDiurna, MinutosFronteraNocturna];
+
     // Corta el intervalo en cada ocurrencia de las fronteras 6AM, 7PM y medianoche
     // dentro del rango (exclusivo de los extremos). Si no hay fronteras: retorna [intervalo].
     public static IReadOnlyList<IntervaloTemporal> Segmentar(IntervaloTemporal intervalo)
@@ -31,19 +36,17 @@ public static class SegmentadorHorario
     }
 
     // Genera los puntos de corte (en minutos absolutos) dentro del rango exclusivo del
-    // intervalo: barre cada dia involucrado y emite las tres fronteras del dia, filtra las
-    // que caen estrictamente dentro del rango y las ordena ascendente.
+    // intervalo: barre los dias diaInicio..diaFin, emite las tres fronteras de cada dia,
+    // filtra las que caen estrictamente dentro del rango y las ordena ascendente.
     private static IReadOnlyList<int> ObtenerFronterasInternas(IntervaloTemporal intervalo)
     {
         var inicioMin = intervalo.MinutosAbsolutosInicio;
         var finMin = inicioMin + intervalo.DuracionEnMinutos;
         var diaInicio = inicioMin / MinutosPorDia;
         var diaFin = finMin / MinutosPorDia;
-        int[] offsetsHorariosDelDia =
-            [MinutosFronteraMedianoche, MinutosFronteraDiurna, MinutosFronteraNocturna];
 
-        return Enumerable.Range(diaInicio, diaFin - diaInicio + 2)
-            .SelectMany(dia => offsetsHorariosDelDia.Select(offset => dia * MinutosPorDia + offset))
+        return Enumerable.Range(diaInicio, diaFin - diaInicio + 1)
+            .SelectMany(dia => OffsetsHorariosDelDia.Select(offset => dia * MinutosPorDia + offset))
             .Where(frontera => frontera > inicioMin && frontera < finMin)
             .OrderBy(frontera => frontera)
             .ToList();
