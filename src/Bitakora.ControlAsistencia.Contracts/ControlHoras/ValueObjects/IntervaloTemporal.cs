@@ -58,6 +58,34 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
     public decimal DuracionEnHorasDecimales => DuracionEnMinutos / (decimal)MinutosPorHora;
 
+    // Issue #115: corta el intervalo en cada ocurrencia diaria de las fronteras dadas
+    // (exclusivo de los extremos). Operacion geometrica pura - el caller decide que
+    // fronteras pasar.
+    public IReadOnlyList<IntervaloTemporal> Segmentar(IEnumerable<TimeOnly> fronterasDiarias)
+    {
+        var inicioMin = _inicio.MinutosAbsolutos;
+        var finMin = _fin.MinutosAbsolutos;
+
+        var fronteras = Enumerable.Range(_inicio.DiaOffset, _fin.DiaOffset - _inicio.DiaOffset + 1)
+            .SelectMany(dia => fronterasDiarias.Select(t => new MomentoDelDia(t, dia).MinutosAbsolutos))
+            .Where(f => f > inicioMin && f < finMin)
+            .OrderBy(f => f)
+            .ToList();
+
+        if (fronteras.Count == 0) return [this];
+
+        var resultado = new List<IntervaloTemporal>(fronteras.Count + 1);
+        var actual = this;
+        foreach (var frontera in fronteras)
+        {
+            var (izq, der) = actual.Partir(frontera - actual._inicio.MinutosAbsolutos);
+            resultado.Add(izq);
+            actual = der;
+        }
+        resultado.Add(actual);
+        return resultado;
+    }
+
     // Resuelve ambos extremos a DateTime usando la fecha como ancla del DiaOffset.
     public (DateTime Inicio, DateTime Fin) ResolverA(DateOnly fecha) =>
         (_inicio.ResolverA(fecha), _fin.ResolverA(fecha));
