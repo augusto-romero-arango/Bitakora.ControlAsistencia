@@ -195,19 +195,23 @@ Antes de escribir una sola linea de test, determina si esta tarea requiere tests
    ```bash
    dotnet test
    ```
-2. Crea el archivo senal:
+2. Crea el archivo senal en `pipeline-state/` (NO en `.claude/`):
    ```bash
-   mkdir -p .claude/pipeline
-   cat > .claude/pipeline/refactor-signal.md << 'EOF'
+   mkdir -p pipeline-state
+   cat > pipeline-state/refactor-signal.md << 'EOF'
    REFACTOR_ONLY=true
    JUSTIFICATION=<razon concreta>
    EOF
    ```
-3. Commitea el archivo senal y **detente aqui**:
-   ```bash
-   git add .claude/pipeline/refactor-signal.md
-   git commit -m "signal: refactoring puro - <justificacion breve>"
-   ```
+3. **Detente aqui** — no hace falta commitear el archivo senal. El pipeline lo
+   lee desde el filesystem; `pipeline-state/` esta gitignored y solo es estado
+   transitorio del pipeline.
+
+> **Importante**: el archivo senal vive en `pipeline-state/refactor-signal.md`
+> en la raiz del worktree, **no** en `.claude/pipeline/`. Razon en ADR-0023: el
+> runtime de Claude Code intercepta escrituras a `.claude/**` en worktrees aun
+> con `bypassPermissions`. Si ves la ruta legacy `.claude/pipeline/refactor-signal.md`
+> en documentacion antigua, ignorala — usa siempre `pipeline-state/`.
 
 **Si NO es refactoring puro:** continua con el flujo normal.
 

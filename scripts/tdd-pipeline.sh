@@ -388,12 +388,25 @@ else
 fi
 
 # Detectar señal de refactoring pre-existente (worktree previo con --from-stage)
-REFACTOR_SIGNAL_PATH="$WORKTREE_PATH/.claude/pipeline/refactor-signal.md"
+# Ubicacion: pipeline-state/ en la raiz del worktree (NO .claude/) — el runtime
+# de Claude Code intercepta escrituras a .claude/** en worktrees aun con
+# bypassPermissions, lo que dejaba al agente sin forma de senalizar refactor puro.
+# Decision documentada en docs/adr/0023-archivo-senal-refactor-fuera-de-claude.md.
+REFACTOR_SIGNAL_PATH="$WORKTREE_PATH/pipeline-state/refactor-signal.md"
+# Compatibilidad: aceptar la ubicacion legacy si existe (worktrees previos)
+LEGACY_REFACTOR_SIGNAL_PATH="$WORKTREE_PATH/.claude/pipeline/refactor-signal.md"
+if [ ! -f "$REFACTOR_SIGNAL_PATH" ] && [ -f "$LEGACY_REFACTOR_SIGNAL_PATH" ]; then
+    REFACTOR_SIGNAL_PATH="$LEGACY_REFACTOR_SIGNAL_PATH"
+fi
 if [ -f "$REFACTOR_SIGNAL_PATH" ]; then
     IS_REFACTOR=true
     REFACTOR_JUSTIFICATION=$(grep "^JUSTIFICATION=" "$REFACTOR_SIGNAL_PATH" | cut -d= -f2- || echo "no especificada")
     log "Señal de refactoring detectada (pre-existente): $REFACTOR_JUSTIFICATION"
 fi
+
+# Asegurar que el directorio pipeline-state/ existe en el worktree para que el
+# test-writer pueda escribir refactor-signal.md sin restricciones.
+mkdir -p "$WORKTREE_PATH/pipeline-state"
 
 # ─── Función auxiliar para recolectar resumen de agente ─────────────────────
 collect_summary() {
@@ -570,9 +583,29 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
 
     run_agent "1" "test-writer" "$STAGE1_PROMPT"
 
-    # Validar que el agente generó cambios (commiteados o no)
-    if git -C "$WORKTREE_PATH" diff --quiet "$SNAPSHOT_COMMIT" HEAD 2>/dev/null \
+    # Detectar señal de refactor ANTES del gate de "no genero archivos".
+    # Si el agente concluyo refactoring puro, la senal es la unica evidencia
+    # esperada en tests/ y src/ — abortar antes de chequearla seria un falso negativo.
+    # Tambien re-evaluamos el path por si el agente uso la ubicacion legacy.
+    if [ ! -f "$REFACTOR_SIGNAL_PATH" ] && [ -f "$LEGACY_REFACTOR_SIGNAL_PATH" ]; then
+        REFACTOR_SIGNAL_PATH="$LEGACY_REFACTOR_SIGNAL_PATH"
+    fi
+    if [ -f "$REFACTOR_SIGNAL_PATH" ] && [ "$IS_REFACTOR" = false ]; then
+        IS_REFACTOR=true
+        REFACTOR_JUSTIFICATION=$(grep "^JUSTIFICATION=" "$REFACTOR_SIGNAL_PATH" | cut -d= -f2- || echo "no especificada")
+        log "Señal de refactoring detectada: $REFACTOR_JUSTIFICATION"
+    fi
+
+    # Validar que el agente produjo trabajo: cambios en tests/src O senal de refactor.
+    # Si no hay nada, distinguir entre "agente realmente fallo" y "razono refactor pero
+    # no pudo escribir la senal" (Bug 1: runtime intercepta escrituras a .claude/**).
+    if [ "$IS_REFACTOR" = false ] \
+       && git -C "$WORKTREE_PATH" diff --quiet "$SNAPSHOT_COMMIT" HEAD 2>/dev/null \
        && [ -z "$(git -C "$WORKTREE_PATH" status --porcelain -- tests/ src/)" ]; then
+        STAGE1_LOG="$LOG_DIR_ABS/stage-1-test-writer-${TIMESTAMP}-issue-${ISSUE_NUM}.log"
+        if [ -f "$STAGE1_LOG" ] && grep -qiE "refactor.*pur|REFACTOR_ONLY|refactor-signal|refactoring puro" "$STAGE1_LOG"; then
+            abort "El test-writer detecto refactor puro pero no creo el archivo señal en $REFACTOR_SIGNAL_PATH (ni en la ubicacion legacy). Probable causa: el runtime intercepto la escritura. Revisa el log: $STAGE1_LOG"
+        fi
         abort "El test-writer no generó ningún archivo. Verifica que la definición del agente (.claude/agents/test-writer.md) existe en el repo."
     fi
 
@@ -580,13 +613,6 @@ Tu tarea: escribe los tests unitarios para esta HU y crea los stubs mínimos de 
     log "Gate: verificando compilación..."
     dotnet build "$WORKTREE_PATH" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1 \
         || abort "Stage 1 fallido: el proyecto no compila después del test-writer. Revisa $LOG_DIR/stage-1-test-writer.log"
-
-    # Detectar si el test-writer señalizó refactoring puro (puede haber sido creado recién)
-    if [ -f "$REFACTOR_SIGNAL_PATH" ] && [ "$IS_REFACTOR" = false ]; then
-        IS_REFACTOR=true
-        REFACTOR_JUSTIFICATION=$(grep "^JUSTIFICATION=" "$REFACTOR_SIGNAL_PATH" | cut -d= -f2- || echo "no especificada")
-        log "Señal de refactoring detectada: $REFACTOR_JUSTIFICATION"
-    fi
 
     if [ "$IS_REFACTOR" = false ]; then
         # Gate 1b: los tests nuevos deben FALLAR (exit code != 0)
