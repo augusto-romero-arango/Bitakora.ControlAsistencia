@@ -152,7 +152,20 @@ Esta fase reemplaza el antiguo "checklist de patrones ES" (que duplicaba reglas 
    - Si NO lo declaro, es una desviacion no reportada: intenta corregir el codigo (siguiendo las reglas estandar: `dotnet test` despues de cada cambio, revertir si rompe). Si no es trivial corregir, documentalo como hallazgo bloqueante.
 5. **Verifica precedentes citados por el implementer**: si cito algun archivo/PR del proyecto como referencia, valida que el precedente realmente cumple el ADR. Si el precedente viola el ADR (como paso con PR 142 vs ADR-0015), reporta el bug del precedente en tus hallazgos — pero NO lo uses para justificar replicar la violacion.
 
-**Memoria de gaps pasados (no son reglas enumeradas — son recordatorios de "precedente ≠ autoridad")**: PR 142 y PR 144 pasaron el review con violaciones a ADR-0015 porque se asumio que el precedente era suficiente. Si dudas sobre un patron de serializacion o igualdad de VOs, **relee ADR-0015** antes de aceptar o rechazar el diff — no busques el patron en el codigo ya mergeado como autoridad. Incidentes documentados en `docs/bitacora/field-notes/review-pr-144.md`.
+**Memoria de gaps pasados (no son reglas enumeradas — son recordatorios de "precedente ≠ autoridad")**: PR 142 y PR 144 pasaron el review con violaciones a ADR-0015 porque se asumio que el precedente era suficiente. PR #155 paso el review interno con una violacion de Tell-don't-Ask sobre un VO porque el reviewer no tenia checklist activo de antipatrones. Si dudas sobre un patron de serializacion, igualdad de VOs o exposicion de estado, **relee ADR-0015** antes de aceptar o rechazar el diff — no busques el patron en el codigo ya mergeado como autoridad. Incidentes documentados en `docs/bitacora/field-notes/review-pr-144.md` y `docs/bitacora/field-notes/review-pr-155.md`.
+
+#### Antipatrones de ADR-0015 a detectar activamente
+
+Antes de declarar el cumplimiento de ADR-0015, recorre **explicitamente** este checklist sobre el diff. Cada item es una violacion concreta vista en revisiones pasadas — si lo encuentras, es bloqueante salvo justificacion documentada en "Desviaciones de ADRs" con alternativa Tell-don't-Ask explorada:
+
+1. **Propiedad publica nueva en un VO/aggregate cuyo unico consumidor es un servicio o clase estatica externa** (PR #155: `IntervaloTemporal.MinutosAbsolutosInicio` consumida solo por `SegmentadorHorario`). Pregunta: "¿la operacion que consume esta propiedad podria vivir como metodo del VO?" Si si, la propiedad sobra y la operacion debe moverse al VO.
+2. **Clase estatica que opera sobre datos crudos de un VO o aggregate** (PR #155: `SegmentadorHorario.Segmentar(IntervaloTemporal)`). Pregunta: "¿por que la operacion no es un metodo del propio objeto?" Salvo que la operacion combine genuinamente datos de objetos diferentes que no pueden converger via eventos, la clase estatica es la salida facil — proscrita por ADR-0015.
+3. **Getter de propiedad expuesta solo para que los tests verifiquen estado interno**. Pregunta: "¿este getter existe porque el caller real lo necesita, o solo porque un test lo quiere afirmar?" Si solo para tests, los tests deben verificar a traves de comportamiento (`ToString()`, metodos publicos), no via estado.
+4. **`InternalsVisibleTo` de Contracts hacia un proyecto de dominio**. Es proscrito por ADR-0015 (regla #4 implementer.md). La logica de conversion vive en el VO via metodo publico (`ToDetalle()`, `ToDto()`).
+5. **`[JsonConstructor]` en un ctor privado de VO con campos privados**. Marten no respeta ese atributo en ctors privados. La forma canonica es `ConfigurarSerializacion` con resolver y campos via reflection (lineas 227-230 de ADR-0015).
+6. **`record` con `IReadOnlyList<T>` como propiedad de igualdad**. La igualdad de `record` por defecto compara por referencia las colecciones. Para VOs con coleccion interna, usar `sealed class` con `IEquatable` manual o helper de igualdad estructural.
+
+Para cada item: si la violacion existe y NO esta documentada como desviacion con alternativa Tell-don't-Ask explorada en el resumen del implementer, intenta corregir el codigo (mover la operacion al VO, eliminar el getter, etc.). Si no es trivial corregir, documentalo como hallazgo bloqueante.
 
 **Convenciones del pipeline que NO estan en ADRs** (revisa tambien):
 

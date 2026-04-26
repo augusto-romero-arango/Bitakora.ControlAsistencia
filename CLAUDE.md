@@ -110,6 +110,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 
 | Tema | ADR |
 |---|---|
+| **Encapsulamiento, Tell-don't-Ask, ocultación de estado interno (aplica por igual a aggregates y a value objects)** | ADR-0015 |
 | Serialización, value objects con ctor privado, records vs sealed class, `ConfigurarSerializacion`, proscripción de `[JsonConstructor]` | ADR-0015 |
 | Manejo de errores en event sourcing, eventos de fallo, no-throw en `Apply()` | ADR-0007 |
 | Naming de eventos, versionado | ADR-0005 |

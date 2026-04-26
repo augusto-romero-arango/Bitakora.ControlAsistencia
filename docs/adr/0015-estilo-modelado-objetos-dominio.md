@@ -162,9 +162,14 @@ public sealed class TurnoAsignado
 Los calculos pertenecen al objeto que tiene los datos necesarios. Si un metodo de otra clase
 necesita datos del objeto para calcular algo, ese calculo debe vivir dentro del objeto.
 
-En event sourcing, la heuristica es **preferir el aggregate que acumula estado via eventos**
-sobre un servicio externo que jala datos. Un aggregate puede escuchar eventos de multiples
-dominios y ejecutar calculos con toda la informacion que necesita.
+**Esta regla aplica por igual a aggregates y a value objects.** No existe la categoria de
+"VO como mera estructura de datos" — un VO bien modelado expone comportamiento y oculta
+representacion. Si una clase externa (servicio, helper, clase estatica) necesita leer
+estado interno de un VO para operar sobre el, la operacion pertenece al propio VO.
+
+En event sourcing, la heuristica para aggregates es **preferir el aggregate que acumula
+estado via eventos** sobre un servicio externo que jala datos. Un aggregate puede escuchar
+eventos de multiples dominios y ejecutar calculos con toda la informacion que necesita.
 
 ```csharp
 // Preferir esto (aggregate que tiene los datos)
@@ -174,14 +179,68 @@ public void Apply(MarcacionesRecibidas e)
     _horasDesglosadas = DesglosaHoras(); // calculo interno
 }
 
-// Evitar esto (servicio externo que accede a datos del objeto)
+// Evitar esto (servicio externo que accede a datos del aggregate)
 var horas = calculadoraHoras.Calcular(aggregate.Marcaciones, aggregate.Turno);
 ```
+
+Para value objects la misma regla se aplica: si una clase externa necesita conocer la
+representacion interna del VO para operar sobre el, **la operacion vive en el VO**. La
+salida facil — exponer una propiedad publica nueva para que la clase externa la consuma —
+es exactamente lo que esta proscrito.
+
+```csharp
+// Preferir esto (el VO conoce sus puntos de corte y los aplica)
+public IReadOnlyList<IntervaloTemporal> Segmentar(IEnumerable<TimeOnly> fronterasDiarias)
+{
+    // accede a _inicio.MinutosAbsolutos sin exponerlo: vive dentro del VO
+    ...
+}
+
+// Evitar esto (servicio externo que pide al VO sus minutos absolutos)
+public int MinutosAbsolutosInicio => _inicio.MinutosAbsolutos; // expone solo para que un externo opere
+public static class SegmentadorHorario { ... intervalo.MinutosAbsolutosInicio ... }
+```
+
+**Heuristica de decision al planear o implementar**: antes de proponer/escribir un servicio
+o clase estatica que opere sobre un VO o aggregate existente, responde explicitamente:
+
+1. La operacion, ¿depende solo de datos del propio objeto? → vive en el objeto.
+2. ¿Necesita exponer estado interno nuevo (propiedad/getter publico)? → la operacion debe
+   moverse al objeto, en lugar de abrir su API.
+3. ¿Cruza genuinamente datos de multiples objetos que no pueden converger via eventos? →
+   recien entonces aplica proyeccion o process manager.
 
 Si un calculo genuinamente cruza multiples aggregates de formas que no pueden resolverse
 con acumulacion de eventos, la alternativa es una proyeccion (read model) o un process
 manager -- no un domain service que rompa el encapsulamiento. Este diseno se decide en la
 fase de descubrimiento, no como default.
+
+**Contrapartida activa: aprovechar la superficie del dominio.** El principio tiene una cara
+positiva ademas de la prohibitiva: **un objeto rico solo es rico si sus consumidores aprovechan
+su superficie**. Cuando escribas codigo que toca un VO o aggregate, **lee primero su API publica
+completa**. Si reescribes a mano un calculo derivado que el objeto ya expone, el objeto deja de
+ser un deep module en la practica -- su abstraccion queda atrapada en el archivo donde vive y
+el lenguaje del dominio se vacia en el sitio del consumo. La regla operativa: antes de combinar
+propiedades primitivas de un objeto del dominio (`obj.X * Y + obj.Z`), busca si el objeto ya
+expone esa combinacion como propiedad o metodo derivado.
+
+```csharp
+// Recalcular a mano lo que MomentoDelDia ya expone:
+.Select(t => dia * 1440 + t.Hour * 60 + t.Minute)
+// El consumidor habla aritmetica primitiva. El dominio desaparece.
+
+// Pedirle al objeto que calcule:
+.Select(t => new MomentoDelDia(t, dia).MinutosAbsolutos)
+// El consumidor habla lenguaje del dominio. El VO sigue siendo profundo.
+```
+
+Tell-don't-Ask en este nivel no es proteccion contra exposicion -- es invitacion a consumo.
+Caso real (PR #155, round 2): `IntervaloTemporal.Segmentar` reescribio
+`dia * 1440 + t.Hour * 60 + t.Minute` cuando `MomentoDelDia.MinutosAbsolutos` ya lo exponia
+desde issue #143. La duplicacion no se detecto en el round 1 (que se enfoco en la exposicion
+indebida de estado); se necesito un segundo paso del reviewer humano para verla. Ensenanza:
+"no expongas getters" y "consume la riqueza expuesta" son dos lados de la misma moneda --
+ambos requieren leer la API del objeto antes de escribir codigo sobre el.
 
 ### Serializacion sin atributos en la clase de dominio
 

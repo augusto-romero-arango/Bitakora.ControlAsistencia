@@ -359,6 +359,22 @@ public void Apply(MarcacionesRecibidas e)
 
 Si un cálculo cruza múltiples aggregates de formas que no pueden resolverse con acumulación de eventos, la alternativa (proyección o process manager) se decide en la fase de descubrimiento — no como default.
 
+### Aprovechar la superficie del dominio (pre-flight)
+
+Tell-don't-Ask tiene una contrapartida activa: **un objeto rico solo es rico si sus consumidores aprovechan su superficie**. Antes de escribir aritmetica o composiciones que combinen propiedades primitivas de un objeto del dominio (`obj.Prop`, `obj.X.Y`, `obj.A * k + obj.B`), abre el archivo del objeto y **lee su superficie publica completa**. Si el objeto ya expone una propiedad o metodo derivado que produce el valor que ibas a calcular, usalo. Si no lo expone pero la operacion pertenece al dominio del objeto, considera moverla al objeto antes de implementarla afuera.
+
+```csharp
+// INCORRECTO: recalcular a mano la formula que el VO ya expone
+.Select(t => dia * 1440 + t.Hour * 60 + t.Minute)
+
+// CORRECTO: pedirle al VO que la calcule
+.Select(t => new MomentoDelDia(t, dia).MinutosAbsolutos)
+```
+
+La consecuencia de no hacerlo no es solo duplicacion: cuando el codigo habla en aritmetica primitiva (`x * 1440 + y * 60 + z`) en lugar del lenguaje del dominio (`MinutosAbsolutos`), **el modelo desaparece donde mas deberia estar visible**. El VO deja de ser deep module en la practica — su abstraccion queda atrapada y la complejidad se filtra al consumidor.
+
+Caso real (PR #155, round 2): se escribio `dia * MinutosPorDia + t.Hour * MinutosPorHora + t.Minute` dentro de `IntervaloTemporal.Segmentar` cuando `MomentoDelDia.MinutosAbsolutos` ya lo exponia. El reviewer humano lo detecto despues del round 1 — la leccion no era visible solo con "no expongas estado", requeria leer la API del VO consumido antes de escribir codigo sobre el.
+
 ### Numeros magicos → constantes con nombre
 
 Nunca uses literales numericos con significado de dominio. Extraelos como constantes con nombre descriptivo:
@@ -725,6 +741,7 @@ Para cada desviacion consciente de un ADR listado en el issue (si la hay):
 - **Regla del ADR**: [cita breve]
 - **Desviacion aplicada**: [que se hizo distinto]
 - **Razon**: [por que, con evidencia tecnica]
+- **Alternativas exploradas y descartadas**: [obligatorio cuando la desviacion expone estado interno (nueva propiedad publica, getter, internal). Lista al menos una alternativa Tell-don't-Ask considerada — tipicamente "mover la operacion al VO/aggregate" — y la razon tecnica concreta por la que se descarto. Si no se puede listar una alternativa creible, NO se desvie: detente y reporta gap.]
 - **Consecuencia conocida**: [riesgo asumido]
 - **Status**: pendiente de evaluacion del usuario
 
@@ -761,4 +778,6 @@ Estas son reglas procedimentales del pipeline. **Las reglas arquitectonicas (pat
 8. **Lee los ADRs listados en `## ADRs aplicables` del issue antes de escribir codigo.** Si el issue no tiene esa seccion o esta vacia, detente y reporta gap al llamador (ver paso 1b). No asumas. No improvises.
 9. **Precedente ≠ autoridad.** Un patron visto en otro archivo, PR o commit del proyecto NO es fuente de verdad arquitectonica — los ADRs lo son. Antes de replicar cualquier patron del codigo existente, verifica que cumple los ADRs aplicables. Si el precedente los viola (ejemplo tipico: `[JsonConstructor]` en ctor privado cuando ADR-0015 lo proscribe), reportalo como bug en tu resumen de decisiones y NO lo replicues. Aplica el patron correcto segun el ADR.
 10. **Documenta toda desviacion consciente de un ADR o del plan del planner.** Si decides apartarte deliberadamente de un ADR listado en el issue (por razon tecnica legitima), registralo en la seccion "Desviaciones de ADRs" del resumen del pipeline con el formato especificado (regla del ADR, desviacion aplicada, razon, consecuencia conocida). Si decides apartarte de una sugerencia concreta del planner (nombre de archivo de "Impacto en archivos", visibilidad o firma de "Interfaz publica propuesta"), registralo en una seccion paralela "Desviaciones del plan del planner" con el mismo formato (sugerencia del issue, desviacion aplicada, razon tecnica, consecuencia). Recuerda: el plan del planner es una sugerencia basada en su investigacion, no un mandato — pero apartarse sin documentar es el peor outcome posible. Esto queda disponible para evaluacion del usuario.
+
+    **Cuando la desviacion expone estado interno** (agregar una propiedad publica nueva en un VO o aggregate, abrir un getter, cambiar `private`/`internal` a `public`, agregar `InternalsVisibleTo`), aplica esta regla extra **antes** de implementar la desviacion: enumera al menos una alternativa Tell-don't-Ask (tipicamente "mover la operacion al objeto que tiene los datos") y el motivo tecnico concreto por el que se descarta. La alternativa debe ir documentada en el campo "Alternativas exploradas y descartadas" del bloque de la desviacion. **Si no logras formular una alternativa creible, NO te desvies**: la imposibilidad de articular alternativas es senal de que la decision arquitectonica corresponde al planner — detente y reporta gap. Caso real (PR #155): el implementer expuso `MinutosAbsolutosInicio` para que un servicio externo operase sobre `IntervaloTemporal`. No exploro mover `Segmentar` al propio VO; el reviewer humano rechazo el PR. Ver ADR-0015 seccion "Encapsulamiento: Tell Don't Ask" — aplica por igual a aggregates y VOs.
 11. **Cuando detectes que estas girando en circulos** (5 intentos enfocados sobre el mismo test con enfoques distintos), DETENTE. Haz commit de tu progreso, escribe el reporte de bloqueo (seccion 4b), y termina normalmente. No mueras por timeout.
