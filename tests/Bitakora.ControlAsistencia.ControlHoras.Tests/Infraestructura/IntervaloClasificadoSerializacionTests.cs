@@ -76,7 +76,7 @@ public class IntervaloClasificadoSerializacionTests
     }
 
     [Fact]
-    public void RoundTrip_PreservaOffsetDelIntervalo_CuandoCruzaMedianoche()
+    public void RoundTrip_PreservaIntervaloYDuracion_CuandoCruzaMedianoche()
     {
         var original = new IntervaloClasificado(
             IntervaloTemporal.Crear(
@@ -89,7 +89,7 @@ public class IntervaloClasificadoSerializacionTests
         var restaurado = JsonSerializer.Deserialize<IntervaloClasificado>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.Intervalo.Fin.DiaOffset.Should().Be(1);
+        restaurado!.Intervalo.Should().Be(original.Intervalo);
         restaurado.DuracionEnMinutos.Should().Be(480);
     }
 }

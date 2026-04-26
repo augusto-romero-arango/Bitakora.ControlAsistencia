@@ -20,42 +20,34 @@ public class IntervaloTemporalDesdeYPartirTests
     // ---------- CA-13: Desde rango diurno mismo dia ----------
 
     [Fact]
-    public void Desde_RetornaIntervaloConDuracion540YOffsetCero_CuandoRangoDiurnoMismoDia()
+    public void Desde_RetornaIntervaloEquivalenteAlEsperado_CuandoRangoDiurnoMismoDia()
     {
         var intervalo = IntervaloTemporal.Desde(
             new DateTime(2026, 3, 15, 8, 0, 0),
             new DateTime(2026, 3, 15, 17, 0, 0),
             FechaBase);
 
+        var esperado = IntervaloTemporal.Crear(
+            new MomentoDelDia(new TimeOnly(8, 0), 0),
+            new MomentoDelDia(new TimeOnly(17, 0), 0));
+        intervalo.Should().Be(esperado);
         intervalo.DuracionEnMinutos.Should().Be(540);
-        intervalo.Inicio.DiaOffset.Should().Be(0);
-        intervalo.Fin.DiaOffset.Should().Be(0);
-    }
-
-    [Fact]
-    public void Desde_RetornaMomentosEquivalentes_CuandoRangoDiurnoMismoDia()
-    {
-        // Verificar que el Inicio y Fin coinciden con los MomentoDelDia esperados
-        var intervalo = IntervaloTemporal.Desde(
-            new DateTime(2026, 3, 15, 8, 0, 0),
-            new DateTime(2026, 3, 15, 17, 0, 0),
-            FechaBase);
-
-        intervalo.Inicio.Should().Be(new MomentoDelDia(new TimeOnly(8, 0), 0));
-        intervalo.Fin.Should().Be(new MomentoDelDia(new TimeOnly(17, 0), 0));
     }
 
     // ---------- CA-14: Desde cruzando medianoche ----------
 
     [Fact]
-    public void Desde_RetornaFinConOffsetUnoYDuracion480_CuandoRangoCruzaMedianoche()
+    public void Desde_RetornaIntervaloConFinEnDiaSiguiente_CuandoRangoCruzaMedianoche()
     {
         var intervalo = IntervaloTemporal.Desde(
             new DateTime(2026, 3, 15, 22, 0, 0),
             new DateTime(2026, 3, 16, 6, 0, 0),
             FechaBase);
 
-        intervalo.Fin.DiaOffset.Should().Be(1);
+        var esperado = IntervaloTemporal.Crear(
+            new MomentoDelDia(new TimeOnly(22, 0), 0),
+            new MomentoDelDia(new TimeOnly(6, 0), 1));
+        intervalo.Should().Be(esperado);
         intervalo.DuracionEnMinutos.Should().Be(480);
     }
 

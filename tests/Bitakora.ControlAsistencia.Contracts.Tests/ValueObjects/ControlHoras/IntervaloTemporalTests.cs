@@ -6,7 +6,7 @@ namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
 
 /// <summary>
 /// Tests de IntervaloTemporal - rango entre dos MomentoDelDia con invariante Inicio menor que Fin.
-/// Interfaz publica: Crear(), Inicio, Fin, DuracionEnMinutos, DuracionEnHorasDecimales, ResolverA(), ToString().
+/// Interfaz publica: Crear(), DuracionEnMinutos, DuracionEnHorasDecimales, ResolverA(), ToString(), igualdad por valor.
 /// </summary>
 public class IntervaloTemporalTests
 {
@@ -123,21 +123,4 @@ public class IntervaloTemporalTests
         fin.Should().Be(new DateTime(2026, 3, 16, 6, 0, 0));
     }
 
-    // ---------- Propiedades Inicio y Fin expuestas ----------
-
-    [Fact]
-    public void Inicio_EsElMomentoDeInicioProvisto()
-    {
-        var intervalo = IntervaloTemporal.Crear(Las8, Las17);
-
-        intervalo.Inicio.Should().Be(Las8);
-    }
-
-    [Fact]
-    public void Fin_EsElMomentoDeFinProvisto()
-    {
-        var intervalo = IntervaloTemporal.Crear(Las8, Las17);
-
-        intervalo.Fin.Should().Be(Las17);
-    }
 }

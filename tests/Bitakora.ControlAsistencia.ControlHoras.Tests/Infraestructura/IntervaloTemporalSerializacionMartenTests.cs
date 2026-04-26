@@ -37,7 +37,7 @@ public class IntervaloTemporalSerializacionMartenTests
 
     // CA-5: round-trip nocturno con offset
     [Fact]
-    public void RoundTrip_PreservaOffsetFinYDuracion_CuandoRangoCruzaMedianoche()
+    public void RoundTrip_PreservaIntervaloYDuracion_CuandoRangoCruzaMedianoche()
     {
         var original = IntervaloTemporal.Crear(
             new MomentoDelDia(new TimeOnly(22, 0)),
@@ -49,31 +49,30 @@ public class IntervaloTemporalSerializacionMartenTests
 
         restaurado.Should().NotBeNull();
         restaurado.Should().Be(original);
-        restaurado!.Fin.DiaOffset.Should().Be(1);
-        restaurado.DuracionEnMinutos.Should().Be(480);
+        restaurado!.DuracionEnMinutos.Should().Be(480);
     }
 
-    // CA-5: round-trip verifica que Inicio y Fin se reconstruyen correctamente
+    // CA-5: round-trip verifica que el intervalo se reconstruye igual al original
     [Fact]
-    public void RoundTrip_PreservaMomentosInicioyFin_CuandoIntervaloDiurno()
+    public void RoundTrip_PreservaIgualdadYDuracion_CuandoIntervaloDiurnoConMinutosImpares()
     {
-        var inicio = new MomentoDelDia(new TimeOnly(14, 0));
-        var fin = new MomentoDelDia(new TimeOnly(18, 30));
-        var original = IntervaloTemporal.Crear(inicio, fin);
+        var original = IntervaloTemporal.Crear(
+            new MomentoDelDia(new TimeOnly(14, 0)),
+            new MomentoDelDia(new TimeOnly(18, 30)));
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
         var restaurado = JsonSerializer.Deserialize<IntervaloTemporal>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.Inicio.Should().Be(inicio);
-        restaurado.Fin.Should().Be(fin);
-        restaurado.DuracionEnMinutos.Should().Be(270);
+        restaurado.Should().Be(original);
+        restaurado!.DuracionEnMinutos.Should().Be(270);
     }
 
     // CA-6: barrera anti-regresion.
     // Si alguien borra IntervaloTemporal.ConfigurarSerializacion(resolver) de ConfigurarResolver,
-    // este test falla porque el round-trip ya no puede reconstruir el objeto.
+    // este test falla porque sin typeInfo.CreateObject registrado STJ no puede instanciar
+    // un tipo con ctor privado.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeIntervaloTemporal()
     {
@@ -83,8 +82,8 @@ public class IntervaloTemporalSerializacionMartenTests
             new MomentoDelDia(new TimeOnly(8, 0)),
             new MomentoDelDia(new TimeOnly(17, 0)));
 
-        // Con resolver vacio, STJ puede serializar (lee propiedades publicas Inicio y Fin)
-        // pero no puede deserializar (no hay constructor publico ni typeInfo.CreateObject).
+        // Con resolver vacio, STJ no puede deserializar: el tipo no expone propiedades
+        // publicas ni un ctor accesible que permita reconstruirlo.
         var json = JsonSerializer.Serialize(original, opciones);
 
         var act = () => JsonSerializer.Deserialize<IntervaloTemporal>(json, opciones);

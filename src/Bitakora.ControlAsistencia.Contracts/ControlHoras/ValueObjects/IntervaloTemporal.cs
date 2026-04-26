@@ -7,15 +7,15 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 // Tiene invariante Inicio < Fin => sealed partial class con factory static (ADR-0015).
 // Issue #143: Alinear con ADR-0015 - campos readonly privados + ConfigurarSerializacion,
 // eliminando [JsonConstructor] que no funciona con Marten (ver ADR-0015 lineas 227-230).
+// PR #148 (review): aplicar Tell-don't-Ask. Los momentos de inicio y fin viven como
+// detalle interno; la API publica expone solo comportamiento (DuracionEnMinutos,
+// ResolverA, ToString, Partir, igualdad por valor).
 public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 {
     private const int MinutosPorHora = 60;
 
     private readonly MomentoDelDia _inicio = null!;
     private readonly MomentoDelDia _fin = null!;
-
-    public MomentoDelDia Inicio => _inicio;
-    public MomentoDelDia Fin => _fin;
 
     // Ctor privado parametrizado: usado por los factories.
     // Sin [JsonConstructor] - Marten no respeta ese atributo en ctors privados (ADR-0015).
@@ -50,34 +50,32 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
         if (minutosDesdeInicio <= 0 || minutosDesdeInicio >= DuracionEnMinutos)
             throw new ArgumentException(Mensajes.PuntoDeParticionDebeSerInterior);
 
-        var puntoIntermedio = MomentoDelDia.DesdeMinutosAbsolutos(Inicio.MinutosAbsolutos + minutosDesdeInicio);
-        return (Crear(Inicio, puntoIntermedio), Crear(puntoIntermedio, Fin));
+        var puntoIntermedio = MomentoDelDia.DesdeMinutosAbsolutos(_inicio.MinutosAbsolutos + minutosDesdeInicio);
+        return (Crear(_inicio, puntoIntermedio), Crear(puntoIntermedio, _fin));
     }
 
-    // Fin.MinutosAbsolutos - Inicio.MinutosAbsolutos
-    public int DuracionEnMinutos => Fin.MinutosAbsolutos - Inicio.MinutosAbsolutos;
+    public int DuracionEnMinutos => _fin.MinutosAbsolutos - _inicio.MinutosAbsolutos;
 
-    // DuracionEnMinutos / 60m - siempre decimal, nunca double
     public decimal DuracionEnHorasDecimales => DuracionEnMinutos / (decimal)MinutosPorHora;
 
-    // Resuelve ambos extremos a DateTime
+    // Resuelve ambos extremos a DateTime usando la fecha como ancla del DiaOffset.
     public (DateTime Inicio, DateTime Fin) ResolverA(DateOnly fecha) =>
-        (Inicio.ResolverA(fecha), Fin.ResolverA(fecha));
+        (_inicio.ResolverA(fecha), _fin.ResolverA(fecha));
 
     // "08:00-17:00 (540min)" o "22:00-06:00+1 (480min)"
     public override string ToString() =>
-        $"{Inicio}-{Fin} ({DuracionEnMinutos}min)";
+        $"{_inicio}-{_fin} ({DuracionEnMinutos}min)";
 
     public bool Equals(IntervaloTemporal? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Inicio.Equals(other.Inicio) && Fin.Equals(other.Fin);
+        return _inicio.Equals(other._inicio) && _fin.Equals(other._fin);
     }
 
     public override bool Equals(object? obj) => Equals(obj as IntervaloTemporal);
 
-    public override int GetHashCode() => HashCode.Combine(Inicio, Fin);
+    public override int GetHashCode() => HashCode.Combine(_inicio, _fin);
 
     // Issue #143: Registro en el resolver de Marten (ADR-0015).
     // Debe llamarse desde ConfiguracionSerializacionControlHoras.ConfigurarResolver.
@@ -98,16 +96,9 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
             typeInfo.CreateObject = () => (IntervaloTemporal)ctor.Invoke(null);
 
-            // Las propiedades publicas Inicio y Fin son get-only: STJ las auto-detecta
-            // sin Set. Removerlas antes de registrar las versiones con Get+Set sobre los
-            // campos privados readonly, de lo contrario el JSON tendria duplicados.
-            for (var i = typeInfo.Properties.Count - 1; i >= 0; i--)
-            {
-                var nombre = typeInfo.Properties[i].Name;
-                if (nombre is "Inicio" or "Fin")
-                    typeInfo.Properties.RemoveAt(i);
-            }
-
+            // Sin propiedades publicas Inicio/Fin que STJ pueda auto-detectar,
+            // registramos manualmente las propiedades JSON sobre los campos privados.
+            // El JSON producido conserva la forma {"Inicio":{...},"Fin":{...}}.
             var pInicio = typeInfo.CreateJsonPropertyInfo(typeof(MomentoDelDia), "Inicio");
             pInicio.Get = obj => fInicio.GetValue(obj)!;
             pInicio.Set = (obj, val) => fInicio.SetValue(obj, val);
