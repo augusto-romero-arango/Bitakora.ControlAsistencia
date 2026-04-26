@@ -153,6 +153,30 @@ echo "tests escritos" > "$LOG_D"
 RESULT_D=$(gate_logic "$WT_D" "$LOG_D" "$SNAPSHOT_D")
 assert_eq "D: cambios uncommitted en tests/" "TESTS_GENERATED" "$RESULT_D"
 
+# ─── Escenario E: smoke check de coherencia con el script real ──────────────
+# El gate_logic() de este test reproduce la logica del script. Para detectar
+# divergencias, verificamos que las cadenas clave (paths y regex de heuristica)
+# aparezcan literalmente en scripts/tdd-pipeline.sh. Si alguien las cambia en
+# un solo lugar, este test lo detecta.
+echo "Escenario E: coherencia entre test y scripts/tdd-pipeline.sh"
+TDD_SCRIPT="$REPO_ROOT/scripts/tdd-pipeline.sh"
+
+assert_script_contains() {
+    local name="$1" needle="$2"
+    if grep -qF -- "$needle" "$TDD_SCRIPT"; then
+        echo "  PASS: $name"
+        PASS=$((PASS + 1))
+    else
+        echo "  FAIL: $name"
+        echo "    cadena ausente en $TDD_SCRIPT: $needle"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+assert_script_contains "E1: path nuevo pipeline-state/refactor-signal.md" "pipeline-state/refactor-signal.md"
+assert_script_contains "E2: path legacy .claude/pipeline/refactor-signal.md" ".claude/pipeline/refactor-signal.md"
+assert_script_contains "E3: regex heuristica de log" "refactor.*pur|REFACTOR_ONLY|refactor-signal|refactoring puro"
+
 echo
 echo "─── Resumen ───"
 echo "PASS: $PASS"
