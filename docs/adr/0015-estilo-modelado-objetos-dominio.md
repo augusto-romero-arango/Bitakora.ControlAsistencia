@@ -215,6 +215,33 @@ con acumulacion de eventos, la alternativa es una proyeccion (read model) o un p
 manager -- no un domain service que rompa el encapsulamiento. Este diseno se decide en la
 fase de descubrimiento, no como default.
 
+**Contrapartida activa: aprovechar la superficie del dominio.** El principio tiene una cara
+positiva ademas de la prohibitiva: **un objeto rico solo es rico si sus consumidores aprovechan
+su superficie**. Cuando escribas codigo que toca un VO o aggregate, **lee primero su API publica
+completa**. Si reescribes a mano un calculo derivado que el objeto ya expone, el objeto deja de
+ser un deep module en la practica -- su abstraccion queda atrapada en el archivo donde vive y
+el lenguaje del dominio se vacia en el sitio del consumo. La regla operativa: antes de combinar
+propiedades primitivas de un objeto del dominio (`obj.X * Y + obj.Z`), busca si el objeto ya
+expone esa combinacion como propiedad o metodo derivado.
+
+```csharp
+// Recalcular a mano lo que MomentoDelDia ya expone:
+.Select(t => dia * 1440 + t.Hour * 60 + t.Minute)
+// El consumidor habla aritmetica primitiva. El dominio desaparece.
+
+// Pedirle al objeto que calcule:
+.Select(t => new MomentoDelDia(t, dia).MinutosAbsolutos)
+// El consumidor habla lenguaje del dominio. El VO sigue siendo profundo.
+```
+
+Tell-don't-Ask en este nivel no es proteccion contra exposicion -- es invitacion a consumo.
+Caso real (PR #155, round 2): `IntervaloTemporal.Segmentar` reescribio
+`dia * 1440 + t.Hour * 60 + t.Minute` cuando `MomentoDelDia.MinutosAbsolutos` ya lo exponia
+desde issue #143. La duplicacion no se detecto en el round 1 (que se enfoco en la exposicion
+indebida de estado); se necesito un segundo paso del reviewer humano para verla. Ensenanza:
+"no expongas getters" y "consume la riqueza expuesta" son dos lados de la misma moneda --
+ambos requieren leer la API del objeto antes de escribir codigo sobre el.
+
 ### Serializacion sin atributos en la clase de dominio
 
 Los value objects y eventos con campos privados necesitan que el serializador (STJ/Marten)

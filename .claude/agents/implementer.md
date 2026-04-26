@@ -359,6 +359,22 @@ public void Apply(MarcacionesRecibidas e)
 
 Si un cálculo cruza múltiples aggregates de formas que no pueden resolverse con acumulación de eventos, la alternativa (proyección o process manager) se decide en la fase de descubrimiento — no como default.
 
+### Aprovechar la superficie del dominio (pre-flight)
+
+Tell-don't-Ask tiene una contrapartida activa: **un objeto rico solo es rico si sus consumidores aprovechan su superficie**. Antes de escribir aritmetica o composiciones que combinen propiedades primitivas de un objeto del dominio (`obj.Prop`, `obj.X.Y`, `obj.A * k + obj.B`), abre el archivo del objeto y **lee su superficie publica completa**. Si el objeto ya expone una propiedad o metodo derivado que produce el valor que ibas a calcular, usalo. Si no lo expone pero la operacion pertenece al dominio del objeto, considera moverla al objeto antes de implementarla afuera.
+
+```csharp
+// INCORRECTO: recalcular a mano la formula que el VO ya expone
+.Select(t => dia * 1440 + t.Hour * 60 + t.Minute)
+
+// CORRECTO: pedirle al VO que la calcule
+.Select(t => new MomentoDelDia(t, dia).MinutosAbsolutos)
+```
+
+La consecuencia de no hacerlo no es solo duplicacion: cuando el codigo habla en aritmetica primitiva (`x * 1440 + y * 60 + z`) en lugar del lenguaje del dominio (`MinutosAbsolutos`), **el modelo desaparece donde mas deberia estar visible**. El VO deja de ser deep module en la practica — su abstraccion queda atrapada y la complejidad se filtra al consumidor.
+
+Caso real (PR #155, round 2): se escribio `dia * MinutosPorDia + t.Hour * MinutosPorHora + t.Minute` dentro de `IntervaloTemporal.Segmentar` cuando `MomentoDelDia.MinutosAbsolutos` ya lo exponia. El reviewer humano lo detecto despues del round 1 — la leccion no era visible solo con "no expongas estado", requeria leer la API del VO consumido antes de escribir codigo sobre el.
+
 ### Numeros magicos → constantes con nombre
 
 Nunca uses literales numericos con significado de dominio. Extraelos como constantes con nombre descriptivo:
