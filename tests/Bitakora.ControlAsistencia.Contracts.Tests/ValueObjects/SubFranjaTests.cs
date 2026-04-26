@@ -105,7 +105,7 @@ public class SubFranjaTests
     {
         var franja = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
 
-        franja.DuracionEnHorasDecimales().Should().Be(0.25);
+        franja.DuracionEnHorasDecimales().Should().Be(0.25m);
     }
 
     // ---------- CA-20, CA-21: ToString() ----------
