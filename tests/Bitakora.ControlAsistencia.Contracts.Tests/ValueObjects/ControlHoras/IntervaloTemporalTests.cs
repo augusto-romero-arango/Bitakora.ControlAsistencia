@@ -37,26 +37,6 @@ public class IntervaloTemporalTests
         intervalo.DuracionEnMinutos.Should().Be(480);
     }
 
-    // ---------- Issue #115: MinutosAbsolutosInicio - representacion numerica del inicio ----------
-
-    [Fact]
-    public void MinutosAbsolutosInicio_Retorna480_CuandoInicioEs8h()
-    {
-        // 08:00+0 = 8 * 60 + 0 = 480 min
-        var intervalo = IntervaloTemporal.Crear(Las8, Las17);
-
-        intervalo.MinutosAbsolutosInicio.Should().Be(480);
-    }
-
-    [Fact]
-    public void MinutosAbsolutosInicio_Retorna1320_CuandoInicioEs22h()
-    {
-        // 22:00+0 = 22 * 60 + 0 = 1320 min
-        var intervalo = IntervaloTemporal.Crear(Las22, Las6SiguienteDia);
-
-        intervalo.MinutosAbsolutosInicio.Should().Be(1320);
-    }
-
     // ---------- CA-11: DuracionEnHorasDecimales es decimal exacto ----------
 
     [Fact]

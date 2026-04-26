@@ -13,6 +13,7 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 {
     private const int MinutosPorHora = 60;
+    private const int MinutosPorDia = 1440;
 
     private readonly MomentoDelDia _inicio = null!;
     private readonly MomentoDelDia _fin = null!;
@@ -56,13 +57,37 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
     public int DuracionEnMinutos => _fin.MinutosAbsolutos - _inicio.MinutosAbsolutos;
 
-    // Issue #115: minuto absoluto del inicio del intervalo. Coherente con DuracionEnMinutos
-    // (representacion numerica del rango). Lo consumen algoritmos externos de geometria
-    // temporal (SegmentadorHorario) que necesitan alinear puntos de corte absolutos con
-    // el rango propio del intervalo. No expone MomentoDelDia interno (PR #148 lo oculto).
-    public int MinutosAbsolutosInicio => _inicio.MinutosAbsolutos;
-
     public decimal DuracionEnHorasDecimales => DuracionEnMinutos / (decimal)MinutosPorHora;
+
+    // Issue #115: corta el intervalo en cada ocurrencia diaria de las fronteras dadas
+    // (exclusivo de los extremos). Operacion geometrica pura - el caller decide que
+    // fronteras pasar (en ControlHoras: FronterasHorariasLegales.Todas).
+    public IReadOnlyList<IntervaloTemporal> Segmentar(IEnumerable<TimeOnly> fronterasDiarias)
+    {
+        var inicioMin = _inicio.MinutosAbsolutos;
+        var finMin = _fin.MinutosAbsolutos;
+        var diaInicio = inicioMin / MinutosPorDia;
+        var diaFin = finMin / MinutosPorDia;
+
+        var fronteras = Enumerable.Range(diaInicio, diaFin - diaInicio + 1)
+            .SelectMany(dia => fronterasDiarias.Select(t => dia * MinutosPorDia + t.Hour * MinutosPorHora + t.Minute))
+            .Where(f => f > inicioMin && f < finMin)
+            .OrderBy(f => f)
+            .ToList();
+
+        if (fronteras.Count == 0) return [this];
+
+        var resultado = new List<IntervaloTemporal>(fronteras.Count + 1);
+        var actual = this;
+        foreach (var frontera in fronteras)
+        {
+            var (izq, der) = actual.Partir(frontera - actual._inicio.MinutosAbsolutos);
+            resultado.Add(izq);
+            actual = der;
+        }
+        resultado.Add(actual);
+        return resultado;
+    }
 
     // Resuelve ambos extremos a DateTime usando la fecha como ancla del DiaOffset.
     public (DateTime Inicio, DateTime Fin) ResolverA(DateOnly fecha) =>
