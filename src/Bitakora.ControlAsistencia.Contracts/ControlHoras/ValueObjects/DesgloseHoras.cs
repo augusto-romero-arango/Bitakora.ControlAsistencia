@@ -11,10 +11,12 @@ public record DesgloseHoras(
 {
     // CA-3: suma elemento a elemento de MinutosPorConcepto de cada DesgloseFranja.
     public IReadOnlyDictionary<Concepto, int> TotalMinutosPorConcepto =>
-        throw new NotImplementedException();
+        DesglosePorFranja
+            .SelectMany(f => f.MinutosPorConcepto)
+            .GroupBy(kv => kv.Key)
+            .ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
 
     // CA-4: lista vacia, RetardoTotal = DetalleRetardo.Vacio, FranjasAnomalas = 0.
     // Usado cuando no hay turno o todas las franjas son anomalas.
-    public static DesgloseHoras Vacio =>
-        throw new NotImplementedException();
+    public static readonly DesgloseHoras Vacio = new([], DetalleRetardo.Vacio, 0);
 }

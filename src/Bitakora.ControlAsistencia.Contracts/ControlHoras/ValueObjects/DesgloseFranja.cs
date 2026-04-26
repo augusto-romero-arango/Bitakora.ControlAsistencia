@@ -13,5 +13,7 @@ public record DesgloseFranja(
     // CA-1, CA-2: agrupa Intervalos por Concepto y suma DuracionEnMinutos.
     // Los conceptos que no aparecen en Intervalos no figuran en el diccionario.
     public IReadOnlyDictionary<Concepto, int> MinutosPorConcepto =>
-        throw new NotImplementedException();
+        Intervalos
+            .GroupBy(i => i.Concepto)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.DuracionEnMinutos));
 }
