@@ -488,6 +488,7 @@ $RECYCLE.BIN/
 
 # Pipeline TDD
 .claude/pipeline/
+pipeline-state/
 
 # KQL audit log (queries ad-hoc del bug-investigator)
 scripts/.kql-audit.log
