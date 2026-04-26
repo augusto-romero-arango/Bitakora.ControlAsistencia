@@ -258,7 +258,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 **Convenciones obligatorias:**
 - `using AwesomeAssertions;` al inicio
 - Comentario de HU al inicio: `// HU-XX: descripcion`
-- Nombres de metodos en espanol: `Debe[Resultado]_Cuando[Condicion]`
+- Nombres de metodos en espanol siguiendo ADR-0022: `<Sujeto>_<LoQuePasa>[_Cuando<Condicion>]`. Para command handlers el sujeto es el nombre del comando (`RegistrarMarcacion`, `CrearTurno`), nunca `HandleAsync` ni `Debe...`. El segmento `_Cuando<Condicion>` es opcional cuando el escenario es trivial (`Vacio_TieneRetardoNetoEnCero`). Ver `docs/adr/0022-convencion-naming-tests.md` para ejemplos completos.
 - Solo `[Fact]`, nunca `[Theory]` ni `[InlineData]`
 - Herencia de `CommandHandlerAsyncTest<TCommand>` (o la variante que corresponda)
 - Override de `Handler` inyectando las dependencias del handler (`EventStore`, `PrivateEventSender`, `PublicEventSender`)
@@ -290,7 +290,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
               new NotificarPausaCommandHandler(EventStore, PrivateEventSender);
 
           [Fact]
-          public async Task DebeEmitirPausaRegistrada_CuandoTurnoEstaActivo()
+          public async Task NotificarPausa_EmitePausaRegistrada_CuandoTurnoEstaActivo()
           {
               Given(ProgresoTurnoTests.CrearTurnoIniciado(AggregateId));
               await WhenAsync(new NotificarPausa(GuidAggregateId, ...));
@@ -313,7 +313,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 3. **Eventos de fallo del aggregate**: cuando una regla de negocio se viola, el aggregate emite un evento de fallo en `_uncommittedEvents`. El test verifica con `Then(...)` el evento de fallo y con `And<>()` que el estado NO cambio. **NUNCA uses `ThrowExactlyAsync` para reglas de negocio del aggregate.**
    ```csharp
    [Fact]
-   public async Task DebeEmitirAsignacionFallida_CuandoEmpleadoYaEstaAsignado()
+   public async Task AsignarEmpleadoATurno_EmiteAsignacionFallida_CuandoEmpleadoYaEstaAsignado()
    {
        Given(CrearTurnoIniciado(AggregateId),
              new EmpleadoAsignado(GuidAggregateId, EmpleadoId));
@@ -326,7 +326,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 4. **Aggregate no encontrado** (obligatorio cuando el comando opera sobre stream existente): el handler lanza excepcion cuando no encuentra el aggregate. Este SI usa `ThrowExactlyAsync` porque es una precondicion de orquestacion del handler, no una regla del aggregate.
    ```csharp
    [Fact]
-   public async Task DebeLanzarExcepcion_CuandoTurnoNoExiste()
+   public async Task AsignarEmpleadoATurno_LanzaInvalidOperationException_CuandoTurnoNoExiste()
    {
        // Sin Given() - el stream no existe
        var act = async () => await WhenAsync(
@@ -338,7 +338,7 @@ tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
 5. **Aggregate ya existente** (obligatorio cuando el comando crea un stream nuevo): el handler lanza excepcion si el stream ya existe.
    ```csharp
    [Fact]
-   public async Task DebeLanzarExcepcion_CuandoTurnoYaExiste()
+   public async Task CrearTurno_LanzaInvalidOperationException_CuandoTurnoYaExiste()
    {
        Given(CrearTurnoIniciado(AggregateId));
        var act = async () => await WhenAsync(
@@ -681,7 +681,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 
 ### Tests creados
 - `NombreArchivo.cs`: N tests
-  - `DebeX_CuandoY` - criterio que cubre
+  - `<Sujeto>_<LoQuePasa>_Cuando<Condicion>` - criterio que cubre
   - ...
 
 ### Estructura elegida
@@ -699,7 +699,7 @@ Crea el archivo `.claude/pipeline/summaries/stage-1-test-writer.md`:
 ### Cobertura de criterios
 | Criterio de aceptacion | Test(s) |
 |---|---|
-| CA-1: descripcion | `DebeX_CuandoY` |
+| CA-1: descripcion | `<Sujeto>_<LoQuePasa>_Cuando<Condicion>` |
 
 ### Desviaciones del plan del planner
 

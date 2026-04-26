@@ -191,7 +191,7 @@ Verifica que los tests cubren **todos** los criterios de aceptacion:
 
 Si faltan tests, agregarlos ahora siguiendo las convenciones del test-writer:
 - Herencia de `CommandHandlerAsyncTest<TCommand>`
-- Nombre: `Debe[Resultado]_Cuando[Condicion]`
+- Nombre segun ADR-0022: `<Sujeto>_<LoQuePasa>[_Cuando<Condicion>]`. Para command handlers el sujeto es el nombre del comando (`RegistrarMarcacion`, `CrearTurno`), nunca `Debe...` ni `HandleAsync`. Ver `docs/adr/0022-convencion-naming-tests.md`.
 - Solo `[Fact]`, nunca `[Theory]`
 - DSL Given/WhenAsync/Then/And
 - **Cada test nuevo DEBE tener `Then(...)` Y al menos un `And<>()`**
@@ -377,7 +377,7 @@ Si el implementer cito precedentes del codigo en `stage-2-implementer.md`, verif
 ### Cobertura de criterios de aceptacion
 | Criterio | Estado | Test(s) |
 |---|---|---|
-| CA-1: descripcion | cubierto | `DebeX_CuandoY` |
+| CA-1: descripcion | cubierto | `<Sujeto>_<LoQuePasa>_Cuando<Condicion>` |
 
 ### Tests agregados
 - [Tests de casos borde que se agregaron durante la revision]
