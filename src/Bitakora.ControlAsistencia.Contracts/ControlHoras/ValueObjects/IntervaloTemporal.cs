@@ -13,7 +13,6 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 {
     private const int MinutosPorHora = 60;
-    private const int MinutosPorDia = 1440;
 
     private readonly MomentoDelDia _inicio = null!;
     private readonly MomentoDelDia _fin = null!;
@@ -66,11 +65,9 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
     {
         var inicioMin = _inicio.MinutosAbsolutos;
         var finMin = _fin.MinutosAbsolutos;
-        var diaInicio = inicioMin / MinutosPorDia;
-        var diaFin = finMin / MinutosPorDia;
 
-        var fronteras = Enumerable.Range(diaInicio, diaFin - diaInicio + 1)
-            .SelectMany(dia => fronterasDiarias.Select(t => dia * MinutosPorDia + t.Hour * MinutosPorHora + t.Minute))
+        var fronteras = Enumerable.Range(_inicio.DiaOffset, _fin.DiaOffset - _inicio.DiaOffset + 1)
+            .SelectMany(dia => fronterasDiarias.Select(t => new MomentoDelDia(t, dia).MinutosAbsolutos))
             .Where(f => f > inicioMin && f < finMin)
             .OrderBy(f => f)
             .ToList();
