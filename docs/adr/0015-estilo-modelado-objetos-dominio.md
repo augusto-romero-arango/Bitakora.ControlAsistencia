@@ -162,9 +162,14 @@ public sealed class TurnoAsignado
 Los calculos pertenecen al objeto que tiene los datos necesarios. Si un metodo de otra clase
 necesita datos del objeto para calcular algo, ese calculo debe vivir dentro del objeto.
 
-En event sourcing, la heuristica es **preferir el aggregate que acumula estado via eventos**
-sobre un servicio externo que jala datos. Un aggregate puede escuchar eventos de multiples
-dominios y ejecutar calculos con toda la informacion que necesita.
+**Esta regla aplica por igual a aggregates y a value objects.** No existe la categoria de
+"VO como mera estructura de datos" — un VO bien modelado expone comportamiento y oculta
+representacion. Si una clase externa (servicio, helper, clase estatica) necesita leer
+estado interno de un VO para operar sobre el, la operacion pertenece al propio VO.
+
+En event sourcing, la heuristica para aggregates es **preferir el aggregate que acumula
+estado via eventos** sobre un servicio externo que jala datos. Un aggregate puede escuchar
+eventos de multiples dominios y ejecutar calculos con toda la informacion que necesita.
 
 ```csharp
 // Preferir esto (aggregate que tiene los datos)
@@ -174,9 +179,36 @@ public void Apply(MarcacionesRecibidas e)
     _horasDesglosadas = DesglosaHoras(); // calculo interno
 }
 
-// Evitar esto (servicio externo que accede a datos del objeto)
+// Evitar esto (servicio externo que accede a datos del aggregate)
 var horas = calculadoraHoras.Calcular(aggregate.Marcaciones, aggregate.Turno);
 ```
+
+Para value objects la misma regla se aplica: si una clase externa necesita conocer la
+representacion interna del VO para operar sobre el, **la operacion vive en el VO**. La
+salida facil — exponer una propiedad publica nueva para que la clase externa la consuma —
+es exactamente lo que esta proscrito.
+
+```csharp
+// Preferir esto (el VO conoce sus puntos de corte y los aplica)
+public IReadOnlyList<IntervaloTemporal> Segmentar(IEnumerable<TimeOnly> fronterasDiarias)
+{
+    // accede a _inicio.MinutosAbsolutos sin exponerlo: vive dentro del VO
+    ...
+}
+
+// Evitar esto (servicio externo que pide al VO sus minutos absolutos)
+public int MinutosAbsolutosInicio => _inicio.MinutosAbsolutos; // expone solo para que un externo opere
+public static class SegmentadorHorario { ... intervalo.MinutosAbsolutosInicio ... }
+```
+
+**Heuristica de decision al planear o implementar**: antes de proponer/escribir un servicio
+o clase estatica que opere sobre un VO o aggregate existente, responde explicitamente:
+
+1. La operacion, ¿depende solo de datos del propio objeto? → vive en el objeto.
+2. ¿Necesita exponer estado interno nuevo (propiedad/getter publico)? → la operacion debe
+   moverse al objeto, en lugar de abrir su API.
+3. ¿Cruza genuinamente datos de multiples objetos que no pueden converger via eventos? →
+   recien entonces aplica proyeccion o process manager.
 
 Si un calculo genuinamente cruza multiples aggregates de formas que no pueden resolverse
 con acumulacion de eventos, la alternativa es una proyeccion (read model) o un process
