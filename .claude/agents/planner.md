@@ -353,7 +353,7 @@ El humano imaginario es la vara de referencia porque replica la dinámica real d
 | **Por capas**: VO/clase pura → hook al aggregate → publicación → infra | El issue combina lógica pura testeable aparte con integración al aggregate. La lógica extraída se testea unitariamente sin harness; la integración se testea funcionalmente. Fue el corte aplicado al split de #107 (→ #122 + #123). |
 | **Por punto de entrada**: un issue por handler/comando | El flujo toca varios handlers o varios comandos distintos. Cada handler es un turno del pipeline con su propio aggregate y sus propios eventos. |
 | **Por ciclo test**: un issue por ciclo rojo/verde autocontenido | El issue contiene varios comportamientos que se pueden testear por separado y que el pipeline TDD correría en ciclos distintos. Cada ciclo = un issue. |
-| **Por testabilidad**: extraer lógica compleja a clase estática o VO con tests unitarios puros, separado de la integración al aggregate | La lógica interna de un aggregate es lo suficientemente rica como para justificar tests unitarios propios (algoritmos, cálculos, máquinas de estado). Se extrae como pieza testeable sin harness y luego se enchufa al aggregate en un segundo issue. |
+| **Por testabilidad**: extraer lógica compleja a un VO o aggregate existente, o a un VO nuevo si la lógica no pertenece a ninguno, con tests unitarios puros, separado de la integración | La lógica interna es lo suficientemente rica como para justificar tests unitarios propios (algoritmos, cálculos, máquinas de estado). **Antes de proponer una clase estática o servicio externo, verifica si un VO existente puede absorber la operación** (ADR-0015 Tell-don't-Ask: aplica por igual a aggregates y VOs). La clase estática es opción de último recurso, justificada solo cuando la lógica no pertenece a ningún objeto existente y no amerita un VO nuevo. |
 
 ### Cuándo NO partir
 
@@ -372,6 +372,8 @@ Aplica este checklist mentalmente antes de cualquier `gh issue edit --add-label 
 - [ ] Estimación informal <30 min para un humano competente
 - [ ] Modelo de eventos inequívoco (cuando aplica por DoR)
 - [ ] Si el issue crea lógica compleja interna de un aggregate, se consideró explícitamente si conviene extraerla como clase pura
+- [ ] **Tell-don't-Ask (ADR-0015)**: si el issue propone un servicio, helper o clase estática que opera sobre un VO o aggregate existente, se verificó la API actual del objeto y se justificó por qué la operación no puede vivir en él. Caso típico a evitar: proponer `XxxCalculadora` o `XxxSegmentador` que lee múltiples propiedades de un VO en lugar de pedirle al VO el resultado.
+- [ ] **Verificación de API existente**: si las "Notas técnicas" describen un algoritmo que accede a propiedades del VO (`obj.PropX`, `obj.Y.Z`), se verificó que esas propiedades existen y son públicas en el código actual. Si no existen, el plan decide explícitamente entre (a) ampliar la API del VO con justificación, o (b) mover el algoritmo al VO — no deja la decisión al implementer como "desviación".
 - [ ] Sección "ADRs aplicables" enumera todos los ADRs que el issue toca (o "Ninguno" si no aplica)
 - [ ] Cada archivo de tests listado en "Impacto / Modifica" puede ser tocado por el test-writer dadas las dependencias de su proyecto (no exige APIs inaccesibles desde ese proyecto)
 - [ ] Las sugerencias de "Interfaz publica propuesta" e "Impacto en archivos" no imponen decisiones que correspondan al juicio tecnico del test-writer/implementer (o estan marcadas como propuesta revisable)
