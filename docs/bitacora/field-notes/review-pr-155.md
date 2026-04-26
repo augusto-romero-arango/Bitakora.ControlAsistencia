@@ -58,3 +58,41 @@ Este es el patron documentado tambien en PR #142 y PR #144 (violaciones a ADR-00
 - **Hablar del principio no es operacionalizarlo.** ADR-0015 existia desde hace meses y mencionaba Tell-don't-Ask. Pero ningun agente tenia un filtro activo (checklist, pregunta obligatoria, campo obligatorio en plantilla) que aplicara el principio en su flujo de decision. El sesgo del pre-entrenamiento — que tiende a exponer getters cuando la API no soporta una operacion — gano por defecto en cada slot donde no habia guardrails.
 - **El indice tematico de CLAUDE.md es la primera defensa cognitiva.** Si el agente busca "encapsulamiento" o "Tell-don't-Ask" y no lo encuentra como entrada propia, infiere que el tema es marginal. Una entrada del indice cuesta una linea y cambia el peso percibido del principio.
 - **Las decisiones arquitectonicas no se delegan al implementer como "desviaciones".** Si el plan describe un algoritmo que requiere acceso a propiedades del VO que no existen, esa es una decision que el planner debe tomar — ampliar API o mover la operacion al VO — antes de pasar al pipeline. El implementer no esta posicionado para resolverla bajo presion de hacer pasar los tests.
+
+---
+
+## Round 2 (post primera respuesta del review)
+
+Tras publicar las respuestas y los commits del round 1, el reviewer humano dejo dos hallazgos adicionales.
+
+### Comentario 7 (id 3144334111 + clarificacion 3144337921): valor semantico en expresion aritmetica
+
+> "la expresion de esas operaciones tiene un valor semantico para el dominio que seria correcto abstraer en un field, no crees? — `t => dia * MinutosPorDia + t.Hour * MinutosPorHora + t.Minute`"
+
+La expresion estaba **duplicando** lo que `MomentoDelDia.MinutosAbsolutos` ya hace. Mismo Tell-don't-Ask de los hilos anteriores, aplicado un nivel mas adentro: en lugar de recalcular el valor a mano dentro de `IntervaloTemporal`, le pedimos al VO que ya sabe.
+
+Commit `36a7380` en la rama del PR:
+
+- `t => dia * MinutosPorDia + t.Hour * MinutosPorHora + t.Minute` -> `t => new MomentoDelDia(t, dia).MinutosAbsolutos`.
+- `inicioMin / MinutosPorDia` -> `_inicio.DiaOffset` (idem `_fin`).
+- Eliminada la constante privada `MinutosPorDia` de `IntervaloTemporal` (vivia duplicada con la de `MomentoDelDia`).
+
+### Hallazgo derivado: `FronterasHorariasLegales` quedo huerfano
+
+Tras el refactor de Tell-don't-Ask + el del comentario 7, se hizo evidente que `FronterasHorariasLegales` no tenia consumidores reales en el PR. Las unicas tres apariciones eran su propia definicion y dos comentarios documentales. La clase se habia creado "para que #134/#136 la usaran" — antipatron explicitamente proscrito en `planner.md` seccion "Cuando NO partir":
+
+> VO o clase huerfana entre PRs: si el corte deja una clase sin consumidor en el PR donde se crea, queda codigo muerto hasta que el siguiente PR la use.
+
+Commit `4834c04` en la rama del PR: eliminada `FronterasHorariasLegales.cs` y limpiados los comentarios que la referenciaban. La HU que la requiera (#134 o #136) la creara con la firma exacta que su primer consumidor real necesite.
+
+### Mejora adicional al planner
+
+| Agente   | Gap                                                                                                                                                          | Ajuste aplicado                                                                                                                                                                                                          |
+|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| planner  | La regla "VO o clase huerfana entre PRs" vivia en la seccion "Cuando NO partir" como parrafo de contexto, no como filtro operativo en el checklist pre-listo | Casilla nueva en el checklist pre-listo: "Sin artefactos huerfanos: cada clase/archivo listado en 'Impacto / Crea' tiene al menos un consumidor real en el mismo PR". Cita el caso real de `FronterasHorariasLegales`.   |
+
+### Lecciones adicionales
+
+- **Tell-don't-Ask es fractal.** El round 1 movio la operacion al VO. El round 2 movio el calculo intermedio al VO de mas adentro. Cada nivel de abstraccion tiene su propia oportunidad de aplicar el principio — no basta resolverlo "una vez" en el PR.
+- **Eliminar codigo muerto vale tanto como agregar correcto.** Mantener `FronterasHorariasLegales` "preparado para el futuro" se sintio como buena ingenieria, pero era YAGNI — la HU que la requiera la creara con la firma que necesite, no con la que adivinamos hoy.
+- **El round 2 demuestra el valor del review humano repetido.** El round 1 cerro con respuestas publicadas y mejoras a agentes. El reviewer humano leyo de nuevo y encontro otra capa. La "señal de termino" del review no es "respondi todos los comentarios" — es "el reviewer humano lo da por cerrado".
