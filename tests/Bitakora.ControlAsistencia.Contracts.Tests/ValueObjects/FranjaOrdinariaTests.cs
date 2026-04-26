@@ -108,7 +108,7 @@ public class FranjaOrdinariaTests
     {
         var franja = FranjaOrdinaria.Crear(new TimeOnly(8, 0), new TimeOnly(11, 30));
 
-        franja.DuracionEnHorasDecimales().Should().Be(3.5);
+        franja.DuracionEnHorasDecimales().Should().Be(3.5m);
     }
 
     // ---------- CA-13: infiere offset +1 cuando fin < inicio ----------
