@@ -56,6 +56,12 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
 
     public int DuracionEnMinutos => _fin.MinutosAbsolutos - _inicio.MinutosAbsolutos;
 
+    // Issue #115: minuto absoluto del inicio del intervalo. Coherente con DuracionEnMinutos
+    // (representacion numerica del rango). Lo consumen algoritmos externos de geometria
+    // temporal (SegmentadorHorario) que necesitan alinear puntos de corte absolutos con
+    // el rango propio del intervalo. No expone MomentoDelDia interno (PR #148 lo oculto).
+    public int MinutosAbsolutosInicio => _inicio.MinutosAbsolutos;
+
     public decimal DuracionEnHorasDecimales => DuracionEnMinutos / (decimal)MinutosPorHora;
 
     // Resuelve ambos extremos a DateTime usando la fecha como ancla del DiaOffset.
