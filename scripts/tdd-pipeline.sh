@@ -1099,15 +1099,31 @@ if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 4 ]; then
         log "Instrumentando DLLs..."
         local settings_xml="$WORKTREE_PATH/dotnet-coverage.settings.xml"
         local instrumented=0
+        local seen_dlls=0
+        local skipped_tests=0
+        local skipped_duplicates=0
+        declare -A instrumented_basenames=()
         for dll in "$WORKTREE_PATH"/tests/Bitakora.ControlAsistencia.*.Tests/bin/Debug/net10.0/Bitakora.ControlAsistencia.*.dll; do
-            [[ "$dll" == *Tests* ]] && continue
             [[ ! -f "$dll" ]] && continue
+            seen_dlls=$((seen_dlls + 1))
+            local bn
+            bn="$(basename "$dll")"
+            if [[ "$bn" == *Tests.dll ]]; then
+                skipped_tests=$((skipped_tests + 1))
+                continue
+            fi
+            if [[ -n "${instrumented_basenames[$bn]:-}" ]]; then
+                skipped_duplicates=$((skipped_duplicates + 1))
+                continue
+            fi
             if dotnet-coverage instrument "$dll" --settings "$settings_xml" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
                 instrumented=$((instrumented + 1))
+                instrumented_basenames[$bn]=1
             else
-                warn "No se pudo instrumentar: $(basename "$dll")"
+                warn "No se pudo instrumentar: $bn"
             fi
         done
+        log "Instrumentacion: vistas=$seen_dlls, omitidas_tests=$skipped_tests, omitidas_duplicadas=$skipped_duplicates, instrumentadas=$instrumented"
 
         if [ "$instrumented" -eq 0 ]; then
             warn "No se instrumento ninguna DLL"
