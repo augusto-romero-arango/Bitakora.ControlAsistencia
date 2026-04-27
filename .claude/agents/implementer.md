@@ -567,15 +567,20 @@ module "service_bus" {
   topics_config = {
     "turno-creado" = {          # <- agregar el topic si no existe
       subscriptions = [
-        { name = "depuracion-escucha-programacion", filter = null }   # <- patron: {consumidor}-escucha-{productor}
+        { name = "depuracion-escucha-programacion", filter = null },  # <- patron: {consumidor}-escucha-{productor}
+        { name = "smoke-tests", filter = null, default_message_ttl = "PT5M" }  # <- siempre presente para verificar publicacion en smoke tests
       ]
     }
     "empleado-asignado" = {
-      subscriptions = []        # <- sin subscriptions si ningun dominio consume este evento aun
+      subscriptions = [
+        { name = "smoke-tests", filter = null, default_message_ttl = "PT5M" }  # <- aunque ningun dominio consuma aun
+      ]
     }
   }
 }
 ```
+
+**Suscripcion `smoke-tests` siempre presente.** Cada topic publicado debe llevar la suscripcion `smoke-tests` con TTL 5m, incluso si no hay consumidores reales todavia. Razon: el smoke test del feature que publica al topic necesita esa suscripcion para verificar la publicacion (ADR-0016: cobertura completa de efectos secundarios). **No usar el argumento "el topic no tiene consumidores aun" para omitir la suscripcion** — ese fue el gap del PR #157, donde el feature publicaba un evento al topic `dia-calculado` sin suscripcion `smoke-tests`, dejando la publicacion sin cobertura. Si el issue del planner no listo el alta de la suscripcion en `## Impacto en archivos`, agregala tu aqui y documentalo en tu resumen como complemento al plan.
 
 ---
 
