@@ -28,7 +28,7 @@ public class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandlerTests
     private static readonly string StreamIdDia14 = $"{EmpleadoId}:2026-03-14";
 
     protected override ICommandHandlerAsync<MarcacionRegistrada> Handler =>
-        new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore);
+        new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore, PublicEventSender);
 
     // Factory para MarcacionRegistrada; el timestamp decide si cae en la ventana nocturna.
     private static MarcacionRegistrada CrearMarcacionRegistrada(

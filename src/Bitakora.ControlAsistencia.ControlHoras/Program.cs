@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventDriven.CritterStack;
@@ -25,6 +26,9 @@ builder.Services.AgregarWolverineParaComandosServerless(
     options =>
     {
         options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
+        // HU-108: registra el topic destino para DiaCalculado.
+        // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.
+        options.PublicarEventoServerless<DiaCalculado>("dia-calculado");
     });
 
 builder.Services.AgregarMartenEventStore();

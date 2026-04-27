@@ -1,6 +1,10 @@
 // HU-123: Integrar depurador al ControlDiario de forma reactiva
+// HU-108: Emitir DiaCalculado tras adicionar marcacion (CA-1, CA-2, CA-3, CA-4, CA-5)
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
+// y que el handler publica DiaCalculado via IPublicEventSender tras cada recalculo.
 
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
@@ -19,6 +23,7 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
     private const string EmpleadoId = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{EmpleadoId}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamIdDiaAnterior = $"{EmpleadoId}:2026-03-14";
 
     // Empleado para construir TurnoDiarioAsignado en Given
     private static readonly InformacionEmpleado Empleado = new(
@@ -41,8 +46,9 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
     private static readonly DateTime Timestamp12_05 = new(2026, 3, 15, 12, 5, 0);
     private static readonly DateTime Timestamp14_10 = new(2026, 3, 15, 14, 10, 0);
 
+    // HU-108: handler ahora requiere IPublicEventSender para publicar DiaCalculado
     protected override ICommandHandlerAsync<MarcacionRegistrada> Handler =>
-        new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore);
+        new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore, PublicEventSender);
 
     private static MarcacionRegistrada CrearMarcacionRegistrada(DateTime timestamp) =>
         new(EmpleadoId, timestamp, "ENTRADA", "DEV-001");
@@ -53,9 +59,10 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
 
-    // CA-1: con TurnoDiarioAsignado (franja unica 06:00-14:00) previo y MarcacionRegistrada a las 07:00,
+    // CA-1 (HU-123): con TurnoDiarioAsignado (franja unica 06:00-14:00) previo y MarcacionRegistrada a las 07:00,
     //        ControlesDeFranja debe quedar con un ControlFranja(Franja06_14, Entrada=07:00, Salida=null).
     //        Verifica que el hook reactivo se dispara desde Apply(MarcacionAdicionada).
+    // CA-1 (HU-108): el handler publica DiaCalculado con InformacionEmpleado, Fecha y ControlesDeFranja correctos.
     [Fact]
     public async Task DebeCalcularControlFranja_CuandoHayTurnoYLlegaMarcacion()
     {
@@ -69,12 +76,21 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
             StreamId,
             c => c.ControlesDeFranja,
             new ControlFranja[] { new(Franja06_14, Timestamp07_00, null) });
+
+        // HU-108 CA-1: el handler publica un DiaCalculado con el estado tras el recalculo.
+        // EsAnomala=true porque Salida es null (franja abierta).
+        ThenIsPublishedPublicly(new DiaCalculado(
+            Empleado,
+            Fecha,
+            new[] { new DetalleControlFranja(Franja06_14, Timestamp07_00, null, true) },
+            DesgloseHoras.Vacio));
     }
 
-    // CA-2: sin turno previo, la marcacion crea el aggregate sin DetalleTurno.
+    // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin DetalleTurno.
     //        Depurar() retorna lista vacia porque DepuradorDeMarcaciones.Depurar(null,...) -> [].
     //        Verifica el caso "marcacion llega antes del turno" donde el aggregate
     //        se inicia solo con marcacion y no hay nada que depurar.
+    // CA-2/CA-4 (HU-108): el handler publica DiaCalculado incluso cuando ControlesDeFranja esta vacio.
     [Fact]
     public async Task DebeDejarControlesDeFranjaVacios_CuandoNoHayTurnoPrevio()
     {
@@ -84,12 +100,21 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
         Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
+
+        // HU-108 CA-4: se publica DiaCalculado aunque ControlesDeFranja este vacio.
+        // InformacionEmpleado es null porque el ControlDiario nacio solo por marcacion.
+        ThenIsPublishedPublicly(new DiaCalculado(
+            null,
+            Fecha,
+            [],
+            DesgloseHoras.Vacio));
     }
 
-    // CA-3: con turno partido (06:00-12:00 y 14:00-18:00) y 2 MarcacionAdicionada previas
+    // CA-3 (HU-123): con turno partido (06:00-12:00 y 14:00-18:00) y 2 MarcacionAdicionada previas
     //        (05:50 y 12:05), la nueva MarcacionRegistrada a las 14:10 dispara el recalculo
     //        completo: F1(Entrada=05:50, Salida=12:05) + F2(Entrada=14:10, Salida=null).
     //        Verifica comportamiento idem-potente: no acumula sobre resultado anterior.
+    // CA-3 (HU-108): el handler publica DiaCalculado con ambas franjas mapeadas a DetalleControlFranja.
     [Fact]
     public async Task DebeRecalcularControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
     {
@@ -110,5 +135,49 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
                 new(Franja06_12, Timestamp05_50, Timestamp12_05),
                 new(Franja14_18, Timestamp14_10, null)
             });
+
+        // HU-108 CA-3: las dos franjas se preservan como DetalleControlFranja.
+        // F1: EsAnomala=false (tiene Entrada y Salida). F2: EsAnomala=true (Salida null).
+        ThenIsPublishedPublicly(new DiaCalculado(
+            Empleado,
+            Fecha,
+            new[]
+            {
+                new DetalleControlFranja(Franja06_12, Timestamp05_50, Timestamp12_05, false),
+                new DetalleControlFranja(Franja14_18, Timestamp14_10, null, true)
+            },
+            DesgloseHoras.Vacio));
+    }
+
+    // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
+    // El handler procesa dos fechas-destino: dia calendario (2026-03-15) y dia anterior (2026-03-14).
+    // Publica dos DiaCalculado - uno por cada fecha, en el orden de procesamiento del handler.
+    // Verifica con ThenIsPublishedPublicly(evento1, evento2): count exacto + orden exacto.
+    [Fact]
+    public async Task AdicionarMarcacion_PublicaDosDiaCalculado_CuandoMarcacionEstaEnVentanaNocturna()
+    {
+        // Sin Given - ninguno de los dos streams existe
+        var timestampNocturno = new DateTime(2026, 3, 15, 2, 0, 0);
+        var fechaDiaCal = Fecha;                        // 2026-03-15 (dia calendario)
+        var fechaDiaAnt = Fecha.AddDays(-1);            // 2026-03-14 (dia anterior)
+
+        await WhenAsync(CrearMarcacionRegistrada(timestampNocturno));
+
+        // Verificar que cada stream tiene exactamente un MarcacionAdicionada
+        Then(StreamId,
+            new MarcacionAdicionada(StreamId, EmpleadoId, timestampNocturno, "ENTRADA", "DEV-001"));
+        Then(StreamIdDiaAnterior,
+            new MarcacionAdicionada(StreamIdDiaAnterior, EmpleadoId, timestampNocturno, "ENTRADA", "DEV-001"));
+
+        // CA-5: dos DiaCalculado publicados, en orden: dia calendario primero, dia anterior segundo.
+        // Ambos sin turno previo (InformacionEmpleado=null, ControlesDeFranja=[]).
+        ThenIsPublishedPublicly(
+            new DiaCalculado(null, fechaDiaCal, [], DesgloseHoras.Vacio),
+            new DiaCalculado(null, fechaDiaAnt, [], DesgloseHoras.Vacio));
+
+        And<ControlDiarioAggregateRoot, int>(
+            StreamId, c => c.ControlesDeFranja.Count, 0);
+        And<ControlDiarioAggregateRoot, int>(
+            StreamIdDiaAnterior, c => c.ControlesDeFranja.Count, 0);
     }
 }
