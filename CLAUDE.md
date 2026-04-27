@@ -124,6 +124,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Snapshots de Marten (excepción) | ADR-0021 |
 | Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | ADR-0022 |
 | Archivo señal de refactor puro vive en `pipeline-state/` (fuera de `.claude/`) | ADR-0023 |
+| Extracción vs duplicación, Rule of Three, evolución del código | ADR-0024 |
 
 Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
 
