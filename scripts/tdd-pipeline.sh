@@ -1102,7 +1102,9 @@ if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 4 ]; then
         local seen_dlls=0
         local skipped_tests=0
         local skipped_duplicates=0
-        declare -A instrumented_basenames=()
+        # Set de basenames ya instrumentados (compatible bash 3.2, sin declare -A).
+        # Cadena con espacios como delimitadores; se consulta con [[ "$set" == *" $bn "* ]].
+        local instrumented_basenames=" "
         for dll in "$WORKTREE_PATH"/tests/Bitakora.ControlAsistencia.*.Tests/bin/Debug/net10.0/Bitakora.ControlAsistencia.*.dll; do
             [[ ! -f "$dll" ]] && continue
             seen_dlls=$((seen_dlls + 1))
@@ -1112,13 +1114,13 @@ if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 4 ]; then
                 skipped_tests=$((skipped_tests + 1))
                 continue
             fi
-            if [[ -n "${instrumented_basenames[$bn]:-}" ]]; then
+            if [[ "$instrumented_basenames" == *" $bn "* ]]; then
                 skipped_duplicates=$((skipped_duplicates + 1))
                 continue
             fi
             if dotnet-coverage instrument "$dll" --settings "$settings_xml" >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
                 instrumented=$((instrumented + 1))
-                instrumented_basenames[$bn]=1
+                instrumented_basenames+="$bn "
             else
                 warn "No se pudo instrumentar: $bn"
             fi
