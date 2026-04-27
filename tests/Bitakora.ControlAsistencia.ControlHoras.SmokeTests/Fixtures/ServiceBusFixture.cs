@@ -63,6 +63,61 @@ public class ServiceBusFixture : IAsyncLifetime
         await sender.SendMessageAsync(sbMessage);
     }
 
+    public async Task<T> WaitForMessageAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
+        TimeSpan timeout)
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
+
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            var maxWait = remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5);
+            var received = await receiver.ReceiveMessageAsync(maxWait);
+
+            if (received is null)
+                continue;
+
+            try
+            {
+                var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
+                if (deserialized is null)
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    continue;
+                }
+
+                if (match(deserialized))
+                {
+                    await receiver.CompleteMessageAsync(received);
+                    return deserialized;
+                }
+
+                await receiver.CompleteMessageAsync(received);
+                throw new InvalidOperationException(
+                    $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
+                    $"Contenido: {received.Body}");
+            }
+            catch (JsonException)
+            {
+                await receiver.CompleteMessageAsync(received);
+                continue;
+            }
+        }
+
+        throw new TimeoutException(
+            $"No se recibio ningun mensaje en la suscripcion {subscriptionName} " +
+            $"del topic {topicName} en {timeout.TotalSeconds}s");
+    }
+
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
         string topicName,
         string subscriptionName,

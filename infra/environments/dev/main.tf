@@ -56,7 +56,13 @@ module "service_bus" {
       ]
     }
     "dia-calculado" = {
-      subscriptions = []
+      subscriptions = [
+        {
+          name                = "smoke-tests"
+          filter              = null
+          default_message_ttl = "PT5M"
+        }
+      ]
     }
   }
   tags = local.tags

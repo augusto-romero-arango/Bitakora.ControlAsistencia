@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionFunction;
@@ -10,13 +11,23 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // Verifica camino feliz (202 + persistencia en Postgres), duplicado silencioso (202) y body malformado (400).
 // CA-4: duplicado exacto retorna 202 silenciosamente, sin persistir ni publicar de nuevo.
 // CA-6: tanto creacion exitosa como duplicado retornan 202 Accepted.
-public class RegistrarMarcacionSmokeTests(ApiFixture api, PostgresFixture postgres)
+// HU-108: cobertura adicional de los efectos del handler in-process AdicionarMarcacionCuandoMarcacionRegistrada,
+// que tras el POST persiste marcacion_adicionada y publica DiaCalculado al topic dia-calculado.
+public class RegistrarMarcacionSmokeTests(
+    ApiFixture api,
+    PostgresFixture postgres,
+    ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string Ruta = "/api/control-horas/marcaciones";
     private const string SchemaControlHoras = "control_horas";
     private const string TipoEvento = "marcacion_registrada";
+    private const string TipoEventoMarcacionAdicionada = "marcacion_adicionada";
+    private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
+    private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicDiaCalculado = "dia-calculado";
+    private const string SuscripcionSmokeTests = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // CA-5: stream ID determinista = "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
@@ -188,5 +199,119 @@ public class RegistrarMarcacionSmokeTests(ApiFixture api, PostgresFixture postgr
 
         // Assert: body nulo -> 400 Bad Request
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // HU-108: tras el POST, el handler in-process AdicionarMarcacionCuandoMarcacionRegistrada
+    // persiste marcacion_adicionada en el stream {empleadoId}:{fecha} y publica DiaCalculado.
+    // Setup: se publica programacion-turno-diario-solicitada para que el aggregate tenga
+    // turno previo, asegurando que DiaCalculado.InformacionEmpleado no sea null y se pueda
+    // filtrar por EmpleadoId en la suscripcion smoke-tests.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebePublicarDiaCalculadoYPersistirMarcacionAdicionada_CuandoMarcacionGeneraNuevoEvento()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: identificadores unicos por ejecucion
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 27);
+        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+
+        // Setup: publicar programacion-turno-diario-solicitada y esperar a que ControlHoras
+        // persista turno_diario_asignado. Asi el ControlDiario tendra TurnoDiarioAsignado previo
+        // antes de procesar la marcacion.
+        var solicitudId = Guid.CreateVersion7();
+        var programacionPayload = new
+        {
+            SolicitudId = solicitudId,
+            Empleado = new
+            {
+                EmpleadoId = empleadoId,
+                TipoIdentificacion = "CC",
+                NumeroIdentificacion = "888777666",
+                Nombres = "[TEST] Smoke DiaCalculado",
+                Apellidos = "[TEST] HU108"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = "[TEST] Turno HU108",
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = "08:00:00",
+                        HoraFin = "16:00:00",
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>()
+                    }
+                }
+            }
+        };
+
+        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+
+        var turnoAsignado = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+
+        turnoAsignado.Should().BeTrue(
+            $"el evento {TipoEventoTurnoDiarioAsignado} deberia existir antes de registrar la marcacion");
+
+        // Arrange: purgar la suscripcion smoke-tests del topic dia-calculado para que cualquier
+        // mensaje recibido tras el Act sea de este test (patron purge-before-act, ADR-0016).
+        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+
+        // Arrange: marcacion dentro de la franja programada (entrada 08:00-16:00).
+        // Timestamp fuera de ventana nocturna -> el handler procesa una sola fecha.
+        var timestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);
+        var payload = new
+        {
+            empleadoId,
+            timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-HU108"
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        // Assert HTTP: 202 Accepted
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Assert persistencia: marcacion_adicionada en el stream del ControlDiario.
+        var marcacionAdicionada = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
+            campoJson: "EmpleadoId", valorJson: empleadoId);
+
+        marcacionAdicionada.Should().BeTrue(
+            $"el evento {TipoEventoMarcacionAdicionada} deberia existir en el stream {streamId} tras el POST");
+
+        // Assert publicacion: DiaCalculado emitido al topic dia-calculado, filtrado por EmpleadoId.
+        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
+            TopicDiaCalculado, SuscripcionSmokeTests,
+            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            Timeout);
+
+        diaCalculado.Fecha.Should().Be(fecha);
+        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.ControlesDeFranja.Should().HaveCount(1,
+            "el TurnoDiarioAsignado previo tiene una sola franja ordinaria");
+        diaCalculado.DesgloseHoras.Should().NotBeNull(
+            "DiaCalculado siempre se emite con DesgloseHoras (Vacio mientras la calculadora no exista)");
+
+        // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
+        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicDiaCalculado, SuscripcionSmokeTests);
+
+        deadLetters.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' del topic '{1}'",
+            SuscripcionSmokeTests, TopicDiaCalculado);
     }
 }
