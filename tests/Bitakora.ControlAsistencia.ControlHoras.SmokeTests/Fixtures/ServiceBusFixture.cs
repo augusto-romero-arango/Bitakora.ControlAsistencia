@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Azure.Messaging.ServiceBus;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
@@ -7,11 +9,26 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 public class ServiceBusFixture : IAsyncLifetime
 {
     private ServiceBusClient? _client;
+    private JsonSerializerOptions _jsonOptions = null!;
 
     public bool IsConfigured { get; private set; }
 
     public ValueTask InitializeAsync()
     {
+        // Issue #160: aplicar ADR-0015 al consumir eventos con VOs sealed (ctor privado).
+        // Sin este resolver, STJ falla con NotSupportedException al deserializar
+        // DiaCalculado.DesgloseHoras.RetardoTotal y los IntervaloTemporal del desglose.
+        // Solo registramos los VOs sealed que viajan en eventos consumidos por estos
+        // smoke tests; al aparecer otros, agregar la llamada ConfigurarSerializacion correspondiente.
+        var resolver = new DefaultJsonTypeInfoResolver();
+        IntervaloTemporal.ConfigurarSerializacion(resolver);
+        DetalleRetardo.ConfigurarSerializacion(resolver);
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            TypeInfoResolver = resolver
+        };
+
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false)
@@ -69,7 +86,6 @@ public class ServiceBusFixture : IAsyncLifetime
         Func<T, bool> match,
         TimeSpan timeout)
     {
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
 
         var deadline = DateTime.UtcNow + timeout;
@@ -88,7 +104,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
             try
             {
-                var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
+                var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), _jsonOptions);
                 if (deserialized is null)
                 {
                     await receiver.CompleteMessageAsync(received);
