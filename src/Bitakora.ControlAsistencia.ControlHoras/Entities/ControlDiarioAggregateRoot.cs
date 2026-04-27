@@ -81,12 +81,25 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // HU-106: Apply que agrega la marcacion a la lista
     // Apply solo proyecta estado; la deteccion de duplicado vive en AdicionarMarcacion (CA-4).
     // Cuando el aggregate nace desde Iniciar(MarcacionAdicionada), este Apply asigna el Id del stream.
+    // HU-108: Fecha se deriva del stream ID (CA-7 codifica EmpleadoId+Fecha) para que el
+    //          DiaCalculado emitido tras el recalculo lleve la fecha correcta incluso cuando
+    //          el ControlDiario nace solo por marcacion (sin TurnoDiarioAsignado previo).
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(MarcacionAdicionada e)
     {
         Id = e.Id;
+        Fecha = ExtraerFechaDeStreamId(e.Id);
         _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
         Depurar();
+    }
+
+    // HU-108: stream ID tiene formato "{EmpleadoId}:{Fecha:yyyy-MM-dd}" (CA-7).
+    // Parsea la porcion final como DateOnly para hidratar Fecha cuando no hay TurnoDiarioAsignado.
+    private static DateOnly ExtraerFechaDeStreamId(string streamId)
+    {
+        var separador = streamId.LastIndexOf(':');
+        var fechaTexto = streamId[(separador + 1)..];
+        return DateOnly.ParseExact(fechaTexto, "yyyy-MM-dd");
     }
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
@@ -116,5 +129,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
     // Usa DesgloseHoras.Vacio mientras la calculadora real no exista (#115/#116/#136/#139).
     // El mapeo ControlFranja -> DetalleControlFranja queda encapsulado aqui (no expone _controlesDeFranja).
-    public DiaCalculado CrearDiaCalculado() => throw new NotImplementedException();
+    public DiaCalculado CrearDiaCalculado()
+    {
+        var detalles = _controlesDeFranja
+            .Select(c => new DetalleControlFranja(c.Programada, c.Entrada, c.Salida, c.EsAnomala))
+            .ToArray();
+
+        return new DiaCalculado(InformacionEmpleado, Fecha, detalles, DesgloseHoras.Vacio);
+    }
 }

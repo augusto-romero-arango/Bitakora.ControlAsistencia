@@ -50,6 +50,10 @@ public partial class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler
     // Patron crear-o-actualizar con stream ID computado (EmpleadoId + Fecha).
     // CA-5: si el ControlDiario no existe se crea con Iniciar(MarcacionAdicionada).
     // CA-4: si existe, el aggregate se encarga de ignorar duplicados por minuto.
+    // HU-108: tras procesar la marcacion publica DiaCalculado al topic dia-calculado
+    //         via IPublicEventSender, una vez por cada fecha-destino procesada (CA-5).
+    //         Idempotencia (#106): si AdicionarMarcacion ignora el duplicado, no se
+    //         agrega evento al stream y por tanto no se publica DiaCalculado redundante.
     private async Task AdicionarAControlDiarioAsync(
         MarcacionRegistrada command, DateOnly fecha, CancellationToken ct)
     {
@@ -63,15 +67,24 @@ public partial class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 
+        ControlDiarioAggregateRoot control;
+        bool huboCambios;
+
         if (!existe)
         {
-            var control = ControlDiarioAggregateRoot.Iniciar(evento);
+            control = ControlDiarioAggregateRoot.Iniciar(evento);
             _eventStore.StartStream(control);
+            huboCambios = true;
         }
         else
         {
-            var control = await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct);
-            control!.AdicionarMarcacion(evento);
+            control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
+            var eventosAntes = control.UncommittedEvents.Count;
+            control.AdicionarMarcacion(evento);
+            huboCambios = control.UncommittedEvents.Count > eventosAntes;
         }
+
+        if (huboCambios)
+            await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
     }
 }
