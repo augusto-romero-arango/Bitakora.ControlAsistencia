@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
@@ -109,4 +111,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // HU-108: construye el evento DiaCalculado desde el estado actual del aggregate.
+    // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
+    // Usa DesgloseHoras.Vacio mientras la calculadora real no exista (#115/#116/#136/#139).
+    // El mapeo ControlFranja -> DetalleControlFranja queda encapsulado aqui (no expone _controlesDeFranja).
+    public DiaCalculado CrearDiaCalculado() => throw new NotImplementedException();
 }

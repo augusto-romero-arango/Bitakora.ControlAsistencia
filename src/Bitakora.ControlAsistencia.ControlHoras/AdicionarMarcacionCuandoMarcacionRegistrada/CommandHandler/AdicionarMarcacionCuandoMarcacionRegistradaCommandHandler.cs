@@ -1,6 +1,7 @@
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
@@ -14,14 +15,18 @@ public partial class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler
     : ICommandHandlerAsync<MarcacionRegistrada>
 {
     private readonly IEventStore _eventStore;
+    private readonly IPublicEventSender _publicEventSender;
 
     // CA-9: constante del handler - no del aggregate. Cuando sea configurable por empresa
     // vendra de un servicio externo, no de aqui.
     internal static readonly TimeOnly HoraCorteTraslapeNocturno = new TimeOnly(4, 0);
 
-    public AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(IEventStore eventStore)
+    public AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(
+        IEventStore eventStore,
+        IPublicEventSender publicEventSender)
     {
         _eventStore = eventStore;
+        _publicEventSender = publicEventSender;
     }
 
     public async Task HandleAsync(MarcacionRegistrada command, CancellationToken ct = default)
