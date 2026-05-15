@@ -15,6 +15,22 @@ Sistema de control de asistencias y cálculo de horas según legislación labora
 - **Despliegue**: Azure Functions isolated worker, comunicación por eventos
 - **Remote**: `https://github.com/augusto-romero-arango/Bitakora.ControlAsistencia.git`
 
+### Harness integrado
+
+Este proyecto consume el plugin `mefisto@augusto-romero-arango-harness` desde el marketplace privado registrado en `.claude/settings.json`. Los skills, agentes, scripts y ADRs del marco arquitectónico vienen del plugin, no del repo del proyecto.
+
+- **Repositorio del harness**: https://github.com/augusto-romero-arango/eda-evsourcing-azure-harness
+- **Skills disponibles**: `/mefisto:implement`, `:scaffold`, `:infra`, `:tooling`, `:bug`, `:draft`, `:merge`, `:parallel`, `:sequential`, `:show-flow`, `:work-status`, `:health-check`, `:eraser-diagram`, `:fix-review`.
+- **Actualizar**: `/plugin update mefisto`.
+
+### Tokens del harness (resolución para agentes y skills)
+
+Estos valores los consumen los agentes/skills del harness cuando ven los placeholders `<RootNamespace>`, `<SolutionFile>`, `<ProjectDisplayName>`. La fuente operativa para scripts es `.claude/harness.config.json`.
+
+- **RootNamespace**: `Bitakora.ControlAsistencia`
+- **SolutionFile**: `ControlAsistencias.slnx`
+- **ProjectDisplayName**: `ControlAsistencias`
+
 ### Estructura
 
 - `src/Bitakora.ControlAsistencia.Contracts/` — contratos de eventos y value objects compartidos

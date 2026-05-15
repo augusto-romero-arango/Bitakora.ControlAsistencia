@@ -1,0 +1,10 @@
+{
+  "projectName": "ControlAsistencias",
+  "namespacePrefix": "Bitakora.ControlAsistencia",
+  "solutionFile": "ControlAsistencias.slnx",
+  "infraResourceGroupPrefix": "rg-controlasistencias",
+  "terraformStateStorage": "stcatfstatedev",
+  "githubServicePrincipalName": "github-controlasistencias-ci",
+  "appInsightsApp": "controlasistencias-dev-ai",
+  "domainLabels": ["asistencia", "programacion", "contracts", "controlhoras"]
+}
