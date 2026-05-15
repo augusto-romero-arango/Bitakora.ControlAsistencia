@@ -15,6 +15,14 @@ Sistema de control de asistencias y cálculo de horas según legislación labora
 - **Despliegue**: Azure Functions isolated worker, comunicación por eventos
 - **Remote**: `https://github.com/augusto-romero-arango/Bitakora.ControlAsistencia.git`
 
+### Tokens del harness (resolución para agentes y skills)
+
+Estos valores los consumen los agentes/skills del harness `eda-evsourcing-azure-harness` cuando ven los placeholders `<RootNamespace>`, `<SolutionFile>`, `<ProjectDisplayName>`. La fuente operativa es `.claude/harness.config.json`.
+
+- **RootNamespace**: `Bitakora.ControlAsistencia`
+- **SolutionFile**: `ControlAsistencias.slnx`
+- **ProjectDisplayName**: `ControlAsistencias`
+
 ### Estructura
 
 - `src/Bitakora.ControlAsistencia.Contracts/` — contratos de eventos y value objects compartidos

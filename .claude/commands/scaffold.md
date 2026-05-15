@@ -54,7 +54,7 @@ Guardar ambas formas: `DOMAIN_NAME_KEBAB` (para el script) y `DOMAIN_NAME_PASCAL
 Convierte a PascalCase (ej: `calculo-horas` -> `CalculoHoras`) y verifica:
 
 ```bash
-test -d "src/Bitakora.ControlAsistencia.{PascalCase}/"
+test -d "src/<RootNamespace>.{PascalCase}/"
 ```
 
 Si ya existe, informa y detente.
@@ -66,9 +66,9 @@ Muestra exactamente lo que se va a crear y pregunta:
 ```
 Se va a crear el scaffold del dominio "{domain-name}" ({PascalCase}):
 
-  - Function App:   src/Bitakora.ControlAsistencia.{PascalCase}/
-  - Tests:          tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
-  - Smoke Tests:    tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
+  - Function App:   src/<RootNamespace>.{PascalCase}/
+  - Tests:          tests/<RootNamespace>.{PascalCase}.Tests/
+  - Smoke Tests:    tests/<RootNamespace>.{PascalCase}.SmokeTests/
   - Terraform:      infra/environments/dev/main.tf
   - GitHub Actions: .github/workflows/deploy-{kebab}.yml
   - Label:          dom:{kebab}

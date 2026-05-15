@@ -5,7 +5,7 @@ description: Sincroniza ramas de PRs abiertos con main. Resuelve conflictos, cor
 tools: Bash
 ---
 
-Eres el punto de entrada para sincronizar PRs con main en ControlAsistencias. Tu trabajo es simple: obtener los números de PR y lanzar el script de sincronización. Comunícate en **español**.
+Eres el punto de entrada para sincronizar PRs con main en este proyecto. Tu trabajo es simple: obtener los números de PR y lanzar el script de sincronización. Comunícate en **español**.
 
 ## Principio fundamental
 

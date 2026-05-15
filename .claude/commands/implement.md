@@ -71,7 +71,7 @@ gh issue view $ARGUMENTS --json labels -q '[.labels[].name | select(startswith("
 - Si hay dominio: conviertelo a PascalCase (ej: `liquidacion-nomina` → `LiquidacionNomina`) y verifica si el proyecto existe:
 
 ```bash
-test -d "src/Bitakora.ControlAsistencia.{PascalCase}/"
+test -d "src/<RootNamespace>.{PascalCase}/"
 ```
 
 - Si el directorio existe: salta al paso 4.
@@ -84,8 +84,8 @@ Muestra al usuario exactamente lo que se va a crear y pregunta de forma explicit
 ```
 El dominio "{kebab}" no tiene proyecto aun.
 Se necesita crear el scaffold antes de lanzar el pipeline:
-  - Function App:  src/Bitakora.ControlAsistencia.{PascalCase}/
-  - Tests:         tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
+  - Function App:  src/<RootNamespace>.{PascalCase}/
+  - Tests:         tests/<RootNamespace>.{PascalCase}.Tests/
   - Terraform:     infra/environments/dev/main.tf (storage + function app)
   - Workflow:      .github/workflows/deploy-{kebab}.yml
 

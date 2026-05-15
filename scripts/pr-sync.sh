@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
+load_harness_config || exit 1
+
 # ─── Colores ────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -221,7 +224,7 @@ validate_tests() {
     # Build explícito: dotnet test con compilación implícita falla en worktrees
     # por FileNotFoundException en assemblies de proyecto (Contracts).
     local build_output
-    build_output=$(dotnet build "$worktree/ControlAsistencias.slnx" 2>&1)
+    build_output=$(dotnet build "$worktree/${HARNESS_SOLUTION_FILE}" 2>&1)
     local build_rc=$?
     echo "$build_output" >> "$LOG_FILE_ABS"
     if [ "$build_rc" -ne 0 ]; then
@@ -230,7 +233,7 @@ validate_tests() {
     fi
 
     local test_rc=0
-    test_output=$(dotnet test --solution "$worktree/ControlAsistencias.slnx" --no-build 2>&1) || test_rc=$?
+    test_output=$(dotnet test --solution "$worktree/${HARNESS_SOLUTION_FILE}" --no-build 2>&1) || test_rc=$?
     echo "$test_output" >> "$LOG_FILE_ABS"
 
     # Exit codes de Microsoft.Testing.Platform:
@@ -483,7 +486,7 @@ for PR_NUM in "${PR_NUMS[@]}"; do
         CONFLICT_FILES=$(git -C "$TEMP_WORKTREE" diff --name-only --diff-filter=U)
         log "Archivos en conflicto: $CONFLICT_FILES"
 
-        MERGE_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+        MERGE_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Hay conflictos de merge con la rama main en los siguientes archivos:
 $CONFLICT_FILES
@@ -522,7 +525,7 @@ NO elimines código de ninguna de las dos ramas — integra ambos cambios."
         warn "Tests fallan post-merge. Invocando implementer para arreglar..."
 
         FAILED_TESTS=$(echo "$TEST_OUTPUT" | grep -E "Failed|Con error" | head -10)
-        FIX_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+        FIX_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Después de hacer merge con main, los siguientes tests fallan:
 $FAILED_TESTS

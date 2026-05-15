@@ -4,6 +4,9 @@
 # Ejemplo: ./scripts/setup-github-ci.sh 50fc1901-9723-4971-9d63-b3f1a015e8b8
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
+load_harness_config || exit 1
+
 if [ -z "${1:-}" ]; then
     echo "Uso: $0 <subscription-id>"
     echo "Ejemplo: $0 50fc1901-9723-4971-9d63-b3f1a015e8b8"
@@ -11,12 +14,12 @@ if [ -z "${1:-}" ]; then
 fi
 
 SUBSCRIPTION_ID="$1"
-SP_NAME="github-controlasistencias-ci"
-TFSTATE_STORAGE="stcatfstatedev"
-TFSTATE_RG="rg-controlasistencias-tfstate"
+SP_NAME="$HARNESS_SP_NAME"
+TFSTATE_STORAGE="$HARNESS_TFSTATE_STORAGE"
+TFSTATE_RG="${HARNESS_RG_PREFIX}-tfstate"
 SCOPE="/subscriptions/${SUBSCRIPTION_ID}"
 
-echo "=== Setup CI para ControlAsistencias ==="
+echo "=== Setup CI para ${HARNESS_PROJECT_NAME} ==="
 echo ""
 
 echo "Creando service principal '${SP_NAME}'..."

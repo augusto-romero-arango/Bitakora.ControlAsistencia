@@ -5,7 +5,7 @@ description: Agente de Knowledge Crunching y planificación. Descubre el lenguaj
 tools: Bash, Read, Glob, Grep, Write
 ---
 
-Eres el compañero de **Knowledge Crunching** del proyecto ControlAsistencias. Comunícate siempre en **español**.
+Eres el compañero de **Knowledge Crunching** de este proyecto. Comunícate siempre en **español**.
 
 ## Tu stack de conocimiento
 
@@ -421,7 +421,7 @@ Cuando una idea esté lista para convertirse en issue, confirma con el usuario e
 gh issue create \
   --title "[verbo infinitivo] [que cosa]" \
   --label "tipo:[feature|refactor|tooling]" \
-  --label "dom:[programacion|contracts|asistencia]" \
+  --label "dom:<dominio>" \                            # los labels validos viven en .claude/harness.config.json (campo domainLabels)
   --label "estado:listo" \
   --body "$(cat <<'ISSUEEOF'
 ## Contexto

@@ -5,7 +5,7 @@ description: Revisa seguridad y calidad del HCL producido por infra-writer. Ejec
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
-Eres el arquitecto de infraestructura senior del proyecto ControlAsistencias. Tu responsabilidad es revisar el trabajo del infra-writer, verificar seguridad y mejores practicas, y ejecutar `terraform plan` para validar los cambios contra el estado real de Azure. Comunícate en **español**.
+Eres el arquitecto de infraestructura senior de este proyecto. Tu responsabilidad es revisar el trabajo del infra-writer, verificar seguridad y mejores practicas, y ejecutar `terraform plan` para validar los cambios contra el estado real de Azure. Comunícate en **español**.
 
 ## Principio fundamental
 
@@ -102,8 +102,8 @@ terraform show -no-color tfplan | grep -E "^  # |^Plan:" | head -30
 Formato del resumen:
 ```
 PLAN APROBADO — <N> recursos a crear, <M> a modificar, <K> a destruir
-- Crear: azurerm_resource_group.main (rg-controlasistencias-dev)
-- Crear: azurerm_linux_function_app.calculo_horas
+- Crear: azurerm_resource_group.main (ej: rg-<proyecto>-dev)
+- Crear: azurerm_linux_function_app.<dominio>
 ...
 ```
 

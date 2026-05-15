@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
+load_harness_config || exit 1
+
 # --- Colores ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -157,8 +160,8 @@ PASCAL_CASE=$(echo "$DOMAIN_NAME" | awk -F'-' '{for(i=1;i<=NF;i++) $i=toupper(su
 log "Dominio: $DOMAIN_NAME (PascalCase: $PASCAL_CASE)"
 
 # Verificar que el dominio no existe ya
-if [ -d "$REPO_ROOT/src/Bitakora.ControlAsistencia.$PASCAL_CASE" ]; then
-    abort "El dominio ya existe: src/Bitakora.ControlAsistencia.$PASCAL_CASE"
+if [ -d "$REPO_ROOT/src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE" ]; then
+    abort "El dominio ya existe: src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE"
 fi
 
 # --- Crear label dom:X ---
@@ -252,8 +255,8 @@ if [ "$SCAFFOLD_EXIT" -ne 0 ]; then
 fi
 
 # Verificar que el proyecto fue creado
-if [ ! -d "$WORKTREE_PATH/src/Bitakora.ControlAsistencia.$PASCAL_CASE" ]; then
-    abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE -- revisa: $SCAFFOLD_LOG"
+if [ ! -d "$WORKTREE_PATH/src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE" ]; then
+    abort "El scaffold no creo src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE -- revisa: $SCAFFOLD_LOG"
 fi
 
 echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${scaffold_elapsed}s)" >> "$EVENTS_LOG"
@@ -288,9 +291,9 @@ PR_URL=$(gh pr create \
 Scaffold del dominio **$PASCAL_CASE** (\`$DOMAIN_NAME\`) creado con domain-scaffolder.
 
 ### Incluye
-- Function App: \`src/Bitakora.ControlAsistencia.$PASCAL_CASE/\`
-- Tests: \`tests/Bitakora.ControlAsistencia.$PASCAL_CASE.Tests/\`
-- Smoke Tests: \`tests/Bitakora.ControlAsistencia.$PASCAL_CASE.SmokeTests/\`
+- Function App: \`src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE/\`
+- Tests: \`tests/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE.Tests/\`
+- Smoke Tests: \`tests/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE.SmokeTests/\`
 - Terraform: storage account + function app en \`infra/environments/dev/main.tf\`
 - GitHub Actions: \`.github/workflows/deploy-$DOMAIN_NAME.yml\`
 

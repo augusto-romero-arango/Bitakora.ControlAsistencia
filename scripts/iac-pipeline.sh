@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# iac-pipeline.sh -- Pipeline IaC automatizado para ControlAsistencias
+# iac-pipeline.sh -- Pipeline IaC automatizado
 #
 # Uso:
 #   ./scripts/iac-pipeline.sh 42
@@ -11,6 +11,9 @@
 # Ciclo completo: Issue -> Worktree -> Write (HCL) -> Review (plan) -> Apply -> PR -> Cleanup
 
 set -euo pipefail
+
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
+load_harness_config || exit 1
 
 # --- Colores ---
 RED='\033[0;31m'
@@ -318,7 +321,7 @@ run_agent() {
 if [ "$FROM_STAGE" -le 1 ]; then
     header "Stage 1: infra-writer (escribir HCL)"
 
-    STAGE1_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+    STAGE1_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto del issue de infraestructura a implementar:
 
@@ -358,7 +361,7 @@ if [ "$FROM_STAGE" -le 2 ]; then
 
     DIFF_CONTEXT=$(git -C "$WORKTREE_PATH" diff main...HEAD -- infra/ 2>/dev/null | head -200 || echo "(sin diff disponible)")
 
-    STAGE2_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+    STAGE2_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto del issue:
 
@@ -405,7 +408,7 @@ else
             log "Modo auto-apply activo (ambiente: $ENVIRONMENT)"
         fi
 
-        STAGE3_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+        STAGE3_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 El infra-reviewer ya genero el plan de Terraform en: $INFRA_ENV_DIR_ABS/tfplan
 Ambiente: $ENVIRONMENT

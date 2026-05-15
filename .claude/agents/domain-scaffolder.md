@@ -4,7 +4,17 @@ description: Crea el scaffold completo para un nuevo dominio (Function App, test
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
-Eres el agente encargado de crear el scaffold completo para un nuevo dominio en ControlAsistencias. Comunicate en **espanol**.
+Eres el agente encargado de crear el scaffold completo para un nuevo dominio en este proyecto. Comunicate en **espanol**.
+
+## Contrato con el consumidor
+
+Antes de cualquier accion, lee `CLAUDE.md` raiz del proyecto para resolver estos tokens. Los ejemplos y bloques de codigo que siguen los usan literalmente; tu debes sustituirlos por su valor real:
+
+- `<RootNamespace>` -- prefijo del namespace .NET del proyecto (ej: `<RootNamespace>`). Se declara en CLAUDE.md raiz como `RootNamespace`.
+- `<SolutionFile>` -- nombre del archivo de solucion (ej: `<SolutionFile>`). Se declara en CLAUDE.md raiz como `SolutionFile`.
+- `{PascalCase}` -- nombre del dominio en PascalCase, derivado del input del usuario.
+
+Si CLAUDE.md no declara `RootNamespace` o `SolutionFile`, detente y pide al usuario que los declare antes de continuar.
 
 ## Parametros de entrada
 
@@ -46,9 +56,9 @@ Y detente sin hacer nada mas.
 ls /ruta-del-proyecto/src/ | grep -i "{PascalCase}"
 ```
 
-Si el directorio `src/Bitakora.ControlAsistencia.{PascalCase}/` ya existe, informa al usuario:
+Si el directorio `src/<RootNamespace>.{PascalCase}/` ya existe, informa al usuario:
 
-> "El proyecto `src/Bitakora.ControlAsistencia.{PascalCase}/` ya existe. Si quieres recrearlo, eliminalo primero."
+> "El proyecto `src/<RootNamespace>.{PascalCase}/` ya existe. Si quieres recrearlo, eliminalo primero."
 
 Y detente sin hacer nada mas.
 
@@ -58,9 +68,9 @@ Antes de continuar muestra al usuario el resumen de lo que vas a crear y pide co
 Dominio:          {kebab}
 PascalCase:       {PascalCase}
 Function App:     func-{prefix_func}-{kebab} (N chars)
-Proyecto src:     src/Bitakora.ControlAsistencia.{PascalCase}/
-Proyecto tests:   tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
-Smoke tests:      tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
+Proyecto src:     src/<RootNamespace>.{PascalCase}/
+Proyecto tests:   tests/<RootNamespace>.{PascalCase}.Tests/
+Smoke tests:      tests/<RootNamespace>.{PascalCase}.SmokeTests/
 Workflow deploy:  .github/workflows/deploy-{kebab}.yml
 
 Fixtures:         ApiFixture, ServiceBusFixture, PostgresFixture, Polling
@@ -83,7 +93,7 @@ Crea el proyecto con Azure Functions Core Tools:
 
 ```bash
 cd "$REPO_ROOT"
-func init "src/Bitakora.ControlAsistencia.{PascalCase}" \
+func init "src/<RootNamespace>.{PascalCase}" \
   --worker-runtime dotnet-isolated \
   --target-framework net10.0
 ```
@@ -91,9 +101,9 @@ func init "src/Bitakora.ControlAsistencia.{PascalCase}" \
 Despues de `func init`, elimina los archivos que no deben trackearse (ya cubiertos por el .gitignore raiz):
 
 ```bash
-rm -f "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/.gitignore"
-rm -rf "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/.vscode"
-rm -f "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Properties/launchSettings.json"
+rm -f "$REPO_ROOT/src/<RootNamespace>.{PascalCase}/.gitignore"
+rm -rf "$REPO_ROOT/src/<RootNamespace>.{PascalCase}/.vscode"
+rm -f "$REPO_ROOT/src/<RootNamespace>.{PascalCase}/Properties/launchSettings.json"
 ```
 
 Una vez creado, lee el archivo `.csproj` generado para ver su contenido actual antes de modificarlo.
@@ -124,19 +134,19 @@ Elimina estas lineas del `.csproj`:
 **3. Agregar la referencia al proyecto Contracts:**
 
 ```xml
-<ProjectReference Include="..\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
+<ProjectReference Include="..\<RootNamespace>.Contracts\<RootNamespace>.Contracts.csproj" />
 ```
 
 **4. Verificar que el `<RootNamespace>` sea correcto:**
 
-El `<RootNamespace>` debe ser `Bitakora.ControlAsistencia.{PascalCase}`. Si no existe el elemento, agregalo dentro del primer `<PropertyGroup>`. Si ya existe con otro valor, corrígelo.
+El `<RootNamespace>` debe ser `<RootNamespace>.{PascalCase}`. Si no existe el elemento, agregalo dentro del primer `<PropertyGroup>`. Si ya existe con otro valor, corrígelo.
 
 **5. Crear carpetas estructurales:**
 
 ```bash
-mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Entities"
-mkdir -p "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Infraestructura"
-touch "$REPO_ROOT/src/Bitakora.ControlAsistencia.{PascalCase}/Entities/.gitkeep"
+mkdir -p "$REPO_ROOT/src/<RootNamespace>.{PascalCase}/Entities"
+mkdir -p "$REPO_ROOT/src/<RootNamespace>.{PascalCase}/Infraestructura"
+touch "$REPO_ROOT/src/<RootNamespace>.{PascalCase}/Entities/.gitkeep"
 ```
 
 La estructura de carpetas sigue el estilo de vertical slicing:
@@ -151,8 +161,8 @@ Lee el Program.cs generado para ver su contenido actual, luego reemplazalo compl
 
 ```csharp
 using System.Text.Json;
-using Bitakora.ControlAsistencia.{PascalCase};
-using Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
+using <RootNamespace>.{PascalCase};
+using <RootNamespace>.{PascalCase}.Infraestructura;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -187,7 +197,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource("Wolverine")
         .AddSource("Marten")
-        .AddSource("Bitakora.ControlAsistencia.{PascalCase}.*"));
+        .AddSource("<RootNamespace>.{PascalCase}.*"));
 
 // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
 builder.Services.Configure<JsonSerializerOptions>(options =>
@@ -206,7 +216,7 @@ await builder.Build().RunAsync();
 **7. Crear la interface marker `I{PascalCase}AssemblyMarker.cs`** en la raiz del proyecto (marker para assembly scanning de Wolverine y FluentValidation):
 
 ```csharp
-namespace Bitakora.ControlAsistencia.{PascalCase};
+namespace <RootNamespace>.{PascalCase};
 
 /// <summary>
 /// Marker interface para assembly scanning de Wolverine.
@@ -259,7 +269,7 @@ public interface I{PascalCase}AssemblyMarker;
 
 **10. Verificar que Contracts tenga `Cosmos.EventDriven.Abstractions`:**
 
-Lee `src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj`. Si no tiene el paquete, agregalo:
+Lee `src/<RootNamespace>.Contracts/<RootNamespace>.Contracts.csproj`. Si no tiene el paquete, agregalo:
 
 ```xml
 <ItemGroup>
@@ -278,7 +288,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
+namespace <RootNamespace>.{PascalCase}.Infraestructura;
 
 public interface IRequestValidator
 {
@@ -324,7 +334,7 @@ public class RequestValidator(IServiceProvider serviceProvider) : IRequestValida
 ```csharp
 using System.Text.Json;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
+namespace <RootNamespace>.{PascalCase}.Infraestructura;
 
 /// <summary>
 /// Helper para deserializar mensajes de Service Bus con opciones correctas.
@@ -353,7 +363,7 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
+namespace <RootNamespace>.{PascalCase}.Infraestructura;
 
 /// <summary>
 /// Clase base para FunctionEndpoints de ServiceBus.
@@ -396,7 +406,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 
-namespace Bitakora.ControlAsistencia.{PascalCase};
+namespace <RootNamespace>.{PascalCase};
 
 public class HealthCheck
 {
@@ -416,9 +426,9 @@ Este archivo garantiza que la Function App siempre tenga al menos un trigger y q
 ```bash
 cd "$REPO_ROOT"
 dotnet new xunit \
-  -n "Bitakora.ControlAsistencia.{PascalCase}.Tests" \
+  -n "<RootNamespace>.{PascalCase}.Tests" \
   --framework net10.0 \
-  -o "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests"
+  -o "tests/<RootNamespace>.{PascalCase}.Tests"
 ```
 
 Luego:
@@ -426,7 +436,7 @@ Luego:
 **1. Eliminar el archivo de test de ejemplo generado automaticamente:**
 
 ```bash
-rm -f "$REPO_ROOT/tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/UnitTest1.cs"
+rm -f "$REPO_ROOT/tests/<RootNamespace>.{PascalCase}.Tests/UnitTest1.cs"
 ```
 
 **2. Leer el `.csproj` de tests** para ver su contenido actual.
@@ -465,7 +475,7 @@ Y agregar en su lugar (en el mismo `<ItemGroup>` o en uno nuevo):
 **4. Agregar la referencia al proyecto del dominio** (en un `<ItemGroup>` separado o en uno existente de ProjectReferences):
 
 ```xml
-<ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.{PascalCase}\Bitakora.ControlAsistencia.{PascalCase}.csproj" />
+<ProjectReference Include="..\..\src\<RootNamespace>.{PascalCase}\<RootNamespace>.{PascalCase}.csproj" />
 ```
 
 **5. Agregar el global using de Xunit.** Los tests usan `[Fact]`, `[Theory]` y demas atributos de xunit sin `using Xunit;` explicito en cada archivo. Agrega un `<ItemGroup>` con el global using:
@@ -481,18 +491,18 @@ Y agregar en su lugar (en el mismo `<ItemGroup>` o en uno nuevo):
 Tests de la orquestacion generica de `ServiceBusEndpointBase`. Cubren los 4 escenarios: camino feliz, lock perdido, error generico y JSON invalido.
 
 ```bash
-mkdir -p "$REPO_ROOT/tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/Infraestructura"
+mkdir -p "$REPO_ROOT/tests/<RootNamespace>.{PascalCase}.Tests/Infraestructura"
 ```
 
 ```csharp
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
-using Bitakora.ControlAsistencia.{PascalCase}.Infraestructura;
+using <RootNamespace>.{PascalCase}.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.Tests.Infraestructura;
+namespace <RootNamespace>.{PascalCase}.Tests.Infraestructura;
 
 public class ServiceBusEndpointBaseTests
 {
@@ -668,13 +678,13 @@ Crea el directorio y los archivos del proyecto de smoke tests. Este proyecto es 
 
 ```bash
 cd "$REPO_ROOT"
-mkdir -p "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Fixtures" \
-         "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Health"
+mkdir -p "tests/<RootNamespace>.{PascalCase}.SmokeTests/Fixtures" \
+         "tests/<RootNamespace>.{PascalCase}.SmokeTests/Health"
 ```
 
 **1. Crear el `.csproj`:**
 
-Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.csproj`:
+Crea el archivo `tests/<RootNamespace>.{PascalCase}.SmokeTests/<RootNamespace>.{PascalCase}.SmokeTests.csproj`:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -697,7 +707,7 @@ Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitako
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\<RootNamespace>.Contracts\<RootNamespace>.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -738,7 +748,7 @@ Crea el archivo `tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/Bitako
 using System.Net;
 using Microsoft.Extensions.Configuration;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+namespace <RootNamespace>.{PascalCase}.SmokeTests.Fixtures;
 
 public class ApiFixture : IAsyncLifetime
 {
@@ -784,7 +794,7 @@ using System.Text.Json;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Configuration;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+namespace <RootNamespace>.{PascalCase}.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
@@ -933,7 +943,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+namespace <RootNamespace>.{PascalCase}.SmokeTests.Fixtures;
 
 public class PostgresFixture : IAsyncLifetime
 {
@@ -1059,7 +1069,7 @@ public class PostgresFixture : IAsyncLifetime
 Helper de polling tolerante a excepciones transitorias. Captura excepciones dentro del loop en vez de propagar al primer error, y reporta la ultima excepcion en el `TimeoutException`.
 
 ```csharp
-namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+namespace <RootNamespace>.{PascalCase}.SmokeTests.Fixtures;
 
 public static class Polling
 {
@@ -1149,7 +1159,7 @@ public static class Polling
 **7. Crear `Fixtures/AssemblyFixture.cs`:**
 
 ```csharp
-using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+using <RootNamespace>.{PascalCase}.SmokeTests.Fixtures;
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 [assembly: AssemblyFixture(typeof(ApiFixture))]
@@ -1164,9 +1174,9 @@ Todo dominio expone `/api/health`. Este smoke test verifica que el Function App 
 ```csharp
 using System.Net;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Fixtures;
+using <RootNamespace>.{PascalCase}.SmokeTests.Fixtures;
 
-namespace Bitakora.ControlAsistencia.{PascalCase}.SmokeTests.Health;
+namespace <RootNamespace>.{PascalCase}.SmokeTests.Health;
 
 public class HealthSmokeTests(ApiFixture api)
 {
@@ -1210,9 +1220,9 @@ public class HealthSmokeTests(ApiFixture api)
 
 ```bash
 cd "$REPO_ROOT"
-dotnet sln ControlAsistencias.slnx add "src/Bitakora.ControlAsistencia.{PascalCase}/"
-dotnet sln ControlAsistencias.slnx add "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/"
-dotnet sln ControlAsistencias.slnx add "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/"
+dotnet sln <SolutionFile> add "src/<RootNamespace>.{PascalCase}/"
+dotnet sln <SolutionFile> add "tests/<RootNamespace>.{PascalCase}.Tests/"
+dotnet sln <SolutionFile> add "tests/<RootNamespace>.{PascalCase}.SmokeTests/"
 ```
 
 **Verificar `global.json`:** .NET 10 con xunit v3 mtp-v2 requiere que `global.json` en la raiz del repo tenga la seccion `test` para que `dotnet test` funcione. Lee el archivo `global.json` en `$REPO_ROOT`. Si no existe, crealo. Si existe, verifica que contenga la seccion `test`. El contenido minimo necesario es:
@@ -1300,8 +1310,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/Bitakora.ControlAsistencia.{PascalCase}/**'
-      - 'src/Bitakora.ControlAsistencia.Contracts/**'
+      - 'src/<RootNamespace>.{PascalCase}/**'
+      - 'src/<RootNamespace>.Contracts/**'
       - 'infra/environments/dev/**'
   workflow_dispatch:
 
@@ -1316,14 +1326,14 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore ControlAsistencias.slnx
+        run: dotnet restore <SolutionFile>
 
       - name: Build
-        run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
+        run: dotnet build <SolutionFile> --no-restore --configuration Release
 
       - name: Test
         run: |
-          for proj in tests/Bitakora.ControlAsistencia.*.Tests/; do
+          for proj in tests/<RootNamespace>.*.Tests/; do
             dotnet test --project "$proj" --no-build --configuration Release --ignore-exit-code 8
           done
 
@@ -1338,18 +1348,18 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore src/Bitakora.ControlAsistencia.{PascalCase}/ -r linux-x64
+        run: dotnet restore src/<RootNamespace>.{PascalCase}/ -r linux-x64
 
       - name: Build
         run: |
-          dotnet build src/Bitakora.ControlAsistencia.{PascalCase}/ \
+          dotnet build src/<RootNamespace>.{PascalCase}/ \
             --configuration Release \
             --no-restore \
             -r linux-x64
 
       - name: Publish
         run: |
-          dotnet publish src/Bitakora.ControlAsistencia.{PascalCase}/ \
+          dotnet publish src/<RootNamespace>.{PascalCase}/ \
             --configuration Release \
             --no-build \
             -r linux-x64 \
@@ -1360,7 +1370,7 @@ jobs:
         run: |
           test -f ./publish/host.json
           test -f ./publish/functions.metadata
-          test -f ./publish/Bitakora.ControlAsistencia.{PascalCase}.dll
+          test -f ./publish/<RootNamespace>.{PascalCase}.dll
 
       - name: Azure Authentication
         uses: azure/login@v2
@@ -1378,7 +1388,7 @@ jobs:
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
       base_url: https://func-{prefix_func}-{kebab}.azurewebsites.net
-      test_project: tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
+      test_project: tests/<RootNamespace>.{PascalCase}.SmokeTests/
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
       POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
@@ -1401,7 +1411,7 @@ Agrega el nuevo dominio al archivo `.github/smoke-tests-dominios.json` para que 
   {
     "dominio": "{PascalCase}",
     "base_url": "https://func-{prefix_func}-{kebab}.azurewebsites.net",
-    "test_project": "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/"
+    "test_project": "tests/<RootNamespace>.{PascalCase}.SmokeTests/"
   }
 ]
 ```
@@ -1422,14 +1432,14 @@ Ejecuta las verificaciones en orden. Detente e informa al usuario si alguna fall
 
 ```bash
 cd "$REPO_ROOT"
-dotnet build ControlAsistencias.slnx
+dotnet build <SolutionFile>
 ```
 
 **Tests del nuevo dominio:**
 
 ```bash
 cd "$REPO_ROOT"
-dotnet test --project "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/"
+dotnet test --project "tests/<RootNamespace>.{PascalCase}.Tests/"
 ```
 
 (El proyecto de tests estara vacio; un resultado de 0 tests con exit code 8 es correcto — el codigo 8 significa "no se encontraron tests".)
@@ -1451,10 +1461,10 @@ Si `terraform` no esta instalado, informa al usuario y omite este paso sin falla
 ```bash
 cd "$REPO_ROOT"
 git add \
-  "src/Bitakora.ControlAsistencia.{PascalCase}/" \
-  "tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/" \
-  "tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/" \
-  "ControlAsistencias.slnx" \
+  "src/<RootNamespace>.{PascalCase}/" \
+  "tests/<RootNamespace>.{PascalCase}.Tests/" \
+  "tests/<RootNamespace>.{PascalCase}.SmokeTests/" \
+  "<SolutionFile>" \
   "global.json" \
   "infra/environments/dev/main.tf" \
   ".github/workflows/deploy-{kebab}.yml"
@@ -1471,7 +1481,7 @@ Informa al usuario con un resumen de lo creado:
 ```
 Scaffold completado para el dominio "{kebab}":
 
-  src/Bitakora.ControlAsistencia.{PascalCase}/
+  src/<RootNamespace>.{PascalCase}/
     I{PascalCase}AssemblyMarker.cs         - Assembly marker para FluentValidation y Wolverine
     Program.cs                             - JSON global, IRequestValidator, FluentValidation
     HealthCheck.cs                         - Trigger HTTP de health check (raiz del proyecto)
@@ -1480,11 +1490,11 @@ Scaffold completado para el dominio "{kebab}":
     Infraestructura/ServiceBusEndpointBase.cs   - Clase base para endpoints de ServiceBus
     Entities/                              - AggregateRoots y eventos del dominio (siempre raiz)
 
-  tests/Bitakora.ControlAsistencia.{PascalCase}.Tests/
+  tests/<RootNamespace>.{PascalCase}.Tests/
     Infraestructura/ServiceBusEndpointBaseTests.cs - Tests de orquestacion (feliz, lock-lost, dead-letter, JSON invalido)
                                            - Proyecto de tests unitarios (xUnit v3 + AwesomeAssertions)
 
-  tests/Bitakora.ControlAsistencia.{PascalCase}.SmokeTests/
+  tests/<RootNamespace>.{PascalCase}.SmokeTests/
     Fixtures/ApiFixture.cs                 - HttpClient + config + health check fail-fast
     Fixtures/ServiceBusFixture.cs          - PurgeAsync + PublishAsync + WaitForMessageAsync (predicado)
     Fixtures/PostgresFixture.cs            - IsConfigured + SkipReason + firewall catch + consulta Marten

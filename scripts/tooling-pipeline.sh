@@ -13,6 +13,9 @@
 
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
+load_harness_config || exit 1
+
 # --- Colores ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -411,7 +414,7 @@ auto_commit_if_needed() {
 if [ "$FROM_STAGE" -le 1 ]; then
     header "Stage 1: Writer (implementacion)"
 
-    STAGE1_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+    STAGE1_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto de la tarea de tooling a implementar:
 
@@ -498,7 +501,7 @@ if [ "$FROM_STAGE" -le 2 ]; then
 
     FULL_DIFF=$(git -C "$WORKTREE_PATH" diff "$SNAPSHOT_COMMIT"..HEAD)
 
-    STAGE2_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+    STAGE2_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto de la tarea:
 
@@ -531,7 +534,7 @@ Instrucciones:
     if [ -n "$(git -C "$WORKTREE_PATH" diff --name-only "$SNAPSHOT_COMMIT"..HEAD -- '*.cs' '*.csproj' 2>/dev/null)" ]; then
         log "Gate: verificando compilacion y tests..."
         g2_rc=0
-        TEST_OUTPUT_G2=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || g2_rc=$?
+        TEST_OUTPUT_G2=$(dotnet test --solution "$WORKTREE_PATH/${HARNESS_SOLUTION_FILE}" 2>&1) || g2_rc=$?
         echo "$TEST_OUTPUT_G2" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if [ "$g2_rc" -ne 0 ]; then
             echo "$TEST_OUTPUT_G2" | tail -20
@@ -598,7 +601,7 @@ Despues de resolver cada archivo, haz git add. Cuando todos esten resueltos, haz
     if [ -n "$(git -C "$WORKTREE_PATH" diff --name-only "$SNAPSHOT_COMMIT"..HEAD -- '*.cs' '*.csproj' 2>/dev/null)" ]; then
         log "Verificando tests despues del merge..."
         merge_rc=0
-        TEST_OUTPUT_MERGE=$(dotnet test --solution "$WORKTREE_PATH/ControlAsistencias.slnx" 2>&1) || merge_rc=$?
+        TEST_OUTPUT_MERGE=$(dotnet test --solution "$WORKTREE_PATH/${HARNESS_SOLUTION_FILE}" 2>&1) || merge_rc=$?
         echo "$TEST_OUTPUT_MERGE" | tee -a "${LOG_FILE_ABS:-$LOG_FILE}" >/dev/null
         if [ "$merge_rc" -ne 0 ]; then
             abort "Tests fallan despues del merge con main (exit code: $merge_rc)."

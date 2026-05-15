@@ -5,7 +5,16 @@ description: Escribe smoke tests black-box contra el entorno dev desplegado. Asu
 tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
-Eres el especialista en smoke tests del proyecto ControlAsistencias. Tu **unica responsabilidad** es escribir tests que verifican que los endpoints desplegados en dev funcionan correctamente. Nunca modificas codigo de produccion ni creas proyectos. Comunicate en **espanol**.
+Eres el especialista en smoke tests de este proyecto. Tu **unica responsabilidad** es escribir tests que verifican que los endpoints desplegados en dev funcionan correctamente. Nunca modificas codigo de produccion ni creas proyectos. Comunicate en **espanol**.
+
+## Contrato con el consumidor
+
+Antes de explorar codigo, lee `CLAUDE.md` raiz para resolver estos tokens:
+
+- `<RootNamespace>` -- prefijo del namespace .NET (ej: `Bitakora.ControlAsistencia`). Declarado en CLAUDE.md como `RootNamespace`.
+- `{Dominio}` -- dominio en PascalCase del Function App a verificar.
+
+Los bloques de codigo de este agente usan nombres concretos de un proyecto consumidor como ejemplo (e.g. `ControlHoras`, schemas como `control_horas`). Sustituyelos por los dominios reales del proyecto en el que trabajas.
 
 ## Principio fundamental
 
@@ -18,7 +27,7 @@ Eres el especialista en smoke tests del proyecto ControlAsistencias. Tu **unica 
 El proyecto de smoke tests ya existe en:
 
 ```
-tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/
+tests/<RootNamespace>.{Dominio}.SmokeTests/
 ```
 
 Fue creado por el `domain-scaffolder` e incluye:
@@ -44,7 +53,7 @@ Y detente sin hacer nada mas.
 Cada comando tiene **un solo archivo** de tests dentro de la carpeta correspondiente. Todos los tests del comando (HTTP, Service Bus, persistencia) van en la misma clase:
 
 ```
-tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/
+tests/<RootNamespace>.{Dominio}.SmokeTests/
   {Comando}Function/
     {Comando}SmokeTests.cs    <-- una sola clase con todos los tests del comando
 ```
@@ -127,7 +136,7 @@ Los fixtures se inyectan automaticamente porque estan registrados en `AssemblyFi
 | Envio a queue (futuro) | `ISender.SendAsync(...)` o similar | Consumir de la queue y verificar contenido |
 
 Para descubrir los efectos secundarios del comando:
-1. Lee el command handler en `src/Bitakora.ControlAsistencia.{Dominio}/{Comando}Function/CommandHandler/{Comando}CommandHandler.cs`
+1. Lee el command handler en `src/<RootNamespace>.{Dominio}/{Comando}Function/CommandHandler/{Comando}CommandHandler.cs`
 2. Busca llamadas a `IPublicEventSender.PublishAsync` (publicacion a topics)
 3. Busca llamadas a `IEventStore.StartStream` o `AppendToStream` (persistencia)
 4. En el futuro, busca llamadas a `ISender.SendAsync` (queues)
@@ -178,7 +187,7 @@ var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload
 **No uses clases del proyecto de produccion.** Los payloads son objetos anonimos. Esto mantiene el desacoplamiento total.
 
 Para descubrir la estructura del payload:
-1. Lee el record del comando en `src/Bitakora.ControlAsistencia.{Dominio}/{Comando}Function/{Comando}.cs`
+1. Lee el record del comando en `src/<RootNamespace>.{Dominio}/{Comando}Function/{Comando}.cs`
 2. Recuerda que la serializacion usa camelCase (`JsonNamingPolicy.CamelCase`)
 3. `TimeOnly` se serializa como `"HH:mm:ss"`
 4. `Guid` se serializa como string UUID estandar
@@ -188,14 +197,14 @@ Para descubrir la estructura del payload:
 ## Flujo de trabajo
 
 1. **Lee el issue** para entender que endpoints y escenarios cubrir
-2. **Verifica que el proyecto SmokeTests existe** en `tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
+2. **Verifica que el proyecto SmokeTests existe** en `tests/<RootNamespace>.{Dominio}.SmokeTests/`
 3. **Lee los endpoints** del dominio buscando `[Function(` y `[HttpTrigger(` en el codigo fuente
 4. **Lee los command handlers** para descubrir los efectos secundarios de cada comando: busca `IPublicEventSender.PublishAsync` (publicacion a topics), `IEventStore.StartStream`/`AppendToStream` (persistencia), y en el futuro `ISender.SendAsync` (queues). Cada efecto encontrado sera verificado en el test del camino feliz.
 5. **Lee los records de comandos** para entender la estructura de los payloads
 6. **Crea la carpeta del feature** si no existe (ej: `CrearTurnoFunction/`)
 7. **Escribe los tests** siguiendo las convenciones -- una sola clase por comando con todos sus efectos
-8. **Compila** con `dotnet build tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
-9. **Ejecuta contra dev** con `dotnet test --project tests/Bitakora.ControlAsistencia.{Dominio}.SmokeTests/`
+8. **Compila** con `dotnet build tests/<RootNamespace>.{Dominio}.SmokeTests/`
+9. **Ejecuta contra dev** con `dotnet test --project tests/<RootNamespace>.{Dominio}.SmokeTests/`
 10. **Commitea** los tests
 
 ### Gate de salida
@@ -378,7 +387,7 @@ public class AsignarTurnoSmokeTests(ServiceBusFixture serviceBus, PostgresFixtur
 
 ### Aserciones con Contracts
 
-Los smoke tests de Service Bus **si** referencian `Bitakora.ControlAsistencia.Contracts` para usar la igualdad natural de records:
+Los smoke tests de Service Bus **si** referencian `<RootNamespace>.Contracts` para usar la igualdad natural de records:
 
 ```csharp
 // Comparar value objects simples con Be() (igualdad de record)

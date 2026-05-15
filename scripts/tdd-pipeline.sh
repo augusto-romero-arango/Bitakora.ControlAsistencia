@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tdd-pipeline.sh — Pipeline TDD automatizado para ControlAsistencias
+# tdd-pipeline.sh — Pipeline TDD automatizado
 #
 # Uso:
 #   ./scripts/tdd-pipeline.sh 42
@@ -12,6 +12,9 @@
 # Ciclo completo: Issue → Worktree → Test Writer → Implementer → Reviewer → Sync main → Coverage Gate → PR → Cleanup
 
 set -euo pipefail
+
+source "$(dirname "${BASH_SOURCE[0]}")/_pipeline-common.sh"
+load_harness_config || exit 1
 
 # ─── Colores ────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -133,7 +136,7 @@ run_tests_projects() {
     local combined_rc=0
     local any_tests_ran=false
     local proj proj_rc proj_output
-    for proj in "$WORKTREE_PATH"/tests/Bitakora.ControlAsistencia.*.Tests/; do
+    for proj in "$WORKTREE_PATH"/tests/${HARNESS_NAMESPACE_PREFIX}.*.Tests/; do
         [ -d "$proj" ] || continue
         proj_rc=0
         proj_output=$(dotnet test --project "$proj" "$@" 2>&1) || proj_rc=$?
@@ -373,8 +376,8 @@ else
 
         # Verificar que el proyecto fue creado
         PASCAL_CASE=$(echo "$SCAFFOLD_DOMAIN" | awk -F'-' '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1' OFS='')
-        if [ ! -d "$WORKTREE_PATH/src/Bitakora.ControlAsistencia.$PASCAL_CASE" ]; then
-            abort "El scaffold no creo src/Bitakora.ControlAsistencia.$PASCAL_CASE — revisa: $LOG_SCAFFOLD"
+        if [ ! -d "$WORKTREE_PATH/src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE" ]; then
+            abort "El scaffold no creo src/${HARNESS_NAMESPACE_PREFIX}.$PASCAL_CASE — revisa: $LOG_SCAFFOLD"
         fi
 
         echo "[$(date +%H:%M:%S)] OK domain-scaffolder (${SCAFFOLD_ELAPSED}s)" >> "$EVENTS_LOG_ABS"
@@ -573,7 +576,7 @@ auto_commit_if_needed() {
 if [ "$FROM_STAGE" -le 1 ]; then
     header "Stage 1: Test Writer (fase roja)"
 
-    STAGE1_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+    STAGE1_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto de la historia de usuario a implementar:
 
@@ -677,7 +680,7 @@ if [ "$IS_REFACTOR" = true ]; then
 elif [ "$FROM_STAGE" -le 2 ]; then
     header "Stage 2: Implementer (fase verde)"
 
-    STAGE2_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+    STAGE2_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto de la historia de usuario:
 
@@ -735,13 +738,13 @@ if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 2 ]; then
 
     if [ -n "$SMOKE_FILES" ]; then
         # Detectar dominio desde los archivos modificados
-        SMOKE_DOMAIN=$(echo "$SMOKE_FILES" | head -1 | sed 's|src/Bitakora.ControlAsistencia.\([^/]*\)/.*|\1|')
-        SMOKE_TEST_PROJECT="tests/Bitakora.ControlAsistencia.${SMOKE_DOMAIN}.SmokeTests"
+        SMOKE_DOMAIN=$(echo "$SMOKE_FILES" | head -1 | sed "s|src/${HARNESS_NAMESPACE_PREFIX}\.\([^/]*\)/.*|\1|")
+        SMOKE_TEST_PROJECT="tests/${HARNESS_NAMESPACE_PREFIX}.${SMOKE_DOMAIN}.SmokeTests"
 
         if [ -d "$WORKTREE_PATH/$SMOKE_TEST_PROJECT" ]; then
             header "Stage 2b: Smoke Test Writer"
 
-            STAGE2B_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+            STAGE2B_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto de la historia de usuario:
 
@@ -798,7 +801,7 @@ if [ "$FROM_STAGE" -le 3 ]; then
     header "Stage 3: Reviewer (fase refactor)"
 
     if [ "$IS_REFACTOR" = true ]; then
-        STAGE3_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+        STAGE3_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Esta es una tarea de REFACTORING PURO. No hay fases roja ni verde previas.
 Justificación del refactoring: $REFACTOR_JUSTIFICATION
@@ -821,7 +824,7 @@ Sigue todas las instrucciones de tu rol de reviewer."
     else
         FULL_DIFF=$(git -C "$WORKTREE_PATH" diff "$SNAPSHOT_COMMIT"..HEAD)
 
-        STAGE3_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+        STAGE3_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Contexto de la historia de usuario:
 
@@ -913,7 +916,7 @@ else
 
         CONFLICT_FILES=$(git -C "$WORKTREE_PATH" diff --name-only --diff-filter=U)
 
-        MERGE_PROMPT="Estás en el directorio raíz del proyecto ControlAsistencias.
+        MERGE_PROMPT="Estás en el directorio raíz del proyecto ${HARNESS_PROJECT_NAME}.
 
 Hay conflictos de merge con la rama main en los siguientes archivos:
 $CONFLICT_FILES
@@ -1105,7 +1108,7 @@ if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 4 ]; then
         # Set de basenames ya instrumentados (compatible bash 3.2, sin declare -A).
         # Cadena con espacios como delimitadores; se consulta con [[ "$set" == *" $bn "* ]].
         local instrumented_basenames=" "
-        for dll in "$WORKTREE_PATH"/tests/Bitakora.ControlAsistencia.*.Tests/bin/Debug/net10.0/Bitakora.ControlAsistencia.*.dll; do
+        for dll in "$WORKTREE_PATH"/tests/${HARNESS_NAMESPACE_PREFIX}.*.Tests/bin/Debug/net10.0/${HARNESS_NAMESPACE_PREFIX}.*.dll; do
             [[ ! -f "$dll" ]] && continue
             seen_dlls=$((seen_dlls + 1))
             local bn
@@ -1138,7 +1141,7 @@ if [ "$IS_REFACTOR" != true ] && [ "$FROM_STAGE" -le 4 ]; then
         if ! dotnet-coverage collect \
             --output "$cov_output" \
             --output-format cobertura \
-            "dotnet test --solution $WORKTREE_PATH/ControlAsistencias.slnx --no-build" \
+            "dotnet test --solution $WORKTREE_PATH/${HARNESS_SOLUTION_FILE} --no-build" \
             >>"${LOG_FILE_ABS:-$LOG_FILE}" 2>&1; then
             warn "dotnet-coverage collect fallo"
             return 1
@@ -1335,7 +1338,7 @@ for pkg in root.findall('.//package'):
 
         # Relanzar test-writer con prompt de patch
         PATCH_SPEC_CONTENT=$(cat "$PATCH_SPEC")
-        PATCH_TW_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+        PATCH_TW_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 El pipeline detecto brechas de cobertura en la implementacion existente. Tu tarea es agregar tests adicionales para cubrir los metodos y lineas que no estan siendo ejecutados por los tests existentes.
 
@@ -1387,7 +1390,7 @@ IMPORTANTE:
                 warn "Build fallo post-remediacion — relanzando implementer..."
                 echo "[$(date +%H:%M:%S)] REMEDIATION: build fallo, relanzando implementer" >> "$EVENTS_LOG_ABS"
 
-                PATCH_IM_PROMPT="Estas en el directorio raiz del proyecto ControlAsistencias.
+                PATCH_IM_PROMPT="Estas en el directorio raiz del proyecto ${HARNESS_PROJECT_NAME}.
 
 El coverage gate detecto brechas de cobertura y el test-writer agrego tests adicionales, pero no compilan.
 Tu tarea: haz que SOLO los tests nuevos de cobertura compilen y pasen. No modifiques la logica de negocio existente.
