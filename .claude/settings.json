@@ -1,21 +1,5 @@
 {
-  "extraKnownMarketplaces": {
-    "augusto-romero-arango-harness": {
-      "source": {
-        "source": "github",
-        "repo": "augusto-romero-arango/eda-evsourcing-azure-harness"
-      }
-    }
-  },
   "permissions": {
-    "deny": [
-      "Bash(git push --force*)",
-      "Bash(git push -f *)",
-      "Bash(gh repo delete*)",
-      "Bash(terraform destroy*)",
-      "Bash(terraform apply -auto-approve*)",
-      "Bash(az group delete*)"
-    ],
     "allow": [
       "Bash(dotnet *)",
       "Bash(git *)",
@@ -48,6 +32,25 @@
       "Read(.claude/pipeline/**)",
       "Read(//Users/augusto-romero-arango/.claude/plans/**)",
       "Read(//Users/augusto-romero-arango/Codigo/Personal/experimentos/**)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(gh repo delete*)",
+      "Bash(terraform destroy*)",
+      "Bash(terraform apply -auto-approve*)",
+      "Bash(az group delete*)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "augusto-romero-arango-harness": {
+      "source": {
+        "source": "github",
+        "repo": "augusto-romero-arango/eda-evsourcing-azure-harness"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "mefisto@augusto-romero-arango-harness": true
   }
 }
