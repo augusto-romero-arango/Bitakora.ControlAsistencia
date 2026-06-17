@@ -39,15 +39,15 @@ public partial class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandH
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 
         ControlDiarioAggregateRoot control;
-        if (!existe)
-        {
-            control = ControlDiarioAggregateRoot.Iniciar(evento);
-            _eventStore.StartStream(control);
-        }
-        else
+        if (existe)
         {
             control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
             control.AsignarTurno(evento);
+        }
+        else
+        {
+            control = ControlDiarioAggregateRoot.Iniciar(evento);
+            _eventStore.StartStream(control);
         }
 
         // HU-131 CA-1/CA-2: tras el Apply(TurnoDiarioAsignado) que dispara el recalculo
