@@ -11,6 +11,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 /// <summary>
 /// Tests de ClasificadorHorario.ClasificarBanda.
 /// Cubre CA-1 a CA-4: banda diurna y nocturna, incluyendo frontera exacta de las 19:00.
+/// Anade los limites exactos de la banda diurna [06:00, 19:00): 06:00 inclusivo y 19:00 exclusivo.
 /// </summary>
 public class ClasificadorHorarioBandaTests
 {
@@ -67,5 +68,30 @@ public class ClasificadorHorarioBandaTests
         var resultado = ClasificadorHorario.ClasificarBanda(intervalo);
 
         resultado.Should().Be(BandaHoraria.Diurna);
+    }
+
+    [Fact]
+    public void ClasificarBanda_RetornaDiurna_CuandoIntervaloIniciaExactamenteEn06h()
+    {
+        // Limite inferior inclusivo de la banda diurna: 06:00 pertenece a [06:00, 19:00) -> Diurna.
+        // Pinea el operador >= InicioDiurna contra una regresion a >.
+        var intervalo = Intervalo(6, 0, 10, 0);
+
+        var resultado = ClasificadorHorario.ClasificarBanda(intervalo);
+
+        resultado.Should().Be(BandaHoraria.Diurna);
+    }
+
+    [Fact]
+    public void ClasificarBanda_RetornaNocturna_CuandoIntervaloIniciaExactamenteEn19h()
+    {
+        // Limite superior exclusivo de la banda diurna: 19:00 ya NO pertenece a [06:00, 19:00) -> Nocturna.
+        // Complementa CA-4 (que termina en 19:00) verificando un segmento que inicia en 19:00.
+        // Pinea el operador < InicioNocturna contra una regresion a <=.
+        var intervalo = Intervalo(19, 0, 22, 0);
+
+        var resultado = ClasificadorHorario.ClasificarBanda(intervalo);
+
+        resultado.Should().Be(BandaHoraria.Nocturna);
     }
 }

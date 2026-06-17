@@ -3,7 +3,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 /// <summary>
 /// Tipo de dia segun el marco legal colombiano para recargos.
-/// CA-9: un dia que es simultameamente domingo y festivo se clasifica como
+/// CA-9: un dia que es simultaneamente domingo y festivo se clasifica como
 /// DominicalFestivo una sola vez - no se duplica el recargo.
 /// </summary>
 public enum TipoDia

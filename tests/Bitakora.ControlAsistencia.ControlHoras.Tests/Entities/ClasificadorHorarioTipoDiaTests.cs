@@ -14,6 +14,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 ///   2026-03-16 = lunes habil
 ///   2026-03-15 = domingo
 ///   2026-03-14 = sabado
+///   2026-03-13 = viernes habil
 /// </summary>
 public class ClasificadorHorarioTipoDiaTests
 {
@@ -82,6 +83,24 @@ public class ClasificadorHorarioTipoDiaTests
         var momentoMadrugada = new MomentoDelDia(new TimeOnly(2, 0), 1);
 
         var resultado = ClasificadorHorario.ClasificarTipoDia(momentoMadrugada, FechaAnclaSabado, _ => false);
+
+        resultado.Should().Be(TipoDia.DominicalFestivo);
+    }
+
+    [Fact]
+    public void ClasificarTipoDia_RetornaDominicalFestivo_CuandoFestivoCaeEnLaFechaResueltaPorOffset()
+    {
+        // Refuerza la semantica del offset sobre el eje FESTIVO (distinto de CA-10, que usa domingo):
+        // esFestivo se consulta con la fecha RESUELTA (ancla + offset), no con el ancla.
+        // Ancla viernes 2026-03-13 (habil, no festivo), offset=1 -> sabado 2026-03-14 (no domingo).
+        // El stub marca festivo SOLO el sabado resuelto; si la implementacion consultara el ancla
+        // viernes el resultado seria Habil y este test fallaria.
+        var anclaViernes = new DateOnly(2026, 3, 13);
+        var sabadoResuelto = new DateOnly(2026, 3, 14);
+        var momentoMadrugada = new MomentoDelDia(new TimeOnly(2, 0), 1);
+
+        var resultado = ClasificadorHorario.ClasificarTipoDia(
+            momentoMadrugada, anclaViernes, fecha => fecha == sabadoResuelto);
 
         resultado.Should().Be(TipoDia.DominicalFestivo);
     }
