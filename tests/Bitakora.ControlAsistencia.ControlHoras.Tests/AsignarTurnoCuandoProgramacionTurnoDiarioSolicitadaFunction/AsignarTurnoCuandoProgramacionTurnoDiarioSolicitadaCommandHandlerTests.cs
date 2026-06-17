@@ -31,7 +31,7 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
         [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [])]);
 
     protected override ICommandHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-        new AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(EventStore);
+        new AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento() =>
         new(SolicitudId, Empleado, Fecha, DetalleTurnoTest);
