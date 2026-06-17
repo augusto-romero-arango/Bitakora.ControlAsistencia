@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
@@ -10,6 +11,8 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 {
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
     private const string SuscripcionConsumidor = "control-horas-escucha-programacion";
+    private const string TopicDiaCalculado = "dia-calculado";
+    private const string SuscripcionSmokeTests = "smoke-tests";
     private const string SchemaControlHoras = "control_horas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -57,6 +60,10 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
+        // Arrange: purgar suscripcion smoke-tests de dia-calculado para evitar falsos positivos
+        // de ejecuciones anteriores (patron purge-before-act, ADR-0016).
+        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+
         // Act: publicar al topic de Service Bus
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
 
@@ -91,13 +98,33 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
         detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
 
-        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor
+        // Assert HU-131 CA-1/CA-2: DiaCalculado publicado al topic dia-calculado.
+        // Se emite siempre, incluso si ControlesDeFranja queda vacio tras la depuracion reactiva.
+        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
+            TopicDiaCalculado, SuscripcionSmokeTests,
+            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            Timeout);
+
+        diaCalculado.Fecha.Should().Be(fecha);
+        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.DesgloseHoras.Should().NotBeNull(
+            "DiaCalculado siempre se emite con DesgloseHoras consolidado del aggregate");
+
+        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor de entrada
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
             TopicEntrada, SuscripcionConsumidor);
 
         deadLetters.Should().BeEmpty(
             "no deberia haber mensajes en dead letter de '{0}' - si los hay, el consumidor fallo al procesar el evento",
             SuscripcionConsumidor);
+
+        // Assert: verificar ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado
+        var deadLettersDiaCalculado = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicDiaCalculado, SuscripcionSmokeTests);
+
+        deadLettersDiaCalculado.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' del topic '{1}'",
+            SuscripcionSmokeTests, TopicDiaCalculado);
     }
 
     /// <summary>
@@ -155,6 +182,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
+        // Arrange: purgar suscripcion smoke-tests de dia-calculado para evitar falsos positivos
+        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+
         // Act: publicar al topic en formato camelCase
         await serviceBus.PublishAsync(TopicEntrada, eventoEnFormatoWolverine, correlationId);
 
@@ -191,5 +221,17 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var detalleTurnoPersistido = eventoPersistido
             .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
         detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
+
+        // Assert HU-131: DiaCalculado publicado incluso cuando el mensaje llega en camelCase.
+        // Valida que la cadena completa (deserializacion case-insensitive -> handler -> publicacion) funciona.
+        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
+            TopicDiaCalculado, SuscripcionSmokeTests,
+            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            Timeout);
+
+        diaCalculado.Fecha.Should().Be(fecha);
+        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.DesgloseHoras.Should().NotBeNull(
+            "DiaCalculado siempre se emite con DesgloseHoras consolidado del aggregate");
     }
 }
