@@ -38,15 +38,23 @@ public partial class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandH
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 
+        ControlDiarioAggregateRoot control;
         if (!existe)
         {
-            var control = ControlDiarioAggregateRoot.Iniciar(evento);
+            control = ControlDiarioAggregateRoot.Iniciar(evento);
             _eventStore.StartStream(control);
         }
         else
         {
-            var control = await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct);
-            control!.AsignarTurno(evento);
+            control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
+            control.AsignarTurno(evento);
         }
+
+        // HU-131 CA-1/CA-2: tras el Apply(TurnoDiarioAsignado) que dispara el recalculo
+        // reactivo de ControlesDeFranja, publica DiaCalculado con la informacion consolidada.
+        // Tell-don't-Ask: el aggregate empaqueta el evento via CrearDiaCalculado() (mismo
+        // patron que #108). Se emite siempre, incluso si ControlesDeFranja queda vacio o
+        // todos son anomalos (CA-2): AsignarTurno/Iniciar siempre agregan el evento al stream.
+        await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
     }
 }
