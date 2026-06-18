@@ -67,5 +67,34 @@ de doble ingestion si se activa sin configurar sampling.
 | Parametro | dev | staging | prod |
 |---|---|---|---|
 | `daily_data_cap_in_gb` | 0.5 | 1.0 | 2.0 |
-| `maxTelemetryItemsPerSecond` | 5 | 5 | 10 |
+| `maxTelemetryItemsPerSecond` (clasico) | 5 | 5 | 10 |
+| `TELEMETRY_SAMPLING_RATIO` (OpenTelemetry) | 0.2 | 0.2 | 0.1 |
 | Exception spike threshold | 50 | 100 | 200 |
+
+## Actualizacion (2026-06-18): Capa 2 bajo OpenTelemetry
+
+Durante la investigacion de los smoke tests rojos del PR #165 se detecto que el proceso worker
+de las Function Apps **no emitia telemetria** (tablas `requests`/`dependencies`/`exceptions` en 0):
+el pipeline OpenTelemetry registraba fuentes pero sin exporter, asi que los spans se descartaban y
+no habia desglose de latencia por capa para depurar. Se instrumento el worker de ControlHoras con
+`telemetryMode: OpenTelemetry` (host.json) + `UseFunctionsWorkerDefaults()` + `UseAzureMonitorExporter()`.
+
+Esto **cambia el mecanismo de la Capa 2**: segun la doc oficial de Microsoft, con
+`telemetryMode: OpenTelemetry` la seccion `logging.applicationInsights` de host.json (donde vivia
+`maxTelemetryItemsPerSecond`) **deja de aplicar**. El control de volumen pasa a un sampler OTel
+head-based: `ParentBased(TraceIdRatioBased(ratio))`, con el ratio configurable via la app setting
+`TELEMETRY_SAMPLING_RATIO` (default 0.2 en codigo). Para un diagnostico puntual se sube a 1.0 y se
+restaura despues.
+
+**Trade-off honesto respecto a la decision original**: el sampling head-based muestrea tambien las
+excepciones, a diferencia del sampling adaptativo clasico de Application Insights que las preservaba
+al 100%. Mitigaciones:
+- La **Capa 3 (daily cap)** sigue intacta como tope duro de costo (0.5 GB/dia dev) -- un dia de $300
+  sigue siendo estructuralmente imposible.
+- La **Capa 4 (alerta de spike de excepciones)** sigue activa, pero el sampling reduce su
+  sensibilidad: por eso el ratio no debe ser demasiado bajo.
+- La **Capa 1 (logLevel de host.json)** solo filtra logs del proceso host; los logs del worker se
+  filtran con configuracion OTel del worker (pendiente si se requiere mayor control).
+
+Capas 3 y 4 sin cambios. Esta adaptacion aplica al dominio ControlHoras; los demas dominios
+mantienen el modelo clasico hasta que se instrumenten igual.
