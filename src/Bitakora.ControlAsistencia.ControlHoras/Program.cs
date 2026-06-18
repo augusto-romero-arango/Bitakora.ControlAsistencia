@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
@@ -9,6 +10,7 @@ using Cosmos.EventSourcing.CritterStack.Commands;
 using FluentValidation;
 using Marten;
 using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -49,11 +51,19 @@ builder.Services.ConfigureMarten(options =>
     }
 });
 
+// Observabilidad: exporta las trazas del worker (Npgsql, Marten, Wolverine, handlers) a
+// Application Insights via OpenTelemetry. Sin esto el proceso worker no emite dependencies
+// ni el desglose de latencia por capa. Se usa el exporter -no el distro
+// Azure.Monitor.OpenTelemetry.AspNetCore- para evitar request telemetry duplicado en el worker.
+// Guia oficial: https://learn.microsoft.com/azure/azure-functions/opentelemetry-howto?pivots=programming-language-csharp
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource("Wolverine")
         .AddSource("Marten")
-        .AddSource("Bitakora.ControlAsistencia.ControlHoras.*"));
+        .AddSource("Npgsql")
+        .AddSource("Bitakora.ControlAsistencia.ControlHoras.*"))
+    .UseFunctionsWorkerDefaults()
+    .UseAzureMonitorExporter();
 
 // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
 builder.Services.Configure<JsonSerializerOptions>(options =>
