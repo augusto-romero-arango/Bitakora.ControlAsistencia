@@ -13,6 +13,7 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Trace;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
@@ -56,8 +57,25 @@ builder.Services.ConfigureMarten(options =>
 // ni el desglose de latencia por capa. Se usa el exporter -no el distro
 // Azure.Monitor.OpenTelemetry.AspNetCore- para evitar request telemetry duplicado en el worker.
 // Guia oficial: https://learn.microsoft.com/azure/azure-functions/opentelemetry-howto?pivots=programming-language-csharp
+//
+// ADR-0009 Capa 2 (control de costos): con telemetryMode=OpenTelemetry el sampling de
+// host.json (logging.applicationInsights) deja de aplicar, asi que el volumen de trazas se
+// controla aqui con un sampler OTel. Ratio configurable via la app setting
+// TELEMETRY_SAMPLING_RATIO (default 0.2); para un diagnostico puntual se sube a 1.0 y se baja
+// despues. El daily cap (Capa 3) sigue siendo el tope duro y la alerta de spike (Capa 4) sigue
+// activa. Nota: el sampling head-based tambien muestrea excepciones (a diferencia del sampling
+// adaptativo clasico que las preservaba al 100%); el cap y la alerta de spike lo compensan.
+var samplingRatio = double.TryParse(
+    Environment.GetEnvironmentVariable("TELEMETRY_SAMPLING_RATIO"),
+    System.Globalization.NumberStyles.Float,
+    System.Globalization.CultureInfo.InvariantCulture,
+    out var ratio) && ratio is >= 0.0 and <= 1.0
+        ? ratio
+        : 0.2;
+
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
+        .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
         .AddSource("Wolverine")
         .AddSource("Marten")
         .AddSource("Npgsql")
