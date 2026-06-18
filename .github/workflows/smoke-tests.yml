@@ -9,7 +9,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - id: set-matrix
         run: echo "matrix=$(jq -c . .github/smoke-tests-dominios.json)" >> $GITHUB_OUTPUT
 
