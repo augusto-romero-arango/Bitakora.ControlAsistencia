@@ -26,6 +26,20 @@ module "service_plan_control_horas" {
   tags                = local.tags
 }
 
+# TRANSITORIO (Fase 1 de #172): el plan compartido se reintroduce para que este
+# apply solo REASIGNE las apps a sus planes nuevos sin destruirlo. Azure rechaza
+# (409) destruir un Service Plan con apps aun asociadas, y Terraform no garantiza
+# detach-antes-de-destroy al quitar el modulo. Este modulo se ELIMINA en la Fase 2,
+# cuando el plan ya tenga 0 apps. No referenciar desde ninguna function app.
+module "service_plan" {
+  source              = "../../modules/service-plan"
+  name                = "asp-${local.prefix}"
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  sku_name            = "B1"
+  tags                = local.tags
+}
+
 module "monitoring" {
   source              = "../../modules/monitoring"
   name                = local.prefix
