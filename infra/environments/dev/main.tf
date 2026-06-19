@@ -6,9 +6,20 @@ module "resource_group" {
 }
 
 
-module "service_plan" {
+# Un Service Plan por dominio (ADR-0020): aisla el computo de cada dominio.
+# Mismas caracteristicas que el plan compartido anterior: Linux, SKU B1.
+module "service_plan_programacion" {
   source              = "../../modules/service-plan"
-  name                = "asp-${local.prefix}"
+  name                = "asp-${local.prefix_short}-programacion"
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  sku_name            = "B1"
+  tags                = local.tags
+}
+
+module "service_plan_control_horas" {
+  source              = "../../modules/service-plan"
+  name                = "asp-${local.prefix_short}-control-horas"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   sku_name            = "B1"
@@ -87,7 +98,7 @@ module "function_app_programacion" {
   name                              = "func-${local.prefix_short}-programacion"
   resource_group_name               = module.resource_group.name
   location                          = module.resource_group.location
-  service_plan_id                   = module.service_plan.id
+  service_plan_id                   = module.service_plan_programacion.id
   storage_account_name              = module.storage_programacion.name
   storage_account_connection_string = module.storage_programacion.primary_connection_string
   storage_account_access_key        = module.storage_programacion.primary_access_key
@@ -119,7 +130,7 @@ module "function_app_control_horas" {
   name                              = "func-${local.prefix_short}-control-horas"
   resource_group_name               = module.resource_group.name
   location                          = module.resource_group.location
-  service_plan_id                   = module.service_plan.id
+  service_plan_id                   = module.service_plan_control_horas.id
   storage_account_name              = module.storage_control_horas.name
   storage_account_connection_string = module.storage_control_horas.primary_connection_string
   storage_account_access_key        = module.storage_control_horas.primary_access_key
