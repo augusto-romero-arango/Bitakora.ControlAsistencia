@@ -52,6 +52,22 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _controlesDeFranja.AddRange(resultado);
     }
 
+    // HU-139: recalculo reactivo invocado al final de cada Apply, despues de Depurar().
+    // Orden obligatorio: Depurar() puebla _controlesDeFranja; este metodo consolida el
+    // desglose del dia a partir de esas franjas ya depuradas.
+    // Calcula el DesgloseFranja de cada franja no anomala (CalcularDesglose retorna null
+    // para las anomalas) y cuenta las anomalas para reportarlas en el consolidado.
+    private void RecalcularDesgloseHoras()
+    {
+        var desgloses = _controlesDeFranja
+            .Select(cf => cf.CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo))
+            .Where(d => d is not null)
+            .Cast<DesgloseFranja>()
+            .ToList();
+        var anomalas = _controlesDeFranja.Count(cf => cf.EsAnomala);
+        _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(desgloses, anomalas);
+    }
+
     // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
     public static string ComputarStreamId(string empleadoId, DateOnly fecha) =>
@@ -67,6 +83,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         DetalleTurno = e.DetalleTurno;
         UltimaSolicitudId = e.SolicitudId;
         Depurar();
+        RecalcularDesgloseHoras();
     }
 
     // Factory: crea el aggregate con el evento en _uncommittedEvents para StartStream
@@ -98,6 +115,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Fecha = ExtraerFechaDeStreamId(e.Id);
         _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
         Depurar();
+        RecalcularDesgloseHoras();
     }
 
     // HU-108: stream ID tiene formato "{EmpleadoId}:{Fecha:yyyy-MM-dd}" (CA-7).
