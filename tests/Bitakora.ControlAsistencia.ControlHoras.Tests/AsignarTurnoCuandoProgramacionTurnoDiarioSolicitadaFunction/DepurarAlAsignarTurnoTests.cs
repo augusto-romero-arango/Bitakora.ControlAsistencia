@@ -76,11 +76,22 @@ public class DepurarAlAsignarTurnoTests
 
         // HU-131 CA-1: publica DiaCalculado con los ControlesDeFranja tras la depuracion.
         // EsAnomala=false porque Entrada=07:00 y Salida=15:00 estan presentes.
+        // HU-181 CA-3: el DesgloseHoras publicado ahora es el REAL consolidado del dia, no
+        // DesgloseHoras.Vacio. La franja 06:00-14:00 trabajada 07:00-15:00 no es anomala.
+        // Oraculo independiente con las primitivas del dominio (la matematica esta en #116/#136).
+        var desgloseEsperado = ConsolidadorDesgloseHoras.Consolidar(
+            new[]
+            {
+                new ControlFranja(Franja06_14, Timestamp07_00, Timestamp15_00)
+                    .CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)!
+            },
+            franjasAnomalas: 0);
+
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
             new[] { new DetalleControlFranja(Franja06_14, Timestamp07_00, Timestamp15_00, false) },
-            DesgloseHoras.Vacio));
+            desgloseEsperado));
     }
 
     // CA-2 (HU-131): sin marcaciones previas, el Apply(TurnoDiarioAsignado) dispara Depurar()
@@ -102,11 +113,13 @@ public class DepurarAlAsignarTurnoTests
 
         // HU-131 CA-2: DiaCalculado se publica aunque todos los controles sean anomalos.
         // EsAnomala=true porque Entrada y Salida son null.
+        // HU-181 CA-3: la franja anomala no aporta DesgloseFranja, pero FranjasAnomalas refleja el
+        // conteo correcto (1). El desglose publicado ya NO es DesgloseHoras.Vacio (que tiene FA=0).
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
             new[] { new DetalleControlFranja(Franja06_14, null, null, true) },
-            DesgloseHoras.Vacio));
+            new DesgloseHoras([], DetalleRetardo.Vacio, 1)));
     }
 
     // CA-2 (HU-131): turno sin franjas ordinarias genera ControlesDeFranja vacio.
@@ -125,6 +138,8 @@ public class DepurarAlAsignarTurnoTests
             c => c.ControlesDeFranja.Count, 0);
 
         // HU-131 CA-2: DiaCalculado se publica aunque ControlesDeFranja este vacio.
+        // HU-181 CA-2: sin franjas que consolidar ni anomalas que contar, el desglose publicado
+        // se preserva en DesgloseHoras.Vacio (DesglosePorFranja vacio, RetardoTotal vacio, FA=0).
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
