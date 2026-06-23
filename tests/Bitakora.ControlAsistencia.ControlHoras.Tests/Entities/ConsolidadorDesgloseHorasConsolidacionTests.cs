@@ -2,7 +2,6 @@
 // Familia 3 - Consolidacion de totales y contadores (CA-8, CA-9, CA-10) y las vigilancias de
 // review (#2 suma de MinutosCompensados intra + cross-franja, #3 orden explicito de los extras).
 
-using System.Linq;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;

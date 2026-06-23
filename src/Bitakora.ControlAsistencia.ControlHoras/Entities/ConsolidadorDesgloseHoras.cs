@@ -52,7 +52,9 @@ public static class ConsolidadorDesgloseHoras
     // `intervalosPorFranja`: la extra consumida por completo se remueve de su franja; la atravesada
     // parcialmente se reemplaza por su parte izquierda (la extra genuina visible). Devuelve los
     // IntervaloTemporal consumidos en orden cronologico ascendente, para el TiempoCompensado del
-    // DetalleRetardo. Precondicion: `minutos` <= suma de las duraciones de las extras del dia.
+    // DetalleRetardo. Si `minutos` excede la suma de las extras del dia, consume todas las extras
+    // disponibles y el sobrante queda como retardo neto sin compensar (caso CA-3: retardo sin
+    // excedente que lo cubra). El metodo no exige `minutos` <= extras: tolera el deficit.
     private static IReadOnlyList<IntervaloTemporal> ConsumirExtrasDesdeElFinal(
         List<List<IntervaloClasificado>> intervalosPorFranja, int minutos)
     {
