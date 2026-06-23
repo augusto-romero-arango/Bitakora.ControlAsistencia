@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 // PR #148 (review): aplicar Tell-don't-Ask. Los momentos de inicio y fin viven como
 // detalle interno; la API publica expone solo comportamiento (DuracionEnMinutos,
 // ResolverA, ToString, Partir, igualdad por valor).
-public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
+public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, IComparable<IntervaloTemporal>
 {
     private const int MinutosPorHora = 60;
 
@@ -99,6 +99,17 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return _inicio.Equals(other._inicio) && _fin.Equals(other._fin);
+    }
+
+    // Issue #116: orden cronologico natural por inicio y, a igualdad de inicio, por fin.
+    // Permite ordenar intervalos de distintas franjas sin exponer los momentos internos
+    // (Tell-don't-Ask): el consumidor pide la comparacion, no los extremos. Delega en
+    // MomentoDelDia.CompareTo, que ordena por MinutosAbsolutos.
+    public int CompareTo(IntervaloTemporal? other)
+    {
+        if (other is null) return 1;
+        var porInicio = _inicio.CompareTo(other._inicio);
+        return porInicio != 0 ? porInicio : _fin.CompareTo(other._fin);
     }
 
     public override bool Equals(object? obj) => Equals(obj as IntervaloTemporal);

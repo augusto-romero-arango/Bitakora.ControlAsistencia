@@ -43,6 +43,25 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
 
     public static readonly DetalleRetardo Vacio = new([], [], 0, 0);
 
+    // Issue #116: consolida los DetalleRetardo de las franjas de un dia en uno solo, sumando los
+    // intervalos compensados cross-franja que calcula el ConsolidadorDesgloseHoras. El tiempo
+    // retardado del dia es la concatenacion del retardado de cada franja; el compensado, la
+    // concatenacion del compensado intra-franja mas el cross-franja. Mantiene encapsulados los
+    // intervalos crudos de cada franja (ADR-0015): el consumidor entrega los DetalleRetardo
+    // completos, no lee sus intervalos. Crear recalcula los minutos y respeta el invariante.
+    public static DetalleRetardo Consolidar(
+        IEnumerable<DetalleRetardo> retardosPorFranja,
+        IReadOnlyList<IntervaloTemporal> compensacionCrossFranja)
+    {
+        var porFranja = retardosPorFranja.ToList();
+        var tiempoRetardado = porFranja.SelectMany(r => r._tiempoRetardado).ToList();
+        var tiempoCompensado = porFranja
+            .SelectMany(r => r._tiempoCompensado)
+            .Concat(compensacionCrossFranja)
+            .ToList();
+        return Crear(tiempoRetardado, tiempoCompensado);
+    }
+
     public override string ToString()
     {
         if (_tiempoRetardado.Count == 0 && _tiempoCompensado.Count == 0)
