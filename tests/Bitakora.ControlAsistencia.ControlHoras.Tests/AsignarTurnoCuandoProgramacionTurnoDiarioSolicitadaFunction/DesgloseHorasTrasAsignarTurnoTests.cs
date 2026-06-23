@@ -83,10 +83,25 @@ public class DesgloseHorasTrasAsignarTurnoTests
             c => c.ControlesDeFranja,
             new ControlFranja[] { controlFranja });
 
-        // Oraculo independiente: consolidar el desglose de la unica franja no anomala (anomalas = 0).
-        var esperado = ConsolidadorDesgloseHoras.Consolidar(
-            new[] { controlFranja.CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)! },
-            franjasAnomalas: 0);
+        // Oraculo independiente: el DesgloseHoras esperado se construye a mano con las primitivas del
+        // dominio, SIN ejecutar Consolidar ni CalcularDesglose (la logica bajo prueba). Asi un cambio en
+        // esa logica no se filtra al esperado y la prueba si detecta regresiones. Escenario: franja
+        // 06:00-14:00 en domingo, trabajado 07:00-15:00 => retardo 60min (06:00-07:00) compensado por el
+        // excedente 60min (14:00-15:00); queda ordinaria visible 07:00-14:00 DominicalFestivaDiurna (420min).
+        var ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(7, 0)),
+                new MomentoDelDia(new TimeOnly(14, 0))),
+            Concepto.DominicalFestivaDiurna);
+
+        var retardo = DetalleRetardo.Crear(
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(6, 0)), new MomentoDelDia(new TimeOnly(7, 0)))],
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(14, 0)), new MomentoDelDia(new TimeOnly(15, 0)))]);
+
+        var esperado = new DesgloseHoras(
+            [new DesgloseFranja(Franja06_14, [ordinaria], retardo)],
+            retardo,
+            FranjasAnomalas: 0);
 
         And<ControlDiarioAggregateRoot, DesgloseHoras>(
             StreamId,
