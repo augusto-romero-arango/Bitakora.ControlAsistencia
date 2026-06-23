@@ -78,14 +78,24 @@ public class DepurarAlAsignarTurnoTests
         // EsAnomala=false porque Entrada=07:00 y Salida=15:00 estan presentes.
         // HU-181 CA-3: el DesgloseHoras publicado ahora es el REAL consolidado del dia, no
         // DesgloseHoras.Vacio. La franja 06:00-14:00 trabajada 07:00-15:00 no es anomala.
-        // Oraculo independiente con las primitivas del dominio (la matematica esta en #116/#136).
-        var desgloseEsperado = ConsolidadorDesgloseHoras.Consolidar(
-            new[]
-            {
-                new ControlFranja(Franja06_14, Timestamp07_00, Timestamp15_00)
-                    .CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)!
-            },
-            franjasAnomalas: 0);
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
+        // CalcularDesglose, la logica bajo prueba): en domingo 2026-03-15 el retardo 60min (06:00-07:00)
+        // se compensa con el excedente 60min (14:00-15:00) y queda visible la ordinaria 07:00-14:00
+        // DominicalFestivaDiurna. Asi un bug en esa logica no se filtra al esperado y el test lo detecta.
+        var ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(7, 0)),
+                new MomentoDelDia(new TimeOnly(14, 0))),
+            Concepto.DominicalFestivaDiurna);
+
+        var retardo = DetalleRetardo.Crear(
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(6, 0)), new MomentoDelDia(new TimeOnly(7, 0)))],
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(14, 0)), new MomentoDelDia(new TimeOnly(15, 0)))]);
+
+        var desgloseEsperado = new DesgloseHoras(
+            [new DesgloseFranja(Franja06_14, [ordinaria], retardo)],
+            retardo,
+            FranjasAnomalas: 0);
 
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,

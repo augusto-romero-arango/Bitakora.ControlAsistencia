@@ -57,17 +57,28 @@ public class CrearDiaCalculadoConDesgloseRealTests
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
 
-    // Oraculo independiente: el DesgloseHoras real de un dia con la franja 06:00-14:00 trabajada
-    // 07:00-15:00 (no anomala). Se construye con las primitivas del dominio, igual que el hook
-    // reactivo del aggregate (RecalcularDesgloseHoras).
-    private static DesgloseHoras DesgloseRealFranjaCompleta() =>
-        ConsolidadorDesgloseHoras.Consolidar(
-            new[]
-            {
-                new ControlFranja(Franja06_14, Timestamp07_00, Timestamp15_00)
-                    .CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)!
-            },
-            franjasAnomalas: 0);
+    // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
+    // CalcularDesglose, la logica bajo prueba). Dia con franja 06:00-14:00 trabajada 07:00-15:00
+    // (domingo 2026-03-15, no anomala): retardo 60min (06:00-07:00) compensado por el excedente 60min
+    // (14:00-15:00); queda visible la ordinaria 07:00-14:00 DominicalFestivaDiurna. Asi un bug en esa
+    // logica no se filtra al esperado y el test si detecta regresiones.
+    private static DesgloseHoras DesgloseRealFranjaCompleta()
+    {
+        var ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(7, 0)),
+                new MomentoDelDia(new TimeOnly(14, 0))),
+            Concepto.DominicalFestivaDiurna);
+
+        var retardo = DetalleRetardo.Crear(
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(6, 0)), new MomentoDelDia(new TimeOnly(7, 0)))],
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(14, 0)), new MomentoDelDia(new TimeOnly(15, 0)))]);
+
+        return new DesgloseHoras(
+            [new DesgloseFranja(Franja06_14, [ordinaria], retardo)],
+            retardo,
+            FranjasAnomalas: 0);
+    }
 
     public class ViaAsignarTurnoTests
         : CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>

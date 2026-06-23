@@ -144,14 +144,25 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
         // F1: EsAnomala=false (tiene Entrada y Salida). F2: EsAnomala=true (Salida null).
         // HU-181 CA-3: el desglose publicado es el REAL consolidado: solo F1 (no anomala) aporta su
         // DesgloseFranja; F2 cuenta como anomala (FranjasAnomalas=1). Ya no es DesgloseHoras.Vacio.
-        // Oraculo independiente con las primitivas del dominio (la matematica esta en #116/#136).
-        var desgloseEsperado = ConsolidadorDesgloseHoras.Consolidar(
-            new[]
-            {
-                new ControlFranja(Franja06_12, Timestamp05_50, Timestamp12_05)
-                    .CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)!
-            },
-            franjasAnomalas: 1);
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
+        // CalcularDesglose, la logica bajo prueba). F1 06:00-12:00 trabajada 05:50-12:05 (domingo):
+        // entro 05:50 -> recortado a 06:00 (sin retardo); ordinaria 06:00-12:00 DominicalFestivaDiurna
+        // y excedente 12:00-12:05 ExtraDiurnaDominicalFestiva (5min, sin retardo que lo compense).
+        var ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(6, 0)),
+                new MomentoDelDia(new TimeOnly(12, 0))),
+            Concepto.DominicalFestivaDiurna);
+        var excedente = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(12, 0)),
+                new MomentoDelDia(new TimeOnly(12, 5))),
+            Concepto.ExtraDiurnaDominicalFestiva);
+
+        var desgloseEsperado = new DesgloseHoras(
+            [new DesgloseFranja(Franja06_12, [ordinaria, excedente], DetalleRetardo.Vacio)],
+            DetalleRetardo.Vacio,
+            FranjasAnomalas: 1);
 
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
