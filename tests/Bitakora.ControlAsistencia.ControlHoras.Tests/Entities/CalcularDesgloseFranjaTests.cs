@@ -224,6 +224,34 @@ public class CalcularDesgloseFranjaTests
         desglose.Retardo.RetardoNeto.Should().Be(0);
     }
 
+    [Fact]
+    public void CalcularDesglose_DevuelveCompensacionEnDosIntervalosAscendentes_CuandoElConsumoParteLaFranjaDiurna()
+    {
+        // Refuerzo de CA-7: el caso multi-intervalo descrito en "Estructura de DetalleRetardo
+        // producido". Franja 8-17, entrada 09:30 (retardo 90), salida 19:30. Excedente bruto = 150
+        // (17:00-19:00 ExtraDiurna 120min + 19:00-19:30 ExtraNocturna 30min). Compensacion = min(90,150)
+        // = 90: consume entera la nocturna 19:00-19:30 (30) y PARTE la diurna 17:00-19:00 en 18:00 - la
+        // izquierda 17:00-18:00 sobrevive como extra visible y la derecha 18:00-19:00 se compensa. Asi
+        // el TiempoCompensado queda con DOS intervalos en orden cronologico ascendente
+        // [18:00-19:00, 19:00-19:30]. Este test ancla el contrato de orden (el Reverse interno del
+        // helper) que los demas CA no ejercen porque su compensacion cabe en un solo intervalo.
+        var control = Control(Franja(8, 17), Dt(9, 30), Dt(19, 30));
+
+        var desglose = control.CalcularDesglose(Lunes, NingunFestivo);
+
+        desglose.Should().NotBeNull();
+        desglose!.Intervalos.Should().Equal(new[]
+        {
+            Clasif(M(9, 30), M(17), Concepto.OrdinariaDiurna),
+            Clasif(M(17), M(18), Concepto.ExtraDiurna),
+        });
+        desglose.Intervalos.Should().NotContain(i => i.Concepto == Concepto.ExtraNocturna);
+        desglose.Retardo.Should().Be(DetalleRetardo.Crear(
+            tiempoRetardado: [Intervalo(M(8), M(9, 30))],
+            tiempoCompensado: [Intervalo(M(18), M(19)), Intervalo(M(19), M(19, 30))]));
+        desglose.Retardo.RetardoNeto.Should().Be(0);
+    }
+
     // ----- CA-8: invariante de cobertura -----
 
     [Fact]
