@@ -269,4 +269,24 @@ public class ClasificadorTrabajoTests
             Clasif(M(19), M(20), Concepto.ExtraNocturna),
         });
     }
+
+    [Fact]
+    public void Clasificar_ClasificaExtrasComoDominicalFestivas_CuandoExcedenteOcurreEnDomingo()
+    {
+        // Cierra la cobertura del mapeo: combina excedente (Extra) con tipo de dia DominicalFestivo,
+        // las dos unicas ramas de MapearConcepto que ningun CA numerado ejercita
+        // (ExtraDiurnaDominicalFestiva y ExtraNocturnaDominicalFestiva). Franja 8-17 trabajada
+        // [08:00,20:00] en domingo => ordinaria festiva + excedente festivo segmentado por banda.
+        var programada = Franja(8, 17);
+        var trabajado = Intervalo(M(8), M(20));
+
+        var resultado = ClasificadorTrabajo.Clasificar(programada, trabajado, Domingo, NingunFestivo);
+
+        resultado.Should().Equal(new[]
+        {
+            Clasif(M(8), M(17), Concepto.DominicalFestivaDiurna),
+            Clasif(M(17), M(19), Concepto.ExtraDiurnaDominicalFestiva),
+            Clasif(M(19), M(20), Concepto.ExtraNocturnaDominicalFestiva),
+        });
+    }
 }
