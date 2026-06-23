@@ -35,6 +35,13 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     public IReadOnlyList<ControlFranja> ControlesDeFranja => _controlesDeFranja;
     private readonly List<ControlFranja> _controlesDeFranja = [];
 
+    // HU-139: desglose de horas del dia, estado derivado recalculado reactivamente al final
+    // de cada Apply (despues de Depurar). Sin snapshots (ADR-0021): se reconstruye aplicando
+    // eventos en cada rehidratacion. Solo lectura para que los tests lo verifiquen y para que
+    // el handler que publica DiaCalculado (#108) pueda leerlo.
+    private DesgloseHoras _desgloseHoras = DesgloseHoras.Vacio;
+    public DesgloseHoras DesgloseHoras => _desgloseHoras;
+
     // HU-123: recalculo reactivo invocado al final de cada Apply
     // Reemplaza completamente el contenido de _controlesDeFranja con el resultado del depurador.
     // Si DetalleTurno es null (marcacion llego antes que el turno), el depurador retorna lista vacia.
