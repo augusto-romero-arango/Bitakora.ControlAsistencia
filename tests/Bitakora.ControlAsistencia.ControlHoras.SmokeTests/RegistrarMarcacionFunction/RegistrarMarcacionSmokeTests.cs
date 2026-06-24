@@ -301,10 +301,13 @@ public class RegistrarMarcacionSmokeTests(
 
         diaCalculado.Fecha.Should().Be(fecha);
         diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
-        diaCalculado.ControlesDeFranja.Should().HaveCount(1,
-            "el TurnoDiarioAsignado previo tiene una sola franja ordinaria");
-        diaCalculado.DesgloseHoras.Should().NotBeNull(
-            "DiaCalculado siempre se emite con DesgloseHoras (Vacio mientras la calculadora no exista)");
+        // Issue #183 CA-6: el payload primitivo HorasDiscriminadas deserializa con el serializador
+        // POR DEFECTO del consumidor (ServiceBusFixture ya no usa resolver custom). Que MinutosPorConcepto
+        // no sea null es justo lo que rompia el bug del smoke CA-5 (NullReferenceException). La marcacion
+        // de entrada sin salida deja la franja anomala -> MinutosPorConcepto queda vacio pero no nulo.
+        diaCalculado.HorasDiscriminadas.Should().NotBeNull();
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().NotBeNull();
+        diaCalculado.HorasDiscriminadas.Trazabilidad.Should().BeEmpty();
 
         // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(

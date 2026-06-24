@@ -107,8 +107,12 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaCalculado.Fecha.Should().Be(fecha);
         diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
-        diaCalculado.DesgloseHoras.Should().NotBeNull(
-            "DiaCalculado siempre se emite con DesgloseHoras consolidado del aggregate");
+        // Issue #183 CA-6: el payload primitivo HorasDiscriminadas deserializa con el serializador
+        // POR DEFECTO del consumidor (sin resolver custom). El turno se asigna sin marcaciones previas
+        // -> la franja queda anomala -> MinutosPorConcepto vacio pero no nulo (la deserializacion
+        // exitosa es la cura del bug del smoke CA-5).
+        diaCalculado.HorasDiscriminadas.Should().NotBeNull();
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().NotBeNull();
 
         // Assert: verificar ausencia de dead letters en la suscripcion del consumidor de entrada
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
@@ -231,7 +235,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaCalculado.Fecha.Should().Be(fecha);
         diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
-        diaCalculado.DesgloseHoras.Should().NotBeNull(
-            "DiaCalculado siempre se emite con DesgloseHoras consolidado del aggregate");
+        // Issue #183 CA-6: el payload primitivo HorasDiscriminadas deserializa con el serializador
+        // POR DEFECTO del consumidor (sin resolver custom). El turno se asigna sin marcaciones previas
+        // -> la franja queda anomala -> MinutosPorConcepto vacio pero no nulo (la deserializacion
+        // exitosa es la cura del bug del smoke CA-5).
+        diaCalculado.HorasDiscriminadas.Should().NotBeNull();
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().NotBeNull();
     }
 }

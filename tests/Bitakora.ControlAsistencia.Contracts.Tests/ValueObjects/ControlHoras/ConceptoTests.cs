@@ -49,4 +49,16 @@ public class ConceptoTests
         valores.Should().Contain(Concepto.DominicalFestivaDiurna);
         valores.Should().Contain(Concepto.DominicalFestivaNocturna);
     }
+
+    // ---------- Issue #183 CA-3: el enum NO tiene un valor Retardo ----------
+
+    // "Retardo" es una clave literal del payload HorasDiscriminadas, no un concepto legal de horas.
+    // El enum debe permanecer sin ese valor para que la clave del payload no colisione con un Concepto.
+    [Fact]
+    public void Concepto_NoContieneValorRetardo()
+    {
+        var nombres = Enum.GetNames<Concepto>();
+
+        nombres.Should().NotContain("Retardo");
+    }
 }

@@ -5,7 +5,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 // HU-122: Value object que representa el resultado de depurar marcaciones contra una franja ordinaria.
 // No viaja entre dominios - vive en ControlHoras junto al aggregate que lo usa.
-// El DTO para cruzar fronteras (DetalleControlFranja) se crea en #108.
+// Issue #183: el dia cruza la frontera ya discriminado en HorasDiscriminadas (payload primitivo),
+// no como detalle de franja; el manejo de anomalias queda diferido al flujo de aprobacion.
 public record ControlFranja(DetalleFranjaOrdinaria Programada, DateTime? Entrada, DateTime? Salida)
 {
     // CA-9: propiedad calculada; anomala cuando falta Entrada o Salida

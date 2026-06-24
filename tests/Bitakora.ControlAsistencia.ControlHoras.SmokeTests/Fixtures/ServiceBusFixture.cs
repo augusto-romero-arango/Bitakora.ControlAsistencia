@@ -1,7 +1,5 @@
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using Azure.Messaging.ServiceBus;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
@@ -15,18 +13,15 @@ public class ServiceBusFixture : IAsyncLifetime
 
     public ValueTask InitializeAsync()
     {
-        // Issue #160: aplicar ADR-0015 al consumir eventos con VOs sealed (ctor privado).
-        // Sin este resolver, STJ falla con NotSupportedException al deserializar
-        // DiaCalculado.DesgloseHoras.RetardoTotal y los IntervaloTemporal del desglose.
-        // Solo registramos los VOs sealed que viajan en eventos consumidos por estos
-        // smoke tests; al aparecer otros, agregar la llamada ConfigurarSerializacion correspondiente.
-        var resolver = new DefaultJsonTypeInfoResolver();
-        IntervaloTemporal.ConfigurarSerializacion(resolver);
-        DetalleRetardo.ConfigurarSerializacion(resolver);
+        // Issue #183: DiaCalculado ya es 100% primitivo (HorasDiscriminadas), asi que el consumidor
+        // lo deserializa con el serializador POR DEFECTO, SIN resolver custom. Esto es la cura del bug
+        // del smoke CA-5 (NullReferenceException por payload con VOs ricos que requerian el resolver de
+        // Marten, no aplicado en el canal de publicacion). PropertyNameCaseInsensitive absorbe el
+        // camelCase del publisher (Wolverine). Si un evento futuro vuelve a traer VOs seald, NO se
+        // re-agrega un resolver aqui: el contrato debe mantenerse primitivo.
         _jsonOptions = new JsonSerializerOptions
         {
-            PropertyNameCaseInsensitive = true,
-            TypeInfoResolver = resolver
+            PropertyNameCaseInsensitive = true
         };
 
         var configuration = new ConfigurationBuilder()

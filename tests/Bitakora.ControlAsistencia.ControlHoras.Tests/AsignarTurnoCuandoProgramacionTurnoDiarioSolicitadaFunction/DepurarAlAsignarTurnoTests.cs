@@ -51,6 +51,11 @@ public class DepurarAlAsignarTurnoTests
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
+    // Issue #183: payload discriminado del dia sin conceptos ni retardo - el caso de franjas
+    // anomalas (sin marcaciones) o turno sin franjas, donde el desglose discrimina a colecciones vacias.
+    private static HorasDiscriminadas HorasDiscriminadasVacia() =>
+        new(new Dictionary<string, int>(), []);
+
     // CA-1 (HU-123): con 2 MarcacionAdicionada previas (07:00, 15:00) sin turno,
     //        al procesar ProgramacionTurnoDiarioSolicitada con franja 06:00-14:00,
     //        el Apply(TurnoDiarioAsignado) dispara Depurar() y ControlesDeFranja
@@ -74,13 +79,18 @@ public class DepurarAlAsignarTurnoTests
             c => c.ControlesDeFranja,
             new ControlFranja[] { new(Franja06_14, Timestamp07_00, Timestamp15_00) });
 
-        // HU-131 CA-1: publica DiaCalculado con los ControlesDeFranja tras la depuracion.
-        // EsAnomala=false porque Entrada=07:00 y Salida=15:00 estan presentes.
+        // Issue #183 CA-4: publica DiaCalculado con HorasDiscriminadas tras la depuracion.
+        // Oraculo independiente (regla absoluta 20), identico al del test hermano
+        // DesgloseHorasTrasAsignarTurnoTests: franja 06:00-14:00 en domingo (2026-03-15), trabajada
+        // 07:00-15:00 => retardo 60min (06:00-07:00) compensado por el excedente 60min (14:00-15:00),
+        // RetardoNeto 0 (no aparece la clave "Retardo"); queda ordinaria visible 07:00-14:00 = 420min
+        // DominicalFestivaDiurna. Trazabilidad vacia (su generacion es otro issue).
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            new[] { new DetalleControlFranja(Franja06_14, Timestamp07_00, Timestamp15_00, false) },
-            DesgloseHoras.Vacio));
+            new HorasDiscriminadas(
+                new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 },
+                [])));
     }
 
     // CA-2 (HU-131): sin marcaciones previas, el Apply(TurnoDiarioAsignado) dispara Depurar()
@@ -100,13 +110,12 @@ public class DepurarAlAsignarTurnoTests
             c => c.ControlesDeFranja,
             new ControlFranja[] { new(Franja06_14, null, null) }); // EsAnomala=true
 
-        // HU-131 CA-2: DiaCalculado se publica aunque todos los controles sean anomalos.
-        // EsAnomala=true porque Entrada y Salida son null.
+        // Issue #183 CA-4: DiaCalculado se publica aunque la franja sea anomala (sin marcaciones).
+        // Una franja anomala no aporta conceptos y el retardo neto es 0 -> HorasDiscriminadas vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            new[] { new DetalleControlFranja(Franja06_14, null, null, true) },
-            DesgloseHoras.Vacio));
+            HorasDiscriminadasVacia()));
     }
 
     // CA-2 (HU-131): turno sin franjas ordinarias genera ControlesDeFranja vacio.
@@ -124,11 +133,10 @@ public class DepurarAlAsignarTurnoTests
             StreamId,
             c => c.ControlesDeFranja.Count, 0);
 
-        // HU-131 CA-2: DiaCalculado se publica aunque ControlesDeFranja este vacio.
+        // Issue #183 CA-4: DiaCalculado se publica aunque el turno no tenga franjas; payload vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            [],
-            DesgloseHoras.Vacio));
+            HorasDiscriminadasVacia()));
     }
 }

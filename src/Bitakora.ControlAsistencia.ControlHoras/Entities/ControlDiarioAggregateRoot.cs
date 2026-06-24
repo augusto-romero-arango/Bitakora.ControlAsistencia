@@ -152,14 +152,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // HU-108: construye el evento DiaCalculado desde el estado actual del aggregate.
     // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
-    // Usa DesgloseHoras.Vacio mientras la calculadora real no exista (#115/#116/#136/#139).
-    // El mapeo ControlFranja -> DetalleControlFranja queda encapsulado aqui (no expone _controlesDeFranja).
-    public DiaCalculado CrearDiaCalculado()
-    {
-        var detalles = _controlesDeFranja
-            .Select(c => new DetalleControlFranja(c.Programada, c.Entrada, c.Salida, c.EsAnomala))
-            .ToArray();
-
-        return new DiaCalculado(InformacionEmpleado, Fecha, detalles, DesgloseHoras.Vacio);
-    }
+    // Issue #183 CA-4: el payload es HorasDiscriminadas (primitivo); se construye discriminando el
+    // DesgloseHoras consolidado del dia via DesgloseHoras.Discriminar(). Ya no expone ControlesDeFranja.
+    public DiaCalculado CrearDiaCalculado() => throw new NotImplementedException();
 }
