@@ -78,14 +78,14 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
             new ControlFranja[] { new(Franja06_14, Timestamp07_00, null) });
 
         // HU-108 CA-1: el handler publica un DiaCalculado con el estado tras el recalculo.
-        // EsAnomala=true porque Salida es null (franja abierta).
-        // HU-181 CA-3: la franja anomala no aporta DesgloseFranja, pero FranjasAnomalas refleja el
-        // conteo correcto (1). El desglose publicado ya NO es DesgloseHoras.Vacio (que tiene FA=0).
+        // Issue #183 CA-4/CA-6: el payload viaja plano (HorasDiscriminadas), sin ControlesDeFranja.
+        // La franja quedo anomala (Salida null): no aporta minutos calculables y no hay retardo, asi
+        // que MinutosPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano ya no
+        // distingue "franja anomala" de "dia sin horas"; ambos publican el mismo diccionario vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            new[] { new DetalleControlFranja(Franja06_14, Timestamp07_00, null, true) },
-            new DesgloseHoras([], DetalleRetardo.Vacio, 1)));
+            new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }
 
     // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin DetalleTurno.
@@ -103,22 +103,20 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
 
-        // HU-108 CA-4: se publica DiaCalculado aunque ControlesDeFranja este vacio.
+        // HU-108 CA-4: se publica DiaCalculado aunque no haya turno.
         // InformacionEmpleado es null porque el ControlDiario nacio solo por marcacion.
-        // HU-181 CA-2: sin turno no hay ControlesDeFranja que consolidar -> el desglose publicado
-        // se preserva en DesgloseHoras.Vacio (caso vacio sin cambios).
+        // Issue #183 CA-6: sin turno no hay nada que consolidar -> MinutosPorConcepto viaja vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
             null,
             Fecha,
-            [],
-            DesgloseHoras.Vacio));
+            new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }
 
     // CA-3 (HU-123): con turno partido (06:00-12:00 y 14:00-18:00) y 2 MarcacionAdicionada previas
     //        (05:50 y 12:05), la nueva MarcacionRegistrada a las 14:10 dispara el recalculo
     //        completo: F1(Entrada=05:50, Salida=12:05) + F2(Entrada=14:10, Salida=null).
     //        Verifica comportamiento idem-potente: no acumula sobre resultado anterior.
-    // CA-3 (HU-108): el handler publica DiaCalculado con ambas franjas mapeadas a DetalleControlFranja.
+    // CA-3 (HU-108): el handler publica DiaCalculado; Issue #183: con el payload plano (HorasDiscriminadas).
     [Fact]
     public async Task DebeRecalcularControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
     {
@@ -140,39 +138,23 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
                 new(Franja14_18, Timestamp14_10, null)
             });
 
-        // HU-108 CA-3: las dos franjas se preservan como DetalleControlFranja.
-        // F1: EsAnomala=false (tiene Entrada y Salida). F2: EsAnomala=true (Salida null).
-        // HU-181 CA-3: el desglose publicado es el REAL consolidado: solo F1 (no anomala) aporta su
-        // DesgloseFranja; F2 cuenta como anomala (FranjasAnomalas=1). Ya no es DesgloseHoras.Vacio.
-        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
-        // CalcularDesglose, la logica bajo prueba). F1 06:00-12:00 trabajada 05:50-12:05 (domingo):
-        // entro 05:50 -> recortado a 06:00 (sin retardo); ordinaria 06:00-12:00 DominicalFestivaDiurna
-        // y excedente 12:00-12:05 ExtraDiurnaDominicalFestiva (5min, sin retardo que lo compense).
-        var ordinaria = new IntervaloClasificado(
-            IntervaloTemporal.Crear(
-                new MomentoDelDia(new TimeOnly(6, 0)),
-                new MomentoDelDia(new TimeOnly(12, 0))),
-            Concepto.DominicalFestivaDiurna);
-        var excedente = new IntervaloClasificado(
-            IntervaloTemporal.Crear(
-                new MomentoDelDia(new TimeOnly(12, 0)),
-                new MomentoDelDia(new TimeOnly(12, 5))),
-            Concepto.ExtraDiurnaDominicalFestiva);
-
-        var desgloseEsperado = new DesgloseHoras(
-            [new DesgloseFranja(Franja06_12, [ordinaria, excedente], DetalleRetardo.Vacio)],
-            DetalleRetardo.Vacio,
-            FranjasAnomalas: 1);
-
+        // HU-108 CA-3: las dos franjas se recalculan. F1: no anomala (Entrada y Salida). F2: anomala
+        // (Salida null). Issue #183 CA-4/CA-6: el payload viaja plano (MinutosPorConcepto). Solo F1
+        // (no anomala) aporta minutos; F2 anomala no aporta. El contrato plano no lleva senal de la
+        // franja anomala (riesgo aceptado del issue).
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Discriminar ni
+        // Consolidar, la logica bajo prueba). F1 06:00-12:00 trabajada 05:50-12:05 en domingo
+        // 2026-03-15: entro 05:50 -> recortado a 06:00 (sin retardo); ordinaria 06:00-12:00
+        // DominicalFestivaDiurna = 360min y excedente 12:00-12:05 ExtraDiurnaDominicalFestiva = 5min
+        // (sin retardo que lo compense). Sin retardo neto -> no hay clave "Retardo".
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            new[]
+            new HorasDiscriminadas(new Dictionary<string, int>
             {
-                new DetalleControlFranja(Franja06_12, Timestamp05_50, Timestamp12_05, false),
-                new DetalleControlFranja(Franja14_18, Timestamp14_10, null, true)
-            },
-            desgloseEsperado));
+                ["DominicalFestivaDiurna"] = 360,
+                ["ExtraDiurnaDominicalFestiva"] = 5
+            }, [])));
     }
 
     // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
@@ -196,12 +178,11 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
             new MarcacionAdicionada(StreamIdDiaAnterior, EmpleadoId, timestampNocturno, "ENTRADA", "DEV-001"));
 
         // CA-5: dos DiaCalculado publicados, en orden: dia calendario primero, dia anterior segundo.
-        // Ambos sin turno previo (InformacionEmpleado=null, ControlesDeFranja=[]).
-        // HU-181 CA-2: sin turno en ninguno de los dos streams, el desglose publicado se preserva
-        // en DesgloseHoras.Vacio para ambos (caso vacio sin cambios).
+        // Ambos sin turno previo (InformacionEmpleado=null).
+        // Issue #183 CA-6: sin turno en ninguno de los dos streams, MinutosPorConcepto viaja vacio en ambos.
         ThenIsPublishedPublicly(
-            new DiaCalculado(null, fechaDiaCal, [], DesgloseHoras.Vacio),
-            new DiaCalculado(null, fechaDiaAnt, [], DesgloseHoras.Vacio));
+            new DiaCalculado(null, fechaDiaCal, new HorasDiscriminadas(new Dictionary<string, int>(), [])),
+            new DiaCalculado(null, fechaDiaAnt, new HorasDiscriminadas(new Dictionary<string, int>(), [])));
 
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
