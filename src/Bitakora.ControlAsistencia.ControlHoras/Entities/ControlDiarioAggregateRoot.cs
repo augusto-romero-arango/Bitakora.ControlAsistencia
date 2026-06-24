@@ -157,6 +157,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     //         handlers invocan CrearDiaCalculado() despues del Apply) se discrimina a si mismo via
     //         Discriminar(). Ya no se mapean los ControlFranja a un DTO rico: el contrato pierde la
     //         senal de anomalia a proposito (riesgo aceptado, diferido al flujo de aprobacion).
-    // Stub: lo implementa la fase verde -> new DiaCalculado(InformacionEmpleado, Fecha, _desgloseHoras.Discriminar()).
-    public DiaCalculado CrearDiaCalculado() => throw new NotImplementedException();
+    public DiaCalculado CrearDiaCalculado() =>
+        new(InformacionEmpleado, Fecha, _desgloseHoras.Discriminar());
 }
