@@ -107,8 +107,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaCalculado.Fecha.Should().Be(fecha);
         diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
-        diaCalculado.DesgloseHoras.Should().NotBeNull(
-            "DiaCalculado siempre se emite con DesgloseHoras consolidado del aggregate");
+        // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas), deserializado con el serializador
+        // POR DEFECTO del fixture (sin resolver custom). El turno se asigno sin marcaciones previas: la
+        // franja queda anomala -> sin minutos calculables -> MinutosPorConcepto vacio.
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
+            "el turno sin marcaciones deja la franja anomala, sin minutos por concepto");
 
         // Assert: verificar ausencia de dead letters en la suscripcion del consumidor de entrada
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
@@ -231,7 +234,10 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaCalculado.Fecha.Should().Be(fecha);
         diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
-        diaCalculado.DesgloseHoras.Should().NotBeNull(
-            "DiaCalculado siempre se emite con DesgloseHoras consolidado del aggregate");
+        // Issue #183 CA-6: el payload plano (HorasDiscriminadas) se deserializa con el serializador POR
+        // DEFECTO del fixture (sin resolver custom) incluso cuando el mensaje llega en camelCase. El turno
+        // se asigno sin marcaciones: franja anomala -> MinutosPorConcepto vacio.
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
+            "el turno sin marcaciones deja la franja anomala, sin minutos por concepto");
     }
 }

@@ -19,4 +19,11 @@ public record DesgloseHoras(
     // CA-4: lista vacia, RetardoTotal = DetalleRetardo.Vacio, FranjasAnomalas = 0.
     // Usado cuando no hay turno o todas las franjas son anomalas.
     public static readonly DesgloseHoras Vacio = new([], DetalleRetardo.Vacio, 0);
+
+    // Issue #183: traduce el desglose rico al payload plano que viaja en DiaCalculado hacia nomina.
+    // Tell-don't-Ask: el desglose se discrimina a si mismo (no se exponen sus internos para que un
+    // colaborador externo arme el diccionario). Vuelca TotalMinutosPorConcepto con clave Concepto.ToString()
+    // y agrega la clave literal "Retardo" con RetardoTotal.RetardoNeto solo cuando es > 0. Trazabilidad
+    // viaja vacia en este issue. Stub: lo implementa la fase verde.
+    public HorasDiscriminadas Discriminar() => throw new NotImplementedException();
 }
