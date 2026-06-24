@@ -85,6 +85,8 @@ public class DepurarAlAsignarTurnoTests
         // 07:00-15:00 => retardo 60min (06:00-07:00) compensado por el excedente 60min (14:00-15:00),
         // RetardoNeto 0 (no aparece la clave "Retardo"); queda ordinaria visible 07:00-14:00 = 420min
         // DominicalFestivaDiurna. Trazabilidad vacia (su generacion es otro issue).
+        // HU-181: este 420min DominicalFestivaDiurna ES el desglose REAL consolidado (no DesgloseHoras.Vacio),
+        //         ya discriminado al contrato primitivo; el oraculo no vacio prueba que fluye el desglose real.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
@@ -112,6 +114,9 @@ public class DepurarAlAsignarTurnoTests
 
         // Issue #183 CA-4: DiaCalculado se publica aunque la franja sea anomala (sin marcaciones).
         // Una franja anomala no aporta conceptos y el retardo neto es 0 -> HorasDiscriminadas vacio.
+        // HU-181: el desglose consolidado del aggregate sigue contando la franja anomala (FranjasAnomalas=1),
+        //         pero esa cuenta ya no viaja en el contrato primitivo (por diseno del issue #183); su
+        //         verificacion vive en CrearDiaCalculadoConDesgloseRealTests y DesgloseHorasTras*Tests.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
@@ -134,6 +139,9 @@ public class DepurarAlAsignarTurnoTests
             c => c.ControlesDeFranja.Count, 0);
 
         // Issue #183 CA-4: DiaCalculado se publica aunque el turno no tenga franjas; payload vacio.
+        // HU-131 CA-2: DiaCalculado se publica aunque ControlesDeFranja este vacio.
+        // HU-181 CA-2: sin franjas que consolidar ni anomalas que contar, el desglose se preserva en
+        // DesgloseHoras.Vacio (DesglosePorFranja vacio, RetardoTotal vacio, FA=0) y discrimina a vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionFunction;
@@ -305,9 +306,144 @@ public class RegistrarMarcacionSmokeTests(
         // POR DEFECTO del consumidor (ServiceBusFixture ya no usa resolver custom). Que MinutosPorConcepto
         // no sea null es justo lo que rompia el bug del smoke CA-5 (NullReferenceException). La marcacion
         // de entrada sin salida deja la franja anomala -> MinutosPorConcepto queda vacio pero no nulo.
+        // HU-181: DiaCalculado siempre se emite con el desglose real consolidado, ahora discriminado al
+        //         payload primitivo (ya no expone ControlesDeFranja ni el DesgloseHoras rico).
         diaCalculado.HorasDiscriminadas.Should().NotBeNull();
         diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().NotBeNull();
         diaCalculado.HorasDiscriminadas.Trazabilidad.Should().BeEmpty();
+
+        // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
+        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
+            TopicDiaCalculado, SuscripcionSmokeTests);
+
+        deadLetters.Should().BeEmpty(
+            "no deberia haber mensajes en dead letter de '{0}' del topic '{1}'",
+            SuscripcionSmokeTests, TopicDiaCalculado);
+    }
+
+    // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaCalculado publicado
+    // tras la salida lleva el desglose REAL consolidado del dia, no el equivalente a DesgloseHoras.Vacio.
+    // Issue #183: ese desglose viaja ya discriminado en el payload primitivo HorasDiscriminadas.
+    // Cada marcacion publica su propio DiaCalculado: la entrada deja la franja anomala (sin salida)
+    // y la salida la completa. Para capturar el evento posterior a la salida se purga la suscripcion
+    // smoke-tests DESPUES de confirmar que la entrada quedo persistida (su DiaCalculado ya se publico)
+    // y ANTES de registrar la salida (patron purge-before-act, ADR-0016).
+    // Asercion minima: el desglose real fluye end-to-end (OrdinariaDiurna > 0 en MinutosPorConcepto);
+    // la matematica detallada del calculo esta cubierta en unit (#116/#136/#139).
+    // No modifica el smoke de franja incompleta (entrada-only) de arriba: ambos coexisten.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarMarcacion_PublicaDiaCalculadoConDesgloseReal_CuandoMarcacionesCompletanLaFranja()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: identificadores unicos por ejecucion.
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 28);
+        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+
+        // Setup: turno 08:00-16:00 via Service Bus; esperar a que ControlHoras persista
+        // turno_diario_asignado antes de registrar las marcaciones.
+        var solicitudId = Guid.CreateVersion7();
+        var programacionPayload = new
+        {
+            SolicitudId = solicitudId,
+            Empleado = new
+            {
+                EmpleadoId = empleadoId,
+                TipoIdentificacion = "CC",
+                NumeroIdentificacion = "777666555",
+                Nombres = "[TEST] Smoke Desglose Real",
+                Apellidos = "[TEST] HU181"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = "[TEST] Turno HU181",
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = "08:00:00",
+                        HoraFin = "16:00:00",
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>()
+                    }
+                }
+            }
+        };
+
+        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+
+        var turnoAsignado = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+
+        turnoAsignado.Should().BeTrue(
+            $"el evento {TipoEventoTurnoDiarioAsignado} deberia existir antes de registrar las marcaciones");
+
+        // Act 1: ENTRADA 08:00. La franja queda con entrada pero sin salida (aun anomala).
+        var entradaTimestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);
+        var entradaResponse = await _client.PostAsJsonAsync(Ruta, new
+        {
+            empleadoId,
+            timestamp = entradaTimestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-HU181"
+        }, ct);
+        entradaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Esperar a que la entrada quede persistida: garantiza que su DiaCalculado ya fue publicado
+        // antes de purgar, de modo que el purge elimine el evento de la entrada (no el de la salida).
+        var entradaPersistida = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
+            campoJson: "EmpleadoId", valorJson: empleadoId);
+
+        entradaPersistida.Should().BeTrue(
+            $"el evento {TipoEventoMarcacionAdicionada} de la entrada deberia existir antes de purgar");
+
+        // Purge-before-act: limpiar la suscripcion para que el unico DiaCalculado restante de este
+        // empleado sea el que publique la salida (descarta los del turno y la entrada).
+        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+
+        // Act 2: SALIDA 16:00. Completa la franja (entrada 08:00 + salida 16:00) -> desglose real.
+        var salidaTimestamp = new DateTime(fecha, new TimeOnly(16, 0, 0), DateTimeKind.Utc);
+        var salidaResponse = await _client.PostAsJsonAsync(Ruta, new
+        {
+            empleadoId,
+            timestamp = salidaTimestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "SALIDA",
+            dispositivoId = "[TEST] DEV-SMOKE-HU181"
+        }, ct);
+        salidaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Assert publicacion: el DiaCalculado posterior a la salida lleva el desglose real,
+        // filtrado por EmpleadoId (unico por ejecucion).
+        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
+            TopicDiaCalculado, SuscripcionSmokeTests,
+            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            Timeout);
+
+        diaCalculado.Fecha.Should().Be(fecha);
+
+        // CA-5 (HU-181) sobre el contrato primitivo del issue #183: el desglose real consolidado del dia
+        // viaja ya discriminado en HorasDiscriminadas. La franja quedo completa (entrada 08:00 + salida
+        // 16:00), no anomala, y una jornada diurna en dia habil (2026-04-28, martes) acumula minutos
+        // reales de OrdinariaDiurna. En el payload las claves son Concepto.ToString(); que aparezca
+        // OrdinariaDiurna con minutos > 0 prueba que fluye el desglose REAL end-to-end (no un payload
+        // vacio ni el equivalente a DesgloseHoras.Vacio).
+        diaCalculado.HorasDiscriminadas.Should().NotBeNull();
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto
+            .Should().ContainKey(Concepto.OrdinariaDiurna.ToString());
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto[Concepto.OrdinariaDiurna.ToString()]
+            .Should().BeGreaterThan(0,
+                "el desglose real consolida horas ordinarias diurnas (no un payload vacio)");
 
         // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(

@@ -85,6 +85,9 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
         // Issue #183 CA-4: el handler publica DiaCalculado con HorasDiscriminadas (payload primitivo).
         // La unica franja es anomala (Salida null) -> no aporta conceptos y el retardo neto es 0;
         // MinutosPorConcepto y Trazabilidad quedan vacios. Oraculo independiente construido a mano.
+        // HU-181: el desglose discriminado proviene del consolidado REAL del dia; con la franja anomala
+        //         ese consolidado discrimina a colecciones vacias (la cuenta de anomalas ya no viaja en
+        //         el contrato primitivo, por diseno del issue #183).
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
@@ -108,6 +111,8 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
 
         // Issue #183 CA-4: se publica DiaCalculado aunque no haya turno; HorasDiscriminadas queda vacio.
         // InformacionEmpleado es null porque el ControlDiario nacio solo por marcacion.
+        // HU-181 CA-2: sin turno no hay ControlesDeFranja que consolidar -> el desglose publicado
+        // se preserva en DesgloseHoras.Vacio (caso vacio sin cambios).
         ThenIsPublishedPublicly(new DiaCalculado(
             null,
             Fecha,
@@ -148,6 +153,9 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
         // independiente: DesgloseHorasDiscriminarTests (la discriminacion con insumos hechos a mano)
         // y DiaCalculadoSerializacionTests (el roundtrip del payload). El foco de este test es el
         // recalculo idempotente de ControlesDeFranja, ya verificado arriba con And<>().
+        // HU-181: el desglose que se discrimina sigue siendo el REAL consolidado del dia (F1 no anomala
+        //         aporta conceptos, F2 anomala no); su verificacion con oraculo independiente vive en
+        //         CrearDiaCalculadoConDesgloseRealTests y DesgloseHorasTras*Tests.
     }
 
     // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
@@ -172,6 +180,8 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
 
         // CA-5: dos DiaCalculado publicados, en orden: dia calendario primero, dia anterior segundo.
         // Ambos sin turno previo (InformacionEmpleado=null, HorasDiscriminadas vacio).
+        // HU-181 CA-2: sin turno en ninguno de los dos streams, el desglose consolidado se preserva
+        // en DesgloseHoras.Vacio para ambos; al discriminarlo produce HorasDiscriminadas vacio.
         ThenIsPublishedPublicly(
             new DiaCalculado(null, fechaDiaCal, HorasDiscriminadasVacia()),
             new DiaCalculado(null, fechaDiaAnt, HorasDiscriminadasVacia()));

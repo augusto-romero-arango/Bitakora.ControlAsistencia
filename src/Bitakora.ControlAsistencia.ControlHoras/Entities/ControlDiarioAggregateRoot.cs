@@ -154,6 +154,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
     // Issue #183 CA-4: el payload es HorasDiscriminadas (primitivo); se construye discriminando el
     // DesgloseHoras consolidado del dia via DesgloseHoras.Discriminar(). Ya no expone ControlesDeFranja.
+    // HU-181: el desglose que se discrimina es el REAL ya consolidado por RecalcularDesgloseHoras() al
+    //         final de cada Apply. _desgloseHoras esta fresco aqui porque CrearDiaCalculado() lo invocan
+    //         los handlers despues del Apply que recalculo el desglose. Sin turno o con todas las franjas
+    //         anomalas, _desgloseHoras ya equivale a DesgloseHoras.Vacio (lo decide el consolidador) y su
+    //         discriminacion produce un HorasDiscriminadas vacio.
     public DiaCalculado CrearDiaCalculado() =>
         new(InformacionEmpleado, Fecha, _desgloseHoras.Discriminar());
 }
