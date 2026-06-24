@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #112: Rango temporal entre dos MomentoDelDia.
 // Tiene invariante Inicio < Fin => sealed partial class con factory static (ADR-0015).

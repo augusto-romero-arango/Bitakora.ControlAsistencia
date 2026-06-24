@@ -1,11 +1,11 @@
 // HU-114: Crear enum Concepto y value objects primitivos del desglose
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
-/// Tests de DetalleRetardo - detalle del retardo de una franja.
+/// Tests de Retardo - detalle del retardo de una franja.
 /// Interfaz publica: Crear(), Vacio, RetardoNeto, ToString(), Equals/GetHashCode.
 /// Los minutos crudos y los intervalos son privados por diseño — nadie externo opera sobre ellos,
 /// solo se leen via ToString() para trazabilidad.
@@ -13,7 +13,7 @@ namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
 /// CA-4/CA-5: RetardoNeto saturado en 0 cuando compensacion >= retardo.
 /// CA-6: Vacio tiene ToString "Sin retardo" y RetardoNeto = 0.
 /// </summary>
-public class DetalleRetardoTests
+public class RetardoTests
 {
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
@@ -32,7 +32,7 @@ public class DetalleRetardoTests
             CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 20))  // 20 min
         };
 
-        var detalle = DetalleRetardo.Crear(retardados, compensados);
+        var detalle = Retardo.Crear(retardados, compensados);
 
         detalle.RetardoNeto.Should().Be(25);
     }
@@ -49,7 +49,7 @@ public class DetalleRetardoTests
             CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))  // 30 min
         };
 
-        var detalle = DetalleRetardo.Crear(retardados, compensados);
+        var detalle = Retardo.Crear(retardados, compensados);
 
         detalle.RetardoNeto.Should().Be(0);
     }
@@ -69,7 +69,7 @@ public class DetalleRetardoTests
             CrearIntervalo(new TimeOnly(13, 0), new TimeOnly(13, 20))
         };
 
-        var detalle = DetalleRetardo.Crear(retardados, compensados);
+        var detalle = Retardo.Crear(retardados, compensados);
 
         detalle.RetardoNeto.Should().Be(0);
     }
@@ -87,7 +87,7 @@ public class DetalleRetardoTests
             CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))
         };
 
-        var detalle = DetalleRetardo.Crear(retardados, compensados);
+        var detalle = Retardo.Crear(retardados, compensados);
 
         detalle.RetardoNeto.Should().Be(0);
     }
@@ -106,7 +106,7 @@ public class DetalleRetardoTests
             CrearIntervalo(new TimeOnly(13, 0), new TimeOnly(13, 10))
         };
 
-        var detalle = DetalleRetardo.Crear(retardados, compensados);
+        var detalle = Retardo.Crear(retardados, compensados);
 
         detalle.RetardoNeto.Should().Be(0);
     }
@@ -124,7 +124,7 @@ public class DetalleRetardoTests
         {
             CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 20))  // 20 min
         };
-        var detalle = DetalleRetardo.Crear(retardados, compensados);
+        var detalle = Retardo.Crear(retardados, compensados);
 
         var texto = detalle.ToString();
 
@@ -140,7 +140,7 @@ public class DetalleRetardoTests
     {
         var r1 = CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 20));
         var r2 = CrearIntervalo(new TimeOnly(9, 0), new TimeOnly(9, 25));
-        var detalle = DetalleRetardo.Crear(
+        var detalle = Retardo.Crear(
             [r1, r2],
             [CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))]);
 
@@ -155,7 +155,7 @@ public class DetalleRetardoTests
     {
         var c1 = CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 15));
         var c2 = CrearIntervalo(new TimeOnly(13, 0), new TimeOnly(13, 15));
-        var detalle = DetalleRetardo.Crear(
+        var detalle = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 40))],
             [c1, c2]);
 
@@ -169,7 +169,7 @@ public class DetalleRetardoTests
     public void ToString_MuestraNetoEnCeroYCompensacionCruda_CuandoCompensacionExcedeRetardo()
     {
         // 20 min retardado, 30 min compensado (excedente 10 que vive fuera de este VO).
-        var detalle = DetalleRetardo.Crear(
+        var detalle = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 20))],
             [CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))]);
 
@@ -185,12 +185,12 @@ public class DetalleRetardoTests
     [Fact]
     public void Vacio_TieneRetardoNetoEnCero()
     {
-        DetalleRetardo.Vacio.RetardoNeto.Should().Be(0);
+        Retardo.Vacio.RetardoNeto.Should().Be(0);
     }
 
     [Fact]
     public void Vacio_ToStringEsSinRetardo()
     {
-        DetalleRetardo.Vacio.ToString().Should().Be(DetalleRetardo.Mensajes.SinRetardo);
+        Retardo.Vacio.ToString().Should().Be(Retardo.Mensajes.SinRetardo);
     }
 }

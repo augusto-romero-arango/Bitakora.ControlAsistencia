@@ -1,4 +1,4 @@
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -34,8 +34,8 @@ public static class ConsolidadorDesgloseHoras
             : [];
 
         // El retardo del dia acumula el retardado/compensado de cada franja mas el compensado
-        // cross-franja recien consumido. DetalleRetardo lo consolida sin exponer sus intervalos.
-        var retardoTotal = DetalleRetardo.Consolidar(
+        // cross-franja recien consumido. Retardo lo consolida sin exponer sus intervalos.
+        var retardoTotal = Retardo.Consolidar(
             desglosesFranja.Select(franja => franja.Retardo),
             compensacionCrossFranja);
 
@@ -52,7 +52,7 @@ public static class ConsolidadorDesgloseHoras
     // `intervalosPorFranja`: la extra consumida por completo se remueve de su franja; la atravesada
     // parcialmente se reemplaza por su parte izquierda (la extra genuina visible). Devuelve los
     // IntervaloTemporal consumidos en orden cronologico ascendente, para el TiempoCompensado del
-    // DetalleRetardo. Si `minutos` excede la suma de las extras del dia, consume todas las extras
+    // Retardo. Si `minutos` excede la suma de las extras del dia, consume todas las extras
     // disponibles y el sobrante queda como retardo neto sin compensar (caso CA-3: retardo sin
     // excedente que lo cubra). El metodo no exige `minutos` <= extras: tolera el deficit.
     private static IReadOnlyList<IntervaloTemporal> ConsumirExtrasDesdeElFinal(

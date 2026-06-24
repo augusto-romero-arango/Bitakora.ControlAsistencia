@@ -2,7 +2,7 @@
 // Capa 2 del calculo de desglose de horas.
 // Clasifica dos ejes independientes: banda horaria (diurna/nocturna) y tipo de dia (habil/dominicalFestivo).
 // Los umbrales de banda NO se duplican aqui - se consumen de FronterasHorariasLegales (#115).
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 

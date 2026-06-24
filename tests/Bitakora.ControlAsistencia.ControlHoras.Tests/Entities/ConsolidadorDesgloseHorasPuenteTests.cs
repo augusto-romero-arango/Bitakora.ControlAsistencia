@@ -8,7 +8,7 @@
 // familias sinteticas seguiran verdes mientras este test fallara visiblemente.
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using static Bitakora.ControlAsistencia.ControlHoras.Tests.Entities.ConsolidadorDesgloseHorasTestData;
@@ -42,7 +42,7 @@ public class ConsolidadorDesgloseHorasPuenteTests
         var resultado = ConsolidadorDesgloseHoras.Consolidar(
             [desgloseFranja1!, desgloseFranja2!], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: [I(M(18), M(18, 30))]));
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);

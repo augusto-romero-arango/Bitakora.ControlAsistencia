@@ -3,7 +3,7 @@
 // la clasificacion banda+tipo (#134) con la programacion del turno (DetalleFranjaOrdinaria):
 // descansos, extras programadas y excedente (salida mas alla del fin programado).
 // Trabaja siempre en MomentoDelDia - no construye ningun DateTime en este nivel.
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;

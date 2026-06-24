@@ -8,7 +8,7 @@
 // El valor esperado se construye como oraculo independiente con las mismas primitivas del
 // dominio que el hook reactivo invoca. And<>() compara estructuralmente (BeEquivalentTo).
 
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
@@ -94,7 +94,7 @@ public class DesgloseHorasTrasAsignarTurnoTests
                 new MomentoDelDia(new TimeOnly(14, 0))),
             Concepto.DominicalFestivaDiurna);
 
-        var retardo = DetalleRetardo.Crear(
+        var retardo = Retardo.Crear(
             [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(6, 0)), new MomentoDelDia(new TimeOnly(7, 0)))],
             [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(14, 0)), new MomentoDelDia(new TimeOnly(15, 0)))]);
 
@@ -132,6 +132,6 @@ public class DesgloseHorasTrasAsignarTurnoTests
         And<ControlDiarioAggregateRoot, DesgloseHoras>(
             StreamId,
             c => c.DesgloseHoras,
-            new DesgloseHoras([], DetalleRetardo.Vacio, 2));
+            new DesgloseHoras([], Retardo.Vacio, 2));
     }
 }

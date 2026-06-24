@@ -1,7 +1,7 @@
 // Issue #112: Tests de igualdad por valor para IntervaloTemporal
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
 /// Igualdad por valor de IntervaloTemporal (Inicio + Fin).

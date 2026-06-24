@@ -3,7 +3,7 @@
 // Precondicion de todos los tests: el intervalo es homogeneo (no cruza fronteras de banda).
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;

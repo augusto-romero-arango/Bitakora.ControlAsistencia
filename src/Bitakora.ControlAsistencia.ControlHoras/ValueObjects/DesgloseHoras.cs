@@ -1,4 +1,8 @@
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+// Issue #185: el modelo rico vive en el dominio; HorasDiscriminadas (payload plano) se queda en
+// Contracts y se referencia explicitamente porque Discriminar() lo produce.
+using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #129: Estructura agregada del desglose del dia completo.
 // Record con constructor primario publico - STJ lo serializa nativamente sin ConfigurarSerializacion (ADR-0015).
@@ -6,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 // RetardoTotal: consolidado del dia; lo calcula #116 con compensacion cruzada.
 public record DesgloseHoras(
     IReadOnlyList<DesgloseFranja> DesglosePorFranja,
-    DetalleRetardo RetardoTotal,
+    Retardo RetardoTotal,
     int FranjasAnomalas)
 {
     // CA-3: suma elemento a elemento de MinutosPorConcepto de cada DesgloseFranja.
@@ -16,9 +20,9 @@ public record DesgloseHoras(
             .GroupBy(kv => kv.Key)
             .ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
 
-    // CA-4: lista vacia, RetardoTotal = DetalleRetardo.Vacio, FranjasAnomalas = 0.
+    // CA-4: lista vacia, RetardoTotal = Retardo.Vacio, FranjasAnomalas = 0.
     // Usado cuando no hay turno o todas las franjas son anomalas.
-    public static readonly DesgloseHoras Vacio = new([], DetalleRetardo.Vacio, 0);
+    public static readonly DesgloseHoras Vacio = new([], Retardo.Vacio, 0);
 
     // Clave literal del retardo en MinutosPorConcepto. No es un Concepto del calculo de horas (el enum
     // Concepto no lo incluye, CA-3): el retardo es un castigo, no tiempo trabajado, pero viaja en el

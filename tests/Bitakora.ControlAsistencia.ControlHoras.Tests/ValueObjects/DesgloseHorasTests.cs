@@ -1,12 +1,12 @@
 // HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
 // CA-3: TotalMinutosPorConcepto es la suma elemento a elemento de MinutosPorConcepto de cada franja
-// CA-4: Vacio tiene DesglosePorFranja vacio, RetardoTotal=DetalleRetardo.Vacio, FranjasAnomalas=0
+// CA-4: Vacio tiene DesglosePorFranja vacio, RetardoTotal=Retardo.Vacio, FranjasAnomalas=0
 //       y TotalMinutosPorConcepto vacio
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
 /// Tests de DesgloseHoras - estructura agregada del desglose del dia completo.
@@ -27,7 +27,7 @@ public class DesgloseHorasTests
         var intervalos = datos
             .Select(d => new IntervaloClasificado(CrearIntervalo(d.inicio, d.fin), d.concepto))
             .ToList<IntervaloClasificado>();
-        return new DesgloseFranja(CrearFranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        return new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
     }
 
     // ---------- CA-3: TotalMinutosPorConcepto suma elemento a elemento ----------
@@ -40,7 +40,7 @@ public class DesgloseHorasTests
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.OrdinariaDiurna));
         var franja2 = CrearFranjaConIntervalos(
             (new TimeOnly(13, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja1, franja2], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja1, franja2], Retardo.Vacio, 0);
 
         desglose.TotalMinutosPorConcepto[Concepto.OrdinariaDiurna].Should().Be(480);
     }
@@ -55,7 +55,7 @@ public class DesgloseHorasTests
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.OrdinariaDiurna));
         var franja2 = CrearFranjaConIntervalos(
             (new TimeOnly(13, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja1, franja2], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja1, franja2], Retardo.Vacio, 0);
 
         desglose.TotalMinutosPorConcepto[Concepto.OrdinariaNocturna].Should().Be(120);
         desglose.TotalMinutosPorConcepto[Concepto.OrdinariaDiurna].Should().Be(480);
@@ -66,7 +66,7 @@ public class DesgloseHorasTests
     {
         var franja1 = CrearFranjaConIntervalos(
             (new TimeOnly(8, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja1], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja1], Retardo.Vacio, 0);
 
         desglose.TotalMinutosPorConcepto.Should().NotContainKey(Concepto.ExtraDiurna);
         desglose.TotalMinutosPorConcepto.Should().NotContainKey(Concepto.OrdinariaNocturna);
@@ -75,7 +75,7 @@ public class DesgloseHorasTests
     [Fact]
     public void TotalMinutosPorConcepto_EstaVacio_CuandoSinFranjas()
     {
-        var desglose = new DesgloseHoras([], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([], Retardo.Vacio, 0);
 
         desglose.TotalMinutosPorConcepto.Should().BeEmpty();
     }
@@ -89,9 +89,9 @@ public class DesgloseHorasTests
     }
 
     [Fact]
-    public void Vacio_TieneRetardoTotalIgualADetalleRetardoVacio()
+    public void Vacio_TieneRetardoTotalIgualARetardoVacio()
     {
-        DesgloseHoras.Vacio.RetardoTotal.Should().Be(DetalleRetardo.Vacio);
+        DesgloseHoras.Vacio.RetardoTotal.Should().Be(Retardo.Vacio);
     }
 
     [Fact]
