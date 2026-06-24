@@ -1,8 +1,8 @@
 // Issue #112: Crear value objects MomentoDelDia e IntervaloTemporal
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
 /// Tests de MomentoDelDia - punto en el tiempo con offset de dia opcional.

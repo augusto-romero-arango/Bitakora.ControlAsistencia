@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #114: Enum de conceptos legales de horas segun legislacion laboral colombiana.
 public enum Concepto

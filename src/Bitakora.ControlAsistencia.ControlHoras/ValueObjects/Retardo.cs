@@ -1,13 +1,13 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #114: Detalle del retardo de una franja - intervalos retardados y compensados.
 // ADR-0015: sealed class con factory + ctor vacio privado + ConfigurarSerializacion.
 // El unico observable publico es RetardoNeto (el castigo). Los datos crudos e intermedios
 // son privados; se exponen como texto via ToString() para trazabilidad/auditoria.
-public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
+public sealed partial class Retardo : IEquatable<Retardo>
 {
     private readonly IReadOnlyList<IntervaloTemporal> _tiempoRetardado = [];
     private readonly IReadOnlyList<IntervaloTemporal> _tiempoCompensado = [];
@@ -18,7 +18,7 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
     // El excedente se contabiliza en la liquidacion de extras, no aqui.
     public int RetardoNeto => Math.Max(0, _minutosRetardados - _minutosCompensados);
 
-    private DetalleRetardo(
+    private Retardo(
         IReadOnlyList<IntervaloTemporal> tiempoRetardado,
         IReadOnlyList<IntervaloTemporal> tiempoCompensado,
         int minutosRetardados,
@@ -30,27 +30,27 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
         _minutosCompensados = minutosCompensados;
     }
 
-    private DetalleRetardo() { }
+    private Retardo() { }
 
-    public static DetalleRetardo Crear(
+    public static Retardo Crear(
         IReadOnlyList<IntervaloTemporal> tiempoRetardado,
         IReadOnlyList<IntervaloTemporal> tiempoCompensado)
     {
         var minutosRetardados = tiempoRetardado.Sum(i => i.DuracionEnMinutos);
         var minutosCompensados = tiempoCompensado.Sum(i => i.DuracionEnMinutos);
-        return new DetalleRetardo(tiempoRetardado, tiempoCompensado, minutosRetardados, minutosCompensados);
+        return new Retardo(tiempoRetardado, tiempoCompensado, minutosRetardados, minutosCompensados);
     }
 
-    public static readonly DetalleRetardo Vacio = new([], [], 0, 0);
+    public static readonly Retardo Vacio = new([], [], 0, 0);
 
-    // Issue #116: consolida los DetalleRetardo de las franjas de un dia en uno solo, sumando los
+    // Issue #116: consolida los Retardo de las franjas de un dia en uno solo, sumando los
     // intervalos compensados cross-franja que calcula el ConsolidadorDesgloseHoras. El tiempo
     // retardado del dia es la concatenacion del retardado de cada franja; el compensado, la
     // concatenacion del compensado intra-franja mas el cross-franja. Mantiene encapsulados los
-    // intervalos crudos de cada franja (ADR-0015): el consumidor entrega los DetalleRetardo
+    // intervalos crudos de cada franja (ADR-0015): el consumidor entrega los Retardo
     // completos, no lee sus intervalos. Crear recalcula los minutos y respeta el invariante.
-    public static DetalleRetardo Consolidar(
-        IEnumerable<DetalleRetardo> retardosPorFranja,
+    public static Retardo Consolidar(
+        IEnumerable<Retardo> retardosPorFranja,
         IReadOnlyList<IntervaloTemporal> compensacionCrossFranja)
     {
         var porFranja = retardosPorFranja.ToList();
@@ -73,7 +73,7 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
                $"{Mensajes.LabelNeto}: {RetardoNeto}min";
     }
 
-    public bool Equals(DetalleRetardo? other)
+    public bool Equals(Retardo? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
@@ -83,7 +83,7 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
             && _minutosCompensados == other._minutosCompensados;
     }
 
-    public override bool Equals(object? obj) => Equals(obj as DetalleRetardo);
+    public override bool Equals(object? obj) => Equals(obj as Retardo);
 
     public override int GetHashCode()
     {
@@ -97,23 +97,23 @@ public sealed partial class DetalleRetardo : IEquatable<DetalleRetardo>
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
-        var fTiempoRetardado = typeof(DetalleRetardo)
+        var fTiempoRetardado = typeof(Retardo)
             .GetField("_tiempoRetardado", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var fTiempoCompensado = typeof(DetalleRetardo)
+        var fTiempoCompensado = typeof(Retardo)
             .GetField("_tiempoCompensado", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var fMinutosRetardados = typeof(DetalleRetardo)
+        var fMinutosRetardados = typeof(Retardo)
             .GetField("_minutosRetardados", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var fMinutosCompensados = typeof(DetalleRetardo)
+        var fMinutosCompensados = typeof(Retardo)
             .GetField("_minutosCompensados", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var ctor = typeof(DetalleRetardo)
+        var ctor = typeof(Retardo)
             .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
 
         resolver.Modifiers.Add(typeInfo =>
         {
-            if (typeInfo.Type != typeof(DetalleRetardo)) return;
+            if (typeInfo.Type != typeof(Retardo)) return;
             if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
 
-            typeInfo.CreateObject = () => (DetalleRetardo)ctor.Invoke(null);
+            typeInfo.CreateObject = () => (Retardo)ctor.Invoke(null);
 
             var pR = typeInfo.CreateJsonPropertyInfo(
                 typeof(IReadOnlyList<IntervaloTemporal>), "tiempoRetardado");

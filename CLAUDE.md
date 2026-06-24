@@ -151,6 +151,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | ADR-0022 |
 | Archivo señal de refactor puro vive en `pipeline-state/` (fuera de `.claude/`) | ADR-0023 |
 | Extracción vs duplicación, Rule of Three, evolución del código | ADR-0024 |
+| El modelo de dominio rico vive en el dominio y no cruza el bus; Contracts solo DTOs planos | ADR-0025 |
 
 Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
 

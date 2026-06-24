@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #114: Intervalo temporal con su concepto legal asignado.
 // Record con constructor primario - no tiene invariantes propios.

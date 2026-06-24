@@ -1,12 +1,12 @@
 using System.Resources;
 
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-public sealed partial class DetalleRetardo
+public sealed partial class Retardo
 {
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects.DetalleRetardoMensajes",
-        typeof(DetalleRetardo).Assembly);
+        "Bitakora.ControlAsistencia.ControlHoras.ValueObjects.RetardoMensajes",
+        typeof(Retardo).Assembly);
 
     public static class Mensajes
     {

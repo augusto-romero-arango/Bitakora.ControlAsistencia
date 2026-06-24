@@ -6,7 +6,7 @@
 //       publicacion a Service Bus. Con solo primitivos, ningun consumidor depende de esa serializacion.
 //
 // Inversion de la barrera anterior: el test legado afirmaba que la deserializacion FALLABA sin el
-// resolver custom (DetalleRetardo tenia ctor privado). Ahora se afirma lo OPUESTO: tiene EXITO con el
+// resolver custom (Retardo tenia ctor privado). Ahora se afirma lo OPUESTO: tiene EXITO con el
 // resolver por defecto. Si alguien reintroduce un tipo rico al payload, este test fallaria.
 
 using System.Text.Json;

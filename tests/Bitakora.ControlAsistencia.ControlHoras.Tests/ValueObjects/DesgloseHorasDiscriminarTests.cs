@@ -10,20 +10,20 @@
 // CA-1 (#184): una linea por concepto con minutos > 0, armada desde el/los IntervaloTemporal.ToString() del
 //       concepto y su etiqueta humana traducida (IntervaloClasificado.Mensajes.Etiqueta). Ej (issue):
 //       "18:15-21:00 (165min): Ordinaria diurna".
-// CA-2 (#184): incluye una linea para el retardo cuando RetardoNeto > 0, derivada de DetalleRetardo.ToString().
+// CA-2 (#184): incluye una linea para el retardo cuando RetardoNeto > 0, derivada de Retardo.ToString().
 // CA-3 (#184): las lineas estan traducidas (.resx); no hay lineas para items en cero.
 // CA-4 (#184): las claves de MinutosPorConcepto siguen como codigo ("OrdinariaDiurna", "Retardo"); solo
 //       Trazabilidad es texto humano.
 // "El modelo de dominio rico no cruza el bus": la trazabilidad se construye DESDE los ToString() de los
-// objetos ricos (IntervaloTemporal, DetalleRetardo); solo viajan los strings, no los objetos ricos.
+// objetos ricos (IntervaloTemporal, Retardo); solo viajan los strings, no los objetos ricos.
 // Oraculo independiente (regla 20): las lineas esperadas se arman a mano con IntervaloTemporal.ToString()
 // (primitiva ya probada) y la etiqueta del recurso (no un literal), nunca ejecutando Discriminar.
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 public class DesgloseHorasDiscriminarTests
 {
@@ -34,14 +34,14 @@ public class DesgloseHorasDiscriminarTests
         new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], []);
 
     // El retardo de la franja no influye en Discriminar (solo lo hace DesgloseHoras.RetardoTotal):
-    // las franjas se construyen con DetalleRetardo.Vacio y el retardo del dia se pasa aparte.
+    // las franjas se construyen con Retardo.Vacio y el retardo del dia se pasa aparte.
     private static DesgloseFranja FranjaConIntervalos(
         params (TimeOnly inicio, TimeOnly fin, Concepto concepto)[] datos)
     {
         var intervalos = datos
             .Select(d => new IntervaloClasificado(CrearIntervalo(d.inicio, d.fin), d.concepto))
             .ToList<IntervaloClasificado>();
-        return new DesgloseFranja(FranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        return new DesgloseFranja(FranjaProgramada(), intervalos, Retardo.Vacio);
     }
 
     // Oraculo independiente de la linea de trazabilidad de un concepto con UN solo intervalo:
@@ -62,7 +62,7 @@ public class DesgloseHorasDiscriminarTests
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.OrdinariaDiurna));
         var franja2 = FranjaConIntervalos(
             (new TimeOnly(13, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja1, franja2], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja1, franja2], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -78,7 +78,7 @@ public class DesgloseHorasDiscriminarTests
     {
         var franja = FranjaConIntervalos(
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.DominicalFestivaDiurna));
-        var desglose = new DesgloseHoras([franja], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -91,7 +91,7 @@ public class DesgloseHorasDiscriminarTests
     {
         var franja = FranjaConIntervalos(
             (new TimeOnly(8, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -114,7 +114,7 @@ public class DesgloseHorasDiscriminarTests
     {
         // Retardo de 15min sin compensacion -> neto 15. Una franja ordinaria de 240min para verificar
         // que la clave "Retardo" convive con las claves de concepto.
-        var retardoNeto15 = DetalleRetardo.Crear(
+        var retardoNeto15 = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(6, 15))],
             []);
         var franja = FranjaConIntervalos(
@@ -131,7 +131,7 @@ public class DesgloseHorasDiscriminarTests
     public void Discriminar_OmiteClaveRetardo_CuandoRetardoNetoEsCero()
     {
         // Retardo de 30min compensado con 30min -> neto 0. No debe figurar la clave "Retardo".
-        var retardoNeto0 = DetalleRetardo.Crear(
+        var retardoNeto0 = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(6, 30))],
             [CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))]);
         var franja = FranjaConIntervalos(
@@ -152,7 +152,7 @@ public class DesgloseHorasDiscriminarTests
         // Ejemplo literal del issue: "18:15-21:00 (165min): Ordinaria diurna" (18:15-21:00 es todo diurno).
         var franja = FranjaConIntervalos(
             (new TimeOnly(18, 15), new TimeOnly(21, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -170,7 +170,7 @@ public class DesgloseHorasDiscriminarTests
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.OrdinariaDiurna));
         var franja2 = FranjaConIntervalos(
             (new TimeOnly(13, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja1, franja2], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja1, franja2], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -204,7 +204,7 @@ public class DesgloseHorasDiscriminarTests
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.OrdinariaDiurna));
         var franja2 = FranjaConIntervalos(
             (new TimeOnly(13, 0), new TimeOnly(15, 0), Concepto.ExtraDiurna));
-        var desglose = new DesgloseHoras([franja1, franja2], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja1, franja2], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -228,7 +228,7 @@ public class DesgloseHorasDiscriminarTests
     {
         var franja = FranjaConIntervalos(
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.DominicalFestivaDiurna));
-        var desglose = new DesgloseHoras([franja], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -245,7 +245,7 @@ public class DesgloseHorasDiscriminarTests
     {
         var franja = FranjaConIntervalos(
             (new TimeOnly(8, 0), new TimeOnly(17, 0), Concepto.OrdinariaDiurna));
-        var desglose = new DesgloseHoras([franja], DetalleRetardo.Vacio, 0);
+        var desglose = new DesgloseHoras([franja], Retardo.Vacio, 0);
 
         var resultado = desglose.Discriminar();
 
@@ -255,14 +255,14 @@ public class DesgloseHorasDiscriminarTests
         todas.Should().NotContain(IntervaloClasificado.Mensajes.Etiqueta(Concepto.OrdinariaNocturna));
     }
 
-    // ---------- Issue #184 - CA-2: linea de retardo derivada de DetalleRetardo.ToString() ----------
+    // ---------- Issue #184 - CA-2: linea de retardo derivada de Retardo.ToString() ----------
 
     [Fact]
     public void Discriminar_IncluyeLineaDeRetardoDerivadaDeRetardoToString_CuandoRetardoNetoEsMayorACero()
     {
-        // Retardo de 15min sin compensacion -> neto 15. DetalleRetardo.ToString() ya viene traducido por sus
+        // Retardo de 15min sin compensacion -> neto 15. Retardo.ToString() ya viene traducido por sus
         // propios .resx; la linea de trazabilidad del retardo se deriva de el (CA-2).
-        var retardo = DetalleRetardo.Crear(
+        var retardo = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(6, 15))],
             []);
         var franja = FranjaConIntervalos(
@@ -281,7 +281,7 @@ public class DesgloseHorasDiscriminarTests
     public void Discriminar_OmiteLineaDeRetardo_CuandoRetardoNetoEsCero()
     {
         // Retardo de 30min compensado con 30min -> neto 0. No hay clave "Retardo" ni linea de retardo.
-        var retardo = DetalleRetardo.Crear(
+        var retardo = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(6, 30))],
             [CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))]);
         var franja = FranjaConIntervalos(

@@ -2,10 +2,10 @@
 // CA-1: MinutosPorConcepto agrupa intervalos por concepto y suma sus duraciones correctamente
 // CA-2: MinutosPorConcepto omite los conceptos que no aparecen en Intervalos
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
 /// Tests de DesgloseFranja - estructura agregada del desglose de una sola franja.
@@ -30,7 +30,7 @@ public class DesgloseFranjaTests
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(12, 0)), Concepto.OrdinariaDiurna),
             new(CrearIntervalo(new TimeOnly(13, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)
         };
-        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
 
         var resultado = franja.MinutosPorConcepto;
 
@@ -47,7 +47,7 @@ public class DesgloseFranjaTests
             new(CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(8, 0)), Concepto.OrdinariaNocturna),
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)
         };
-        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
 
         var resultado = franja.MinutosPorConcepto;
 
@@ -64,7 +64,7 @@ public class DesgloseFranjaTests
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(16, 0)), Concepto.OrdinariaDiurna),
             new(CrearIntervalo(new TimeOnly(16, 0), new TimeOnly(17, 0)), Concepto.ExtraDiurna)
         };
-        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
 
         var resultado = franja.MinutosPorConcepto;
 
@@ -79,7 +79,7 @@ public class DesgloseFranjaTests
         {
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)
         };
-        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
 
         var resultado = franja.MinutosPorConcepto;
 
@@ -97,7 +97,7 @@ public class DesgloseFranjaTests
         {
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)
         };
-        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, DetalleRetardo.Vacio);
+        var franja = new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
 
         var resultado = franja.MinutosPorConcepto;
 
@@ -111,7 +111,7 @@ public class DesgloseFranjaTests
     [Fact]
     public void MinutosPorConcepto_EstaVacio_CuandoSinIntervalos()
     {
-        var franja = new DesgloseFranja(CrearFranjaProgramada(), [], DetalleRetardo.Vacio);
+        var franja = new DesgloseFranja(CrearFranjaProgramada(), [], Retardo.Vacio);
 
         franja.MinutosPorConcepto.Should().BeEmpty();
     }

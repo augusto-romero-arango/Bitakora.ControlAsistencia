@@ -1,7 +1,7 @@
 // Issue #112: Tests de igualdad por valor para MomentoDelDia
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
 /// CA-7: Dos MomentoDelDia con misma Hora y DiaOffset son iguales.

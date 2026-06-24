@@ -6,7 +6,7 @@
 // Datos sinteticos: cada DesgloseFranja se construye a mano (ver ConsolidadorDesgloseHorasTestData).
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using static Bitakora.ControlAsistencia.ControlHoras.Tests.Entities.ConsolidadorDesgloseHorasTestData;
 
@@ -23,18 +23,18 @@ public class ConsolidadorDesgloseHorasBasicoTests
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
-            Retardo(retardado: [I(M(8), M(8, 30))], compensado: []));
+            CrearRetardo(retardado: [I(M(8), M(8, 30))], compensado: []));
         var franja2 = Desglose(
             Programada(14, 18),
             [
                 Clasif(M(14), M(18), Concepto.OrdinariaDiurna),
                 Clasif(M(18), M(18, 30), Concepto.ExtraDiurna),
             ],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: [I(M(18), M(18, 30))]));
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);
@@ -58,18 +58,18 @@ public class ConsolidadorDesgloseHorasBasicoTests
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
-            Retardo(retardado: [I(M(8), M(8, 30))], compensado: []));
+            CrearRetardo(retardado: [I(M(8), M(8, 30))], compensado: []));
         var franja2 = Desglose(
             Programada(14, 18),
             [
                 Clasif(M(14), M(18), Concepto.OrdinariaDiurna),
                 Clasif(M(18), M(18, 45), Concepto.ExtraDiurna),
             ],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: [I(M(18, 15), M(18, 45))]));
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);
@@ -93,15 +93,15 @@ public class ConsolidadorDesgloseHorasBasicoTests
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
-            Retardo(retardado: [I(M(8), M(8, 30))], compensado: []));
+            CrearRetardo(retardado: [I(M(8), M(8, 30))], compensado: []));
         var franja2 = Desglose(
             Programada(14, 18),
             [Clasif(M(14), M(18), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: []));
         resultado.RetardoTotal.RetardoNeto.Should().Be(30);
@@ -114,20 +114,20 @@ public class ConsolidadorDesgloseHorasBasicoTests
     [Fact]
     public void Consolidar_NoRegistraRetardoNiExtras_CuandoTodasLasFranjasSonPuntuales()
     {
-        // CA-4: F1 puntual, F2 puntual. RetardoTotal == DetalleRetardo.Vacio, extras = 0,
+        // CA-4: F1 puntual, F2 puntual. RetardoTotal == Retardo.Vacio, extras = 0,
         // ordinarias = 480min (240 + 240).
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8), M(12), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
         var franja2 = Desglose(
             Programada(14, 18),
             [Clasif(M(14), M(18), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(DetalleRetardo.Vacio);
+        resultado.RetardoTotal.Should().Be(Retardo.Vacio);
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);
         resultado.TotalMinutosPorConcepto.Should().Equal(new Dictionary<Concepto, int>
         {
@@ -143,18 +143,18 @@ public class ConsolidadorDesgloseHorasBasicoTests
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8), M(12), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
         var franja2 = Desglose(
             Programada(14, 18),
             [
                 Clasif(M(14), M(18), Concepto.OrdinariaDiurna),
                 Clasif(M(18), M(18, 20), Concepto.ExtraDiurna),
             ],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(DetalleRetardo.Vacio);
+        resultado.RetardoTotal.Should().Be(Retardo.Vacio);
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);
         resultado.TotalMinutosPorConcepto.Should().Equal(new Dictionary<Concepto, int>
         {

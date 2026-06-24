@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #112: Value object que representa un punto en el tiempo con offset de dia.
 // Sin invariantes en el constructor - record segun heuristica ADR-0015.

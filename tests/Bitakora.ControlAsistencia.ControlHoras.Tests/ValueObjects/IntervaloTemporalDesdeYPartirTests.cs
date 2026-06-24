@@ -1,8 +1,8 @@
 // Issue #143: Alinear IntervaloTemporal con ADR-0015 y agregar factories de conversion al VO
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
 /// Tests para Desde(DateTime, DateTime, DateOnly) y Partir(int) de IntervaloTemporal.
