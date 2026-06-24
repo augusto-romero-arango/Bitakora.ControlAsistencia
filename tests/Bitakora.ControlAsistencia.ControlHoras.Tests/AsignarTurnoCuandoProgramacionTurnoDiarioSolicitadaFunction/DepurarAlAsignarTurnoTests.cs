@@ -51,6 +51,13 @@ public class DepurarAlAsignarTurnoTests
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
+    // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
+    // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
+    // (no un literal), sin ejecutar Discriminar (regla 20). Mismo patron que DesgloseHorasDiscriminarTests.
+    private static string LineaConcepto(TimeOnly inicio, TimeOnly fin, Concepto concepto) =>
+        $"{IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin))}: " +
+        $"{IntervaloClasificado.Mensajes.Etiqueta(concepto)}";
+
     // CA-1 (HU-123): con 2 MarcacionAdicionada previas (07:00, 15:00) sin turno,
     //        al procesar ProgramacionTurnoDiarioSolicitada con franja 06:00-14:00,
     //        el Apply(TurnoDiarioAsignado) dispara Depurar() y ControlesDeFranja
@@ -82,13 +89,15 @@ public class DepurarAlAsignarTurnoTests
         // compensa con el excedente 60min (14:00-15:00) -> retardo neto 0 (no hay clave "Retardo") y
         // queda visible la ordinaria 07:00-14:00 DominicalFestivaDiurna = 420min. Asi un bug en esa
         // logica no se filtra al esperado y el test lo detecta.
+        // Issue #184: el DiaCalculado ahora viaja con la Trazabilidad (memoria de calculo) poblada. El
+        // unico concepto del dia (ordinaria 07:00-14:00, DominicalFestivaDiurna) genera una sola linea,
+        // construida con LineaConcepto desde el intervalo 07:00-14:00 y la etiqueta traducida del recurso.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            new HorasDiscriminadas(new Dictionary<string, int>
-            {
-                ["DominicalFestivaDiurna"] = 420
-            }, [])));
+            new HorasDiscriminadas(
+                new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 },
+                [LineaConcepto(new TimeOnly(7, 0), new TimeOnly(14, 0), Concepto.DominicalFestivaDiurna)])));
     }
 
     // CA-2 (HU-131): sin marcaciones previas, el Apply(TurnoDiarioAsignado) dispara Depurar()
