@@ -6,8 +6,10 @@ namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
 
 /// <summary>
 /// Tests de IntervaloClasificado - intervalo temporal con concepto legal asignado.
-/// Interfaz publica: constructor primario, Intervalo, Concepto, DuracionEnMinutos.
+/// Interfaz publica: constructor primario, Intervalo, Concepto, DuracionEnMinutos, ToString().
 /// CA-2: DuracionEnMinutos delega al IntervaloTemporal contenido.
+/// Issue #184: ToString() humano para la trazabilidad ("{intervalo}: {etiqueta traducida}") y
+/// Mensajes.Etiqueta(Concepto) que resuelve la etiqueta traducida de cada concepto (.resx).
 /// </summary>
 public class IntervaloClasificadoTests
 {
@@ -54,6 +56,43 @@ public class IntervaloClasificadoTests
         var clasificado = new IntervaloClasificado(intervalo, Concepto.Descanso);
 
         clasificado.DuracionEnMinutos.Should().Be(15);
+    }
+
+    // ---------- Issue #184: ToString() humano para la trazabilidad ----------
+
+    [Fact]
+    public void ToString_RenderizaIntervaloYEtiquetaTraducida_CuandoOrdinariaDiurna()
+    {
+        // Ejemplo del issue: "18:15-21:00 (165min): Ordinaria diurna".
+        var intervalo = IntervaloTemporal.Crear(
+            new MomentoDelDia(new TimeOnly(18, 15)), new MomentoDelDia(new TimeOnly(21, 0)));
+        var clasificado = new IntervaloClasificado(intervalo, Concepto.OrdinariaDiurna);
+
+        // Oraculo independiente: el intervalo via su ToString() (primitiva probada) y la etiqueta del
+        // recurso (no un literal). El codigo "OrdinariaDiurna" no debe aparecer (es la clave, no el texto).
+        clasificado.ToString().Should().Be(
+            $"{intervalo}: {IntervaloClasificado.Mensajes.Etiqueta(Concepto.OrdinariaDiurna)}");
+    }
+
+    [Fact]
+    public void ToString_IncluyeLaDuracionDelIntervaloYLaEtiqueta_CuandoNocturnoCruzaMedianoche()
+    {
+        var intervalo = IntervaloTemporal.Crear(Las22, Las6SiguienteDia);
+        var clasificado = new IntervaloClasificado(intervalo, Concepto.ExtraNocturna);
+
+        var texto = clasificado.ToString();
+
+        texto.Should().Contain(intervalo.ToString());  // "22:00-06:00+1 (480min)"
+        texto.Should().Contain(IntervaloClasificado.Mensajes.Etiqueta(Concepto.ExtraNocturna));
+    }
+
+    // Guardrail .resx: cada Concepto debe tener una etiqueta humana traducida (no vacia). Protege contra
+    // agregar un Concepto nuevo sin su traduccion -> Etiqueta devolveria null y la trazabilidad quedaria rota.
+    [Fact]
+    public void Etiqueta_DefineUnTextoTraducidoNoVacio_ParaCadaConcepto()
+    {
+        foreach (var concepto in Enum.GetValues<Concepto>())
+            IntervaloClasificado.Mensajes.Etiqueta(concepto).Should().NotBeNullOrWhiteSpace();
     }
 
     // Contrato IEquatable: ver IntervaloClasificadoIgualdadTests (hereda IgualdadTestBase).

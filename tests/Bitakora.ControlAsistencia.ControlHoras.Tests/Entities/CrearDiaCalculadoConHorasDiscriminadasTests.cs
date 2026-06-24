@@ -61,9 +61,8 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     // no anomala). El retardo 60min (06:00-07:00) se compensa con el excedente 60min (14:00-15:00) ->
     // retardo neto 0 (no hay clave "Retardo"); queda visible la ordinaria 07:00-14:00 = 420min
     // DominicalFestivaDiurna. Registrado a mano: ni Discriminar ni Consolidar se ejecutan para armarlo.
-    private static HorasDiscriminadas HorasFranjaCompleta() => new(
-        new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 },
-        []);
+    private static IReadOnlyDictionary<string, int> MinutosFranjaCompleta() =>
+        new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 };
 
     public class ViaAsignarTurnoTests
         : CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
@@ -78,8 +77,13 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
         // CA-4: con turno (franja 06:00-14:00) y marcaciones previas que la completan (07:00, 15:00),
         //       la franja queda NO anomala. CrearDiaCalculado() debe empaquetar el payload plano
         //       discriminado del desglose real: MinutosPorConcepto = {DominicalFestivaDiurna: 420}.
+        // Issue #184: CrearDiaCalculado() ahora ademas puebla la Trazabilidad via Discriminar(). Un solo
+        //       concepto (DominicalFestivaDiurna) y retardo neto 0 -> exactamente una linea. Se verifica
+        //       solo el conteo (robusto ante como el desglose descomponga los intervalos del concepto);
+        //       el contenido exacto de las lineas se prueba en DesgloseHorasDiscriminarTests, con geometria
+        //       controlada. Aqui basta probar que el aggregate enruta la trazabilidad hacia el payload.
         [Fact]
-        public async Task CrearDiaCalculado_LlevaMinutosPorConceptoReales_CuandoFranjaNoEsAnomala()
+        public async Task CrearDiaCalculado_LlevaMinutosYTrazabilidadReales_CuandoFranjaNoEsAnomala()
         {
             Given(StreamId,
                 CrearMarcacionAdicionada(Timestamp07_00),
@@ -90,10 +94,15 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
 
             Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
 
-            And<ControlDiarioAggregateRoot, HorasDiscriminadas>(
+            And<ControlDiarioAggregateRoot, IReadOnlyDictionary<string, int>>(
                 StreamId,
-                c => c.CrearDiaCalculado().HorasDiscriminadas,
-                HorasFranjaCompleta());
+                c => c.CrearDiaCalculado().HorasDiscriminadas.MinutosPorConcepto,
+                MinutosFranjaCompleta());
+
+            And<ControlDiarioAggregateRoot, int>(
+                StreamId,
+                c => c.CrearDiaCalculado().HorasDiscriminadas.Trazabilidad.Count,
+                1);
         }
 
         // CA-4 (todas las franjas anomalas): turno con franja 06:00-14:00 SIN marcaciones -> la franja
