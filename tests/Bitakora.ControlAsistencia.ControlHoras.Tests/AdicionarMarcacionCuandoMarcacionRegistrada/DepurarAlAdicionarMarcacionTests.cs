@@ -79,11 +79,13 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
 
         // HU-108 CA-1: el handler publica un DiaCalculado con el estado tras el recalculo.
         // EsAnomala=true porque Salida es null (franja abierta).
+        // HU-181 CA-3: la franja anomala no aporta DesgloseFranja, pero FranjasAnomalas refleja el
+        // conteo correcto (1). El desglose publicado ya NO es DesgloseHoras.Vacio (que tiene FA=0).
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
             new[] { new DetalleControlFranja(Franja06_14, Timestamp07_00, null, true) },
-            DesgloseHoras.Vacio));
+            new DesgloseHoras([], DetalleRetardo.Vacio, 1)));
     }
 
     // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin DetalleTurno.
@@ -103,6 +105,8 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
 
         // HU-108 CA-4: se publica DiaCalculado aunque ControlesDeFranja este vacio.
         // InformacionEmpleado es null porque el ControlDiario nacio solo por marcacion.
+        // HU-181 CA-2: sin turno no hay ControlesDeFranja que consolidar -> el desglose publicado
+        // se preserva en DesgloseHoras.Vacio (caso vacio sin cambios).
         ThenIsPublishedPublicly(new DiaCalculado(
             null,
             Fecha,
@@ -138,6 +142,28 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
 
         // HU-108 CA-3: las dos franjas se preservan como DetalleControlFranja.
         // F1: EsAnomala=false (tiene Entrada y Salida). F2: EsAnomala=true (Salida null).
+        // HU-181 CA-3: el desglose publicado es el REAL consolidado: solo F1 (no anomala) aporta su
+        // DesgloseFranja; F2 cuenta como anomala (FranjasAnomalas=1). Ya no es DesgloseHoras.Vacio.
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
+        // CalcularDesglose, la logica bajo prueba). F1 06:00-12:00 trabajada 05:50-12:05 (domingo):
+        // entro 05:50 -> recortado a 06:00 (sin retardo); ordinaria 06:00-12:00 DominicalFestivaDiurna
+        // y excedente 12:00-12:05 ExtraDiurnaDominicalFestiva (5min, sin retardo que lo compense).
+        var ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(6, 0)),
+                new MomentoDelDia(new TimeOnly(12, 0))),
+            Concepto.DominicalFestivaDiurna);
+        var excedente = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(12, 0)),
+                new MomentoDelDia(new TimeOnly(12, 5))),
+            Concepto.ExtraDiurnaDominicalFestiva);
+
+        var desgloseEsperado = new DesgloseHoras(
+            [new DesgloseFranja(Franja06_12, [ordinaria, excedente], DetalleRetardo.Vacio)],
+            DetalleRetardo.Vacio,
+            FranjasAnomalas: 1);
+
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
@@ -146,7 +172,7 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
                 new DetalleControlFranja(Franja06_12, Timestamp05_50, Timestamp12_05, false),
                 new DetalleControlFranja(Franja14_18, Timestamp14_10, null, true)
             },
-            DesgloseHoras.Vacio));
+            desgloseEsperado));
     }
 
     // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
@@ -171,6 +197,8 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
 
         // CA-5: dos DiaCalculado publicados, en orden: dia calendario primero, dia anterior segundo.
         // Ambos sin turno previo (InformacionEmpleado=null, ControlesDeFranja=[]).
+        // HU-181 CA-2: sin turno en ninguno de los dos streams, el desglose publicado se preserva
+        // en DesgloseHoras.Vacio para ambos (caso vacio sin cambios).
         ThenIsPublishedPublicly(
             new DiaCalculado(null, fechaDiaCal, [], DesgloseHoras.Vacio),
             new DiaCalculado(null, fechaDiaAnt, [], DesgloseHoras.Vacio));

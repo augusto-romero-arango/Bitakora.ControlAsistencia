@@ -152,7 +152,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // HU-108: construye el evento DiaCalculado desde el estado actual del aggregate.
     // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
-    // Usa DesgloseHoras.Vacio mientras la calculadora real no exista (#115/#116/#136/#139).
+    // HU-181: empaqueta el DesgloseHoras real ya consolidado por RecalcularDesgloseHoras() al final
+    //         de cada Apply. _desgloseHoras esta fresco aqui porque CrearDiaCalculado() lo invocan los
+    //         handlers despues del Apply que recalculo el desglose. Sin turno o con todas las franjas
+    //         anomalas, _desgloseHoras ya equivale a DesgloseHoras.Vacio (lo decide el consolidador).
     // El mapeo ControlFranja -> DetalleControlFranja queda encapsulado aqui (no expone _controlesDeFranja).
     public DiaCalculado CrearDiaCalculado()
     {
@@ -160,6 +163,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             .Select(c => new DetalleControlFranja(c.Programada, c.Entrada, c.Salida, c.EsAnomala))
             .ToArray();
 
-        return new DiaCalculado(InformacionEmpleado, Fecha, detalles, DesgloseHoras.Vacio);
+        return new DiaCalculado(InformacionEmpleado, Fecha, detalles, _desgloseHoras);
     }
 }

@@ -86,14 +86,44 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : CommandHandlerAsyncTest<
             c => c.ControlesDeFranja,
             new ControlFranja[] { controlFranja1, controlFranja2 });
 
-        // Oraculo independiente: consolidar los desgloses de las dos franjas no anomalas (anomalas = 0).
-        var esperado = ConsolidadorDesgloseHoras.Consolidar(
-            new[]
-            {
-                controlFranja1.CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)!,
-                controlFranja2.CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo)!
-            },
-            franjasAnomalas: 0);
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
+        // CalcularDesglose, la logica bajo prueba), para que un bug en esa logica no se filtre al
+        // esperado y el test si detecte regresiones. Escenario en domingo 2026-03-15:
+        //   F1 08:00-12:00 trabajada 08:00-12:05: ordinaria 08:00-12:00 DominicalFestivaDiurna +
+        //     excedente 12:00-12:05 ExtraDiurnaDominicalFestiva (5min, sin retardo). Retardo vacio.
+        //   F2 14:00-18:00 trabajada 14:10-18:30: retardo 10min (14:00-14:10) compensado por 10min del
+        //     excedente; ordinaria 14:10-18:00 DominicalFestivaDiurna + excedente visible 18:00-18:20
+        //     ExtraDiurnaDominicalFestiva (20min de 30min; los ultimos 10min compensan el retardo).
+        // RetardoTotal del dia = el de F2 (F1 no aporta retardo; el retardo neto del dia es 0, asi que
+        // no hay compensacion cross-franja). FranjasAnomalas = 0.
+        var f1Ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(8, 0)),
+                new MomentoDelDia(new TimeOnly(12, 0))),
+            Concepto.DominicalFestivaDiurna);
+        var f1Excedente = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(12, 0)),
+                new MomentoDelDia(new TimeOnly(12, 5))),
+            Concepto.ExtraDiurnaDominicalFestiva);
+        var franja1 = new DesgloseFranja(Franja08_12, [f1Ordinaria, f1Excedente], DetalleRetardo.Vacio);
+
+        var f2Ordinaria = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(14, 10)),
+                new MomentoDelDia(new TimeOnly(18, 0))),
+            Concepto.DominicalFestivaDiurna);
+        var f2Excedente = new IntervaloClasificado(
+            IntervaloTemporal.Crear(
+                new MomentoDelDia(new TimeOnly(18, 0)),
+                new MomentoDelDia(new TimeOnly(18, 20))),
+            Concepto.ExtraDiurnaDominicalFestiva);
+        var retardoF2 = DetalleRetardo.Crear(
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(14, 0)), new MomentoDelDia(new TimeOnly(14, 10)))],
+            [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(18, 20)), new MomentoDelDia(new TimeOnly(18, 30)))]);
+        var franja2 = new DesgloseFranja(Franja14_18, [f2Ordinaria, f2Excedente], retardoF2);
+
+        var esperado = new DesgloseHoras([franja1, franja2], retardoF2, FranjasAnomalas: 0);
 
         And<ControlDiarioAggregateRoot, DesgloseHoras>(
             StreamId,
