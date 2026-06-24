@@ -59,6 +59,13 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
 
+    // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
+    // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
+    // (no un literal), sin ejecutar Discriminar (regla 20). Mismo patron que DesgloseHorasDiscriminarTests.
+    private static string LineaConcepto(TimeOnly inicio, TimeOnly fin, Concepto concepto) =>
+        $"{IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin))}: " +
+        $"{IntervaloClasificado.Mensajes.Etiqueta(concepto)}";
+
     // CA-1 (HU-123): con TurnoDiarioAsignado (franja unica 06:00-14:00) previo y MarcacionRegistrada a las 07:00,
     //        ControlesDeFranja debe quedar con un ControlFranja(Franja06_14, Entrada=07:00, Salida=null).
     //        Verifica que el hook reactivo se dispara desde Apply(MarcacionAdicionada).
@@ -147,14 +154,23 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
         // 2026-03-15: entro 05:50 -> recortado a 06:00 (sin retardo); ordinaria 06:00-12:00
         // DominicalFestivaDiurna = 360min y excedente 12:00-12:05 ExtraDiurnaDominicalFestiva = 5min
         // (sin retardo que lo compense). Sin retardo neto -> no hay clave "Retardo".
+        // Issue #184: el DiaCalculado ahora viaja con la Trazabilidad (memoria de calculo) poblada. Dos
+        // conceptos -> dos lineas, en orden cronologico (ordinaria antes que excedente), cada una armada
+        // con LineaConcepto desde su intervalo y la etiqueta traducida. F2 es anomala (Salida null): no
+        // aporta intervalos ni lineas.
         ThenIsPublishedPublicly(new DiaCalculado(
             Empleado,
             Fecha,
-            new HorasDiscriminadas(new Dictionary<string, int>
-            {
-                ["DominicalFestivaDiurna"] = 360,
-                ["ExtraDiurnaDominicalFestiva"] = 5
-            }, [])));
+            new HorasDiscriminadas(
+                new Dictionary<string, int>
+                {
+                    ["DominicalFestivaDiurna"] = 360,
+                    ["ExtraDiurnaDominicalFestiva"] = 5
+                },
+                [
+                    LineaConcepto(new TimeOnly(6, 0), new TimeOnly(12, 0), Concepto.DominicalFestivaDiurna),
+                    LineaConcepto(new TimeOnly(12, 0), new TimeOnly(12, 5), Concepto.ExtraDiurnaDominicalFestiva)
+                ])));
     }
 
     // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
