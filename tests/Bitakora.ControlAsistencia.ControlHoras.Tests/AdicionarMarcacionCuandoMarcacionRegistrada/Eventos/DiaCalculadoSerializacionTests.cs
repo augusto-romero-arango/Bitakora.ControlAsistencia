@@ -1,7 +1,13 @@
-// HU-108: Emitir DiaCalculado tras adicionar marcacion
-// CA-7: DiaCalculado sobrevive roundtrip JSON con ConfiguracionSerializacionControlHoras.CrearOpcionesMarten().
-// Patron: mismo que DesgloseHorasSerializacionTests (usa CrearOpcionesMarten() real, no resolver inline).
-// Barrera anti-regresion: verifica que falla sin los ConfigurarSerializacion de los VOs anidados.
+// Issue #183: Reemplazar el payload de DiaCalculado por HorasDiscriminadas plano.
+// CA-6: el payload completo de DiaCalculado round-trip serializa/deserializa con el serializador POR
+//       DEFECTO del publisher (sin el resolver custom de Marten) y sin perdida. Esa es la cura del bug
+//       (field notes 2026-06-23): el payload ya no contiene tipos de dominio ricos con campos privados
+//       que solo serializaban con ConfigurarSerializacion -- resolver que NO se aplica al canal de
+//       publicacion a Service Bus. Con solo primitivos, ningun consumidor depende de esa serializacion.
+//
+// Inversion de la barrera anterior: el test legado afirmaba que la deserializacion FALLABA sin el
+// resolver custom (Retardo tenia ctor privado). Ahora se afirma lo OPUESTO: tiene EXITO con el
+// resolver por defecto. Si alguien reintroduce un tipo rico al payload, este test fallaria.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -9,8 +15,6 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 
@@ -21,24 +25,27 @@ public class DiaCalculadoSerializacionTests
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
 
-    private static readonly DetalleFranjaOrdinaria Franja06_14 =
-        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], []);
+    // Payload con datos reales: varias claves de concepto y la clave literal "Retardo".
+    private static HorasDiscriminadas HorasConDatos() => new(
+        new Dictionary<string, int>
+        {
+            ["DominicalFestivaDiurna"] = 420,
+            ["ExtraDiurnaDominicalFestiva"] = 30,
+            ["Retardo"] = 15
+        },
+        []);
 
-    // Usa las opciones que Marten usa en produccion - no un resolver armado inline.
-    // Si alguien borra un registro en ConfigurarResolver, los tests de esta clase fallan.
-    private static JsonSerializerOptions CrearOpciones() =>
-        ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+    // El serializador POR DEFECTO del publisher: sin TypeInfoResolver custom, como en el canal de
+    // publicacion a Service Bus (no se aplica ConfigurarSerializacion de Marten). Mismo objeto de
+    // opciones para serializar y deserializar -> round-trip sin perdida si el payload es primitivo.
+    private static JsonSerializerOptions OpcionesPorDefectoDelPublisher() => new();
 
-    private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
-        IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
-
-    // CA-7: roundtrip basico con InformacionEmpleado presente y DesgloseHoras.Vacio.
-    // Verifica que DiaCalculado (sealed class) se serializa y deserializa correctamente via STJ.
+    // CA-6: round-trip preserva todos los campos con el serializador por defecto (sin resolver custom).
     [Fact]
-    public void RoundTrip_PreservaCampos_CuandoDesgloseEsVacio()
+    public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelPublisher()
     {
-        var original = new DiaCalculado(Empleado, Fecha, [], DesgloseHoras.Vacio);
-        var opciones = CrearOpciones();
+        var original = new DiaCalculado(Empleado, Fecha, HorasConDatos());
+        var opciones = OpcionesPorDefectoDelPublisher();
 
         var json = JsonSerializer.Serialize(original, opciones);
         var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
@@ -46,18 +53,18 @@ public class DiaCalculadoSerializacionTests
         restaurado.Should().NotBeNull();
         restaurado!.InformacionEmpleado.Should().Be(Empleado);
         restaurado.Fecha.Should().Be(Fecha);
-        restaurado.ControlesDeFranja.Should().BeEmpty();
-        restaurado.DesgloseHoras.FranjasAnomalas.Should().Be(0);
-        restaurado.DesgloseHoras.DesglosePorFranja.Should().BeEmpty();
+        restaurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEquivalentTo(
+            original.HorasDiscriminadas.MinutosPorConcepto);
+        restaurado.HorasDiscriminadas.Trazabilidad.Should().BeEmpty();
     }
 
-    // CA-7: roundtrip con InformacionEmpleado null (caso "marcacion sin turno previo").
-    // Verifica que el campo nullable se preserva como null tras el roundtrip.
+    // CA-6: roundtrip con InformacionEmpleado null (caso "marcacion sin turno previo").
     [Fact]
     public void RoundTrip_PreservaCampos_CuandoInformacionEmpleadoEsNula()
     {
-        var original = new DiaCalculado(null, Fecha, [], DesgloseHoras.Vacio);
-        var opciones = CrearOpciones();
+        var original = new DiaCalculado(
+            null, Fecha, new HorasDiscriminadas(new Dictionary<string, int>(), []));
+        var opciones = OpcionesPorDefectoDelPublisher();
 
         var json = JsonSerializer.Serialize(original, opciones);
         var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
@@ -65,79 +72,27 @@ public class DiaCalculadoSerializacionTests
         restaurado.Should().NotBeNull();
         restaurado!.InformacionEmpleado.Should().BeNull();
         restaurado.Fecha.Should().Be(Fecha);
-        restaurado.ControlesDeFranja.Should().BeEmpty();
+        restaurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty();
     }
 
-    // CA-7: roundtrip con ControlesDeFranja no vacios.
-    // Verifica que DetalleControlFranja (record anidado) sobrevive el roundtrip con todos sus campos.
+    // CA-6 (barrera anti-regresion invertida): con el resolver POR DEFECTO sin ningun
+    // ConfigurarSerializacion registrado, la deserializacion DEBE tener exito -- el payload es 100%
+    // primitivo. Si alguien reintroduce un tipo de dominio rico (ctor/campos privados), volveria a
+    // necesitar el resolver custom y este test fallaria con NotSupportedException.
     [Fact]
-    public void RoundTrip_PreservaControlesDeFranja_CuandoTieneDetalles()
+    public void Deserializar_TieneExito_ConResolverPorDefectoSinRegistros()
     {
-        var detalle = new DetalleControlFranja(
-            Franja06_14,
-            new DateTime(2026, 3, 15, 7, 0, 0),
-            null,
-            true);
-        var original = new DiaCalculado(Empleado, Fecha, [detalle], DesgloseHoras.Vacio);
-        var opciones = CrearOpciones();
+        var original = new DiaCalculado(Empleado, Fecha, HorasConDatos());
+        var json = JsonSerializer.Serialize(original);
 
-        var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
+        var opcionesSinRegistros = new JsonSerializerOptions
+        {
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        };
 
-        restaurado.Should().NotBeNull();
-        restaurado!.ControlesDeFranja.Should().HaveCount(1);
-        restaurado.ControlesDeFranja[0].EsAnomala.Should().BeTrue();
-        restaurado.ControlesDeFranja[0].Entrada.Should().Be(new DateTime(2026, 3, 15, 7, 0, 0));
-        restaurado.ControlesDeFranja[0].Salida.Should().BeNull();
-        restaurado.ControlesDeFranja[0].Programada.HoraInicio.Should().Be(new TimeOnly(6, 0));
-        restaurado.ControlesDeFranja[0].Programada.HoraFin.Should().Be(new TimeOnly(14, 0));
-    }
+        var act = () => JsonSerializer.Deserialize<DiaCalculado>(json, opcionesSinRegistros);
 
-    // CA-7 (barrera futura para #115/#116): roundtrip con DesgloseHoras que contiene DetalleRetardo real.
-    // Este caso NO se activa mientras la calculadora no exista, pero la barrera debe estar desde ya.
-    // Verifica que IntervaloTemporal y DetalleRetardo (ctors privados) sobreviven el roundtrip
-    // cuando viajan anidados dentro de DiaCalculado.
-    [Fact]
-    public void RoundTrip_PreservaTodosLosCampos_CuandoDesgloseTieneDatos()
-    {
-        var retardoIntervalo = CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 30));
-        var retardoTotal = DetalleRetardo.Crear([retardoIntervalo], []);
-        var desgloseConDatos = new DesgloseHoras([], retardoTotal, 1);
-        var original = new DiaCalculado(Empleado, Fecha, [], desgloseConDatos);
-        var opciones = CrearOpciones();
-
-        var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
-
-        restaurado.Should().NotBeNull();
-        restaurado!.DesgloseHoras.RetardoTotal.RetardoNeto.Should().Be(30);
-        restaurado.DesgloseHoras.FranjasAnomalas.Should().Be(1);
-        restaurado.InformacionEmpleado.Should().Be(Empleado);
-        restaurado.Fecha.Should().Be(Fecha);
-    }
-
-    // Barrera anti-regresion: DetalleRetardo tiene ctor privado y requiere ConfigurarSerializacion.
-    // Si alguien borra la linea DetalleRetardo.ConfigurarSerializacion(resolver) de ConfigurarResolver,
-    // este test falla - protegiendo contra regresiones silenciosas en produccion.
-    [Fact]
-    public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeDetalleRetardo()
-    {
-        // Construir un DiaCalculado con DesgloseHoras que lleva DetalleRetardo con datos reales.
-        // Si solo usaramos Vacio, el ctor privado de DetalleRetardo no se ejercita en deserializacion.
-        var retardoIntervalo = CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 30));
-        var retardoTotal = DetalleRetardo.Crear([retardoIntervalo], []);
-        var desgloseConRetardo = new DesgloseHoras([], retardoTotal, 0);
-        var original = new DiaCalculado(Empleado, Fecha, [], desgloseConRetardo);
-
-        var opcionesCompletas = CrearOpciones();
-        var json = JsonSerializer.Serialize(original, opcionesCompletas);
-
-        // Resolver sin ningun ConfigurarSerializacion registrado
-        var resolverVacio = new DefaultJsonTypeInfoResolver();
-        var opcionesVacias = new JsonSerializerOptions { TypeInfoResolver = resolverVacio };
-
-        var act = () => JsonSerializer.Deserialize<DiaCalculado>(json, opcionesVacias);
-
-        act.Should().Throw<NotSupportedException>();
+        act.Should().NotThrow();
+        act()!.HorasDiscriminadas.MinutosPorConcepto["DominicalFestivaDiurna"].Should().Be(420);
     }
 }

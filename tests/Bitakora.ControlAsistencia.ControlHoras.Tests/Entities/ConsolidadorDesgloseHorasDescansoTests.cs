@@ -3,7 +3,7 @@
 // extras (todos los Extra* y los DominicalFestiva* cuando son extras) compensan el retardo.
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using static Bitakora.ControlAsistencia.ControlHoras.Tests.Entities.ConsolidadorDesgloseHorasTestData;
 
@@ -25,19 +25,19 @@ public class ConsolidadorDesgloseHorasDescansoTests
                 Clasif(M(12), M(13), Concepto.Descanso),
                 Clasif(M(13), M(17), Concepto.OrdinariaDiurna),
             ],
-            Retardo(retardado: [I(M(8), M(8, 30))], compensado: []));
+            CrearRetardo(retardado: [I(M(8), M(8, 30))], compensado: []));
         var franja2 = Desglose(
             Programada(18, 20),
             [
                 Clasif(M(18), M(20), Concepto.OrdinariaDiurna),
                 Clasif(M(20), M(20, 30), Concepto.ExtraDiurna),
             ],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
         // El compensado es exactamente el excedente; el descanso 12:00-13:00 jamas aparece aqui.
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: [I(M(20), M(20, 30))]));
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);

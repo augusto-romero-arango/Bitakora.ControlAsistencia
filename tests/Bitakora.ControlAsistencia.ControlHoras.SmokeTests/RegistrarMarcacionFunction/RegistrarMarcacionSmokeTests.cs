@@ -302,10 +302,13 @@ public class RegistrarMarcacionSmokeTests(
 
         diaCalculado.Fecha.Should().Be(fecha);
         diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
-        diaCalculado.ControlesDeFranja.Should().HaveCount(1,
-            "el TurnoDiarioAsignado previo tiene una sola franja ordinaria");
-        diaCalculado.DesgloseHoras.Should().NotBeNull(
-            "DiaCalculado siempre se emite con DesgloseHoras (HU-181: ya lleva el desglose real consolidado)");
+        // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas) y se deserializo con el
+        // serializador POR DEFECTO del fixture (sin resolver custom). Esta marcacion es solo ENTRADA:
+        // la franja queda anomala (sin salida) -> sin minutos calculables -> MinutosPorConcepto vacio.
+        diaCalculado.HorasDiscriminadas.Should().NotBeNull(
+            "DiaCalculado siempre se emite con HorasDiscriminadas");
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
+            "una entrada sola deja la franja anomala, sin minutos por concepto");
 
         // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
@@ -425,19 +428,16 @@ public class RegistrarMarcacionSmokeTests(
             Timeout);
 
         diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.ControlesDeFranja.Should().HaveCount(1,
-            "el turno previo tiene una sola franja ordinaria, ahora completada");
 
-        // CA-5: el desglose ya NO es DesgloseHoras.Vacio. La franja quedo completa (no anomala)
-        // y una jornada 08:00-16:00 acumula horas ordinarias diurnas reales.
-        diaCalculado.DesgloseHoras.FranjasAnomalas.Should().Be(0,
-            "la franja quedo completa (entrada 08:00 + salida 16:00), no anomala");
-
-        diaCalculado.DesgloseHoras.TotalMinutosPorConcepto
-            .Should().ContainKey(Concepto.OrdinariaDiurna);
-        diaCalculado.DesgloseHoras.TotalMinutosPorConcepto[Concepto.OrdinariaDiurna]
+        // Issue #183 CA-6: el smoke verifica MinutosPorConcepto del payload plano, deserializado con el
+        // serializador POR DEFECTO del fixture (sin resolver custom). La franja quedo completa (entrada
+        // 08:00 + salida 16:00), asi que una jornada 08:00-16:00 acumula horas ordinarias diurnas reales.
+        // Clave = Concepto.ToString() ("OrdinariaDiurna").
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto
+            .Should().ContainKey("OrdinariaDiurna");
+        diaCalculado.HorasDiscriminadas.MinutosPorConcepto["OrdinariaDiurna"]
             .Should().BeGreaterThan(0,
-                "el desglose real consolida horas ordinarias diurnas (no DesgloseHoras.Vacio)");
+                "el desglose real discriminado lleva horas ordinarias diurnas (no un payload vacio)");
 
         // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
         var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(

@@ -7,7 +7,7 @@
 // la compensacion cronologica inversa (la clasificacion por banda ya esta cubierta en #135).
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using static Bitakora.ControlAsistencia.ControlHoras.Tests.Entities.ConsolidadorDesgloseHorasTestData;
 
@@ -25,7 +25,7 @@ public class ConsolidadorDesgloseHorasFronteraNocturnaTests
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
-            Retardo(retardado: [I(M(8), M(8, 30))], compensado: []));
+            CrearRetardo(retardado: [I(M(8), M(8, 30))], compensado: []));
         var franja2 = Desglose(
             Programada(14, 18),
             [
@@ -33,11 +33,11 @@ public class ConsolidadorDesgloseHorasFronteraNocturnaTests
                 Clasif(M(18), M(19), Concepto.ExtraDiurna),
                 Clasif(M(19), M(19, 30), Concepto.ExtraNocturna),
             ],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: [I(M(19), M(19, 30))]));
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);
@@ -64,7 +64,7 @@ public class ConsolidadorDesgloseHorasFronteraNocturnaTests
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(9, 20), M(12), Concepto.OrdinariaDiurna)],
-            Retardo(retardado: [I(M(8), M(9, 20))], compensado: []));
+            CrearRetardo(retardado: [I(M(8), M(9, 20))], compensado: []));
         var franja2 = Desglose(
             Programada(14, 18),
             [
@@ -72,11 +72,11 @@ public class ConsolidadorDesgloseHorasFronteraNocturnaTests
                 Clasif(M(18), M(19), Concepto.ExtraDiurna),
                 Clasif(M(19), M(19, 30), Concepto.ExtraNocturna),
             ],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        resultado.RetardoTotal.Should().Be(Retardo(
+        resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(9, 20))],
             compensado: [I(M(18, 10), M(19)), I(M(19), M(19, 30))]));
         resultado.RetardoTotal.RetardoNeto.Should().Be(0);

@@ -10,7 +10,7 @@
 // dominio que el hook reactivo invoca (#136 ControlFranja.CalcularDesglose, #116
 // ConsolidadorDesgloseHoras.Consolidar). And<>() compara estructuralmente (BeEquivalentTo).
 
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
@@ -106,7 +106,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : CommandHandlerAsyncTest<
                 new MomentoDelDia(new TimeOnly(12, 0)),
                 new MomentoDelDia(new TimeOnly(12, 5))),
             Concepto.ExtraDiurnaDominicalFestiva);
-        var franja1 = new DesgloseFranja(Franja08_12, [f1Ordinaria, f1Excedente], DetalleRetardo.Vacio);
+        var franja1 = new DesgloseFranja(Franja08_12, [f1Ordinaria, f1Excedente], Retardo.Vacio);
 
         var f2Ordinaria = new IntervaloClasificado(
             IntervaloTemporal.Crear(
@@ -118,7 +118,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : CommandHandlerAsyncTest<
                 new MomentoDelDia(new TimeOnly(18, 0)),
                 new MomentoDelDia(new TimeOnly(18, 20))),
             Concepto.ExtraDiurnaDominicalFestiva);
-        var retardoF2 = DetalleRetardo.Crear(
+        var retardoF2 = Retardo.Crear(
             [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(14, 0)), new MomentoDelDia(new TimeOnly(14, 10)))],
             [IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(18, 20)), new MomentoDelDia(new TimeOnly(18, 30)))]);
         var franja2 = new DesgloseFranja(Franja14_18, [f2Ordinaria, f2Excedente], retardoF2);

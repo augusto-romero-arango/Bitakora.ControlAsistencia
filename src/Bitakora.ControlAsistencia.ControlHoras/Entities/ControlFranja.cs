@@ -1,11 +1,12 @@
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 // HU-122: Value object que representa el resultado de depurar marcaciones contra una franja ordinaria.
 // No viaja entre dominios - vive en ControlHoras junto al aggregate que lo usa.
-// El DTO para cruzar fronteras (DetalleControlFranja) se crea en #108.
+// Issue #183: ya no se mapea a un DTO publico; el payload de DiaCalculado viaja plano
+// (HorasDiscriminadas). ControlFranja queda como estado interno del aggregate.
 public record ControlFranja(DetalleFranjaOrdinaria Programada, DateTime? Entrada, DateTime? Salida)
 {
     // CA-9: propiedad calculada; anomala cuando falta Entrada o Salida
@@ -48,12 +49,12 @@ public record ControlFranja(DetalleFranjaOrdinaria Programada, DateTime? Entrada
             ? [IntervaloTemporal.Crear(inicioFranja, entradaMomento)]
             : [];
 
-        return new DesgloseFranja(Programada, intervalos, DetalleRetardo.Crear(tiempoRetardado, tiempoCompensado));
+        return new DesgloseFranja(Programada, intervalos, Retardo.Crear(tiempoRetardado, tiempoCompensado));
     }
 
     // Consume los ultimos `minutos` de la lista clasificada recorriendola en orden cronologico
     // inverso, y devuelve los IntervaloTemporal concretos consumidos en orden cronologico ascendente
-    // (para el TiempoCompensado del DetalleRetardo). Muta `intervalos`: el intervalo consumido por
+    // (para el TiempoCompensado del Retardo). Muta `intervalos`: el intervalo consumido por
     // completo se remueve; el que se atraviesa parcialmente se reemplaza por su parte izquierda
     // (visible) mientras la derecha pasa a la compensacion. Precondicion: minutos <= suma de
     // duraciones de la lista (garantizada por compensacion <= excedenteBruto <= tiempo trabajado).

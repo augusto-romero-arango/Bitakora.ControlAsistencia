@@ -1,11 +1,11 @@
 // HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
 // CA-5: DesgloseFranja sobrevive round-trip JSON con ConfiguracionSerializacionControlHoras.CrearOpcionesMarten()
 //       preservando Programada, Intervalos, Retardo y recalculando MinutosPorConcepto con los mismos valores.
-// Barrera anti-regresion: sin el registro de DetalleRetardo en el resolver, la deserializacion falla.
+// Barrera anti-regresion: sin el registro de Retardo en el resolver, la deserializacion falla.
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
@@ -35,7 +35,7 @@ public class DesgloseFranjaSerializacionTests
         var original = new DesgloseFranja(
             programada,
             [new IntervaloClasificado(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(12, 0)), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
@@ -53,7 +53,7 @@ public class DesgloseFranjaSerializacionTests
             new(CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(8, 0)), Concepto.OrdinariaNocturna),
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)
         };
-        var original = new DesgloseFranja(CrearFranjaProgramadaSimple(), intervalos, DetalleRetardo.Vacio);
+        var original = new DesgloseFranja(CrearFranjaProgramadaSimple(), intervalos, Retardo.Vacio);
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
@@ -69,7 +69,7 @@ public class DesgloseFranjaSerializacionTests
     public void RoundTrip_PreservaRetardo_CuandoConCompensacionParcial()
     {
         // 30 min retardados - 20 min compensados = 10 min neto
-        var retardo = DetalleRetardo.Crear(
+        var retardo = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 30))],
             [CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 20))]);
         var original = new DesgloseFranja(
@@ -92,14 +92,14 @@ public class DesgloseFranjaSerializacionTests
         var original = new DesgloseFranja(
             CrearFranjaProgramadaSimple(),
             [new IntervaloClasificado(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Vacio);
+            Retardo.Vacio);
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
         var restaurado = JsonSerializer.Deserialize<DesgloseFranja>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.Retardo.Should().Be(DetalleRetardo.Vacio);
+        restaurado!.Retardo.Should().Be(Retardo.Vacio);
         restaurado.Retardo.RetardoNeto.Should().Be(0);
     }
 
@@ -112,7 +112,7 @@ public class DesgloseFranjaSerializacionTests
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(12, 0)), Concepto.OrdinariaDiurna),
             new(CrearIntervalo(new TimeOnly(13, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)
         };
-        var original = new DesgloseFranja(CrearFranjaProgramadaSimple(), intervalos, DetalleRetardo.Vacio);
+        var original = new DesgloseFranja(CrearFranjaProgramadaSimple(), intervalos, Retardo.Vacio);
         var opciones = CrearOpciones();
 
         var json = JsonSerializer.Serialize(original, opciones);
@@ -122,16 +122,16 @@ public class DesgloseFranjaSerializacionTests
         restaurado!.MinutosPorConcepto[Concepto.OrdinariaDiurna].Should().Be(480);
     }
 
-    // Barrera anti-regresion: DesgloseFranja.Retardo (DetalleRetardo) no sobrevive sin
-    // ConfigurarSerializacion registrado. Si alguien borra DetalleRetardo.ConfigurarSerializacion(resolver)
+    // Barrera anti-regresion: DesgloseFranja.Retardo (Retardo) no sobrevive sin
+    // ConfigurarSerializacion registrado. Si alguien borra Retardo.ConfigurarSerializacion(resolver)
     // de ConfigurarResolver, este test falla.
     [Fact]
-    public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeDetalleRetardo()
+    public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeRetardo()
     {
         var original = new DesgloseFranja(
             CrearFranjaProgramadaSimple(),
             [new IntervaloClasificado(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(12, 0)), Concepto.OrdinariaDiurna)],
-            DetalleRetardo.Crear(
+            Retardo.Crear(
                 [CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 30))],
                 []));
         var opcionesCompletas = CrearOpciones();

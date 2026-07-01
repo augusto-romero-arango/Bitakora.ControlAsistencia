@@ -5,7 +5,7 @@
 // No se construye ningun DateTime en los tests.
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 

@@ -2,7 +2,7 @@
 // Tests directos sobre ClasificadorHorario.ClasificarTipoDia - sin harness de event sourcing.
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;

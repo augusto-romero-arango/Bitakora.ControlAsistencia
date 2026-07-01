@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="OrdinariaDiurna" xml:space="preserve">
+    <value>Ordinaria diurna</value>
+  </data>
+  <data name="OrdinariaNocturna" xml:space="preserve">
+    <value>Ordinaria nocturna</value>
+  </data>
+  <data name="ExtraDiurna" xml:space="preserve">
+    <value>Extra diurna</value>
+  </data>
+  <data name="ExtraNocturna" xml:space="preserve">
+    <value>Extra nocturna</value>
+  </data>
+  <data name="DominicalFestivaDiurna" xml:space="preserve">
+    <value>Dominical festiva diurna</value>
+  </data>
+  <data name="DominicalFestivaNocturna" xml:space="preserve">
+    <value>Dominical festiva nocturna</value>
+  </data>
+  <data name="ExtraDiurnaDominicalFestiva" xml:space="preserve">
+    <value>Extra diurna dominical festiva</value>
+  </data>
+  <data name="ExtraNocturnaDominicalFestiva" xml:space="preserve">
+    <value>Extra nocturna dominical festiva</value>
+  </data>
+  <data name="Descanso" xml:space="preserve">
+    <value>Descanso</value>
+  </data>
+</root>

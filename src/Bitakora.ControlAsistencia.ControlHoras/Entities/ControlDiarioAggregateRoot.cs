@@ -1,5 +1,5 @@
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
@@ -152,17 +152,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // HU-108: construye el evento DiaCalculado desde el estado actual del aggregate.
     // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
-    // HU-181: empaqueta el DesgloseHoras real ya consolidado por RecalcularDesgloseHoras() al final
-    //         de cada Apply. _desgloseHoras esta fresco aqui porque CrearDiaCalculado() lo invocan los
-    //         handlers despues del Apply que recalculo el desglose. Sin turno o con todas las franjas
-    //         anomalas, _desgloseHoras ya equivale a DesgloseHoras.Vacio (lo decide el consolidador).
-    // El mapeo ControlFranja -> DetalleControlFranja queda encapsulado aqui (no expone _controlesDeFranja).
-    public DiaCalculado CrearDiaCalculado()
-    {
-        var detalles = _controlesDeFranja
-            .Select(c => new DetalleControlFranja(c.Programada, c.Entrada, c.Salida, c.EsAnomala))
-            .ToArray();
-
-        return new DiaCalculado(InformacionEmpleado, Fecha, detalles, _desgloseHoras);
-    }
+    // Issue #183: el payload viaja plano (HorasDiscriminadas). El desglose rico consolidado por
+    //         RecalcularDesgloseHoras() al final de cada Apply (_desgloseHoras, fresco aqui porque los
+    //         handlers invocan CrearDiaCalculado() despues del Apply) se discrimina a si mismo via
+    //         Discriminar(). Ya no se mapean los ControlFranja a un DTO rico: el contrato pierde la
+    //         senal de anomalia a proposito (riesgo aceptado, diferido al flujo de aprobacion).
+    public DiaCalculado CrearDiaCalculado() =>
+        new(InformacionEmpleado, Fecha, _desgloseHoras.Discriminar());
 }

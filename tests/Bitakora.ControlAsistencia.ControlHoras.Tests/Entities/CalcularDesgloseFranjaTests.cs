@@ -4,16 +4,16 @@
 //
 // Convencion de datos (issue #136): los ControlFranja se construyen con DateTime? (frontera
 // del dominio: las marcaciones llegan como DateTime), pero TODAS las aserciones sobre
-// resultados se hacen en MomentoDelDia / IntervaloTemporal / DetalleRetardo. El DateTime solo
+// resultados se hacen en MomentoDelDia / IntervaloTemporal / Retardo. El DateTime solo
 // aparece al construir la entrada del metodo.
 //
-// DetalleRetardo (#114) solo expone RetardoNeto publicamente (ADR-0015, Tell-don't-Ask): los
+// Retardo (#114) solo expone RetardoNeto publicamente (ADR-0015, Tell-don't-Ask): los
 // minutos retardados/compensados son detalle interno. Por eso el retardo se verifica
-// construyendo el DetalleRetardo esperado via DetalleRetardo.Crear(...) y comparando por
+// construyendo el Retardo esperado via Retardo.Crear(...) y comparando por
 // igualdad (que internamente compara esos minutos y los intervalos), mas RetardoNeto.
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -105,7 +105,7 @@ public class CalcularDesgloseFranjaTests
         {
             Clasif(M(8, 30), M(17), Concepto.OrdinariaDiurna),
         });
-        desglose.Retardo.Should().Be(DetalleRetardo.Crear(
+        desglose.Retardo.Should().Be(Retardo.Crear(
             tiempoRetardado: [Intervalo(M(8), M(8, 30))],
             tiempoCompensado: []));
         desglose.Retardo.RetardoNeto.Should().Be(30);
@@ -115,7 +115,7 @@ public class CalcularDesgloseFranjaTests
     public void CalcularDesglose_NoRegistraRetardo_CuandoEntradaEsPuntual()
     {
         // CA-3: franja 8-17, entrada 08:00 puntual, salida 17:00 => retardo 0 y sin excedente.
-        // DetalleRetardo == DetalleRetardo.Vacio.
+        // Retardo == Retardo.Vacio.
         var control = Control(Franja(8, 17), Dt(8), Dt(17));
 
         var desglose = control.CalcularDesglose(Lunes, NingunFestivo);
@@ -125,7 +125,7 @@ public class CalcularDesgloseFranjaTests
         {
             Clasif(M(8), M(17), Concepto.OrdinariaDiurna),
         });
-        desglose.Retardo.Should().Be(DetalleRetardo.Vacio);
+        desglose.Retardo.Should().Be(Retardo.Vacio);
         desglose.Retardo.RetardoNeto.Should().Be(0);
     }
 
@@ -136,7 +136,7 @@ public class CalcularDesgloseFranjaTests
     {
         // CA-4: franja 8-17, entrada 08:00, salida 18:00, dia habil => excedente 17:00-18:00
         // clasificado como ExtraDiurna (herencia de #135). Sin retardo => sin compensacion, la
-        // extra sobrevive completa. DetalleRetardo == Vacio.
+        // extra sobrevive completa. Retardo == Vacio.
         var control = Control(Franja(8, 17), Dt(8), Dt(18));
 
         var desglose = control.CalcularDesglose(Lunes, NingunFestivo);
@@ -147,7 +147,7 @@ public class CalcularDesgloseFranjaTests
             Clasif(M(8), M(17), Concepto.OrdinariaDiurna),
             Clasif(M(17), M(18), Concepto.ExtraDiurna),
         });
-        desglose.Retardo.Should().Be(DetalleRetardo.Vacio);
+        desglose.Retardo.Should().Be(Retardo.Vacio);
         desglose.Retardo.RetardoNeto.Should().Be(0);
     }
 
@@ -170,7 +170,7 @@ public class CalcularDesgloseFranjaTests
             Clasif(M(8, 30), M(17), Concepto.OrdinariaDiurna),
             Clasif(M(17), M(17, 30), Concepto.ExtraDiurna),
         });
-        desglose.Retardo.Should().Be(DetalleRetardo.Crear(
+        desglose.Retardo.Should().Be(Retardo.Crear(
             tiempoRetardado: [Intervalo(M(8), M(8, 30))],
             tiempoCompensado: [Intervalo(M(17, 30), M(18))]));
         desglose.Retardo.RetardoNeto.Should().Be(0);
@@ -192,7 +192,7 @@ public class CalcularDesgloseFranjaTests
             Clasif(M(9), M(17), Concepto.OrdinariaDiurna),
         });
         desglose.Intervalos.Should().NotContain(i => i.Concepto == Concepto.ExtraDiurna);
-        desglose.Retardo.Should().Be(DetalleRetardo.Crear(
+        desglose.Retardo.Should().Be(Retardo.Crear(
             tiempoRetardado: [Intervalo(M(8), M(9))],
             tiempoCompensado: [Intervalo(M(17), M(17, 30))]));
         desglose.Retardo.RetardoNeto.Should().Be(30);
@@ -218,7 +218,7 @@ public class CalcularDesgloseFranjaTests
             Clasif(M(17), M(19), Concepto.ExtraDiurna),
         });
         desglose.Intervalos.Should().NotContain(i => i.Concepto == Concepto.ExtraNocturna);
-        desglose.Retardo.Should().Be(DetalleRetardo.Crear(
+        desglose.Retardo.Should().Be(Retardo.Crear(
             tiempoRetardado: [Intervalo(M(8), M(8, 30))],
             tiempoCompensado: [Intervalo(M(19), M(19, 30))]));
         desglose.Retardo.RetardoNeto.Should().Be(0);
@@ -227,7 +227,7 @@ public class CalcularDesgloseFranjaTests
     [Fact]
     public void CalcularDesglose_DevuelveCompensacionEnDosIntervalosAscendentes_CuandoElConsumoParteLaFranjaDiurna()
     {
-        // Refuerzo de CA-7: el caso multi-intervalo descrito en "Estructura de DetalleRetardo
+        // Refuerzo de CA-7: el caso multi-intervalo descrito en "Estructura de Retardo
         // producido". Franja 8-17, entrada 09:30 (retardo 90), salida 19:30. Excedente bruto = 150
         // (17:00-19:00 ExtraDiurna 120min + 19:00-19:30 ExtraNocturna 30min). Compensacion = min(90,150)
         // = 90: consume entera la nocturna 19:00-19:30 (30) y PARTE la diurna 17:00-19:00 en 18:00 - la
@@ -246,7 +246,7 @@ public class CalcularDesgloseFranjaTests
             Clasif(M(17), M(18), Concepto.ExtraDiurna),
         });
         desglose.Intervalos.Should().NotContain(i => i.Concepto == Concepto.ExtraNocturna);
-        desglose.Retardo.Should().Be(DetalleRetardo.Crear(
+        desglose.Retardo.Should().Be(Retardo.Crear(
             tiempoRetardado: [Intervalo(M(8), M(9, 30))],
             tiempoCompensado: [Intervalo(M(18), M(19)), Intervalo(M(19), M(19, 30))]));
         desglose.Retardo.RetardoNeto.Should().Be(0);
@@ -260,7 +260,7 @@ public class CalcularDesgloseFranjaTests
         // CA-8: sum(Intervalos.DuracionEnMinutos) + minutosCompensados == trabajadoEfectivo.
         // Reusa el escenario de CA-5 (entrada 08:30, salida 18:00). La entrada efectiva tras el
         // recorte es 08:30 (ya posterior al inicio de franja), asi que trabajadoEfectivo = 08:30-18:00.
-        // Los minutos compensados se derivan del DetalleRetardo esperado (TiempoCompensado), cuya
+        // Los minutos compensados se derivan del Retardo esperado (TiempoCompensado), cuya
         // igualdad ancla el test: 17:30-18:00 = 30min.
         var control = Control(Franja(8, 17), Dt(8, 30), Dt(18));
         var trabajadoEfectivo = Intervalo(M(8, 30), M(18));
@@ -271,7 +271,7 @@ public class CalcularDesgloseFranjaTests
 
         desglose.Should().NotBeNull();
         // Ancla: el TiempoCompensado del resultado es exactamente el que sumamos en el invariante.
-        desglose!.Retardo.Should().Be(DetalleRetardo.Crear(
+        desglose!.Retardo.Should().Be(Retardo.Crear(
             tiempoRetardado: [Intervalo(M(8), M(8, 30))],
             tiempoCompensado: tiempoCompensado));
         (desglose.Intervalos.Sum(i => i.DuracionEnMinutos) + minutosCompensados)
