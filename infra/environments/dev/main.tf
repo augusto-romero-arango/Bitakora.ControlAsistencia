@@ -100,6 +100,15 @@ module "key_vault" {
   tags                = local.tags
 }
 
+# Referencias versionless a Key Vault (ADR-0025 decision #2): el app setting
+# lleva la referencia, no el valor. El valor lo siembra un admin (decision #6).
+# Versionless (sin sufijo de version): toma la ultima al rotar el secreto.
+locals {
+  service_bus_connection_kv_ref  = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/service-bus-connection)"
+  marten_connection_kv_ref       = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/marten-connection)"
+  app_insights_connection_kv_ref = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/app-insights-connection)"
+}
+
 resource "random_string" "storage_suffix_programacion" {
   length  = 6
   special = false
@@ -123,11 +132,11 @@ module "function_app_programacion" {
   storage_account_name              = module.storage_programacion.name
   storage_account_connection_string = module.storage_programacion.primary_connection_string
   storage_account_access_key        = module.storage_programacion.primary_access_key
-  app_insights_connection_string    = module.monitoring.connection_string
+  app_insights_connection_string    = local.app_insights_connection_kv_ref
   app_settings = {
-    SERVICE_BUS_CONNECTION = module.service_bus.default_primary_connection_string
+    SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "programacion"
-    MartenConnectionString = "Host=${module.postgresql.server_fqdn};Database=${module.postgresql.database_name};Username=pgadmin;Password=${var.postgresql_admin_password};SSL Mode=Require"
+    MartenConnectionString = local.marten_connection_kv_ref
   }
   tags = local.tags
 }
@@ -155,12 +164,27 @@ module "function_app_control_horas" {
   storage_account_name              = module.storage_control_horas.name
   storage_account_connection_string = module.storage_control_horas.primary_connection_string
   storage_account_access_key        = module.storage_control_horas.primary_access_key
-  app_insights_connection_string    = module.monitoring.connection_string
+  app_insights_connection_string    = local.app_insights_connection_kv_ref
   app_settings = {
-    SERVICE_BUS_CONNECTION = module.service_bus.default_primary_connection_string
+    SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "control-horas"
-    MartenConnectionString = "Host=${module.postgresql.server_fqdn};Database=${module.postgresql.database_name};Username=pgadmin;Password=${var.postgresql_admin_password};SSL Mode=Require"
+    MartenConnectionString = local.marten_connection_kv_ref
   }
   tags = local.tags
+}
+
+# RBAC data-plane (ADR-0024 decision #6): la managed identity de cada Function
+# App necesita "Key Vault Secrets User" para resolver las referencias
+# @Microsoft.KeyVault(...) de sus app settings.
+resource "azurerm_role_assignment" "kv_secrets_user_programacion" {
+  scope                = module.key_vault.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = module.function_app_programacion.principal_id
+}
+
+resource "azurerm_role_assignment" "kv_secrets_user_control_horas" {
+  scope                = module.key_vault.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = module.function_app_control_horas.principal_id
 }
 
