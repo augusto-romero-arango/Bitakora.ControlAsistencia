@@ -498,6 +498,11 @@ scripts/.kql-audit.log
 *.tfstate
 *.tfstate.backup
 *.tfplan
+# El plan de ejecucion se genera sin extension (terraform plan -out=tfplan);
+# ignorarlo explicitamente para que NUNCA se commitee (puede contener valores
+# sensibles y es especifico del estado/backend). Ver issue #195.
+tfplan
+**/tfplan
 .terraform.lock.hcl
 *.tfvars
 
