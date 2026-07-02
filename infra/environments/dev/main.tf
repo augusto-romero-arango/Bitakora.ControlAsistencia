@@ -1,3 +1,5 @@
+data "azurerm_client_config" "current" {}
+
 module "resource_group" {
   source   = "../../modules/resource-group"
   name     = "rg-${local.prefix}"
@@ -77,6 +79,25 @@ module "service_bus" {
     }
   }
   tags = local.tags
+}
+
+# Almacen general de secretos del BC (ADR-0025 decision #5). El nombre del
+# Key Vault es un endpoint DNS publico (*.vault.azure.net), unico en TODO
+# Azure (ADR-0021): requiere sufijo de unicidad global igual que PostgreSQL
+# y Service Bus.
+resource "random_string" "key_vault_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+module "key_vault" {
+  source              = "../../modules/key-vault"
+  name                = "kv-${var.project_short}-${random_string.key_vault_suffix.result}"
+  resource_group_name = module.resource_group.name
+  location            = module.resource_group.location
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  tags                = local.tags
 }
 
 resource "random_string" "storage_suffix_programacion" {
