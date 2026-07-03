@@ -104,9 +104,8 @@ module "key_vault" {
 # lleva la referencia, no el valor. El valor lo siembra un admin (decision #6).
 # Versionless (sin sufijo de version): toma la ultima al rotar el secreto.
 locals {
-  service_bus_connection_kv_ref  = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/service-bus-connection)"
-  marten_connection_kv_ref       = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/marten-connection)"
-  app_insights_connection_kv_ref = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/app-insights-connection)"
+  service_bus_connection_kv_ref = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/service-bus-connection)"
+  marten_connection_kv_ref      = "@Microsoft.KeyVault(SecretUri=${module.key_vault.uri}secrets/marten-connection)"
 }
 
 resource "random_string" "storage_suffix_programacion" {
@@ -130,7 +129,7 @@ module "function_app_programacion" {
   location                       = module.resource_group.location
   service_plan_id                = module.service_plan_programacion.id
   storage_account_name           = module.storage_programacion.name
-  app_insights_connection_string = local.app_insights_connection_kv_ref
+  app_insights_connection_string = module.monitoring.connection_string
   app_settings = {
     SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "programacion"
@@ -160,7 +159,7 @@ module "function_app_control_horas" {
   location                       = module.resource_group.location
   service_plan_id                = module.service_plan_control_horas.id
   storage_account_name           = module.storage_control_horas.name
-  app_insights_connection_string = local.app_insights_connection_kv_ref
+  app_insights_connection_string = module.monitoring.connection_string
   app_settings = {
     SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "control-horas"
