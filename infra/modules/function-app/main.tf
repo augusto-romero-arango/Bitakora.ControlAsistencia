@@ -23,18 +23,6 @@ variable "storage_account_name" {
   type        = string
 }
 
-variable "storage_account_connection_string" {
-  description = "Connection string de la storage account (para App Settings)"
-  type        = string
-  sensitive   = true
-}
-
-variable "storage_account_access_key" {
-  description = "Access key de la storage account (requerida por azurerm_linux_function_app)"
-  type        = string
-  sensitive   = true
-}
-
 variable "app_insights_connection_string" {
   description = "Connection string de Application Insights"
   type        = string
@@ -58,9 +46,9 @@ resource "azurerm_linux_function_app" "this" {
   resource_group_name = var.resource_group_name
   location            = var.location
 
-  service_plan_id            = var.service_plan_id
-  storage_account_name       = var.storage_account_name
-  storage_account_access_key = var.storage_account_access_key
+  service_plan_id               = var.service_plan_id
+  storage_account_name          = var.storage_account_name
+  storage_uses_managed_identity = true
 
   site_config {
     application_stack {
