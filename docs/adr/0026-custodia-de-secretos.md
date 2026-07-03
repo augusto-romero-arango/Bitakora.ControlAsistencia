@@ -33,10 +33,10 @@ El principio que adoptamos, enunciado: **un app setting nunca contiene el valor 
 |---|---|---|---|
 | Cadena de Azure Service Bus | `SERVICE_BUS_CONNECTION` | `service-bus-connection` | Referencia Key Vault |
 | Password de PostgreSQL (dentro de `MartenConnectionString`) | `MartenConnectionString` | `marten-connection` | Referencia Key Vault |
-| Connection string de Application Insights | `APPLICATIONINSIGHTS_CONNECTION_STRING` | `app-insights-connection` | Referencia Key Vault |
+| Connection string de Application Insights | `APPLICATIONINSIGHTS_CONNECTION_STRING` | (no aplica) | Valor directo -- no es secreto (ver decision #7) |
 | Access key de Storage del host | `AzureWebJobsStorage` | (no aplica) | Identidad administrada |
 
-Los nombres `marten-connection` y `app-insights-connection` se respetan tal cual el harness los ancla en `agents/infra-base-scaffolder.md`. `service-bus-connection` es la **decisión propia** para nuestra cadena única de ASB (ver decisión #4).
+El nombre `marten-connection` se respeta tal cual el harness lo ancla en `agents/infra-base-scaffolder.md`. `service-bus-connection` es la **decisión propia** para nuestra cadena única de ASB (ver decisión #4). Application Insights dejó de usar un secreto de Key Vault (ver decisión #7).
 
 ### 3. Las claves de app setting no cambian; sólo su valor
 
@@ -54,6 +54,17 @@ El runtime de Azure Functions necesita el storage del host **al arrancar**, ante
 
 El **valor** de cada secreto de Key Vault se coloca de forma administrativa fuera del ciclo de Terraform y del repo (`az keyvault secret set`), nunca por Terraform. El proyecto provisiona por Terraform únicamente (a) la referencia en app settings y (b) el rol **Key Vault Secrets User** de la managed identity de la Function App. Consecuencia operativa: entre provisionar el vault (#195) y conmutar las referencias (#196) hay una siembra manual obligatoria; conmutar antes de sembrar deja a las Function Apps sin poder resolver las referencias al arrancar.
 
+### 7. Application Insights NO se custodia en Key Vault (divergencia con ADR-0025)
+
+ADR-0025 del harness clasifica la connection string de Application Insights como secreto a custodiar en Key Vault (por incluir la instrumentation key). **Divergimos de esa clasificación**: se configura como **valor directo** (`module.monitoring.connection_string`), no como referencia `@Microsoft.KeyVault(...)`.
+
+Razones, según la guía oficial de Microsoft:
+
+- La connection string de App Insights y su instrumentation key **no se consideran secretos**: son una clave de *ingesta* de telemetría (no de lectura de datos), recuperable con permiso `Reader` sobre el recurso. Microsoft indica explícitamente que **no hace falta** moverlas a Key Vault.
+- Referenciar `APPLICATIONINSIGHTS_CONNECTION_STRING` desde Key Vault **rompe la telemetría integrada del portal** de App Service / Azure Functions (Live Metrics, el blade del recurso): con una referencia, el portal no puede leer el valor y obliga a ir al recurso de App Insights directamente. Microsoft recomienda configurarla directamente.
+
+Se descubrió tras conmutarla a Key Vault en #196: la telemetría llega igual, pero se pierde la integración del portal sin ganar seguridad. Es candidata a subir como enmienda al ADR-0025 del harness. El secreto `app-insights-connection` queda sin uso en el vault (limpieza opcional; el valor no lo gestiona Terraform).
+
 ## Consecuencias
 
 **Positivas**
@@ -67,7 +78,7 @@ El **valor** de cada secreto de Key Vault se coloca de forma administrativa fuer
 
 - Más RBAC y referencias que provisionar: cada secreto suma una referencia y, donde aplique, un role assignment de datos. Crear esos role assignments exige que el principal que aplica tenga permiso `Microsoft.Authorization/roleAssignments/write` (Owner o User Access Administrator); el principal de CI actual sólo tiene Contributor, que no basta.
 - Siembra administrativa: el valor de cada secreto es una acción manual post-`apply`.
-- Postgres y App Insights siguen siendo secretos custodiados (no identity-based); se mantiene la deuda de rotación hasta que existan alternativas por Entra ID.
+- Postgres sigue siendo secreto custodiado (no identity-based); se mantiene la deuda de rotación hasta que exista alternativa por Entra ID. Application Insights deja de custodiarse en Key Vault (decisión #7).
 
 **Fuera de alcance / trabajo diferido**
 
@@ -84,8 +95,11 @@ El **valor** de cada secreto de Key Vault se coloca de forma administrativa fuer
 - Implementación de referencia: `agents/infra-base-scaffolder.md` del plugin (módulos `key-vault` y `function-app`; nombres de secreto anclados y roles de datos de Storage).
 - Issues del proyecto: #195 (provisionar el Key Vault), #196 (conmutar referencias de ASB, Postgres y App Insights), #197 (identidad administrada para `AzureWebJobsStorage`).
 - "Use Key Vault references for App Service and Azure Functions". https://learn.microsoft.com/azure/app-service/app-service-key-vault-references
+- "Considerations for Application Insights instrumentation" (la connection string no es secreto; referenciarla desde Key Vault deshabilita la telemetría del portal). https://learn.microsoft.com/azure/app-service/app-service-key-vault-references#understand-source-app-settings-from-key-vault
+- "Is the connection string a secret?" (Application Insights). https://learn.microsoft.com/azure/azure-monitor/app/connection-strings#is-the-connection-string-a-secret
 - "Connect to host storage with an identity" (Azure Functions). https://learn.microsoft.com/azure/azure-functions/functions-reference#connecting-to-host-storage-with-an-identity
 
 ## Control de cambios
 
 - 2026-07-01: creación. Adopta la doctrina de custodia de secretos del harness (su ADR-0025) y fija el mapa concreto de secretos del proyecto, la divergencia con la topología de ADR-0024 y los caveats de la migración brownfield. Numerado 0026 por ser el siguiente libre de la serie local (la serie local ya tenía 0025; el 0025 del harness es de otra serie).
+- 2026-07-03: enmienda (decisión #7). Application Insights sale de Key Vault y vuelve a valor directo (`module.monitoring.connection_string`); se documenta la divergencia con ADR-0025 del harness (la connection string de App Insights no es secreto y referenciarla desde Key Vault rompe la telemetría integrada del portal, según guía de Microsoft). Se actualiza el mapa de secretos (decisión #2) y las consecuencias. Descubierto durante la investigación del outage posterior a #196. El secreto `app-insights-connection` queda sin uso en el vault (limpieza opcional).
