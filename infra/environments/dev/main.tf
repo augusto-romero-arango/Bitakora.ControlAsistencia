@@ -77,6 +77,22 @@ module "service_bus" {
         }
       ]
     }
+    # ADR del marco (decision #3): todo evento privado cruza fisicamente el
+    # ASB interno, aun cuando productor (RegistrarMarcacion) y consumidor
+    # (AdicionarMarcacion) viven en el mismo Function App (ControlHoras).
+    "marcacion-registrada" = {
+      subscriptions = [
+        {
+          name   = "control-horas-escucha-marcacion"
+          filter = null
+        },
+        {
+          name                = "smoke-tests"
+          filter              = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
   }
   tags = local.tags
 }
