@@ -10,8 +10,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcac
 // ADR-0024 (decision #8): MarcacionRegistrada es un IPrivateEvent intra-BC y el comando equivalente
 // seria un espejo del evento (mismos campos, sin semantica propia), asi que se consume directo con
 // IPrivateEventHandlerAsync<MarcacionRegistrada> - sin comando espejo.
-// Trigger: evento local MarcacionRegistrada publicado via WolverinePrivateEventSender (#105),
-// ruteado in-process por IPrivateEventRouter (sin ServiceBusTrigger ni endpoint en este feature folder).
+// Trigger: MarcacionRegistrada publicado via WolverinePrivateEventSender (#105) cruza
+// fisicamente el ASB interno del BC (topic marcacion-registrada, issue #212/#213) y es
+// despachado a este handler por FunctionEndpoint (PrivateEventEndpointBase) via IPrivateEventRouter.
 // Patron crear-o-actualizar: ExistsAsync -> si no existe StartStream, si existe GetAggregateRootAsync
 // CA-9: ventana de traslape nocturno con corte a las 04:00 como constante del handler
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere

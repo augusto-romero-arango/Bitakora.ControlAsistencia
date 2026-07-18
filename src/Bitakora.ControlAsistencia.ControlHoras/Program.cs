@@ -3,6 +3,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -32,6 +33,11 @@ builder.Services.AgregarWolverineParaComandosServerless(
         // HU-108: registra el topic destino para DiaCalculado.
         // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.
         options.PublicarEventoServerless<DiaCalculado>("dia-calculado");
+        // issue #213 (ADR-0024 marco decision #3): MarcacionRegistrada es IPrivateEvent y debe
+        // cruzar fisicamente el ASB interno del BC, aun siendo consumido dentro del mismo
+        // Function App (AdicionarMarcacionCuandoMarcacionRegistrada). Topic + subscription
+        // provisionados en #212 (infra/environments/dev/main.tf).
+        options.PublicarEventoServerless<MarcacionRegistrada>("marcacion-registrada");
     });
 
 builder.Services.AgregarMartenEventStore();
