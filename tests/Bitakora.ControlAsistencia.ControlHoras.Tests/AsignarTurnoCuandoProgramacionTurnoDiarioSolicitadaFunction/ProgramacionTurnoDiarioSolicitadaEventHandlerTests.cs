@@ -1,18 +1,19 @@
-// HU-12: Asignar turno diario al control cuando se solicita programacion
+// HU-12 / issue #210: Asignar turno diario al control cuando llega ProgramacionTurnoDiarioSolicitada.
+// ADR-0024 #8: el evento privado intra-BC se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
 
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
-public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTests
-    : CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
+public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
+    : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
 {
     // Datos de prueba fijos - el stream ID es determinista a partir de EmpleadoId+Fecha
     private static readonly Guid SolicitudId =
@@ -30,8 +31,8 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
         "Turno Manana",
         [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [])]);
 
-    protected override ICommandHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-        new AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
+        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento() =>
         new(SolicitudId, Empleado, Fecha, DetalleTurnoTest);
@@ -44,7 +45,7 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
     // CA-6: el aggregate actualiza InformacionEmpleado, Fecha y DetalleTurno
     // CA-7: el stream ID resultante es "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     [Fact]
-    public async Task DebeEmitirTurnoDiarioAsignado_CuandoNoExisteControlDiario()
+    public async Task ProgramacionTurnoDiarioSolicitada_EmiteTurnoDiarioAsignado_CuandoNoExisteControlDiario()
     {
         // Sin Given - el stream no existe para este EmpleadoId+Fecha
         await WhenAsync(CrearEvento());
@@ -60,7 +61,7 @@ public class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandlerTe
     // CA-5: el nuevo evento contiene todos los campos actualizados
     // CA-8: el segundo mensaje opera sobre el mismo stream (mismo EmpleadoId+Fecha = mismo StreamId)
     [Fact]
-    public async Task DebeEmitirTurnoDiarioAsignado_CuandoYaExisteControlDiario()
+    public async Task ProgramacionTurnoDiarioSolicitada_EmiteTurnoDiarioAsignado_CuandoYaExisteControlDiario()
     {
         var solicitudAnteriorId = Guid.Parse("019600b0-0000-7000-8000-000000000002");
         var turnoAnterior = new TurnoDiarioAsignado(StreamId, Empleado, Fecha, DetalleTurnoTest, solicitudAnteriorId);

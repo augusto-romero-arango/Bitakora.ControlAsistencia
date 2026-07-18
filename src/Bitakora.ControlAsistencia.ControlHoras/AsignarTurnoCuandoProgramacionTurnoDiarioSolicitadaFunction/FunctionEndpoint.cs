@@ -1,18 +1,20 @@
 using Azure.Messaging.ServiceBus;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
-// HU-12: Primer ServiceBusTrigger del proyecto.
-// CA-1: Funcion Azure que consume ProgramacionTurnoDiarioSolicitada desde Service Bus.
-// CA-2: Deserializa el evento del mensaje y lo despacha al CommandHandler.
+// HU-12: ServiceBusTrigger que consume ProgramacionTurnoDiarioSolicitada desde el ASB interno del BC.
+// issue #210 / ADR-0024 (decision #8): el evento es IPrivateEvent intra-BC y el comando equivalente
+//   seria un espejo, asi que se despacha directo al IPrivateEventHandlerAsync via IPrivateEventRouter
+//   (PrivateEventEndpointBase) - sin comando espejo.
+// CA-3: el [Function] y el [ServiceBusTrigger] sobre topic/subscription se conservan.
 // ADR-0008: [Function("{Accion}Cuando{Evento}")]
-public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndpoint> logger)
-    : ServiceBusEndpointBase<ProgramacionTurnoDiarioSolicitada>(commandRouter, logger)
+public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<FunctionEndpoint> logger)
+    : PrivateEventEndpointBase<ProgramacionTurnoDiarioSolicitada>(privateEventRouter, logger)
 {
     [Function("AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada")]
     public async Task Run(

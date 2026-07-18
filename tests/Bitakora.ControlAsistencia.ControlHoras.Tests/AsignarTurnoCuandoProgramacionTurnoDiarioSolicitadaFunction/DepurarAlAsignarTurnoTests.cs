@@ -10,16 +10,16 @@ using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
 public class DepurarAlAsignarTurnoTests
-    : CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
+    : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
 {
     // Datos de prueba fijos - el stream ID es determinista a partir de EmpleadoId+Fecha
     private static readonly Guid SolicitudId =
@@ -40,8 +40,8 @@ public class DepurarAlAsignarTurnoTests
     private static readonly DateTime Timestamp15_00 = new(2026, 3, 15, 15, 0, 0);
 
     // HU-131: handler ahora requiere IPublicEventSender para publicar DiaCalculado
-    protected override ICommandHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-        new AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
+        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
         new(SolicitudId, Empleado, Fecha, detalleTurno);
@@ -67,7 +67,7 @@ public class DepurarAlAsignarTurnoTests
     // CA-1 (HU-131): el handler publica DiaCalculado con InformacionEmpleado, Fecha
     //        y ControlesDeFranja actualizados (Entrada y Salida presentes, EsAnomala=false).
     [Fact]
-    public async Task DebeCalcularControlFranja_CuandoMarcacionesLlegaronAntesQueTurno()
+    public async Task ProgramacionTurnoDiarioSolicitada_CalculaControlFranja_CuandoMarcacionesLlegaronAntesQueTurno()
     {
         var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14]);
         Given(StreamId,

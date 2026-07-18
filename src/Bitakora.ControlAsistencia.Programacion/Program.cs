@@ -29,6 +29,10 @@ builder.Services.AgregarWolverineParaComandosServerless(
     options =>
     {
         options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
+        // ADR-0024 decision #3: aunque ProgramacionTurnoDiarioSolicitada es IPrivateEvent (issue #210),
+        // sigue cruzando fisicamente el ASB interno del BC. El topic mapping se conserva: el constraint
+        // de PublicarEventoServerless es IEvent y Wolverine rutea por el tipo concreto del mensaje, asi
+        // que el mismo mapeo aplica ya sea que se publique via IPublicEventSender o IPrivateEventSender.
         options.PublicarEventoServerless<ProgramacionTurnoDiarioSolicitada>(
             "programacion-turno-diario-solicitada");
     });

@@ -35,11 +35,11 @@ builder.Services.AgregarWolverineParaComandosServerless(
     });
 
 builder.Services.AgregarMartenEventStore();
-// AgregarWolverineCommandRouter se conserva: RegistrarMarcacion (HTTP) y
-// AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada (evento publico -> comando) lo siguen usando.
+// AgregarWolverineCommandRouter se conserva: RegistrarMarcacion (HTTP) lo sigue usando.
 builder.Services.AgregarWolverineCommandRouter();
-// Issue #209 (ADR-0024 decision #8): MarcacionRegistrada (IPrivateEvent intra-BC) se consume
-// directo con IPrivateEventHandlerAsync via IPrivateEventRouter, sin comando espejo.
+// Issue #209/#210 (ADR-0024 decision #8): los eventos privados intra-BC (MarcacionRegistrada,
+// ProgramacionTurnoDiarioSolicitada) se consumen directo con IPrivateEventHandlerAsync via
+// IPrivateEventRouter, sin comando espejo.
 builder.Services.AgregarWolverinePrivateEventRouter();
 builder.Services.AgregarWolverineEventSender();
 

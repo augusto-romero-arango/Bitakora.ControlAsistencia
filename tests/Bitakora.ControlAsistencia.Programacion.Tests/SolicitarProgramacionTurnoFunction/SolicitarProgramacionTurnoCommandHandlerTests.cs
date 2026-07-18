@@ -38,7 +38,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // --- Configuracion del handler ---
 
     protected override ICommandHandlerAsync<SolicitarProgramacionTurno> Handler =>
-        new SolicitarProgramacionTurnoCommandHandler(EventStore, PublicEventSender);
+        new SolicitarProgramacionTurnoCommandHandler(EventStore, PrivateEventSender);
 
     // --- Factory methods ---
 
@@ -60,7 +60,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, Empleado, [Fecha1], DetalleEsperado));
-        ThenIsPublishedPublicly(new ProgramacionTurnoDiarioSolicitada(
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
             GuidAggregateId, Empleado, Fecha1, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
@@ -75,7 +75,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, Empleado, [Fecha1, Fecha2], DetalleEsperado));
-        ThenIsPublishedPublicly(
+        ThenIsPublishedPrivately(
             new ProgramacionTurnoDiarioSolicitada(
                 GuidAggregateId, Empleado, Fecha1, DetalleEsperado),
             new ProgramacionTurnoDiarioSolicitada(

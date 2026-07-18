@@ -9,10 +9,10 @@
 // patron que DesgloseHorasTras*Tests) y se verifica via el selector de And<>() sobre el aggregate
 // rehidratado. And<>() compara estructuralmente (BeEquivalentTo).
 //
-// Nested classes: CrearDiaCalculado() lo conducen ambos handlers sobre el mismo aggregate, por lo que
-// comparten datos pero requieren bases de test distintas: AsignarTurno es un comando genuino
-// (CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>); AdicionarMarcacion, tras issue #209,
-// consume el evento privado directo (PrivateEventHandlerAsyncTest<MarcacionRegistrada>, ADR-0024 #8).
+// Nested classes: CrearDiaCalculado() lo conducen ambos EventHandlers sobre el mismo aggregate, por lo
+// que comparten datos pero reaccionan a eventos privados distintos. Tras issue #209 y #210 ambos
+// consumen su evento privado directo con PrivateEventHandlerAsyncTest<TEvent> (ADR-0024 #8):
+// AsignarTurno reacciona a ProgramacionTurnoDiarioSolicitada; AdicionarMarcacion a MarcacionRegistrada.
 //
 // El valor esperado se registra A MANO como oraculo independiente: el diccionario de minutos por
 // concepto se calcula de la geometria del dia, sin ejecutar Discriminar ni Consolidar (la logica bajo
@@ -24,12 +24,11 @@ using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
 using Cosmos.EventDriven.Abstractions;
-using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
@@ -67,10 +66,10 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
         new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 };
 
     public class ViaAsignarTurnoTests
-        : CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
+        : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
     {
-        protected override ICommandHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-            new AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(
+        protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
+            new ProgramacionTurnoDiarioSolicitadaEventHandler(
                 EventStore, PublicEventSender);
 
         private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
