@@ -2,17 +2,17 @@
 
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
 
-public class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandlerTests
-    : CommandHandlerAsyncTest<MarcacionRegistrada>
+public class MarcacionRegistradaEventHandlerTests
+    : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
 {
     // Datos de prueba fijos
     private const string EmpleadoId = "EMP-001";
@@ -27,8 +27,8 @@ public class AdicionarMarcacionCuandoMarcacionRegistradaCommandHandlerTests
     private static readonly string StreamIdDia15 = $"{EmpleadoId}:2026-03-15";
     private static readonly string StreamIdDia14 = $"{EmpleadoId}:2026-03-14";
 
-    protected override ICommandHandlerAsync<MarcacionRegistrada> Handler =>
-        new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
+        new MarcacionRegistradaEventHandler(EventStore, PublicEventSender);
 
     // Factory para MarcacionRegistrada; el timestamp decide si cae en la ventana nocturna.
     private static MarcacionRegistrada CrearMarcacionRegistrada(

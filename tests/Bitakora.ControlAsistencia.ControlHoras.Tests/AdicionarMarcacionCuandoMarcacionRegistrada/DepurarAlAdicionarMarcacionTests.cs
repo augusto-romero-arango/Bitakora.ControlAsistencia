@@ -8,17 +8,17 @@ using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
 
-public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<MarcacionRegistrada>
+public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
 {
     // Datos de prueba fijos - misma ancla de fecha que los tests del handler
     private const string EmpleadoId = "EMP-001";
@@ -48,8 +48,8 @@ public class DepurarAlAdicionarMarcacionTests : CommandHandlerAsyncTest<Marcacio
     private static readonly DateTime Timestamp14_10 = new(2026, 3, 15, 14, 10, 0);
 
     // HU-108: handler ahora requiere IPublicEventSender para publicar DiaCalculado
-    protected override ICommandHandlerAsync<MarcacionRegistrada> Handler =>
-        new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
+        new MarcacionRegistradaEventHandler(EventStore, PublicEventSender);
 
     private static MarcacionRegistrada CrearMarcacionRegistrada(DateTime timestamp) =>
         new(EmpleadoId, timestamp, "ENTRADA", "DEV-001");

@@ -9,9 +9,10 @@
 // patron que DesgloseHorasTras*Tests) y se verifica via el selector de And<>() sobre el aggregate
 // rehidratado. And<>() compara estructuralmente (BeEquivalentTo).
 //
-// Nested classes: CrearDiaCalculado() lo invocan ambos handlers (AsignarTurno y AdicionarMarcacion)
-// sobre el mismo aggregate, por lo que comparten datos pero requieren bases CommandHandlerAsyncTest
-// distintas (una por tipo de comando).
+// Nested classes: CrearDiaCalculado() lo conducen ambos handlers sobre el mismo aggregate, por lo que
+// comparten datos pero requieren bases de test distintas: AsignarTurno es un comando genuino
+// (CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>); AdicionarMarcacion, tras issue #209,
+// consume el evento privado directo (PrivateEventHandlerAsyncTest<MarcacionRegistrada>, ADR-0024 #8).
 //
 // El valor esperado se registra A MANO como oraculo independiente: el diccionario de minutos por
 // concepto se calcula de la geometria del dia, sin ejecutar Discriminar ni Consolidar (la logica bajo
@@ -21,12 +22,13 @@ using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -126,10 +128,10 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     }
 
     public class ViaAdicionarMarcacionTests
-        : CommandHandlerAsyncTest<MarcacionRegistrada>
+        : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
     {
-        protected override ICommandHandlerAsync<MarcacionRegistrada> Handler =>
-            new AdicionarMarcacionCuandoMarcacionRegistradaCommandHandler(
+        protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
+            new MarcacionRegistradaEventHandler(
                 EventStore, PublicEventSender);
 
         private static MarcacionRegistrada CrearMarcacionRegistrada(DateTime timestamp) =>
