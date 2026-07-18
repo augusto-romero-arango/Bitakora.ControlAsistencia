@@ -35,7 +35,12 @@ builder.Services.AgregarWolverineParaComandosServerless(
     });
 
 builder.Services.AgregarMartenEventStore();
+// AgregarWolverineCommandRouter se conserva: RegistrarMarcacion (HTTP) y
+// AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada (evento publico -> comando) lo siguen usando.
 builder.Services.AgregarWolverineCommandRouter();
+// Issue #209 (ADR-0024 decision #8): MarcacionRegistrada (IPrivateEvent intra-BC) se consume
+// directo con IPrivateEventHandlerAsync via IPrivateEventRouter, sin comando espejo.
+builder.Services.AgregarWolverinePrivateEventRouter();
 builder.Services.AgregarWolverineEventSender();
 
 // Registrar serializacion custom para tipos con constructores privados
