@@ -1,13 +1,12 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 
-// HU-106: Evento privado que registra la adicion de una marcacion al ControlDiario
-// Se persiste en el stream de ControlDiarioAggregateRoot (Id = stream ID compuesto)
-// Publicado localmente via Wolverine; consumido por #107 para depuracion
-public sealed class MarcacionAdicionada : IPrivateEvent
+// HU-106: Evento de event sourcing que registra la adicion de una marcacion al ControlDiario.
+// Se persiste en el stream de ControlDiarioAggregateRoot (Id = stream ID compuesto) y no cruza el bus.
+// ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
+public sealed class MarcacionAdicionada
 {
     // CA-7: Id es el stream ID del ControlDiario: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     public string Id { get; private set; } = null!;
