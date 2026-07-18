@@ -3,7 +3,7 @@
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +11,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 
 /// <summary>
 /// Tests del endpoint ServiceBus AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada.
-/// Verifica orquestacion: deserializacion + despacho al command router + manejo de errores de Service Bus.
+/// issue #210 / ADR-0024 #8: el evento privado se despacha directo al IPrivateEventRouter (sin comando espejo).
+/// Verifica orquestacion: deserializacion + despacho al private event router + manejo de errores de Service Bus.
 /// Regresion del issue #48: no intentar dead-letter cuando se pierde el lock.
 /// </summary>
 public class FunctionEndpointTests
@@ -47,11 +48,11 @@ public class FunctionEndpointTests
     private static ServiceBusReceivedMessage CrearMensaje()
         => ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString(JsonFormatoWolverine));
 
-    // CA-1: camino feliz - deserializa el JSON, despacha al command router, completa el mensaje
+    // CA-1: camino feliz - deserializa el JSON, despacha al private event router, completa el mensaje
     [Fact]
     public async Task DebeCompletarMensaje_CuandoProcesamientoEsExitoso()
     {
-        var router = new FakeCommandRouter();
+        var router = new FakePrivateEventRouter();
         var messageActions = new FakeServiceBusMessageActions();
         var logger = new FakeLogger();
         var endpoint = new FunctionEndpoint(router, logger);
@@ -71,7 +72,7 @@ public class FunctionEndpointTests
         var lockLostException = new ServiceBusException(
             "Lock del mensaje expirado",
             ServiceBusFailureReason.MessageLockLost);
-        var router = new FakeCommandRouter();
+        var router = new FakePrivateEventRouter();
         var messageActions = new FakeServiceBusMessageActions(excepcionAlCompletar: lockLostException);
         var logger = new FakeLogger();
         var endpoint = new FunctionEndpoint(router, logger);
@@ -86,7 +87,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task DebeEnviarADeadLetter_CuandoOcurreErrorGenerico()
     {
-        var router = new FakeCommandRouter(
+        var router = new FakePrivateEventRouter(
             excepcion: new InvalidOperationException("Error inesperado en el handler"));
         var messageActions = new FakeServiceBusMessageActions();
         var logger = new FakeLogger();
@@ -102,29 +103,25 @@ public class FunctionEndpointTests
 // ---- Fakes manuales - NO NSubstitute ----
 
 /// <summary>
-/// Fake configurable de ICommandRouter. Puede completar exitosamente o lanzar
+/// Fake configurable de IPrivateEventRouter. Puede despachar exitosamente o lanzar
 /// una excepcion especifica para simular distintos escenarios de fallo.
 /// </summary>
-internal class FakeCommandRouter : ICommandRouter
+internal class FakePrivateEventRouter : IPrivateEventRouter
 {
     private readonly Exception? _excepcion;
 
-    public FakeCommandRouter(Exception? excepcion = null)
+    public FakePrivateEventRouter(Exception? excepcion = null)
     {
         _excepcion = excepcion;
     }
 
-    public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
-        where TCommand : class
+    public Task InvokeAsync<TEvent>(TEvent @event, CancellationToken cancellationToken)
+        where TEvent : class, IPrivateEvent
     {
         if (_excepcion is not null)
             throw _excepcion;
         return Task.CompletedTask;
     }
-
-    public Task<TResult> InvokeAsync<TCommand, TResult>(TCommand command, CancellationToken ct = default)
-        where TCommand : class
-        => throw new NotImplementedException();
 }
 
 /// <summary>

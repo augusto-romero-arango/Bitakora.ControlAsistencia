@@ -4,23 +4,26 @@ using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.CommandHandler;
+namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 
-// HU-12: Handler que asigna el turno diario al ControlDiario cuando llega
-//        ProgramacionTurnoDiarioSolicitada desde Service Bus.
+// HU-12 / issue #210: EventHandler que asigna el turno diario al ControlDiario cuando llega
+//   ProgramacionTurnoDiarioSolicitada desde el ASB interno del BC.
+// ADR-0024 (decision #8): ProgramacionTurnoDiarioSolicitada es un IPrivateEvent intra-BC y el comando
+//   equivalente seria un espejo del evento (mismos campos, sin semantica propia), asi que se consume
+//   directo con IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> - sin comando espejo.
 // Patron crear-o-actualizar:
 //   - CA-3: si NO existe el stream para EmpleadoId+Fecha -> StartStream
 //   - CA-4: si YA existe -> GetAggregateRootAsync + AsignarTurno (SaveChanges automatico)
-// HU-131: publica DiaCalculado via IPublicEventSender tras el Apply(TurnoDiarioAsignado)
-//         que dispara el recalculo reactivo de ControlesDeFranja.
+// HU-131 / CA-4: publica DiaCalculado via IPublicEventSender tras el Apply(TurnoDiarioAsignado)
+//   que dispara el recalculo reactivo de ControlesDeFranja.
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
-public partial class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler
-    : ICommandHandlerAsync<ProgramacionTurnoDiarioSolicitada>
+public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
+    : IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada>
 {
     private readonly IEventStore _eventStore;
     private readonly IPublicEventSender _publicEventSender;
 
-    public AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(
+    public ProgramacionTurnoDiarioSolicitadaEventHandler(
         IEventStore eventStore,
         IPublicEventSender publicEventSender)
     {
@@ -28,13 +31,13 @@ public partial class AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandH
         _publicEventSender = publicEventSender;
     }
 
-    public async Task HandleAsync(ProgramacionTurnoDiarioSolicitada command, CancellationToken ct = default)
+    public async Task HandleAsync(ProgramacionTurnoDiarioSolicitada @event, CancellationToken ct = default)
     {
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
-            command.Empleado.EmpleadoId, command.Fecha);
+            @event.Empleado.EmpleadoId, @event.Fecha);
 
         var evento = new TurnoDiarioAsignado(
-            streamId, command.Empleado, command.Fecha, command.DetalleTurno, command.SolicitudId);
+            streamId, @event.Empleado, @event.Fecha, @event.DetalleTurno, @event.SolicitudId);
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 

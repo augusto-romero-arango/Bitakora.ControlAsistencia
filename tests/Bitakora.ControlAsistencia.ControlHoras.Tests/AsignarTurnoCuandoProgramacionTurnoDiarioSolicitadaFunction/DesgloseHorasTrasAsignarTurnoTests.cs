@@ -13,16 +13,16 @@ using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
 public class DesgloseHorasTrasAsignarTurnoTests
-    : CommandHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
+    : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
 {
     // Datos de prueba fijos - el stream ID es determinista a partir de EmpleadoId+Fecha
     private static readonly Guid SolicitudId =
@@ -48,8 +48,8 @@ public class DesgloseHorasTrasAsignarTurnoTests
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp15_00 = new(2026, 3, 15, 15, 0, 0);
 
-    protected override ICommandHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-        new AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaCommandHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
+        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
         new(SolicitudId, Empleado, Fecha, detalleTurno);

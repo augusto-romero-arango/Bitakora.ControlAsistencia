@@ -10,14 +10,14 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     : ICommandHandlerAsync<SolicitarProgramacionTurno>
 {
     private readonly IEventStore _eventStore;
-    private readonly IPublicEventSender _publicEventSender;
+    private readonly IPrivateEventSender _privateEventSender;
 
     public SolicitarProgramacionTurnoCommandHandler(
         IEventStore eventStore,
-        IPublicEventSender publicEventSender)
+        IPrivateEventSender privateEventSender)
     {
         _eventStore = eventStore;
-        _publicEventSender = publicEventSender;
+        _privateEventSender = privateEventSender;
     }
 
     public async Task HandleAsync(SolicitarProgramacionTurno command, CancellationToken ct = default)
@@ -39,11 +39,13 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         _eventStore.StartStream(solicitud);
 
-        var eventosPublicos = command.Fechas
-            .Select(fecha => (IPublicEvent)new ProgramacionTurnoDiarioSolicitada(
+        // ADR-0024 decision #2/#3: ProgramacionTurnoDiarioSolicitada es intra-BC (lo consume
+        // ControlHoras, mismo BC) -> IPrivateEvent publicado al ASB interno via IPrivateEventSender.
+        var eventosPrivados = command.Fechas
+            .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
                 command.Id, command.Empleado, fecha, detalleTurno))
             .ToArray();
 
-        await _publicEventSender.PublishAsync(eventosPublicos);
+        await _privateEventSender.PublishAsync(eventosPrivados);
     }
 }
