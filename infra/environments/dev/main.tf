@@ -58,12 +58,12 @@ module "service_bus" {
     "programacion-turno-diario-solicitada" = {
       subscriptions = [
         {
-          name   = "control-horas-escucha-programacion"
-          filter = null
+          name               = "control-horas-escucha-programacion"
+          correlation_filter = null
         },
         {
           name                = "smoke-tests"
-          filter              = null
+          correlation_filter  = null
           default_message_ttl = "PT5M"
         }
       ]
@@ -72,7 +72,7 @@ module "service_bus" {
       subscriptions = [
         {
           name                = "smoke-tests"
-          filter              = null
+          correlation_filter  = null
           default_message_ttl = "PT5M"
         }
       ]
@@ -83,12 +83,12 @@ module "service_bus" {
     "marcacion-registrada" = {
       subscriptions = [
         {
-          name   = "control-horas-escucha-marcacion"
-          filter = null
+          name               = "control-horas-escucha-marcacion"
+          correlation_filter = null
         },
         {
           name                = "smoke-tests"
-          filter              = null
+          correlation_filter  = null
           default_message_ttl = "PT5M"
         }
       ]

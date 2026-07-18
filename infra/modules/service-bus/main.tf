@@ -24,11 +24,25 @@ variable "topics_config" {
   type = map(object({
     subscriptions = optional(list(object({
       name                = string
-      filter              = optional(string)
+      correlation_filter  = optional(map(string))
       default_message_ttl = optional(string)
     })), [])
   }))
   default = {}
+
+  # ADR-0027: el enrutamiento multi-destinatario usa siempre un correlation
+  # filter de igualdad (ADR-0001 rechaza SqlFilter sin excepcion). Cuando una
+  # subscription declara correlation_filter debe traer al menos una property de
+  # igualdad; un mapa vacio no describe ningun criterio y Azure lo rechazaria.
+  validation {
+    condition = alltrue(flatten([
+      for topic in values(var.topics_config) : [
+        for sub in topic.subscriptions :
+        sub.correlation_filter == null ? true : length(sub.correlation_filter) > 0
+      ]
+    ]))
+    error_message = "Cada correlation_filter debe declarar al menos una property de igualdad (ADR-0027)."
+  }
 }
 
 variable "tags" {
@@ -62,7 +76,7 @@ locals {
         key                 = "${topic_name}/${sub.name}"
         topic_name          = topic_name
         sub_name            = sub.name
-        filter              = sub.filter
+        correlation_filter  = sub.correlation_filter
         default_message_ttl = sub.default_message_ttl
       }
     ]
@@ -78,15 +92,22 @@ resource "azurerm_servicebus_subscription" "subs" {
   default_message_ttl = each.value.default_message_ttl
 }
 
+# ADR-0001 / ADR-0027: se removio el escape-hatch SqlFilter. El enrutamiento
+# multi-destinatario se resuelve solo con correlation filter de igualdad sobre
+# properties de la aplicacion (>= 1, garantizado por la validation de
+# topics_config).
 resource "azurerm_servicebus_subscription_rule" "filters" {
   for_each = {
     for k, v in local.subscriptions_map : k => v
-    if v.filter != null
+    if v.correlation_filter != null
   }
   name            = "filter"
   subscription_id = azurerm_servicebus_subscription.subs[each.key].id
-  filter_type     = "SqlFilter"
-  sql_filter      = each.value.filter
+  filter_type     = "CorrelationFilter"
+
+  correlation_filter {
+    properties = each.value.correlation_filter
+  }
 }
 
 output "id" {
