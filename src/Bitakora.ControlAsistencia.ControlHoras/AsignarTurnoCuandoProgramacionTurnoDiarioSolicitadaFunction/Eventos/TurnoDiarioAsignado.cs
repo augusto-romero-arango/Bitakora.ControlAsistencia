@@ -2,18 +2,17 @@ using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 
 /// <summary>
-/// Evento privado que registra la asignacion de un turno diario al ControlDiario.
-/// Se persiste en el stream de ControlDiarioAggregateRoot.
-/// No se publica al Service Bus.
+/// Evento de event sourcing que registra la asignacion de un turno diario al ControlDiario.
+/// Se persiste en el stream de ControlDiarioAggregateRoot y no cruza el bus.
+/// ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
 /// </summary>
 // HU-12: evento de event sourcing del aggregate ControlDiario
 // CA-5: contiene InformacionEmpleado, Fecha, DetalleTurno y SolicitudId (trazabilidad)
-public sealed class TurnoDiarioAsignado : IPrivateEvent
+public sealed class TurnoDiarioAsignado
 {
     public string Id { get; private set; } = null!;
     public InformacionEmpleado InformacionEmpleado { get; private set; } = null!;
