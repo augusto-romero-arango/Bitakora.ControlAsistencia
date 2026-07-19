@@ -1,0 +1,225 @@
+# Flujo: Calculo del dia de trabajo y emision de DiaCalculado
+#
+# Flujo reactivo end-to-end que va desde la definicion del turno y la captura
+# de marcaciones, hasta la publicacion del desglose de horas legal colombiano
+# hacia el sistema de nomina.
+#
+# Contextos involucrados: Programacion (upstream) -> ControlHoras (downstream).
+# Sistemas externos: Sistema de marcacion (productor), Sistema de nomina (consumidor).
+#
+# Caracteristica central: ControlHoras es REACTIVO. El ControlDiarioAggregateRoot
+# no tiene un comando "calcular". Cualquier cambio de estado (nueva marcacion o
+# nueva programacion) dispara: Depurar -> Recalcular desglose -> emitir DiaCalculado.
+#
+# Estado: en desarrollo
+# Ultima actualizacion: 2026-06-23 (formalizacion del flujo; #139 en proceso)
+#
+# Convencion de estado por paso:
+#   implementado  -> en main, verificado en codigo
+#   en-proceso    -> issue activo en pipeline
+#   planificado   -> modelado pero sin issue en curso
+
+flow:
+  name: CalculoDiaTrabajo
+  description: >
+    De una marcacion HTTP (o una programacion de turno) hasta el evento publico
+    DiaCalculado con el desglose de horas legal colombiano, publicado a nomina.
+    El ControlDiarioAggregateRoot es el punto de convergencia: ambos disparadores
+    (marcacion y programacion) terminan recalculando el dia y publicando DiaCalculado.
+  contexts: [Programacion, ControlHoras]
+  external_producers: [Sistema de marcacion]
+  external_consumers: [Sistema de nomina]
+  actors: [Programador de turnos, Aprobador]
+
+  # ---------------------------------------------------------------
+  # SUBFLUJO A — Programacion del turno (Programacion -> ControlHoras)
+  # ---------------------------------------------------------------
+  subflows:
+    - name: ProgramarTurno
+      context: Programacion
+      description: >
+        Un programador define turnos en el catalogo y solicita la programacion
+        de un turno para un empleado en fechas concretas. La solicitud se descompone
+        en un evento publico por dia, que cruza a ControlHoras por Service Bus.
+      steps:
+        - step: 1
+          actor: Programador de turnos
+          command: CrearTurno
+          trigger: HTTP POST programacion/turnos
+          aggregate: CatalogoTurnos
+          produces: [TurnoCreado]
+          visibility: privado
+          status: implementado
+          note: "Define el turno con sus franjas ordinarias (descansos y extras anidados)."
+
+        - step: 2
+          actor: Programador de turnos
+          command: SolicitarProgramacionTurno
+          trigger: HTTP POST programacion/solicitudes
+          aggregate: SolicitudProgramacionAggregateRoot
+          produces: [ProgramacionTurnoSolicitada, ProgramacionTurnoDiarioSolicitada]
+          status: implementado
+          note: >
+            ProgramacionTurnoSolicitada es privado (event sourcing del aggregate).
+            ProgramacionTurnoDiarioSolicitada es PUBLICO: se emite uno por cada fecha
+            de la solicitud y cruza a ControlHoras por Service Bus. El turno viaja
+            COMPLETO en el evento (DetalleTurno), nunca como ID (ADR-0002).
+
+  # ---------------------------------------------------------------
+  # SUBFLUJO B — Captura de marcaciones (ControlHoras interno)
+  # ---------------------------------------------------------------
+    - name: CapturarMarcacion
+      context: ControlHoras
+      description: >
+        El sistema de marcacion externo envia marcaciones crudas por HTTP.
+        ControlHoras las normaliza (trunca segundos al minuto) y persiste un
+        RegistroDeMarcacion con stream ID determinista para idempotencia.
+      steps:
+        - step: 3
+          actor: Sistema de marcacion
+          command: RegistrarMarcacion
+          trigger: HTTP POST control-horas/marcaciones
+          aggregate: RegistroDeMarcacionAggregateRoot
+          produces: [MarcacionRegistrada]
+          visibility: privado-local
+          status: implementado
+          note: >
+            MarcacionRegistrada se publica como evento LOCAL Wolverine (in-process),
+            no sale a Service Bus. Lo consume el handler AdicionarMarcacion dentro
+            de la misma Function App. Identidad determinista {EmpleadoId}:{Timestamp}
+            para idempotencia por duplicado exacto.
+
+  # ---------------------------------------------------------------
+  # SUBFLUJO C — Recalculo reactivo del dia (corazon del flujo)
+  # ---------------------------------------------------------------
+    - name: RecalcularDia
+      context: ControlHoras
+      description: >
+        Punto de convergencia. Dos disparadores alimentan el mismo aggregate
+        (ControlDiarioAggregateRoot, identidad EmpleadoId + Fecha). Tras cada Apply,
+        el aggregate depura, recalcula el desglose y emite DiaCalculado.
+      steps:
+        - step: 4a
+          handler: AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada
+          trigger: ServiceBusTrigger (ProgramacionTurnoDiarioSolicitada)
+          aggregate: ControlDiarioAggregateRoot
+          applies: TurnoDiarioAsignado
+          status: implementado
+          note: "Primer ServiceBusTrigger del proyecto. Consume el evento publico de Programacion."
+
+        - step: 4b
+          handler: AdicionarMarcacionCuandoMarcacionRegistrada
+          trigger: evento local Wolverine (MarcacionRegistrada)
+          aggregate: ControlDiarioAggregateRoot
+          applies: MarcacionAdicionada
+          status: implementado
+          note: "Consume el evento in-process del subflujo B."
+
+        - step: 5
+          name: Depurar
+          descripcion: >
+            Tras cada Apply, el aggregate ejecuta Depurar(): asigna las marcaciones
+            a las franjas del turno por rango secuencial y produce los ControlesDeFranja
+            (cada uno con su programacion + entrada/salida + EsAnomala calculada).
+          implementado_en: ["#122", "#123"]
+          status: implementado
+          note: "Ver docs/eda/aggregates/control-diario.yaml (seccion depurador)."
+
+        - step: 6
+          name: RecalcularDesgloseHoras
+          descripcion: >
+            Tras Depurar(), el aggregate invoca el motor de calculo sobre los
+            ControlesDeFranja no anomalos y consolida el DesgloseHoras del dia.
+            Este es el cableado que conecta el motor (ya existente) al aggregate.
+          status: en-proceso
+          issue: "#139"
+          note: >
+            HOY el aggregate publica DiaCalculado con DesgloseHoras.Vacio
+            (ControlDiarioAggregateRoot.cs: CrearDiaCalculado usa DesgloseHoras.Vacio).
+            El motor de calculo existe pero aun no esta conectado. #139 agrega
+            RecalcularDesgloseHoras() al final de Apply(MarcacionAdicionada) y
+            Apply(TurnoDiarioAsignado), despues de Depurar(). Sin snapshots (ADR-0021):
+            estado derivado, se recalcula en cada Apply y en cada rehidratacion.
+
+        - step: 7
+          actor: Aprobador
+          event: DiaCalculado
+          aggregate: ControlDiarioAggregateRoot
+          visibility: publico
+          published_to: topic dia-calculado (Service Bus)
+          consumed_by: [Sistema de nomina]
+          status: implementado
+          note: >
+            La EMISION ya existe (#108 tras marcacion, #131 tras asignar turno;
+            topic provisionado en #132). DiaCalculado se emite SIEMPRE tras cada
+            recalculo, incluso si el resultado son ceros, porque su contenido
+            (ControlesDeFranja) cambia con cada marcacion. El DesgloseHoras real
+            llega cuando #139 cierre.
+
+  # ---------------------------------------------------------------
+  # MOTOR DE CALCULO (clases puras invocadas en step 6)
+  # ---------------------------------------------------------------
+  # Pipeline de transformacion que convierte ControlesDeFranja en DesgloseHoras.
+  # Todas las piezas estan implementadas (clases puras en ControlHoras/Entities).
+  # ---------------------------------------------------------------
+  motor_calculo:
+    descripcion: >
+      Cadena de clases puras que el aggregate invoca en RecalcularDesgloseHoras (#139).
+      Trabaja sobre MomentoDelDia / IntervaloTemporal (nunca DateTime salvo en la
+      frontera de ControlFranja.CalcularDesglose).
+    pipeline:
+      - paso: ClasificadorTrabajo.Clasificar
+        rol: "Clasifica cada minuto trabajado de una franja con su Concepto legal (banda + tipo de dia + posicion)."
+        issue: "#135"
+        status: implementado
+      - paso: ControlFranja.CalcularDesglose
+        rol: "Por franja: anade retardo, excedente y compensacion intra-franja. Produce DesgloseFranja. Frontera DateTime -> MomentoDelDia."
+        issue: "#136"
+        status: implementado
+      - paso: ConsolidadorDesgloseHoras.Consolidar
+        rol: "Consolida los DesgloseFranja del dia con compensacion cronologica inversa cross-franja. Produce DesgloseHoras."
+        issue: "#116"
+        status: implementado
+    dependencias_base:
+      - "MomentoDelDia, IntervaloTemporal (#112, #143)"
+      - "Concepto, IntervaloClasificado, DetalleRetardo, DesgloseFranja, DesgloseHoras (#114, #129)"
+      - "ClasificadorHorario, BandaHoraria, TipoDia, FronterasHorariasLegales (#134)"
+      - "CalendarioFestivosColombia (#113)"
+
+  # ---------------------------------------------------------------
+  # CRUCES POR SERVICE BUS
+  # ---------------------------------------------------------------
+  service_bus:
+    - event: ProgramacionTurnoDiarioSolicitada
+      from: Programacion
+      to: ControlHoras
+      relacion: Customer-Supplier (ADR-0002)
+      status: implementado
+    - event: DiaCalculado
+      from: ControlHoras
+      to: Sistema de nomina (externo)
+      relacion: Upstream-Downstream
+      topic: dia-calculado
+      status: implementado
+      note: "Topic provisionado en #132. Payload con DesgloseHoras real pendiente de #139."
+
+  # ---------------------------------------------------------------
+  # ESTADO GLOBAL DEL FLUJO
+  # ---------------------------------------------------------------
+  estado_global:
+    resumen: >
+      El flujo esta operativo end-to-end EXCEPTO el contenido del desglose.
+      Hoy DiaCalculado se publica con DesgloseHoras.Vacio. El unico eslabon
+      faltante es el cableado del motor de calculo al aggregate (#139).
+      Al cerrar #139, el lazo queda completo: de una marcacion HTTP hasta el
+      desglose legal colombiano publicado a nomina, sin intervencion manual.
+    eslabon_faltante: "#139 - RecalcularDesgloseHoras() en el aggregate"
+
+  # ---------------------------------------------------------------
+  # PREGUNTAS ABIERTAS QUE TOCAN ESTE FLUJO
+  # ---------------------------------------------------------------
+  # (Ver docs/eda/ubiquitous-language.yaml, seccion open_questions)
+  preguntas_abiertas:
+    - "Flujo de aprobacion antes de transmitir a nomina: hoy DiaCalculado se publica automatico, pero el dominio dice que hay aprobacion al cierre de nomina (Aprobador). priority: high"
+    - "Periodo de computo: hoy se calcula por dia; las extras/recargos suelen liquidarse semanal/quincenal/mensual. priority: medium"
+    - "Recepcion de lotes de marcaciones y marcaciones huerfanas (EmpleadoId sin match). priority: medium"

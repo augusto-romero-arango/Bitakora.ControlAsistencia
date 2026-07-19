@@ -11,14 +11,21 @@
 # - Comandos: PascalCase imperativo (RegistrarMarcacion, AsignarTurno)
 # - Policies: PascalCase descriptivo (DepuracionAutomatica)
 #
-# Ultima actualizacion: 2026-04-17 (ControlHoras: value objects del desglose de horas, int para minutos)
+# CLASIFICACION DE VISIBILITY (ADR-0024 del marco):
+# - public         -> IPublicEvent: lo consume OTRO BC (sistema externo). Cruza backbone / integracion externa.
+# - private        -> IPrivateEvent: lo consume un dominio del MISMO BC. Cruza el ASB interno.
+# - event-sourcing -> evento del aggregate, SIN marker de bus. No cruza ningun bus (event store de Marten).
+#
+# Ultima actualizacion: 2026-07-18 (decision de un solo BC "Control de Asistencia":
+#   ProgramacionTurnoDiarioSolicitada pasa de public a private; se distingue 'event-sourcing'
+#   de 'private' para los eventos que solo viven en el aggregate. Ver context-map.yaml.)
 
 events:
   - name: TurnoCreado
     context: Programacion
     description: Un nuevo turno fue creado en el catalogo con su estructura de franjas completa
     form: sealed class  # ADR-0015: evento con precondiciones, no record
-    visibility: private  # evento de event sourcing del aggregate, no se publica a Service Bus
+    visibility: event-sourcing  # evento del aggregate, sin marker de bus, no cruza ASB
     payload:
       - field: TurnoId
         type: Guid
@@ -33,7 +40,7 @@ events:
   - name: ProgramacionTurnoSolicitada
     context: Programacion
     description: Se registro una solicitud de programacion de turno para un empleado en N dias
-    visibility: private  # evento de event sourcing del aggregate SolicitudProgramacion
+    visibility: event-sourcing  # evento del aggregate SolicitudProgramacion, sin marker de bus
     payload:
       - field: Id
         type: Guid
@@ -51,7 +58,7 @@ events:
   - name: ProgramacionTurnoDiarioSolicitada
     context: Programacion
     description: Solicitud de programacion de turno para un empleado en un dia especifico
-    visibility: public  # se publica a Service Bus para que ControlHoras lo consuma
+    visibility: private  # IPrivateEvent: ControlHoras es un dominio del MISMO BC (decision 2026-07-18). Cruza el ASB interno. Antes: public.
     payload:
       - field: SolicitudId
         type: Guid
@@ -63,14 +70,14 @@ events:
         note: "Un solo dia"
       - field: DetalleTurno
         type: DetalleTurno
-    published_to: "topic de Service Bus (nombre segun convenciones ADR)"
-    consumed_by: [ControlHoras]
+    published_to: "topic 'programacion-turno-diario-solicitada' del ASB interno (via IPrivateEventSender)"
+    consumed_by: [ControlHoras]  # dominio del mismo BC -> intra-BC, privado
     used_in: ["#10"]
 
   - name: TurnoDiarioAsignado
     context: ControlHoras
     description: Se asigno (o reasigno) un turno a un empleado para un dia especifico en ControlHoras
-    visibility: private  # evento de event sourcing del aggregate ControlDiario
+    visibility: event-sourcing  # evento del aggregate ControlDiario, sin marker de bus (hoy declara IPrivateEvent por error -- limpiar)
     payload:
       - field: InformacionEmpleado
         type: InformacionEmpleado
@@ -87,7 +94,7 @@ events:
   - name: MarcacionRegistrada
     context: ControlHoras
     description: Una marcacion fue recibida, normalizada y persistida en RegistroDeMarcacion
-    visibility: private  # handler interno en ControlHoras, no sale a Service Bus
+    visibility: private  # IPrivateEvent: lo consume AdicionarMarcacion (mismo dominio/BC). Debe cruzar el ASB interno; hoy se rutea in-process (gap ADR-0024).
     payload:
       - field: EmpleadoId
         type: string
@@ -100,14 +107,14 @@ events:
       - field: DispositivoId
         type: string?
         note: "Opcional. ID del dispositivo que capturo la marcacion"
-    published_to: null
-    consumed_by: ["AdicionarMarcacionCuandoMarcacionRegistrada (handler Wolverine local)"]
+    published_to: "ASB interno (via IPrivateEventSender). Hoy in-process; pendiente topic+trigger fisico (ADR-0024)"
+    consumed_by: ["AdicionarMarcacionCuandoMarcacionRegistrada (mismo BC)"]
     used_in: ["#105"]
 
   - name: MarcacionAdicionada
     context: ControlHoras
     description: Una marcacion normalizada fue adicionada al dia de trabajo de un empleado
-    visibility: private  # evento de event sourcing del aggregate ControlDiario
+    visibility: event-sourcing  # evento del aggregate ControlDiario, sin marker de bus (hoy declara IPrivateEvent por error -- limpiar)
     payload:
       - field: Id
         type: string
@@ -127,7 +134,7 @@ events:
   - name: DiaCalculado
     context: ControlHoras
     description: Resultado del recalculo del dia de trabajo — sale a Service Bus para nomina
-    visibility: public  # evento publico cross-domain
+    visibility: public  # IPublicEvent: lo consume el Sistema de nomina (externo, otro BC). Ver open question ADR-0024 en context-map.
     payload:
       - field: InformacionEmpleado
         type: InformacionEmpleado
