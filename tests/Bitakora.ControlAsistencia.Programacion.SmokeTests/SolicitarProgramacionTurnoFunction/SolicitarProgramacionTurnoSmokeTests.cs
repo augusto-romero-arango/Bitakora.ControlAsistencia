@@ -261,6 +261,24 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoEmpleadoEsNull()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new
+        {
+            id = Guid.CreateVersion7(),
+            turnoId = Guid.CreateVersion7(),
+            empleado = (object?)null,
+            fechas = new[] { "2025-08-01" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoFechasEstaVacia()
     {
         var ct = TestContext.Current.CancellationToken;
