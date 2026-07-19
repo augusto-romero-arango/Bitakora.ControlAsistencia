@@ -49,7 +49,8 @@ jobs:
           dotnet build src/Bitakora.ControlAsistencia.Programacion/ \
             --configuration Release \
             --no-restore \
-            -r linux-x64
+            -r linux-x64 \
+            -p:SourceRevisionId=${{ github.sha }}
 
       - name: Publish
         run: |
@@ -82,5 +83,6 @@ jobs:
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
       test_project: tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/
+      expected_sha: ${{ github.sha }}
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
