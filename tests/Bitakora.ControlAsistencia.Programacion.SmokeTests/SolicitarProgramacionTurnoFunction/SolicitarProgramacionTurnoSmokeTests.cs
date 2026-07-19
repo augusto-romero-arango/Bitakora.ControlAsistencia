@@ -107,15 +107,17 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         evento1.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
         evento1.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
 
-        // Assert: verificar ausencia de dead letters en la suscripcion del consumidor real
+        // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion del consumidor real
+        // (issue #223: acotado por SolicitudId, no "DLQ globalmente vacio" - residuales de otras
+        // corridas no deben tumbar este test).
         await Task.Delay(TimeSpan.FromSeconds(5), ct);
 
-        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
-            TopicSalida, SuscripcionConsumidor);
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
+            TopicSalida, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
 
-        deadLetters.Should().BeEmpty(
-            "no deberia haber mensajes en dead letter de '{0}' - si los hay, el consumidor fallo al procesar el evento",
-            SuscripcionConsumidor);
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar el evento",
+            solicitudId, SuscripcionConsumidor);
     }
 
     [Fact]
@@ -251,6 +253,24 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
                 nombres = "",
                 apellidos = ""
             },
+            fechas = new[] { "2025-08-01" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoEmpleadoEsNull()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new
+        {
+            id = Guid.CreateVersion7(),
+            turnoId = Guid.CreateVersion7(),
+            empleado = (object?)null,
             fechas = new[] { "2025-08-01" }
         };
 

@@ -11,6 +11,10 @@ on:
         description: 'Ruta al proyecto de smoke tests'
         required: false
         default: 'tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/'
+      expected_sha:
+        description: 'SHA de commit esperado en /api/version (vacio = solo esperar HTTP 200)'
+        required: false
+        default: ''
   workflow_call:
     inputs:
       base_url:
@@ -21,6 +25,10 @@ on:
         type: string
         required: false
         default: 'tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/'
+      expected_sha:
+        type: string
+        required: false
+        default: ''
     secrets:
       SERVICEBUS_CONNECTION_STRING:
         required: false
@@ -39,6 +47,23 @@ jobs:
 
       - name: Warmup Function App
         run: |
+          expected_sha="${{ inputs.expected_sha }}"
+          if [ -n "$expected_sha" ]; then
+            echo "Esperando que ${{ inputs.base_url }}/api/version reporte el SHA ${expected_sha}..."
+            for i in $(seq 1 60); do
+              body=$(curl -s "${{ inputs.base_url }}/api/version" || echo "")
+              if [[ "$body" == *"$expected_sha"* ]]; then
+                echo "Version OK tras ${i} intento(s) (~$((i*2))s): ${body}"
+                exit 0
+              fi
+              echo "Intento ${i}: version desplegada '${body}' no coincide con '${expected_sha}'. Reintentando en 2s..."
+              sleep 2
+            done
+            echo "Timeout: /api/version no reporto el SHA esperado (${expected_sha}) en 120s"
+            exit 1
+          fi
+
+          echo "expected_sha vacio: degradando a chequeo simple de HTTP 200."
           echo "Esperando health endpoint en ${{ inputs.base_url }}/api/health..."
           for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" "${{ inputs.base_url }}/api/health" || echo "000")

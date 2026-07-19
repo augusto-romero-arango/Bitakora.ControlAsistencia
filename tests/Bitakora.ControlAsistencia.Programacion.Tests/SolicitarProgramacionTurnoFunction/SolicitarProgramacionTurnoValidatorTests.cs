@@ -134,6 +134,22 @@ public class SolicitarProgramacionTurnoValidatorTests
             e.PropertyName.Contains(nameof(InformacionEmpleado.Apellidos)));
     }
 
+    // HU-225 / CA-1: Empleado null no debe lanzar excepcion (NullReferenceException por
+    // desreferencia encadenada); debe reportar IsValid == false con un error asociado a
+    // la propiedad Empleado.
+    [Fact]
+    public async Task Validar_TieneErrorEnEmpleado_CuandoEmpleadoEsNull()
+    {
+        var comando = ComandoValido() with { Empleado = null! };
+
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(SolicitarProgramacionTurno.Empleado));
+    }
+
     // CA-4: Fechas debe tener al menos un elemento
     [Fact]
     public async Task DebeTenerError_CuandoFechasEstaVacia()
