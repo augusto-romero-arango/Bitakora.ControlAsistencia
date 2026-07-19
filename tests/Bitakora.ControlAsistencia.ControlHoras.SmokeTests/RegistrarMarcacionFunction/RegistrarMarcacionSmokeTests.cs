@@ -310,13 +310,14 @@ public class RegistrarMarcacionSmokeTests(
         diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
             "una entrada sola deja la franja anomala, sin minutos por concepto");
 
-        // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
-        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
-            TopicDiaCalculado, SuscripcionSmokeTests);
+        // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
+        // dia-calculado (issue #223: acotado por EmpleadoId, no "DLQ globalmente vacio").
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
+            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionEmpleado?.EmpleadoId == empleadoId);
 
-        deadLetters.Should().BeEmpty(
-            "no deberia haber mensajes en dead letter de '{0}' del topic '{1}'",
-            SuscripcionSmokeTests, TopicDiaCalculado);
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (EmpleadoId {0}) en '{1}' del topic '{2}'",
+            empleadoId, SuscripcionSmokeTests, TopicDiaCalculado);
     }
 
     // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaCalculado publicado
@@ -439,12 +440,13 @@ public class RegistrarMarcacionSmokeTests(
             .Should().BeGreaterThan(0,
                 "el desglose real discriminado lleva horas ordinarias diurnas (no un payload vacio)");
 
-        // Assert: ausencia de dead letters en la suscripcion smoke-tests del topic dia-calculado.
-        var deadLetters = await serviceBus.PeekDeadLetterMessagesAsync(
-            TopicDiaCalculado, SuscripcionSmokeTests);
+        // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
+        // dia-calculado (issue #223: acotado por EmpleadoId, no "DLQ globalmente vacio").
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
+            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionEmpleado?.EmpleadoId == empleadoId);
 
-        deadLetters.Should().BeEmpty(
-            "no deberia haber mensajes en dead letter de '{0}' del topic '{1}'",
-            SuscripcionSmokeTests, TopicDiaCalculado);
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (EmpleadoId {0}) en '{1}' del topic '{2}'",
+            empleadoId, SuscripcionSmokeTests, TopicDiaCalculado);
     }
 }

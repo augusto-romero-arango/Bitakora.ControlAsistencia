@@ -129,16 +129,61 @@ public class ServiceBusFixture : IAsyncLifetime
             $"del topic {topicName} en {timeout.TotalSeconds}s");
     }
 
+    private const int TamanoPaginaDeadLetter = 100;
+
+    // Issue #223 CA-1: recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
+    // "message-browsing#maximum-number-of-messages"), en vez del tope fijo anterior de 10 mensajes.
+    // El peek no completa mensajes, asi que iterar el DLQ entero es no destructivo.
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
         string topicName,
-        string subscriptionName,
-        int maxMessages = 10)
+        string subscriptionName)
     {
         var options = new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter };
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName, options);
 
-        var messages = await receiver.PeekMessagesAsync(maxMessages);
-        return messages;
+        var mensajes = new List<ServiceBusReceivedMessage>();
+        long? desdeSecuencia = null;
+
+        while (true)
+        {
+            var pagina = await receiver.PeekMessagesAsync(
+                maxMessages: TamanoPaginaDeadLetter, fromSequenceNumber: desdeSecuencia);
+            if (pagina.Count == 0)
+                break;
+
+            mensajes.AddRange(pagina);
+            desdeSecuencia = pagina[^1].SequenceNumber + 1;
+        }
+
+        return mensajes;
+    }
+
+    // Issue #223 CA-2/CA-3: acota el assert a "hay un dead letter de ESTA corrida" en vez de
+    // "el DLQ esta globalmente vacio". T es una forma minima plana (ver DeadLetterMinimos.cs)
+    // que solo declara el identificador de correlacion, sin depender de la deserializacion
+    // custom de los value objects ricos del contrato (ADR-0025).
+    public async Task<bool> ExisteDeadLetterDeEstaCorridaAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match)
+    {
+        var mensajes = await PeekDeadLetterMessagesAsync(topicName, subscriptionName);
+
+        foreach (var mensaje in mensajes)
+        {
+            try
+            {
+                var deserializado = JsonSerializer.Deserialize<T>(mensaje.Body.ToString(), _jsonOptions);
+                if (deserializado is not null && match(deserializado))
+                    return true;
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+        }
+
+        return false;
     }
 
     public async ValueTask DisposeAsync()
