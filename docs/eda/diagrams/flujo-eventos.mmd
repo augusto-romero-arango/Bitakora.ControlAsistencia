@@ -1,0 +1,114 @@
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 55, "rankSpacing": 70}, "themeVariables": {"fontSize": "16px"}}}%%
+flowchart TB
+    %% =====================================================================
+    %% FLUJO DE EVENTOS - Bitakora.ControlAsistencia
+    %% Generado desde el codigo (2026-06-23). Lectura: trigger -> funcion ->
+    %% aggregate -> evento(s). Las funciones son las unidades que transforman
+    %% un trigger (HTTP / evento) en cambios de estado y nuevos eventos.
+    %% =====================================================================
+
+    %% ---------- Leyenda ----------
+    subgraph LEY["LEYENDA"]
+        direction LR
+        L1["Funcion Azure<br/>(con su trigger)"]
+        L2[("Aggregate")]
+        L3(["Evento privado<br/>event sourcing"])
+        L4(["Evento LOCAL<br/>Wolverine in-process"])
+        L5(["Evento PUBLICO<br/>Service Bus"])
+        L6[/"Actor / sistema externo"/]
+        L7["flecha fina --> : emite / opera<br/>flecha gruesa ==> : PUBLICA evento<br/>punteada -.-> : lee / consume"]
+    end
+
+    %% ---------- Actores y sistemas externos ----------
+    PROGR[/"Programador de turnos"/]
+    SM[/"Sistema de marcacion"/]
+    NOM[/"Sistema de nomina"/]
+
+    %% =====================================================================
+    subgraph PROG["BOUNDED CONTEXT: Programacion  (Function App)"]
+        direction TB
+        fnCrear["CrearTurno<br/>(trigger: HTTP POST programacion/turnos)"]
+        fnSolic["SolicitarProgramacionTurno<br/>(trigger: HTTP POST programacion/solicitudes)"]
+
+        aCat[("CatalogoTurnos")]
+        aSol[("SolicitudProgramacion")]
+
+        eTurnoCreado(["TurnoCreado"])
+        ePts(["ProgramacionTurnoSolicitada"])
+        ePtds(["ProgramacionTurnoDiarioSolicitada"])
+
+        fnCrear -->|"inicia stream"| aCat
+        aCat -->|"emite · 1 · aun sin consumidor"| eTurnoCreado
+
+        fnSolic -.->|"lee DetalleTurno"| aCat
+        fnSolic -->|"inicia stream"| aSol
+        aSol -->|"emite · 1 · lleva TODAS las fechas"| ePts
+        fnSolic ==>|"PUBLICA · N (uno por cada fecha)"| ePtds
+    end
+
+    %% =====================================================================
+    subgraph CH["BOUNDED CONTEXT: ControlHoras  (Function App)"]
+        direction TB
+        fnAsig["AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada<br/>(trigger: Service Bus)"]
+        fnReg["RegistrarMarcacion<br/>(trigger: HTTP POST control-horas/marcaciones)"]
+        fnAdic["AdicionarMarcacionCuandoMarcacionRegistrada<br/>(trigger: evento LOCAL Wolverine)"]
+
+        aRdm[("RegistroDeMarcacion")]
+        aCd[("ControlDiario")]
+
+        eMReg(["MarcacionRegistrada"])
+        eMad(["MarcacionAdicionada"])
+        eTda(["TurnoDiarioAsignado"])
+        eDc(["DiaCalculado"])
+
+        n139["#139 EN PROCESO<br/>Hoy DiaCalculado se publica con DesgloseHoras VACIO.<br/>Falta conectar el motor de calculo:<br/>RecalcularDesgloseHoras() tras Depurar() en cada Apply."]
+
+        fnReg -->|"inicia stream (idempotente)"| aRdm
+        aRdm -->|"emite · 1 · normaliza al minuto"| eMReg
+
+        fnAsig -->|"crear-o-actualizar"| aCd
+        aCd -->|"aplica · Depurar()"| eTda
+        fnAsig ==>|"PUBLICA siempre"| eDc
+
+        fnAdic -->|"crear-o-actualizar · 1 o 2 dias<br/>(traslape nocturno < 04:00)"| aCd
+        aCd -->|"aplica · Depurar()"| eMad
+        fnAdic ==>|"PUBLICA si hubo cambios"| eDc
+
+        aCd -.- n139
+    end
+
+    %% ---------- Disparos externos ----------
+    PROGR -->|"HTTP"| fnCrear
+    PROGR -->|"HTTP"| fnSolic
+    SM -->|"HTTP"| fnReg
+
+    %% ---------- Cruces entre handlers ----------
+    eMReg -.->|"Wolverine in-process (no sale de la app)"| fnAdic
+    ePtds ==>|"Service Bus · topic: programacion-turno-diario-solicitada"| fnAsig
+    eDc ==>|"Service Bus · topic: dia-calculado"| NOM
+
+    %% =====================================================================
+    %% Estilos
+    classDef funcion fill:#1565c0,stroke:#0d47a1,color:#fff,font-weight:bold;
+    classDef agg fill:#ce93d8,stroke:#6a1b9a,color:#000;
+    classDef evPriv fill:#cfd8dc,stroke:#546e7a,color:#000;
+    classDef evLocal fill:#fff59d,stroke:#f9a825,color:#000;
+    classDef evPub fill:#a5d6a7,stroke:#2e7d32,color:#000;
+    classDef ext fill:#eceff1,stroke:#607d8b,color:#000;
+    classDef nota fill:#ffe0b2,stroke:#e65100,color:#000,font-weight:bold;
+    classDef leyenda fill:#fafafa,stroke:#bdbdbd,color:#000;
+
+    class fnCrear,fnSolic,fnReg,fnAdic,fnAsig funcion;
+    class aCat,aSol,aRdm,aCd agg;
+    class eTurnoCreado,ePts,eMad,eTda evPriv;
+    class eMReg evLocal;
+    class ePtds,eDc evPub;
+    class PROGR,SM,NOM ext;
+    class n139 nota;
+    class L1 funcion;
+    class L2 agg;
+    class L3 evPriv;
+    class L4 evLocal;
+    class L5 evPub;
+    class L6 ext;
+    class L7 leyenda;

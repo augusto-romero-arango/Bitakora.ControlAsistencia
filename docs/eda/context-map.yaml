@@ -1,108 +1,147 @@
 # Mapa de contextos — Bitakora.ControlAsistencia
 #
-# Documenta los bounded contexts del sistema y sus relaciones.
-# Basado en ADR-0001 (Function App por dominio), ADR-0004 (topics Service Bus) y el lenguaje ubicuo.
+# Documenta el bounded context del sistema, sus dominios internos, los sistemas
+# externos con los que integra, y las relaciones entre ellos.
+# Basado en ADR-0001 (Function App por dominio), ADR-0004 (topics Service Bus),
+# ADR-0024 del marco (modelo de eventos privado/publico por BC) y el lenguaje ubicuo.
 #
 # TIPOS DE RELACION (DDD Context Mapping):
 # - Upstream-Downstream: el upstream publica, el downstream consume y se adapta
 # - Customer-Supplier: el downstream (cliente) puede influir en el upstream (proveedor)
 # - Conformist: el downstream acepta el modelo del upstream tal cual (sin anticorruption layer)
 # - AntiCorruptionLayer: el downstream traduce el modelo del upstream a su propio lenguaje
-# - SharedKernel: ambos contextos comparten un subdominio comun (en nuestro caso: Contracts/)
+# - SharedKernel: subdominio comun compartido (en nuestro caso: Contracts/)
 #
-# Ultima actualizacion: 2026-04-15 (sesion de diseno flujo reactivo post-marcacion)
+# CLASIFICACION DE EVENTOS (ADR-0024 del marco):
+# - Un evento es PUBLICO (IPublicEvent) si lo consume OTRO bounded context (aqui: un
+#   sistema externo). Cruza el backbone compartido / integracion externa.
+# - Un evento es PRIVADO (IPrivateEvent) si lo consume un dominio del MISMO BC (aunque
+#   sea otra Function App). Cruza el ASB interno del BC.
+# - Un evento de EVENT SOURCING (del aggregate, sin marker) no cruza ningun bus: vive
+#   en el event store de Marten.
 #
-# Contextos descartados:
-# - Depuracion (2026-04-04 — 2026-04-15): absorbido por ControlHoras. La depuracion es logica
-#   interna de ControlDiarioAggregateRoot, no un bounded context separado.
-# - CalculoHoras (2026-04-04 — 2026-04-15): absorbido por ControlHoras. El calculo de horas
-#   es logica interna de ControlDiarioAggregateRoot (la calculadora).
+# Ultima actualizacion: 2026-07-18 (decision: un solo BC interno "Control de Asistencia".
+#   Programacion y ControlHoras son dominios del MISMO BC, no BCs separados. En consecuencia
+#   ProgramacionTurnoDiarioSolicitada se reclasifica de publico a privado. Ver field notes.)
+#
+# Contextos / ideas descartadas:
+# - Depuracion, CalculoHoras (2026-04-04 — 2026-04-15): absorbidos por ControlHoras como
+#   logica interna de ControlDiarioAggregateRoot (depurador y calculadora).
+# - "Programacion y ControlHoras como bounded contexts separados" (2026-04-15 — 2026-07-18):
+#   reconsiderado. Son dominios del mismo BC; el unico evento entre ellos es intra-BC (privado).
+#   Lo unico verdaderamente inter-BC es lo que sale hacia sistemas externos (nomina).
 
 # -------------------------
-# SHARED KERNEL
+# BOUNDED CONTEXT (uno solo, interno)
 # -------------------------
-shared_kernel:
-  name: Contracts
-  location: src/Bitakora.ControlAsistencia.Contracts/
-  description: Value objects y tipos de eventos compartidos entre todos los dominios
-  contains:
-    - DetalleTurno
-    - InformacionEmpleado
-    - DesgloseHoras
+bounded_context:
+  name: Control de Asistencia
+  namespace_root: Bitakora.ControlAsistencia
+  description: >
+    Control de asistencias y calculo de horas segun la legislacion laboral colombiana.
+    Un unico BC compuesto por varios dominios (Function Apps, ADR-0001) que comparten
+    el mismo ASB interno y el Shared Kernel de Contracts. Los eventos entre dominios
+    son privados (intra-BC); solo lo que sale hacia sistemas externos es publico.
+
+  shared_kernel:
+    name: Contracts
+    location: src/Bitakora.ControlAsistencia.Contracts/
+    description: Value objects y tipos de eventos compartidos entre los dominios del BC
+    contains:
+      - DetalleTurno
+      - InformacionEmpleado
+      - DesgloseHoras
+
+  domains:
+    - name: Programacion
+      namespace: Bitakora.ControlAsistencia.Programacion
+      status: en-desarrollo
+      description: Gestiona turnos (definicion y asignacion a empleados). Ciclos y patrones semanales.
+      aggregates: [CatalogoTurnos, SolicitudProgramacionAggregateRoot]
+      actors_served: [Programador de turnos]
+      publishes_intra_bc: [ProgramacionTurnoDiarioSolicitada]  # privado, lo consume ControlHoras
+      note: "Publica ProgramacionTurnoDiarioSolicitada (IPrivateEvent) al ASB interno para que ControlHoras lo consuma."
+
+    - name: ControlHoras
+      namespace: Bitakora.ControlAsistencia.ControlHoras
+      status: en-desarrollo
+      description: >
+        Recibe marcaciones del sistema externo y programaciones de Programacion.
+        Depura marcaciones contra franjas del turno, calcula desglose de horas
+        y emite DiaCalculado. Es reactivo: cada cambio de estado dispara recalculo.
+      aggregates: [RegistroDeMarcacionAggregateRoot, ControlDiarioAggregateRoot]
+      actors_served: [Aprobador]
+      consumes_intra_bc: [ProgramacionTurnoDiarioSolicitada, MarcacionRegistrada]  # privados, del mismo BC
+      publishes_public: [DiaCalculado]  # hacia el Sistema de nomina (externo)
+      note: >
+        Absorbe la logica de Depuracion y CalculoHoras como metodos internos
+        de ControlDiarioAggregateRoot (depurador y calculadora).
+        Publica DiaCalculado (IPublicEvent) hacia el Sistema de nomina externo.
+
+    - name: Empleados
+      namespace: Bitakora.ControlAsistencia.Empleados
+      status: planificado
+      description: Gestiona el registro maestro de empleados dentro del BC.
+      aggregates: []
+      actors_served: [Programador de turnos, Aprobador]
+      open_questions:
+        - "Que datos del empleado necesitamos? Solo los que importan para el control de asistencia."
+        - "Se alimenta del Sistema de empleados / RRHH externo (mecanismo por definir)."
 
 # -------------------------
-# BOUNDED CONTEXTS
+# SISTEMAS EXTERNOS (otros BCs / aplicaciones ajenas — integracion)
 # -------------------------
-contexts:
-  - name: Programacion
-    namespace: Bitakora.ControlAsistencia.Programacion
-    status: en-desarrollo
-    description: Gestiona turnos (definicion y asignacion a empleados). Ciclos y patrones semanales.
-    aggregates: [CatalogoTurnos, SolicitudProgramacionAggregateRoot]
-    actors_served: [Programador de turnos]
-    upstream_of: [ControlHoras]
-    external_producers: []
-    note: "Publica ProgramacionTurnoDiarioSolicitada a Service Bus para que ControlHoras lo consuma."
+external_systems:
+  - name: Sistema de marcacion
+    role: upstream (productor)
+    description: Sistema externo que captura marcaciones crudas de los empleados.
+    feeds: ControlHoras
+    mechanism: "Por definir (HTTP o Service Bus). ControlHoras normaliza y emite MarcacionRegistrada internamente."
 
-  - name: ControlHoras
-    namespace: Bitakora.ControlAsistencia.ControlHoras
-    status: en-desarrollo
-    description: >
-      Recibe marcaciones del sistema externo y programaciones de Programacion.
-      Depura marcaciones contra franjas del turno, calcula desglose de horas
-      y emite DiaCalculado. Es reactivo: cada cambio de estado dispara recalculo.
-    aggregates: [RegistroDeMarcacionAggregateRoot, ControlDiarioAggregateRoot]
-    actors_served: [Aprobador]
-    downstream_of: [Programacion]
-    external_producers: [Sistema de marcacion]
-    external_consumers: [Sistema de nomina]
-    note: >
-      Absorbe la logica de Depuracion y CalculoHoras como metodos internos
-      de ControlDiarioAggregateRoot (depurador y calculadora).
-      Publica DiaCalculado a Service Bus.
-
-  - name: Empleados
-    namespace: Bitakora.ControlAsistencia.Empleados
-    status: planificado
-    description: Gestiona el registro maestro de empleados.
-    aggregates: []
-    actors_served: [Programador de turnos, Aprobador]
-    upstream_of: [Programacion, ControlHoras]
-    external_producers: [Sistema de empleados / RRHH]
+  - name: Sistema de nomina
+    role: downstream (consumidor)
+    description: Aplicacion externa que consume el desglose de horas para liquidar nomina.
+    consumes_from: ControlHoras
+    mechanism: "Evento DiaCalculado (IPublicEvent) publicado en Service Bus."
     open_questions:
-      - "Que datos del empleado necesitamos? Solo los que importan para el control de asistencia."
+      - "ADR-0024: Nomina es 'backbone compartido del producto' o 'integracion verdaderamente externa' (diferida)? Hoy DiaCalculado solo tiene la subscription smoke-tests; no hay consumidor real todavia."
+
+  - name: Sistema de empleados / RRHH
+    role: upstream (productor)
+    description: Fuente maestra de empleados.
+    feeds: Empleados (dominio planificado)
+    mechanism: "Por definir"
 
 # -------------------------
-# RELACIONES ENTRE CONTEXTOS
+# RELACIONES
 # -------------------------
 relationships:
+  # --- Intra-BC (entre dominios del mismo BC — flujo de eventos privados, no context mapping) ---
   - from: Programacion
     to: ControlHoras
-    type: Customer-Supplier
-    description: "ControlHoras (cliente) necesita el Turno de Programacion (proveedor) para depurar marcaciones y calcular horas"
-    mechanism: "ProgramacionTurnoDiarioSolicitada publicado en Service Bus. El Turno viaja COMPLETO en el evento — nunca como ID."
+    scope: intra-BC
+    description: "ControlHoras necesita el Turno de Programacion para depurar marcaciones y calcular horas. Ambos son dominios del mismo BC."
+    mechanism: "ProgramacionTurnoDiarioSolicitada (IPrivateEvent) publicado al ASB interno. El Turno viaja COMPLETO en el evento — nunca como ID."
     adr: ADR-0002
 
+  # --- Externas (integracion con otros BCs / sistemas ajenos) ---
   - from: Sistema de marcacion
     to: ControlHoras
     type: Upstream-Downstream
+    scope: external
     description: "ControlHoras recibe Registros de Marcacion del sistema externo"
     mechanism: "Por definir (HTTP o Service Bus). RegistroDeMarcacionAggregateRoot normaliza y emite MarcacionRegistrada internamente."
 
   - from: ControlHoras
     to: Sistema de nomina
     type: Upstream-Downstream
+    scope: external
     description: "ControlHoras publica DiaCalculado con el desglose de horas para que nomina lo consuma"
-    mechanism: "Evento DiaCalculado publicado en Service Bus"
+    mechanism: "Evento DiaCalculado (IPublicEvent) publicado en Service Bus"
 
-  - from: Empleados
-    to: Programacion
+  - from: Sistema de empleados / RRHH
+    to: Empleados
     type: Upstream-Downstream
-    description: "Programacion necesita saber que empleados existen para asignarles turnos"
-    mechanism: "Por definir"
-
-  - from: Empleados
-    to: ControlHoras
-    type: Upstream-Downstream
-    description: "ControlHoras necesita identificar a quien corresponde cada marcacion"
+    scope: external
+    description: "El dominio Empleados se alimenta del maestro externo de RRHH"
     mechanism: "Por definir"
