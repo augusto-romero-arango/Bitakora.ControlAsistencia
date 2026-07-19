@@ -42,15 +42,16 @@
       "Bash(az group delete*)"
     ]
   },
+  "enabledPlugins": {
+    "mefisto@augusto-romero-arango-harness": true
+  },
   "extraKnownMarketplaces": {
     "augusto-romero-arango-harness": {
       "source": {
         "source": "github",
         "repo": "augusto-romero-arango/eda-evsourcing-azure-harness"
-      }
+      },
+      "autoUpdate": true
     }
-  },
-  "enabledPlugins": {
-    "mefisto@augusto-romero-arango-harness": true
   }
 }
