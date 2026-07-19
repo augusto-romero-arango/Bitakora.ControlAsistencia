@@ -153,6 +153,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Extracción vs duplicación, Rule of Three, evolución del código | ADR-0024 |
 | El modelo de dominio rico vive en el dominio y no cruza el bus; Contracts solo DTOs planos | ADR-0025 |
 | Custodia de secretos: connection strings en Key Vault, referencias `@Microsoft.KeyVault(...)`, `AzureWebJobsStorage` por identidad administrada | ADR-0026 |
+| Estrategia de tenancy mono-tenant, `ITenantResolver` de valores fijos | ADR-0027 |
 
 Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
 

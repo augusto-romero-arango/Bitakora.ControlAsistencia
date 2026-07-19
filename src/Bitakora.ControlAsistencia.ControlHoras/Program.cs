@@ -8,6 +8,7 @@ using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
 using Cosmos.EventSourcing.CritterStack.Commands;
+using Cosmos.MultiTenancy;
 using FluentValidation;
 using Marten;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -41,6 +42,11 @@ builder.Services.AgregarWolverineParaComandosServerless(
     });
 
 builder.Services.AgregarMartenEventStore();
+// Issue #219: Cosmos.Event* 2.x dejo de auto-registrar un ITenantResolver por defecto (se movio a
+// Cosmos.MultiTenancy.CritterStack), pero los routers/senders de Wolverine lo siguen exigiendo por
+// constructor. Este proyecto es mono-tenant: se registra un resolver de valores fijos en vez de los
+// resolvers header-based de 2.x. Ver docs/adr/0027-estrategia-tenancy-mono-tenant.md.
+builder.Services.AddScoped<ITenantResolver, TenantResolverFijo>();
 // AgregarWolverineCommandRouter se conserva: RegistrarMarcacion (HTTP) lo sigue usando.
 builder.Services.AgregarWolverineCommandRouter();
 // Issue #209/#210 (ADR-0024 decision #8): los eventos privados intra-BC (MarcacionRegistrada,
