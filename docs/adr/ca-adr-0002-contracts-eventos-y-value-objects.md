@@ -1,4 +1,4 @@
-# ADR-0002: Proyecto Contracts para eventos y value objects compartidos
+# CA-ADR-0002: Proyecto Contracts para eventos y value objects compartidos
 
 ## Estado
 
@@ -47,5 +47,5 @@ unicamente este proyecto.
 **Negativas**
 
 - Cambios breaking en un contrato (renombrar un campo, cambiar un tipo) requieren coordinar
-  la actualizacion de todos los consumidores antes de desplegar. Ver ADR-0005 para la
+  la actualizacion de todos los consumidores antes de desplegar. Ver MEF-ADR-0005 para la
   estrategia de versionado que mitiga este riesgo.

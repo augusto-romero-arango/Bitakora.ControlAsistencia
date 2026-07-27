@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 // Este proyecto es mono-tenant: se registra un ITenantResolver con valores fijos en vez de los
 // resolvers header-based de 2.x (AgregarTenantResolverHibrido/ProxyTenantResolver), que exigirian
 // headers TenantId/user_id inexistentes en este flujo HTTP.
-// Ver docs/adr/0027-estrategia-tenancy-mono-tenant.md y
+// Ver docs/adr/ca-adr-0027-estrategia-tenancy-mono-tenant.md y
 // docs/bitacora/field-notes/2026-07-18-1905-bug-investigation.md.
 public sealed class TenantResolverFijo : ITenantResolver
 {

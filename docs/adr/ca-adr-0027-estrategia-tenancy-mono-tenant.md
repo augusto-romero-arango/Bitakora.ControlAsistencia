@@ -1,4 +1,4 @@
-# ADR-0027: Estrategia de tenancy mono-tenant
+# CA-ADR-0027: Estrategia de tenancy mono-tenant
 
 ## Estado
 
@@ -43,8 +43,8 @@ header-based de 2.x.**
 
 1. Clase `TenantResolverFijo : ITenantResolver` en `Infraestructura/` de cada dominio
    (`ControlHoras` y `Programacion`). Con solo 2 usos se acepta duplicar la clase en lugar de
-   extraerla a un proyecto compartido (Rule of Three, ADR-0024 del harness); tampoco vive en
-   `Contracts`, reservado a eventos publicos y value objects compartidos (ADR-0002).
+   extraerla a un proyecto compartido (Rule of Three, MEF-ADR-0018); tampoco vive en
+   `Contracts`, reservado a eventos publicos y value objects compartidos (CA-ADR-0002).
 2. `TenantId` resuelve al tenant por defecto de Marten: `JasperFx.StorageConstants.DefaultTenantId`
    (valor `"*DEFAULT*"`). Marten mapea ese valor a `Tenancy.Default` aun con
    `options.Policies.AllDocumentsAreMultiTenanted()` activo -- no se introduce un tenant nuevo, se
@@ -52,7 +52,7 @@ header-based de 2.x.**
 3. `UserId` es el literal fijo `"sin-identificar"`: el producto no distingue usuarios todavia: no
    hay autenticacion de llamador que popular este campo con un valor real.
 4. Ambos valores quedan como constantes `private`, expuestas solo via los getters publicos que pide
-   la interfaz -- sin superficie publica adicional (encapsulamiento, ADR-0012 del harness).
+   la interfaz -- sin superficie publica adicional (encapsulamiento, MEF-ADR-0012).
 5. Registro en DI con lifetime **Scoped** en ambos `Program.cs`, junto a los
    `AgregarWolverine*Router`/`AgregarWolverineEventSender` correspondientes: los routers/senders que
    lo inyectan son Scoped, y al ser un unico registro Scoped por request/activacion, el lado que

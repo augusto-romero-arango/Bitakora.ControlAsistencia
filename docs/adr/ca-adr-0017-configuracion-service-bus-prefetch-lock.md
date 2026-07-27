@@ -1,4 +1,4 @@
-# ADR-0017: Configuracion de prefetchCount y manejo de MessageLockLost en Service Bus
+# CA-ADR-0017: Configuracion de prefetchCount y manejo de MessageLockLost en Service Bus
 
 ## Estado
 
@@ -8,7 +8,7 @@ Aceptado
 
 Un incidente el 2026-04-10 genero multiples errores `ServiceBusException: MessageLockLost` en la
 funcion `AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada` (dominio ControlHoras). La alerta
-de pico de excepciones (ADR-0009) detecto 8 fallos en 22 segundos.
+de pico de excepciones (CA-ADR-0009) detecto 8 fallos en 22 segundos.
 
 La causa raiz fue la combinacion de tres factores:
 
@@ -73,7 +73,7 @@ Si en el futuro se sube prefetchCount, se debera revisar lock_duration proporcio
 ### Positivas
 
 - Elimina la posibilidad de `MessageLockLost` por mensajes esperando en buffer de prefetch.
-- Las alertas de excepciones (ADR-0009) reflejan errores reales, no cascadas de infraestructura.
+- Las alertas de excepciones (CA-ADR-0009) reflejan errores reales, no cascadas de infraestructura.
 - Impacto en throughput despreciable (~0.3s por 100 mensajes con procesamiento secuencial).
 
 ### Negativas

@@ -1,4 +1,4 @@
-# ADR-0007: PostgreSQL compartido con schemas separados por dominio
+# CA-ADR-0007: PostgreSQL compartido con schemas separados por dominio
 
 ## Estado
 
@@ -6,7 +6,7 @@ Aceptado
 
 ## Contexto
 
-Marten (el event store adoptado en ADR-0006) requiere una base de datos PostgreSQL. Hay que
+Marten (el event store adoptado en MEF-ADR-0003) requiere una base de datos PostgreSQL. Hay que
 decidir como organizar esa base de datos dado que el sistema tiene multiples dominios, cada
 uno con su propia Function App.
 

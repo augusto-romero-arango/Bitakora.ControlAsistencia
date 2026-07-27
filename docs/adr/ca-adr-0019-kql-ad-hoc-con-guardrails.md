@@ -1,4 +1,4 @@
-# ADR-0019: KQL ad-hoc con guardrails
+# CA-ADR-0019: KQL ad-hoc con guardrails
 
 **Fecha**: 2026-04-13
 **Estado**: Aceptado
@@ -7,7 +7,7 @@
 
 ## Contexto
 
-ADR-0009 establecio un daily cap de 0.5GB en App Insights y restringio las consultas a 5 queries
+CA-ADR-0009 establecio un daily cap de 0.5GB en App Insights y restringio las consultas a 5 queries
 KQL predefinidas en `scripts/appinsights-query.sh`. Esto fue una reaccion correcta al incidente
 de $350 USD en 3 dias por logging excesivo.
 
@@ -18,7 +18,7 @@ procesaron en la ultima hora?"). Esta limitacion degrada la capacidad diagnostic
 proporcional en control de costos -- una query ad-hoc con `take 20` y ventana de 1h tiene impacto
 marginal vs el daily cap de 0.5GB.
 
-Las 4 capas defensivas de ADR-0009 (log levels, sampling, daily cap, alertas) siguen intactas.
+Las 4 capas defensivas de CA-ADR-0009 (log levels, sampling, daily cap, alertas) siguen intactas.
 Esta decision solo relaja la restriccion de "solo queries predefinidas".
 
 ## Decision
@@ -33,7 +33,7 @@ con guardrails automaticos inyectados por el script:
    `| where timestamp > ago(1h)` como filtro. Las queries predefinidas usan 24h; la ventana
    reducida de 1h limita el volumen de datos escaneados.
 
-3. **Warning visible**: se imprime `ADVERTENCIA: query ad-hoc. Daily cap: 0.5GB. Ver ADR-0009.`
+3. **Warning visible**: se imprime `ADVERTENCIA: query ad-hoc. Daily cap: 0.5GB. Ver CA-ADR-0009.`
    en stderr antes de ejecutar. Esto es visible tanto para humanos como para agentes.
 
 4. **Audit log**: cada ejecucion se registra en `scripts/.kql-audit.log` con timestamp y query
@@ -50,7 +50,7 @@ El agente `bug-investigator` puede usar hasta 3 queries custom por sesion, solo 
   queries predefinidas son insuficientes.
 - Los guardrails automaticos evitan queries costosas sin depender de la disciplina del invocador.
 - El audit log permite detectar patrones de uso excesivo o abuso.
-- Las 4 capas defensivas de ADR-0009 permanecen intactas.
+- Las 4 capas defensivas de CA-ADR-0009 permanecen intactas.
 
 **Negativas**
 
