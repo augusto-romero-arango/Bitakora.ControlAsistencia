@@ -1,4 +1,4 @@
-# ADR-0004: Service Bus - un topic por dominio productor
+# CA-ADR-0004: Service Bus - un topic por dominio productor
 
 ## Estado
 
@@ -26,7 +26,7 @@ requeriria modificar el productor.
 ## Decision
 
 Se usa un topic de Service Bus por dominio productor. El naming de los recursos sigue la
-convencion definida en ADR-0005:
+convencion definida en MEF-ADR-0005:
 
 - Topics: `eventos-{dominio-en-kebab}` (e.g. `eventos-marcaciones`, `eventos-empleados`)
 - Subscriptions: `{consumidor}-escucha-{productor}` (e.g. `liquidacion-escucha-marcaciones`)

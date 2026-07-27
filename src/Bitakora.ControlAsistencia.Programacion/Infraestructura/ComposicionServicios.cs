@@ -46,7 +46,7 @@ public static class ComposicionServicios
         // Issue #219: Cosmos.Event* 2.x dejo de auto-registrar un ITenantResolver por defecto (se movio a
         // Cosmos.MultiTenancy.CritterStack), pero los routers/senders de Wolverine lo siguen exigiendo por
         // constructor. Este proyecto es mono-tenant: se registra un resolver de valores fijos en vez de los
-        // resolvers header-based de 2.x. Ver docs/adr/0027-estrategia-tenancy-mono-tenant.md.
+        // resolvers header-based de 2.x. Ver docs/adr/ca-adr-0027-estrategia-tenancy-mono-tenant.md.
         services.AddScoped<ITenantResolver, TenantResolverFijo>();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();

@@ -1,4 +1,4 @@
-# ADR-0025: El modelo de dominio rico no cruza el bus
+# CA-ADR-0025: El modelo de dominio rico no cruza el bus
 
 ## Estado
 
@@ -24,7 +24,7 @@ serializa nativamente sin resolver custom. `#184` poblo su trazabilidad. Tras am
 `IPublicEvent` referencia ya el modelo rico**: solo lo consume el propio dominio.
 
 Quedaba la deuda de ubicacion: tipos de dominio interno alojados en `Contracts`, el proyecto que
-ADR-0002 reserva para el vocabulario que cruza entre dominios.
+CA-ADR-0002 reserva para el vocabulario que cruza entre dominios.
 
 ## Decision
 
@@ -57,6 +57,6 @@ antes de publicar (patron `Discriminar()` de `DesgloseHoras`).
   por defecto debe pasar; los tipos ricos fallarian con `NotSupportedException`).
 - `DetalleRetardo` se renombro a `Retardo` (termino del glosario) al salir de `Contracts`: ya no
   necesita el prefijo `Detalle` que sugeria un DTO de contrato.
-- Refuerza ADR-0002 (Contracts = vocabulario cross-domain plano) y convive con el ADR de
+- Refuerza CA-ADR-0002 (Contracts = vocabulario cross-domain plano) y convive con el ADR de
   serializacion (value objects con ctor privado + `ConfigurarSerializacion`), que ahora se entiende
   como mecanismo exclusivo del event store interno.

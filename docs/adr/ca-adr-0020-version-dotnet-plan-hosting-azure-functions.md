@@ -1,4 +1,4 @@
-# ADR-0020: Versión de .NET y plan de hosting Azure Functions
+# CA-ADR-0020: Versión de .NET y plan de hosting Azure Functions
 
 ## Estado
 
@@ -6,7 +6,7 @@ Aceptado
 
 ## Contexto
 
-El proyecto usa Azure Functions isolated worker como plataforma de despliegue (ver ADR-0001). Al migrar a .NET 10 en abril 2026 se descubrió que **el plan Consumption Y1 no soporta .NET 10**: la Function App responde con 503 y nunca arranca porque las imágenes de contenedor de Y1 no incluyen el runtime .NET 10.
+El proyecto usa Azure Functions isolated worker como plataforma de despliegue (ver CA-ADR-0001). Al migrar a .NET 10 en abril 2026 se descubrió que **el plan Consumption Y1 no soporta .NET 10**: la Function App responde con 503 y nunca arranca porque las imágenes de contenedor de Y1 no incluyen el runtime .NET 10.
 
 Los diagnósticos iniciales apuntaron incorrectamente al código (errores tipo "malformed content", "sync trigger failed") cuando el problema real era combinado: plan de hosting inadecuado, variables de entorno faltantes y flags de publish incorrectos. Sin una decisión documentada, cada nuevo dominio corre riesgo de replicar el error.
 
@@ -66,7 +66,7 @@ Sin `-r linux-x64 --self-contained false` el artefacto no corre correctamente en
 
 ## Referencias
 
-- ADR-0001: Function App por dominio
+- CA-ADR-0001: Function App por dominio
 - Módulo Terraform: `infra/modules/service-plan/main.tf` (SKU default B1)
 - Módulo Terraform: `infra/modules/function-app/main.tf` (app_settings)
 - Agente `domain-scaffolder`: genera workflows con los flags correctos

@@ -140,26 +140,26 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 
 | Tema | ADR |
 |---|---|
-| **Encapsulamiento, Tell-don't-Ask, ocultación de estado interno (aplica por igual a aggregates y a value objects)** | ADR-0015 |
-| Serialización, value objects con ctor privado, records vs sealed class, `ConfigurarSerializacion`, proscripción de `[JsonConstructor]` | ADR-0015 |
-| Manejo de errores en event sourcing, eventos de fallo, no-throw en `Apply()` | ADR-0007 |
-| Naming de eventos, versionado | ADR-0005 |
-| Naming de funciones Azure (HTTP y Service Bus) | ADR-0008 |
-| Topics y subscriptions de Service Bus, un topic por evento | ADR-0004 |
-| Estrategia de testing con event sourcing, DSL de tests | ADR-0006 |
-| Contracts: eventos públicos y value objects compartidos | ADR-0002 |
-| Mensajes en `.resx` por aggregate/handler | ADR-0012 |
+| **Encapsulamiento, Tell-don't-Ask, ocultación de estado interno (aplica por igual a aggregates y a value objects)** | MEF-ADR-0012 |
+| Serialización, value objects con ctor privado, records vs sealed class, `ConfigurarSerializacion`, proscripción de `[JsonConstructor]` | MEF-ADR-0012 |
+| Manejo de errores en event sourcing, eventos de fallo, no-throw en `Apply()` | MEF-ADR-0004 |
+| Naming de eventos, versionado | MEF-ADR-0005 |
+| Naming de funciones Azure (HTTP y Service Bus) | MEF-ADR-0006 |
+| Topics y subscriptions de Service Bus, un topic por evento | MEF-ADR-0001 |
+| Estrategia de testing con event sourcing, DSL de tests | MEF-ADR-0002 |
+| Contracts: eventos públicos y value objects compartidos | CA-ADR-0002 |
+| Mensajes en `.resx` por aggregate/handler | MEF-ADR-0009 |
 | Definition of Ready | MEF-ADR-0011 |
-| Smoke tests contra entorno dev | ADR-0016 |
+| Smoke tests contra entorno dev | MEF-ADR-0013 |
 | Worker de proyecciones read-side, proyecciones Marten (read models), Functions HTTP GET de consulta | MEF-ADR-0034, MEF-ADR-0035 |
-| Snapshots de Marten (excepción) | ADR-0021 |
-| Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | ADR-0022 |
-| Archivo señal de refactor puro vive en `pipeline-state/` (fuera de `.claude/`) | ADR-0023 |
-| Extracción vs duplicación, Rule of Three, evolución del código | ADR-0024 |
-| El modelo de dominio rico vive en el dominio y no cruza el bus; Contracts solo DTOs planos | ADR-0025 |
-| Custodia de secretos: connection strings en Key Vault, referencias `@Microsoft.KeyVault(...)`, `AzureWebJobsStorage` por identidad administrada | ADR-0026 |
-| Estrategia de tenancy mono-tenant, `ITenantResolver` de valores fijos | ADR-0027 |
-| Biblioteca `{Dominio}.Dominio` como frontera entre write-side y read-side; a qué proyecto referencia el worker de proyecciones para ver tipos de evento del aggregate | ADR-0028 |
+| Snapshots de Marten (excepción) | MEF-ADR-0015 |
+| Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | MEF-ADR-0016 |
+| Archivo señal de refactor puro vive en `pipeline-state/` (fuera de `.claude/`) | MEF-ADR-0017 |
+| Extracción vs duplicación, Rule of Three, evolución del código | MEF-ADR-0018 |
+| El modelo de dominio rico vive en el dominio y no cruza el bus; Contracts solo DTOs planos | CA-ADR-0025 |
+| Custodia de secretos: connection strings en Key Vault, referencias `@Microsoft.KeyVault(...)`, `AzureWebJobsStorage` por identidad administrada | CA-ADR-0026 |
+| Estrategia de tenancy mono-tenant, `ITenantResolver` de valores fijos | CA-ADR-0027 |
+| Biblioteca `{Dominio}.Dominio` como frontera entre write-side y read-side; a qué proyecto referencia el worker de proyecciones para ver tipos de evento del aggregate | CA-ADR-0028 |
 
 Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
 
