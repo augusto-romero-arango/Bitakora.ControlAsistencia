@@ -20,7 +20,7 @@ Sistema de control de asistencias y cálculo de horas según legislación labora
 Este proyecto consume el plugin `mefisto@augusto-romero-arango-harness` desde el marketplace privado registrado en `.claude/settings.json`. Los skills, agentes, scripts y ADRs del marco arquitectónico vienen del plugin, no del repo del proyecto.
 
 - **Repositorio del harness**: https://github.com/augusto-romero-arango/eda-evsourcing-azure-harness
-- **Skills disponibles**: `/mefisto:implement`, `:scaffold`, `:infra`, `:tooling`, `:bug`, `:draft`, `:merge`, `:parallel`, `:sequential`, `:show-flow`, `:work-status`, `:health-check`, `:eraser-diagram`, `:fix-review`.
+- **Skills disponibles**: `/mefisto:implement`, `:scaffold`, `:scaffold-projections`, `:infra`, `:tooling`, `:bug`, `:draft`, `:merge`, `:parallel`, `:sequential`, `:show-flow`, `:work-status`, `:health-check`, `:eraser-diagram`, `:fix-review`.
 - **Actualizar**: `/plugin update mefisto`.
 
 #### Setup para nuevos desarrolladores
@@ -73,6 +73,7 @@ Los skills son comandos `/…` que orquestan trabajo. Cada uno documenta su prop
 | `/parallel` | Corre varios issues en worktrees aislados sin merge automático |
 | `/sequential` | Cadena de issues con merge automático entre PRs |
 | `/scaffold` | Crea el scaffold de un nuevo dominio (proyecto + tests + Terraform + workflow) |
+| `/scaffold-projections` | Genera el worker de proyecciones, `ReadModels` y su config-test base (opt-in vía `projections.enabled`) |
 | `/bug` | Investiga un síntoma; enruta a `bug-investigator` o `tooling-investigator` |
 | `/fix-review` | Resuelve comentarios pendientes de un PR en revisión |
 | `/health-check` | Dashboard del entorno desplegado (excepciones, dead letters, requests) |
@@ -93,8 +94,11 @@ Invocables directamente con `claude --agent <nombre>` cuando necesites iterar fu
 | `eda-modeler` | Formaliza flujos y aggregates en `docs/eda/` |
 | `historiador` | Consolida field notes en la bitácora del día |
 | `domain-scaffolder` | Crea scaffold de un nuevo dominio (invocado por `/scaffold`) |
+| `projections-scaffolder` | Crea el worker de proyecciones read-side (invocado por `/scaffold-projections`) |
 | `test-writer` | Fase roja del pipeline TDD (invocado por `/implement`) |
 | `implementer` | Fase verde del pipeline TDD (invocado por `/implement`) |
+| `projection-test-writer` | Fase roja del pipeline TDD read-side: tests de proyecciones Marten |
+| `projection-implementer` | Fase verde del pipeline TDD read-side: proyecciones Marten y Functions de consulta |
 | `reviewer` | Revisión antes de crear PR |
 | `smoke-test-writer` | Smoke tests contra entorno dev |
 | `infra-writer` / `infra-reviewer` / `infra-applier` / `infra-bootstrap` | Etapas del pipeline IaC |
@@ -110,7 +114,7 @@ Invocables directamente con `claude --agent <nombre>` cuando necesites iterar fu
 - **Labels obligatorios**: `tipo:X` + `dom:X` + `estado:{borrador|listo}`. Los asigna el planner.
 - **Dependencias**: cada issue las declara en su sección `## Dependencias`. No se usan issues contenedor/epic.
 - **Bloqueados**: label `bloqueado` cuando dependen de otro no cerrado. El pipeline lo quita al verificar dependencias.
-- **Definition of Ready**: ver `docs/adr/0014-definition-of-ready.md` — los skills de pipeline lo validan antes de ejecutar.
+- **Definition of Ready**: ver MEF-ADR-0011 (Definition of Ready, del marco) — los skills de pipeline lo validan antes de ejecutar.
 
 Setup inicial de labels: `./scripts/setup-github-labels.sh`. Al crear un dominio nuevo, recuerda `gh label create dom:<nombre>`.
 
@@ -145,8 +149,9 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Estrategia de testing con event sourcing, DSL de tests | ADR-0006 |
 | Contracts: eventos públicos y value objects compartidos | ADR-0002 |
 | Mensajes en `.resx` por aggregate/handler | ADR-0012 |
-| Definition of Ready | ADR-0014 |
+| Definition of Ready | MEF-ADR-0011 |
 | Smoke tests contra entorno dev | ADR-0016 |
+| Worker de proyecciones read-side, proyecciones Marten (read models), Functions HTTP GET de consulta | MEF-ADR-0034, MEF-ADR-0035 |
 | Snapshots de Marten (excepción) | ADR-0021 |
 | Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | ADR-0022 |
 | Archivo señal de refactor puro vive en `pipeline-state/` (fuera de `.claude/`) | ADR-0023 |
