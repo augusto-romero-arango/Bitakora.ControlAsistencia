@@ -3,6 +3,8 @@
     <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ControlHoras/Bitakora.ControlAsistencia.ControlHoras.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Programacion/Bitakora.ControlAsistencia.Programacion.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.Projections/Bitakora.ControlAsistencia.Projections.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.ReadModels/Bitakora.ControlAsistencia.ReadModels.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bitakora.ControlAsistencia.Contracts.Tests/Bitakora.ControlAsistencia.Contracts.Tests.csproj" />
@@ -10,5 +12,6 @@
     <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.Tests/Bitakora.ControlAsistencia.ControlHoras.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/Bitakora.ControlAsistencia.Programacion.SmokeTests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.Projections.Tests/Bitakora.ControlAsistencia.Projections.Tests.csproj" />
   </Folder>
 </Solution>
