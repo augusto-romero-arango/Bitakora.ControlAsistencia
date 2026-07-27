@@ -11,7 +11,6 @@ using Cosmos.MultiTenancy;
 using FluentValidation;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 
@@ -66,6 +65,15 @@ public static class ComposicionServicios
                     jsonOptions.TypeInfoResolver = resolver;
                 });
             }
+
+            // Issue #232 (MEF-ADR-0034 seccion 7): Marten deja estas tres columnas de metadata de
+            // evento deshabilitadas por defecto -- sin este opt-in explicito, la columna ni
+            // siquiera se crea en la tabla de eventos, y ninguna proyeccion futura (Inline/Async)
+            // puede leer un CorrelationId/CausationId/header que nunca se persistio. Requisito del
+            // writer, independiente de que este dominio tenga o no un middleware de trazas activo.
+            options.Events.MetadataConfig.CorrelationIdEnabled = true;
+            options.Events.MetadataConfig.CausationIdEnabled = true;
+            options.Events.MetadataConfig.HeadersEnabled = true;
         });
 
         services.AddOpenTelemetry()
