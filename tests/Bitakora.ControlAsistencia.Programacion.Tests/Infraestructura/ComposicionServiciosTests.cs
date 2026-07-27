@@ -10,10 +10,21 @@
 // Programacion no registra IPrivateEventRouter ni IQueryRouter hoy (ver Notas tecnicas del
 // issue #221): solo se resuelve explicitamente ICommandRouter, el unico router critico
 // efectivamente registrado en este dominio.
+//
+// Issue #232 (MEF-ADR-0034 seccion 7): Marten deja deshabilitadas por defecto las tres columnas
+// de metadata de evento (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni
+// siquiera se crea en la tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
+// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
+// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
+// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
+// -> MetadataConfig (IReadonlyMetadataConfig).
 
+using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using Marten;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
@@ -58,5 +69,42 @@ public class ComposicionServiciosTests
         var act = () => scope.ServiceProvider.GetRequiredService<ICommandRouter>();
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_HabilitaColumnasDeMetadataDeEvento_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var metadataConfig = store.Options.Events.MetadataConfig;
+
+        metadataConfig.CorrelationIdEnabled.Should().BeTrue();
+        metadataConfig.CausationIdEnabled.Should().BeTrue();
+        metadataConfig.HeadersEnabled.Should().BeTrue();
+    }
+
+    // Issue #232 CA-5: las tres banderas de metadata comparten el mismo callback ConfigureMarten que
+    // registra el resolver de serializacion custom, asi que un edit futuro de ese bloque puede tumbar
+    // la serializacion sin que el test de metadata se ponga rojo. Los round-trip existentes
+    // (TurnoCreadoSerializacionTests) NO cubren este riesgo: replican las opciones de Marten a mano
+    // -- una ruta paralela que no atraviesa el contenedor. Este test ejercita el ISerializer que el
+    // store realmente compuso. Importa porque el `if (options.Serializer() is SystemTextJsonSerializer)`
+    // del wiring omite el resolver EN SILENCIO si el serializador deja de ser STJ, y SubFranja
+    // (campos privados, sin propiedades publicas) no sobrevive STJ vanilla.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ConservaLaSerializacionCustom_CuandoTambienHabilitaMetadataDeEvento()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var serializador = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options.Serializer();
+        var original = SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(16, 0));
+
+        using var json = new MemoryStream(Encoding.UTF8.GetBytes(serializador.ToJson(original)));
+        var restaurado = serializador.FromJson<SubFranja>(json);
+
+        restaurado.Should().Be(original);
+        restaurado.ToString().Should().Be(original.ToString());
     }
 }

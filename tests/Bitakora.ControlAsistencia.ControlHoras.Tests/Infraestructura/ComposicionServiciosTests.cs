@@ -10,11 +10,22 @@
 // Limite conocido: BuildServiceProvider(ValidateOnBuild) no valida registros por factory-lambda
 // (Wolverine/Marten registran varios), solo los de tipo mapeado -- de ahi la resolucion explicita
 // de ICommandRouter e IPrivateEventRouter en un scope, ademas del build general.
+//
+// Issue #232 (MEF-ADR-0034 seccion 7): Marten deja deshabilitadas por defecto las tres columnas
+// de metadata de evento (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni
+// siquiera se crea en la tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
+// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
+// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
+// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
+// -> MetadataConfig (IReadonlyMetadataConfig).
 
+using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using Marten;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
@@ -70,5 +81,45 @@ public class ComposicionServiciosTests
         var act = () => scope.ServiceProvider.GetRequiredService<IPrivateEventRouter>();
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_HabilitaColumnasDeMetadataDeEvento_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var metadataConfig = store.Options.Events.MetadataConfig;
+
+        metadataConfig.CorrelationIdEnabled.Should().BeTrue();
+        metadataConfig.CausationIdEnabled.Should().BeTrue();
+        metadataConfig.HeadersEnabled.Should().BeTrue();
+    }
+
+    // Issue #232 CA-5: las tres banderas de metadata comparten el mismo callback ConfigureMarten que
+    // registra el resolver de serializacion custom, asi que un edit futuro de ese bloque puede tumbar
+    // la serializacion sin que el test de metadata se ponga rojo. Los round-trip existentes
+    // (IntervaloTemporalSerializacionMartenTests) NO cubren este riesgo: usan
+    // ConfiguracionSerializacionControlHoras.CrearOpcionesMarten() -- una ruta paralela que no
+    // atraviesa el contenedor. Este test ejercita el ISerializer que el store realmente compuso.
+    // Importa porque el `if (options.Serializer() is SystemTextJsonSerializer)` del wiring omite el
+    // resolver EN SILENCIO si el serializador deja de ser STJ, e IntervaloTemporal (campos privados,
+    // sin propiedades publicas) no sobrevive STJ vanilla.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ConservaLaSerializacionCustom_CuandoTambienHabilitaMetadataDeEvento()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var serializador = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options.Serializer();
+        var original = IntervaloTemporal.Crear(
+            new MomentoDelDia(new TimeOnly(8, 0)),
+            new MomentoDelDia(new TimeOnly(17, 0)));
+
+        using var json = new MemoryStream(Encoding.UTF8.GetBytes(serializador.ToJson(original)));
+        var restaurado = serializador.FromJson<IntervaloTemporal>(json);
+
+        restaurado.Should().Be(original);
+        restaurado.ToString().Should().Be(original.ToString());
     }
 }
