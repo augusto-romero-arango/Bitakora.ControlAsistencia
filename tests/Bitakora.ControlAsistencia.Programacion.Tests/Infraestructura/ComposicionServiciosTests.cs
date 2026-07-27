@@ -10,10 +10,19 @@
 // Programacion no registra IPrivateEventRouter ni IQueryRouter hoy (ver Notas tecnicas del
 // issue #221): solo se resuelve explicitamente ICommandRouter, el unico router critico
 // efectivamente registrado en este dominio.
+//
+// Issue #232 (MEF-ADR-0034 seccion 7): Marten deja deshabilitadas por defecto las tres columnas
+// de metadata de evento (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni
+// siquiera se crea en la tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
+// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
+// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
+// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
+// -> MetadataConfig (IReadonlyMetadataConfig).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using Marten;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
@@ -58,5 +67,19 @@ public class ComposicionServiciosTests
         var act = () => scope.ServiceProvider.GetRequiredService<ICommandRouter>();
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_HabilitaColumnasDeMetadataDeEvento_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var metadataConfig = store.Options.Events.MetadataConfig;
+
+        metadataConfig.CorrelationIdEnabled.Should().BeTrue();
+        metadataConfig.CausationIdEnabled.Should().BeTrue();
+        metadataConfig.HeadersEnabled.Should().BeTrue();
     }
 }

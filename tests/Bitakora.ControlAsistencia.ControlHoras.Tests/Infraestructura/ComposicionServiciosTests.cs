@@ -10,11 +10,20 @@
 // Limite conocido: BuildServiceProvider(ValidateOnBuild) no valida registros por factory-lambda
 // (Wolverine/Marten registran varios), solo los de tipo mapeado -- de ahi la resolucion explicita
 // de ICommandRouter e IPrivateEventRouter en un scope, ademas del build general.
+//
+// Issue #232 (MEF-ADR-0034 seccion 7): Marten deja deshabilitadas por defecto las tres columnas
+// de metadata de evento (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni
+// siquiera se crea en la tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
+// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
+// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
+// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
+// -> MetadataConfig (IReadonlyMetadataConfig).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using Marten;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
@@ -70,5 +79,19 @@ public class ComposicionServiciosTests
         var act = () => scope.ServiceProvider.GetRequiredService<IPrivateEventRouter>();
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_HabilitaColumnasDeMetadataDeEvento_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var metadataConfig = store.Options.Events.MetadataConfig;
+
+        metadataConfig.CorrelationIdEnabled.Should().BeTrue();
+        metadataConfig.CausationIdEnabled.Should().BeTrue();
+        metadataConfig.HeadersEnabled.Should().BeTrue();
     }
 }
