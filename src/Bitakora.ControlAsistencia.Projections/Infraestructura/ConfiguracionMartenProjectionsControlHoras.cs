@@ -1,3 +1,4 @@
+using JasperFx.Events; // StreamIdentity
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using Marten;
 
@@ -34,6 +35,17 @@ public static class ConfiguracionMartenProjectionsControlHoras
             {
                 opts.Connection(martenConnectionString);
                 opts.DatabaseSchemaName = SchemaDelDominio; // mismo schema que el write-side (MEF-ADR-0003)
+
+                // Issue #253: replica de la identidad de stream del write-side. El default de
+                // Marten es AsGuid cuando nadie lo configura (Marten docs, "Event Store
+                // Configuration" -> "Stream Identity": "If not set, Marten defaults to
+                // StreamIdentity.AsGuid", https://martendb.io/events/configuration.html#stream-identity),
+                // pero este dominio nunca usa el Guid crudo como stream key:
+                // ControlDiarioAggregateRoot.ComputarStreamId devuelve
+                // "{EmpleadoId}:{Fecha:yyyy-MM-dd}", un valor que ni por accidente es un Guid. Sin
+                // esta linea el daemon interroga el event store (stream_id varchar) como si fuera
+                // uuid y no encuentra ningun stream.
+                opts.Events.StreamIdentity = StreamIdentity.AsString;
 
                 // Replica de la configuracion de metadata del write-side (MEF-ADR-0034 seccion 6
                 // punto 3, seccion 7): el config-test verifica exactamente estas tres. La
