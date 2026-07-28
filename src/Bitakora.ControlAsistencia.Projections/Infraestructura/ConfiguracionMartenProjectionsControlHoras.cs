@@ -1,4 +1,4 @@
-using JasperFx.Events; // StreamIdentity
+using JasperFx.Events; // StreamIdentity (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using Marten;
 
@@ -36,15 +36,14 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 opts.Connection(martenConnectionString);
                 opts.DatabaseSchemaName = SchemaDelDominio; // mismo schema que el write-side (MEF-ADR-0003)
 
-                // Issue #253: replica de la identidad de stream del write-side. El default de
-                // Marten es AsGuid cuando nadie lo configura (Marten docs, "Event Store
-                // Configuration" -> "Stream Identity": "If not set, Marten defaults to
-                // StreamIdentity.AsGuid", https://martendb.io/events/configuration.html#stream-identity),
-                // pero este dominio nunca usa el Guid crudo como stream key:
-                // ControlDiarioAggregateRoot.ComputarStreamId devuelve
-                // "{EmpleadoId}:{Fecha:yyyy-MM-dd}", un valor que ni por accidente es un Guid. Sin
-                // esta linea el daemon interroga el event store (stream_id varchar) como si fuera
-                // uuid y no encuentra ningun stream.
+                // Replica de la identidad de stream que el write-side ya declara
+                // (Cosmos.EventSourcing.CritterStack 2.1.0, AgregarConfiguracionMartenComandos:
+                // Events.StreamIdentity = AsString): el stream key de este dominio lo computa
+                // ControlDiarioAggregateRoot.ComputarStreamId como "{EmpleadoId}:{Fecha:yyyy-MM-dd}",
+                // un valor que ni por accidente es un Guid. Sin esta linea Marten aplica su default
+                // AsGuid ("Event Store Configuration" -> "Stream Identity" en
+                // https://martendb.io/events/configuration.html#stream-identity) y el daemon leeria
+                // el event store (stream_id varchar) como uuid, sin encontrar ningun stream (#253).
                 opts.Events.StreamIdentity = StreamIdentity.AsString;
 
                 // Replica de la configuracion de metadata del write-side (MEF-ADR-0034 seccion 6

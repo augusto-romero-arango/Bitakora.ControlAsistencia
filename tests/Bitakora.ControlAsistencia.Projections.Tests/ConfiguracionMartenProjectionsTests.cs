@@ -10,9 +10,9 @@ namespace Bitakora.ControlAsistencia.Projections.Tests;
 // .ConfigurarEventos, que es wiring puro para Program.cs y queda fuera de esta medicion -- con una
 // cadena de conexion dummy, sin necesidad de Postgres real (Marten 7+ no abre la conexion durante
 // el bootstrapping del IHost). Cada dominio se cubre con las mismas guardas: el named store
-// resuelve del contenedor, apunta al schema del write-side, replica su metadata de evento, no
-// tiene ninguna proyeccion Inline y corre su daemon en HotCold. La superficie de Marten que cada
-// una interroga vive en AssertsProyecciones.
+// resuelve del contenedor, apunta al schema del write-side, replica su metadata de evento y su
+// identidad de stream, no tiene ninguna proyeccion Inline y corre su daemon en HotCold. La
+// superficie de Marten que cada una interroga vive en AssertsProyecciones.
 public class ConfiguracionMartenProjectionsTests
 {
     private const string ConnectionStringDummy = "Host=localhost;Database=dummy";
@@ -77,9 +77,6 @@ public class ConfiguracionMartenProjectionsTests
         provider.AssertDaemonHotCold<IProgramacionProjectionStore>();
     }
 
-    // Issue #253 (CA-1, CA-3, CA-4): el named store de Programacion debe leer el event store con
-    // la misma identidad de stream que su write-side (SolicitudProgramacionAggregateRoot.Id =
-    // e.Id.ToString(), CatalogoTurnos con TurnoId.ToString()), no con el default AsGuid de Marten.
     [Fact]
     public void ConfigurarProgramacion_DeclaraLaStreamIdentityComoString()
     {
@@ -132,10 +129,6 @@ public class ConfiguracionMartenProjectionsTests
         provider.AssertDaemonHotCold<IControlHorasProjectionStore>();
     }
 
-    // Issue #253 (CA-2, CA-3, CA-4): el named store de ControlHoras debe leer el event store con
-    // la misma identidad de stream que su write-side (ControlDiarioAggregateRoot.ComputarStreamId
-    // devuelve "{EmpleadoId}:{Fecha:yyyy-MM-dd}", nunca un Guid), no con el default AsGuid de
-    // Marten.
     [Fact]
     public void ConfigurarControlHoras_DeclaraLaStreamIdentityComoString()
     {
