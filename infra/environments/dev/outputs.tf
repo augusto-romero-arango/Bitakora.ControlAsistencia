@@ -47,3 +47,15 @@ output "app_insights_connection_string" {
   value       = module.monitoring.connection_string
   sensitive   = true
 }
+
+# Worker de proyecciones (opt-in, MEF-ADR-0034 seccion 8; issue #234)
+
+output "container_registry_login_server" {
+  description = "Hostname del Container Registry del worker de proyecciones. Lo consume el pipeline de CI de imagen (fuera de alcance de este issue) para saber a donde empujar Bitakora.ControlAsistencia.Projections"
+  value       = module.container_registry.login_server
+}
+
+output "container_app_name" {
+  description = "Nombre del Container App del worker de proyecciones. Lo consume el pipeline de CI de imagen para actualizar la revision (ej. az containerapp update --image ...) tras publicar una imagen nueva"
+  value       = module.container_app.name
+}
