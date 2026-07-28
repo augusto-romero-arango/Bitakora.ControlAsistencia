@@ -36,9 +36,23 @@ variable "max_replicas" {
 }
 
 variable "cpu" {
-  description = "vCPU del contenedor. Debe formar una combinacion valida con memory en el plan Consumption (Microsoft Learn, 'vCPU and memory allocation requirements')"
+  description = "vCPU del contenedor. Debe formar una combinacion valida con memory en el plan Consumption (Microsoft Learn, 'Containers in Azure Container Apps' -- Configuration): incrementos de 0.25, y memory exactamente cpu*2 en Gi (ver la precondition del recurso)"
   type        = number
   default     = 0.25
+
+  # Azure no admite cualquier valor de cpu: la tabla de asignaciones solo lista
+  # incrementos de 0.25 (Microsoft Learn, "Containers in Azure Container Apps" --
+  # Configuration). El techo de 2.0 es el del entorno que crea el modulo
+  # container-app-environment, que no declara workload profiles y por tanto es un
+  # entorno *Consumption only*: "Apps using the Consumption plan in a Consumption only
+  # environment are limited to a maximum of 2 cores and 4Gi of memory" (misma pagina).
+  # Se valida aca -- y no solo en el apply -- porque quien escribe el HCL no tiene
+  # credenciales de Azure (MEF-ADR-0021/0022): un valor invalido debe fallar en el
+  # `terraform validate` local, no a mitad del apply de CI.
+  validation {
+    condition     = var.cpu >= 0.25 && var.cpu <= 2.0 && var.cpu * 4 == floor(var.cpu * 4)
+    error_message = "cpu debe ser un multiplo de 0.25 entre 0.25 y 2.0 (Microsoft Learn, 'Containers in Azure Container Apps' -- Configuration; el techo de 2.0 aplica a un entorno Consumption only, que es el que crea el modulo container-app-environment)."
+  }
 }
 
 variable "memory" {
@@ -153,6 +167,25 @@ resource "azurerm_container_app" "this" {
   # y escribe proyecciones; nunca es el destino de un request.
 
   tags = var.tags
+
+  lifecycle {
+    # Azure solo admite pares cpu/memory de una tabla cerrada: memory es SIEMPRE cpu*2
+    # en Gi (0.25->0.5Gi, 0.5->1.0Gi, 0.75->1.5Gi, ... 2.0->4.0Gi). Un par fuera de la
+    # tabla no lo detecta `terraform validate` -- lo rechaza el plano de control en
+    # medio del apply. Como el apply corre en CI sin nadie mirando (MEF-ADR-0022), la
+    # relacion se verifica aca, en el plan, con un mensaje que dice que poner.
+    # Fuente: Microsoft Learn, "Containers in Azure Container Apps" -- Configuration.
+    precondition {
+      condition     = var.memory == format("%.1fGi", var.cpu * 2)
+      error_message = "Par cpu/memory invalido: con cpu = ${var.cpu}, memory debe ser exactamente \"${format("%.1fGi", var.cpu * 2)}\" (Azure exige memory = cpu*2 Gi; Microsoft Learn, 'Containers in Azure Container Apps' -- Configuration)."
+    }
+
+    # max_replicas < min_replicas es un apply roto garantizado; se atrapa antes.
+    precondition {
+      condition     = var.max_replicas >= var.min_replicas
+      error_message = "max_replicas (${var.max_replicas}) no puede ser menor que min_replicas (${var.min_replicas})."
+    }
+  }
 }
 
 output "id" {

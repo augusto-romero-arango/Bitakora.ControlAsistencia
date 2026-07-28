@@ -233,6 +233,9 @@ resource "azurerm_role_assignment" "storage_data_control_horas" {
 
 # El nombre de un Container Registry (*.azurecr.io) es unico en TODO Azure y admite
 # SOLO alfanumerico (sin guiones), a diferencia de Postgres/Service Bus/Key Vault.
+# Lleva el ambiente embebido igual que el otro recurso de nombre global-alfanumerico
+# de este entorno (module.storage_*: "stcontrolhoras${var.environment}<sufijo>"), para
+# que el registry de dev sea distinguible a simple vista del de un futuro staging/prod.
 resource "random_string" "container_registry_suffix" {
   length  = 6
   special = false
@@ -241,7 +244,7 @@ resource "random_string" "container_registry_suffix" {
 
 module "container_registry" {
   source              = "../../modules/container-registry"
-  name                = "acr${var.project_short}${random_string.container_registry_suffix.result}"
+  name                = "acr${var.project_short}${var.environment}${random_string.container_registry_suffix.result}"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   tags                = local.tags
