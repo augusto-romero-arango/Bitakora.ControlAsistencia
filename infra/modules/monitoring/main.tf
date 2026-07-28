@@ -157,3 +157,8 @@ output "instrumentation_key" {
   value     = azurerm_application_insights.this.instrumentation_key
   sensitive = true
 }
+
+output "log_analytics_workspace_id" {
+  description = "ID del Log Analytics Workspace. Lo consume el modulo opt-in container-app-environment (MEF-ADR-0034 seccion 8, issue #234) para no crear un segundo workspace redundante (ADR-0009 local, control de costos de Application Insights)"
+  value       = azurerm_log_analytics_workspace.this.id
+}

@@ -33,6 +33,16 @@ variable "postgresql_admin_password" {
   sensitive   = true
 }
 
+# Worker de proyecciones (opt-in, MEF-ADR-0034 seccion 8; issue #234). Placeholder publico
+# hasta que un pipeline de CI de imagen (fuera de alcance de este issue) construya y empuje
+# la imagen real a module.container_registry.login_server; en ese momento, sobreescribe
+# este default via terraform.tfvars o TF_VAR_projections_worker_image.
+variable "projections_worker_image" {
+  description = "Imagen del worker de proyecciones (Bitakora.ControlAsistencia.Projections)"
+  type        = string
+  default     = "mcr.microsoft.com/k8se/quickstart:latest"
+}
+
 locals {
   prefix       = "${var.project}-${var.environment}"
   prefix_short = "${var.project_short}-${var.environment}"
