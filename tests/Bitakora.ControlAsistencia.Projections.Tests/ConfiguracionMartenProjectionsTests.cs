@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
-using JasperFx.Events.Projections;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests;
@@ -10,103 +9,130 @@ namespace Bitakora.ControlAsistencia.Projections.Tests;
 // Invoca cada Configurar{Dominio} directamente -- nunca a traves de ConfiguracionMartenProjections
 // .ConfigurarEventos, que es wiring puro para Program.cs y queda fuera de esta medicion -- con una
 // cadena de conexion dummy, sin necesidad de Postgres real (Marten 7+ no abre la conexion durante
-// el bootstrapping del IHost). Cada dominio se cubre con las tres guardas de la seccion 6:
-//   1. Guarda del partial: el named store resuelve desde el contenedor.
-//   2. Ninguna proyeccion registrada con lifecycle Inline (Async es el ciclo de vida canonico).
-//      Superficie reverificada por compilacion contra Marten 9.12.0: la lista de proyecciones
-//      registradas se enumera con IReadOnlyStoreOptions.Events.Projections() (IReadOnlyList de
-//      ISubscriptionSource, cada una con su propiedad Lifecycle) -- no con
-//      StoreOptions.Projections.All, que solo existe en la superficie mutable de configuracion.
-//   3. Replica exacta de Events.MetadataConfig frente al write-side de ese mismo dominio (issue #232).
+// el bootstrapping del IHost). Cada dominio se cubre con las mismas guardas: el named store
+// resuelve del contenedor, apunta al schema del write-side, replica su metadata de evento, no
+// tiene ninguna proyeccion Inline y corre su daemon en HotCold. La superficie de Marten que cada
+// una interroga vive en AssertsProyecciones.
 public class ConfiguracionMartenProjectionsTests
 {
     private const string ConnectionStringDummy = "Host=localhost;Database=dummy";
 
-    // --- Programacion (CA-1, CA-3, CA-6, CA-7) ---
-
-    [Fact]
-    public void ConfigurarProgramacion_ResuelveIProgramacionProjectionStore_DesdeElContenedor()
+    private static ServiceProvider CrearProvider(Action<IServiceCollection> configurarDominio)
     {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.ConfigurarProgramacion(ConnectionStringDummy);
+        configurarDominio(services);
 
-        using var provider = services.BuildServiceProvider();
-        var store = provider.GetRequiredService<IProgramacionProjectionStore>();
+        return services.BuildServiceProvider();
+    }
+
+    private static ServiceProvider ProviderDeProgramacion() =>
+        CrearProvider(services => services.ConfigurarProgramacion(ConnectionStringDummy));
+
+    private static ServiceProvider ProviderDeControlHoras() =>
+        CrearProvider(services => services.ConfigurarControlHoras(ConnectionStringDummy));
+
+    // --- Programacion (CA-1, CA-3, CA-6, CA-7) ---
+
+    [Fact]
+    public void ConfigurarProgramacion_ResuelveElNamedStoreDelDominio()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var store = provider.GetService<IProgramacionProjectionStore>();
 
         store.Should().NotBeNull();
     }
 
     [Fact]
-    public void ConfigurarProgramacion_NoRegistraNingunaProyeccionInline_EnElNamedStore()
+    public void ConfigurarProgramacion_RegistraElNamedStoreSobreElSchemaDeProgramacion()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
+        using var provider = ProviderDeProgramacion();
 
-        services.ConfigurarProgramacion(ConnectionStringDummy);
-
-        using var provider = services.BuildServiceProvider();
-        var store = provider.GetRequiredService<IProgramacionProjectionStore>();
-
-        store.Options.Events.Projections().Should().NotContain(p => p.Lifecycle == ProjectionLifecycle.Inline);
+        provider.GetRequiredService<IProgramacionProjectionStore>().AssertSchema("programacion");
     }
 
     [Fact]
-    public void ConfigurarProgramacion_ReplicaConfiguracionDeMetadata_DelWriteSideDeProgramacion()
+    public void ConfigurarProgramacion_ReplicaLaMetadataDeEventoDelWriteSide()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
+        using var provider = ProviderDeProgramacion();
 
-        services.ConfigurarProgramacion(ConnectionStringDummy);
+        provider.GetRequiredService<IProgramacionProjectionStore>().AssertOpcionesDeEvento();
+    }
 
-        using var provider = services.BuildServiceProvider();
-        var store = provider.GetRequiredService<IProgramacionProjectionStore>();
+    [Fact]
+    public void ConfigurarProgramacion_NoRegistraNingunaProyeccionInline()
+    {
+        using var provider = ProviderDeProgramacion();
 
-        store.AssertOpcionesDeEvento();
+        provider.GetRequiredService<IProgramacionProjectionStore>().AssertSinProyeccionesInline();
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_EnciendeElDaemonEnModoHotCold()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.AssertDaemonHotCold<IProgramacionProjectionStore>();
     }
 
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
 
     [Fact]
-    public void ConfigurarControlHoras_ResuelveIControlHorasProjectionStore_DesdeElContenedor()
+    public void ConfigurarControlHoras_ResuelveElNamedStoreDelDominio()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
+        using var provider = ProviderDeControlHoras();
 
-        services.ConfigurarControlHoras(ConnectionStringDummy);
-
-        using var provider = services.BuildServiceProvider();
-        var store = provider.GetRequiredService<IControlHorasProjectionStore>();
+        var store = provider.GetService<IControlHorasProjectionStore>();
 
         store.Should().NotBeNull();
     }
 
     [Fact]
-    public void ConfigurarControlHoras_NoRegistraNingunaProyeccionInline_EnElNamedStore()
+    public void ConfigurarControlHoras_RegistraElNamedStoreSobreElSchemaDeControlHoras()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
+        using var provider = ProviderDeControlHoras();
 
-        services.ConfigurarControlHoras(ConnectionStringDummy);
-
-        using var provider = services.BuildServiceProvider();
-        var store = provider.GetRequiredService<IControlHorasProjectionStore>();
-
-        store.Options.Events.Projections().Should().NotContain(p => p.Lifecycle == ProjectionLifecycle.Inline);
+        provider.GetRequiredService<IControlHorasProjectionStore>().AssertSchema("control_horas");
     }
 
     [Fact]
-    public void ConfigurarControlHoras_ReplicaConfiguracionDeMetadata_DelWriteSideDeControlHoras()
+    public void ConfigurarControlHoras_ReplicaLaMetadataDeEventoDelWriteSide()
     {
-        var services = new ServiceCollection();
-        services.AddLogging();
+        using var provider = ProviderDeControlHoras();
 
-        services.ConfigurarControlHoras(ConnectionStringDummy);
+        provider.GetRequiredService<IControlHorasProjectionStore>().AssertOpcionesDeEvento();
+    }
 
-        using var provider = services.BuildServiceProvider();
-        var store = provider.GetRequiredService<IControlHorasProjectionStore>();
+    [Fact]
+    public void ConfigurarControlHoras_NoRegistraNingunaProyeccionInline()
+    {
+        using var provider = ProviderDeControlHoras();
 
-        store.AssertOpcionesDeEvento();
+        provider.GetRequiredService<IControlHorasProjectionStore>().AssertSinProyeccionesInline();
+    }
+
+    [Fact]
+    public void ConfigurarControlHoras_EnciendeElDaemonEnModoHotCold()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.AssertDaemonHotCold<IControlHorasProjectionStore>();
+    }
+
+    // --- Seam de nivel BC (CA-4) ---
+
+    // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
+    // aunque nadie encadene esa llamada en ConfigurarEventos -- y Program.cs solo invoca
+    // ConfigurarEventos. Sin esta guarda, un dominio con su seam implementado pero sin encadenar
+    // compila limpio, pasa el resto del config-test y su daemon nunca corre en produccion.
+    [Fact]
+    public void ConfigurarEventos_RegistraElNamedStoreDeCadaDominioDelBc()
+    {
+        using var provider = CrearProvider(services => services.ConfigurarEventos(ConnectionStringDummy));
+
+        provider.GetService<IProgramacionProjectionStore>().Should().NotBeNull();
+        provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
     }
 }

@@ -1,6 +1,4 @@
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
 
