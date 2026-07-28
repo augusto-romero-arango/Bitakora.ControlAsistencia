@@ -77,6 +77,17 @@ public class ConfiguracionMartenProjectionsTests
         provider.AssertDaemonHotCold<IProgramacionProjectionStore>();
     }
 
+    // Issue #253 (CA-1, CA-3, CA-4): el named store de Programacion debe leer el event store con
+    // la misma identidad de stream que su write-side (SolicitudProgramacionAggregateRoot.Id =
+    // e.Id.ToString(), CatalogoTurnos con TurnoId.ToString()), no con el default AsGuid de Marten.
+    [Fact]
+    public void ConfigurarProgramacion_DeclaraLaStreamIdentityComoString()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>().AssertStreamIdentityAsString();
+    }
+
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
 
     [Fact]
@@ -119,6 +130,18 @@ public class ConfiguracionMartenProjectionsTests
         using var provider = ProviderDeControlHoras();
 
         provider.AssertDaemonHotCold<IControlHorasProjectionStore>();
+    }
+
+    // Issue #253 (CA-2, CA-3, CA-4): el named store de ControlHoras debe leer el event store con
+    // la misma identidad de stream que su write-side (ControlDiarioAggregateRoot.ComputarStreamId
+    // devuelve "{EmpleadoId}:{Fecha:yyyy-MM-dd}", nunca un Guid), no con el default AsGuid de
+    // Marten.
+    [Fact]
+    public void ConfigurarControlHoras_DeclaraLaStreamIdentityComoString()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>().AssertStreamIdentityAsString();
     }
 
     // --- Seam de nivel BC (CA-4) ---

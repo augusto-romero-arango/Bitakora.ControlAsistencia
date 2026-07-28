@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using JasperFx.Events;
 using JasperFx.Events.Daemon;
 using JasperFx.Events.Projections;
 using Marten;
@@ -69,4 +70,25 @@ public static class AssertsProyecciones
         var opciones = (StoreOptions)provider.GetRequiredService<TStore>().Options;
         opciones.Projections.AsyncMode.Should().Be(DaemonMode.HotCold);
     }
+
+    /// <summary>
+    /// Issue #253: el named store del worker debe leer el event store con la misma identidad de
+    /// stream que el write-side de ese mismo dominio ya declara -- gap que MEF-ADR-0034 seccion 6
+    /// todavia no enumera junto a las otras tres guardas (hallazgo a proponer como enmienda de esa
+    /// seccion). El write-side de este BC usa siempre stream keys de tipo string (
+    /// SolicitudProgramacionAggregateRoot.Id = e.Id.ToString(),
+    /// ControlDiarioAggregateRoot.ComputarStreamId), nunca el Guid crudo, asi que el unico valor
+    /// correcto para el named store del worker es AsString.
+    ///
+    /// A diferencia de AsyncMode (AssertDaemonHotCold) y de Projections() (AssertSinProyecciones
+    /// Inline), que solo se exponen en la superficie mutable (StoreOptions), StreamIdentity si
+    /// esta declarada en la superficie de solo lectura que devuelve IDocumentStore.Options:
+    /// IReadOnlyEventStoreOptions.StreamIdentity (Marten.Events, get-only) -- verificado por
+    /// decompilacion contra Marten 9.12.0 / JasperFx.Events 2.18.1, sin necesidad de castear a
+    /// StoreOptions. El default de Marten es AsGuid cuando nadie lo configura (Marten docs,
+    /// "Event Store Configuration" -> "Stream Identity": "If not set, Marten defaults to
+    /// StreamIdentity.AsGuid"), https://martendb.io/events/configuration.html#stream-identity.
+    /// </summary>
+    public static void AssertStreamIdentityAsString(this IDocumentStore store) =>
+        store.Options.Events.StreamIdentity.Should().Be(StreamIdentity.AsString);
 }
