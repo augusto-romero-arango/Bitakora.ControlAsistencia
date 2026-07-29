@@ -1,5 +1,6 @@
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
@@ -20,6 +21,14 @@ public static class ConfiguracionObservabilidadProjections
     // manualmente en el Container App y se baja despues -- no se sube el default en codigo.
     internal const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
     internal const double RatioSamplingPorDefecto = 0.2;
+
+    // Issue #263: nombre de servicio para el atributo de recurso OpenTelemetry `service.name`
+    // (fase roja -- valor pendiente de fijar por el implementer). Debe coincidir EXACTAMENTE con
+    // el nombre del ensamblado del worker: PatronFuentePropia (issue #250, arriba) ya nombra su
+    // ActivitySource con ese mismo string a mano, asi que ambas constantes deben derivar de una
+    // sola fuente de verdad -- fijado por guardrail en ConfiguracionObservabilidadProjectionsTests
+    // (CA-3). No lleva el ambiente: hay un App Insights por ambiente (un solo issue #263, punto 1).
+    internal const string NombreServicio = "";
 
     // CA-2: el source del propio ensamblado. El wildcard va SIN punto antes del asterisco --
     // divergencia deliberada frente a ControlHoras ("...ControlHoras.*"), verificada
@@ -75,4 +84,24 @@ public static class ConfiguracionObservabilidadProjections
             out var ratio) && ratio is >= 0.0 and <= 1.0
             ? ratio
             : RatioSamplingPorDefecto;
+
+    // Issue #263 (fase roja -- stub, pendiente de implementacion real).
+    //
+    // Extraido como metodo interno testeable -- igual que ResolverRatioDeSampling arriba -- en vez
+    // de wirear el AddService inline dentro del lambda de ConfigurarObservabilidad: eso permite
+    // construir un ResourceBuilder propio en el test (CreateDefault, sin Postgres ni Container App)
+    // y aseverar sobre Resource.Attributes, en vez de dejar el recurso sin cobertura.
+    //
+    // Cuando se implemente: debe fijar unicamente `service.name = NombreServicio` via
+    // AddService(NombreServicio, autoGenerateServiceInstanceId: false) -- SIN serviceNamespace
+    // (CA-1: cloud_RoleName no debe llevar prefijo) y SIN autogenerar service.instance.id (el
+    // default true reemplazaria el hostname legible del contenedor por un GUID aleatorio distinto
+    // en cada arranque de revision; el exporter de Azure Monitor deriva cloud_RoleInstance de ese
+    // atributo y cae al hostname en su ausencia).
+    //
+    // Consecuencia a documentar aqui cuando se complete: fijar el nombre en codigo deja
+    // OTEL_SERVICE_NAME inerte (ConfigureResource corre despues del ResourceBuilder.CreateDefault()
+    // que ya parsea esa variable, y Resource.Merge le da precedencia a lo que se fusiona despues).
+    internal static void ConfigurarRecurso(ResourceBuilder recurso) =>
+        throw new NotImplementedException();
 }
