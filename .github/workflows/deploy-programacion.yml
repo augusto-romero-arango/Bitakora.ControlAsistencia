@@ -6,14 +6,113 @@ on:
     paths:
       - 'src/Bitakora.ControlAsistencia.Programacion/**'
       - 'src/Bitakora.ControlAsistencia.Contracts/**'
-      - 'infra/environments/dev/**'
+      # global.json (issue #454 del harness): quien lo lee NO es actions/setup-dotnet -- los
+      # jobs de abajo le pasan 'dotnet-version' explicito, no 'global-json-file', asi que la
+      # action solo instala el SDK del canal pedido. Lo leen el muxer del CLI y el resolver
+      # de SDK de MSBuild al correr 'dotnet restore/build', y por eso su 'version' +
+      # 'rollForward' deciden con cual de los SDK instalados se compila este dominio. El modo
+      # de fallo no es rotura -- eso lo atrapa el CI del PR antes del merge -- sino staleness
+      # silenciosa: sin esta ruta, un push a main que solo toque global.json no dispara nada
+      # y la Function App sigue sirviendo el binario construido con el SDK anterior, sin aviso.
+      - 'global.json'
+      # Este propio workflow (issue #454 del harness): sin esta ruta, un cambio en como se
+      # construye/despliega este dominio (incluida esta misma migracion) nunca dispara solo --
+      # hay que lanzarlo a mano con workflow_dispatch cada vez.
+      - '.github/workflows/deploy-programacion.yml'
+      # Exclusiones deliberadas de esta lista -- no las agregues buscando simetria:
+      # - ControlAsistencias.slnx: lo usa build-and-test (el gate de test), no el job deploy,
+      #   que compila el .csproj de este dominio directo. Un cambio al .slnx por ESTE dominio
+      #   ya viene acompanado de cambios en src/.../Programacion/** (que disparan igual), y uno
+      #   por OTRO dominio no altera el binario de este.
+      # - infra/**: su trigger vive en infra-cd.yml y este workflow se encadena detras via el
+      #   workflow_run de abajo, para que el codigo nunca se despliegue antes del apply de
+      #   infra (MEF-ADR-0022). Devolverlo aqui rompe ese orden.
+      # - tests/**: un cambio de tests no altera el binario publicado de este dominio.
+      # - .dockerignore: acota el contexto de build de imagenes Docker (issue #260); este
+      #   workflow no construye ninguna imagen (dotnet publish directo, sin Docker), asi que
+      #   no es un input de lo que despliega.
+  workflow_run:
+    # 'Infra CD - Terraform Apply' es el nombre real del workflow en este repo
+    # (.github/workflows/infra-cd.yml), verificado contra la API de Actions -- no el literal
+    # 'Infra CD' de la plantilla del harness, que aqui no dispara nada.
+    workflows: ['Infra CD - Terraform Apply']
+    types: [completed]
   workflow_dispatch:
 
 jobs:
+  # El apply de infra (infra-cd.yml, MEF-ADR-0022) y el deploy de codigo pueden correr en
+  # el mismo push a main. Encadenar por workflow_run (en vez de un 'push' que dispare
+  # ambos) garantiza el orden infra -> deploy (MEF-ADR-0022, "Orden: infra antes que deploy
+  # de codigo"). Pero workflow_run por si solo redesplegaria el dominio tras CADA apply de
+  # infra (seguro por idempotencia, pero costoso); este job filtra por si el PR que se acaba
+  # de mergear toco este dominio (src/Bitakora.ControlAsistencia.Programacion/**) y salta el
+  # redeploy si no. Se resuelve via la API de PRs asociados al commit (no depende de la
+  # estrategia de merge: squash, merge o rebase).
+  determinar-alcance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      debe_desplegar: ${{ steps.check.outputs.debe_desplegar }}
+    steps:
+      - id: check
+        name: Decidir si corresponde desplegar este dominio
+        # Los datos del evento entran por 'env' y NO interpolados como ${{ }} dentro del
+        # 'run'. Un ${{ }} en el cuerpo del script se sustituye como TEXTO antes de que bash
+        # lo parsee, asi que un dato controlable por quien dispara la corrida se vuelve
+        # codigo. 'head_branch' es justamente eso: git acepta ", $, ;, & y ` en un nombre de
+        # rama (solo prohibe espacio, ~, ^, :, ?, *, [ y \), asi que una rama como
+        #   main"$IFS]&&<comando>&&test$IFS"x
+        # -- un ref valido -- ejecuta <comando> Y ADEMAS deja la guarda de abajo en verdadero,
+        # con el token de escritura y los secrets que este disparador expone. Pasarlo por
+        # 'env' lo mantiene siempre como valor, nunca como sintaxis; es la mitigacion que
+        # prescribe el hardening de GitHub Actions para datos del evento.
+        # Hoy el vector es latente, no explotable: 'Infra CD - Terraform Apply' solo corre en
+        # push a main, asi que head_branch siempre vale 'main'. Se vuelve alcanzable en el
+        # mismo escenario para el que la guarda existe -- que infra-cd.yml gane un trigger de
+        # pull_request --, que es la razon de blindarlo junto con ella y no despues.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENTO: ${{ github.event_name }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_RAMA: ${{ github.event.workflow_run.head_branch }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          # push directo (src/**) o workflow_dispatch: siempre despliega.
+          if [ "$EVENTO" != "workflow_run" ]; then
+            echo "debe_desplegar=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # 'Infra CD - Terraform Apply' solo corre en push a main (el plan de PR vive en
+          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion y rama por
+          # defensividad -- si algun dia se unifican los dos archivos de infra como hizo el
+          # harness, esta guarda evita reaccionar a una corrida que no sea un apply exitoso.
+          if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ]; then
+            echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # ...y el PR mergeado toco este dominio.
+          PR_NUM=$(gh api "repos/${REPO}/commits/${RUN_SHA}/pulls" --jq '.[0].number // empty')
+          if [ -z "$PR_NUM" ]; then
+            echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh api "repos/${REPO}/pulls/${PR_NUM}/files" --paginate --jq '.[].filename' | grep -qE '^src/Bitakora\.ControlAsistencia\.Programacion/'; then
+            echo "debe_desplegar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-test:
+    needs: determinar-alcance
+    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -32,10 +131,15 @@ jobs:
           done
 
   deploy:
-    needs: build-and-test
+    needs: [determinar-alcance, build-and-test]
+    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -50,7 +154,7 @@ jobs:
             --configuration Release \
             --no-restore \
             -r linux-x64 \
-            -p:SourceRevisionId=${{ github.sha }}
+            -p:SourceRevisionId=${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Publish
         run: |
@@ -82,7 +186,8 @@ jobs:
     needs: deploy
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
+      base_url: https://func-asist-dev-programacion.azurewebsites.net
       test_project: tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/
-      expected_sha: ${{ github.sha }}
+      expected_sha: ${{ needs.deploy.outputs.sha }}
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
