@@ -38,9 +38,25 @@ name: Deploy Projections
 on:
   push:
     branches: [main]
+    # El filtro debe cubrir todo lo que determina la imagen construida, no solo el codigo del
+    # worker. El Dockerfile hace `COPY . .` con el contexto en la raiz del repo y compila
+    # dentro del contenedor, asi que `global.json` decide que SDK resuelve ese build: un
+    # cambio ahi puede romper o alterar la imagen sin tocar ningun .cs. Y el workflow se
+    # incluye a si mismo para que una correccion a este archivo se despliegue sola.
+    #
+    # Deliberadamente FUERA del filtro (no agregar por simetria con los deploy-*.yml del
+    # write-side):
+    #   - ControlAsistencias.slnx      -> el Dockerfile compila el .csproj directo, no la solucion.
+    #   - tests/...Projections.Tests/  -> un cambio de tests no altera la imagen, y cada
+    #                                     publicacion crea una revision nueva que reinicia el daemon.
+    #   - infra/environments/dev/      -> tras el issue #249 Terraform ya no gobierna la imagen
+    #                                     (`ignore_changes`), asi que un cambio de infra no
+    #                                     requiere republicarla.
     paths:
       - 'src/Bitakora.ControlAsistencia.Projections/**'
       - 'src/Bitakora.ControlAsistencia.ReadModels/**'
+      - 'global.json'
+      - '.github/workflows/deploy-projections.yml'
   workflow_dispatch:
 
 env:
