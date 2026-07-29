@@ -10,9 +10,9 @@ namespace Bitakora.ControlAsistencia.Projections.Tests;
 // .ConfigurarEventos, que es wiring puro para Program.cs y queda fuera de esta medicion -- con una
 // cadena de conexion dummy, sin necesidad de Postgres real (Marten 7+ no abre la conexion durante
 // el bootstrapping del IHost). Cada dominio se cubre con las mismas guardas: el named store
-// resuelve del contenedor, apunta al schema del write-side, replica su metadata de evento, no
-// tiene ninguna proyeccion Inline y corre su daemon en HotCold. La superficie de Marten que cada
-// una interroga vive en AssertsProyecciones.
+// resuelve del contenedor, apunta al schema del write-side, replica su metadata de evento y su
+// identidad de stream, no tiene ninguna proyeccion Inline y corre su daemon en HotCold. La
+// superficie de Marten que cada una interroga vive en AssertsProyecciones.
 public class ConfiguracionMartenProjectionsTests
 {
     private const string ConnectionStringDummy = "Host=localhost;Database=dummy";
@@ -77,6 +77,14 @@ public class ConfiguracionMartenProjectionsTests
         provider.AssertDaemonHotCold<IProgramacionProjectionStore>();
     }
 
+    [Fact]
+    public void ConfigurarProgramacion_DeclaraLaStreamIdentityComoString()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>().AssertStreamIdentityAsString();
+    }
+
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
 
     [Fact]
@@ -119,6 +127,14 @@ public class ConfiguracionMartenProjectionsTests
         using var provider = ProviderDeControlHoras();
 
         provider.AssertDaemonHotCold<IControlHorasProjectionStore>();
+    }
+
+    [Fact]
+    public void ConfigurarControlHoras_DeclaraLaStreamIdentityComoString()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>().AssertStreamIdentityAsString();
     }
 
     // --- Seam de nivel BC (CA-4) ---

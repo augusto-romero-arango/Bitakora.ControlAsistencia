@@ -1,3 +1,4 @@
+using JasperFx.Events; // StreamIdentity (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using Marten;
 
@@ -34,6 +35,16 @@ public static class ConfiguracionMartenProjectionsProgramacion
             {
                 opts.Connection(martenConnectionString);
                 opts.DatabaseSchemaName = SchemaDelDominio; // mismo schema que el write-side (MEF-ADR-0003)
+
+                // Replica de la identidad de stream que el write-side ya declara
+                // (Cosmos.EventSourcing.CritterStack 2.1.0, AgregarConfiguracionMartenComandos:
+                // Events.StreamIdentity = AsString): los stream keys de este dominio son siempre
+                // strings -- e.Id.ToString() en la raiz de solicitud, evento.TurnoId.ToString() en
+                // el catalogo de turnos. Sin esta linea Marten aplica su default AsGuid ("Event
+                // Store Configuration" -> "Stream Identity" en
+                // https://martendb.io/events/configuration.html#stream-identity) y el daemon leeria
+                // el event store (stream_id varchar) como uuid, sin encontrar ningun stream (#253).
+                opts.Events.StreamIdentity = StreamIdentity.AsString;
 
                 // Replica de la configuracion de metadata del write-side (MEF-ADR-0034 seccion 6
                 // punto 3, seccion 7): el config-test verifica exactamente estas tres. La

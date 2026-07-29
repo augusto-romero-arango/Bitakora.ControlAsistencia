@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using JasperFx.Events;
 using JasperFx.Events.Daemon;
 using JasperFx.Events.Projections;
 using Marten;
@@ -69,4 +70,25 @@ public static class AssertsProyecciones
         var opciones = (StoreOptions)provider.GetRequiredService<TStore>().Options;
         opciones.Projections.AsyncMode.Should().Be(DaemonMode.HotCold);
     }
+
+    /// <summary>
+    /// El named store lee el event store con la misma identidad de stream que el write-side ya
+    /// declara (Cosmos.EventSourcing.CritterStack 2.1.0: Events.StreamIdentity = AsString): los
+    /// stream keys de este BC son siempre strings -- e.Id.ToString() en la raiz de solicitud,
+    /// ComputarStreamId -> "{EmpleadoId}:{Fecha:yyyy-MM-dd}" en control diario --, nunca el Guid
+    /// crudo. Con el default de Marten (AsGuid cuando nadie lo configura, docs "Event Store
+    /// Configuration" -> "Stream Identity": https://martendb.io/events/configuration.html#stream-identity)
+    /// el daemon leeria stream_id varchar como si fuera uuid y no encontraria ningun stream.
+    ///
+    /// A diferencia de AsyncMode (AssertDaemonHotCold), que solo existe en la superficie mutable,
+    /// StreamIdentity si esta declarada en la de solo lectura que devuelve IDocumentStore.Options
+    /// (Marten.Events.IReadOnlyEventStoreOptions.StreamIdentity, get-only -- verificado por
+    /// decompilacion contra Marten 9.12.0 / JasperFx.Events 2.18.1), asi que aqui no hace falta
+    /// castear a StoreOptions.
+    ///
+    /// MEF-ADR-0034 seccion 6 todavia no enumera esta guarda junto a las otras tres: candidata a
+    /// enmienda de esa seccion en el harness (issue #253).
+    /// </summary>
+    public static void AssertStreamIdentityAsString(this IDocumentStore store) =>
+        store.Options.Events.StreamIdentity.Should().Be(StreamIdentity.AsString);
 }
