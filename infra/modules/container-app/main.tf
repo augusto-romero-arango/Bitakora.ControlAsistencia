@@ -1,3 +1,32 @@
+# ------------------------------------------------------------------------------------
+# GOBIERNO DE LA IMAGEN: la imagen de este Container App la gobierna CI, no Terraform
+# (issue #249). `var.image` alimenta UNICAMENTE la creacion inicial (bootstrap con el
+# placeholder publico de var.projections_worker_image, ver la nota de esa variable en
+# infra/environments/dev/variables.tf); a partir de ahi el pipeline de aplicacion (el
+# que corre `az containerapp update --image ...` en cada push a `main` sobre la imagen
+# real) es el unico dueno del atributo `image`. El bloque `lifecycle` de abajo declara
+# `ignore_changes = [template[0].container[0].image]` para que Terraform deje de
+# proponer revertir la imagen desplegada por CI al placeholder del HCL (HashiCorp,
+# Terraform, "The lifecycle Meta-Argument" -- seccion ignore_changes: "Terraform
+# considers the arguments corresponding to the given attribute names when planning a
+# create operation, but are ignored when planning an update operation").
+#
+# RESTRICCION CONOCIDA: `lifecycle` no admite expresiones dinamicas -- no se puede
+# condicionar `ignore_changes` a una variable ni hacerlo opt-in por flag. Esto significa
+# que la semantica "la imagen la publica CI" aplica a CUALQUIER Container App que este
+# modulo instancie en el futuro, no solo al worker de proyecciones. Hoy el modulo tiene
+# un unico consumidor (module.container_app del entorno dev, el worker de proyecciones)
+# y esa semantica es exactamente la suya. Si en el futuro se necesita un Container App
+# cuya imagen SI gobierne Terraform (por ejemplo, sin pipeline de CI propio), hay que
+# separar ese caso en un modulo distinto ANTES de instanciarlo con este.
+#
+# ROLLBACK DE IMAGEN: con Terraform fuera del gobierno de la imagen, el rollback NO se
+# hace revirtiendo HCL ni corriendo `terraform apply`. Se hace con:
+#   az containerapp update -n <nombre> -g <resource-group> --image <acr>/<repo>:<sha-anterior>
+# o activando una revision previa con `az containerapp revision activate` (Microsoft
+# Learn, "Revisions in Azure Container Apps").
+# ------------------------------------------------------------------------------------
+
 variable "name" {
   description = "Nombre del Container App (2-32 chars, minusculas/numeros/guiones, empieza con letra y termina alfanumerico -- Microsoft.App/containerApps, scope resource group; verificado contra Microsoft Learn, 'Naming rules and restrictions for Azure resources')"
   type        = string
@@ -185,6 +214,16 @@ resource "azurerm_container_app" "this" {
       condition     = var.max_replicas >= var.min_replicas
       error_message = "max_replicas (${var.max_replicas}) no puede ser menor que min_replicas (${var.min_replicas})."
     }
+
+    # La imagen la gobierna CI, no Terraform (issue #249, ver la nota de cabecera del
+    # modulo). `var.image` solo alimenta el `create` inicial (bootstrap con placeholder);
+    # a partir de ahi `az containerapp update --image` de CI es el dueno del atributo, y
+    # sin este ignore_changes cada `plan` posterior propondria revertirlo al placeholder
+    # del HCL. Aplica a cualquier consumidor futuro del modulo (lifecycle no admite
+    # expresiones dinamicas ni opt-in por flag) -- ver la restriccion documentada arriba.
+    ignore_changes = [
+      template[0].container[0].image
+    ]
   }
 }
 
