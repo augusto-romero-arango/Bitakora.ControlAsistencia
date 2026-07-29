@@ -26,8 +26,9 @@ public static class ConfiguracionObservabilidadProjections
     // Debe coincidir EXACTAMENTE con el nombre del ensamblado del worker: PatronFuentePropia
     // (issue #250, abajo) ya nombra su ActivitySource con ese mismo string, asi que ambas
     // constantes derivan de una sola fuente de verdad -- fijado por guardrail en
-    // ConfiguracionObservabilidadProjectionsTests (CA-3). No lleva el ambiente: hay un App
-    // Insights por ambiente (un solo issue #263, punto 1).
+    // ConfiguracionObservabilidadProjectionsTests. No lleva el ambiente: hay un Application Insights
+    // por ambiente, asi que cloud_RoleName nunca tiene que desambiguar ambientes dentro del mismo
+    // recurso (issue #263, punto 1 del refinamiento).
     internal const string NombreServicio = "Bitakora.ControlAsistencia.Projections";
 
     // CA-2: el source del propio ensamblado. El wildcard va SIN punto antes del asterisco --
@@ -91,14 +92,11 @@ public static class ConfiguracionObservabilidadProjections
     // Issue #263: fija el atributo de recurso OpenTelemetry `service.name`, la unica pieza que le
     // faltaba a este seam para que el worker deje de aparecer en Application Insights como
     // `unknown_service:dotnet` (cloud_RoleName cae a `service.name` cuando `service.namespace` no
-    // esta seteado -- Microsoft Learn, "Configure Azure Monitor OpenTelemetry").
+    // esta seteado -- Microsoft Learn, "Configure Azure Monitor OpenTelemetry"). Extraido como
+    // metodo interno -- igual que ResolverRatioDeSampling arriba -- para que el test pueda aislar la
+    // precedencia frente al entorno sobre un ResourceBuilder propio, sin construir el contenedor.
     //
-    // Extraido como metodo interno testeable -- igual que ResolverRatioDeSampling arriba -- en vez
-    // de wirear el AddService inline dentro del lambda de ConfigurarObservabilidad: eso permite
-    // construir un ResourceBuilder propio en el test (CreateDefault, sin Postgres ni Container App)
-    // y aseverar sobre Resource.Attributes, en vez de dejar el recurso sin cobertura.
-    //
-    // SIN serviceNamespace (CA-1: cloud_RoleName no debe llevar prefijo) y SIN autogenerar
+    // SIN serviceNamespace (cloud_RoleName no debe llevar prefijo) y SIN autogenerar
     // service.instance.id (autoGenerateServiceInstanceId: false): el default true reemplazaria el
     // hostname legible del contenedor por un GUID aleatorio distinto en cada arranque de revision;
     // el exporter de Azure Monitor deriva cloud_RoleInstance de ese atributo y cae al hostname en
@@ -107,7 +105,7 @@ public static class ConfiguracionObservabilidadProjections
     // Consecuencia conocida: fijar el nombre en codigo deja OTEL_SERVICE_NAME inerte
     // (ConfigureResource corre despues del ResourceBuilder.CreateDefault() que ya parsea esa
     // variable, y Resource.Merge le da precedencia a lo que se fusiona despues -- verificado en
-    // CA-4/ConfigurarRecurso_ConservaElServiceNameDelCodigo_CuandoOtelServiceNameApuntaAOtroValor).
+    // ConfigurarRecurso_ConservaElServiceNameDelCodigo_CuandoOtelServiceNameApuntaAOtroValor).
     // Si alguna vez se necesita configurar el nombre por ambiente, el camino es un parametro nuevo
     // en este metodo, no la variable de entorno.
     internal static void ConfigurarRecurso(ResourceBuilder recurso) =>

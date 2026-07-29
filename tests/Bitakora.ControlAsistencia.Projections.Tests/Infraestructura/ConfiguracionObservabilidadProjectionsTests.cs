@@ -1,7 +1,8 @@
 // Issue #250: instrumentar el worker de proyecciones con Application Insights.
 // Issue #263: fijar el recurso `service.name` para que el worker deje de aparecer en Application
-// Insights como `unknown_service:dotnet`. Guardrails al final de esta misma clase (CA-2 a CA-4) --
-// misma familia de tests, no una clase nueva.
+// Insights como `unknown_service:dotnet`. Guardrails al final de esta misma clase (CA-1 a CA-4 de
+// ese issue) -- misma familia de tests, no una clase nueva. Ojo al leer los "CA-N" de este archivo:
+// los de la mitad de arriba son del issue #250 y los de la ultima seccion, del #263.
 //
 // El worker corre sin ingress (MEF-ADR-0034 seccion 8): no hay endpoint HTTP que golpear para
 // diagnosticar el daemon HotCold, asi que la observabilidad depende exclusivamente de trazas
@@ -47,6 +48,14 @@ public class ConfiguracionObservabilidadProjectionsTests
         "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
 
     private const string MartenConnectionStringDummy = "Host=localhost;Database=dummy";
+
+    // Atributos de recurso de la seccion "service.name" (issue #263). Nombres literales a proposito:
+    // son la clave de la convencion semantica de OpenTelemetry de la que el exporter de Azure Monitor
+    // deriva cloud_RoleName/cloud_RoleInstance -- si el SDK los renombrara, el test debe fallar.
+    private const string AtributoServiceName = "service.name";
+    private const string AtributoServiceNamespace = "service.namespace";
+    private const string AtributoServiceInstanceId = "service.instance.id";
+    private const string VariableOtelServiceName = "OTEL_SERVICE_NAME";
 
     private static ServiceProvider ComponerServiceProvider(
         Action<IServiceCollection>? seamsAdicionales = null)
@@ -199,22 +208,36 @@ public class ConfiguracionObservabilidadProjectionsTests
         ratio.Should().Be(0.5);
     }
 
-    // --- Recurso de OpenTelemetry: service.name (issue #263, CA-2 a CA-4) ---
+    // --- Recurso de OpenTelemetry: service.name (issue #263, CA-1 a CA-4) ---
     //
-    // Estos tests invocan ConfigurarRecurso directamente sobre un ResourceBuilder propio -- no a
-    // traves de ConfigurarObservabilidad ni del ServiceProvider completo. Wirear el AddService
-    // inline en el lambda de tracing (como ya pasa con el sampler compuesto, ver limite 1 de la
-    // cabecera de este archivo) dejaria el recurso sin cobertura: TracerProvider no expone
-    // publicamente el Resource que termino usando. CreateDefault() (no CreateEmpty()) es
-    // deliberado: es lo que ConfigurarObservabilidad usaria en produccion via ConfigureResource, e
-    // incluye el fallback `unknown_service:` y el detector de OTEL_SERVICE_NAME/
-    // OTEL_RESOURCE_ATTRIBUTES (verificado contra el XML doc de OpenTelemetry 1.16.0) -- exactamente
-    // lo que CA-2 y CA-4 necesitan para demostrar que el nombre del codigo gana sobre ambos.
+    // Dos niveles, deliberadamente:
+    //
+    // a) ConfigurarObservabilidad_* compone el seam completo y lee el Resource que el TracerProvider
+    //    del contenedor termino usando (ProviderExtensions.GetResource, API publica de OpenTelemetry
+    //    1.16.0 -- la misma via por la que el exporter de Azure Monitor deriva cloud_RoleName). Es lo
+    //    que cubre CA-1 de punta a punta: que el enganche .ConfigureResource(...) sobre el
+    //    IOpenTelemetryBuilder efectivamente alcance la senal de trazas, y no solo que
+    //    ConfigurarRecurso haga lo correcto si alguien lo llama.
+    // b) ConfigurarRecurso_* invoca el metodo sobre un ResourceBuilder propio, para aislar la
+    //    precedencia frente al entorno (CA-4) sin construir el contenedor. CreateDefault() (no
+    //    CreateEmpty()) es deliberado: es lo que el SDK usa en produccion e incluye el fallback
+    //    `unknown_service:` y el detector de OTEL_SERVICE_NAME/OTEL_RESOURCE_ATTRIBUTES (verificado
+    //    contra el XML doc de OpenTelemetry 1.16.0) -- exactamente lo que CA-4 necesita para
+    //    demostrar que el nombre del codigo gana sobre ambos.
 
-    private const string AtributoServiceName = "service.name";
-    private const string AtributoServiceNamespace = "service.namespace";
-    private const string AtributoServiceInstanceId = "service.instance.id";
-    private const string VariableOtelServiceName = "OTEL_SERVICE_NAME";
+    [Fact]
+    public void ConfigurarObservabilidad_FijaElServiceNameDelWorkerEnElRecursoDelTracerProvider()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var atributos = provider.GetRequiredService<TracerProvider>()
+            .GetResource().Attributes.ToDictionary(a => a.Key, a => a.Value);
+
+        atributos.Should().ContainKey(AtributoServiceName)
+            .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
+        atributos.Should().NotContainKey(AtributoServiceNamespace);
+        atributos.Should().NotContainKey(AtributoServiceInstanceId);
+    }
 
     [Fact]
     public void ConfigurarRecurso_FijaServiceNameSinNamespaceNiInstanceId()
@@ -232,7 +255,7 @@ public class ConfiguracionObservabilidadProjectionsTests
 
     // CA-3: el nombre de servicio no puede divergir del nombre del ensamblado del worker -- es el
     // mismo criterio (idiomatico) por el que PatronFuentePropia (issue #250, arriba) nombra su
-    // ActivitySource. Si diverge, el proximo test (PatronFuentePropia_...) tambien lo detecta.
+    // ActivitySource, y de ahi que una sola constante alimente a los dos.
     [Fact]
     public void NombreServicio_CoincideConElNombreDelEnsambladoDelWorker()
     {
@@ -241,11 +264,11 @@ public class ConfiguracionObservabilidadProjectionsTests
         ConfiguracionObservabilidadProjections.NombreServicio.Should().Be(nombreDelEnsamblado);
     }
 
-    // CA-3: PatronFuentePropia (issue #250) hoy repite el nombre del ensamblado a mano. Este
-    // guardrail impide que NombreServicio y PatronFuentePropia diverjan con el tiempo -- si alguien
-    // cambia uno sin el otro, este test falla. La forma de hacerlo pasar de manera sostenible es
-    // derivar PatronFuentePropia de NombreServicio (p.ej. `NombreServicio + "*"`), no editar ambos
-    // strings a mano en cada cambio.
+    // CA-3: PatronFuentePropia se deriva hoy de NombreServicio (`NombreServicio + "*"`), asi que
+    // mientras esa derivacion siga en pie esta guarda no puede fallar -- y eso es justamente lo que
+    // fija: impide que alguien vuelva a escribir el literal a mano en una de las dos constantes y las
+    // deje divergir en silencio (el modo de falla que este issue corrige). Es el guardrail de la
+    // derivacion, no una asercion sobre el valor: ese lo cubre el test anterior contra el ensamblado.
     [Fact]
     public void PatronFuentePropia_CoincideConNombreServicioMasAsterisco()
     {
