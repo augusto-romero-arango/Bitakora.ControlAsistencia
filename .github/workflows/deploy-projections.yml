@@ -21,11 +21,17 @@
 #
 # Rollback de imagen: la imagen NO la gobierna Terraform (issue #249 le puso
 # `lifecycle { ignore_changes = [template[0].container[0].image] }` al Container App), asi que
-# revertir jamas se hace tocando HCL ni corriendo `terraform apply`. Para volver a un estado
-# anterior:
+# revertir jamas se hace tocando HCL ni corriendo `terraform apply`. Se hace re-publicando el
+# tag anterior:
 #   az containerapp update -n ca-asist-dev -g rg-controlasistencias-dev --image <loginServer>/<repo>:<sha-anterior>
-# o, si la revision anterior sigue activa/inactiva pero existe:
-#   az containerapp revision activate -n ca-asist-dev -g rg-controlasistencias-dev --revision <nombre-revision>
+# El tag por SHA sigue en el ACR, asi que este comando no necesita reconstruir nada.
+# `az containerapp revision activate` NO es un camino de rollback valido aqui: el Container App
+# corre en revision_mode = "Single" (infra/modules/container-app), y en ese modo solo una
+# revision puede estar activa a la vez y las viejas se desaprovisionan automaticamente
+# (Microsoft Learn, "Update and deploy changes in Azure Container Apps" -- Revision modes:
+# "New revisions are automatically provisioned, activated, and scaled ... Old revisions are
+# automatically deprovisioned"). Activar/desactivar revisiones a mano requiere pasar antes a
+# modo multiple con `az containerapp revision set-mode --mode multiple`.
 
 name: Deploy Projections
 
@@ -59,7 +65,7 @@ jobs:
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test tests/Bitakora.ControlAsistencia.Projections.Tests/ --no-build --configuration Release --ignore-exit-code 8
+        run: dotnet test --project tests/Bitakora.ControlAsistencia.Projections.Tests/ --no-build --configuration Release --ignore-exit-code 8
 
   deploy:
     needs: build-and-test
@@ -72,18 +78,28 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Resolver login server del ACR
+      - name: Resolver el ACR del resource group
         run: |
-          login_server=$(az acr list -g "${{ env.RESOURCE_GROUP }}" --query "[0].loginServer" -o tsv)
-          if [ -z "$login_server" ]; then
+          # El nombre del ACR lleva un sufijo aleatorio (random_string.container_registry_suffix),
+          # asi que no se puede fijar en el workflow: se resuelve en tiempo de ejecucion. Se leen
+          # los dos datos de la misma consulta porque `az acr login` quiere el nombre del recurso
+          # y no el login server FQDN (Microsoft Learn, "Quickstart: Create a private container
+          # registry using the Azure CLI": "Specify only the registry resource name when logging
+          # in with the Azure CLI. Don't use the fully qualified login server name"), mientras que
+          # el tag de la imagen si necesita el login server.
+          acr=$(az acr list -g "${{ env.RESOURCE_GROUP }}" \
+            --query "[0].{name: name, loginServer: loginServer}" -o json)
+
+          acr_name=$(jq -r '.name // empty' <<< "$acr")
+          login_server=$(jq -r '.loginServer // empty' <<< "$acr")
+
+          if [ -z "$acr_name" ] || [ -z "$login_server" ]; then
             echo "No se encontro ningun Container Registry en ${{ env.RESOURCE_GROUP }}"
             exit 1
           fi
+
+          echo "acr_name=${acr_name}" >> "$GITHUB_ENV"
           echo "login_server=${login_server}" >> "$GITHUB_ENV"
-          # az acr login exige el nombre corto del registry, no el login server FQDN
-          # (Microsoft Learn, "Quickstart: Create a private container registry using the
-          # Azure CLI"). El nombre corto es el primer segmento del login server.
-          echo "acr_name=${login_server%%.*}" >> "$GITHUB_ENV"
 
       - name: ACR login
         run: az acr login --name "${{ env.acr_name }}"
@@ -102,21 +118,56 @@ jobs:
             -g "${{ env.RESOURCE_GROUP }}" \
             --image "${{ env.image }}"
 
-      - name: Verificar imagen activa
+      - name: Verificar la revision activa
         run: |
-          active_image=$(az containerapp show \
+          # La verificacion se hace sobre la REVISION, no solo sobre el template del Container
+          # App: el template devuelve lo que acabamos de escribir con `update` (comprobarlo ahi
+          # seria una tautologia), mientras que la revision demuestra que Azure aprovisiono una
+          # revision nueva corriendo la imagen publicada. En revision_mode = "Single" la
+          # revision mas nueva es la unica activa, asi que latestRevisionName ES la que corre.
+          revision=$(az containerapp show \
             -n "${{ env.CONTAINER_APP_NAME }}" \
             -g "${{ env.RESOURCE_GROUP }}" \
-            --query "properties.template.containers[0].image" -o tsv)
+            --query "properties.latestRevisionName" -o tsv)
 
-          echo "Imagen activa: ${active_image}"
-
-          if [ "$active_image" != "${{ env.image }}" ]; then
-            echo "La imagen activa no coincide con la publicada (${{ env.image }})"
+          if [ -z "$revision" ]; then
+            echo "El Container App no reporta ninguna revision (properties.latestRevisionName vacio)"
             exit 1
           fi
 
-          if [[ "$active_image" == *"mcr.microsoft.com/k8se/quickstart"* ]]; then
-            echo "El Container App sigue corriendo el placeholder de demostracion"
+          revision_json=$(az containerapp revision show \
+            -n "${{ env.CONTAINER_APP_NAME }}" \
+            -g "${{ env.RESOURCE_GROUP }}" \
+            --revision "$revision" -o json)
+
+          revision_image=$(jq -r '.properties.template.containers[0].image' <<< "$revision_json")
+          revision_activa=$(jq -r '.properties.active' <<< "$revision_json")
+
+          echo "Revision:  ${revision}"
+          echo "Imagen:    ${revision_image}"
+          echo "Activa:    ${revision_activa}"
+          echo "Provision: $(jq -r '.properties.provisioningState // "sin reportar"' <<< "$revision_json")"
+          echo "Ejecucion: $(jq -r '.properties.runningState // "sin reportar"' <<< "$revision_json")"
+
+          # El placeholder se comprueba aparte de la igualdad: si alguien re-aplicara Terraform
+          # sin el ignore_changes de #249, este mensaje dice exactamente que paso en vez de un
+          # generico "no coincide".
+          if [[ "$revision_image" == *"mcr.microsoft.com/k8se/quickstart"* ]]; then
+            echo "La revision activa sigue corriendo el placeholder de demostracion"
             exit 1
           fi
+
+          if [ "$revision_image" != "${{ env.image }}" ]; then
+            echo "La imagen de la revision activa no coincide con la publicada (${{ env.image }})"
+            exit 1
+          fi
+
+          if [ "$revision_activa" != "true" ]; then
+            echo "La revision mas nueva (${revision}) no quedo activa"
+            exit 1
+          fi
+
+          # Nota operativa: un fallo de arranque del worker (secreto sin resolver, credenciales
+          # de Postgres, permisos DDL sobre el schema) NO lo detecta este job -- la revision se
+          # aprovisiona igual. Verlo requiere los logs del contenedor:
+          #   az containerapp logs show -n ca-asist-dev -g rg-controlasistencias-dev --follow
