@@ -11,36 +11,73 @@
 // El parsing del ratio de sampling (CA-3, CA-ADR-0009 Capa 2) se extrajo a un metodo interno
 // testeable (ResolverRatioDeSampling) en vez de leerse inline de Environment.GetEnvironmentVariable
 // dentro del seam: permite verificar el default (0.2) ante ausencia/valor invalido/fuera de rango
-// sin mutar variables de entorno del proceso, evitando interferencia con otras clases de test que
-// puedan correr en paralelo.
+// sin depender del entorno del proceso de test.
+//
+// Limites conocidos de esta clase (documentados, no huecos accidentales):
+//
+// 1. Que el ratio resuelto llegue efectivamente al ParentBasedSampler/TraceIdRatioBasedSampler no
+//    se verifica: el sampler compuesto vive dentro de TracerProviderSdk, que OpenTelemetry no
+//    expone publicamente. Ejercitarlo end-to-end exigiria muestrear actividades reales contra un
+//    ratio fraccionario -- probabilistico y flaky. Queda cubierto por revision de codigo.
+// 2. Que Program.cs invoque el seam (CA-4) tampoco: Program.cs son top-level statements y el
+//    worker no tiene equivalente a WebApplicationFactory (limite que MEF-ADR-0029 ya reconoce).
+//    Lo mas cerca que llega esta clase es componer juntos los dos seams del worker
+//    (ConfigurarEventos + ConfigurarObservabilidad), que es lo que Program.cs encadena; el enlace
+//    literal queda cubierto por revision de codigo (CA-4) y por el arranque real post-deploy
+//    (MEF-ADR-0013).
+using System.Diagnostics;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
 
 public class ConfiguracionObservabilidadProjectionsTests
 {
-    private const string ConnectionStringDummy =
+    private const string VariableConnectionString = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+
+    private const string ConnectionStringAppInsightsDummy =
         "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
         "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
 
-    private static ServiceProvider ComponerServiceProvider()
+    private const string MartenConnectionStringDummy = "Host=localhost;Database=dummy";
+
+    private static ServiceProvider ComponerServiceProvider(
+        Action<IServiceCollection>? seamsAdicionales = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
 
         services.ConfigurarObservabilidad();
+        seamsAdicionales?.Invoke(services);
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
     }
 
+    // Fija el valor de la variable de entorno mientras corre la accion y lo restaura despues
+    // (null la elimina). Sin esto, el escenario "connection string ausente" no seria determinista:
+    // dependeria de que el entorno del proceso de test no la tenga seteada, y CI si podria tenerla.
+    private static void ConVariableDeEntorno(string nombre, string? valor, Action accion)
+    {
+        var original = Environment.GetEnvironmentVariable(nombre);
+        Environment.SetEnvironmentVariable(nombre, valor);
+        try
+        {
+            accion();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(nombre, original);
+        }
+    }
+
     // --- Composicion del seam (CA-2, CA-4, CA-5) ---
 
     [Fact]
-    public void ConfigurarObservabilidad_ComponeElContenedorSinExcepciones_ConValidateOnBuild()
+    public void ConfigurarObservabilidad_ComponeElGrafoCompleto_CuandoSeValidaAlConstruir()
     {
         var act = () => ComponerServiceProvider().Dispose();
 
@@ -48,37 +85,72 @@ public class ConfiguracionObservabilidadProjectionsTests
     }
 
     [Fact]
-    public void ConfigurarObservabilidad_ResuelveTracerProviderDelContenedor()
+    public void ConfigurarObservabilidad_ResuelveTracerProviderDelContenedor_CuandoLaConnectionStringEstaAusente()
     {
-        using var provider = ComponerServiceProvider();
-
-        var tracerProvider = provider.GetService<TracerProvider>();
-
-        tracerProvider.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void ConfigurarObservabilidad_ResuelveTracerProviderDelContenedor_CuandoLaConnectionStringEstaPresente()
-    {
-        var original = Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
-        try
+        // Escenario de arranque local y de una revision cuya Key Vault reference aun no resolvio
+        // (MEF-ADR-0034 seccion 8, secreto sembrado despues del apply): el exporter no debe tumbar
+        // la composicion del worker por falta de connection string -- solo falla al exportar.
+        ConVariableDeEntorno(VariableConnectionString, null, () =>
         {
-            // Replica el escenario real (MEF-ADR-0025/CA-ADR-0026): el Container App inyecta esta
-            // variable via Key Vault reference; este test no la lee a mano, solo verifica que el
-            // exporter no revienta la composicion cuando el runtime ya la puso en el entorno.
-            Environment.SetEnvironmentVariable(
-                "APPLICATIONINSIGHTS_CONNECTION_STRING", ConnectionStringDummy);
-
             using var provider = ComponerServiceProvider();
 
             var tracerProvider = provider.GetService<TracerProvider>();
 
             tracerProvider.Should().NotBeNull();
-        }
-        finally
+        });
+    }
+
+    [Fact]
+    public void ConfigurarObservabilidad_ResuelveTracerProviderDelContenedor_CuandoLaConnectionStringEstaPresente()
+    {
+        // Replica el escenario real (MEF-ADR-0025/CA-ADR-0026): el Container App inyecta esta
+        // variable via Key Vault reference; el seam no la lee ni la pasa a mano -- la resuelve el
+        // exporter por convencion propia.
+        ConVariableDeEntorno(VariableConnectionString, ConnectionStringAppInsightsDummy, () =>
         {
-            Environment.SetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING", original);
-        }
+            using var provider = ComponerServiceProvider();
+
+            var tracerProvider = provider.GetService<TracerProvider>();
+
+            tracerProvider.Should().NotBeNull();
+        });
+    }
+
+    // Los dos seams del worker se registran sobre el mismo IServiceCollection, en el mismo orden en
+    // que Program.cs los encadena. Sin esta guarda, cada seam queda verde por separado y un choque
+    // entre ambos (registro duplicado, dependencia que uno espera del otro) solo aparece al
+    // arrancar el proceso real. Sigue sin necesitar Postgres: Marten 7+ no abre conexion durante el
+    // bootstrapping del IHost.
+    [Fact]
+    public void ConfigurarObservabilidad_ResuelveTracerProviderDelContenedor_CuandoSeComponeJuntoAlSeamDeEventos()
+    {
+        using var provider = ComponerServiceProvider(
+            services => services.ConfigurarEventos(MartenConnectionStringDummy));
+
+        provider.GetService<TracerProvider>().Should().NotBeNull();
+        provider.GetService<IProgramacionProjectionStore>().Should().NotBeNull();
+        provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
+    }
+
+    // El patron de la fuente propia (CA-2) va sin punto antes del asterisco a proposito. Verificado
+    // contra OpenTelemetry 1.16.0: "X.*" se ancla como ^X\..*$ y descarta una ActivitySource
+    // nombrada exactamente "X", que es como se nombra al instrumentar con el nombre del ensamblado.
+    // Esta guarda evita que alguien "restaure la paridad" con ControlHoras ("...ControlHoras.*") y
+    // deje los spans del worker sin capturar EN SILENCIO. Construye su propio TracerProvider en vez
+    // de usar el del contenedor porque ese lleva el sampler de ratio 0.2 (CA-3), que volveria la
+    // asercion probabilistica; aca el sampler por defecto la vuelve determinista.
+    [Fact]
+    public void PatronFuentePropia_CapturaLaActividad_CuandoLaFuenteSeLlamaComoElEnsambladoDelWorker()
+    {
+        var nombreDelEnsamblado = typeof(ConfiguracionObservabilidadProjections).Assembly.GetName().Name!;
+        using var provider = Sdk.CreateTracerProviderBuilder()
+            .AddSource(ConfiguracionObservabilidadProjections.PatronFuentePropia)
+            .Build();
+        using var fuente = new ActivitySource(nombreDelEnsamblado);
+
+        using var actividad = fuente.StartActivity("operacion-de-prueba");
+
+        actividad.Should().NotBeNull();
     }
 
     // --- Parsing del ratio de sampling (CA-3, CA-6, CA-ADR-0009 Capa 2) ---
@@ -122,10 +194,4 @@ public class ConfiguracionObservabilidadProjectionsTests
 
         ratio.Should().Be(0.5);
     }
-
-    // --- Seam de nivel BC (CA-4): Program.cs debe invocar ConfigurarObservabilidad junto a
-    // ConfigurarEventos. Esta guarda documenta el requisito -- MEF-ADR-0029 no puede testear
-    // Program.cs directamente (top-level statements, sin equivalente a WebApplicationFactory para
-    // el worker), asi que el enlace real entre Program.cs y este seam queda cubierto por el smoke
-    // test post-deploy (MEF-ADR-0013) y por revision de codigo (CA-4), no por este test unitario.
 }

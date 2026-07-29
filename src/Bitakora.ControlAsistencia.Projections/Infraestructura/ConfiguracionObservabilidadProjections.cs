@@ -21,6 +21,16 @@ public static class ConfiguracionObservabilidadProjections
     internal const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
     internal const double RatioSamplingPorDefecto = 0.2;
 
+    // CA-2: el source del propio ensamblado. El wildcard va SIN punto antes del asterisco --
+    // divergencia deliberada frente a ControlHoras ("...ControlHoras.*"), verificada
+    // empiricamente contra OpenTelemetry 1.16.0: el patron "X.*" se ancla como ^X\..*$ y NO
+    // captura una ActivitySource nombrada exactamente "X", mientras "X*" captura tanto "X" como
+    // "X.Hija". Como lo idiomatico al instrumentar es nombrar la fuente con el nombre del
+    // ensamblado (`Assembly.GetName().Name`), con el punto los spans del propio worker se
+    // descartarian EN SILENCIO -- el mismo tipo de wiring a medio terminar que este issue cierra.
+    // Fijado por guardrail en ConfiguracionObservabilidadProjectionsTests.
+    internal const string PatronFuentePropia = "Bitakora.ControlAsistencia.Projections*";
+
     public static IServiceCollection ConfigurarObservabilidad(this IServiceCollection services)
     {
         // Observabilidad: exporta las trazas del worker (Npgsql, Marten) a Application Insights via
@@ -47,7 +57,7 @@ public static class ConfiguracionObservabilidadProjections
                 .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
                 .AddSource("Marten")
                 .AddSource("Npgsql")
-                .AddSource("Bitakora.ControlAsistencia.Projections.*"))
+                .AddSource(PatronFuentePropia))
             .UseAzureMonitorExporter();
 
         return services;
