@@ -1,0 +1,173 @@
+# Publica la imagen del worker de proyecciones (Bitakora.ControlAsistencia.Projections)
+# en el ACR de dev y actualiza el Container App para que la ejecute (issue #236).
+#
+# Restricciones operativas (MEF-ADR-0034 seccion 8), verificadas antes de disenar este workflow:
+#   1. Orden frente al sembrado de secretos: la imagen real solo debe desplegarse DESPUES
+#      de que infra-cd.yml haya sembrado el secreto `marten-connection` en el Key Vault al
+#      menos una vez. Con el placeholder es inocuo que la Key Vault reference nazca sin
+#      resolver; con el worker real, arrancar sin la cadena de conexion es un fallo.
+#   2. Una revision viva no re-lee un secreto rotado: cambiar el valor de un secreto no se
+#      propaga a las revisiones en ejecucion. Por eso cada imagen se etiqueta con el SHA del
+#      commit: un tag nuevo siempre crea una revision nueva (revision-scope change segun
+#      "Revisions in Azure Container Apps" de Microsoft Learn), lo que garantiza que el
+#      contenedor arranque de cero y lea el secreto vigente.
+#
+# Desviacion declarada frente a MEF-ADR-0022: ese ADR exige que CI se autentique contra Azure
+# por OIDC (azure/login con client-id/tenant-id/subscription-id, sin secret de password). Este
+# workflow usa `creds: secrets.AZURE_CREDENTIALS` en su lugar, igual que deploy-control-horas.yml
+# y deploy-programacion.yml hacen hoy. Migrar a OIDC es un cambio transversal (federated
+# credentials del SP + los tres secrets + los cuatro workflows a la vez) que no pertenece a este
+# issue; se hara en un issue aparte que migre los cuatro workflows juntos.
+#
+# Rollback de imagen: la imagen NO la gobierna Terraform (issue #249 le puso
+# `lifecycle { ignore_changes = [template[0].container[0].image] }` al Container App), asi que
+# revertir jamas se hace tocando HCL ni corriendo `terraform apply`. Se hace re-publicando el
+# tag anterior:
+#   az containerapp update -n ca-asist-dev -g rg-controlasistencias-dev --image <loginServer>/<repo>:<sha-anterior>
+# El tag por SHA sigue en el ACR, asi que este comando no necesita reconstruir nada.
+# `az containerapp revision activate` NO es un camino de rollback valido aqui: el Container App
+# corre en revision_mode = "Single" (infra/modules/container-app), y en ese modo solo una
+# revision puede estar activa a la vez y las viejas se desaprovisionan automaticamente
+# (Microsoft Learn, "Update and deploy changes in Azure Container Apps" -- Revision modes:
+# "New revisions are automatically provisioned, activated, and scaled ... Old revisions are
+# automatically deprovisioned"). Activar/desactivar revisiones a mano requiere pasar antes a
+# modo multiple con `az containerapp revision set-mode --mode multiple`.
+
+name: Deploy Projections
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/Bitakora.ControlAsistencia.Projections/**'
+      - 'src/Bitakora.ControlAsistencia.ReadModels/**'
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: rg-controlasistencias-dev
+  CONTAINER_APP_NAME: ca-asist-dev
+  IMAGE_REPOSITORY: projections
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore ControlAsistencias.slnx
+
+      - name: Build
+        run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --project tests/Bitakora.ControlAsistencia.Projections.Tests/ --no-build --configuration Release --ignore-exit-code 8
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Authentication
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Resolver el ACR del resource group
+        run: |
+          # El nombre del ACR lleva un sufijo aleatorio (random_string.container_registry_suffix),
+          # asi que no se puede fijar en el workflow: se resuelve en tiempo de ejecucion. Se leen
+          # los dos datos de la misma consulta porque `az acr login` quiere el nombre del recurso
+          # y no el login server FQDN (Microsoft Learn, "Quickstart: Create a private container
+          # registry using the Azure CLI": "Specify only the registry resource name when logging
+          # in with the Azure CLI. Don't use the fully qualified login server name"), mientras que
+          # el tag de la imagen si necesita el login server.
+          acr=$(az acr list -g "${{ env.RESOURCE_GROUP }}" \
+            --query "[0].{name: name, loginServer: loginServer}" -o json)
+
+          acr_name=$(jq -r '.name // empty' <<< "$acr")
+          login_server=$(jq -r '.loginServer // empty' <<< "$acr")
+
+          if [ -z "$acr_name" ] || [ -z "$login_server" ]; then
+            echo "No se encontro ningun Container Registry en ${{ env.RESOURCE_GROUP }}"
+            exit 1
+          fi
+
+          echo "acr_name=${acr_name}" >> "$GITHUB_ENV"
+          echo "login_server=${login_server}" >> "$GITHUB_ENV"
+
+      - name: ACR login
+        run: az acr login --name "${{ env.acr_name }}"
+
+      - name: Build y push de la imagen
+        run: |
+          image="${{ env.login_server }}/${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
+          docker build -f src/Bitakora.ControlAsistencia.Projections/Dockerfile -t "$image" .
+          docker push "$image"
+          echo "image=${image}" >> "$GITHUB_ENV"
+
+      - name: Actualizar Container App
+        run: |
+          az containerapp update \
+            -n "${{ env.CONTAINER_APP_NAME }}" \
+            -g "${{ env.RESOURCE_GROUP }}" \
+            --image "${{ env.image }}"
+
+      - name: Verificar la revision activa
+        run: |
+          # La verificacion se hace sobre la REVISION, no solo sobre el template del Container
+          # App: el template devuelve lo que acabamos de escribir con `update` (comprobarlo ahi
+          # seria una tautologia), mientras que la revision demuestra que Azure aprovisiono una
+          # revision nueva corriendo la imagen publicada. En revision_mode = "Single" la
+          # revision mas nueva es la unica activa, asi que latestRevisionName ES la que corre.
+          revision=$(az containerapp show \
+            -n "${{ env.CONTAINER_APP_NAME }}" \
+            -g "${{ env.RESOURCE_GROUP }}" \
+            --query "properties.latestRevisionName" -o tsv)
+
+          if [ -z "$revision" ]; then
+            echo "El Container App no reporta ninguna revision (properties.latestRevisionName vacio)"
+            exit 1
+          fi
+
+          revision_json=$(az containerapp revision show \
+            -n "${{ env.CONTAINER_APP_NAME }}" \
+            -g "${{ env.RESOURCE_GROUP }}" \
+            --revision "$revision" -o json)
+
+          revision_image=$(jq -r '.properties.template.containers[0].image' <<< "$revision_json")
+          revision_activa=$(jq -r '.properties.active' <<< "$revision_json")
+
+          echo "Revision:  ${revision}"
+          echo "Imagen:    ${revision_image}"
+          echo "Activa:    ${revision_activa}"
+          echo "Provision: $(jq -r '.properties.provisioningState // "sin reportar"' <<< "$revision_json")"
+          echo "Ejecucion: $(jq -r '.properties.runningState // "sin reportar"' <<< "$revision_json")"
+
+          # El placeholder se comprueba aparte de la igualdad: si alguien re-aplicara Terraform
+          # sin el ignore_changes de #249, este mensaje dice exactamente que paso en vez de un
+          # generico "no coincide".
+          if [[ "$revision_image" == *"mcr.microsoft.com/k8se/quickstart"* ]]; then
+            echo "La revision activa sigue corriendo el placeholder de demostracion"
+            exit 1
+          fi
+
+          if [ "$revision_image" != "${{ env.image }}" ]; then
+            echo "La imagen de la revision activa no coincide con la publicada (${{ env.image }})"
+            exit 1
+          fi
+
+          if [ "$revision_activa" != "true" ]; then
+            echo "La revision mas nueva (${revision}) no quedo activa"
+            exit 1
+          fi
+
+          # Nota operativa: un fallo de arranque del worker (secreto sin resolver, credenciales
+          # de Postgres, permisos DDL sobre el schema) NO lo detecta este job -- la revision se
+          # aprovisiona igual. Verlo requiere los logs del contenedor:
+          #   az containerapp logs show -n ca-asist-dev -g rg-controlasistencias-dev --follow
