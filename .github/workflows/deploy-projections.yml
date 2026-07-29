@@ -1,0 +1,122 @@
+# Publica la imagen del worker de proyecciones (Bitakora.ControlAsistencia.Projections)
+# en el ACR de dev y actualiza el Container App para que la ejecute (issue #236).
+#
+# Restricciones operativas (MEF-ADR-0034 seccion 8), verificadas antes de disenar este workflow:
+#   1. Orden frente al sembrado de secretos: la imagen real solo debe desplegarse DESPUES
+#      de que infra-cd.yml haya sembrado el secreto `marten-connection` en el Key Vault al
+#      menos una vez. Con el placeholder es inocuo que la Key Vault reference nazca sin
+#      resolver; con el worker real, arrancar sin la cadena de conexion es un fallo.
+#   2. Una revision viva no re-lee un secreto rotado: cambiar el valor de un secreto no se
+#      propaga a las revisiones en ejecucion. Por eso cada imagen se etiqueta con el SHA del
+#      commit: un tag nuevo siempre crea una revision nueva (revision-scope change segun
+#      "Revisions in Azure Container Apps" de Microsoft Learn), lo que garantiza que el
+#      contenedor arranque de cero y lea el secreto vigente.
+#
+# Desviacion declarada frente a MEF-ADR-0022: ese ADR exige que CI se autentique contra Azure
+# por OIDC (azure/login con client-id/tenant-id/subscription-id, sin secret de password). Este
+# workflow usa `creds: secrets.AZURE_CREDENTIALS` en su lugar, igual que deploy-control-horas.yml
+# y deploy-programacion.yml hacen hoy. Migrar a OIDC es un cambio transversal (federated
+# credentials del SP + los tres secrets + los cuatro workflows a la vez) que no pertenece a este
+# issue; se hara en un issue aparte que migre los cuatro workflows juntos.
+#
+# Rollback de imagen: la imagen NO la gobierna Terraform (issue #249 le puso
+# `lifecycle { ignore_changes = [template[0].container[0].image] }` al Container App), asi que
+# revertir jamas se hace tocando HCL ni corriendo `terraform apply`. Para volver a un estado
+# anterior:
+#   az containerapp update -n ca-asist-dev -g rg-controlasistencias-dev --image <loginServer>/<repo>:<sha-anterior>
+# o, si la revision anterior sigue activa/inactiva pero existe:
+#   az containerapp revision activate -n ca-asist-dev -g rg-controlasistencias-dev --revision <nombre-revision>
+
+name: Deploy Projections
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/Bitakora.ControlAsistencia.Projections/**'
+      - 'src/Bitakora.ControlAsistencia.ReadModels/**'
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: rg-controlasistencias-dev
+  CONTAINER_APP_NAME: ca-asist-dev
+  IMAGE_REPOSITORY: projections
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore ControlAsistencias.slnx
+
+      - name: Build
+        run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test tests/Bitakora.ControlAsistencia.Projections.Tests/ --no-build --configuration Release --ignore-exit-code 8
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Azure Authentication
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Resolver login server del ACR
+        run: |
+          login_server=$(az acr list -g "${{ env.RESOURCE_GROUP }}" --query "[0].loginServer" -o tsv)
+          if [ -z "$login_server" ]; then
+            echo "No se encontro ningun Container Registry en ${{ env.RESOURCE_GROUP }}"
+            exit 1
+          fi
+          echo "login_server=${login_server}" >> "$GITHUB_ENV"
+          # az acr login exige el nombre corto del registry, no el login server FQDN
+          # (Microsoft Learn, "Quickstart: Create a private container registry using the
+          # Azure CLI"). El nombre corto es el primer segmento del login server.
+          echo "acr_name=${login_server%%.*}" >> "$GITHUB_ENV"
+
+      - name: ACR login
+        run: az acr login --name "${{ env.acr_name }}"
+
+      - name: Build y push de la imagen
+        run: |
+          image="${{ env.login_server }}/${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
+          docker build -f src/Bitakora.ControlAsistencia.Projections/Dockerfile -t "$image" .
+          docker push "$image"
+          echo "image=${image}" >> "$GITHUB_ENV"
+
+      - name: Actualizar Container App
+        run: |
+          az containerapp update \
+            -n "${{ env.CONTAINER_APP_NAME }}" \
+            -g "${{ env.RESOURCE_GROUP }}" \
+            --image "${{ env.image }}"
+
+      - name: Verificar imagen activa
+        run: |
+          active_image=$(az containerapp show \
+            -n "${{ env.CONTAINER_APP_NAME }}" \
+            -g "${{ env.RESOURCE_GROUP }}" \
+            --query "properties.template.containers[0].image" -o tsv)
+
+          echo "Imagen activa: ${active_image}"
+
+          if [ "$active_image" != "${{ env.image }}" ]; then
+            echo "La imagen activa no coincide con la publicada (${{ env.image }})"
+            exit 1
+          fi
+
+          if [[ "$active_image" == *"mcr.microsoft.com/k8se/quickstart"* ]]; then
+            echo "El Container App sigue corriendo el placeholder de demostracion"
+            exit 1
+          fi
