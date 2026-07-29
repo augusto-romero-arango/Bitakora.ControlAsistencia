@@ -1,0 +1,46 @@
+# Docker NO lee .gitignore: cada patron va explicito aqui.
+# Criterio: lista de EXCLUSIONES, nunca allowlist ("*" + reinclusiones "!") -- el build
+# necesita global.json y los .csproj/.cs de src/*.Projections y src/*.ReadModels, y una
+# allowlist los dejaria fuera en silencio ante cualquier input nuevo.
+# Base: samples/aspnetapp/.dockerignore de dotnet/dotnet-docker (Microsoft).
+
+# Artefactos de compilacion. Critico, no cosmetico: obj/project.assets.json del host lleva
+# rutas absolutas (~/.nuget/packages, ~/.dotnet/sdk/<version>) y el "COPY . ." posterior al
+# "dotnet restore" lo sobrescribiria con uno que no resuelve dentro del contenedor.
+**/bin/
+**/obj/
+**/out/
+
+# Control de versiones
+.git/
+.gitignore
+.gitattributes
+
+# Nada de esto es input del build de la imagen
+docs/
+infra/
+tests/
+scripts/
+.github/
+.claude/
+pipeline-state/
+**/node_modules/
+
+# Estado local y credenciales (MEF-ADR-0025 extendido al contexto de build: no llegan a la
+# imagen publicada, pero si a la capa del COPY en la etapa build, que vive en el cache del builder)
+**/.terraform/
+**/*.tfvars
+**/*.tfstate
+**/*.tfstate.*
+**/tfplan
+**/local.settings.json
+**/appsettings.local.json
+
+# Editores / IDE / OS
+.vs/
+.idea/
+.vscode/
+**/.DS_Store
+
+# El Dockerfile lo lee "docker build -f" del host, no del contexto
+Dockerfile*
