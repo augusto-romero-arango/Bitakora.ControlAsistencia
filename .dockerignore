@@ -27,7 +27,10 @@ pipeline-state/
 **/node_modules/
 
 # Estado local y credenciales (MEF-ADR-0025 extendido al contexto de build: no llegan a la
-# imagen publicada, pero si a la capa del COPY en la etapa build, que vive en el cache del builder)
+# imagen publicada, pero si a la capa del COPY en la etapa build, que vive en el cache del builder).
+# Al ampliar este bloque, ojo con el sufijo: se excluye ".local.json", NO "appsettings.*.json".
+# appsettings.json y appsettings.Development.json del worker SI son input del build y se publican
+# en la imagen; excluirlos la romperia en silencio.
 **/.terraform/
 **/*.tfvars
 **/*.tfstate
@@ -42,5 +45,8 @@ pipeline-state/
 .vscode/
 **/.DS_Store
 
-# El Dockerfile lo lee "docker build -f" del host, no del contexto
+# Un Dockerfile en la RAIZ del contexto (hoy no existe ninguno): "docker build -f" lo lee del
+# host, no del contexto. Docker evalua estos patrones contra la ruta relativa a la raiz del
+# contexto y no contra el nombre de archivo, asi que esta linea NO alcanza al Dockerfile del
+# worker -- y no debe alcanzarlo: vive bajo src/, junto al proyecto que compila.
 Dockerfile*
