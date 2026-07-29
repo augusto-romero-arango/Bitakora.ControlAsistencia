@@ -8,5 +8,7 @@ var builder = Host.CreateApplicationBuilder(args);
 var martenConnectionString = Environment.GetEnvironmentVariable("MartenConnectionString")!;
 
 builder.Services.ConfigurarEventos(martenConnectionString);
+// Issue #250: seam de observabilidad propio (MEF-ADR-0029), hermano de ConfigurarEventos.
+builder.Services.ConfigurarObservabilidad();
 
 await builder.Build().RunAsync();
