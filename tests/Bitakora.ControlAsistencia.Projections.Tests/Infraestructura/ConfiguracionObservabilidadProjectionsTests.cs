@@ -1,4 +1,8 @@
 // Issue #250: instrumentar el worker de proyecciones con Application Insights.
+// Issue #263: fijar el recurso `service.name` para que el worker deje de aparecer en Application
+// Insights como `unknown_service:dotnet`. Guardrails al final de esta misma clase (CA-1 a CA-4 de
+// ese issue) -- misma familia de tests, no una clase nueva. Ojo al leer los "CA-N" de este archivo:
+// los de la mitad de arriba son del issue #250 y los de la ultima seccion, del #263.
 //
 // El worker corre sin ingress (MEF-ADR-0034 seccion 8): no hay endpoint HTTP que golpear para
 // diagnosticar el daemon HotCold, asi que la observabilidad depende exclusivamente de trazas
@@ -30,6 +34,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
@@ -43,6 +48,14 @@ public class ConfiguracionObservabilidadProjectionsTests
         "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
 
     private const string MartenConnectionStringDummy = "Host=localhost;Database=dummy";
+
+    // Atributos de recurso de la seccion "service.name" (issue #263). Nombres literales a proposito:
+    // son la clave de la convencion semantica de OpenTelemetry de la que el exporter de Azure Monitor
+    // deriva cloud_RoleName/cloud_RoleInstance -- si el SDK los renombrara, el test debe fallar.
+    private const string AtributoServiceName = "service.name";
+    private const string AtributoServiceNamespace = "service.namespace";
+    private const string AtributoServiceInstanceId = "service.instance.id";
+    private const string VariableOtelServiceName = "OTEL_SERVICE_NAME";
 
     private static ServiceProvider ComponerServiceProvider(
         Action<IServiceCollection>? seamsAdicionales = null)
@@ -193,5 +206,92 @@ public class ConfiguracionObservabilidadProjectionsTests
         var ratio = ConfiguracionObservabilidadProjections.ResolverRatioDeSampling("0.5");
 
         ratio.Should().Be(0.5);
+    }
+
+    // --- Recurso de OpenTelemetry: service.name (issue #263, CA-1 a CA-4) ---
+    //
+    // Dos niveles, deliberadamente:
+    //
+    // a) ConfigurarObservabilidad_* compone el seam completo y lee el Resource que el TracerProvider
+    //    del contenedor termino usando (ProviderExtensions.GetResource, API publica de OpenTelemetry
+    //    1.16.0 -- la misma via por la que el exporter de Azure Monitor deriva cloud_RoleName). Es lo
+    //    que cubre CA-1 de punta a punta: que el enganche .ConfigureResource(...) sobre el
+    //    IOpenTelemetryBuilder efectivamente alcance la senal de trazas, y no solo que
+    //    ConfigurarRecurso haga lo correcto si alguien lo llama.
+    // b) ConfigurarRecurso_* invoca el metodo sobre un ResourceBuilder propio, para aislar la
+    //    precedencia frente al entorno (CA-4) sin construir el contenedor. CreateDefault() (no
+    //    CreateEmpty()) es deliberado: es lo que el SDK usa en produccion e incluye el fallback
+    //    `unknown_service:` y el detector de OTEL_SERVICE_NAME/OTEL_RESOURCE_ATTRIBUTES (verificado
+    //    contra el XML doc de OpenTelemetry 1.16.0) -- exactamente lo que CA-4 necesita para
+    //    demostrar que el nombre del codigo gana sobre ambos.
+
+    [Fact]
+    public void ConfigurarObservabilidad_FijaElServiceNameDelWorkerEnElRecursoDelTracerProvider()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var atributos = provider.GetRequiredService<TracerProvider>()
+            .GetResource().Attributes.ToDictionary(a => a.Key, a => a.Value);
+
+        atributos.Should().ContainKey(AtributoServiceName)
+            .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
+        atributos.Should().NotContainKey(AtributoServiceNamespace);
+        atributos.Should().NotContainKey(AtributoServiceInstanceId);
+    }
+
+    [Fact]
+    public void ConfigurarRecurso_FijaServiceNameSinNamespaceNiInstanceId()
+    {
+        var recurso = ResourceBuilder.CreateDefault();
+
+        ConfiguracionObservabilidadProjections.ConfigurarRecurso(recurso);
+        var atributos = recurso.Build().Attributes.ToDictionary(a => a.Key, a => a.Value);
+
+        atributos.Should().ContainKey(AtributoServiceName)
+            .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
+        atributos.Should().NotContainKey(AtributoServiceNamespace);
+        atributos.Should().NotContainKey(AtributoServiceInstanceId);
+    }
+
+    // CA-3: el nombre de servicio no puede divergir del nombre del ensamblado del worker -- es el
+    // mismo criterio (idiomatico) por el que PatronFuentePropia (issue #250, arriba) nombra su
+    // ActivitySource, y de ahi que una sola constante alimente a los dos.
+    [Fact]
+    public void NombreServicio_CoincideConElNombreDelEnsambladoDelWorker()
+    {
+        var nombreDelEnsamblado = typeof(ConfiguracionObservabilidadProjections).Assembly.GetName().Name!;
+
+        ConfiguracionObservabilidadProjections.NombreServicio.Should().Be(nombreDelEnsamblado);
+    }
+
+    // CA-3: PatronFuentePropia se deriva hoy de NombreServicio (`NombreServicio + "*"`), asi que
+    // mientras esa derivacion siga en pie esta guarda no puede fallar -- y eso es justamente lo que
+    // fija: impide que alguien vuelva a escribir el literal a mano en una de las dos constantes y las
+    // deje divergir en silencio (el modo de falla que este issue corrige). Es el guardrail de la
+    // derivacion, no una asercion sobre el valor: ese lo cubre el test anterior contra el ensamblado.
+    [Fact]
+    public void PatronFuentePropia_CoincideConNombreServicioMasAsterisco()
+    {
+        ConfiguracionObservabilidadProjections.PatronFuentePropia.Should()
+            .Be(ConfiguracionObservabilidadProjections.NombreServicio + "*");
+    }
+
+    // CA-4: precedencia sobre OTEL_SERVICE_NAME. ResourceBuilder.CreateDefault() ya parsea esa
+    // variable (XML doc de OpenTelemetry 1.16.0); si ConfigurarRecurso corriera ANTES de que el
+    // detector de entorno se aplicara, o si AddService no sobrescribiera el atributo, este test lo
+    // detectaria. Reusa el helper ConVariableDeEntorno de arriba (seguro con tests en paralelo).
+    [Fact]
+    public void ConfigurarRecurso_ConservaElServiceNameDelCodigo_CuandoOtelServiceNameApuntaAOtroValor()
+    {
+        ConVariableDeEntorno(VariableOtelServiceName, "un-nombre-distinto-desde-el-entorno", () =>
+        {
+            var recurso = ResourceBuilder.CreateDefault();
+
+            ConfiguracionObservabilidadProjections.ConfigurarRecurso(recurso);
+            var atributos = recurso.Build().Attributes.ToDictionary(a => a.Key, a => a.Value);
+
+            atributos.Should().ContainKey(AtributoServiceName)
+                .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
+        });
     }
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
@@ -21,6 +22,15 @@ public static class ConfiguracionObservabilidadProjections
     internal const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
     internal const double RatioSamplingPorDefecto = 0.2;
 
+    // Issue #263: nombre de servicio para el atributo de recurso OpenTelemetry `service.name`.
+    // Debe coincidir EXACTAMENTE con el nombre del ensamblado del worker: PatronFuentePropia
+    // (issue #250, abajo) ya nombra su ActivitySource con ese mismo string, asi que ambas
+    // constantes derivan de una sola fuente de verdad -- fijado por guardrail en
+    // ConfiguracionObservabilidadProjectionsTests. No lleva el ambiente: hay un Application Insights
+    // por ambiente, asi que cloud_RoleName nunca tiene que desambiguar ambientes dentro del mismo
+    // recurso (issue #263, punto 1 del refinamiento).
+    internal const string NombreServicio = "Bitakora.ControlAsistencia.Projections";
+
     // CA-2: el source del propio ensamblado. El wildcard va SIN punto antes del asterisco --
     // divergencia deliberada frente a ControlHoras ("...ControlHoras.*"), verificada
     // empiricamente contra OpenTelemetry 1.16.0: el patron "X.*" se ancla como ^X\..*$ y NO
@@ -28,8 +38,10 @@ public static class ConfiguracionObservabilidadProjections
     // "X.Hija". Como lo idiomatico al instrumentar es nombrar la fuente con el nombre del
     // ensamblado (`Assembly.GetName().Name`), con el punto los spans del propio worker se
     // descartarian EN SILENCIO -- el mismo tipo de wiring a medio terminar que este issue cierra.
-    // Fijado por guardrail en ConfiguracionObservabilidadProjectionsTests.
-    internal const string PatronFuentePropia = "Bitakora.ControlAsistencia.Projections*";
+    // Derivado de NombreServicio (concatenacion de constantes, resuelta en tiempo de compilacion)
+    // para que ambas constantes no puedan divergir -- fijado por guardrail en
+    // ConfiguracionObservabilidadProjectionsTests.
+    internal const string PatronFuentePropia = NombreServicio + "*";
 
     public static IServiceCollection ConfigurarObservabilidad(this IServiceCollection services)
     {
@@ -53,6 +65,7 @@ public static class ConfiguracionObservabilidadProjections
             Environment.GetEnvironmentVariable(VariableRatioSampling));
 
         services.AddOpenTelemetry()
+            .ConfigureResource(ConfigurarRecurso)
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
                 .AddSource("Marten")
@@ -75,4 +88,26 @@ public static class ConfiguracionObservabilidadProjections
             out var ratio) && ratio is >= 0.0 and <= 1.0
             ? ratio
             : RatioSamplingPorDefecto;
+
+    // Issue #263: fija el atributo de recurso OpenTelemetry `service.name`, la unica pieza que le
+    // faltaba a este seam para que el worker deje de aparecer en Application Insights como
+    // `unknown_service:dotnet` (cloud_RoleName cae a `service.name` cuando `service.namespace` no
+    // esta seteado -- Microsoft Learn, "Configure Azure Monitor OpenTelemetry"). Extraido como
+    // metodo interno -- igual que ResolverRatioDeSampling arriba -- para que el test pueda aislar la
+    // precedencia frente al entorno sobre un ResourceBuilder propio, sin construir el contenedor.
+    //
+    // SIN serviceNamespace (cloud_RoleName no debe llevar prefijo) y SIN autogenerar
+    // service.instance.id (autoGenerateServiceInstanceId: false): el default true reemplazaria el
+    // hostname legible del contenedor por un GUID aleatorio distinto en cada arranque de revision;
+    // el exporter de Azure Monitor deriva cloud_RoleInstance de ese atributo y cae al hostname en
+    // su ausencia.
+    //
+    // Consecuencia conocida: fijar el nombre en codigo deja OTEL_SERVICE_NAME inerte
+    // (ConfigureResource corre despues del ResourceBuilder.CreateDefault() que ya parsea esa
+    // variable, y Resource.Merge le da precedencia a lo que se fusiona despues -- verificado en
+    // ConfigurarRecurso_ConservaElServiceNameDelCodigo_CuandoOtelServiceNameApuntaAOtroValor).
+    // Si alguna vez se necesita configurar el nombre por ambiente, el camino es un parametro nuevo
+    // en este metodo, no la variable de entorno.
+    internal static void ConfigurarRecurso(ResourceBuilder recurso) =>
+        recurso.AddService(NombreServicio, autoGenerateServiceInstanceId: false);
 }
