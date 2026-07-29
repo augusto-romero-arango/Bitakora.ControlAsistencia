@@ -59,7 +59,11 @@ public static class ComposicionServicios
         services.AgregarWolverinePrivateEventRouter();
         services.AgregarWolverineEventSender();
 
-        // Registrar serializacion custom para tipos con constructores privados
+        // Registrar serializacion custom para tipos con constructores privados.
+        // Issue #267: las tres columnas de metadata de evento que exige MEF-ADR-0034 seccion 7
+        // (CorrelationId/CausationId/Headers) ya no se habilitan aqui -- las fija
+        // AgregarConfiguracionMartenComandos desde Cosmos.EventSourcing.CritterStack v2.3.1, y
+        // ComposicionServiciosTests lo verifica sobre el store real del contenedor.
         services.ConfigureMarten(options =>
         {
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
@@ -71,15 +75,6 @@ public static class ComposicionServicios
                     jsonOptions.TypeInfoResolver = resolver;
                 });
             }
-
-            // Issue #232 (MEF-ADR-0034 seccion 7): Marten deja estas tres columnas de metadata de
-            // evento deshabilitadas por defecto -- sin este opt-in explicito, la columna ni
-            // siquiera se crea en la tabla de eventos, y ninguna proyeccion futura (Inline/Async)
-            // puede leer un CorrelationId/CausationId/header que nunca se persistio. Requisito del
-            // writer, independiente de que este dominio tenga o no un middleware de trazas activo.
-            options.Events.MetadataConfig.CorrelationIdEnabled = true;
-            options.Events.MetadataConfig.CausationIdEnabled = true;
-            options.Events.MetadataConfig.HeadersEnabled = true;
         });
 
         // Observabilidad: exporta las trazas del worker (Npgsql, Marten, Wolverine, handlers) a
