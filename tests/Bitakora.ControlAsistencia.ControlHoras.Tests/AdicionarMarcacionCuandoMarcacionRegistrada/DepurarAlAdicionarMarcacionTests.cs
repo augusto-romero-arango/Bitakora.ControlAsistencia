@@ -3,7 +3,6 @@
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaCalculado via IPublicEventSender tras cada recalculo.
 
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;

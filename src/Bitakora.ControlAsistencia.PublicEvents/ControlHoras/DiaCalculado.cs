@@ -1,8 +1,7 @@
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
+namespace Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
 // HU-108: Evento publico que se publica al Service Bus via IPublicEventSender.
 // Representa el resultado del calculo del dia de trabajo de un empleado tras una
