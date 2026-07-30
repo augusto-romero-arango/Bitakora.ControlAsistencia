@@ -2,8 +2,12 @@
   <Folder Name="/src/">
     <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ControlHoras/Bitakora.ControlAsistencia.ControlHoras.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.PrivateEvents/Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Programacion/Bitakora.ControlAsistencia.Programacion.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.Programacion.DomainEvents/Bitakora.ControlAsistencia.Programacion.DomainEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Projections/Bitakora.ControlAsistencia.Projections.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.PublicEvents/Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ReadModels/Bitakora.ControlAsistencia.ReadModels.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -14,4 +14,12 @@
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Contracts.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Empleados\ValueObjects\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,5 +1,5 @@
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
+using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;

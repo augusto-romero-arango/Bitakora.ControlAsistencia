@@ -18,8 +18,14 @@
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
   </ItemGroup>
 
+  <!-- Issue #237: los dos DomainEvents le dan al worker los tipos de evento que
+       proyecta y su ConfigurarSerializacion. Prohibido referenciar un Function App:
+       arrastraria Functions SDK, Wolverine y ASP.NET a un proceso que solo lee
+       Postgres (MEF-ADR-0034 seccion 5). -->
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.Programacion.DomainEvents\Bitakora.ControlAsistencia.Programacion.DomainEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.ControlHoras.DomainEvents\Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
   </ItemGroup>
 
   <ItemGroup>

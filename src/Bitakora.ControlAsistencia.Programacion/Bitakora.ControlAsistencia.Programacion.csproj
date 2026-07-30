@@ -26,6 +26,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.Programacion.DomainEvents\Bitakora.ControlAsistencia.Programacion.DomainEvents.csproj" />
   </ItemGroup>
 
   <ItemGroup>

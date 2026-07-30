@@ -14,7 +14,7 @@ using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.Eventos;
 using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
+using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 
