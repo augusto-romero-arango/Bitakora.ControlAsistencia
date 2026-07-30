@@ -2,8 +2,8 @@
 
 using System.Text.Json;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 

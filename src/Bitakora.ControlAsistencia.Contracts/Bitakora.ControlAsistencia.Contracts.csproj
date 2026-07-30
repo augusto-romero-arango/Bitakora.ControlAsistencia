@@ -17,6 +17,7 @@
   <!-- Issue #237: referencia transitoria mientras ProgramacionTurnoDiarioSolicitada
        siga aqui usando InformacionEmpleado. Muere con el proyecto en el Paso 4. -->
   <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
   </ItemGroup>
 

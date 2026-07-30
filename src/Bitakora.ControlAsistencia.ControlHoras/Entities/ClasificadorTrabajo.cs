@@ -5,6 +5,7 @@
 // Trabaja siempre en MomentoDelDia - no construye ningun DateTime en este nivel.
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 

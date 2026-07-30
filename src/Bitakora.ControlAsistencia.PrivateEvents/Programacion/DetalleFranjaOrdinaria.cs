@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 /// <summary>
 /// Representacion plana de una franja ordinaria que viaja en eventos entre dominios.

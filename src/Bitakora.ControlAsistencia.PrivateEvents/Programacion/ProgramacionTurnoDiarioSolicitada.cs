@@ -1,8 +1,7 @@
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 
-namespace Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
+namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 /// <summary>
 /// Evento privado intra-BC que se publica al namespace interno del Bounded Context

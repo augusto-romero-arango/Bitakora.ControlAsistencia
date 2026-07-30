@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.Eventos;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventSourcing.Abstractions;

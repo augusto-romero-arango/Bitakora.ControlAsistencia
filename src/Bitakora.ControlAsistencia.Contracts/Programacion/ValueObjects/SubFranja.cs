@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 

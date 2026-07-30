@@ -4,16 +4,17 @@
 // referencia que el record genera por defecto - ADR-0015).
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
 
 public class DetalleFranjaOrdinariaIgualdadTests : IgualdadTestBase<DetalleFranjaOrdinaria>
 {
     private static DetalleSubFranja Descanso() =>
-        new(new TimeOnly(12, 0), new TimeOnly(13, 0), 0, 0);
+        new(new TimeOnly(12, 0), new TimeOnly(13, 0), (int)0, (int)0);
 
     private static DetalleSubFranja Extra() =>
-        new(new TimeOnly(17, 0), new TimeOnly(19, 0), 0, 0);
+        new(new TimeOnly(17, 0), new TimeOnly(19, 0), (int)0, (int)0);
 
     protected override DetalleFranjaOrdinaria CrearInstancia() =>
         new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()]);
