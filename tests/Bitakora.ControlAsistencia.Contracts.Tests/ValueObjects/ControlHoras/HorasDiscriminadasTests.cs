@@ -7,7 +7,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
 

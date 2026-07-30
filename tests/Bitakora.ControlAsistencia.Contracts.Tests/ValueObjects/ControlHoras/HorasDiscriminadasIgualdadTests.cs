@@ -5,7 +5,7 @@
 // colecciones que prometen igualdad por valor que no cumplen).
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
 

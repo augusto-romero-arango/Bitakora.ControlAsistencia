@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+namespace Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
 // Issue #183: payload plano (100% primitivo) del dia, lo que nomina consume realmente.
 // Reemplaza el modelo rico que viajaba en DiaCalculado (DesgloseHoras + DetalleControlFranja),
