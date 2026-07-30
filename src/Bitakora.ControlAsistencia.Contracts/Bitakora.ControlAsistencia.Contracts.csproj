@@ -14,12 +14,8 @@
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Contracts.Tests" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="ControlHoras\Eventos\" />
-    <Folder Include="ControlHoras\ValueObjects\" />
-    <Folder Include="Empleados\ValueObjects\" />
-  </ItemGroup>
-
+  <!-- Issue #237: referencia transitoria mientras ProgramacionTurnoDiarioSolicitada
+       siga aqui usando InformacionEmpleado. Muere con el proyecto en el Paso 4. -->
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
   </ItemGroup>
