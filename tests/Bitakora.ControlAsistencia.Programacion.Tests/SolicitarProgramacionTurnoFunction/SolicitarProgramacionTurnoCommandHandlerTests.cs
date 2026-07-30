@@ -1,7 +1,6 @@
 // HU-10: Solicitar programacion de turno del catalogo
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;

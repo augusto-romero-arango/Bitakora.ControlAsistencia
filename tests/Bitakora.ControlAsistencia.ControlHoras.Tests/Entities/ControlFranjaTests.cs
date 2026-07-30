@@ -1,7 +1,6 @@
 // Issue #122: Extraer depurador de marcaciones contra franjas del turno
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 

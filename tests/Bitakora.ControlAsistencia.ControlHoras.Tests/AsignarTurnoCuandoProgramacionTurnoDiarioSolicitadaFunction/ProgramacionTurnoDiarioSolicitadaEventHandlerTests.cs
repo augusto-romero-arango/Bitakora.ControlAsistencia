@@ -1,7 +1,6 @@
 // HU-12 / issue #210: Asignar turno diario al control cuando llega ProgramacionTurnoDiarioSolicitada.
 // ADR-0024 #8: el evento privado intra-BC se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
 
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;

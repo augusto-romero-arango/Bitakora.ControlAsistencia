@@ -14,11 +14,11 @@
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Contracts.Tests" />
   </ItemGroup>
 
-  <!-- Issue #237: referencia transitoria mientras ProgramacionTurnoDiarioSolicitada
-       siga aqui usando InformacionEmpleado. Muere con el proyecto en el Paso 4. -->
+  <!-- Issue #237: FranjaOrdinaria y SubFranja exponen ToDetalle(), que convierte el
+       VO rico a su DTO plano de PrivateEvents (CA-ADR-0025). Muere con el proyecto
+       en el Paso 4, cuando los tres Franja* pasen a Programacion.DomainEvents. -->
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
   </ItemGroup>
 
 </Project>

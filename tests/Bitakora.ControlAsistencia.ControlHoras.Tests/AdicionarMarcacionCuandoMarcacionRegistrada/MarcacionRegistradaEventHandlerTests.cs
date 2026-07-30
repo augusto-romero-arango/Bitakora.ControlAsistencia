@@ -1,6 +1,5 @@
 // HU-106: Adicionar marcacion a ControlDiario cuando marcacion registrada
 
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;

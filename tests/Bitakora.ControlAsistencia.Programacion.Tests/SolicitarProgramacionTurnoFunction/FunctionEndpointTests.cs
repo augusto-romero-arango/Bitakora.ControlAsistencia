@@ -1,7 +1,6 @@
 // HU-10: Solicitar programacion de turno del catalogo - tests del endpoint HTTP
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;

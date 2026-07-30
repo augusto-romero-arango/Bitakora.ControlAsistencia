@@ -3,7 +3,6 @@
 // las colecciones Descansos y Extras con SequenceEqual (en lugar de la igualdad por
 // referencia que el record genera por defecto - ADR-0015).
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
