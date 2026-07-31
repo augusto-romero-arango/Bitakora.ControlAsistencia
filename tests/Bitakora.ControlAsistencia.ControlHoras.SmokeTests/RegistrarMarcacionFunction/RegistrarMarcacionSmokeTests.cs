@@ -13,6 +13,11 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // CA-6: tanto creacion exitosa como duplicado retornan 202 Accepted.
 // HU-108: cobertura adicional de los efectos del handler in-process AdicionarMarcacionCuandoMarcacionRegistrada,
 // que tras el POST persiste marcacion_adicionada y publica DiaCalculado al topic dia-calculado.
+// Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
+// RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
+// request contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
+// Quedan rojos hasta que el deploy publique el validator en dev: el endpoint desplegado responde 202
+// mientras la version anterior siga corriendo. El CI de PR no los ejecuta (solo corre *.Tests).
 public class RegistrarMarcacionSmokeTests(
     ApiFixture api,
     PostgresFixture postgres,
@@ -30,10 +35,26 @@ public class RegistrarMarcacionSmokeTests(
     private const string SuscripcionSmokeTests = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
+    // Issue #279: timestamp valido y fijo para los casos donde lo invalido es el EmpleadoId, no la
+    // fecha; asi el 400 esperado solo puede venir de la regla bajo prueba.
+    private static readonly DateTime TimestampValido = new(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc);
+
     // CA-5: stream ID determinista = "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
     // El timestamp que se usa para el stream ID es el crudo (antes de normalizar al minuto).
     private static string ComputarStreamId(string empleadoId, DateTime timestampCrudo) =>
         $"{empleadoId}:{timestampCrudo:yyyy-MM-ddTHH:mm:ss}";
+
+    // Issue #279: los casos de rechazo por forma solo varian en EmpleadoId o Timestamp; el resto del
+    // payload es identico. Se envia el timestamp con el mismo formato que el resto del archivo.
+    private Task<HttpResponseMessage> PostMarcacionAsync(
+        string empleadoId, DateTime timestamp, string dispositivoId) =>
+        _client.PostAsJsonAsync(Ruta, new
+        {
+            empleadoId,
+            timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId
+        }, TestContext.Current.CancellationToken);
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -198,6 +219,52 @@ public class RegistrarMarcacionSmokeTests(
         var response = await _client.PostAsync(Ruta, content, ct);
 
         // Assert: body nulo -> 400 Bad Request
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // Issue #279 CA-2: EmpleadoId vacio produce 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarMarcacion_Retorna400_CuandoEmpleadoIdEsVacio()
+    {
+        var response = await PostMarcacionAsync(
+            empleadoId: "", TimestampValido, "[TEST] DEV-SMOKE-CA2-VACIO");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // Issue #279 CA-2: EmpleadoId con solo espacios en blanco produce 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarMarcacion_Retorna400_CuandoEmpleadoIdSonSoloEspacios()
+    {
+        var response = await PostMarcacionAsync(
+            empleadoId: "   ", TimestampValido, "[TEST] DEV-SMOKE-CA2-ESPACIOS");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // Issue #279 CA-3: EmpleadoId con ':' produce 400. ComputarStreamId usa ':' como separador entre
+    // EmpleadoId y Timestamp; sin esta regla, un EmpleadoId con ':' podria fabricar el mismo stream ID
+    // que otra combinacion legitima (colision descrita en el Contexto del issue).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarMarcacion_Retorna400_CuandoEmpleadoIdContieneDosPuntos()
+    {
+        var response = await PostMarcacionAsync(
+            $"EMP:{Guid.CreateVersion7()}", TimestampValido, "[TEST] DEV-SMOKE-CA3");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // Issue #279 CA-4: Timestamp con el valor default de DateTime produce 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarMarcacion_Retorna400_CuandoTimestampEsDefault()
+    {
+        var response = await PostMarcacionAsync(
+            Guid.CreateVersion7().ToString(), timestamp: default, "[TEST] DEV-SMOKE-CA4");
+
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 

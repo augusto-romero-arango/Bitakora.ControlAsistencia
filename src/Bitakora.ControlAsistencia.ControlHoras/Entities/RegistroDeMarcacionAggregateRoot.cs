@@ -17,8 +17,22 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
     public string? DispositivoId { get; private set; }
 
     // CA-5: stream ID determinista: "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
+    // Cambiar el separador invalidaria la identidad de todos los streams ya escritos, por eso vive
+    // como constante privada: nadie lo compone a mano desde afuera.
+    private const char SeparadorStreamId = ':';
+
     public static string ComputarStreamId(string empleadoId, DateTime timestamp) =>
-        $"{empleadoId}:{timestamp:yyyy-MM-ddTHH:mm:ss}";
+        $"{empleadoId}{SeparadorStreamId}{timestamp:yyyy-MM-ddTHH:mm:ss}";
+
+    // Issue #279 CA-3: un EmpleadoId que contenga el separador vuelve ambigua la composicion del
+    // stream ID -- dos combinaciones distintas de empleado y timestamp pueden producir el mismo id, y
+    // como la idempotencia se decide por existencia del stream, una marcacion legitima se descartaria
+    // como "duplicado exacto". La regla vive junto al formato que la origina (MEF-ADR-0012,
+    // Tell-don't-Ask): el validator del borde la invoca en vez de repetir el literal del separador.
+    // ControlDiarioAggregateRoot compone su stream ID con el mismo separador, asi que rechazarlo en el
+    // borde protege ambos streams; unificar el separador entre ambos aggregates queda pendiente.
+    public static bool EsComponenteValidoDeStreamId(string empleadoId) =>
+        !empleadoId.Contains(SeparadorStreamId);
 
     // Apply: reconstruye el estado del aggregate desde MarcacionRegistrada
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
