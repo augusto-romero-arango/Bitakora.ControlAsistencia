@@ -1,6 +1,5 @@
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;

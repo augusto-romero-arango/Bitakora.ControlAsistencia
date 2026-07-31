@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Resources;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 // Clase abstracta base para todas las franjas temporales de un turno.
 // Encapsula estado interno y expone solo comportamiento.

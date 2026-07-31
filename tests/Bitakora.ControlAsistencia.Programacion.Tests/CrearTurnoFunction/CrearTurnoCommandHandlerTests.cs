@@ -3,7 +3,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;

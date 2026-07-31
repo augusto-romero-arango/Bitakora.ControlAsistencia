@@ -1,6 +1,6 @@
 using System.Resources;
 
-namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 // ADR-0012: mensajes de error del evento TurnoCreado en archivo .resx separado
 // internal: accesible desde tests via InternalsVisibleTo en el .csproj

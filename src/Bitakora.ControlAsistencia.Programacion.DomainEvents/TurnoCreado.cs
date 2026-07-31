@@ -1,9 +1,8 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
+//using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
-namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 // Issue #3: evento que registra la creacion de un turno de trabajo
 // ADR-0015: sealed class porque contiene IReadOnlyList<FranjaOrdinaria> -- record no puede
@@ -81,8 +80,8 @@ public sealed partial class TurnoCreado
         {
             try
             {
-                var descansos = franja.Descansos.Select(d => SubFranja.Crear(d.inicio, d.fin));
-                var extras = franja.Extras.Select(e => SubFranja.Crear(e.inicio, e.fin));
+                var descansos = Enumerable.Select<(TimeOnly inicio, TimeOnly fin), SubFranja>(franja.Descansos, d => SubFranja.Crear(d.inicio, d.fin));
+                var extras = Enumerable.Select<(TimeOnly inicio, TimeOnly fin), SubFranja>(franja.Extras, e => SubFranja.Crear(e.inicio, e.fin));
                 franjasOrdinarias.Add(FranjaOrdinaria.Crear(franja.Inicio, franja.Fin,
                     descansos: descansos, extras: extras));
             }

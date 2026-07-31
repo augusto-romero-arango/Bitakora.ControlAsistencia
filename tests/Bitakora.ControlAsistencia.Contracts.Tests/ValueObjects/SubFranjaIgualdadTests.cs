@@ -1,7 +1,5 @@
 // Issue #2: Tests de igualdad por valor para SubFranja
 
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
 
 public class SubFranjaIgualdadTests : IgualdadTestBase<SubFranja>

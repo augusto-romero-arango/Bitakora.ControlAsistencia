@@ -1,6 +1,5 @@
 // Issue #2: Tests de igualdad por valor para FranjaOrdinaria
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
 
