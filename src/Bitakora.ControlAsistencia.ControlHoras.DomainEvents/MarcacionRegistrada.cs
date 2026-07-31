@@ -10,14 +10,19 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // Issue #270 CA-3: se persiste en el stream de RegistroDeMarcacionAggregateRoot; ya NO cruza el bus
 // (deja de implementar IPrivateEvent). El contrato de bus es RegistroDeMarcacionCreado
 // (PrivateEvents.ControlHoras), empaquetado por RegistroDeMarcacionAggregateRoot.CrearRegistroDeMarcacionCreado().
-public sealed class MarcacionRegistrada
+// Issue #275: protegido con factory Crear() y ctores privados (patron TurnoCreado, MEF-ADR-0012).
+// El evento nunca tuvo ctor privado -- #105 cito mal su propio patron de referencia; #270 saco al
+// evento del bus y con eso desaparecio la razon (el ServiceBusDeserializador del consumidor) por la
+// que no podia protegerse antes.
+public sealed partial class MarcacionRegistrada
 {
     public string EmpleadoId { get; private set; } = null!;
     public DateTime TimestampNormalizado { get; private set; }
     public string? TipoMarcacion { get; private set; }
     public string? DispositivoId { get; private set; }
 
-    public MarcacionRegistrada(
+    // CA-1: constructor real privado -- solo el factory Crear lo invoca
+    private MarcacionRegistrada(
         string empleadoId,
         DateTime timestampNormalizado,
         string? tipoMarcacion,
@@ -29,11 +34,11 @@ public sealed class MarcacionRegistrada
         DispositivoId = dispositivoId;
     }
 
-    // Constructor privado para Marten/serializacion
+    // CA-1: constructor vacio privado, solo para Marten/serializacion (via ConfigurarSerializacion)
     private MarcacionRegistrada() { }
 
     // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver ADR-0013 y MarcacionRegistradaSerializacionTests.
+    // y propiedades con private set. Ver MEF-ADR-0012 y MarcacionRegistradaSerializacionTests.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(MarcacionRegistrada)
@@ -57,4 +62,14 @@ public sealed class MarcacionRegistrada
             }
         });
     }
+
+    // CA-1, CA-2, CA-3: unica via de construccion. Trunca los segundos al minuto (floor) y rechaza
+    // EmpleadoId nulo, vacio o solo espacios en blanco.
+    // Stub de compilacion -- implementacion real pendiente (fase verde, fase roja del TDD).
+    public static MarcacionRegistrada Crear(
+        string empleadoId,
+        DateTime timestampCrudo,
+        string? tipoMarcacion,
+        string? dispositivoId) =>
+        throw new NotImplementedException();
 }

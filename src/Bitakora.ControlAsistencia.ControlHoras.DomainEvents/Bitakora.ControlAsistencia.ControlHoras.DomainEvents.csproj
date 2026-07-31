@@ -6,8 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- MarcacionRegistrada implementa IPrivateEvent (ver #270: su aplanamiento
-       y traslado a PrivateEvents queda pendiente). -->
+  <!-- Issue #270: MarcacionRegistrada ya no implementa IPrivateEvent: es el evento de dominio
+       persistido en el stream, no cruza el bus. El contrato de bus es RegistroDeMarcacionCreado
+       en PrivateEvents.ControlHoras. -->
   <ItemGroup>
     <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
   </ItemGroup>
@@ -15,6 +16,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
+  </ItemGroup>
+
+  <!-- Issue #275: MarcacionRegistrada.Mensajes es internal y los tests lo usan en sus asserts
+       (MEF-ADR-0009, patron TurnoCreado.Mensajes). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.ControlHoras.Tests" />
   </ItemGroup>
 
 </Project>
