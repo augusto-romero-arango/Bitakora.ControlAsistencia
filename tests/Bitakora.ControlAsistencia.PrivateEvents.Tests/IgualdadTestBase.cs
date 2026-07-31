@@ -1,6 +1,6 @@
 using AwesomeAssertions;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
+namespace Bitakora.ControlAsistencia.PrivateEvents.Tests;
 
 /// <summary>
 /// Clase base generica para tests de contrato IEquatable en value objects.

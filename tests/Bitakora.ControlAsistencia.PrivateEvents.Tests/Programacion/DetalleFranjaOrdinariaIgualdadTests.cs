@@ -5,7 +5,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
+namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.Programacion;
 
 public class DetalleFranjaOrdinariaIgualdadTests : IgualdadTestBase<DetalleFranjaOrdinaria>
 {

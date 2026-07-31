@@ -55,6 +55,14 @@ on:
     paths:
       - 'src/Bitakora.ControlAsistencia.Projections/**'
       - 'src/Bitakora.ControlAsistencia.ReadModels/**'
+      # Issue #237: el worker compila contra los dos DomainEvents para ver los tipos de evento que
+      # proyecta y su ConfigurarSerializacion (MEF-ADR-0034 seccion 5), y contra Public/PrivateEvents
+      # por transitividad. Un cambio en cualquiera de los cuatro cambia su binario, asi que sin estas
+      # rutas el worker quedaria desplegado con una version vieja de los tipos que deserializa.
+      - 'src/Bitakora.ControlAsistencia.Programacion.DomainEvents/**'
+      - 'src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/**'
+      - 'src/Bitakora.ControlAsistencia.PrivateEvents/**'
+      - 'src/Bitakora.ControlAsistencia.PublicEvents/**'
       - 'global.json'
       - '.github/workflows/deploy-projections.yml'
   workflow_dispatch:

@@ -13,6 +13,9 @@
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
   </ItemGroup>
 
+  <!-- Issue #237: referencia solo a PrivateEvents (que arrastra PublicEvents, dependencia legitima
+       del grafo). La barrera aqui es que no alcance ningun DomainEvents ni Function App: lo que se
+       publica al bus interno del BC tiene que ser plano y portable por si mismo (MEF-ADR-0023). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
   </ItemGroup>
