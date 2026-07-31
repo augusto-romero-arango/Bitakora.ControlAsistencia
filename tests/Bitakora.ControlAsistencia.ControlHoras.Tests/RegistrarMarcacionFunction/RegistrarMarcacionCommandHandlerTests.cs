@@ -60,7 +60,7 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
 
     // CA-3: TipoMarcacion y DispositivoId son opcionales - null es valido en ambos tipos.
     [Fact]
-    public async Task RegistrarMarcacion_PublicaRegistroDeMarcacionCreadoConCamposOpcionalesNulos_CuandoCamposOpcionalesSonNulos()
+    public async Task RegistrarMarcacion_PropagaCamposOpcionalesNulos_CuandoElComandoNoLosTrae()
     {
         await WhenAsync(new RegistrarMarcacion(EmpleadoId, Timestamp, null, null));
 

@@ -12,8 +12,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegist
 // MarcacionRegistrada (que dejo de implementar IPrivateEvent - CA-3). Paridad de campos identica,
 // asi que el comportamiento (patron crear-o-actualizar sobre ControlDiario, ventana de traslape
 // nocturno, publicacion de DiaCalculado) se preserva sobre el tipo nuevo (CA-5).
-// ADR-0024 (decision #8): se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
-// ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere.
+// MEF-ADR-0024 (decision #8): se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
+// MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
 public partial class RegistroDeMarcacionCreadoEventHandler
     : IPrivateEventHandlerAsync<RegistroDeMarcacionCreado>
 {
@@ -22,7 +22,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
 
     // CA-9: constante del handler - no del aggregate. Cuando sea configurable por empresa
     // vendra de un servicio externo, no de aqui.
-    internal static readonly TimeOnly HoraCorteTraslapeNocturno = new TimeOnly(4, 0);
+    internal static readonly TimeOnly HoraCorteTraslapeNocturno = new(4, 0);
 
     public RegistroDeMarcacionCreadoEventHandler(
         IEventStore eventStore,

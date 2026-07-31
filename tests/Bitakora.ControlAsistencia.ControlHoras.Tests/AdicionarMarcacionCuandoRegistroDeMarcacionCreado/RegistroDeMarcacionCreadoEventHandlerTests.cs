@@ -90,7 +90,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     // CA-3: lista de marcaciones crece al adicionar una marcacion nueva
     //        ControlDiario ya existe con una marcacion previa (distinto minuto)
     [Fact]
-    public async Task RegistroDeMarcacionCreado_CreceListaMarcaciones_CuandoControlDiarioYaExisteConMarcacionPrevia()
+    public async Task RegistroDeMarcacionCreado_AgregaMarcacionALaLista_CuandoControlDiarioYaExisteConMarcacionPrevia()
     {
         // Timestamp diferente: 07:00 ya existia
         var marcacionPrevia = CrearMarcacionAdicionada(

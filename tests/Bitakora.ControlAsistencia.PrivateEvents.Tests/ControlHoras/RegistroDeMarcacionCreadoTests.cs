@@ -30,7 +30,7 @@ public class RegistroDeMarcacionCreadoTests
         new() { PropertyNameCaseInsensitive = true };
 
     [Fact]
-    public void RoundTrip_ReconstruyeEvento_ConDatosCompletos()
+    public void RoundTrip_ReconstruyeEvento_CuandoElPayloadEstaCompleto()
     {
         var evento = new RegistroDeMarcacionCreado(
             "EMP-001", new DateTime(2026, 3, 15, 8, 9, 0), "ENTRADA", "DEV-001");
@@ -38,7 +38,8 @@ public class RegistroDeMarcacionCreadoTests
         var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
         var restaurado = JsonSerializer.Deserialize<RegistroDeMarcacionCreado>(json, CrearOpcionesConsumidor());
 
-        restaurado.Should().NotBeNull();
+        // La igualdad por valor del record cubre los cuatro campos: no hay coleccion en el payload,
+        // asi que no promete una comparacion estructural que no cumpla (MEF-ADR-0012).
         restaurado.Should().Be(evento);
     }
 
@@ -48,8 +49,11 @@ public class RegistroDeMarcacionCreadoTests
         var evento = new RegistroDeMarcacionCreado(
             "EMP-002", new DateTime(2026, 3, 15, 8, 9, 0), null, null);
 
-        // Con JsonSerializerDefaults.Web (JsonIgnoreCondition.WhenWritingNull por defecto NO aplica),
-        // simulamos el JSON minimo que Wolverine podria producir si los opcionales estuvieran ausentes.
+        // El JSON se fija a mano (no se serializa el evento): JsonSerializerDefaults.Web NO activa
+        // DefaultIgnoreCondition.WhenWritingNull, asi que serializar produciria los opcionales
+        // explicitos en null. El caso que importa es el complementario -- las propiedades AUSENTES --,
+        // que es lo que llega si el productor omite nulos o si el contrato crece de forma aditiva
+        // (MEF-ADR-0005): el consumidor debe reconstruirlas en null, no fallar.
         var json = """
             {
               "empleadoId": "EMP-002",
@@ -59,9 +63,6 @@ public class RegistroDeMarcacionCreadoTests
 
         var restaurado = JsonSerializer.Deserialize<RegistroDeMarcacionCreado>(json, CrearOpcionesConsumidor());
 
-        restaurado.Should().NotBeNull();
         restaurado.Should().Be(evento);
-        restaurado!.TipoMarcacion.Should().BeNull();
-        restaurado.DispositivoId.Should().BeNull();
     }
 }

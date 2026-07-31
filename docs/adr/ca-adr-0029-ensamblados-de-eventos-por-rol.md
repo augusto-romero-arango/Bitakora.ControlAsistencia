@@ -212,8 +212,8 @@ de **salida** hacia ControlHoras, no de entrada.
   detectar que un edit del bloque `ConfigureMarten` tumbe la serialización en silencio. No hay canario
   de reemplazo, porque los tres eventos tienen constructor público y STJ vanilla los deserializa
   igual **en las condiciones en que hoy se ejercitan** (round-trip contra `CrearOpcionesMarten()`,
-  PascalCase + `PropertyNamingPolicy = null`). ~~Corrección factual (issue #270): esta afirmación,
-  leída como "STJ sin resolver los deserializa igual en cualquier canal", es falsa.~~ La verificación
+  PascalCase + `PropertyNamingPolicy = null`). **Corrección factual (issue #270): esa afirmación,
+  leída como "STJ sin resolver los deserializa igual en cualquier canal", es falsa.** La verificación
   empírica de #270 (proyecto descartable, .NET 10, réplica exacta de la forma actual: ctor público
   parametrizado + ctor privado + propiedades `private set`) encontró tres resultados distintos según
   las opciones del canal:
@@ -245,8 +245,9 @@ de **salida** hacia ControlHoras, no de entrada.
   frente a `DomainEvents`. Se refuerza, no se cambia.
 - CA-ADR-0028 (biblioteca de dominio como frontera write/read): **superado**. Su decisión #1 mandaba
   mover aggregates y value objects de cálculo, ampliación que la investigación mostró innecesaria.
-  Contiene además un error factual: afirma que ninguno de los 5 eventos implementa
-  `IPublicEvent`/`IPrivateEvent`, y `MarcacionRegistrada` sí implementa `IPrivateEvent`.
+  Contenía además un error factual: afirmaba que ninguno de los 5 eventos implementaba
+  `IPublicEvent`/`IPrivateEvent`, cuando `MarcacionRegistrada` sí implementaba `IPrivateEvent`. Desde
+  el issue #270 la afirmación es cierta por otra vía: ningún evento persistido lleva marker de bus.
 - MEF-ADR-0012 (encapsulamiento, `ConfigurarSerializacion`, ctor privado): los tipos ricos que se
   mudaron siguen este patrón sin cambios.
 - MEF-ADR-0023 (lo que cruza un bus debe ser plano y portable): criterio de inclusión de

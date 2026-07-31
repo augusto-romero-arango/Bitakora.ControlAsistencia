@@ -15,17 +15,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // AdicionarMarcacionCuandoRegistroDeMarcacionCreado, que tras el POST persiste marcacion_adicionada
 // y publica DiaCalculado al topic dia-calculado.
 // Issue #270: RegistrarMarcacionCommandHandler ya no publica MarcacionRegistrada (evento de dominio)
-// al bus; publica el contrato RegistroDeMarcacionCreado (PrivateEvents.ControlHoras) empaquetado por
-// RegistroDeMarcacionAggregateRoot.CrearRegistroDeMarcacionCreado(). Ese contrato es intra-BC
-// (productor y consumidor viven en este mismo Function App) y no se consume directo desde la
-// suscripcion smoke-tests del topic registro-de-marcacion-creado -- por diseno del propio issue, el
-// efecto end-to-end de esa publicacion/consumo se verifica de forma mas fuerte via los alias que NO
-// cambiaron: marcacion_adicionada persistido en Postgres y DiaCalculado publicado (test
-// DebePublicarDiaCalculadoYPersistirMarcacionAdicionada... mas abajo). Si el topic o la subscription
-// nuevos ("registro-de-marcacion-creado" / "control-horas-escucha-registro-de-marcacion", #274) no
-// estan bien provisionados o el FunctionEndpoint no los referencia correctamente, ese test hace
-// timeout esperando marcacion_adicionada -- regresion cubierta sin duplicar aserciones sobre el
-// canal privado interno.
+// al bus; publica el contrato RegistroDeMarcacionCreado al topic registro-de-marcacion-creado (#274).
+// Ningun test consume la suscripcion smoke-tests de ese topic privado: la cobertura de esa
+// publicacion/consumo vive en DebePublicarDiaCalculadoYPersistirMarcacionAdicionada... (mas abajo),
+// que la verifica de forma mas fuerte por transitividad -- ver el porque en su propio comentario.
 // Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
 // RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
 // request contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
