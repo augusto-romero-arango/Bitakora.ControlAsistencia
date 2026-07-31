@@ -2,7 +2,32 @@
 
 ## Estado
 
-Aceptado
+**Superado por CA-ADR-0029** (issue #237, 2026-07-31). La biblioteca
+`Bitakora.ControlAsistencia.{Dominio}.Dominio` que este ADR propone nunca se creó.
+
+Qué se conserva y qué no:
+
+- **Se conserva el diagnóstico**, que era correcto: el worker de proyecciones no puede ver los tipos
+  de los eventos que proyecta, y no puede alcanzarlos referenciando un Function App.
+- **Se conserva la prohibición de la decisión #4** --el worker nunca referencia el `.csproj` de un
+  Function App-- y las dos alternativas descartadas de este ADR siguen siendo válidas tal como están
+  argumentadas.
+- **Queda superada la decisión #1**: mandaba mover también los aggregates y los value objects del
+  dominio. Al verificar objeto por objeto qué necesita el worker, esa ampliación resultó innecesaria
+  (una `SingleStreamProjection` se declara sobre tipos de evento, no sobre el aggregate) y habría
+  obligado al worker a cargar la lógica de cálculo de horas que nunca usa. CA-ADR-0029 mueve
+  únicamente los eventos y su payload.
+- **Corrección de un error factual**: el Contexto de este ADR afirma que "ninguno de los cinco
+  implementa `IPublicEvent`/`IPrivateEvent`". Es falso: `MarcacionRegistrada` implementa
+  `IPrivateEvent` --se publica al topic `marcacion-registrada` (issue #213)-- y además se persiste en
+  el stream de `RegistroDeMarcacionAggregateRoot`. Ese doble rol es justamente el caso incómodo que
+  CA-ADR-0029 documenta como deuda asumida y que el issue #270 resuelve.
+
+El texto original se conserva abajo como registro histórico.
+
+---
+
+Aceptado (histórico)
 
 ## Contexto
 

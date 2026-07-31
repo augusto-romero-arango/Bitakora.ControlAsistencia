@@ -2,7 +2,21 @@
 
 ## Estado
 
-Aceptado
+**Superado por CA-ADR-0029** (issue #237, 2026-07-31). El proyecto
+`Bitakora.ControlAsistencia.Contracts` que este ADR crea fue eliminado del repositorio.
+
+Su necesidad de fondo --que los dominios coincidan en la forma exacta del mensaje sin referenciarse
+entre sí-- sigue vigente y la resuelve CA-ADR-0029; lo que cambió es el criterio de inclusión. "Lo
+compartido" no excluía nada, y por eso `Contracts` acabó acumulando tres familias distintas de tipos:
+eventos que salen del bounded context, eventos del bus interno y modelo rico que se persiste en el
+event store. CA-ADR-0029 los separa en `PublicEvents`, `PrivateEvents` y `{Dominio}.DomainEvents`,
+con un criterio por ensamblado que el compilador puede hacer cumplir.
+
+El texto original se conserva abajo como registro histórico.
+
+---
+
+Aceptado (histórico)
 
 ## Contexto
 
