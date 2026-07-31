@@ -13,7 +13,7 @@ public abstract class FranjaTemporal
     protected const int MinutosPorDia = 1440;
 
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects.FranjaTemporalMensajes",
+        "Bitakora.ControlAsistencia.Programacion.DomainEvents.FranjaTemporalMensajes",
         typeof(FranjaTemporal).Assembly);
 
     public static class Mensajes

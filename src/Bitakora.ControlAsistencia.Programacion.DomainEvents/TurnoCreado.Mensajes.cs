@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 public sealed partial class TurnoCreado
 {
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos.TurnoCreadoMensajes",
+        "Bitakora.ControlAsistencia.Programacion.DomainEvents.TurnoCreadoMensajes",
         typeof(TurnoCreado).Assembly);
 
     internal static class Mensajes
