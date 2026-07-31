@@ -93,6 +93,23 @@ module "service_bus" {
         }
       ]
     }
+    # Issue #274: contrato de bus propio nacido de separar el doble rol de
+    # MarcacionRegistrada (issue #270). Convive temporalmente con
+    # "marcacion-registrada" hasta que #270 migre productor y consumidor;
+    # el retiro de ese topic es un issue posterior y dependiente de #270.
+    "registro-de-marcacion-creado" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-registro-de-marcacion"
+          correlation_filter = null
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
   }
   tags = local.tags
 }
