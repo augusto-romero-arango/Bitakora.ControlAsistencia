@@ -110,10 +110,7 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     // Verifica que cada franja hija este contenida dentro de la ordinaria
     private static void ValidarContencion(FranjaOrdinaria contenedor, List<FranjaTemporal> hijas)
     {
-        var inicio = contenedor.MinutosAbsolutoInicio;
-        var fin = contenedor.MinutosAbsolutoFin;
-
-        if (hijas.Any(h => h.MinutosAbsolutoInicio < inicio || h.MinutosAbsolutoFin > fin))
+        if (hijas.Any(h => !h.EstaContenidaEn(contenedor)))
             throw new ArgumentException(Mensajes.FranjaHijaFueraDeContenedor);
     }
 
@@ -123,8 +120,7 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     {
         for (var i = 0; i < hijas.Count; i++)
             for (var j = i + 1; j < hijas.Count; j++)
-                if (hijas[i].MinutosAbsolutoInicio < hijas[j].MinutosAbsolutoFin
-                    && hijas[j].MinutosAbsolutoInicio < hijas[i].MinutosAbsolutoFin)
+                if (hijas[i].SeSolapaCon(hijas[j]))
                     throw new ArgumentException(Mensajes.FranjasHijasSeSuperponen);
     }
 

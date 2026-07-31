@@ -196,6 +196,21 @@ public class FranjaOrdinariaTests
     }
 
     [Fact]
+    public void Crear_RetornaFranjaConExtra_CuandoExtraTerminaExactamenteEnElFinDeLaOrdinaria()
+    {
+        // Extremo coincidente: el fin de la hija es el fin de la ordinaria - SI esta contenida.
+        // Issue #285: guardrail del limite superior de EstaContenidaEn (el inferior ya lo cubre
+        // Crear_RetornaFranjaOrdinariaConExtra_CuandoExtraEstaContenida).
+        var extra = SubFranja.Crear(new TimeOnly(11, 0), new TimeOnly(12, 0));
+
+        var franja = FranjaOrdinaria.Crear(
+            new TimeOnly(6, 0), new TimeOnly(12, 0),
+            extras: [extra]);
+
+        franja.ToString().Should().Be("(06:00-12:00)[Extras:(11:00-12:00)]");
+    }
+
+    [Fact]
     public void Crear_LanzaExcepcion_CuandoExtraExcedeFin()
     {
         // extra termina a las 13:00, ordinaria termina a las 12:00
