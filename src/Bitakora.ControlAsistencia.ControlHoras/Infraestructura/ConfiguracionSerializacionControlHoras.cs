@@ -1,9 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
-using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 

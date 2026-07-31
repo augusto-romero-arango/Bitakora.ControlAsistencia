@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
+namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 // HU-106: Evento de event sourcing que registra la adicion de una marcacion al ControlDiario.
 // Se persiste en el stream de ControlDiarioAggregateRoot (Id = stream ID compuesto) y no cruza el bus.

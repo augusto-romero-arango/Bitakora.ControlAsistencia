@@ -3,7 +3,7 @@ using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
 /// Evento de event sourcing que registra la asignacion de un turno diario al ControlDiario.

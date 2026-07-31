@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 using Cosmos.EventDriven.Abstractions;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
+namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 // HU-105: Evento privado que registra una marcacion normalizada
 // El timestamp se trunca al minuto (floor) antes de emitir

@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Azure.Monitor.OpenTelemetry.Exporter;
-using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;

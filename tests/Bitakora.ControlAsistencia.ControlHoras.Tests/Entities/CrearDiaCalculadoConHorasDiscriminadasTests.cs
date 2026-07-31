@@ -19,11 +19,9 @@
 // prueba). Asi un bug en esa logica no se filtra al esperado y el test si detecta regresiones (regla 20).
 
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.Eventos;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;

@@ -2,8 +2,8 @@
 
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
-using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
 
