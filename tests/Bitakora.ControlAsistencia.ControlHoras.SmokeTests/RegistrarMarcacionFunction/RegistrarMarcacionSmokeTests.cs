@@ -13,6 +13,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // CA-6: tanto creacion exitosa como duplicado retornan 202 Accepted.
 // HU-108: cobertura adicional de los efectos del handler in-process AdicionarMarcacionCuandoMarcacionRegistrada,
 // que tras el POST persiste marcacion_adicionada y publica DiaCalculado al topic dia-calculado.
+// Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
+// DebeRetornar400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el request
+// contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
 public class RegistrarMarcacionSmokeTests(
     ApiFixture api,
     PostgresFixture postgres,
@@ -198,6 +201,92 @@ public class RegistrarMarcacionSmokeTests(
         var response = await _client.PostAsync(Ruta, content, ct);
 
         // Assert: body nulo -> 400 Bad Request
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeRetornar400_CuandoEmpleadoIdEsVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Issue #279 CA-2: EmpleadoId vacio produce 400.
+        var payload = new
+        {
+            empleadoId = "",
+            timestamp = new DateTime(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc)
+                .ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-CA2-VACIO"
+        };
+
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeRetornar400_CuandoEmpleadoIdSonSoloEspacios()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Issue #279 CA-2: EmpleadoId con solo espacios en blanco produce 400.
+        var payload = new
+        {
+            empleadoId = "   ",
+            timestamp = new DateTime(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc)
+                .ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-CA2-ESPACIOS"
+        };
+
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeRetornar400_CuandoEmpleadoIdContieneDosPuntos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Issue #279 CA-3: EmpleadoId con ':' produce 400. ComputarStreamId usa ':' como
+        // separador entre EmpleadoId y Timestamp; sin esta regla, un EmpleadoId con ':' podria
+        // fabricar el mismo stream ID que otra combinacion legitima (colision descrita en el
+        // Contexto del issue).
+        var payload = new
+        {
+            empleadoId = $"EMP:{Guid.CreateVersion7()}",
+            timestamp = new DateTime(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc)
+                .ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-CA3"
+        };
+
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeRetornar400_CuandoTimestampEsDefault()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Issue #279 CA-4: Timestamp con el valor default de DateTime produce 400.
+        var payload = new
+        {
+            empleadoId = Guid.CreateVersion7().ToString(),
+            timestamp = "0001-01-01T00:00:00Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-CA4"
+        };
+
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
