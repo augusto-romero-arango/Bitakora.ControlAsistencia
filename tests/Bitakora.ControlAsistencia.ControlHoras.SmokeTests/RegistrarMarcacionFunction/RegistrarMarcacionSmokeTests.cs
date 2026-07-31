@@ -14,6 +14,18 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // HU-108: cobertura adicional de los efectos del handler in-process
 // AdicionarMarcacionCuandoRegistroDeMarcacionCreado, que tras el POST persiste marcacion_adicionada
 // y publica DiaCalculado al topic dia-calculado.
+// Issue #270: RegistrarMarcacionCommandHandler ya no publica MarcacionRegistrada (evento de dominio)
+// al bus; publica el contrato RegistroDeMarcacionCreado (PrivateEvents.ControlHoras) empaquetado por
+// RegistroDeMarcacionAggregateRoot.CrearRegistroDeMarcacionCreado(). Ese contrato es intra-BC
+// (productor y consumidor viven en este mismo Function App) y no se consume directo desde la
+// suscripcion smoke-tests del topic registro-de-marcacion-creado -- por diseno del propio issue, el
+// efecto end-to-end de esa publicacion/consumo se verifica de forma mas fuerte via los alias que NO
+// cambiaron: marcacion_adicionada persistido en Postgres y DiaCalculado publicado (test
+// DebePublicarDiaCalculadoYPersistirMarcacionAdicionada... mas abajo). Si el topic o la subscription
+// nuevos ("registro-de-marcacion-creado" / "control-horas-escucha-registro-de-marcacion", #274) no
+// estan bien provisionados o el FunctionEndpoint no los referencia correctamente, ese test hace
+// timeout esperando marcacion_adicionada -- regresion cubierta sin duplicar aserciones sobre el
+// canal privado interno.
 // Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
 // RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
 // request contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
@@ -274,6 +286,13 @@ public class RegistrarMarcacionSmokeTests(
     // Setup: se publica programacion-turno-diario-solicitada para que el aggregate tenga
     // turno previo, asegurando que DiaCalculado.InformacionEmpleado no sea null y se pueda
     // filtrar por EmpleadoId en la suscripcion smoke-tests.
+    // Issue #270: este es el test que cierra el circuito completo del contrato de bus
+    // RegistroDeMarcacionCreado -- el POST solo puede llegar a persistir marcacion_adicionada si
+    // RegistrarMarcacionCommandHandler publico RegistroDeMarcacionCreado correctamente al topic
+    // "registro-de-marcacion-creado" y AdicionarMarcacionCuandoRegistroDeMarcacionCreado lo consumio
+    // desde "control-horas-escucha-registro-de-marcacion" (#274). Es un assert black-box mas fuerte
+    // que consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de
+    // PRODUCCION (no un consumidor competidor) proceso el mensaje.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DebePublicarDiaCalculadoYPersistirMarcacionAdicionada_CuandoMarcacionGeneraNuevoEvento()
