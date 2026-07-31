@@ -33,6 +33,10 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
     // CA-5: stream ID determinista {EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}
     private static readonly string StreamId = $"{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}";
 
+    // Issue #275: el stream que el handler habria abierto si el factory no hubiera rechazado el
+    // EmpleadoId vacio -- se afirma vacio para probar que el throw precede a cualquier escritura.
+    private static readonly string StreamIdSinEmpleado = $":{Timestamp:yyyy-MM-ddTHH:mm:ss}";
+
     protected override ICommandHandlerAsync<RegistrarMarcacion> Handler =>
         new RegistrarMarcacionCommandHandler(EventStore, PrivateEventSender);
 
@@ -98,13 +102,17 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
     // Issue #275 CA-3/CA-4: el factory MarcacionRegistrada.Crear valida el EmpleadoId; el throw
     // ocurre en el borde del handler (MEF-ADR-0004), nunca dentro del aggregate. No es un evento de
     // fallo del aggregate -- es un dato invalido que nunca deberia haber llegado hasta aqui.
+    // El throw ocurre ANTES de tocar el event store: ni se abre el stream ni se publica el contrato
+    // de bus, de modo que un dato invalido no deja rastro parcial.
     [Fact]
-    public async Task RegistrarMarcacion_PropagaArgumentException_CuandoEmpleadoIdEsVacio()
+    public async Task RegistrarMarcacion_PropagaArgumentExceptionSinPersistirNiPublicar_CuandoEmpleadoIdEsVacio()
     {
         var act = async () => await WhenAsync(
             new RegistrarMarcacion(string.Empty, Timestamp, "ENTRADA", "DEV-001"));
 
         await act.Should().ThrowExactlyAsync<ArgumentException>()
             .WithMessage($"*{MarcacionRegistrada.Mensajes.EmpleadoIdVacio}*");
+        Then(StreamIdSinEmpleado);
+        ThenIsPublishedPrivately();
     }
 }

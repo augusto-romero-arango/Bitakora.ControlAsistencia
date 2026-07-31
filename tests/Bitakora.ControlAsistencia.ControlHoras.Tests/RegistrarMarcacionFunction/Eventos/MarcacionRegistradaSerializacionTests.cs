@@ -17,28 +17,32 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFuncti
 /// </summary>
 public class MarcacionRegistradaSerializacionTests
 {
+    private const string EmpleadoId = "EMP-001";
+    private static readonly DateTime TimestampConSegundos = new(2026, 3, 15, 8, 9, 59);
+    private static readonly DateTime TimestampNormalizadoEsperado = new(2026, 3, 15, 8, 9, 0);
+
     // Usa las opciones REALES de Marten del dominio (regla 6d) -- no un resolver armado inline que
-    // solo registre este tipo. Si alguien borra la linea de registro en
-    // ConfiguracionSerializacionControlHoras.ConfigurarResolver, el test
-    // "Deserializar_Falla_CuandoResolverNoTieneRegistroDeMarcacionRegistrada" de abajo lo detecta.
+    // solo registre este tipo. Esa eleccion es lo que convierte a los dos RoundTrip_* de abajo en la
+    // barrera contra el borrado de la linea de registro en
+    // ConfiguracionSerializacionControlHoras.ConfigurarResolver: sin ella, el ctor vacio privado es
+    // inalcanzable para STJ y ambos fallan con NotSupportedException.
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
     // Verifica todos los campos incluyendo los opcionales con valores reales.
     // Issue #275: el evento se construye con el factory Crear -- unica via posible con ctor privado.
     [Fact]
-    public void RoundTrip_ReconstruyeEvento_ConDatosCompletos()
+    public void RoundTrip_ReconstruyeEvento_CuandoDatosCompletos()
     {
-        var timestampCrudo = new DateTime(2026, 3, 15, 8, 9, 59);
-        var evento = MarcacionRegistrada.Crear("EMP-001", timestampCrudo, "ENTRADA", "DEV-001");
+        var evento = MarcacionRegistrada.Crear(EmpleadoId, TimestampConSegundos, "ENTRADA", "DEV-001");
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
         var deserializado = JsonSerializer.Deserialize<MarcacionRegistrada>(json, opciones);
 
         deserializado.Should().NotBeNull();
-        deserializado!.EmpleadoId.Should().Be("EMP-001");
-        deserializado.TimestampNormalizado.Should().Be(new DateTime(2026, 3, 15, 8, 9, 0));
+        deserializado!.EmpleadoId.Should().Be(EmpleadoId);
+        deserializado.TimestampNormalizado.Should().Be(TimestampNormalizadoEsperado);
         deserializado.TipoMarcacion.Should().Be("ENTRADA");
         deserializado.DispositivoId.Should().Be("DEV-001");
     }
@@ -47,8 +51,7 @@ public class MarcacionRegistradaSerializacionTests
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoCamposOpcionalesSonNulos()
     {
-        var timestampCrudo = new DateTime(2026, 3, 15, 8, 9, 0);
-        var evento = MarcacionRegistrada.Crear("EMP-002", timestampCrudo, null, null);
+        var evento = MarcacionRegistrada.Crear("EMP-002", TimestampNormalizadoEsperado, null, null);
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -56,19 +59,20 @@ public class MarcacionRegistradaSerializacionTests
 
         deserializado.Should().NotBeNull();
         deserializado!.EmpleadoId.Should().Be("EMP-002");
-        deserializado.TimestampNormalizado.Should().Be(timestampCrudo);
+        deserializado.TimestampNormalizado.Should().Be(TimestampNormalizadoEsperado);
         deserializado.TipoMarcacion.Should().BeNull();
         deserializado.DispositivoId.Should().BeNull();
     }
 
-    // CA-regresion (regla 16): si alguien borra el registro de MarcacionRegistrada en
-    // ConfiguracionSerializacionControlHoras.ConfigurarResolver, este test lo detecta -- sin el
-    // registro, STJ no tiene forma de invocar el ctor vacio privado.
+    // Documenta POR QUE el registro en ConfigurarResolver es obligatorio: con las mismas opciones de
+    // Marten pero un resolver vacio, STJ no tiene forma de invocar el ctor vacio privado. Quien
+    // detecta el borrado del registro son los RoundTrip_* de arriba (usan las opciones reales del
+    // dominio); este test fija el comportamiento del canal sin resolver.
     [Fact]
-    public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeMarcacionRegistrada()
+    public void Deserializar_LanzaNotSupportedException_CuandoElResolverNoRegistraElTipo()
     {
         var evento = MarcacionRegistrada.Crear(
-            "EMP-001", new DateTime(2026, 3, 15, 8, 9, 0), "ENTRADA", "DEV-001");
+            EmpleadoId, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
         var opcionesSinRegistro = new JsonSerializerOptions
         {
             TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
@@ -88,10 +92,10 @@ public class MarcacionRegistradaSerializacionTests
     // sin resolver; aqui el evento de dominio rico NO debe hacerlo, porque solo vive en el event
     // store (CA-ADR-0025 seccion 4).
     [Fact]
-    public void Deserializar_LanzaNotSupportedException_ConSerializadorDelCanalDeBus()
+    public void Deserializar_LanzaNotSupportedException_CuandoUsaElSerializadorDelCanalDeBus()
     {
         var evento = MarcacionRegistrada.Crear(
-            "EMP-001", new DateTime(2026, 3, 15, 8, 9, 0), "ENTRADA", "DEV-001");
+            EmpleadoId, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
         var opcionesDelBus = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         var json = JsonSerializer.Serialize(evento, opcionesDelBus);
 

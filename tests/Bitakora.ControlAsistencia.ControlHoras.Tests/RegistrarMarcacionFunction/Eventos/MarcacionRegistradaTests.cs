@@ -23,7 +23,7 @@ public class MarcacionRegistradaTests
     }
 
     [Fact]
-    public void Crear_RetornaMarcacionRegistrada_ConDatosValidos()
+    public void Crear_RetornaMarcacionRegistrada_CuandoDatosSonValidos()
     {
         var evento = MarcacionRegistrada.Crear(EmpleadoId, TimestampConSegundos, "ENTRADA", "DEV-001");
 
@@ -49,6 +49,32 @@ public class MarcacionRegistradaTests
             EmpleadoId, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
 
         evento.TimestampNormalizado.Should().Be(TimestampNormalizadoEsperado);
+    }
+
+    // Un dispositivo puede reportar sub-segundos: el floor tambien los descarta, no solo los
+    // segundos enteros. Sin esto, dos marcaciones del mismo minuto podrian diferir en ticks.
+    [Fact]
+    public void Crear_TruncaFraccionesDeSegundo_CuandoTimestampTraeTicks()
+    {
+        var conTicks = TimestampConSegundos.AddTicks(1234567);
+
+        var evento = MarcacionRegistrada.Crear(EmpleadoId, conTicks, "ENTRADA", "DEV-001");
+
+        evento.TimestampNormalizado.Should().Be(TimestampNormalizadoEsperado);
+    }
+
+    // El truncamiento no puede reinterpretar la zona horaria: el evento persiste el mismo Kind que
+    // recibio (el endpoint entrega Utc). Fijarlo protege el cambio de implementacion del floor.
+    [Fact]
+    public void Crear_PreservaElKindDelTimestamp_CuandoTimestampEsUtc()
+    {
+        var utcConSegundos = new DateTime(2026, 3, 15, 8, 9, 59, DateTimeKind.Utc);
+
+        var evento = MarcacionRegistrada.Crear(EmpleadoId, utcConSegundos, "ENTRADA", "DEV-001");
+
+        evento.TimestampNormalizado.Kind.Should().Be(DateTimeKind.Utc);
+        evento.TimestampNormalizado.Should().Be(
+            new DateTime(2026, 3, 15, 8, 9, 0, DateTimeKind.Utc));
     }
 
     // ---------- CA-3: EmpleadoId nulo, vacio o solo espacios es rechazado ----------

@@ -3,25 +3,24 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// HU-105: Evento de dominio que registra una marcacion normalizada
-// El timestamp se trunca al minuto (floor) antes de emitir
-// CA-2: TimestampNormalizado = Timestamp truncado al minuto
-// CA-3: TipoMarcacion y DispositivoId son opcionales (nullable)
-// Issue #270 CA-3: se persiste en el stream de RegistroDeMarcacionAggregateRoot; ya NO cruza el bus
-// (deja de implementar IPrivateEvent). El contrato de bus es RegistroDeMarcacionCreado
+// HU-105: Evento de dominio que registra una marcacion ya normalizada. TipoMarcacion y
+// DispositivoId son opcionales (los emite el dispositivo, no nuestro sistema).
+// Issue #270: se persiste en el stream de RegistroDeMarcacionAggregateRoot y ya NO cruza el bus
+// (dejo de implementar IPrivateEvent). El contrato de bus es RegistroDeMarcacionCreado
 // (PrivateEvents.ControlHoras), empaquetado por RegistroDeMarcacionAggregateRoot.CrearRegistroDeMarcacionCreado().
 // Issue #275: protegido con factory Crear() y ctores privados (patron TurnoCreado, MEF-ADR-0012).
 // El evento nunca tuvo ctor privado -- #105 cito mal su propio patron de referencia; #270 saco al
 // evento del bus y con eso desaparecio la razon (el ServiceBusDeserializador del consumidor) por la
-// que no podia protegerse antes.
+// que no podia protegerse antes. Cerrado el ctor, ConfigurarSerializacion pasa de redundante a
+// necesario: es la unica via de reconstruccion, y solo existe dentro del event store (CA-ADR-0025).
 public sealed partial class MarcacionRegistrada
 {
-    public string EmpleadoId { get; private set; } = null!;
+    public string EmpleadoId { get; private set; }
     public DateTime TimestampNormalizado { get; private set; }
     public string? TipoMarcacion { get; private set; }
     public string? DispositivoId { get; private set; }
 
-    // CA-1: constructor real privado -- solo el factory Crear lo invoca
+    // Issue #275 CA-1: constructor real privado -- solo el factory Crear lo invoca
     private MarcacionRegistrada(
         string empleadoId,
         DateTime timestampNormalizado,
@@ -34,8 +33,9 @@ public sealed partial class MarcacionRegistrada
         DispositivoId = dispositivoId;
     }
 
-    // CA-1: constructor vacio privado, solo para Marten/serializacion (via ConfigurarSerializacion)
-    private MarcacionRegistrada() { }
+    // Issue #275 CA-1: constructor vacio privado, solo para Marten/STJ via ConfigurarSerializacion
+    // (que repuebla los backing fields por reflexion). El dominio nunca lo invoca.
+    private MarcacionRegistrada() => EmpleadoId = string.Empty;
 
     // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
     // y propiedades con private set. Ver MEF-ADR-0012 y MarcacionRegistradaSerializacionTests.
@@ -63,8 +63,8 @@ public sealed partial class MarcacionRegistrada
         });
     }
 
-    // CA-1, CA-2, CA-3: unica via de construccion. Trunca los segundos al minuto (floor) y rechaza
-    // EmpleadoId nulo, vacio o solo espacios en blanco.
+    // Issue #275 CA-1/CA-2/CA-3: unica via de construccion. Trunca los segundos al minuto (floor) y
+    // rechaza EmpleadoId nulo, vacio o solo espacios en blanco.
     public static MarcacionRegistrada Crear(
         string empleadoId,
         DateTime timestampCrudo,
@@ -77,7 +77,7 @@ public sealed partial class MarcacionRegistrada
         return new MarcacionRegistrada(empleadoId, TruncarAlMinuto(timestampCrudo), tipoMarcacion, dispositivoId);
     }
 
-    // CA-2: trunca (floor) el timestamp al minuto, descartando segundos y fracciones
+    // Issue #275 CA-2: trunca (floor) el timestamp al minuto, descartando segundos y fracciones
     private static DateTime TruncarAlMinuto(DateTime timestamp) =>
         timestamp.AddTicks(-(timestamp.Ticks % TimeSpan.TicksPerMinute));
 }

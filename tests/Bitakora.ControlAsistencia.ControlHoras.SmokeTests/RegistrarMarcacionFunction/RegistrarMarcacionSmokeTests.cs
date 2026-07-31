@@ -24,18 +24,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // request contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
 // Quedan rojos hasta que el deploy publique el validator en dev: el endpoint desplegado responde 202
 // mientras la version anterior siga corriendo. El CI de PR no los ejecuta (solo corre *.Tests).
-// Issue #275: protege el evento de dominio MarcacionRegistrada con factory Crear() y ctores privados
-// (cobertura en *.Tests: MarcacionRegistradaTests, MarcacionRegistradaSerializacionTests). Es un
-// refactor interno sin contrato HTTP nuevo observable: RegistrarMarcacionValidator (#279, arriba) ya
-// intercepta el EmpleadoId vacio con 400 en el borde ANTES de que el comando llegue al handler, asi
-// que el ArgumentException que ahora lanza el factory nunca se alcanza en el flujo HTTP real -- es una
-// segunda barrera de dominio, no un caso nuevo para este archivo. El truncamiento al minuto (CA-2 de
-// #275) tampoco cambia de comportamiento observable: se movio del handler al factory, y
-// DebeRetornar202YPersistirEvento_CuandoMarcacionEsValida (mas abajo) ya lo verifica comparando
-// TimestampNormalizado contra el timestamp crudo con segundos. CA-1 (ctores privados), CA-5
-// (guardrail de serializacion del canal de bus) y CA-6 (roundtrip con las opciones de Marten) son
-// invariantes internas del tipo -- no observables via HTTP/Service Bus/Postgres, por lo que no
-// aplican a smoke tests. No se agregan tests nuevos para este issue.
+// Issue #275: protege MarcacionRegistrada con factory y ctores privados, sin efectos nuevos
+// observables desde afuera. El truncamiento al minuto solo cambio de casa (handler -> factory) y
+// DebeRetornar202YPersistirEvento_CuandoMarcacionEsValida lo sigue verificando end-to-end; el
+// EmpleadoId vacio ya lo rechaza el validator con 400 (#279, arriba) antes de llegar al factory.
+// El resto de sus CAs son invariantes internas del tipo (ctores privados, serializacion), cubiertas
+// en *.Tests por MarcacionRegistradaTests y MarcacionRegistradaSerializacionTests.
 public class RegistrarMarcacionSmokeTests(
     ApiFixture api,
     PostgresFixture postgres,
