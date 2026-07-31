@@ -21,6 +21,7 @@
 
 using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Cosmos.EventDriven.Abstractions;
@@ -121,5 +122,47 @@ public class ComposicionServiciosTests
 
         restaurado.Should().Be(original);
         restaurado.ToString().Should().Be(original.ToString());
+    }
+
+    // Issue #277 CA-2/CA-4: el #237 movio los eventos persistidos a este ensamblado (namespace y
+    // assembly nuevos) sin registrar su tipo en el EventGraph. Toda lectura quedo dependiendo del
+    // fallback por mt_dotnet_type -- roto para el nuevo namespace -- en vez de resolver por alias
+    // (columna "type" de mt_events). Este guardrail detecta el olvido sobre el store real que
+    // compone el contenedor (mismo store que ya usan las guardas de arriba), sin Postgres.
+    //
+    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosControlHoras.TiposPersistidos acoplaria el guardrail al mismo artefacto que
+    // IdentidadEventosControlHorasTests ya verifica, y la asercion pasaria en verde aunque la lista
+    // quedara vacia.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertEventosPersistidosRegistrados(
+            [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
+    }
+
+    // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
+    // filas ya escritas llevan en su columna "type". AliasEventosControlHorasTests lo congela sobre
+    // un StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico
+    // lugar donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
+        {
+            [typeof(MarcacionRegistrada)] = "marcacion_registrada",
+            [typeof(MarcacionAdicionada)] = "marcacion_adicionada",
+            [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado"
+        });
     }
 }

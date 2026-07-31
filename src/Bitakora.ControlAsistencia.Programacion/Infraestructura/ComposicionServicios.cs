@@ -57,6 +57,12 @@ public static class ComposicionServicios
         // ComposicionServiciosTests lo verifica sobre el store real del contenedor.
         services.ConfigureMarten(options =>
         {
+            // Issue #277: registra los tipos de evento persistidos en el EventGraph. No declara
+            // alias -- Marten lo sigue derivando del nombre de clase -- solo garantiza que el
+            // mapping exista antes de la primera lectura, en vez de depender de que un append lo
+            // haya poblado (issue #237 seccion "Consecuencia asumida").
+            options.Events.AddEventTypes(IdentidadEventosProgramacion.TiposPersistidos);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>

@@ -94,6 +94,46 @@ La razón es estructural, no estética: `CrearTurno` vive en la Function App, qu
 `Programacion.DomainEvents`, así que un factory que reciba el comando cierra un ciclo de referencias
 y no compila.
 
+### 6. El alias es la identidad del evento persistido, y se registra explícitamente
+
+*Enmienda incorporada por el issue #277, que paga la deuda que la primera versión de este ADR había
+asumido (ver "Negativas y deuda asumida").*
+
+La identidad con la que Marten reconoce un evento al leer un stream es su **alias** --la columna
+`type` de `mt_events`--, no el nombre calificado del tipo. `EventDocumentStorage.Resolve` (Marten
+9.12) busca primero un mapping por alias y solo cae a `mt_dotnet_type` -> `Type.GetType(...)` cuando
+no lo encuentra; si el alias resuelve, un `mt_dotnet_type` desactualizado se ignora **por diseño**.
+De ahí que mover un evento de namespace o de ensamblado no obligue a migrar ningún dato: el alias
+lo deriva `EventTypeExtensions` del **nombre simple** de la clase (`eventType.Name.ToTableAlias()`),
+inmune al namespace.
+
+Lo que sí es obligatorio es que el mapping exista **antes de la primera lectura** del proceso, en vez
+de depender de que un append previo lo haya poblado. Por eso cada ensamblado de eventos aloja también
+la lista de sus tipos persistidos --`IdentidadEventos{Dominio}.TiposPersistidos`, hermana de la lista
+de serialización de la decisión #4--, y **todo** proceso que lea esos streams la registra en su propio
+`EventGraph` con `Events.AddEventTypes(...)`: el write-side en su `ComposicionServicios` y el worker
+de proyecciones en su `ConfiguracionMartenProjections{Dominio}`.
+
+Tres proscripciones delimitan el alcance de esta decisión:
+
+- **No se usa `MapEventType` ni se altera `EventNamingStyle`.** Registrar un tipo no redeclara su
+  alias: Marten lo sigue derivando del nombre de clase. Este ADR no cambia la estrategia de
+  identificación, solo garantiza que el mapping esté presente.
+- **No se registra ningún tipo con el nombre calificado antiguo** (ni clase shim, ni un
+  `MapEventType` al viejo). Eso invertiría la tolerancia descrita arriba: Marten encontraría un
+  mapping alternativo para el `mt_dotnet_type` obsoleto y deserializaría las filas viejas al tipo
+  viejo, que es exactamente lo que no se quiere.
+- **Un evento que solo cruza el bus no entra en la lista.** `PublicEvents` y `PrivateEvents` se
+  deserializan a un tipo fijo por endpoint y nunca pasan por el `EventGraph`. El criterio de
+  inclusión es el mismo del ensamblado (decisión #1): se persiste. `MarcacionRegistrada` entra por
+  ser persistida, no por ser `IPrivateEvent`.
+
+Dos guardrails sostienen la decisión, ambos sin Postgres (`AllKnownEventTypes()` es cálculo en
+memoria): uno verifica que los tipos estén registrados en el store real que compone cada lado, y otro
+**congela el alias contra literales** (`turno_creado`, `marcacion_registrada`, ...), de modo que el
+día en que un rename de clase cambie la identidad de un evento ya persistido se vea en la suite, no
+en producción.
+
 ## Alternativas consideradas
 
 **Mover el modelo de dominio completo (CA-ADR-0028 decisión #1).** Descartada por innecesaria:
@@ -135,14 +175,16 @@ de **salida** hacia ControlHoras, no de entrada.
 
 ### Negativas y deuda asumida
 
-- **Los streams de dev creados antes del refactor quedan ilegibles.** Este proyecto no registra
-  aliases (`Events.AddEventType`/`MapEventType` tienen cero ocurrencias en el repo y en el building
-  block), así que toda lectura depende del fallback por `mt_dotnet_type`, que apunta a un assembly
-  donde el tipo ya no existe: lanza `UnknownEventTypeException`, no degrada en silencio. Se asume la
-  pérdida y se purgan los schemas `programacion` y `control_horas` de dev al desplegar. El alias sí es
-  inmune al movimiento (`EventNamingStyle.SmarterTypeName` usa el nombre simple). Cuando dev tenga
-  datos que importen, o exista cualquier ambiente productivo, el registro explícito de aliases pasa a
-  ser precondición de todo movimiento futuro de namespace o assembly.
+- ~~**Los streams de dev creados antes del refactor quedan ilegibles.**~~ **Deuda pagada por el
+  issue #277 (decisión #6).** La primera versión de este ADR asumió la pérdida y mandaba purgar los
+  schemas `programacion` y `control_horas` de dev al desplegar, porque sin ningún tipo registrado toda
+  lectura dependía del fallback por `mt_dotnet_type` --que apunta a un assembly donde el tipo ya no
+  existe-- y lanzaba `UnknownEventTypeException`. Esa purga **nunca se ejecutó** y el código sí se
+  desplegó, así que el defecto quedó armado (lo dispara la primera rehidratación de un aggregate
+  preexistente). El registro explícito de la decisión #6 lo corrige **retroactivamente y sin tocar
+  datos**: como el alias resuelve, la columna obsoleta se ignora. La purga queda revertida como
+  estrategia -- no era necesaria, y de aquí en adelante el registro explícito es precondición de todo
+  movimiento futuro de namespace o assembly, no la purga.
 - **`MarcacionRegistrada` queda en `DomainEvents` siendo `IPrivateEvent`.** Se publica al topic
   `marcacion-registrada` y además se persiste, pero es un tipo rico y un tipo rico no puede vivir en
   un ensamblado cuyo contrato es que todo lo suyo cruza un bus siendo plano. Su aplanamiento y
@@ -185,3 +227,9 @@ de **salida** hacia ControlHoras, no de entrada.
   `PrivateEvents`, `{Dominio}.DomainEvents`), sus tres criterios de inclusión, el sentido de las
   dependencias permitidas y las reglas que el grafo de compilación garantiza. Supera a CA-ADR-0002 y
   CA-ADR-0028. Ejecutado en el issue #237.
+- 2026-07-31: enmienda (issue #277). Agrega la decisión #6: el alias --derivado del nombre simple de
+  la clase-- es la identidad del evento persistido, y cada ensamblado de eventos aloja la lista de sus
+  tipos persistidos (`IdentidadEventos{Dominio}.TiposPersistidos`) que write-side y read-side registran
+  con `Events.AddEventTypes(...)`. Proscribe `MapEventType`, alterar `EventNamingStyle` y registrar el
+  nombre calificado antiguo. Marca como pagada la primera deuda de "Negativas y deuda asumida" y
+  revierte la purga de streams como estrategia de mitigación.
