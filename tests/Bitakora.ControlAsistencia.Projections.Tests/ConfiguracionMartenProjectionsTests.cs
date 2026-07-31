@@ -22,8 +22,9 @@ public class ConfiguracionMartenProjectionsTests
 {
     private const string ConnectionStringDummy = "Host=localhost;Database=dummy";
 
-    // Issue #268 CA-2: identificadores fijos para los canarios de round-trip del resolver -- el
-    // valor en si es irrelevante, solo debe ser estable para que el test sea reproducible.
+    // Issue #268 CA-2: identidad del canario de round-trip de Programacion (el de ControlHoras,
+    // MarcacionRegistrada, se identifica por EmpleadoId string y no necesita ninguna). El valor en
+    // si es irrelevante: solo debe ser estable para que el test sea reproducible.
     private static readonly Guid TurnoIdCanario = Guid.Parse("019600a0-0000-7000-8000-000000000099");
 
     private static ServiceProvider CrearProvider(Action<IServiceCollection> configurarDominio)

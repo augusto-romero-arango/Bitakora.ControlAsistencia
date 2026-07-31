@@ -93,11 +93,11 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 // puede referenciarla (CA-ADR-0029) y no le hace falta (issue, notas de analisis).
                 // Fuente unica con el write-side (MEF-ADR-0029): se invoca la misma clase, nunca
                 // una copia.
-                opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, json =>
+                opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, jsonOptions =>
                 {
                     var resolver = new DefaultJsonTypeInfoResolver();
                     ConfiguracionSerializacionControlHoras.ConfigurarResolver(resolver);
-                    json.TypeInfoResolver = resolver;
+                    jsonOptions.TypeInfoResolver = resolver;
                 });
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna

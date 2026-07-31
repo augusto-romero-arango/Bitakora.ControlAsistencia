@@ -154,7 +154,7 @@ public static class AssertsProyecciones
     {
         var serializador = store.Options.Serializer();
 
-        using var json = new MemoryStream(Encoding.UTF8.GetBytes(serializador.ToJson(original)));
-        return serializador.FromJson<TEvento>(json);
+        using var flujoJson = new MemoryStream(Encoding.UTF8.GetBytes(serializador.ToJson(original)));
+        return serializador.FromJson<TEvento>(flujoJson);
     }
 }

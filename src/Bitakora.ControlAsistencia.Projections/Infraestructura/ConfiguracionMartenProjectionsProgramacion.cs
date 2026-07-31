@@ -98,11 +98,11 @@ public static class ConfiguracionMartenProjectionsProgramacion
                 // Marten que un upgrade futuro podria mover.
                 // Fuente unica con el write-side (MEF-ADR-0029): se invoca la misma clase
                 // ConfiguracionSerializacionProgramacion, nunca una copia.
-                opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, json =>
+                opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, jsonOptions =>
                 {
                     var resolver = new DefaultJsonTypeInfoResolver();
                     ConfiguracionSerializacionProgramacion.ConfigurarResolver(resolver);
-                    json.TypeInfoResolver = resolver;
+                    jsonOptions.TypeInfoResolver = resolver;
                 });
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna

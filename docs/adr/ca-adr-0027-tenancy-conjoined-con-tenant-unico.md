@@ -42,8 +42,9 @@ conjoined.
 
 ## Decision
 
-**Se implementa un `ITenantResolver` propio, de valores fijos, en vez de adoptar los resolvers
-header-based de 2.x.**
+**Se conserva la infraestructura multi-tenant conjoined que fija `AgregarConfiguracionMartenComandos`
+y se opera sobre ella con un unico tenant logico: se implementa un `ITenantResolver` propio, de
+valores fijos, en vez de adoptar los resolvers header-based de 2.x.**
 
 1. Clase `TenantResolverFijo : ITenantResolver` en `Infraestructura/` de cada dominio
    (`ControlHoras` y `Programacion`). Con solo 2 usos se acepta duplicar la clase en lugar de
@@ -72,6 +73,11 @@ header-based de 2.x.**
   resolver que derive el tenant de una fuente real (header, claim de autenticacion, subdominio, etc.)
   y decidir entonces si adoptar `AgregarTenantResolverHibrido()`/`ProxyTenantResolver` de
   `Cosmos.MultiTenancy.CritterStack` en vez de la implementacion propia.
+- **Todo proceso que lea el event store debe declarar la misma tenancy conjoined que el write-side
+  escribio**, no solo el que escribe: el worker de proyecciones lo hace en el named store de cada
+  dominio (`ConfiguracionMartenProjections{Dominio}`, issue #268), con guardas de config-test que
+  fallan si esa linea desaparece. Un lector que quede con el default `Single` no rompe el build --
+  falla en runtime, leyendo un event store que no encuentra.
 - Este fix es puntual al registro del resolver: no se tocan los sitios de `Invoke`/publicacion de los
   comandos y eventos existentes, que ya construyen internamente `DeliveryOptions` con
   `TenantId`/`user_id` a partir del resolver inyectado.
@@ -93,4 +99,5 @@ header-based de 2.x.**
   operando sobre ella (uno). Era drift de nomenclatura, no drift de codigo: se detecto al alinear
   el named store del worker de proyecciones con esta misma tenancy (issue #268), que exigio leer
   este ADR para decidir si el worker debia declarar `TenancyStyle.Conjoined`. Las consecuencias no
-  cambiaron de fondo.
+  cambiaron de fondo; se sumo una que la version anterior no enunciaba: la obligacion se extiende a
+  **todo** proceso lector del event store, no solo al que escribe.
