@@ -114,11 +114,10 @@ public class ComposicionServiciosTests
     // (columna "type" de mt_events). Este guardrail detecta el olvido sobre el store real que
     // compone el contenedor (mismo store que ya usan las guardas de arriba), sin Postgres.
     //
-    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): si se
-    // leyeran de IdentidadEventosProgramacion.TiposPersistidos, el guardrail quedaria acoplado al
-    // mismo artefacto que CA-1 ya verifica, y ademas AwesomeAssertions.Contain() lanza
-    // ArgumentException con una coleccion "esperada" vacia en vez de fallar semanticamente --
-    // el stub de fase roja (issue #277) deja esa lista vacia a proposito.
+    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosProgramacion.TiposPersistidos acoplaria el guardrail al mismo artefacto que
+    // IdentidadEventosProgramacionTests ya verifica, y la asercion pasaria en verde aunque la lista
+    // quedara vacia.
     [Fact]
     public async Task AgregarServiciosProgramacion_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -128,5 +127,24 @@ public class ComposicionServiciosTests
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
 
         store.AssertEventosPersistidosRegistrados([typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada)]);
+    }
+
+    // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
+    // filas ya escritas llevan en su columna "type". AliasEventosProgramacionTests lo congela sobre
+    // un StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico
+    // lugar donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
+        {
+            [typeof(TurnoCreado)] = "turno_creado",
+            [typeof(ProgramacionTurnoSolicitada)] = "programacion_turno_solicitada"
+        });
     }
 }

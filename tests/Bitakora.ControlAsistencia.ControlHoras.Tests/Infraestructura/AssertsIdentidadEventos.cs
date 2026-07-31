@@ -1,4 +1,3 @@
-using System.Linq;
 using AwesomeAssertions;
 using Marten;
 
@@ -20,4 +19,19 @@ public static class AssertsIdentidadEventos
         store.Options.Events.AllKnownEventTypes()
             .Select(evento => evento.EventType)
             .Should().Contain(tiposEsperados);
+
+    /// <summary>
+    /// Issue #277 CA-5/CA-7/CA-8: congela el alias -- la columna "type" de mt_events, la unica
+    /// identidad que Marten consulta antes del fallback -- sobre el store que realmente compuso el
+    /// contenedor. AliasEventos{Dominio}Tests ya lo congela sobre un StoreOptions standalone, pero
+    /// ahi no vive el wiring: un MapEventType o un EventNamingStyle introducidos en
+    /// ComposicionServicios cambiarian la identidad de eventos ya persistidos sin poner rojo ningun
+    /// otro test.
+    /// </summary>
+    public static void AssertAliasDeEventosPersistidos(
+        this IDocumentStore store, IReadOnlyDictionary<Type, string> aliasEsperados) =>
+        store.Options.Events.AllKnownEventTypes()
+            .Where(evento => aliasEsperados.ContainsKey(evento.EventType))
+            .ToDictionary(evento => evento.EventType, evento => evento.Alias)
+            .Should().Equal(aliasEsperados);
 }

@@ -130,11 +130,10 @@ public class ComposicionServiciosTests
     // (columna "type" de mt_events). Este guardrail detecta el olvido sobre el store real que
     // compone el contenedor (mismo store que ya usan las guardas de arriba), sin Postgres.
     //
-    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): si se
-    // leyeran de IdentidadEventosControlHoras.TiposPersistidos, el guardrail quedaria acoplado al
-    // mismo artefacto que CA-1 ya verifica, y ademas AwesomeAssertions.Contain() lanza
-    // ArgumentException con una coleccion "esperada" vacia en vez de fallar semanticamente --
-    // el stub de fase roja (issue #277) deja esa lista vacia a proposito.
+    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosControlHoras.TiposPersistidos acoplaria el guardrail al mismo artefacto que
+    // IdentidadEventosControlHorasTests ya verifica, y la asercion pasaria en verde aunque la lista
+    // quedara vacia.
     [Fact]
     public async Task AgregarServiciosControlHoras_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -145,5 +144,25 @@ public class ComposicionServiciosTests
 
         store.AssertEventosPersistidosRegistrados(
             [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
+    }
+
+    // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
+    // filas ya escritas llevan en su columna "type". AliasEventosControlHorasTests lo congela sobre
+    // un StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico
+    // lugar donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
+        {
+            [typeof(MarcacionRegistrada)] = "marcacion_registrada",
+            [typeof(MarcacionAdicionada)] = "marcacion_adicionada",
+            [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado"
+        });
     }
 }

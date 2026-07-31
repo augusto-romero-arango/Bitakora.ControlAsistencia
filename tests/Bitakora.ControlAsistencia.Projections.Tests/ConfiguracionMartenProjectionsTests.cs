@@ -92,9 +92,8 @@ public class ConfiguracionMartenProjectionsTests
     // dia el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
     //
     // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
-    // IdentidadEventosProgramacion.TiposPersistidos acoplaria este guardrail al mismo artefacto
-    // que CA-1 ya verifica, y con la lista vacia del stub de fase roja (issue #277)
-    // AwesomeAssertions.Contain() lanza ArgumentException en vez de fallar semanticamente.
+    // IdentidadEventosProgramacion.TiposPersistidos acoplaria este guardrail al mismo artefacto que
+    // IdentidadEventosProgramacionTests ya verifica en el write-side.
     [Fact]
     public void ConfigurarProgramacion_RegistraLosTiposDeEventoPersistidos()
     {
@@ -161,9 +160,8 @@ public class ConfiguracionMartenProjectionsTests
     // dia el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
     //
     // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
-    // IdentidadEventosControlHoras.TiposPersistidos acoplaria este guardrail al mismo artefacto
-    // que CA-1 ya verifica, y con la lista vacia del stub de fase roja (issue #277)
-    // AwesomeAssertions.Contain() lanza ArgumentException en vez de fallar semanticamente.
+    // IdentidadEventosControlHoras.TiposPersistidos acoplaria este guardrail al mismo artefacto que
+    // IdentidadEventosControlHorasTests ya verifica en el write-side.
     [Fact]
     public void ConfigurarControlHoras_RegistraLosTiposDeEventoPersistidos()
     {

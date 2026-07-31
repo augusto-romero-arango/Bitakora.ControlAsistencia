@@ -153,6 +153,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Topics y subscriptions de Service Bus, un topic por evento | MEF-ADR-0001 |
 | Estrategia de testing con event sourcing, DSL de tests | MEF-ADR-0002 |
 | **Dónde va un evento nuevo: `PublicEvents` vs `PrivateEvents` vs `{Dominio}.DomainEvents`; qué referencia el worker de proyecciones; por qué un evento no conoce su comando** | CA-ADR-0029 |
+| **Identidad del evento en el event store: el alias manda, registro explícito con `AddEventTypes`, mover un evento de namespace sin migrar datos; proscripción de `MapEventType` y de alterar `EventNamingStyle`** | CA-ADR-0029 (decisión #6) |
 | Mensajes en `.resx` por aggregate/handler | MEF-ADR-0009 |
 | Definition of Ready | MEF-ADR-0011 |
 | Smoke tests contra entorno dev | MEF-ADR-0013 |

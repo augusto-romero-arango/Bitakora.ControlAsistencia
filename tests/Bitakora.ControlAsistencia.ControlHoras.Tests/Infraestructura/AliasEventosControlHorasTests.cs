@@ -9,14 +9,8 @@
 //
 // No necesita Postgres: EventGraph.AllKnownEventTypes() es calculo puro en memoria sobre un
 // StoreOptions standalone (verificado por decompilacion: el constructor de StoreOptions no abre
-// conexion). Se alimenta de IdentidadEventosControlHoras.TiposPersistidos -- mismo stub que CA-1,
-// asi que en fase roja (lista vacia) este test tambien falla: AllKnownEventTypes() no encuentra
-// el tipo y el alias sale null.
-//
-// No se usan [Theory]/[InlineData] (MEF-ADR de convencion de tests de este agente: solo [Fact]):
-// un Fact por evento, en vez de la forma parametrizada que sugiere el issue.
+// conexion), asi que el alias se interroga sin contenedor DI ni base de datos.
 
-using System.Linq;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Marten;
