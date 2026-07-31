@@ -1,4 +1,4 @@
-# CA-ADR-0027: Estrategia de tenancy mono-tenant
+# CA-ADR-0027: Tenancy conjoined operando con un unico tenant
 
 ## Estado
 
@@ -32,14 +32,19 @@ public interface ITenantResolver { string TenantId { get; } string UserId { get;
 - `AgregarTenantResolverHibrido()` / `ProxyTenantResolver`: resuelven `TenantId` y `UserId` a partir
   de headers HTTP (`TenantId`, `user_id`) y lanzan si faltan.
 
-Ninguno encaja con este producto: **Bitakora.ControlAsistencia es mono-tenant.** Los clientes HTTP
-(Postman, smoke tests, front futuro) no envian esos headers, y exigirlos romperia todos los requests
-existentes sin aportar nada -- no hay mas de un tenant que resolver.
+Ninguno encaja con este producto: **la infraestructura de Bitakora.ControlAsistencia es multi-tenant
+conjoined (`Events.TenancyStyle = Conjoined`, `Policies.AllDocumentsAreMultiTenanted()`,
+`AgregarConfiguracionMartenComandos`), pero opera con un unico tenant logico** -- el default de
+Marten, resuelto siempre por `TenantResolverFijo` (ver Decision). Los clientes HTTP (Postman, smoke
+tests, front futuro) no envian headers de tenant, y exigirlos romperia todos los requests existentes
+sin aportar nada -- no hay hoy mas de un tenant que resolver, aunque el modelo de datos ya sea
+conjoined.
 
 ## Decision
 
-**Se implementa un `ITenantResolver` propio, de valores fijos, en vez de adoptar los resolvers
-header-based de 2.x.**
+**Se conserva la infraestructura multi-tenant conjoined que fija `AgregarConfiguracionMartenComandos`
+y se opera sobre ella con un unico tenant logico: se implementa un `ITenantResolver` propio, de
+valores fijos, en vez de adoptar los resolvers header-based de 2.x.**
 
 1. Clase `TenantResolverFijo : ITenantResolver` en `Infraestructura/` de cada dominio
    (`ControlHoras` y `Programacion`). Con solo 2 usos se acepta duplicar la clase en lugar de
@@ -68,6 +73,11 @@ header-based de 2.x.**
   resolver que derive el tenant de una fuente real (header, claim de autenticacion, subdominio, etc.)
   y decidir entonces si adoptar `AgregarTenantResolverHibrido()`/`ProxyTenantResolver` de
   `Cosmos.MultiTenancy.CritterStack` en vez de la implementacion propia.
+- **Todo proceso que lea el event store debe declarar la misma tenancy conjoined que el write-side
+  escribio**, no solo el que escribe: el worker de proyecciones lo hace en el named store de cada
+  dominio (`ConfiguracionMartenProjections{Dominio}`, issue #268), con guardas de config-test que
+  fallan si esa linea desaparece. Un lector que quede con el default `Single` no rompe el build --
+  falla en runtime, leyendo un event store que no encuentra.
 - Este fix es puntual al registro del resolver: no se tocan los sitios de `Invoke`/publicacion de los
   comandos y eventos existentes, que ya construyen internamente `DeliveryOptions` con
   `TenantId`/`user_id` a partir del resolver inyectado.
@@ -76,3 +86,18 @@ header-based de 2.x.**
   unitarios, falla solo en runtime desplegado). El guardrail de proceso para detectarlo antes de
   desplegar (test de composicion del `IHost`/`FunctionsApplication`, o smoke minimo obligatorio
   pre-merge) queda fuera de alcance de este ADR y se rastrea en un issue aparte.
+
+## Control de cambios
+
+- **2026-07-31 (issue #268)**: renombrado el archivo (de
+  `ca-adr-0027-estrategia-tenancy-mono-tenant.md` a
+  `ca-adr-0027-tenancy-conjoined-con-tenant-unico.md`) y corregidos titulo, contexto y decision.
+  El titulo y el contexto originales afirmaban que el producto es mono-tenant, pero la propia
+  decision #2 de este ADR ya describia el modelo real: Marten mapea el tenant fijo a
+  `Tenancy.Default` **aun con `AllDocumentsAreMultiTenanted()` activo** -- es decir, la
+  infraestructura ya es multi-tenant conjoined, y lo que es fijo es el numero de tenants logicos
+  operando sobre ella (uno). Era drift de nomenclatura, no drift de codigo: se detecto al alinear
+  el named store del worker de proyecciones con esta misma tenancy (issue #268), que exigio leer
+  este ADR para decidir si el worker debia declarar `TenancyStyle.Conjoined`. Las consecuencias no
+  cambiaron de fondo; se sumo una que la version anterior no enunciaba: la obligacion se extiende a
+  **todo** proceso lector del event store, no solo al que escribe.

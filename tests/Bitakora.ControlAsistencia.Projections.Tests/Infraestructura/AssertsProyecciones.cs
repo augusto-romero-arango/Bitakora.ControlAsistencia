@@ -1,7 +1,9 @@
+using System.Text;
 using AwesomeAssertions;
 using JasperFx.Events;
 using JasperFx.Events.Daemon;
 using JasperFx.Events.Projections;
+using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
 using Marten.Events.Daemon.Coordination;
 using Microsoft.Extensions.DependencyInjection;
@@ -91,4 +93,68 @@ public static class AssertsProyecciones
     /// </summary>
     public static void AssertStreamIdentityAsString(this IDocumentStore store) =>
         store.Options.Events.StreamIdentity.Should().Be(StreamIdentity.AsString);
+
+    /// <summary>
+    /// Issue #268 CA-1: el named store lee el event store con el mismo modelo de tenancy con el
+    /// que el write-side lo escribio (AgregarConfiguracionMartenComandos, Cosmos.EventSourcing.
+    /// CritterStack 2.3.1: Events.TenancyStyle = Conjoined). Marten documenta TenancyStyle.
+    /// Conjoined como un modelo opt-in que captura los eventos por tenant ("Event Store
+    /// Multi-Tenancy": https://martendb.io/events/multitenancy.html) -- el lado que lee tiene que
+    /// declarar el mismo modelo que el que escribio. Sin esta linea el named store queda con el
+    /// default Single, un par 1 (eventos, ver contexto del issue) desalineado con el write-side.
+    ///
+    /// Igual que StreamIdentity, TenancyStyle esta declarada en la superficie de solo lectura
+    /// (Marten.Events.IReadOnlyEventStoreOptions.TenancyStyle, get-only), asi que no hace falta
+    /// castear a StoreOptions.
+    /// </summary>
+    public static void AssertTenancyDeEventosConjoined(this IDocumentStore store) =>
+        store.Options.Events.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+
+    /// <summary>
+    /// Issue #268 CA-1: replica de Events.EventNamingStyle = SmarterTypeName (el write-side lo
+    /// declara via AgregarConfiguracionMartenComandos). Hoy es inocua -- los eventos persistidos de
+    /// este BC son tipos top-level, y SmarterTypeName solo desambigua tipos anidados prefijando
+    /// "[tipo externo].[tipo interno]" (doc XML de JasperFx.Events) -- pero sin esta linea el named
+    /// store calcularia el alias de un futuro evento anidado distinto de como lo calcula el
+    /// write-side, sin ninguna senal en el build.
+    /// </summary>
+    public static void AssertEventNamingStyleSmarterTypeName(this IDocumentStore store) =>
+        store.Options.Events.EventNamingStyle.Should().Be(EventNamingStyle.SmarterTypeName);
+
+    /// <summary>
+    /// Issue #268 CA-1: Policies.AllDocumentsAreMultiTenanted() gobierna el "par 2" (worker -> query-
+    /// side, ver contexto del issue): la forma de la tabla de cualquier read model que el worker
+    /// llegue a materializar. Es una politica que se aplica al registrar un documento, no una
+    /// propiedad expuesta directamente -- se observa por su efecto en el mapping que Marten resuelve
+    /// para un tipo cualquiera (FindOrResolveDocumentType), la unica superficie que la deja visible
+    /// sin Postgres y sin que el worker tenga todavia ningun read model real registrado. TCanario es
+    /// un tipo declarado en este proyecto de tests, sin relacion con ningun dominio.
+    /// </summary>
+    public static void AssertDocumentosMultiTenant<TCanario>(this IDocumentStore store) =>
+        store.Options.FindOrResolveDocumentType(typeof(TCanario)).TenancyStyle
+            .Should().Be(TenancyStyle.Conjoined);
+
+    /// <summary>
+    /// Issue #268 CA-2: deserializa <paramref name="original"/> contra el ISerializer real que este
+    /// named store compuso -- el mismo objeto que Marten usaria para leer un evento persistido.
+    /// Devuelve el objeto restaurado para que el llamador lo compare campo a campo contra un
+    /// oraculo construido a mano (MEF-ADR-0002, no-tautologia): este helper no decide que
+    /// verificar, solo ejecuta el round-trip.
+    ///
+    /// El eslabon que hace fallar esto si el seam esta mal armado: los eventos con AMBOS
+    /// constructores privados (TurnoCreado, MarcacionRegistrada) solo se reconstruyen via el
+    /// TypeInfoResolver custom que ConfiguracionSerializacion{Dominio}.ConfigurarResolver registra.
+    /// Sin ese resolver -- o si UseSystemTextJsonForSerialization se invoca DESPUES de engancharlo,
+    /// la "trampa del orden" que describe el issue -- STJ no tiene forma de instanciar el tipo y
+    /// esto lanza NotSupportedException en vez de fallar en silencio.
+    /// </summary>
+    public static TEvento DeserializarConResolverDeSerializacionCustom<TEvento>(
+        this IDocumentStore store, TEvento original)
+        where TEvento : notnull
+    {
+        var serializador = store.Options.Serializer();
+
+        using var flujoJson = new MemoryStream(Encoding.UTF8.GetBytes(serializador.ToJson(original)));
+        return serializador.FromJson<TEvento>(flujoJson);
+    }
 }
