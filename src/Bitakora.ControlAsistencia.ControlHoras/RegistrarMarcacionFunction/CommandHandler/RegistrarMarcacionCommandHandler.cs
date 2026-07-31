@@ -6,11 +6,15 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
 
 // HU-105: Handler del comando RegistrarMarcacion
-// Flujo: verificar idempotencia via ExistsAsync -> normalizar timestamp -> persistir -> publicar
+// Flujo: verificar idempotencia via ExistsAsync -> construir evento via factory -> persistir -> publicar
 // CA-4: si el stream ya existe (duplicado exacto), retornar silenciosamente sin persistir ni publicar
 // Issue #270 CA-4: tras StartStream, publica el contrato de bus RegistroDeMarcacionCreado empaquetado
 // por el traductor del aggregate (Tell-don't-Ask) via IPrivateEventSender. MarcacionRegistrada (evento
 // de dominio persistido) ya no cruza el bus.
+// Issue #275 CA-4: la normalizacion (truncar segundos) y la validacion de EmpleadoId ya no viven aqui
+// -- son responsabilidad del factory MarcacionRegistrada.Crear (MEF-ADR-0012: el handler construye el
+// evento antes de pasarlo al aggregate; si la construccion falla, el throw ocurre aqui, no dentro del
+// aggregate -- MEF-ADR-0004 se mantiene). La firma de Iniciar(streamId, timestampCrudo, evento) no cambia.
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
 public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<RegistrarMarcacion>
 {
@@ -33,12 +37,11 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
         if (existe)
             return;
 
-        // CA-2: truncar segundos al minuto (floor) antes de emitir el evento
-        var timestampNormalizado = TruncarAlMinuto(command.Timestamp);
-
-        var evento = new MarcacionRegistrada(
+        // Issue #275 CA-1/CA-2/CA-3: el factory trunca el timestamp al minuto y valida EmpleadoId.
+        // Si falla, el throw ocurre aqui (borde del handler), no dentro del aggregate.
+        var evento = MarcacionRegistrada.Crear(
             command.EmpleadoId,
-            timestampNormalizado,
+            command.Timestamp,
             command.TipoMarcacion,
             command.DispositivoId);
 
@@ -49,8 +52,4 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
         // handlers downstream reaccionen
         await _privateEventSender.PublishAsync(registro.CrearRegistroDeMarcacionCreado());
     }
-
-    private static DateTime TruncarAlMinuto(DateTime timestamp) =>
-        new(timestamp.Year, timestamp.Month, timestamp.Day,
-            timestamp.Hour, timestamp.Minute, 0, timestamp.Kind);
 }
