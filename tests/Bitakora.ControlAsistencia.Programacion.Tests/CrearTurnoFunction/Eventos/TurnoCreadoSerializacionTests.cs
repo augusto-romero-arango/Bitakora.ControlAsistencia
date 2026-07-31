@@ -1,9 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
-using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction.Eventos;
 
@@ -34,13 +33,12 @@ public class TurnoCreadoSerializacionTests
     {
         var descanso = (new TimeOnly(10, 0), new TimeOnly(10, 15));
         var extra = (new TimeOnly(6, 0), new TimeOnly(8, 0));
-        var comando = new CrearTurno(
+        var evento = TurnoCreado.Crear(
             TurnoId, "Turno Completo",
-            [new CrearTurno.Franja(
+            [new DatosFranja(
                 new TimeOnly(6, 0), new TimeOnly(16, 0),
                 [descanso], [extra])]);
 
-        var evento = TurnoCreado.Crear(comando);
         var opciones = CrearOpcionesMarten();
         var json = JsonSerializer.Serialize(evento, opciones);
         var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);

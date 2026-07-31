@@ -1,17 +1,21 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ControlHoras/Bitakora.ControlAsistencia.ControlHoras.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.PrivateEvents/Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Programacion/Bitakora.ControlAsistencia.Programacion.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.Programacion.DomainEvents/Bitakora.ControlAsistencia.Programacion.DomainEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Projections/Bitakora.ControlAsistencia.Projections.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.PublicEvents/Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ReadModels/Bitakora.ControlAsistencia.ReadModels.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Bitakora.ControlAsistencia.Contracts.Tests/Bitakora.ControlAsistencia.Contracts.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.PrivateEvents.Tests/Bitakora.ControlAsistencia.PrivateEvents.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.Tests/Bitakora.ControlAsistencia.Programacion.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.Tests/Bitakora.ControlAsistencia.ControlHoras.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/Bitakora.ControlAsistencia.Programacion.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Projections.Tests/Bitakora.ControlAsistencia.Projections.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.PublicEvents.Tests/Bitakora.ControlAsistencia.PublicEvents.Tests.csproj" />
   </Folder>
 </Solution>

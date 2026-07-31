@@ -21,7 +21,7 @@
 
 using System.Text;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Marten;

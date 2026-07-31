@@ -43,9 +43,14 @@ Estos valores los consumen los agentes/skills del harness cuando ven los placeho
 
 ### Estructura
 
-- `src/Bitakora.ControlAsistencia.Contracts/` — contratos de eventos y value objects compartidos
+- `src/Bitakora.ControlAsistencia.PublicEvents/` — eventos que salen del bounded context y su payload (futuro NuGet, sin dependencias de proyecto)
+- `src/Bitakora.ControlAsistencia.PrivateEvents/` — eventos del bus interno del BC y su payload
+- `src/Bitakora.ControlAsistencia.{Dominio}.DomainEvents/` — eventos que se persisten en el event store de ese dominio, con su payload rico
 - `src/Bitakora.ControlAsistencia.{Dominio}/` — Function App por dominio
+- `src/Bitakora.ControlAsistencia.Projections/` — worker de proyecciones read-side
+- `src/Bitakora.ControlAsistencia.ReadModels/` — read models planos, sin Marten
 - `tests/Bitakora.ControlAsistencia.{Dominio}.Tests/` — pruebas por dominio
+- `tests/Bitakora.ControlAsistencia.{Public|Private}Events.Tests/` — pruebas de cada ensamblado de eventos
 - `infra/environments/{env}/` — infraestructura Terraform
 - `docs/adr/` — decisiones arquitectónicas (ADRs)
 - `docs/bitacora/` — bitácora y field notes
@@ -147,7 +152,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Naming de funciones Azure (HTTP y Service Bus) | MEF-ADR-0006 |
 | Topics y subscriptions de Service Bus, un topic por evento | MEF-ADR-0001 |
 | Estrategia de testing con event sourcing, DSL de tests | MEF-ADR-0002 |
-| Contracts: eventos públicos y value objects compartidos | CA-ADR-0002 |
+| **Dónde va un evento nuevo: `PublicEvents` vs `PrivateEvents` vs `{Dominio}.DomainEvents`; qué referencia el worker de proyecciones; por qué un evento no conoce su comando** | CA-ADR-0029 |
 | Mensajes en `.resx` por aggregate/handler | MEF-ADR-0009 |
 | Definition of Ready | MEF-ADR-0011 |
 | Smoke tests contra entorno dev | MEF-ADR-0013 |
@@ -156,10 +161,11 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Convención de nombres para métodos de test (`<Sujeto>_<LoQuePasa>_Cuando<Condicion>`) | MEF-ADR-0016 |
 | Archivo señal de refactor puro vive en `pipeline-state/` (fuera de `.claude/`) | MEF-ADR-0017 |
 | Extracción vs duplicación, Rule of Three, evolución del código | MEF-ADR-0018 |
-| El modelo de dominio rico vive en el dominio y no cruza el bus; Contracts solo DTOs planos | CA-ADR-0025 |
+| El modelo de dominio rico vive en el dominio y no cruza el bus; lo que cruza es plano | CA-ADR-0025 |
 | Custodia de secretos: connection strings en Key Vault, referencias `@Microsoft.KeyVault(...)`, `AzureWebJobsStorage` por identidad administrada | CA-ADR-0026 |
 | Estrategia de tenancy mono-tenant, `ITenantResolver` de valores fijos | CA-ADR-0027 |
-| Biblioteca `{Dominio}.Dominio` como frontera entre write-side y read-side; a qué proyecto referencia el worker de proyecciones para ver tipos de evento del aggregate | CA-ADR-0028 |
+| ~~Biblioteca `{Dominio}.Dominio` como frontera write/read~~ — superado por CA-ADR-0029; se conserva su prohibición de que el worker referencie un Function App | CA-ADR-0028 |
+| ~~`Contracts` para eventos públicos y value objects compartidos~~ — superado por CA-ADR-0029; el proyecto fue eliminado | CA-ADR-0002 |
 
 Si una regla no aparece en ADRs pero la descubres repetida en varios lugares del proyecto, **propón un ADR** antes de replicarla en agentes.
 

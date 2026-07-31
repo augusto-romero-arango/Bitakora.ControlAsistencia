@@ -101,7 +101,7 @@ public class ComposicionServiciosTests
     // registra el resolver de serializacion custom, asi que un edit futuro de ese bloque puede tumbar
     // la serializacion sin que el test de metadata se ponga rojo. Los round-trip existentes
     // (IntervaloTemporalSerializacionMartenTests) NO cubren este riesgo: usan
-    // ConfiguracionSerializacionControlHoras.CrearOpcionesMarten() -- una ruta paralela que no
+    // ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten() -- una ruta paralela que no
     // atraviesa el contenedor. Este test ejercita el ISerializer que el store realmente compuso.
     // Importa porque el `if (options.Serializer() is SystemTextJsonSerializer)` del wiring omite el
     // resolver EN SILENCIO si el serializador deja de ser STJ, e IntervaloTemporal (campos privados,

@@ -1,4 +1,4 @@
-using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;

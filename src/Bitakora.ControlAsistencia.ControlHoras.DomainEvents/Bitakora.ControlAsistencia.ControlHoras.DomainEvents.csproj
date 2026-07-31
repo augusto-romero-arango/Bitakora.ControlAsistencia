@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- MarcacionRegistrada implementa IPrivateEvent (ver #270: su aplanamiento
+       y traslado a PrivateEvents queda pendiente). -->
+  <ItemGroup>
+    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
+  </ItemGroup>
+
+</Project>

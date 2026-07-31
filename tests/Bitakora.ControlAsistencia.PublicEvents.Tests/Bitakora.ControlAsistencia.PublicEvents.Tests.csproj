@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cosmos.EventSourcing.Testing.Utilities" Version="2.3.1" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <!-- Issue #237: referencia UNICAMENTE a PublicEvents, a proposito. PublicEvents es el ensamblado
+       destinado a empaquetarse como NuGet para consumidores externos del producto, asi que este
+       proyecto funciona como barrera compilada: si un test de aqui llegara a necesitar PrivateEvents
+       o un DomainEvents, es senal de que el tipo bajo prueba no es realmente autocontenido. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

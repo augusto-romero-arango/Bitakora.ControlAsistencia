@@ -5,7 +5,14 @@ on:
     branches: [main]
     paths:
       - 'src/Bitakora.ControlAsistencia.ControlHoras/**'
-      - 'src/Bitakora.ControlAsistencia.Contracts/**'
+      # Issue #237: Contracts desaparecio y sus tipos se repartieron en los ensamblados por rol del
+      # evento. Sin estas rutas el modo de fallo es el mismo que describe global.json mas abajo:
+      # staleness silenciosa. Cambiar un evento persistido o el payload que viaja al bus no
+      # dispararia el deploy del dominio que lo emite, y la Function App seguiria sirviendo el
+      # binario anterior sin aviso.
+      - 'src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/**'
+      - 'src/Bitakora.ControlAsistencia.PrivateEvents/**'
+      - 'src/Bitakora.ControlAsistencia.PublicEvents/**'
       # global.json (issue #454 del harness): quien lo lee NO es actions/setup-dotnet -- los
       # jobs de abajo le pasan 'dotnet-version' explicito, no 'global-json-file', asi que la
       # action solo instala el SDK del canal pedido. Lo leen el muxer del CLI y el resolver

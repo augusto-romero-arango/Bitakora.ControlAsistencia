@@ -1,10 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Contracts.Empleados.ValueObjects;
-using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
+using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.SolicitarProgramacionTurnoFunction;
 

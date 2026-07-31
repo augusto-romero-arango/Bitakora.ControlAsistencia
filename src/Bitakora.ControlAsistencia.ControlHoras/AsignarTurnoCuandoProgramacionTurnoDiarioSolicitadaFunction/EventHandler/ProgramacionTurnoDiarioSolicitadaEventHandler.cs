@@ -1,6 +1,6 @@
-using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 

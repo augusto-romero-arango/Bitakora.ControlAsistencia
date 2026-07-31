@@ -1,6 +1,7 @@
 // Issue #185: el modelo rico vive en el dominio; HorasDiscriminadas (payload plano) se queda en
 // Contracts y se referencia explicitamente porque Discriminar() lo produce.
-using Bitakora.ControlAsistencia.Contracts.ControlHoras.ValueObjects;
+
+using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 

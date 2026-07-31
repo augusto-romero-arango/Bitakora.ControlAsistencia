@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.Contracts.Programacion.Eventos;
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
-using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.Eventos;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -63,9 +62,7 @@ public static class ComposicionServicios
                 stj.Configure(jsonOptions =>
                 {
                     var resolver = new DefaultJsonTypeInfoResolver();
-                    SubFranja.ConfigurarSerializacion(resolver);
-                    FranjaOrdinaria.ConfigurarSerializacion(resolver);
-                    TurnoCreado.ConfigurarSerializacion(resolver);
+                    ConfiguracionSerializacionProgramacion.ConfigurarResolver(resolver);
                     jsonOptions.TypeInfoResolver = resolver;
                 });
             }

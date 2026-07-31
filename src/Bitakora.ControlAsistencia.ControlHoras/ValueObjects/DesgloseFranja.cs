@@ -1,4 +1,4 @@
-using Bitakora.ControlAsistencia.Contracts.Programacion.ValueObjects;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
