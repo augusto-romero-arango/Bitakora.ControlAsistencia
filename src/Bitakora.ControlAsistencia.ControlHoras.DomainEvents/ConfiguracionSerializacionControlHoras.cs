@@ -1,9 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 public static class ConfiguracionSerializacionControlHoras
 {
@@ -18,13 +16,15 @@ public static class ConfiguracionSerializacionControlHoras
         };
     }
 
+    // Issue #237: solo los tipos que se persisten en el event store de control_horas. Los VOs de
+    // calculo (IntervaloTemporal, Retardo) salieron de esta lista: no son payload de ningun evento
+    // -- el unico que los contiene, DesgloseHoras, es estado del aggregate que se recalcula en cada
+    // Apply y nunca se persiste. Su registro vive ahora en
+    // ControlHoras.Infraestructura.ConfiguracionSerializacionCalculoHoras.
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
-        // Issue #143: IntervaloTemporal alineado con ADR-0015 (ctor vacio + ConfigurarSerializacion).
-        IntervaloTemporal.ConfigurarSerializacion(resolver);
         TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
         MarcacionRegistrada.ConfigurarSerializacion(resolver);
         MarcacionAdicionada.ConfigurarSerializacion(resolver);
-        Retardo.ConfigurarSerializacion(resolver);
     }
 }

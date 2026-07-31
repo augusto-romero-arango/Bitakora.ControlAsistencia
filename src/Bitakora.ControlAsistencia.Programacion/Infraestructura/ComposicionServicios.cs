@@ -62,9 +62,7 @@ public static class ComposicionServicios
                 stj.Configure(jsonOptions =>
                 {
                     var resolver = new DefaultJsonTypeInfoResolver();
-                    SubFranja.ConfigurarSerializacion(resolver);
-                    FranjaOrdinaria.ConfigurarSerializacion(resolver);
-                    TurnoCreado.ConfigurarSerializacion(resolver);
+                    ConfiguracionSerializacionProgramacion.ConfigurarResolver(resolver);
                     jsonOptions.TypeInfoResolver = resolver;
                 });
             }

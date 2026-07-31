@@ -1,11 +1,12 @@
 // Issue #114: Tests de round-trip JSON para Retardo con las opciones reales de Marten.
-// CA-9: round-trip usando ConfiguracionSerializacionControlHoras.CrearOpcionesMarten().
+// CA-9: round-trip usando ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten().
 // CA-10: sin registro en el resolver, la deserializacion falla (barrera anti-regresion).
 // Retardo expone solo RetardoNeto y ToString() publicamente; los campos privados
 // se verifican a traves del contrato IEquatable y la representacion ToString().
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
@@ -14,7 +15,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class RetardoSerializacionTests
 {
     private static JsonSerializerOptions CrearOpciones() =>
-        ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten();
 
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));

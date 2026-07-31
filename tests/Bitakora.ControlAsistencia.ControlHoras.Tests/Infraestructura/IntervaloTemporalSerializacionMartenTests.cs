@@ -1,5 +1,5 @@
 // Issue #143: Tests de serializacion de IntervaloTemporal con las opciones reales de Marten.
-// CA-5: round-trip usando ConfiguracionSerializacionControlHoras.CrearOpcionesMarten().
+// CA-5: round-trip usando ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten().
 // CA-6: sin registro en el resolver, la deserializacion falla (barrera anti-regresion).
 // Los tests del Issue #112 (IntervaloTemporalSerializacionTests.cs) usaban STJ vanilla
 // con [JsonConstructor]. Al alinear con ADR-0015 ese atributo desaparece y el round-trip
@@ -7,6 +7,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
@@ -15,7 +16,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class IntervaloTemporalSerializacionMartenTests
 {
     private static JsonSerializerOptions CrearOpciones() =>
-        ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten();
 
     // CA-5: round-trip diurno con opciones reales de Marten
     [Fact]

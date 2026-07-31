@@ -71,7 +71,12 @@ public static class ComposicionServicios
                 stj.Configure(jsonOptions =>
                 {
                     var resolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
+                    // Issue #237: dos listas con responsabilidades distintas. La de DomainEvents es la
+                    // que el worker de proyecciones puede replicar; la de calculo cubre los VOs que
+                    // hoy no se persisten pero sostienen la barrera de #232 CA-5 sobre este mismo
+                    // store (ComposicionServiciosTests usa IntervaloTemporal como canario).
                     ConfiguracionSerializacionControlHoras.ConfigurarResolver(resolver);
+                    ConfiguracionSerializacionCalculoHoras.ConfigurarResolver(resolver);
                     jsonOptions.TypeInfoResolver = resolver;
                 });
             }

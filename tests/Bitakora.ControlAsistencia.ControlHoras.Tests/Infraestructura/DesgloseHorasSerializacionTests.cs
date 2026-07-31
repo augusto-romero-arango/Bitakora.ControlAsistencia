@@ -1,10 +1,11 @@
 // HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
-// CA-6: DesgloseHoras sobrevive round-trip JSON con ConfiguracionSerializacionControlHoras.CrearOpcionesMarten()
+// CA-6: DesgloseHoras sobrevive round-trip JSON con ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten()
 //       preservando DesglosePorFranja, RetardoTotal, FranjasAnomalas y recalculando TotalMinutosPorConcepto.
 // Barrera anti-regresion: sin el registro de Retardo en el resolver, la deserializacion falla.
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -14,7 +15,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class DesgloseHorasSerializacionTests
 {
     private static JsonSerializerOptions CrearOpciones() =>
-        ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten();
 
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
