@@ -185,17 +185,50 @@ de **salida** hacia ControlHoras, no de entrada.
   datos**: como el alias resuelve, la columna obsoleta se ignora. La purga queda revertida como
   estrategia -- no era necesaria, y de aquí en adelante el registro explícito es precondición de todo
   movimiento futuro de namespace o assembly, no la purga.
-- **`MarcacionRegistrada` queda en `DomainEvents` siendo `IPrivateEvent`.** Se publica al topic
+- ~~**`MarcacionRegistrada` queda en `DomainEvents` siendo `IPrivateEvent`.** Se publica al topic
   `marcacion-registrada` y además se persiste, pero es un tipo rico y un tipo rico no puede vivir en
   un ensamblado cuyo contrato es que todo lo suyo cruza un bus siendo plano. Su aplanamiento y
-  traslado a `PrivateEvents` es el issue #270.
+  traslado a `PrivateEvents` es el issue #270.~~ **Deuda pagada por el issue #270**, pero no por la
+  vía que este ADR había anticipado (aplanar `MarcacionRegistrada` para moverla a `PrivateEvents`).
+  La investigación empírica de #270 mostró que `MarcacionRegistrada` tiene ctor **público**
+  parametrizado --el rol de bus le arrancó el encapsulamiento al evento de dominio-- así que
+  aplanarla no habría ganado nada; ya era, de facto, un tipo sin invariantes que el bus podía
+  deserializar. La resolución real fue **un tipo por rol, con nombres simples distintos**:
+  `MarcacionRegistrada` se queda en `ControlHoras.DomainEvents`, deja de implementar `IPrivateEvent`
+  y recupera el sentido de su `ConfigurarSerializacion` (antes redundante por el ctor público); el
+  contrato de bus es un tipo nuevo, `RegistroDeMarcacionCreado` (`record` plano, `PrivateEvents.ControlHoras`),
+  con paridad de campos pero **nombre simple deliberadamente distinto**. La razón del nombre distinto
+  es estructural, no estilística: el Function App de `ControlHoras` referencia ambos ensamblados, y
+  si los dos tipos compartieran nombre simple, un `using` equivocado publicaría el evento rico al bus
+  sin que el compilador lo detectara --exactamente la regresión que CA-ADR-0025 existe para impedir--.
+  El precedente de forma ya existía en el propio repo (`ProgramacionTurnoSolicitada` en
+  `Programacion.DomainEvents` frente a `ProgramacionTurnoDiarioSolicitada` en
+  `PrivateEvents.Programacion`); #270 lo generaliza como la resolución estándar para todo evento con
+  doble rol.
 - **Los value objects de cálculo mantienen su registro de serialización en la Function App**
   (`ConfiguracionSerializacionCalculoHoras`), aunque hoy no se persistan. El criterio original del
   issue los daba por "registros sin efecto"; resultó falso: sostienen la barrera de #232 CA-5, que
   hace round-trip de `IntervaloTemporal` contra el `ISerializer` que compuso el contenedor para
   detectar que un edit del bloque `ConfigureMarten` tumbe la serialización en silencio. No hay canario
   de reemplazo, porque los tres eventos tienen constructor público y STJ vanilla los deserializa
-  igual. La lista de eventos --la que el worker replica-- sí quedó limpia de ellos.
+  igual **en las condiciones en que hoy se ejercitan** (round-trip contra `CrearOpcionesMarten()`,
+  PascalCase + `PropertyNamingPolicy = null`). ~~Corrección factual (issue #270): esta afirmación,
+  leída como "STJ sin resolver los deserializa igual en cualquier canal", es falsa.~~ La verificación
+  empírica de #270 (proyecto descartable, .NET 10, réplica exacta de la forma actual: ctor público
+  parametrizado + ctor privado + propiedades `private set`) encontró tres resultados distintos según
+  las opciones del canal:
+
+  | Escenario | Resultado |
+  |---|---|
+  | PascalCase + `PropertyNamingPolicy = null` (Marten) sin resolver | round-trip completo |
+  | camelCase + `PropertyNameCaseInsensitive = true` (`ServiceBusDeserializador`) | round-trip completo |
+  | camelCase + opciones STJ estrictas (sin case-insensitive) | **pérdida silenciosa**: sin excepción, los 4 campos quedan en su valor default |
+
+  La portabilidad de estos tipos por el bus interno no la sostiene la forma del tipo (ctor público),
+  sino el `PropertyNameCaseInsensitive = true` que `ServiceBusDeserializador` fija en el consumidor.
+  El modo de fallo del tercer escenario es **silencioso, no una excepción** --el guardrail que lo
+  detectaría es un round-trip con opciones STJ estrictas, no el round-trip contra `CrearOpcionesMarten()`
+  que ya corre--. La lista de eventos --la que el worker replica-- sí quedó limpia de ellos.
 - `IgualdadTestBase` se duplica en cada proyecto de tests que lo usa (4 copias), en vez de extraerse a
   un proyecto compartido.
 - Los filtros `paths` de los tres workflows de deploy deben enumerar los ensamblados nuevos. Sin eso,
@@ -233,3 +266,12 @@ de **salida** hacia ControlHoras, no de entrada.
   con `Events.AddEventTypes(...)`. Proscribe `MapEventType`, alterar `EventNamingStyle` y registrar el
   nombre calificado antiguo. Marca como pagada la primera deuda de "Negativas y deuda asumida" y
   revierte la purga de streams como estrategia de mitigación.
+- 2026-07-31: enmienda (issue #270). Marca como pagada la deuda de `MarcacionRegistrada` en "Negativas
+  y deuda asumida", documentando que la resolución real fue separar **un tipo por rol** (el evento de
+  dominio persistido conserva su nombre; el contrato de bus nuevo, `RegistroDeMarcacionCreado`, lleva
+  un nombre simple deliberadamente distinto para que un `using` equivocado no compile) en vez de
+  aplanar el tipo existente como se había anticipado. Corrige factualmente la afirmación "STJ vanilla
+  los deserializa igual": cierto para PascalCase sin resolver (Marten) y para camelCase
+  case-insensitive (`ServiceBusDeserializador`), falso para camelCase estricto --el modo de fallo es
+  pérdida silenciosa de datos, no una excepción-- y depende del `PropertyNameCaseInsensitive = true`
+  del consumidor, no de la forma del tipo.

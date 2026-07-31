@@ -66,5 +66,5 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
     // el contrato ya empaquetado al handler -- espejo exacto de
     // ControlDiarioAggregateRoot.CrearDiaCalculado(). El handler no construye el contrato campo por campo.
     public RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado() =>
-        throw new NotImplementedException();
+        new(EmpleadoId, TimestampNormalizado, TipoMarcacion, DispositivoId);
 }

@@ -11,8 +11,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // Verifica camino feliz (202 + persistencia en Postgres), duplicado silencioso (202) y body malformado (400).
 // CA-4: duplicado exacto retorna 202 silenciosamente, sin persistir ni publicar de nuevo.
 // CA-6: tanto creacion exitosa como duplicado retornan 202 Accepted.
-// HU-108: cobertura adicional de los efectos del handler in-process AdicionarMarcacionCuandoMarcacionRegistrada,
-// que tras el POST persiste marcacion_adicionada y publica DiaCalculado al topic dia-calculado.
+// HU-108: cobertura adicional de los efectos del handler in-process
+// AdicionarMarcacionCuandoRegistroDeMarcacionCreado, que tras el POST persiste marcacion_adicionada
+// y publica DiaCalculado al topic dia-calculado.
 // Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
 // RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
 // request contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
@@ -268,7 +269,7 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // HU-108: tras el POST, el handler in-process AdicionarMarcacionCuandoMarcacionRegistrada
+    // HU-108: tras el POST, el handler in-process AdicionarMarcacionCuandoRegistroDeMarcacionCreado
     // persiste marcacion_adicionada en el stream {empleadoId}:{fecha} y publica DiaCalculado.
     // Setup: se publica programacion-turno-diario-solicitada para que el aggregate tenga
     // turno previo, asegurando que DiaCalculado.InformacionEmpleado no sea null y se pueda

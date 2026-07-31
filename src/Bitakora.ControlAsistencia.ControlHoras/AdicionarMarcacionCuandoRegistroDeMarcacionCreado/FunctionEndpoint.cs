@@ -21,7 +21,7 @@ public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<Fu
     : PrivateEventEndpointBase<RegistroDeMarcacionCreado>(privateEventRouter, logger)
 {
     [Function("AdicionarMarcacionCuandoRegistroDeMarcacionCreado")]
-    public Task Run(
+    public async Task Run(
         [ServiceBusTrigger(
             topicName: "registro-de-marcacion-creado",
             subscriptionName: "control-horas-escucha-registro-de-marcacion",
@@ -29,5 +29,5 @@ public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<Fu
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
         CancellationToken ct)
-        => throw new NotImplementedException();
+        => await ProcesarMensaje(message, messageActions, ct);
 }

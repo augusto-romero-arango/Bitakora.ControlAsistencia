@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -38,11 +39,13 @@ public static class ComposicionServicios
                 // HU-108: registra el topic destino para DiaCalculado.
                 // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.
                 options.PublicarEventoServerless<DiaCalculado>("dia-calculado");
-                // issue #213 (ADR-0024 marco decision #3): MarcacionRegistrada es IPrivateEvent y debe
-                // cruzar fisicamente el ASB interno del BC, aun siendo consumido dentro del mismo
-                // Function App (AdicionarMarcacionCuandoMarcacionRegistrada). Topic + subscription
-                // provisionados en #212 (infra/environments/dev/main.tf).
-                options.PublicarEventoServerless<MarcacionRegistrada>("marcacion-registrada");
+                // issue #270 (ADR-0024 marco decision #3): RegistroDeMarcacionCreado (contrato de
+                // bus, PrivateEvents.ControlHoras) es el IPrivateEvent que debe cruzar fisicamente el
+                // ASB interno del BC, aun siendo consumido dentro del mismo Function App
+                // (AdicionarMarcacionCuandoRegistroDeMarcacionCreado). MarcacionRegistrada (evento de
+                // dominio persistido) ya no cruza el bus - dejo de implementar IPrivateEvent (CA-3).
+                // Topic + subscription provisionados en #274 (infra/environments/dev/main.tf).
+                options.PublicarEventoServerless<RegistroDeMarcacionCreado>("registro-de-marcacion-creado");
             });
 
         services.AgregarMartenEventStore();
@@ -53,9 +56,9 @@ public static class ComposicionServicios
         services.AddScoped<ITenantResolver, TenantResolverFijo>();
         // AgregarWolverineCommandRouter se conserva: RegistrarMarcacion (HTTP) lo sigue usando.
         services.AgregarWolverineCommandRouter();
-        // Issue #209/#210 (ADR-0024 decision #8): los eventos privados intra-BC (MarcacionRegistrada,
-        // ProgramacionTurnoDiarioSolicitada) se consumen directo con IPrivateEventHandlerAsync via
-        // IPrivateEventRouter, sin comando espejo.
+        // Issue #209/#210/#270 (ADR-0024 decision #8): los eventos privados intra-BC
+        // (RegistroDeMarcacionCreado, ProgramacionTurnoDiarioSolicitada) se consumen directo con
+        // IPrivateEventHandlerAsync via IPrivateEventRouter, sin comando espejo.
         services.AgregarWolverinePrivateEventRouter();
         services.AgregarWolverineEventSender();
 

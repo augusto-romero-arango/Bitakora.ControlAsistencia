@@ -2,11 +2,13 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 // Issue #277: gemela de IdentidadEventosProgramacion. Lista de los tipos de evento que SE
 // PERSISTEN en el event store de ControlHoras -- el mismo criterio de inclusion de este
-// ensamblado (CA-ADR-0029). MarcacionRegistrada implementa ademas IPrivateEvent (cruza el ASB
-// interno del BC), pero eso no la excluye: tambien se persiste en el stream de
-// ControlDiarioAggregateRoot, asi que entra en esta lista por ese motivo. Los eventos que SOLO
-// cruzan el bus (p.ej. DiaCalculado, ProgramacionTurnoDiarioSolicitada) no entran: nunca pasan
-// por el EventGraph de Marten.
+// ensamblado (CA-ADR-0029). Issue #270: MarcacionRegistrada dejo de implementar IPrivateEvent (ya
+// no cruza el ASB interno del BC); se persiste unicamente en el stream de
+// RegistroDeMarcacionAggregateRoot, y sigue en esta lista por ese motivo. El contrato de bus
+// equivalente (RegistroDeMarcacionCreado, en PrivateEvents.ControlHoras) nunca se persiste y por
+// eso no entra aqui. Los eventos que SOLO cruzan el bus (p.ej. DiaCalculado,
+// ProgramacionTurnoDiarioSolicitada, RegistroDeMarcacionCreado) no entran: nunca pasan por el
+// EventGraph de Marten.
 //
 // Registrar estos tipos via Events.AddEventTypes NO declara su alias -- Marten lo sigue
 // derivando del nombre de clase (JasperFx.Events.EventTypeExtensions.GetSmarterEventTypeName /

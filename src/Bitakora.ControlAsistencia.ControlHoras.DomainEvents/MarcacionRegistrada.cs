@@ -1,14 +1,16 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// HU-105: Evento privado que registra una marcacion normalizada
+// HU-105: Evento de dominio que registra una marcacion normalizada
 // El timestamp se trunca al minuto (floor) antes de emitir
 // CA-2: TimestampNormalizado = Timestamp truncado al minuto
 // CA-3: TipoMarcacion y DispositivoId son opcionales (nullable)
-public sealed class MarcacionRegistrada : IPrivateEvent
+// Issue #270 CA-3: se persiste en el stream de RegistroDeMarcacionAggregateRoot; ya NO cruza el bus
+// (deja de implementar IPrivateEvent). El contrato de bus es RegistroDeMarcacionCreado
+// (PrivateEvents.ControlHoras), empaquetado por RegistroDeMarcacionAggregateRoot.CrearRegistroDeMarcacionCreado().
+public sealed class MarcacionRegistrada
 {
     public string EmpleadoId { get; private set; } = null!;
     public DateTime TimestampNormalizado { get; private set; }
