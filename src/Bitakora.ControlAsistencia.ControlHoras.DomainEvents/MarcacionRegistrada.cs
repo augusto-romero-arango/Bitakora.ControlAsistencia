@@ -65,11 +65,19 @@ public sealed partial class MarcacionRegistrada
 
     // CA-1, CA-2, CA-3: unica via de construccion. Trunca los segundos al minuto (floor) y rechaza
     // EmpleadoId nulo, vacio o solo espacios en blanco.
-    // Stub de compilacion -- implementacion real pendiente (fase verde, fase roja del TDD).
     public static MarcacionRegistrada Crear(
         string empleadoId,
         DateTime timestampCrudo,
         string? tipoMarcacion,
-        string? dispositivoId) =>
-        throw new NotImplementedException();
+        string? dispositivoId)
+    {
+        if (string.IsNullOrWhiteSpace(empleadoId))
+            throw new ArgumentException(Mensajes.EmpleadoIdVacio, nameof(empleadoId));
+
+        return new MarcacionRegistrada(empleadoId, TruncarAlMinuto(timestampCrudo), tipoMarcacion, dispositivoId);
+    }
+
+    // CA-2: trunca (floor) el timestamp al minuto, descartando segundos y fracciones
+    private static DateTime TruncarAlMinuto(DateTime timestamp) =>
+        timestamp.AddTicks(-(timestamp.Ticks % TimeSpan.TicksPerMinute));
 }
