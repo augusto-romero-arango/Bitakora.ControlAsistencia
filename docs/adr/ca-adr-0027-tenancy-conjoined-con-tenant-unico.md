@@ -1,4 +1,4 @@
-# CA-ADR-0027: Estrategia de tenancy mono-tenant
+# CA-ADR-0027: Tenancy conjoined operando con un unico tenant
 
 ## Estado
 
@@ -32,9 +32,13 @@ public interface ITenantResolver { string TenantId { get; } string UserId { get;
 - `AgregarTenantResolverHibrido()` / `ProxyTenantResolver`: resuelven `TenantId` y `UserId` a partir
   de headers HTTP (`TenantId`, `user_id`) y lanzan si faltan.
 
-Ninguno encaja con este producto: **Bitakora.ControlAsistencia es mono-tenant.** Los clientes HTTP
-(Postman, smoke tests, front futuro) no envian esos headers, y exigirlos romperia todos los requests
-existentes sin aportar nada -- no hay mas de un tenant que resolver.
+Ninguno encaja con este producto: **la infraestructura de Bitakora.ControlAsistencia es multi-tenant
+conjoined (`Events.TenancyStyle = Conjoined`, `Policies.AllDocumentsAreMultiTenanted()`,
+`AgregarConfiguracionMartenComandos`), pero opera con un unico tenant logico** -- el default de
+Marten, resuelto siempre por `TenantResolverFijo` (ver Decision). Los clientes HTTP (Postman, smoke
+tests, front futuro) no envian headers de tenant, y exigirlos romperia todos los requests existentes
+sin aportar nada -- no hay hoy mas de un tenant que resolver, aunque el modelo de datos ya sea
+conjoined.
 
 ## Decision
 
@@ -76,3 +80,17 @@ header-based de 2.x.**
   unitarios, falla solo en runtime desplegado). El guardrail de proceso para detectarlo antes de
   desplegar (test de composicion del `IHost`/`FunctionsApplication`, o smoke minimo obligatorio
   pre-merge) queda fuera de alcance de este ADR y se rastrea en un issue aparte.
+
+## Control de cambios
+
+- **2026-07-31 (issue #268)**: renombrado el archivo (de
+  `ca-adr-0027-estrategia-tenancy-mono-tenant.md` a
+  `ca-adr-0027-tenancy-conjoined-con-tenant-unico.md`) y corregidos titulo, contexto y decision.
+  El titulo y el contexto originales afirmaban que el producto es mono-tenant, pero la propia
+  decision #2 de este ADR ya describia el modelo real: Marten mapea el tenant fijo a
+  `Tenancy.Default` **aun con `AllDocumentsAreMultiTenanted()` activo** -- es decir, la
+  infraestructura ya es multi-tenant conjoined, y lo que es fijo es el numero de tenants logicos
+  operando sobre ella (uno). Era drift de nomenclatura, no drift de codigo: se detecto al alinear
+  el named store del worker de proyecciones con esta misma tenancy (issue #268), que exigio leer
+  este ADR para decidir si el worker debia declarar `TenancyStyle.Conjoined`. Las consecuencias no
+  cambiaron de fondo.

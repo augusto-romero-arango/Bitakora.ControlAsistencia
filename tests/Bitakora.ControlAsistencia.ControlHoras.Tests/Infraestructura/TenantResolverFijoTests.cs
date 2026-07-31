@@ -1,4 +1,5 @@
-// Issue #219: ITenantResolver mono-tenant para ControlHoras.
+// Issue #219: ITenantResolver de tenant unico para ControlHoras (CA-ADR-0027: infraestructura
+// multi-tenant conjoined operando con un unico tenant logico).
 // Sin este resolver registrado en el DI, WolverineCommandRouter y WolverinePrivateEventRouter no
 // pueden construirse (breaking change de Cosmos.Event* 2.x). Ver
 // docs/bitacora/field-notes/2026-07-18-1905-bug-investigation.md.
