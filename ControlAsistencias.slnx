@@ -16,5 +16,6 @@
     <Project Path="tests/Bitakora.ControlAsistencia.ControlHoras.Tests/Bitakora.ControlAsistencia.ControlHoras.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/Bitakora.ControlAsistencia.Programacion.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Projections.Tests/Bitakora.ControlAsistencia.Projections.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.PublicEvents.Tests/Bitakora.ControlAsistencia.PublicEvents.Tests.csproj" />
   </Folder>
 </Solution>

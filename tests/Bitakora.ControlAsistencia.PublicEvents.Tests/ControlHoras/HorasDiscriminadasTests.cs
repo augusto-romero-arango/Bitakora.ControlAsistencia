@@ -9,7 +9,7 @@ using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects.ControlHoras;
+namespace Bitakora.ControlAsistencia.PublicEvents.Tests.ControlHoras;
 
 public class HorasDiscriminadasTests
 {
