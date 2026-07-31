@@ -3,6 +3,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
@@ -31,7 +32,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     public async Task DebeEmitirTurnoCreadoYEstablecerEstado_CuandoTurnoNoExiste()
     {
         var comando = ComandoConUnaFranja(GuidAggregateId);
-        var eventoEsperado = TurnoCreado.Crear(comando);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
 
         Given();
         await WhenAsync(comando);
@@ -46,7 +47,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     public async Task DebeLanzarExcepcion_CuandoTurnoYaExiste()
     {
         var comando = ComandoConUnaFranja(GuidAggregateId);
-        var eventoPrevio = TurnoCreado.Crear(comando);
+        var eventoPrevio = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
 
         Given(eventoPrevio);
 

@@ -14,7 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.Contracts\Bitakora.ControlAsistencia.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
   </ItemGroup>

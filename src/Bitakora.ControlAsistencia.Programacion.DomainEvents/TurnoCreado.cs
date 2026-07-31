@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-//using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -59,29 +58,29 @@ public sealed partial class TurnoCreado
     // CA-14: el evento nunca se construye en estado invalido
     // CA-10: acumula TODOS los errores antes de lanzar AggregateException
     // CA-11: cada error individual es una ArgumentException
-    public static TurnoCreado Crear(ComandoCrearTurno comando)
+    public static TurnoCreado Crear(Guid turnoId, string nombre, IReadOnlyList<DatosFranja> ordinarias)
     {
         var errores = new List<Exception>();
 
         // CA-7: validar nombre no vacio
-        if (string.IsNullOrWhiteSpace(comando.Nombre))
+        if (string.IsNullOrWhiteSpace(nombre))
             errores.Add(new ArgumentException(Mensajes.NombreVacio));
 
         // CA-6: validar al menos una franja ordinaria
-        if (comando.Ordinarias.Count == 0)
+        if (ordinarias.Count == 0)
             errores.Add(new ArgumentException(Mensajes.SinFranjasOrdinarias));
-        else if (HaySolapamientoEntreOrdinarias(comando.Ordinarias))
+        else if (HaySolapamientoEntreOrdinarias(ordinarias))
             // CA-8: solapamiento entre ordinarias -- un unico error independiente de cuantos pares
             errores.Add(new ArgumentException(Mensajes.FranjasOrdinariasSeSolapan));
 
         // CA-9: construir VOs delegando validacion a FranjaOrdinaria.Crear() y acumulando errores
         var franjasOrdinarias = new List<FranjaOrdinaria>();
-        foreach (var franja in comando.Ordinarias)
+        foreach (var franja in ordinarias)
         {
             try
             {
-                var descansos = Enumerable.Select<(TimeOnly inicio, TimeOnly fin), SubFranja>(franja.Descansos, d => SubFranja.Crear(d.inicio, d.fin));
-                var extras = Enumerable.Select<(TimeOnly inicio, TimeOnly fin), SubFranja>(franja.Extras, e => SubFranja.Crear(e.inicio, e.fin));
+                var descansos = franja.Descansos.Select(d => SubFranja.Crear(d.inicio, d.fin));
+                var extras = franja.Extras.Select(e => SubFranja.Crear(e.inicio, e.fin));
                 franjasOrdinarias.Add(FranjaOrdinaria.Crear(franja.Inicio, franja.Fin,
                     descansos: descansos, extras: extras));
             }
@@ -94,12 +93,14 @@ public sealed partial class TurnoCreado
         if (errores.Count > 0)
             throw new AggregateException(errores);
 
-        return new TurnoCreado(comando.TurnoId, comando.Nombre, franjasOrdinarias);
+        return new TurnoCreado(turnoId, nombre, franjasOrdinarias);
     }
 
     // Detecta si algún par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
-    // No puede usar FranjaTemporal.MinutosAbsoluto* (internal en Contracts) -- calcula directo desde el DTO.
-    private static bool HaySolapamientoEntreOrdinarias(List<ComandoCrearTurno.Franja> franjas)
+    // Issue #237: ahora que FranjaTemporal vive en este mismo ensamblado, sus MinutosAbsoluto*
+    // internos son alcanzables y este calculo podria delegarse. No se hace aqui porque cambiaria
+    // comportamiento: queda como oportunidad de refactor posterior.
+    private static bool HaySolapamientoEntreOrdinarias(IReadOnlyList<DatosFranja> franjas)
     {
         const int minsPorHora = 60;
         const int minsPorDia = 1440;

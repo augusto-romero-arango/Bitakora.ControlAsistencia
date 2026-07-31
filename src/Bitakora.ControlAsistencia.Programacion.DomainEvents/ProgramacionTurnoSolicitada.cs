@@ -1,7 +1,7 @@
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 /// <summary>
 /// Evento de event sourcing (privado). Se persiste en el stream de SolicitudProgramacionAggregateRoot.

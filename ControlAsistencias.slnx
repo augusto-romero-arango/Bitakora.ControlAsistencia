@@ -1,6 +1,5 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Bitakora.ControlAsistencia.Contracts/Bitakora.ControlAsistencia.Contracts.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ControlHoras/Bitakora.ControlAsistencia.ControlHoras.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.PrivateEvents/Bitakora.ControlAsistencia.PrivateEvents.csproj" />

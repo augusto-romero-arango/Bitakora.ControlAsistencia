@@ -3,7 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+
+namespace Bitakora.ControlAsistencia.Programacion.Tests.ValueObjects;
 
 public class SubFranjaSerializacionTests
 {

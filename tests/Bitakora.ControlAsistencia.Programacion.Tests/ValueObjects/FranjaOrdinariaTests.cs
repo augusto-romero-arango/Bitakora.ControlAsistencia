@@ -1,7 +1,9 @@
 // Issue #2: Modelar value objects de franja temporal para turnos
 using AwesomeAssertions;
 
-namespace Bitakora.ControlAsistencia.Contracts.Tests.ValueObjects;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+
+namespace Bitakora.ControlAsistencia.Programacion.Tests.ValueObjects;
 
 /// <summary>
 /// Tests de FranjaOrdinaria - franja principal que define el horario de trabajo.

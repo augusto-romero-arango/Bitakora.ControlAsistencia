@@ -11,4 +11,9 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
   </ItemGroup>
 
+  <!-- TurnoCreado.Mensajes es internal y los tests lo usan en sus asserts (MEF-ADR-0009). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Programacion.Tests" />
+  </ItemGroup>
+
 </Project>

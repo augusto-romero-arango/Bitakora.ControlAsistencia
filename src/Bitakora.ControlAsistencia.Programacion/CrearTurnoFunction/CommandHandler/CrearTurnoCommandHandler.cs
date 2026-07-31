@@ -23,7 +23,7 @@ public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrea
         if (existe)
             throw new InvalidOperationException(Mensajes.TurnoYaExiste);
 
-        var evento = TurnoCreado.Crear(command);
+        var evento = TurnoCreado.Crear(command.TurnoId, command.Nombre, command.ToDatosFranjas());
         var catalogo = CatalogoTurnos.Iniciar(evento);
         _eventStore.StartStream(catalogo);
     }
