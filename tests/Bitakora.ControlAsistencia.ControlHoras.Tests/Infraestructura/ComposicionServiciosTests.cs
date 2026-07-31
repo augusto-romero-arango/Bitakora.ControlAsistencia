@@ -23,9 +23,12 @@ using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
+using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using FluentValidation;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -144,6 +147,24 @@ public class ComposicionServiciosTests
 
         store.AssertEventosPersistidosRegistrados(
             [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
+    }
+
+    // Issue #279 CA-1: el validator del comando no se registra a mano -- lo descubre
+    // AddValidatorsFromAssemblyContaining<IControlHorasAssemblyMarker>() por escaneo del ensamblado.
+    // RequestValidator es fail-open: si no encuentra un IValidator<T> deja pasar el comando sin
+    // validar (ver RequestValidator, "if (validator is null) return (comando, null)"), asi que un
+    // validator movido de ensamblado, renombrado a no-publico o un cambio del marker desactivarian la
+    // validacion del borde EN SILENCIO -- con el endpoint anonimo y los eventos inmutables detras.
+    // Ningun test del validator detecta eso: todos lo instancian directamente.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_DescubreElValidatorDeRegistrarMarcacion_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var validator = scope.ServiceProvider.GetService<IValidator<RegistrarMarcacion>>();
+
+        validator.Should().BeOfType<RegistrarMarcacionValidator>();
     }
 
     // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las

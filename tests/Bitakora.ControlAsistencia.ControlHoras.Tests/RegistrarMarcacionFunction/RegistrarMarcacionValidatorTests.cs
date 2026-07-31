@@ -5,10 +5,15 @@
 //
 // Patron de referencia: SolicitarProgramacionTurnoValidatorTests (mismo estilo de
 // ValidateAsync + verificacion de PropertyName en resultado.Errors).
+//
+// El contrato que consume el endpoint es doble: IsValid decide el 400 (ver RequestValidator)
+// y Errors define el ValidationProblemDetails que viaja al cliente. Por eso cada rechazo
+// afirma ambos: el resultado global invalido y la propiedad culpable.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
+using FluentValidation.Results;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFunction;
 
@@ -19,24 +24,23 @@ public class RegistrarMarcacionValidatorTests
     private static RegistrarMarcacion ComandoValido() =>
         new("EMP-001", new DateTime(2026, 3, 15, 8, 9, 59), "ENTRADA", "DEV-001");
 
+    private Task<ValidationResult> Validar(RegistrarMarcacion comando) =>
+        _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
+
     // Camino feliz - todos los campos correctos
     [Fact]
-    public async Task DebeSerValido_CuandoTodosLosCamposSonCorrectos()
+    public async Task Validar_Aprueba_CuandoTodosLosCamposSonCorrectos()
     {
-        var resultado = await _validator.ValidateAsync(
-            ComandoValido(), TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido());
 
         resultado.IsValid.Should().BeTrue();
     }
 
     // CA-2: EmpleadoId nulo produce 400
     [Fact]
-    public async Task DebeTenerError_CuandoEmpleadoIdEsNull()
+    public async Task Validar_RechazaEmpleadoId_CuandoEsNull()
     {
-        var comando = ComandoValido() with { EmpleadoId = null! };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { EmpleadoId = null! });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
@@ -45,12 +49,9 @@ public class RegistrarMarcacionValidatorTests
 
     // CA-2: EmpleadoId vacio produce 400
     [Fact]
-    public async Task DebeTenerError_CuandoEmpleadoIdEstaVacio()
+    public async Task Validar_RechazaEmpleadoId_CuandoEstaVacio()
     {
-        var comando = ComandoValido() with { EmpleadoId = "" };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { EmpleadoId = "" });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
@@ -59,29 +60,24 @@ public class RegistrarMarcacionValidatorTests
 
     // CA-2: EmpleadoId con solo espacios en blanco produce 400
     [Fact]
-    public async Task DebeTenerError_CuandoEmpleadoIdSonSoloEspacios()
+    public async Task Validar_RechazaEmpleadoId_CuandoSonSoloEspacios()
     {
-        var comando = ComandoValido() with { EmpleadoId = "   " };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { EmpleadoId = "   " });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
             e.PropertyName == nameof(RegistrarMarcacion.EmpleadoId));
     }
 
-    // CA-3: EmpleadoId que contiene ':' produce 400 - cierra la colision de stream ID
-    // descrita en el Contexto del issue (ComputarStreamId usa ':' como separador entre
-    // EmpleadoId y Timestamp; un EmpleadoId con ':' puede fabricar el mismo stream ID que
-    // otra combinacion legitima).
+    // CA-3: EmpleadoId que contiene ':' produce 400 - cierra la colision de stream ID descrita
+    // en el Contexto del issue (ComputarStreamId usa ':' como separador entre EmpleadoId y
+    // Timestamp; un EmpleadoId con ':' puede fabricar el mismo stream ID que otra combinacion
+    // legitima). El valor no esta vacio, asi que el unico error posible proviene de la regla del
+    // separador y no de NotEmpty.
     [Fact]
-    public async Task DebeTenerError_CuandoEmpleadoIdContieneDosPuntos()
+    public async Task Validar_RechazaEmpleadoId_CuandoContieneDosPuntos()
     {
-        var comando = ComandoValido() with { EmpleadoId = "EMP:001" };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { EmpleadoId = "EMP:001" });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
@@ -90,12 +86,9 @@ public class RegistrarMarcacionValidatorTests
 
     // CA-4: Timestamp con el valor default de DateTime produce 400
     [Fact]
-    public async Task DebeTenerError_CuandoTimestampEsDefault()
+    public async Task Validar_RechazaTimestamp_CuandoEsDefault()
     {
-        var comando = ComandoValido() with { Timestamp = default };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { Timestamp = default });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
@@ -104,24 +97,18 @@ public class RegistrarMarcacionValidatorTests
 
     // Regresion de #105 CA-3: TipoMarcacion sigue siendo opcional - null no debe generar error
     [Fact]
-    public async Task DebeSerValido_CuandoTipoMarcacionEsNull()
+    public async Task Validar_Aprueba_CuandoTipoMarcacionEsNull()
     {
-        var comando = ComandoValido() with { TipoMarcacion = null };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { TipoMarcacion = null });
 
         resultado.IsValid.Should().BeTrue();
     }
 
     // Regresion de #105 CA-3: DispositivoId sigue siendo opcional - null no debe generar error
     [Fact]
-    public async Task DebeSerValido_CuandoDispositivoIdEsNull()
+    public async Task Validar_Aprueba_CuandoDispositivoIdEsNull()
     {
-        var comando = ComandoValido() with { DispositivoId = null };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
+        var resultado = await Validar(ComandoValido() with { DispositivoId = null });
 
         resultado.IsValid.Should().BeTrue();
     }

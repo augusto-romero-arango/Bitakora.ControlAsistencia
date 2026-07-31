@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using FluentValidation;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
@@ -10,14 +11,15 @@ public class RegistrarMarcacionValidator : AbstractValidator<RegistrarMarcacion>
     public RegistrarMarcacionValidator()
     {
         // CA-2: EmpleadoId nulo, vacio o solo espacios en blanco produce 400.
-        // CA-3: EmpleadoId con ':' produce 400 - ComputarStreamId usa ':' como separador
-        // entre EmpleadoId y Timestamp; sin esta regla, un EmpleadoId con ':' puede
-        // fabricar el mismo stream ID que otra combinacion legitima.
+        // CA-3: EmpleadoId con el separador del stream ID produce 400. La regla vive en el aggregate,
+        // junto al formato que la origina (RegistroDeMarcacionAggregateRoot.ComputarStreamId), para no
+        // duplicar aqui el literal del separador.
+        // Cascade(Stop) evita que el Must evalue un EmpleadoId nulo que NotEmpty ya rechazo.
         RuleFor(x => x.EmpleadoId)
             .Cascade(CascadeMode.Stop)
             .NotEmpty()
-            .Must(empleadoId => !empleadoId.Contains(':'))
-            .WithMessage("EmpleadoId no puede contener ':'");
+            .Must(RegistroDeMarcacionAggregateRoot.EsComponenteValidoDeStreamId)
+            .WithMessage("EmpleadoId no puede contener ':' (separador del identificador de marcacion)");
 
         // CA-4: Timestamp con el valor default de DateTime produce 400.
         RuleFor(x => x.Timestamp).NotEqual(default(DateTime));
