@@ -17,12 +17,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 //
 // No duplica ConfiguracionSerializacionControlHoras: esa cubre los tipos ricos que necesitan
 // ConfigurarSerializacion; esta cubre los tipos persistidos. Ninguna es subconjunto de la otra.
-//
-// STUB de fase roja (issue #277, test-writer): lista vacia a proposito. Sin los tres tipos aqui,
-// IdentidadEventosControlHorasTests (CA-1), AliasEventosControlHorasTests (CA-5) y las guardas de
-// ComposicionServiciosTests / ConfiguracionMartenProjectionsTests (CA-2/CA-3/CA-4) fallan. El
-// implementer completa esta lista con los tres tipos reales.
 public static class IdentidadEventosControlHoras
 {
-    public static IReadOnlyList<Type> TiposPersistidos { get; } = [];
+    public static IReadOnlyList<Type> TiposPersistidos { get; } =
+    [
+        typeof(MarcacionRegistrada),
+        typeof(MarcacionAdicionada),
+        typeof(TurnoDiarioAsignado)
+    ];
 }

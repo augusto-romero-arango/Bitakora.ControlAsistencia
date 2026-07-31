@@ -16,12 +16,11 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 // ConfigurarSerializacion (VOs con ctor privado); esta cubre los tipos persistidos (incluye
 // ProgramacionTurnoSolicitada, que STJ resuelve solo con su ctor publico). Ninguna es subconjunto
 // de la otra.
-//
-// STUB de fase roja (issue #277, test-writer): lista vacia a proposito. Sin los dos tipos aqui,
-// IdentidadEventosProgramacionTests (CA-1), AliasEventosProgramacionTests (CA-5) y las guardas de
-// ComposicionServiciosTests / ConfiguracionMartenProjectionsTests (CA-2/CA-3/CA-4) fallan. El
-// implementer completa esta lista con los dos tipos reales.
 public static class IdentidadEventosProgramacion
 {
-    public static IReadOnlyList<Type> TiposPersistidos { get; } = [];
+    public static IReadOnlyList<Type> TiposPersistidos { get; } =
+    [
+        typeof(TurnoCreado),
+        typeof(ProgramacionTurnoSolicitada)
+    ];
 }

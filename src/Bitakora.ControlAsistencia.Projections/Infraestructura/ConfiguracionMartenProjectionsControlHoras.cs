@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using JasperFx.Events; // StreamIdentity (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using Marten;
@@ -53,6 +54,12 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 opts.Events.MetadataConfig.CorrelationIdEnabled = true;
                 opts.Events.MetadataConfig.CausationIdEnabled = true;
                 opts.Events.MetadataConfig.HeadersEnabled = true;
+
+                // Issue #277: defensa en profundidad read-side. Registra los tipos de evento
+                // persistidos de ControlHoras en el EventGraph de este named store, para que el
+                // daemon no dependa del fallback por mt_dotnet_type al leer streams preexistentes
+                // (issue #237 seccion "Consecuencia asumida").
+                opts.Events.AddEventTypes(IdentidadEventosControlHoras.TiposPersistidos);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
