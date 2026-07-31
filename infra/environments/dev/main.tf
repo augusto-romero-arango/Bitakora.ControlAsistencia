@@ -77,26 +77,11 @@ module "service_bus" {
         }
       ]
     }
-    # ADR del marco (decision #3): todo evento privado cruza fisicamente el
-    # ASB interno, aun cuando productor (RegistrarMarcacion) y consumidor
-    # (AdicionarMarcacion) viven en el mismo Function App (ControlHoras).
-    "marcacion-registrada" = {
-      subscriptions = [
-        {
-          name               = "control-horas-escucha-marcacion"
-          correlation_filter = null
-        },
-        {
-          name                = "smoke-tests"
-          correlation_filter  = null
-          default_message_ttl = "PT5M"
-        }
-      ]
-    }
     # Issue #274: contrato de bus propio nacido de separar el doble rol de
-    # MarcacionRegistrada (issue #270). Convive temporalmente con
-    # "marcacion-registrada" hasta que #270 migre productor y consumidor;
-    # el retiro de ese topic es un issue posterior y dependiente de #270.
+    # MarcacionRegistrada (issue #270). El topic "marcacion-registrada" que
+    # este reemplazo dejaba huerfano (sin productor ni consumidor) se retiro
+    # en el issue #276 (MEF-ADR-0001: un topic sin evento no tiene razon de
+    # existir).
     "registro-de-marcacion-creado" = {
       subscriptions = [
         {
