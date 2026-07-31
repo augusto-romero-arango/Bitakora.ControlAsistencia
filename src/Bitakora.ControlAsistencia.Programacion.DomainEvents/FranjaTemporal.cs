@@ -9,8 +9,8 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 // ADR-0015: sealed class con factory static, constructor privado, campos readonly.
 public abstract class FranjaTemporal
 {
-    protected const int MinutosPorHora = 60;
-    protected const int MinutosPorDia = 1440;
+    private const int MinutosPorHora = 60;
+    private const int MinutosPorDia = 1440;
 
     private static readonly ResourceManager ResourceManager = new(
         "Bitakora.ControlAsistencia.Programacion.DomainEvents.FranjaTemporalMensajes",
@@ -52,10 +52,10 @@ public abstract class FranjaTemporal
     // Constructor vacio para STJ/Marten
     protected FranjaTemporal() { }
 
-    // Minutos absolutos desde el dia base, considerando offset
-    // internal para que FranjaOrdinaria valide contencion y solapamiento de hijas
-    internal int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(_horaInicio, _diaOffsetInicio);
-    internal int MinutosAbsolutoFin => CalcularMinutosAbsolutos(_horaFin, _diaOffsetFin);
+    // Minutos absolutos desde el dia base, considerando offset.
+    // Dato intermedio de la aritmetica temporal: nadie fuera de esta clase lo lee (MEF-ADR-0012).
+    private int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(_horaInicio, _diaOffsetInicio);
+    private int MinutosAbsolutoFin => CalcularMinutosAbsolutos(_horaFin, _diaOffsetFin);
 
     // CA-10, CA-11: calculo de duracion en minutos considerando offsets
     public int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
@@ -63,13 +63,27 @@ public abstract class FranjaTemporal
     // CA-12: conversor a horas decimales
     public decimal DuracionEnHorasDecimales() => DuracionEnMinutos() / (decimal)MinutosPorHora;
 
+    // Issue #285: la franja responde estas dos preguntas en vez de exponer los insumos del
+    // calculo (MEF-ADR-0012). internal y no public: expresan la regla de FranjaOrdinaria sobre
+    // sus hijas, no la superficie publica del evento.
+
+    // Extremos coincidentes SI cuentan como contenida (CA-14 a CA-16 de #3)
+    internal bool EstaContenidaEn(FranjaTemporal contenedor) =>
+        MinutosAbsolutoInicio >= contenedor.MinutosAbsolutoInicio
+        && MinutosAbsolutoFin <= contenedor.MinutosAbsolutoFin;
+
+    // Fin exclusivo: dos franjas contiguas NO se solapan (CA-18 de #3). Simetrico.
+    internal bool SeSolapaCon(FranjaTemporal otra) =>
+        MinutosAbsolutoInicio < otra.MinutosAbsolutoFin
+        && otra.MinutosAbsolutoInicio < MinutosAbsolutoFin;
+
     // CA-20: formato legible - "(06:00-12:00)" o "(22:00-06:00+1)" con offset
     public abstract override string ToString();
 
     protected static string FormatearHora(TimeOnly hora, int offset) =>
         offset == 0 ? hora.ToString("HH:mm") : $"{hora:HH:mm}+{offset}";
 
-    protected static int CalcularMinutosAbsolutos(TimeOnly hora, int diaOffset) =>
+    private static int CalcularMinutosAbsolutos(TimeOnly hora, int diaOffset) =>
         hora.Hour * MinutosPorHora + hora.Minute + diaOffset * MinutosPorDia;
 
     // Helper para que las subclases registren campos comunes de serializacion

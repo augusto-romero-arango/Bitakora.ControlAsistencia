@@ -96,10 +96,13 @@ public sealed partial class TurnoCreado
         return new TurnoCreado(turnoId, nombre, franjasOrdinarias);
     }
 
-    // Detecta si algún par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
-    // Issue #237: ahora que FranjaTemporal vive en este mismo ensamblado, sus MinutosAbsoluto*
-    // internos son alcanzables y este calculo podria delegarse. No se hace aqui porque cambiaria
-    // comportamiento: queda como oportunidad de refactor posterior.
+    // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
+    // Duplicacion deliberada respecto de FranjaTemporal.SeSolapaCon -- decidida en #272 y #285,
+    // no es deuda pendiente. Dos razones:
+    // 1. Son reglas distintas con divergencia plausible (MEF-ADR-0018): aqui se validan ordinarias
+    //    entre si sobre DatosFranja crudos; alla, hijas contra su contenedor sobre VOs construidos.
+    // 2. El orden del factory lo exige: este chequeo corre ANTES de construir las FranjaOrdinaria
+    //    para acumular todos los errores sin fail-fast (CA-10 de #3).
     private static bool HaySolapamientoEntreOrdinarias(IReadOnlyList<DatosFranja> franjas)
     {
         const int minsPorHora = 60;
