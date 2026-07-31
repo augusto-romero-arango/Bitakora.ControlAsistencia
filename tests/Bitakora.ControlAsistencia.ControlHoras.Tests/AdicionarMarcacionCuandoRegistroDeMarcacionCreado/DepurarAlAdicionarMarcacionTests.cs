@@ -1,21 +1,24 @@
 // HU-123: Integrar depurador al ControlDiario de forma reactiva
 // HU-108: Emitir DiaCalculado tras adicionar marcacion (CA-1, CA-2, CA-3, CA-4, CA-5)
+// Issue #270: el evento privado que dispara el flujo cambia de MarcacionRegistrada a
+// RegistroDeMarcacionCreado (CA-3, CA-5); el comportamiento verificado aqui no cambia.
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaCalculado via IPublicEventSender tras cada recalculo.
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado;
 
-public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
+public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
 {
     // Datos de prueba fijos - misma ancla de fecha que los tests del handler
     private const string EmpleadoId = "EMP-001";
@@ -45,10 +48,10 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Mar
     private static readonly DateTime Timestamp14_10 = new(2026, 3, 15, 14, 10, 0);
 
     // HU-108: handler ahora requiere IPublicEventSender para publicar DiaCalculado
-    protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
-        new MarcacionRegistradaEventHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
+        new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
 
-    private static MarcacionRegistrada CrearMarcacionRegistrada(DateTime timestamp) =>
+    private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
         new(EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
@@ -64,17 +67,17 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Mar
         $"{IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin))}: " +
         $"{IntervaloClasificado.Mensajes.Etiqueta(concepto)}";
 
-    // CA-1 (HU-123): con TurnoDiarioAsignado (franja unica 06:00-14:00) previo y MarcacionRegistrada a las 07:00,
+    // CA-1 (HU-123): con TurnoDiarioAsignado (franja unica 06:00-14:00) previo y RegistroDeMarcacionCreado a las 07:00,
     //        ControlesDeFranja debe quedar con un ControlFranja(Franja06_14, Entrada=07:00, Salida=null).
     //        Verifica que el hook reactivo se dispara desde Apply(MarcacionAdicionada).
     // CA-1 (HU-108): el handler publica DiaCalculado con InformacionEmpleado, Fecha y ControlesDeFranja correctos.
     [Fact]
-    public async Task DebeCalcularControlFranja_CuandoHayTurnoYLlegaMarcacion()
+    public async Task RegistroDeMarcacionCreado_CalculaControlFranja_CuandoHayTurnoYLlegaMarcacion()
     {
         var turnoUnico = new DetalleTurno("Turno Manana", [Franja06_14]);
         Given(StreamId, CrearTurnoDiarioAsignado(turnoUnico));
 
-        await WhenAsync(CrearMarcacionRegistrada(Timestamp07_00));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
         And<ControlDiarioAggregateRoot, IReadOnlyList<ControlFranja>>(
@@ -99,10 +102,10 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Mar
     //        se inicia solo con marcacion y no hay nada que depurar.
     // CA-2/CA-4 (HU-108): el handler publica DiaCalculado incluso cuando ControlesDeFranja esta vacio.
     [Fact]
-    public async Task DebeDejarControlesDeFranjaVacios_CuandoNoHayTurnoPrevio()
+    public async Task RegistroDeMarcacionCreado_DejaControlesDeFranjaVacios_CuandoNoHayTurnoPrevio()
     {
         // Sin Given - el aggregate se crea solo con la marcacion (DetalleTurno queda null)
-        await WhenAsync(CrearMarcacionRegistrada(Timestamp07_00));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
         And<ControlDiarioAggregateRoot, int>(
@@ -118,12 +121,12 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Mar
     }
 
     // CA-3 (HU-123): con turno partido (06:00-12:00 y 14:00-18:00) y 2 MarcacionAdicionada previas
-    //        (05:50 y 12:05), la nueva MarcacionRegistrada a las 14:10 dispara el recalculo
+    //        (05:50 y 12:05), el nuevo RegistroDeMarcacionCreado a las 14:10 dispara el recalculo
     //        completo: F1(Entrada=05:50, Salida=12:05) + F2(Entrada=14:10, Salida=null).
     //        Verifica comportamiento idem-potente: no acumula sobre resultado anterior.
     // CA-3 (HU-108): el handler publica DiaCalculado; Issue #183: con el payload plano (HorasDiscriminadas).
     [Fact]
-    public async Task DebeRecalcularControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
+    public async Task RegistroDeMarcacionCreado_RecalculaControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
     {
         var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18]);
         Given(StreamId,
@@ -131,7 +134,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Mar
             CrearMarcacionAdicionada(Timestamp05_50),
             CrearMarcacionAdicionada(Timestamp12_05));
 
-        await WhenAsync(CrearMarcacionRegistrada(Timestamp14_10));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp14_10));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp14_10));
         And<ControlDiarioAggregateRoot, IReadOnlyList<ControlFranja>>(
@@ -176,14 +179,14 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Mar
     // Publica dos DiaCalculado - uno por cada fecha, en el orden de procesamiento del handler.
     // Verifica con ThenIsPublishedPublicly(evento1, evento2): count exacto + orden exacto.
     [Fact]
-    public async Task AdicionarMarcacion_PublicaDosDiaCalculado_CuandoMarcacionEstaEnVentanaNocturna()
+    public async Task RegistroDeMarcacionCreado_PublicaDosDiaCalculado_CuandoMarcacionEstaEnVentanaNocturna()
     {
         // Sin Given - ninguno de los dos streams existe
         var timestampNocturno = new DateTime(2026, 3, 15, 2, 0, 0);
         var fechaDiaCal = Fecha;                        // 2026-03-15 (dia calendario)
         var fechaDiaAnt = Fecha.AddDays(-1);            // 2026-03-14 (dia anterior)
 
-        await WhenAsync(CrearMarcacionRegistrada(timestampNocturno));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(timestampNocturno));
 
         // Verificar que cada stream tiene exactamente un MarcacionAdicionada
         Then(StreamId,

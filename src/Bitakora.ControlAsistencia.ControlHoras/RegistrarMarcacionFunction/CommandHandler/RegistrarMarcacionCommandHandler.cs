@@ -8,7 +8,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Com
 // HU-105: Handler del comando RegistrarMarcacion
 // Flujo: verificar idempotencia via ExistsAsync -> normalizar timestamp -> persistir -> publicar
 // CA-4: si el stream ya existe (duplicado exacto), retornar silenciosamente sin persistir ni publicar
-// CA-8: tras persistir exitosamente, publicar MarcacionRegistrada via IPrivateEventSender
+// Issue #270 CA-4: tras StartStream, publica el contrato de bus RegistroDeMarcacionCreado empaquetado
+// por el traductor del aggregate (Tell-don't-Ask) via IPrivateEventSender. MarcacionRegistrada (evento
+// de dominio persistido) ya no cruza el bus.
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
 public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<RegistrarMarcacion>
 {
@@ -43,8 +45,9 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
         var registro = RegistroDeMarcacionAggregateRoot.Iniciar(streamId, command.Timestamp, evento);
         _eventStore.StartStream(registro);
 
-        // CA-8: publicar el evento para que handlers downstream reaccionen
-        await _privateEventSender.PublishAsync(evento);
+        // Issue #270 CA-4: publicar el contrato de bus (no el evento de dominio) para que
+        // handlers downstream reaccionen
+        await _privateEventSender.PublishAsync(registro.CrearRegistroDeMarcacionCreado());
     }
 
     private static DateTime TruncarAlMinuto(DateTime timestamp) =>

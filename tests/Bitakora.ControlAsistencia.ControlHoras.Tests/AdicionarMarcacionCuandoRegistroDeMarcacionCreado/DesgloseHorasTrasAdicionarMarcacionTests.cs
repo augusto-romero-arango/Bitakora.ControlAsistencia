@@ -1,4 +1,6 @@
 // HU-139: Integrar consolidador DesgloseHoras al flujo reactivo del ControlDiario
+// Issue #270: el evento privado que dispara el flujo cambia de MarcacionRegistrada a
+// RegistroDeMarcacionCreado (CA-3, CA-5); el comportamiento verificado aqui no cambia.
 // Familia 1: verifica que Apply(MarcacionAdicionada) recalcula DesgloseHoras al final
 // (despues de Depurar), consolidando los ControlesDeFranja no anomalos del dia.
 // Cubre CA-1 (consolidacion con marcaciones que completan el turno partido) y
@@ -11,17 +13,18 @@
 // ConsolidadorDesgloseHoras.Consolidar). And<>() compara estructuralmente (BeEquivalentTo).
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado;
 
-public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
+public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
 {
     // Datos de prueba fijos - mismo ancla de fecha y stream ID compuesto que los tests del handler
     private const string EmpleadoId = "EMP-001";
@@ -45,10 +48,10 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly DateTime Timestamp14_10 = new(2026, 3, 15, 14, 10, 0);
     private static readonly DateTime Timestamp18_30 = new(2026, 3, 15, 18, 30, 0);
 
-    protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
-        new MarcacionRegistradaEventHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
+        new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
 
-    private static MarcacionRegistrada CrearMarcacionRegistrada(DateTime timestamp) =>
+    private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
         new(EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
@@ -58,11 +61,11 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
 
     // CA-1: con TurnoDiarioAsignado (turno partido 08:00-12:00 y 14:00-18:00) previo y
-    //       MarcacionAdicionada previas (08:00, 12:05, 14:10), la MarcacionRegistrada a las 18:30
+    //       MarcacionAdicionada previas (08:00, 12:05, 14:10), el RegistroDeMarcacionCreado a las 18:30
     //       completa la ultima franja y dispara el recalculo. DesgloseHoras refleja la consolidacion
     //       del dia con las dos franjas no anomalas (extras ajustadas por compensacion si aplica).
     [Fact]
-    public async Task AdicionarMarcacion_RecalculaDesgloseHoras_CuandoMarcacionCompletaUltimaFranja()
+    public async Task RegistroDeMarcacionCreado_RecalculaDesgloseHoras_CuandoMarcacionCompletaUltimaFranja()
     {
         var turnoPartido = new DetalleTurno("Turno Partido", [Franja08_12, Franja14_18]);
         Given(StreamId,
@@ -71,7 +74,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
             CrearMarcacionAdicionada(Timestamp12_05),
             CrearMarcacionAdicionada(Timestamp14_10));
 
-        await WhenAsync(CrearMarcacionRegistrada(Timestamp18_30));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp18_30));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp18_30));
 
@@ -129,14 +132,14 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
             esperado);
     }
 
-    // CA-2: sin turno previo (ningun Given), la MarcacionRegistrada crea el aggregate sin DetalleTurno.
+    // CA-2: sin turno previo (ningun Given), el RegistroDeMarcacionCreado crea el aggregate sin DetalleTurno.
     //       Depurar() retorna lista vacia -> RecalcularDesgloseHoras no tiene franjas que consolidar
     //       y DesgloseHoras queda en DesgloseHoras.Vacio.
     [Fact]
-    public async Task AdicionarMarcacion_DejaDesgloseHorasVacio_CuandoNoHayTurnoPrevio()
+    public async Task RegistroDeMarcacionCreado_DejaDesgloseHorasVacio_CuandoNoHayTurnoPrevio()
     {
         // Sin Given - el aggregate nace solo con la marcacion (DetalleTurno queda null)
-        await WhenAsync(CrearMarcacionRegistrada(Timestamp07_00));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
 

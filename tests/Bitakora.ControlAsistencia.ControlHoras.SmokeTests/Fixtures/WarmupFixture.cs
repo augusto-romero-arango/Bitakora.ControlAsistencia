@@ -16,7 +16,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 // antes de toda la suite. La unica senal fiable de "listener vivo" es que procese un mensaje,
 // asi que el cebado publica y espera la persistencia de cada salto:
 //   1. programacion-turno-diario-solicitada -> listener AsignarTurno -> turno_diario_asignado
-//   2. POST marcacion (marcacion-registrada) -> listener AdicionarMarcacion -> marcacion_adicionada
+//   2. POST marcacion (registro-de-marcacion-creado) -> listener AdicionarMarcacion -> marcacion_adicionada
 //
 // Nota xUnit v3: un AssemblyFixture NO puede inyectar otro AssemblyFixture
 // (https://github.com/xunit/xunit/issues/3469 - "unresolved constructor arguments"; los fixtures
@@ -137,7 +137,7 @@ public class WarmupFixture : IAsyncLifetime
                 $"El listener AsignarTurno no persistio {TipoEventoTurnoDiarioAsignado} " +
                 $"en el stream {streamId} dentro de {WarmupTimeout.TotalSeconds}s.");
 
-        // Salto 2: POST de la marcacion (emite marcacion-registrada) -> calienta el listener
+        // Salto 2: POST de la marcacion (emite registro-de-marcacion-creado) -> calienta el listener
         // AdicionarMarcacion, que persiste marcacion_adicionada en el mismo stream. Marcacion
         // dentro de la franja programada (entrada 08:00-16:00), fuera de ventana nocturna.
         var timestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);

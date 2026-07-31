@@ -1,31 +1,30 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
+namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 
-// HU-106 / issue #209: EventHandler que adiciona una marcacion al ControlDiario correspondiente.
-// ADR-0024 (decision #8): MarcacionRegistrada es un IPrivateEvent intra-BC y el comando equivalente
-// seria un espejo del evento (mismos campos, sin semantica propia), asi que se consume directo con
-// IPrivateEventHandlerAsync<MarcacionRegistrada> - sin comando espejo.
-// Trigger: MarcacionRegistrada publicado via WolverinePrivateEventSender (#105) cruza
-// fisicamente el ASB interno del BC (topic marcacion-registrada, issue #212/#213) y es
-// despachado a este handler por FunctionEndpoint (PrivateEventEndpointBase) via IPrivateEventRouter.
-// Patron crear-o-actualizar: ExistsAsync -> si no existe StartStream, si existe GetAggregateRootAsync
-// CA-9: ventana de traslape nocturno con corte a las 04:00 como constante del handler
-// ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
-public partial class MarcacionRegistradaEventHandler
-    : IPrivateEventHandlerAsync<MarcacionRegistrada>
+// Issue #270: reemplaza a MarcacionRegistradaEventHandler (folder
+// AdicionarMarcacionCuandoMarcacionRegistrada, retirado por este issue). El contrato que cruza el
+// ASB interno del BC ahora es RegistroDeMarcacionCreado (PrivateEvents.ControlHoras), no
+// MarcacionRegistrada (que dejo de implementar IPrivateEvent - CA-3). Paridad de campos identica,
+// asi que el comportamiento (patron crear-o-actualizar sobre ControlDiario, ventana de traslape
+// nocturno, publicacion de DiaCalculado) se preserva sobre el tipo nuevo (CA-5).
+// MEF-ADR-0024 (decision #8): se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
+// MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
+public partial class RegistroDeMarcacionCreadoEventHandler
+    : IPrivateEventHandlerAsync<RegistroDeMarcacionCreado>
 {
     private readonly IEventStore _eventStore;
     private readonly IPublicEventSender _publicEventSender;
 
     // CA-9: constante del handler - no del aggregate. Cuando sea configurable por empresa
     // vendra de un servicio externo, no de aqui.
-    internal static readonly TimeOnly HoraCorteTraslapeNocturno = new TimeOnly(4, 0);
+    internal static readonly TimeOnly HoraCorteTraslapeNocturno = new(4, 0);
 
-    public MarcacionRegistradaEventHandler(
+    public RegistroDeMarcacionCreadoEventHandler(
         IEventStore eventStore,
         IPublicEventSender publicEventSender)
     {
@@ -33,7 +32,7 @@ public partial class MarcacionRegistradaEventHandler
         _publicEventSender = publicEventSender;
     }
 
-    public async Task HandleAsync(MarcacionRegistrada @event, CancellationToken ct = default)
+    public async Task HandleAsync(RegistroDeMarcacionCreado @event, CancellationToken ct = default)
     {
         var fechaCalendario = DateOnly.FromDateTime(@event.TimestampNormalizado);
         var horaDelDia = TimeOnly.FromDateTime(@event.TimestampNormalizado);
@@ -59,7 +58,7 @@ public partial class MarcacionRegistradaEventHandler
     //         Idempotencia (#106): si AdicionarMarcacion ignora el duplicado, no se
     //         agrega evento al stream y por tanto no se publica DiaCalculado redundante.
     private async Task AdicionarAControlDiarioAsync(
-        MarcacionRegistrada @event, DateOnly fecha, CancellationToken ct)
+        RegistroDeMarcacionCreado @event, DateOnly fecha, CancellationToken ct)
     {
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(@event.EmpleadoId, fecha);
         var evento = new MarcacionAdicionada(
@@ -74,18 +73,18 @@ public partial class MarcacionRegistradaEventHandler
         ControlDiarioAggregateRoot control;
         bool huboCambios;
 
-        if (!existe)
-        {
-            control = ControlDiarioAggregateRoot.Iniciar(evento);
-            _eventStore.StartStream(control);
-            huboCambios = true;
-        }
-        else
+        if (existe)
         {
             control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
             var eventosAntes = control.UncommittedEvents.Count;
             control.AdicionarMarcacion(evento);
             huboCambios = control.UncommittedEvents.Count > eventosAntes;
+        }
+        else
+        {
+            control = ControlDiarioAggregateRoot.Iniciar(evento);
+            _eventStore.StartStream(control);
+            huboCambios = true;
         }
 
         if (huboCambios)

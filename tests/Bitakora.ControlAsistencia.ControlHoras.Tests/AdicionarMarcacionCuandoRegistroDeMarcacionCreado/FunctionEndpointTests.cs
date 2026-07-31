@@ -1,28 +1,29 @@
-// issue #213: Tests del FunctionEndpoint del ServiceBus trigger AdicionarMarcacionCuandoMarcacionRegistrada
+// issue #270: Tests del FunctionEndpoint del ServiceBus trigger
+// AdicionarMarcacionCuandoRegistroDeMarcacionCreado (reemplaza al de #213 sobre MarcacionRegistrada,
+// que dejo de implementar IPrivateEvent - CA-3).
 
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado;
 using Cosmos.EventDriven.Abstractions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado;
 
 /// <summary>
-/// Tests del endpoint ServiceBus AdicionarMarcacionCuandoMarcacionRegistrada.
-/// issue #213 / ADR-0024 (marco) decision #3 + #8: MarcacionRegistrada deja de entregarse
-/// in-process (#209) y cruza fisicamente el ASB interno del BC; el evento se despacha directo
-/// al IPrivateEventRouter (sin comando espejo).
+/// Tests del endpoint ServiceBus AdicionarMarcacionCuandoRegistroDeMarcacionCreado.
+/// ADR-0024 (marco) decision #3 + #8: RegistroDeMarcacionCreado cruza fisicamente el ASB interno del
+/// BC; el evento se despacha directo al IPrivateEventRouter (sin comando espejo).
 /// Verifica orquestacion: deserializacion + despacho al private event router + manejo de
 /// errores de Service Bus (patron identico a AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction).
 /// </summary>
 public class FunctionEndpointTests
 {
     // JSON en formato camelCase - Wolverine serializa con camelCase por defecto al publicar al Service Bus.
-    // Mismos campos que MarcacionRegistradaSerializacionTests (EmpleadoId, TimestampNormalizado,
-    // TipoMarcacion, DispositivoId); MarcacionRegistrada solo tiene un constructor publico, por lo
-    // que ServiceBusDeserializador (case-insensitive) lo resuelve via constructor parametrizado.
+    // Mismos campos que RegistroDeMarcacionCreadoDeserializacionTests (EmpleadoId, TimestampNormalizado,
+    // TipoMarcacion, DispositivoId); RegistroDeMarcacionCreado es un record con constructor primario
+    // publico, por lo que ServiceBusDeserializador (case-insensitive) lo resuelve via ese constructor.
     private const string JsonFormatoWolverine = """
         {
           "empleadoId": "EMP-001",
@@ -35,9 +36,9 @@ public class FunctionEndpointTests
     private static ServiceBusReceivedMessage CrearMensaje()
         => ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString(JsonFormatoWolverine));
 
-    // CA-2: camino feliz - deserializa el JSON, despacha al private event router, completa el mensaje
+    // CA-5: camino feliz - deserializa el JSON, despacha al private event router, completa el mensaje
     [Fact]
-    public async Task AdicionarMarcacionCuandoMarcacionRegistrada_CompletaMensaje_CuandoProcesamientoEsExitoso()
+    public async Task AdicionarMarcacionCuandoRegistroDeMarcacionCreado_CompletaMensaje_CuandoProcesamientoEsExitoso()
     {
         var router = new FakePrivateEventRouter();
         var messageActions = new FakeServiceBusMessageActions();
@@ -50,11 +51,11 @@ public class FunctionEndpointTests
         messageActions.MensajeEnDeadLetter.Should().BeFalse();
     }
 
-    // CA-2: lock perdido al intentar completar -> log warning, NO dead-letter
+    // CA-5: lock perdido al intentar completar -> log warning, NO dead-letter
     // Regresion del issue #48 (ya cubierta en AsignarTurno): el lock ya no es valido, intentar
     // DeadLetterMessageAsync tambien fallaria. El Service Bus re-entregara el mensaje automaticamente.
     [Fact]
-    public async Task AdicionarMarcacionCuandoMarcacionRegistrada_LogueaWarning_CuandoSePierdeLockAlCompletar()
+    public async Task AdicionarMarcacionCuandoRegistroDeMarcacionCreado_LogueaWarning_CuandoSePierdeLockAlCompletar()
     {
         var lockLostException = new ServiceBusException(
             "Lock del mensaje expirado",
@@ -70,9 +71,9 @@ public class FunctionEndpointTests
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // CA-2: error generico durante el procesamiento -> dead-letter el mensaje para inspeccion
+    // CA-5: error generico durante el procesamiento -> dead-letter el mensaje para inspeccion
     [Fact]
-    public async Task AdicionarMarcacionCuandoMarcacionRegistrada_EnviaADeadLetter_CuandoOcurreErrorGenerico()
+    public async Task AdicionarMarcacionCuandoRegistroDeMarcacionCreado_EnviaADeadLetter_CuandoOcurreErrorGenerico()
     {
         var router = new FakePrivateEventRouter(
             excepcion: new InvalidOperationException("Error inesperado en el handler"));
