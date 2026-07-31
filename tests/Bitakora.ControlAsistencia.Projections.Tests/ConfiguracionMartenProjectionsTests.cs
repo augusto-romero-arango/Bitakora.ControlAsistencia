@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,6 +87,23 @@ public class ConfiguracionMartenProjectionsTests
         provider.GetRequiredService<IProgramacionProjectionStore>().AssertStreamIdentityAsString();
     }
 
+    // Issue #277 CA-3/CA-4: defensa en profundidad read-side. El worker no esta expuesto hoy (sin
+    // proyecciones concretas), pero lo estara en cuanto las tenga -- este guardrail evita que ese
+    // dia el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
+    //
+    // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosProgramacion.TiposPersistidos acoplaria este guardrail al mismo artefacto
+    // que CA-1 ya verifica, y con la lista vacia del stub de fase roja (issue #277)
+    // AwesomeAssertions.Contain() lanza ArgumentException en vez de fallar semanticamente.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraLosTiposDeEventoPersistidos()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertEventosPersistidosRegistrados([typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada)]);
+    }
+
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
 
     [Fact]
@@ -135,6 +154,24 @@ public class ConfiguracionMartenProjectionsTests
         using var provider = ProviderDeControlHoras();
 
         provider.GetRequiredService<IControlHorasProjectionStore>().AssertStreamIdentityAsString();
+    }
+
+    // Issue #277 CA-3/CA-4: defensa en profundidad read-side. El worker no esta expuesto hoy (sin
+    // proyecciones concretas), pero lo estara en cuanto las tenga -- este guardrail evita que ese
+    // dia el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
+    //
+    // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosControlHoras.TiposPersistidos acoplaria este guardrail al mismo artefacto
+    // que CA-1 ya verifica, y con la lista vacia del stub de fase roja (issue #277)
+    // AwesomeAssertions.Contain() lanza ArgumentException en vez de fallar semanticamente.
+    [Fact]
+    public void ConfigurarControlHoras_RegistraLosTiposDeEventoPersistidos()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertEventosPersistidosRegistrados(
+                [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
     }
 
     // --- Seam de nivel BC (CA-4) ---

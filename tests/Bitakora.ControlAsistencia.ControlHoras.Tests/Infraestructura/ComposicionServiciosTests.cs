@@ -21,6 +21,7 @@
 
 using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Cosmos.EventDriven.Abstractions;
@@ -121,5 +122,28 @@ public class ComposicionServiciosTests
 
         restaurado.Should().Be(original);
         restaurado.ToString().Should().Be(original.ToString());
+    }
+
+    // Issue #277 CA-2/CA-4: el #237 movio los eventos persistidos a este ensamblado (namespace y
+    // assembly nuevos) sin registrar su tipo en el EventGraph. Toda lectura quedo dependiendo del
+    // fallback por mt_dotnet_type -- roto para el nuevo namespace -- en vez de resolver por alias
+    // (columna "type" de mt_events). Este guardrail detecta el olvido sobre el store real que
+    // compone el contenedor (mismo store que ya usan las guardas de arriba), sin Postgres.
+    //
+    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): si se
+    // leyeran de IdentidadEventosControlHoras.TiposPersistidos, el guardrail quedaria acoplado al
+    // mismo artefacto que CA-1 ya verifica, y ademas AwesomeAssertions.Contain() lanza
+    // ArgumentException con una coleccion "esperada" vacia en vez de fallar semanticamente --
+    // el stub de fase roja (issue #277) deja esa lista vacia a proposito.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertEventosPersistidosRegistrados(
+            [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
     }
 }
