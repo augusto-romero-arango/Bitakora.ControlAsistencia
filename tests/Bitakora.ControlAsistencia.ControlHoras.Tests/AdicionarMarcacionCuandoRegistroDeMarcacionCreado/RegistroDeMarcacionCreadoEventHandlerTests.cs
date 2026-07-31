@@ -1,17 +1,20 @@
-// HU-106: Adicionar marcacion a ControlDiario cuando marcacion registrada
+// HU-106 / issue #270: Adicionar marcacion a ControlDiario cuando se crea un Registro de Marcacion.
+// El evento privado que dispara el flujo cambia de MarcacionRegistrada a RegistroDeMarcacionCreado
+// (CA-3, CA-5); el comportamiento del handler no cambia, solo el tipo del evento consumido.
 
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoMarcacionRegistrada;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado;
 
-public class MarcacionRegistradaEventHandlerTests
-    : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
+public class RegistroDeMarcacionCreadoEventHandlerTests
+    : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
 {
     // Datos de prueba fijos
     private const string EmpleadoId = "EMP-001";
@@ -26,11 +29,11 @@ public class MarcacionRegistradaEventHandlerTests
     private static readonly string StreamIdDia15 = $"{EmpleadoId}:2026-03-15";
     private static readonly string StreamIdDia14 = $"{EmpleadoId}:2026-03-14";
 
-    protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
-        new MarcacionRegistradaEventHandler(EventStore, PublicEventSender);
+    protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
+        new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
 
-    // Factory para MarcacionRegistrada; el timestamp decide si cae en la ventana nocturna.
-    private static MarcacionRegistrada CrearMarcacionRegistrada(
+    // Factory para RegistroDeMarcacionCreado; el timestamp decide si cae en la ventana nocturna.
+    private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(
         DateTime timestampNormalizado,
         string? tipoMarcacion = "ENTRADA",
         string? dispositivoId = "DEV-001") =>
@@ -50,10 +53,10 @@ public class MarcacionRegistradaEventHandlerTests
     // CA-7: stream ID es "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
     // CA-8: la fecha se extrae del TimestampNormalizado del evento
     [Fact]
-    public async Task DebeCrearControlDiarioConMarcacion_CuandoNoExisteYHoraFueraDeVentanaNocturna()
+    public async Task RegistroDeMarcacionCreado_CreaControlDiarioConMarcacion_CuandoNoExisteYHoraFueraDeVentanaNocturna()
     {
         // Sin Given - el stream no existe para EMP-001:2026-03-15
-        await WhenAsync(CrearMarcacionRegistrada(TimestampFueraDeVentana));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampFueraDeVentana));
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
         And<ControlDiarioAggregateRoot, InformacionEmpleado?>(
@@ -68,10 +71,10 @@ public class MarcacionRegistradaEventHandlerTests
     //   - dia calendario (2026-03-15) y dia anterior (2026-03-14)
     // CA-9: la ventana de traslape tiene corte a las 04:00 AM (constante del handler)
     [Fact]
-    public async Task DebeCrearDosControlDiarios_CuandoHoraEstaEnVentanaNocturna()
+    public async Task RegistroDeMarcacionCreado_CreaDosControlDiarios_CuandoHoraEstaEnVentanaNocturna()
     {
         // Sin Given - ninguno de los dos streams existe
-        await WhenAsync(CrearMarcacionRegistrada(TimestampDentroDeVentana));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampDentroDeVentana));
 
         // Dia calendario: 2026-03-15
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampDentroDeVentana));
@@ -87,7 +90,7 @@ public class MarcacionRegistradaEventHandlerTests
     // CA-3: lista de marcaciones crece al adicionar una marcacion nueva
     //        ControlDiario ya existe con una marcacion previa (distinto minuto)
     [Fact]
-    public async Task DebeCrecerListaMarcaciones_CuandoControlDiarioYaExisteConMarcacionPrevia()
+    public async Task RegistroDeMarcacionCreado_CreceListaMarcaciones_CuandoControlDiarioYaExisteConMarcacionPrevia()
     {
         // Timestamp diferente: 07:00 ya existia
         var marcacionPrevia = CrearMarcacionAdicionada(
@@ -96,7 +99,7 @@ public class MarcacionRegistradaEventHandlerTests
         Given(StreamIdDia15, marcacionPrevia);
 
         // Nueva marcacion a las 08:15 (distinto minuto)
-        await WhenAsync(CrearMarcacionRegistrada(TimestampFueraDeVentana));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampFueraDeVentana));
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
         And<ControlDiarioAggregateRoot, int>(
@@ -107,11 +110,11 @@ public class MarcacionRegistradaEventHandlerTests
     //        La hora de corte (04:00:00) ya NO esta dentro de la ventana,
     //        por lo que la marcacion va solo al dia calendario (un stream).
     [Fact]
-    public async Task DebeCrearUnSoloControlDiario_CuandoHoraEsIgualALaHoraDeCorte()
+    public async Task RegistroDeMarcacionCreado_CreaUnSoloControlDiario_CuandoHoraEsIgualALaHoraDeCorte()
     {
         var timestampEnCorte = new DateTime(2026, 3, 15, 4, 0, 0);
 
-        await WhenAsync(CrearMarcacionRegistrada(timestampEnCorte));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(timestampEnCorte));
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, timestampEnCorte));
         And<ControlDiarioAggregateRoot, int>(
@@ -124,14 +127,14 @@ public class MarcacionRegistradaEventHandlerTests
     // CA-4: marcacion duplicada por minuto normalizado se ignora
     //        el aggregate no produce nuevo evento ni lanza excepcion
     [Fact]
-    public async Task DebeIgnorarMarcacion_CuandoExisteDuplicadoPorMinutoNormalizado()
+    public async Task RegistroDeMarcacionCreado_IgnoraMarcacion_CuandoExisteDuplicadoPorMinutoNormalizado()
     {
         // Mismo minuto normalizado: 08:15:00 ya existia (ENTRADA desde DEV-001)
         var marcacionExistente = CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana);
         Given(StreamIdDia15, marcacionExistente);
 
         // Llega otra marcacion con el mismo minuto pero distinto tipo y dispositivo
-        await WhenAsync(CrearMarcacionRegistrada(TimestampFueraDeVentana, "SALIDA", "DEV-002"));
+        await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampFueraDeVentana, "SALIDA", "DEV-002"));
 
         // Sin nuevos eventos - duplicado ignorado silenciosamente
         Then(StreamIdDia15);

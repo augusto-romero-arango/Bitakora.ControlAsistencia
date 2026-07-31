@@ -12,16 +12,19 @@
 // Nested classes: CrearDiaCalculado() lo conducen ambos EventHandlers sobre el mismo aggregate, por lo
 // que comparten datos pero reaccionan a eventos privados distintos. Tras issue #209 y #210 ambos
 // consumen su evento privado directo con PrivateEventHandlerAsyncTest<TEvent> (ADR-0024 #8):
-// AsignarTurno reacciona a ProgramacionTurnoDiarioSolicitada; AdicionarMarcacion a MarcacionRegistrada.
+// AsignarTurno reacciona a ProgramacionTurnoDiarioSolicitada; AdicionarMarcacion a
+// RegistroDeMarcacionCreado (issue #270: reemplaza a MarcacionRegistrada, que dejo de implementar
+// IPrivateEvent -- CA-3).
 //
 // El valor esperado se registra A MANO como oraculo independiente: el diccionario de minutos por
 // concepto se calcula de la geometria del dia, sin ejecutar Discriminar ni Consolidar (la logica bajo
 // prueba). Asi un bug en esa logica no se filtra al esperado y el test si detecta regresiones (regla 20).
 
-using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoMarcacionRegistrada.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
@@ -124,13 +127,13 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     }
 
     public class ViaAdicionarMarcacionTests
-        : PrivateEventHandlerAsyncTest<MarcacionRegistrada>
+        : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
     {
-        protected override IPrivateEventHandlerAsync<MarcacionRegistrada> Handler =>
-            new MarcacionRegistradaEventHandler(
+        protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
+            new RegistroDeMarcacionCreadoEventHandler(
                 EventStore, PublicEventSender);
 
-        private static MarcacionRegistrada CrearMarcacionRegistrada(DateTime timestamp) =>
+        private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
             new(Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
         // CA-4 (sin turno): la marcacion crea el aggregate sin DetalleTurno -> Depurar() retorna lista
@@ -140,7 +143,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
         public async Task CrearDiaCalculado_LlevaMinutosPorConceptoVacio_CuandoNoHayTurno()
         {
             // Sin Given - el aggregate nace solo con la marcacion (DetalleTurno queda null).
-            await WhenAsync(CrearMarcacionRegistrada(Timestamp07_00));
+            await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
 
             Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
 

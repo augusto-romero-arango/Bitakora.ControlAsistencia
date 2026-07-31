@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -59,4 +60,11 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
         registro.Apply(evento);
         return registro;
     }
+
+    // Issue #270 CA-4: traductor del evento de dominio persistido (MarcacionRegistrada) al contrato
+    // de bus (RegistroDeMarcacionCreado). Tell-don't-Ask: el aggregate es duenio del estado y entrega
+    // el contrato ya empaquetado al handler -- espejo exacto de
+    // ControlDiarioAggregateRoot.CrearDiaCalculado(). El handler no construye el contrato campo por campo.
+    public RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado() =>
+        throw new NotImplementedException();
 }
