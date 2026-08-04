@@ -68,12 +68,12 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     }
 
     // Conversion a DTO plano para eventos entre dominios
-    // Issue #288 CA-2: Descripcion pendiente de asignar con ToString() (fase verde del implementer).
+    // Issue #288 CA-2: Descripcion se asigna con el ToString() de este mismo tipo rico.
     public DetalleFranjaOrdinaria ToDetalle() => new(
         _horaInicio, _horaFin, _diaOffsetFin,
         _descansos.Select(d => d.ToDetalle()).ToList().AsReadOnly(),
         _extras.Select(e => e.ToDetalle()).ToList().AsReadOnly(),
-        string.Empty);
+        ToString());
 
     // CA-20, CA-21: formato "(06:00-12:00)" o "(22:00-06:00+1)"
     public override string ToString()
