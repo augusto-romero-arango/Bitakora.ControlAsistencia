@@ -288,6 +288,19 @@ public class ConfiguracionMartenProjectionsTests
                 [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
     }
 
+    // Issue #289 CA-4: primera proyeccion concreta del BC. TurnoDiarioProjection (N1,
+    // SingleStreamProjection<TurnoDiarioView, string>) debe quedar registrada con lifecycle Async
+    // -- hoy ConfigurarControlHoras todavia no la agrega (opts.Projections.Add<TurnoDiarioProjection>
+    // esta pendiente), asi que este test es el rojo que projection-implementer cierra.
+    [Fact]
+    public void ConfigurarControlHoras_RegistraTurnoDiarioProjectionComoAsync()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("TurnoDiarioView");
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes

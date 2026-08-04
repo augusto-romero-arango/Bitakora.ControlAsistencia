@@ -6,4 +6,15 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Issue #289 CA-1: TurnoDiarioView reusa InformacionEmpleado (PublicEvents) y DetalleTurno
+       (PrivateEvents) en vez de redeclarar equivalentes: son exactamente los DTOs planos
+       destinados a cruzar fronteras. Cosmos.EventDriven.Abstractions 2.3.1 (el unico
+       PackageReference de ambos proyectos) declara cero dependencias para net10.0, verificado
+       contra project.assets.json: ReadModels sigue sin ganar Marten ni transitivamente
+       (MEF-ADR-0034 seccion 5). -->
+  <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -31,6 +31,7 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 using FluentValidation;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
+using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -185,5 +186,32 @@ public class ComposicionServiciosTests
             [typeof(MarcacionAdicionada)] = "marcacion_adicionada",
             [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado"
         });
+    }
+
+    // Issue #289 CA-7: test de composicion de la primera Function GET del BC, hermano de
+    // MEF-ADR-0029 -- misma idea que las guardas de arriba (grafo de DI real, sin infra
+    // desplegada), pero sobre un FunctionEndpoint en vez de un router de Wolverine.
+    //
+    // Ninguna Function de este ensamblado se registra explicitamente en el contenedor
+    // (RegistrarMarcacionFunction, AdicionarMarcacionCuandoRegistroDeMarcacionCreado,
+    // AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction: ninguna lleva un
+    // services.AddScoped<FunctionEndpoint>() explicito) -- el host de Azure Functions isolated
+    // worker las activa por tipo, resolviendo su constructor contra el mismo ServiceProvider que
+    // arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa misma activacion sin
+    // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
+    // Functions isolated worker).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (CA-5/CA-6, LoadAsync + mapeo + 404), que es responsabilidad del smoke
+    // test (CA-8) y de projection-implementer, no de este guardrail de wiring.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerTurnoDiario_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerTurnoDiarioEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }
