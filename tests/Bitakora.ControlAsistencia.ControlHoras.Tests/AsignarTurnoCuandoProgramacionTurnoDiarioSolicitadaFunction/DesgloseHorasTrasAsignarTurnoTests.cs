@@ -33,14 +33,15 @@ public class DesgloseHorasTrasAsignarTurnoTests
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
     // CA-3: franja unica 06:00-14:00 para el turno asignado
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static readonly DetalleFranjaOrdinaria Franja06_14 =
-        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], []);
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // CA-4: turno partido con dos franjas ordinarias (ambas quedaran anomalas sin marcaciones)
     private static readonly DetalleFranjaOrdinaria Franja06_12 =
-        new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], []);
+        new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
     private static readonly DetalleFranjaOrdinaria Franja14_18 =
-        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], []);
+        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // Timestamps de las marcaciones que llegan antes que el turno (CA-3)
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
@@ -69,7 +70,7 @@ public class DesgloseHorasTrasAsignarTurnoTests
             CrearMarcacionAdicionada(Timestamp07_00),
             CrearMarcacionAdicionada(Timestamp15_00));
 
-        var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14]);
+        var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
         await WhenAsync(CrearEvento(turnoFranjaUnica));
 
         Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
@@ -114,7 +115,7 @@ public class DesgloseHorasTrasAsignarTurnoTests
     public async Task ProgramacionTurnoDiarioSolicitada_DejaDesgloseHorasConFranjasAnomalas_CuandoTurnoSinMarcaciones()
     {
         // Sin Given - stream nuevo, turno partido sin marcaciones previas
-        var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18]);
+        var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18], "");
 
         await WhenAsync(CrearEvento(turnoPartido));
 

@@ -8,14 +8,26 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// El record por defecto compara colecciones por referencia (ADR-0015 advierte sobre records con
 /// IReadOnlyList que prometen igualdad por valor que no cumplen). Esta intervencion preserva la
 /// forma de record (constructor primario publico, properties get-only) y corrige el bug.
+///
+/// Issue #288: Descripcion (representacion textual normalizada, formato del tipo rico
+/// FranjaOrdinaria.ToString()) se agrega como dato derivado persistido. NO se agrega a
+/// Equals/GetHashCode: es texto derivado de los demas campos, no identidad de la franja.
 /// </remarks>
 public record DetalleFranjaOrdinaria(
     TimeOnly HoraInicio,
     TimeOnly HoraFin,
     int DiaOffsetFin,
     IReadOnlyList<DetalleSubFranja> Descansos,
-    IReadOnlyList<DetalleSubFranja> Extras)
+    IReadOnlyList<DetalleSubFranja> Extras,
+    string Descripcion)
 {
+    /// <summary>
+    /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro
+    /// posicional y la propiedad declarada como string no anulable mentiria. Se normaliza a
+    /// cadena vacia, que es la consecuencia que el issue asumio para los eventos ya persistidos.
+    /// </summary>
+    public string Descripcion { get; init; } = Descripcion ?? string.Empty;
+
     public virtual bool Equals(DetalleFranjaOrdinaria? other)
     {
         if (other is null) return false;

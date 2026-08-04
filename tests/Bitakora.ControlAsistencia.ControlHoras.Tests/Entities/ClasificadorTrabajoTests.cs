@@ -40,8 +40,9 @@ public class ClasificadorTrabajoTests
     private static IntervaloClasificado Clasif(MomentoDelDia inicio, MomentoDelDia fin, Concepto concepto) =>
         new(IntervaloTemporal.Crear(inicio, fin), concepto);
 
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static DetalleSubFranja Sub(int horaInicio, int horaFin, int diaOffsetInicio = 0, int diaOffsetFin = 0) =>
-        new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetInicio, diaOffsetFin);
+        new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetInicio, diaOffsetFin, "");
 
     private static DetalleFranjaOrdinaria Franja(
         int horaInicio,
@@ -50,7 +51,7 @@ public class ClasificadorTrabajoTests
         IReadOnlyList<DetalleSubFranja>? descansos = null,
         IReadOnlyList<DetalleSubFranja>? extras = null) =>
         new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetFin,
-            descansos ?? [], extras ?? []);
+            descansos ?? [], extras ?? [], "");
 
     [Fact]
     public void Clasificar_DesglosaOrdinariaConDescanso_CuandoFranjaDiurnaSeTrabajaCompleta()

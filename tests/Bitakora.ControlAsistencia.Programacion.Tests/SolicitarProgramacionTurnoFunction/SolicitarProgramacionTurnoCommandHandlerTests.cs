@@ -26,12 +26,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno()
+    // Issue #288 CA-2: Descripcion lleva el texto real que produce el ToString() del tipo rico
+    // (CatalogoTurnos a nivel turno, FranjaOrdinaria a nivel franja). La coherencia entre ambos
+    // la prueban CatalogoTurnosTests y FranjaOrdinariaToDetalleTests; aqui el valor literal
+    // documenta que fluye intacto hasta el evento emitido y el publicado por el bus privado.
     private static readonly DetalleTurno DetalleEsperado = new(
         "Turno Manana",
         new List<DetalleFranjaOrdinaria>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [])
-        }.AsReadOnly());
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
 
     // --- Configuracion del handler ---
 

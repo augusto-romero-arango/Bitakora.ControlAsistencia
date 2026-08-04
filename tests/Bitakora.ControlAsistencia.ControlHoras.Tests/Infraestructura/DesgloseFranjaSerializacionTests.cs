@@ -20,14 +20,15 @@ public class DesgloseFranjaSerializacionTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static DetalleFranjaOrdinaria CrearFranjaProgramadaConDescanso() =>
         new DetalleFranjaOrdinaria(
             new TimeOnly(8, 0), new TimeOnly(17, 0), 0,
-            [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(13, 0), 0, 0)],
-            []);
+            [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(13, 0), 0, 0, "")],
+            [], "");
 
     private static DetalleFranjaOrdinaria CrearFranjaProgramadaSimple() =>
-        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], []);
+        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
     [Fact]
     public void RoundTrip_PreservaProgramada_CuandoFranjaConDescanso()

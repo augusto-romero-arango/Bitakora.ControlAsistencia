@@ -36,8 +36,9 @@ internal static class ConsolidadorDesgloseHorasTestData
     // Franja programada plana (sin descansos ni extras programadas declarados): solo
     // viaja en el DesgloseFranja para que el consolidador la preserve en DesglosePorFranja.
     // El detalle real de lo trabajado vive en los IntervaloClasificado de cada franja.
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     public static DetalleFranjaOrdinaria Programada(int horaInicio, int horaFin, int diaOffsetFin = 0) =>
-        new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetFin, [], []);
+        new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetFin, [], [], "");
 
     // Retardo de una franja, a partir de sus intervalos retardados y compensados.
     public static Retardo CrearRetardo(
