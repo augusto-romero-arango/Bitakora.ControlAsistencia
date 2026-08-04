@@ -23,7 +23,6 @@
 // sampler simplificado no sirve para probar la cascada real; los tests unitarios de
 // ShouldSample de mas abajo si lo usan, porque ahi no importa el contexto del padre.
 using System.Diagnostics;
-using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Marten;
@@ -34,6 +33,11 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
 
 public class SamplerQueDescartaPollingDelDaemonTests
 {
+    // Spans reales de la fuente Marten medidos en las 24h del issue #308 (70 y 48 ocurrencias frente
+    // a los ~69k del polling del daemon): la senal que el filtro NO puede apagar (CA-5).
+    private const string SpanProyeccionLoading = "marten.turnodiarioview.all.page.loading";
+    private const string SpanProyeccionGrouping = "marten.turnodiarioview.all.page.grouping";
+
     // Colector en memoria: hace las veces de "exporter" para poder inspeccionar, sin Application
     // Insights ni infra real, que actividades sobrevivieron el pipeline completo de sampling.
     private sealed class ColectorDeActividades : BaseProcessor<Activity>
@@ -62,7 +66,7 @@ public class SamplerQueDescartaPollingDelDaemonTests
     {
         var sampler = new SamplerQueDescartaPollingDelDaemon(new AlwaysOnSampler());
         var parametros = new SamplingParameters(
-            default, default, "marten.turnodiarioview.all.page.loading", ActivityKind.Internal);
+            default, default, SpanProyeccionLoading, ActivityKind.Internal);
 
         var resultado = sampler.ShouldSample(in parametros);
 
@@ -134,17 +138,16 @@ public class SamplerQueDescartaPollingDelDaemonTests
             .AddProcessor(colector)
             .Build();
 
-        using (fuenteMarten.StartActivity("marten.turnodiarioview.all.page.loading"))
+        using (fuenteMarten.StartActivity(SpanProyeccionLoading))
         {
         }
 
-        using (fuenteMarten.StartActivity("marten.turnodiarioview.all.page.grouping"))
+        using (fuenteMarten.StartActivity(SpanProyeccionGrouping))
         {
         }
 
-        colector.Actividades.Should().HaveCount(2);
         colector.Actividades.Select(a => a.OperationName).Should().BeEquivalentTo(
-            ["marten.turnodiarioview.all.page.loading", "marten.turnodiarioview.all.page.grouping"]);
+            [SpanProyeccionLoading, SpanProyeccionGrouping]);
     }
 
     // --- Guardrail CA-6: el nombre no puede quedar como literal huerfano ---
@@ -162,29 +165,20 @@ public class SamplerQueDescartaPollingDelDaemonTests
             .Be($"{otelPrefix}.daemon.highwatermark");
     }
 
-    // --- Delegado accesible para inspeccion desde tests de composicion (CA-3) ---
+    // --- El sampler envuelto queda descrito en la superficie publica (soporte de CA-3) ---
 
     [Fact]
-    public void Delegado_ExponeElSamplerConElQueSeConstruyo()
+    public void Description_EmbebeLaDelSamplerEnvuelto()
     {
-        var interno = new AlwaysOnSampler();
-        var sampler = new SamplerQueDescartaPollingDelDaemon(interno);
+        // El wrapper no publica el delegado (MEF-ADR-0012, Tell-don't-Ask): lo describe. Asi el
+        // guardrail de composicion (ConfiguracionObservabilidadProjectionsTests, CA-3) puede leer el
+        // ratio configurado del sampler efectivo por su API publica, sin afirmar estado interno.
+        var envuelto = new ParentBasedSampler(new TraceIdRatioBasedSampler(0.5));
 
-        sampler.Delegado.Should().BeSameAs(interno);
-    }
+        var sampler = new SamplerQueDescartaPollingDelDaemon(envuelto);
 
-    // Helper de reflection reusado por ConfiguracionObservabilidadProjectionsTests para leer el
-    // Sampler efectivo del TracerProvider resuelto del contenedor. Se documenta aqui, junto al
-    // sampler que ese guardrail debe encontrar, para que ambos archivos no diverjan sobre como
-    // acceder a la propiedad interna.
-    internal static Sampler ObtenerSamplerEfectivo(TracerProvider tracerProvider)
-    {
-        var propiedad = tracerProvider.GetType()
-            .GetProperty("Sampler", BindingFlags.NonPublic | BindingFlags.Instance)
-            ?? throw new InvalidOperationException(
-                "TracerProviderSdk ya no expone la propiedad interna 'Sampler' " +
-                "(OpenTelemetry 1.16.0) -- actualizar este helper de reflection.");
-
-        return (Sampler)propiedad.GetValue(tracerProvider)!;
+        sampler.Description.Should()
+            .Contain(nameof(SamplerQueDescartaPollingDelDaemon)).And
+            .Contain(envuelto.Description);
     }
 }

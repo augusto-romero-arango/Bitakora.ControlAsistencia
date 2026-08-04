@@ -129,6 +129,26 @@ expresa encadenando un **segundo** `.WithTracing(...)` posterior al `.UseAzureMo
 `ParentBased(TraceIdRatioBased(ratio))`, ratio configurable via `TELEMETRY_SAMPLING_RATIO` (default
 0.2) -- ahora si efectivo.
 
+**El orden es fragil por naturaleza, asi que queda protegido por guardrail y no por convencion.**
+Cualquier reordenamiento futuro (o una version del exporter que cambie cuando registra su sampler)
+volveria a dejar el sampler del proyecto sin instalar, compilando y con los tests unitarios en
+verde: es el modo de falla que costo dos meses de ingestion completa. Los tests de composicion de
+ambos procesos (`ConfiguracionObservabilidadProjectionsTests`, `ComposicionServiciosTests`,
+MEF-ADR-0029) leen el sampler **efectivo** del `TracerProvider` resuelto del contenedor y afirman
+que no es `RateLimitedSampler` y que el ratio -- configurado y por defecto -- llego hasta el. La
+tecnica es determinista: compara tipos y lee `Sampler.Description`, sin muestrear actividades contra
+un ratio fraccionario. Esto deroga el "limite conocido" que esos archivos declaraban antes ("el
+sampler compuesto vive dentro de `TracerProviderSdk`, que OpenTelemetry no expone publicamente...
+queda cubierto por revision de codigo"): la revision de codigo no podia atrapar este defecto, porque
+el codigo visible era correcto.
+
+**Estado real de `TELEMETRY_SAMPLING_RATIO` frente a la tabla "Valores por ambiente" de arriba.** La
+variable no esta declarada en Terraform en **ningun** ambiente (verificado con `az functionapp config
+appsettings list`), asi que los valores de esa fila expresan la intencion de diseno, no lo que corre:
+hoy los tres ambientes usan el default de codigo (0.2). Declararla por ambiente queda fuera del
+alcance del issue #308 a proposito -- recalibrar el ratio se decide **despues** de medir con el
+sampler ya efectivo, no antes.
+
 **Alternativa considerada y descartada: configurar `AzureMonitorExporterOptions` en vez de
 reordenar.** Poner `o.TracesPerSecond = null; o.SamplingRatio = ratio;` hace que
 `UseAzureMonitorExporter()` instale `ApplicationInsightsSampler` en vez de `RateLimitedSampler`. Es

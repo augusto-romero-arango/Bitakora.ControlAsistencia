@@ -26,19 +26,24 @@ public sealed class SamplerQueDescartaPollingDelDaemon : Sampler
     // esta corrigiendo.
     internal const string NombreSpanPollingDaemon = "marten.daemon.highwatermark";
 
-    // Visible en tests via InternalsVisibleTo (Projections.csproj). Permite verificar CA-3
-    // (TELEMETRY_SAMPLING_RATIO llega al sampler efectivo) inspeccionando directamente el sampler
-    // envuelto, sin necesitar reflection adicional mas alla del unico paso ya inevitable: leer la
-    // propiedad interna `Sampler` de TracerProviderSdk (OpenTelemetry no la expone publicamente).
-    internal Sampler Delegado { get; }
+    private readonly Sampler _delegado;
 
     public SamplerQueDescartaPollingDelDaemon(Sampler delegado)
     {
-        Delegado = delegado;
+        _delegado = delegado;
+
+        // Description compuesta al estilo de la propia OpenTelemetry (ParentBasedSampler produce
+        // "ParentBased{TraceIdRatioBasedSampler{0.200000}}"): el sampler envuelto queda visible en
+        // la unica superficie que la clase base ya expone publicamente, en vez de publicar el
+        // delegado como propiedad para que los tests afirmen estado interno (MEF-ADR-0012,
+        // Tell-don't-Ask). Tiene valor para el caller real, no solo para el test: es la cadena con
+        // la que el SDK describe el sampler instalado en sus diagnosticos, y es la que el guardrail
+        // CA-3 lee para comprobar que TELEMETRY_SAMPLING_RATIO llega al sampler efectivo.
+        Description = $"{nameof(SamplerQueDescartaPollingDelDaemon)}{{{delegado.Description}}}";
     }
 
     public override SamplingResult ShouldSample(in SamplingParameters samplingParameters) =>
         samplingParameters.Name == NombreSpanPollingDaemon
             ? new SamplingResult(SamplingDecision.Drop)
-            : Delegado.ShouldSample(in samplingParameters);
+            : _delegado.ShouldSample(in samplingParameters);
 }

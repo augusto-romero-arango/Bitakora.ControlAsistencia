@@ -19,6 +19,7 @@
 // downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
 // -> MetadataConfig (IReadonlyMetadataConfig).
 
+using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
@@ -48,11 +49,14 @@ public class ComposicionServiciosTests
     private const string ServiceBusConnectionStringDummy =
         "Endpoint=sb://dummy.servicebus.windows.net/;SharedAccessKeyName=dummy;SharedAccessKey=dummy";
 
-    // Issue #308: nombre de variable de entorno del sampling (CA-ADR-0009 Capa 2). Se repite como
-    // literal inline en ComposicionServicios.cs (a diferencia de Projections, que lo extrae a una
-    // constante testeable) -- ver comentario de ese archivo. El literal se fija aqui una sola vez
-    // para no repetirlo en cada test.
+    // Issue #308: nombre de la variable de entorno y default del ratio de sampling (CA-ADR-0009
+    // Capa 2). Ambos se repiten como literal inline en ComposicionServicios.cs -- a diferencia de
+    // Projections, que los extrae a constantes internas testeables -- porque este dominio no declara
+    // InternalsVisibleTo hacia su proyecto de tests. Se fijan aqui una sola vez para no repetirlos
+    // en cada test; si algun dia el dominio abre sus internals, estas dos constantes se reemplazan
+    // por las de produccion.
     private const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
+    private const double RatioSamplingPorDefecto = 0.2;
 
     private static ServiceProvider ComponerServiceProvider()
     {
@@ -88,9 +92,10 @@ public class ComposicionServiciosTests
     // Issue #308: lee la propiedad interna `Sampler` de TracerProviderSdk (OpenTelemetry.dll no la
     // expone publicamente). Determinista -- compara tipos y lee Sampler.Description (publica) --,
     // no requiere muestrear actividades reales contra un ratio fraccionario. Duplicado deliberado
-    // del mismo helper en Bitakora.ControlAsistencia.Projections.Tests
-    // (SamplerQueDescartaPollingDelDaemonTests): son proyectos de test distintos, sin un ensamblado
-    // compartido entre ambos (CA-ADR-0029: Contracts.Tests fue eliminado).
+    // del mismo helper en Bitakora.ControlAsistencia.Projections.Tests (SamplerEfectivo.De): son
+    // proyectos de test distintos, sin un ensamblado compartido entre ambos (CA-ADR-0029:
+    // Contracts.Tests fue eliminado). Dos sitios -- MEF-ADR-0018 Rule of Three: se tolera la
+    // duplicacion hasta que aparezca un tercer consumidor que justifique un ensamblado comun.
     private static Sampler ObtenerSamplerEfectivo(TracerProvider tracerProvider)
     {
         var propiedad = tracerProvider.GetType()
@@ -396,7 +401,31 @@ public class ComposicionServiciosTests
 
             var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
 
-            samplerEfectivo.Description.Should().Contain("0.500000");
+            samplerEfectivo.Description.Should().Contain(FormatearRatio(0.5));
         });
     }
+
+    // La otra mitad de CA-3, y la que mas importa hoy: TELEMETRY_SAMPLING_RATIO no esta puesta en
+    // ningun recurso desplegado (medido en el issue #308), asi que el camino que efectivamente corre
+    // en dev es el del DEFAULT. Sin este guardrail, el sampler efectivo podria quedar con un ratio
+    // distinto al declarado y solo se veria como un volumen de ingestion inesperado -- el mismo modo
+    // de falla silenciosa que este issue corrige.
+    [Fact]
+    public void AgregarServiciosControlHoras_PropagaElRatioPorDefecto_AlSamplerEfectivo_CuandoLaVariableEstaAusente()
+    {
+        ConVariableDeEntorno(VariableRatioSampling, null, () =>
+        {
+            using var provider = ComponerServiceProvider();
+            var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+            var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
+
+            samplerEfectivo.Description.Should().Contain(FormatearRatio(RatioSamplingPorDefecto));
+        });
+    }
+
+    // TraceIdRatioBasedSampler embebe el ratio en su Description con formato F6 invariante
+    // ("TraceIdRatioBasedSampler{0.200000}"), verificado contra OpenTelemetry 1.16.0.
+    private static string FormatearRatio(double ratio) =>
+        ratio.ToString("F6", CultureInfo.InvariantCulture);
 }
