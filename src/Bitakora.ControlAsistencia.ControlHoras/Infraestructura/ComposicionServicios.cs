@@ -3,6 +3,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -75,6 +76,33 @@ public static class ComposicionServicios
             // mapping exista antes de la primera lectura, en vez de depender de que un append lo
             // haya poblado (issue #237 seccion "Consecuencia asumida").
             options.Events.AddEventTypes(IdentidadEventosControlHoras.TiposPersistidos);
+
+            // Issue #294: declara del lado LECTURA la forma de mt_version que el worker ya impuso
+            // del lado escritura -- el reverso del principio de #268, donde el worker replicaba lo
+            // que el write-side poseia. Aqui la tabla la posee la proyeccion, y este Function App
+            // solo la consulta (ObtenerTurnoDiario, ListarTurnosDiarios).
+            //
+            // Marten aplica ProjectionDocumentPolicy a todo documento que sea target de una
+            // proyeccion registrada en ese store: UseNumericRevisions = true, Metadata.Revision
+            // (mt_version bigint) habilitada y Metadata.Version (mt_version uuid) DESHABILITADA. No
+            // es opt-in ni depende de IRevisioned ni del lifecycle: la doc lo declara como la
+            // excepcion a que el versionado sea opt-in
+            // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents") y el
+            // codigo lo hace incondicional (Marten/Events/Projections/ProjectionDocumentPolicy.cs).
+            //
+            // El worker registra TurnoDiarioProjection, asi que creo mt_version como bigint. Este
+            // store NO la registra ni puede hacerlo -- TurnoDiarioProjection vive en el ensamblado
+            // del worker y referenciarlo violaria CA-ADR-0029 --, asi que sin esta linea esperaria
+            // mt_version uuid sobre la MISMA tabla fisica. Con AutoCreate en su default
+            // CreateOrUpdate el sintoma no es un 404: Marten intenta "alter column mt_version type
+            // uuid" en CADA request, Postgres lo rechaza con 42804 (no hay cast automatico
+            // bigint -> uuid) y los dos GET responden 500 de forma permanente. Eso fue lo que
+            // ocurrio en dev tras el deploy de #290.
+            //
+            // Se declara por documento y no via Policies para no alterar la forma de ningun otro
+            // documento de este store. El par de config-tests (este lado y el del worker) congela
+            // los mismos valores literales, que es la dimension que el par de #289 dejo abierta.
+            options.Schema.For<TurnoDiarioView>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
