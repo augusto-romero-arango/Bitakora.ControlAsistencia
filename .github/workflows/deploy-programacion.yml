@@ -141,6 +141,14 @@ jobs:
     needs: [determinar-alcance, build-and-test]
     if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      # Declarar 'permissions' a nivel de job pone en 'none' todo scope que no se liste, asi
+      # que 'contents: read' es obligatorio para que actions/checkout siga clonando.
+      contents: read
+      # Emite el token federado que azure/login canjea por OIDC, sin client secret
+      # (MEF-ADR-0022). El bloque va por JOB y no a nivel de workflow a proposito: el job
+      # 'determinar-alcance' necesita 'pull-requests: read', que este reparto no le quita.
+      id-token: write
     outputs:
       sha: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
@@ -181,7 +189,9 @@ jobs:
       - name: Azure Authentication
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1

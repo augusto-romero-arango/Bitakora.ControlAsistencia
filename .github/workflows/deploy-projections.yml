@@ -12,13 +12,6 @@
 #      "Revisions in Azure Container Apps" de Microsoft Learn), lo que garantiza que el
 #      contenedor arranque de cero y lea el secreto vigente.
 #
-# Desviacion declarada frente a MEF-ADR-0022: ese ADR exige que CI se autentique contra Azure
-# por OIDC (azure/login con client-id/tenant-id/subscription-id, sin secret de password). Este
-# workflow usa `creds: secrets.AZURE_CREDENTIALS` en su lugar, igual que deploy-control-horas.yml
-# y deploy-programacion.yml hacen hoy. Migrar a OIDC es un cambio transversal (federated
-# credentials del SP + los tres secrets + los cuatro workflows a la vez) que no pertenece a este
-# issue; se hara en un issue aparte que migre los cuatro workflows juntos.
-#
 # Rollback de imagen: la imagen NO la gobierna Terraform (issue #249 le puso
 # `lifecycle { ignore_changes = [template[0].container[0].image] }` al Container App), asi que
 # revertir jamas se hace tocando HCL ni corriendo `terraform apply`. Se hace re-publicando el
@@ -94,13 +87,23 @@ jobs:
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
+    permissions:
+      # Declarar 'permissions' a nivel de job pone en 'none' todo scope que no se liste, asi
+      # que 'contents: read' es obligatorio para que actions/checkout siga clonando.
+      contents: read
+      # Emite el token federado que azure/login canjea por OIDC, sin client secret
+      # (MEF-ADR-0022). Basta para los pasos de 'az' y 'docker push' de abajo: van contra el
+      # ACR (plano de Azure), no contra la API de GitHub ni contra GHCR.
+      id-token: write
     steps:
       - uses: actions/checkout@v6
 
       - name: Azure Authentication
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Resolver el ACR del resource group
         run: |
