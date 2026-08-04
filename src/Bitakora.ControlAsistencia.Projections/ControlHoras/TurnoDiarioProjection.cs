@@ -26,8 +26,16 @@ namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 public sealed partial class TurnoDiarioProjection : SingleStreamProjection<TurnoDiarioView, string>
 {
     public static TurnoDiarioView Create(TurnoDiarioAsignado evento) =>
-        throw new NotImplementedException();
+        new(evento.Id, evento.InformacionEmpleado, evento.Fecha, evento.DetalleTurno, evento.SolicitudId);
 
+    // CA-3: "el ultimo gana" -- una reasignacion sobre el mismo (empleado, fecha) sobrescribe el
+    // documento completo con lo que trae el nuevo evento. El Id no cambia (mismo stream key).
     public static TurnoDiarioView Apply(TurnoDiarioAsignado evento, TurnoDiarioView vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            Empleado = evento.InformacionEmpleado,
+            Fecha = evento.Fecha,
+            DetalleTurno = evento.DetalleTurno,
+            UltimaSolicitudId = evento.SolicitudId
+        };
 }

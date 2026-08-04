@@ -1,3 +1,6 @@
+using System.Globalization;
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.MultiTenancy;
 using Marten;
 using Microsoft.AspNetCore.Http;
@@ -16,14 +19,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario;
 // tenant id de la ruta/query string, MEF-ADR-0028/skills/projections/read-apis.md -- mitigacion
 // estructural contra BOLA/IDOR). empleadoId y fecha SI vienen de la ruta: son el recurso, no el
 // tenant.
-//
-// FASE ROJA (projection-test-writer): Run es un stub. projection-implementer completa el
-// session.LoadAsync<TurnoDiarioView>(streamKey), el mapeo a TurnoDiarioRespuesta (sin el Id, CA-5)
-// y el 404 sin body cuando no hay turno vigente (CA-6). El constructor SI debe resolver limpio
-// del contenedor -- eso es lo que verifica el test de composicion de ComposicionServiciosTests
-// (CA-7), hermano de MEF-ADR-0029: no depende de que Run este implementado.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
+    private const string FormatoFecha = "yyyy-MM-dd";
+
     [Function("ObtenerTurnoDiario")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "control-horas/turnos-diarios/{empleadoId}/{fecha}")]
@@ -32,11 +31,30 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         string fecha,
         CancellationToken ct)
     {
-        // Referencia minima a store/tenantResolver para evitar CS9113 (parametro de constructor
-        // primario sin lectura) mientras Run no tiene implementacion real -- projection-implementer
-        // reemplaza este cuerpo por el LoadAsync/mapeo/404 real (CA-5/CA-6).
-        _ = store;
-        _ = tenantResolver;
-        throw new NotImplementedException();
+        // Fecha no liga directo a DateOnly en el modelo aislado de Functions: se recibe como
+        // string y se parsea con formato explicito, devolviendo 400 ante formato invalido
+        // (nota tecnica del issue #289).
+        if (!DateOnly.TryParseExact(
+                fecha, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParseada))
+            return new BadRequestObjectResult(
+                $"El parametro 'fecha' debe tener el formato {FormatoFecha}");
+
+        var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(empleadoId, fechaParseada);
+
+        // CA-5: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver
+        // -- nunca a un tenant id que llegara por ruta o query string (mitigacion BOLA/IDOR,
+        // MEF-ADR-0028/skills/projections/read-apis.md).
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        var vista = await session.LoadAsync<TurnoDiarioView>(streamKey, ct);
+
+        // CA-6: 404 sin body cuando no hay turno vigente para ese (empleado, fecha) -- no es un
+        // error, significa que ese dia no tiene turno asignado.
+        if (vista is null)
+            return new NotFoundResult();
+
+        var respuesta = new TurnoDiarioRespuesta(
+            vista.Empleado, vista.Fecha, vista.DetalleTurno, vista.UltimaSolicitudId);
+
+        return new OkObjectResult(respuesta);
     }
 }

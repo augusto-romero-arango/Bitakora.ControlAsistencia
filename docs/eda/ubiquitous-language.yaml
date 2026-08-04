@@ -68,6 +68,17 @@ terms:
     context: Programacion
     note: "'Jornada' se reserva para el concepto juridico (duraciones y limites legales). Turno es lo que el sistema gestiona."
 
+  - name: Turno Diario
+    definition: >
+      El turno que rige efectivamente a un empleado en una fecha concreta. Es el resultado,
+      por dia, de aplicar TurnoDiarioAsignado al ControlDiario del par (EmpleadoId, Fecha):
+      un stream por dia de trabajo, no por solicitud. Si una fecha se reprograma, el ultimo
+      TurnoDiarioAsignado sobrescribe al anterior -- "el ultimo gana" -- asi que el Turno
+      Diario siempre refleja la asignacion vigente, nunca el historial de reprogramaciones.
+    context: ControlHoras
+    date_added: 2026-08-03
+    note: "Diferenciado de 'Turno' (context: Programacion), la plantilla del catalogo. Turno es la plantilla reutilizable; Turno Diario es su aplicacion concreta a un empleado y una fecha."
+
   - name: Franja Ordinaria
     definition: Segmento continuo de trabajo dentro de un turno. Es la franja principal que recibe marcaciones. Puede contener franjas de descanso y/o franjas de extra.
     context: Programacion
