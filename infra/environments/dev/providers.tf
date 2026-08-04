@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      version = "~> 5.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -36,9 +36,12 @@ terraform {
 provider "azurerm" {
   subscription_id = var.subscription_id
 
-  # Microsoft.App no esta en el set "core" que el provider registra por defecto
-  # (resource_provider_registrations = "core"). Lo requiere el Container App
-  # Environment del worker de proyecciones (MEF-ADR-0034 seccion 8). Ver issue #246.
+  # En v5 el default de resource_provider_registrations es "none": el provider
+  # ya no registra ningun Resource Provider automaticamente (antes de v5 el
+  # default era "legacy", un set fijo de ~60 RPs). Por eso declarar
+  # explicitamente los RPs que la configuracion necesita -- como ya haciamos
+  # desde el issue #246 -- deja de ser un ajuste puntual para Microsoft.App y
+  # pasa a ser la forma canonica de registrar Resource Providers en v5.
   resource_providers_to_register = [
     "Microsoft.App",
   ]
@@ -46,6 +49,19 @@ provider "azurerm" {
   features {
     resource_group {
       prevent_deletion_if_contains_resources = true
+    }
+
+    # v5 mueve enhanced_validation dentro de "features" y lo deshabilita por
+    # default (antes iba fuera de "features" y estaba habilitado). Sin esto,
+    # una location o Resource Provider invalido se detecta en el apply, no en
+    # el plan. En este proyecto el plan corre en el PR y el apply corre al
+    # mergear (MEF-ADR-0022): aceptar el default nuevo moveria esa clase de
+    # error de "antes del merge" a "despues del merge". Se restaura
+    # explicitamente el comportamiento de validacion en tiempo de plan que ya
+    # teniamos en v4.
+    enhanced_validation {
+      locations          = true
+      resource_providers = true
     }
   }
 }
