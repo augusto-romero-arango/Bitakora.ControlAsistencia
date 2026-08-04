@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
+using Bitakora.ControlAsistencia.Projections.ControlHoras;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
+using JasperFx.Events.Projections; // ProjectionLifecycle (NO Marten.Events.Projections)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
 using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
@@ -21,8 +23,9 @@ public interface IControlHorasProjectionStore : IDocumentStore;
 /// Registra el named store sobre la misma conexion y el mismo schema "control_horas" que ya usa
 /// el write-side (ComposicionServicios.AgregarServiciosControlHoras) -- el read-side no crea
 /// base ni schema nuevos, solo re-declara del lado lectura lo que el dominio ya posee del lado
-/// escritura. Sin ninguna proyeccion concreta todavia: las agrega projection-implementer sobre
-/// este mismo seam, siempre con lifecycle Async (MEF-ADR-0034 seccion 3).
+/// escritura. Issue #289: primera proyeccion concreta del BC (TurnoDiarioProjection), registrada
+/// mas abajo con lifecycle Async (MEF-ADR-0034 seccion 3). Cualquier proyeccion futura de este
+/// dominio se suma aditivamente en el mismo AddMartenStore, sin remover esta.
 ///
 /// El seam se declara con modificadores de acceso y sin partial: un metodo partial sin
 /// modificadores desaparece en silencio al compilar si nadie lo implementa, y ademas seria
@@ -99,6 +102,12 @@ public static class ConfiguracionMartenProjectionsControlHoras
                     ConfiguracionSerializacionControlHoras.ConfigurarResolver(resolver);
                     jsonOptions.TypeInfoResolver = resolver;
                 });
+
+                // Issue #289 CA-4: primera proyeccion concreta del BC. N1 -- un solo stream
+                // (EmpleadoId, Fecha) -- lifecycle Async es el canonico del worker (MEF-ADR-0034
+                // seccion 3); Inline solo seria valido con justificacion explicita del issue, que
+                // este no la da.
+                opts.Projections.Add<TurnoDiarioProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

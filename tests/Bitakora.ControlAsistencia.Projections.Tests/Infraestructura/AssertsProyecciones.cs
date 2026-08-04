@@ -56,6 +56,23 @@ public static class AssertsProyecciones
             .Should().NotContain(proyeccion => proyeccion.Lifecycle == ProjectionLifecycle.Inline);
 
     /// <summary>
+    /// Issue #289 CA-4: la proyeccion concreta quedo registrada en el named store con lifecycle
+    /// Async -- complementa AssertSinProyeccionesInline (que solo prueba que NADA quedo Inline; una
+    /// lista de proyecciones vacia pasaria esa guarda sin decir nada sobre si la proyeccion
+    /// concreta llego a registrarse). <paramref name="nombreVista"/> es el nombre de la VISTA
+    /// (p. ej. "TurnoDiarioView"), no el de la clase de proyeccion -- verificado por decompilacion
+    /// con ilspycmd contra JasperFx.Events 2.18.1 (investigacion del planner, issue #289):
+    /// ISubscriptionSource.Name es la propiedad real (no "ProjectionName", que no existe en la
+    /// interfaz), y Marten la deriva del tipo de documento agregado, nunca del nombre de la clase
+    /// companion (p. ej. TurnoDiarioProjection).
+    /// </summary>
+    public static void AssertProyeccionAsyncRegistrada(this IDocumentStore store, string nombreVista) =>
+        store.Options.Events.Projections()
+            .Should().ContainSingle(proyeccion =>
+                proyeccion.Name == nombreVista
+                && proyeccion.Lifecycle == ProjectionLifecycle.Async);
+
+    /// <summary>
     /// El daemon del named store quedo encendido y en modo HotCold (MEF-ADR-0034 seccion 2):
     /// registrar el store no basta -- sin AddAsyncDaemon encadenado el worker arranca y nunca
     /// materializa nada, y con DaemonMode.Solo dos replicas simultaneas procesarian los mismos

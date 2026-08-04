@@ -26,11 +26,14 @@ using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using FluentValidation;
+using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
+using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -185,5 +188,58 @@ public class ComposicionServiciosTests
             [typeof(MarcacionAdicionada)] = "marcacion_adicionada",
             [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado"
         });
+    }
+
+    // Issue #289 CA-7: test de composicion de la primera Function GET del BC, hermano de
+    // MEF-ADR-0029 -- misma idea que las guardas de arriba (grafo de DI real, sin infra
+    // desplegada), pero sobre un FunctionEndpoint en vez de un router de Wolverine.
+    //
+    // Ninguna Function de este ensamblado se registra explicitamente en el contenedor
+    // (RegistrarMarcacionFunction, AdicionarMarcacionCuandoRegistroDeMarcacionCreado,
+    // AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction: ninguna lleva un
+    // services.AddScoped<FunctionEndpoint>() explicito) -- el host de Azure Functions isolated
+    // worker las activa por tipo, resolviendo su constructor contra el mismo ServiceProvider que
+    // arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa misma activacion sin
+    // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
+    // Functions isolated worker).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (CA-5/CA-6, LoadAsync + mapeo + 404), que es responsabilidad del smoke
+    // test (CA-8) y de projection-implementer, no de este guardrail de wiring.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerTurnoDiario_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerTurnoDiarioEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #289 CA-5, mitad write-side del punto abierto de MEF-ADR-0035 seccion 4: el daemon
+    // materializa TurnoDiarioView desde el named store del worker (otro proceso) y este Function App
+    // la lee con session.LoadAsync sin registrar la proyeccion ni el documento. Que ambos lados
+    // converjan en la MISMA tabla fisica y la MISMA tenancy no lo garantiza ningun compilador: es
+    // configuracion cruzada entre dos procesos sobre el mismo schema. Si divergieran, el GET
+    // devolveria 404 para siempre con el daemon funcionando -- fallo silencioso que hoy solo
+    // detectaria el smoke test contra dev (CA-8), fuera del CI de PR.
+    //
+    // El oraculo es literal (MEF-ADR-0002, no-tautologia) y ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoDiarioViewSobreLaTablaQueConsultaElWriteSide congela
+    // el MISMO literal desde el worker: juntos pinean las dos mitades sin que ningun ensamblado
+    // tenga que referenciar al otro (CA-ADR-0028/CA-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveTurnoDiarioViewSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnodiarioview");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
     }
 }

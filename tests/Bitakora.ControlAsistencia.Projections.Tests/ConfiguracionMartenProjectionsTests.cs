@@ -3,6 +3,8 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
+using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
+using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests;
@@ -286,6 +288,44 @@ public class ConfiguracionMartenProjectionsTests
         provider.GetRequiredService<IControlHorasProjectionStore>()
             .AssertEventosPersistidosRegistrados(
                 [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
+    }
+
+    // Issue #289 CA-4: primera proyeccion concreta del BC. TurnoDiarioProjection (N1,
+    // SingleStreamProjection<TurnoDiarioView, string>) queda registrada con lifecycle Async, el
+    // canonico del worker (MEF-ADR-0034 seccion 3). Complementa
+    // ConfigurarControlHoras_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo
+    // Inline -- una lista vacia la pasaria --, esta prueba que la proyeccion CONCRETA si se registro.
+    [Fact]
+    public void ConfigurarControlHoras_RegistraTurnoDiarioProjectionComoAsync()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("TurnoDiarioView");
+    }
+
+    // Issue #289 CA-5, mitad worker del punto abierto de MEF-ADR-0035 seccion 4: el daemon escribe
+    // TurnoDiarioView desde este named store y el Function App de ControlHoras la lee, en otro
+    // proceso, con session.LoadAsync y sin registrar la proyeccion. Que ambos lados converjan en la
+    // MISMA tabla fisica y la MISMA tenancy no lo garantiza ningun compilador.
+    //
+    // El oraculo es el literal de la tabla, y ComposicionServiciosTests
+    // .AgregarServiciosControlHoras_ResuelveTurnoDiarioViewSobreLaTablaQueMaterializaElWorker...
+    // congela el MISMO literal desde el write-side: juntos pinean las dos mitades sin que ningun
+    // ensamblado tenga que referenciar al otro (CA-ADR-0028/CA-ADR-0029). Si divergieran, el GET
+    // devolveria 404 para siempre con el daemon funcionando -- fallo silencioso que solo detectaria
+    // el smoke test contra dev (CA-8), fuera del CI de PR.
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaTurnoDiarioViewSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnodiarioview");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
     }
 
     // --- Seam de nivel BC (CA-4) ---
