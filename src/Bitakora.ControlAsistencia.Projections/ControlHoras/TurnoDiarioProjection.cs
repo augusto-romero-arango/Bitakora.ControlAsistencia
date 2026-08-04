@@ -14,10 +14,9 @@ namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 /// queda limpio pero falla en RUNTIME al registrar la proyeccion (InvalidProjectionException) --
 /// error que el config-test ya detecta (ConfigurarControlHoras_ResuelveElNamedStoreDelDominio).
 ///
-/// FASE ROJA (projection-test-writer): Create/Apply son stubs. projection-implementer los completa
-/// y ademas registra esta clase en ConfiguracionMartenProjectionsControlHoras.ConfigurarControlHoras
-/// con opts.Projections.Add&lt;TurnoDiarioProjection&gt;(ProjectionLifecycle.Async) -- ese registro
-/// es el rojo que cubre ConfiguracionMartenProjectionsTests.
+/// Se registra en ConfiguracionMartenProjectionsControlHoras.ConfigurarControlHoras con
+/// opts.Projections.Add&lt;TurnoDiarioProjection&gt;(ProjectionLifecycle.Async) -- lifecycle canonico
+/// del worker (MEF-ADR-0034 seccion 3), verificado por ConfiguracionMartenProjectionsTests.
 ///
 /// Solo TurnoDiarioAsignado alimenta esta vista: MarcacionAdicionada tambien vive en el mismo
 /// stream de ControlDiarioAggregateRoot pero esta proyeccion la ignora a proposito (CA-2). Sin

@@ -137,7 +137,7 @@ terms:
       ControlDiario ni el verbo del dominio (control).
 
   - name: Anomalia
-    definition: Caso sospechoso o incompleto detectado automaticamente por el sistema durante la depuracion. Ejemplo: franja con entrada pero sin salida, o dia sin programacion.
+    definition: "Caso sospechoso o incompleto detectado automaticamente por el sistema durante la depuracion. Ejemplo: franja con entrada pero sin salida, o dia sin programacion."
     context: ControlHoras
     note: "Termino elegido por su peso estadistico, pensando en escalabilidad futura hacia deteccion por IA"
 

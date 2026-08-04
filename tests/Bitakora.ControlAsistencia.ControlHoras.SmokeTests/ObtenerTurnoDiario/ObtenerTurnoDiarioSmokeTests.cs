@@ -13,6 +13,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ObtenerTurnoDiario;
 // que origina la vista no llega por HTTP -- ControlHoras la recibe via ProgramacionTurnoDiarioSolicitada
 // en el bus interno (precedente: AsignarTurnoViaSbSmokeTests, mismo patron de inyeccion por bus).
 //
+// Estos tests quedan ROJOS hasta que el deploy publique ObtenerTurnoDiario en dev: mientras la
+// revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- el caso 400
+// falla y el caso 404 pasa por la razon equivocada. Mismo precedente y misma lectura que los
+// RegistrarMarcacion_Retorna400_Cuando* del issue #279. El CI de PR no los ejecuta (solo corre
+// *.Tests); su veredicto real se lee despues del deploy.
+//
 // La proyeccion TurnoDiarioView tiene lifecycle Async: un worker aparte (Container App, daemon Marten)
 // la materializa DESPUES de que ControlHoras persiste turno_diario_asignado. El GET inmediato puede
 // devolver 404 legitimamente, asi que el caso de exito envuelve la consulta en Polling.WaitUntilAsync
@@ -127,11 +133,11 @@ public class ObtenerTurnoDiarioSmokeTests(ApiFixture api, ServiceBusFixture serv
                 JsonOptions, cancellationToken: ct);
         }, Timeout);
 
-        respuesta.Should().NotBeNull(
-            "el worker de proyecciones deberia materializar TurnoDiarioView dentro del timeout");
+        // Sin assert de NotBeNull: WaitUntilAsync devuelve un valor no nulo o lanza TimeoutException
+        // ("el worker no materializo TurnoDiarioView dentro del timeout"), nunca null.
 
         // Assert: empleado y fecha (CA-8).
-        respuesta!.Fecha.Should().Be(fecha);
+        respuesta.Fecha.Should().Be(fecha);
         respuesta.UltimaSolicitudId.Should().Be(solicitudId);
 
         var empleadoEsperado = new InformacionEmpleado(
@@ -150,7 +156,7 @@ public class ObtenerTurnoDiarioSmokeTests(ApiFixture api, ServiceBusFixture serv
         var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Query HU289", [
             new DetalleFranjaOrdinaria(
                 new TimeOnly(8, 0), new TimeOnly(16, 0), 0,
-                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>(), descripcionFranja)
+                Descansos: [], Extras: [], Descripcion: descripcionFranja)
         ], descripcionTurno);
         respuesta.DetalleTurno.Should().BeEquivalentTo(detalleTurnoEsperado);
     }
@@ -168,8 +174,11 @@ public class ObtenerTurnoDiarioSmokeTests(ApiFixture api, ServiceBusFixture serv
         // Act
         var response = await _client.GetAsync(Ruta(empleadoId, fecha), ct);
 
-        // Assert: CA-6 -- 404 sin body, respuesta correcta (no error) cuando no hay turno asignado.
+        // Assert: CA-6 -- 404 SIN BODY, respuesta correcta (no error) cuando no hay turno asignado.
+        // El body vacio no es cosmetico: distingue el NotFoundResult() del endpoint de un 404 con
+        // payload de error, y de la pagina de error del host si la ruta no existiera.
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
     }
 
     [Fact]

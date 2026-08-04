@@ -14,11 +14,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario;
 // query (skills/projections/read-apis.md): esta clase FunctionEndpoint no colisiona con las otras
 // cuatro homonimas del ensamblado (RegistrarMarcacionFunction, AdicionarMarcacionCuando...,
 // AsignarTurnoCuando...) porque cada una vive en su propio namespace.
-//
-// CA-5: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver (nunca a un
-// tenant id de la ruta/query string, MEF-ADR-0028/skills/projections/read-apis.md -- mitigacion
-// estructural contra BOLA/IDOR). empleadoId y fecha SI vienen de la ruta: son el recurso, no el
-// tenant.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -41,9 +36,10 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 
         var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(empleadoId, fechaParseada);
 
-        // CA-5: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver
-        // -- nunca a un tenant id que llegara por ruta o query string (mitigacion BOLA/IDOR,
-        // MEF-ADR-0028/skills/projections/read-apis.md).
+        // CA-5: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
+        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). empleadoId y fecha SI vienen de
+        // la ruta: son el recurso, no el tenant.
         await using var session = store.QuerySession(tenantResolver.TenantId);
         var vista = await session.LoadAsync<TurnoDiarioView>(streamKey, ct);
 
