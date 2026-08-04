@@ -41,6 +41,14 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
+        with:
+          # Pinneado a lo que CI ya instalaba via `latest` (issue #303), no a la version local.
+          # Sin este pin, plan (PR) y apply (merge) son dos instalaciones independientes en
+          # momentos distintos: un release de Terraform entremedio corre el apply con un CLI
+          # que nadie uso en el plan. Bump deliberado en su propio PR, igual que el lock file
+          # del provider (#301), y SIEMPRE en los dos workflows a la vez: subirlo solo aca deja
+          # el plan de infra-ci.yml en otra version y reintroduce la divergencia que el pin cierra.
+          terraform_version: "1.15.8"
 
       - name: Terraform Init
         working-directory: infra/environments/dev
