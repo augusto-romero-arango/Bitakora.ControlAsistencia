@@ -45,8 +45,9 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     private static readonly Guid SolicitudId = Guid.Parse("019600d0-0000-7000-8000-000000000001");
 
     // Franja unica 06:00-14:00 usada por los escenarios de turno.
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static readonly DetalleFranjaOrdinaria Franja06_14 =
-        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], []);
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // Marcaciones que completan la franja (entrada+salida) -> franja NO anomala (CA-4).
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
@@ -90,7 +91,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
                 CrearMarcacionAdicionada(Timestamp07_00),
                 CrearMarcacionAdicionada(Timestamp15_00));
 
-            var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14]);
+            var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
             await WhenAsync(CrearEvento(turnoFranjaUnica));
 
             Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
@@ -114,7 +115,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
         public async Task CrearDiaCalculado_LlevaMinutosPorConceptoVacio_CuandoTurnoSinMarcaciones()
         {
             // Sin Given - stream nuevo, turno sin marcaciones previas.
-            var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14]);
+            var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
             await WhenAsync(CrearEvento(turnoFranjaUnica));
 
             Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));

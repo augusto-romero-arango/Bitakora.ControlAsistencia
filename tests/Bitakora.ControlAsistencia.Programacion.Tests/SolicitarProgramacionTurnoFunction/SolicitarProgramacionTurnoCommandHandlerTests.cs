@@ -26,12 +26,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno()
+    // Issue #288: Descripcion queda en "" porque CatalogoTurnos.ObtenerDetalle() y
+    // FranjaOrdinaria.ToDetalle() todavia no la asignan (placeholder de compilacion, fase verde
+    // pendiente en el implementer - ver CA-2). La coherencia con ToString() la prueba
+    // CatalogoTurnosTests (nuevo), no este archivo.
     private static readonly DetalleTurno DetalleEsperado = new(
         "Turno Manana",
         new List<DetalleFranjaOrdinaria>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [])
-        }.AsReadOnly());
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "")
+        }.AsReadOnly(),
+        "");
 
     // --- Configuracion del handler ---
 

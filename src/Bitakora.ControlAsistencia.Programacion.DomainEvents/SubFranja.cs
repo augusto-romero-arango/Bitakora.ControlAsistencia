@@ -30,8 +30,9 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
     }
 
     // Conversion a DTO plano para eventos entre dominios
+    // Issue #288 CA-2: Descripcion pendiente de asignar con ToString() (fase verde del implementer).
     public DetalleSubFranja ToDetalle() =>
-        new(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin);
+        new(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin, string.Empty);
 
     // CA-20, CA-21: formato legible con offsets
     public override string ToString() =>

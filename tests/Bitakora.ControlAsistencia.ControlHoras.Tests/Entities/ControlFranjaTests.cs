@@ -12,8 +12,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 /// </summary>
 public class ControlFranjaTests
 {
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static readonly DetalleFranjaOrdinaria Franja06_14 = new(
-        new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], []);
+        new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     private static readonly DateTime T07 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime T15 = new(2026, 3, 15, 15, 0, 0);

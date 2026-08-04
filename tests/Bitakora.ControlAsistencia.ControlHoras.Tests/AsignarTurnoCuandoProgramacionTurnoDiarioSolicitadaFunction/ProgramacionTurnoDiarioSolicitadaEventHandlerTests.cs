@@ -26,9 +26,11 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     // CA-7: stream ID determinista que el handler debe computar internamente
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
+    // Issue #288: Descripcion (dato derivado) es irrelevante para este test -> placeholder "".
     private static readonly DetalleTurno DetalleTurnoTest = new(
         "Turno Manana",
-        [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [])]);
+        [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")],
+        "");
 
     protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);

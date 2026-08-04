@@ -25,9 +25,12 @@ public class TurnoDiarioAsignadoSerializacionTests
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
+    // Issue #288: Descripcion (dato derivado, texto del formato tecnico) es irrelevante para este
+    // round-trip -> placeholder no vacio para verificar tambien que sobrevive la serializacion.
     private static readonly DetalleTurno DetalleTurnoTest = new(
         "Turno Manana",
-        [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [])]);
+        [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],
+        "Turno Manana (08:00-16:00)");
 
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
@@ -52,5 +55,11 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         deserializado.DetalleTurno.FranjasOrdinarias[0].HoraInicio
             .Should().Be(new TimeOnly(8, 0));
+
+        // Issue #288 CA-7: Descripcion (dato derivado persistido) sobrevive el round-trip,
+        // tanto a nivel turno como a nivel de cada franja ordinaria.
+        deserializado.DetalleTurno.Descripcion.Should().Be(DetalleTurnoTest.Descripcion);
+        deserializado.DetalleTurno.FranjasOrdinarias[0].Descripcion
+            .Should().Be(DetalleTurnoTest.FranjasOrdinarias[0].Descripcion);
     }
 }

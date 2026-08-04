@@ -20,8 +20,9 @@ public class DesgloseHorasSerializacionTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static DetalleFranjaOrdinaria CrearFranjaProgramadaSimple() =>
-        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], []);
+        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
     private static DesgloseFranja CrearFranjaDiurna() =>
         new DesgloseFranja(

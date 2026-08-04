@@ -29,8 +29,9 @@ public class DepurarAlAsignarTurnoTests
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
     // CA-4: franja unica 06:00-14:00 para el turno asignado
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static readonly DetalleFranjaOrdinaria Franja06_14 =
-        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], []);
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // Timestamps de las marcaciones que llegan antes que el turno
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
@@ -66,7 +67,7 @@ public class DepurarAlAsignarTurnoTests
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_CalculaControlFranja_CuandoMarcacionesLlegaronAntesQueTurno()
     {
-        var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14]);
+        var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
         Given(StreamId,
             CrearMarcacionAdicionada(Timestamp07_00),
             CrearMarcacionAdicionada(Timestamp15_00));
@@ -105,7 +106,7 @@ public class DepurarAlAsignarTurnoTests
     public async Task ProgramacionTurnoDiarioSolicitada_PublicaDiaCalculado_CuandoNoHayMarcacionesPrevias()
     {
         // Sin Given - stream nuevo, sin marcaciones previas
-        var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14]);
+        var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
 
         await WhenAsync(CrearEvento(turnoConFranjaUnica));
 
@@ -130,7 +131,7 @@ public class DepurarAlAsignarTurnoTests
     public async Task ProgramacionTurnoDiarioSolicitada_PublicaDiaCalculado_CuandoTurnoNoTieneFranjas()
     {
         // Sin Given - stream nuevo, turno sin franjas ordinarias
-        var turnoSinFranjas = new DetalleTurno("Turno Sin Franjas", []);
+        var turnoSinFranjas = new DetalleTurno("Turno Sin Franjas", [], "");
 
         await WhenAsync(CrearEvento(turnoSinFranjas));
 

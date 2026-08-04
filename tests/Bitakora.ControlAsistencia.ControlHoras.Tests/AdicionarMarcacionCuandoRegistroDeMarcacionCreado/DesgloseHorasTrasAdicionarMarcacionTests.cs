@@ -36,10 +36,11 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000003");
 
     // CA-1: turno partido con dos franjas ordinarias 08:00-12:00 y 14:00-18:00
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static readonly DetalleFranjaOrdinaria Franja08_12 =
-        new(new TimeOnly(8, 0), new TimeOnly(12, 0), 0, [], []);
+        new(new TimeOnly(8, 0), new TimeOnly(12, 0), 0, [], [], "");
     private static readonly DetalleFranjaOrdinaria Franja14_18 =
-        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], []);
+        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
@@ -67,7 +68,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     [Fact]
     public async Task RegistroDeMarcacionCreado_RecalculaDesgloseHoras_CuandoMarcacionCompletaUltimaFranja()
     {
-        var turnoPartido = new DetalleTurno("Turno Partido", [Franja08_12, Franja14_18]);
+        var turnoPartido = new DetalleTurno("Turno Partido", [Franja08_12, Franja14_18], "");
         Given(StreamId,
             CrearTurnoDiarioAsignado(turnoPartido),
             CrearMarcacionAdicionada(Timestamp08_00),

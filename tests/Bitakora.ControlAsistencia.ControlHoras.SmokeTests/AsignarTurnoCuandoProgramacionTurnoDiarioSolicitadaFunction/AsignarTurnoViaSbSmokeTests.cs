@@ -89,14 +89,19 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
         infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
 
+        // Issue #288: el evento crudo publicado arriba (objeto anonimo) no lleva "Descripcion" -- el
+        // dato derivado lo asigna Programacion en produccion (CatalogoTurnos/FranjaOrdinaria/SubFranja),
+        // no este payload de smoke test. Se excluye de la comparacion estructural porque no es
+        // relevante para lo que este smoke test verifica (que el mensaje crudo se persiste).
         var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Smoke SB", [
             new DetalleFranjaOrdinaria(
                 new TimeOnly(8, 0), new TimeOnly(16, 0), 0,
-                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>())
-        ]);
+                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>(), "")
+        ], "");
         var detalleTurnoPersistido = eventoPersistido
             .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
-        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
+        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado,
+            opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
         // Assert HU-131 CA-1/CA-2: DiaCalculado publicado al topic dia-calculado.
         // Se emite siempre, incluso si ControlesDeFranja queda vacio tras la depuracion reactiva.
@@ -218,14 +223,17 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
         infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
 
+        // Issue #288: mismo motivo que el test anterior - el mensaje crudo en camelCase no lleva
+        // "descripcion", asi que se excluye de la comparacion estructural.
         var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Wolverine CamelCase", [
             new DetalleFranjaOrdinaria(
                 new TimeOnly(7, 0), new TimeOnly(15, 0), 0,
-                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>())
-        ]);
+                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>(), "")
+        ], "");
         var detalleTurnoPersistido = eventoPersistido
             .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
-        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado);
+        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado,
+            opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
         // Assert HU-131: DiaCalculado publicado incluso cuando el mensaje llega en camelCase.
         // Valida que la cadena completa (deserializacion case-insensitive -> handler -> publicacion) funciona.

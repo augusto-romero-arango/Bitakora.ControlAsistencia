@@ -16,8 +16,9 @@ public class DesgloseFranjaTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static DetalleFranjaOrdinaria CrearFranjaProgramada() =>
-        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], []);
+        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
     // ---------- CA-1: agrupa por concepto y suma duraciones ----------
 

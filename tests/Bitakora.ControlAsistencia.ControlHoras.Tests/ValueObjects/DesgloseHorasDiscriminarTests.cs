@@ -30,8 +30,9 @@ public class DesgloseHorasDiscriminarTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static DetalleFranjaOrdinaria FranjaProgramada() =>
-        new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], []);
+        new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
     // El retardo de la franja no influye en Discriminar (solo lo hace DesgloseHoras.RetardoTotal):
     // las franjas se construyen con Retardo.Vacio y el retardo del dia se pasa aparte.

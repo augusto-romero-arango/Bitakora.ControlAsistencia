@@ -32,14 +32,15 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000001");
 
     // CA-1: franja unica 06:00-14:00
+    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
     private static readonly DetalleFranjaOrdinaria Franja06_14 =
-        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], []);
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // CA-3: turno partido con dos franjas
     private static readonly DetalleFranjaOrdinaria Franja06_12 =
-        new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], []);
+        new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
     private static readonly DetalleFranjaOrdinaria Franja14_18 =
-        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], []);
+        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
@@ -74,7 +75,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     [Fact]
     public async Task RegistroDeMarcacionCreado_CalculaControlFranja_CuandoHayTurnoYLlegaMarcacion()
     {
-        var turnoUnico = new DetalleTurno("Turno Manana", [Franja06_14]);
+        var turnoUnico = new DetalleTurno("Turno Manana", [Franja06_14], "");
         Given(StreamId, CrearTurnoDiarioAsignado(turnoUnico));
 
         await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
@@ -128,7 +129,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     [Fact]
     public async Task RegistroDeMarcacionCreado_RecalculaControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
     {
-        var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18]);
+        var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18], "");
         Given(StreamId,
             CrearTurnoDiarioAsignado(turnoPartido),
             CrearMarcacionAdicionada(Timestamp05_50),
