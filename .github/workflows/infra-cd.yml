@@ -13,6 +13,9 @@ concurrency:
 
 permissions:
   contents: read
+  # Emite el token federado que consume ARM_USE_OIDC (MEF-ADR-0022). Aca no hay paso de
+  # azure/login: Terraform lee por su cuenta ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN, que este
+  # scope habilita. Va a nivel de workflow porque el archivo tiene un unico job.
   id-token: write
 
 jobs:
@@ -22,6 +25,12 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # Una sola linea cubre provider Y backend: el provider azurerm detecta solo las
+      # ACTIONS_ID_TOKEN_REQUEST_* del runtime de Actions (guia service_principal_oidc) y el
+      # backend azurerm expone el mismo use_oidc, asi que el token federado sirve al init con
+      # el backend keyless por AAD (use_azuread_auth en providers.tf) y al apply. NO agregar
+      # env extra ni un use_oidc en el bloque backend: seria redundante. Sin ARM_CLIENT_SECRET
+      # a proposito -- si reaparece, el provider vuelve a autenticar por secret (MEF-ADR-0022).
       ARM_USE_OIDC: true
       TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_postgresql_admin_password: ${{ secrets.POSTGRESQL_ADMIN_PASSWORD }}

@@ -88,7 +88,12 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
+      # Declarar 'permissions' a nivel de job pone en 'none' todo scope que no se liste, asi
+      # que 'contents: read' es obligatorio para que actions/checkout siga clonando.
       contents: read
+      # Emite el token federado que azure/login canjea por OIDC, sin client secret
+      # (MEF-ADR-0022). Basta para los pasos de 'az' y 'docker push' de abajo: van contra el
+      # ACR (plano de Azure), no contra la API de GitHub ni contra GHCR.
       id-token: write
     steps:
       - uses: actions/checkout@v6
