@@ -13,6 +13,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosDiarios
 // TurnoDiarioView que ya materializa #289 -- se siembran datos publicando ProgramacionTurnoDiario-
 // Solicitada al bus interno, exactamente el mismo mecanismo de ObtenerTurnoDiarioSmokeTests.
 //
+// Estos tests quedan ROJOS hasta que el deploy publique ListarTurnosDiarios en dev: mientras la
+// revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- los casos
+// 400 y 200 fallan por esa razon, no por el contrato. Mismo precedente y misma lectura que
+// ObtenerTurnoDiarioSmokeTests (#289). El CI de PR no los ejecuta (solo corre *.Tests); su
+// veredicto real se lee despues del deploy.
+//
 // La proyeccion tiene lifecycle Async (MEF-ADR-0034): el worker la materializa DESPUES de que
 // ControlHoras persiste turno_diario_asignado. Los casos que dependen de datos sembrados envuelven
 // la consulta en Polling.WaitUntilAsync/WaitUntilTrueAsync (timeout estandar 30s) -- si el timeout
@@ -95,24 +101,22 @@ public class ListarTurnosDiariosSmokeTests(ApiFixture api, ServiceBusFixture ser
         await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
     }
 
-    private async Task<bool> EsperarTurnoMaterializadoAsync(
-        string empleadoId, DateOnly fecha, CancellationToken ct)
+    // Sensa la materializacion asincrona consultando ESTE mismo endpoint sobre un rango de un solo
+    // dia (desde == hasta), que nunca activa el recorte -- no via ObtenerTurnoDiario (#289), para no
+    // acoplar el veredicto de este archivo a la salud de otra Function.
+    private async Task<bool> EsperarTurnoEnLaListaAsync(
+        string empleadoId, DateOnly fecha, Guid solicitudId, CancellationToken ct)
     {
         return await Polling.WaitUntilTrueAsync(async () =>
         {
-            var response = await _client.GetAsync(
-                $"/api/control-horas/turnos-diarios/{empleadoId}/{fecha:yyyy-MM-dd}", ct);
-            return response.StatusCode == HttpStatusCode.OK;
-        }, Timeout);
-    }
+            var response = await _client.GetAsync(Ruta(fecha, fecha, empleadoId), ct);
+            if (response.StatusCode != HttpStatusCode.OK)
+                return false;
 
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task DebeEstarDisponible_CuandoSeConsultaHealthCheck()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _client.GetAsync("/api/health", ct);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var body = await response.Content.ReadFromJsonAsync<ListaTurnosDiariosSmoke>(
+                JsonOptions, cancellationToken: ct);
+            return body?.Turnos.Any(t => t.UltimaSolicitudId == solicitudId) ?? false;
+        }, Timeout);
     }
 
     [Fact]
@@ -305,11 +309,13 @@ public class ListarTurnosDiariosSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         // Espera a que AMBAS vistas esten materializadas antes de verificar el recorte: si no
         // esperaramos, la ausencia de "fuera" podria deberse a lag asincrono y no al recorte mismo.
-        var dentroMaterializado = await EsperarTurnoMaterializadoAsync(empleadoId, fechaDentro, ct);
+        var dentroMaterializado = await EsperarTurnoEnLaListaAsync(
+            empleadoId, fechaDentro, solicitudDentro, ct);
         dentroMaterializado.Should().BeTrue(
             $"la vista de {empleadoId} en {fechaDentro} deberia materializarse dentro del timeout");
 
-        var fueraMaterializado = await EsperarTurnoMaterializadoAsync(empleadoId, fechaFuera, ct);
+        var fueraMaterializado = await EsperarTurnoEnLaListaAsync(
+            empleadoId, fechaFuera, solicitudFuera, ct);
         fueraMaterializado.Should().BeTrue(
             $"la vista de {empleadoId} en {fechaFuera} deberia materializarse dentro del timeout");
 

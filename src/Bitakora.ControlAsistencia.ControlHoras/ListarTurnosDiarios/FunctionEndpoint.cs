@@ -20,11 +20,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios;
 // comando/query de ese recurso"). No hay colision de plantilla verificada en la investigacion del
 // planner: no existe ningun POST sobre este mismo segmento en este dominio.
 //
-// CA-1: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver -- nunca a
-// un tenant id que llegue en la ruta o el query string (MEF-ADR-0028/skills/projections/read-apis.md,
-// mitigacion estructural contra BOLA/IDOR). empleadoId/desde/hasta SI vienen del query string: son
-// el filtro del recurso, no el tenant.
-//
 // Verificado empiricamente (projection-implementer, Marten 9.12.0 contra Postgres real via
 // contenedor local desechable, sin dejar rastro en el repo): session.Query<TView>() SI traduce a
 // SQL tanto el filtro de rango sobre DateOnly (v.Fecha >= desde && v.Fecha <= hasta) como su
@@ -57,10 +52,10 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         if (hasta < desde)
             return new BadRequestObjectResult("El parametro 'hasta' no puede ser anterior a 'desde'");
 
-        // empleadoId es opcional (CA-2): ausente = todos los empleados.
-        var empleadoId = req.Query.TryGetValue("empleadoId", out var empleadoIdCrudo)
-            ? empleadoIdCrudo.ToString()
-            : null;
+        // empleadoId es opcional (CA-2): ausente = todos los empleados. StringValues.ToString()
+        // devuelve cadena vacia cuando el parametro no viene, asi que ausente y vacio se tratan
+        // igual -- sin filtro por empleado.
+        var empleadoId = req.Query["empleadoId"].ToString();
 
         // CA-3/CA-4: recorte de la cota de 31 dias, siempre hacia adelante desde `desde`.
         var rangoAplicado = RangoConsulta.Recortar(desde, hasta);
@@ -100,19 +95,21 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         return new OkObjectResult(respuesta);
     }
 
+    // Ausente y mal formado comparten respuesta y mensaje a proposito: StringValues.ToString()
+    // devuelve cadena vacia cuando el parametro no viene, y TryParseExact la rechaza igual que a
+    // "31-12-2026". Un solo camino de fallo, un solo 400 (CA-2).
     private static bool TryLeerFecha(
         HttpRequest req, string nombreParametro, out DateOnly fecha, out string? error)
     {
-        if (!req.Query.TryGetValue(nombreParametro, out var crudo) ||
-            !DateOnly.TryParseExact(
-                crudo, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out fecha))
+        if (DateOnly.TryParseExact(
+                req.Query[nombreParametro].ToString(),
+                FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out fecha))
         {
-            fecha = default;
-            error = $"El parametro '{nombreParametro}' es obligatorio y debe tener el formato {FormatoFecha}";
-            return false;
+            error = null;
+            return true;
         }
 
-        error = null;
-        return true;
+        error = $"El parametro '{nombreParametro}' es obligatorio y debe tener el formato {FormatoFecha}";
+        return false;
     }
 }
