@@ -37,6 +37,25 @@ public static class ComposicionServicios
             isDev,
             options =>
             {
+                // Issue #309: apaga el polling de metricas de profundidad de cola de Wolverine
+                // (PersistenceMetrics.StartPolling, PeriodicTimer de 5s que llama
+                // store.Admin.FetchCountsAsync()) -- origen de 4 de las 8 consultas Postgres
+                // repetitivas medidas en dev, 4.320 spans/6h cada una. Nadie las consume hoy (sin
+                // dashboard ni alerta) y CheckHealthAsync llama FetchCountsAsync por su cuenta, asi
+                // que el health check no depende de este polling.
+                //
+                // Se conserva la durabilidad real -- recovery, scheduled jobs y dead letters, que
+                // corren en el mismo DurabilityAgent: DurabilityAgentEnabled y Mode no se tocan.
+                //
+                // Va en el callback de AgregarWolverineParaComandosServerless, y no despues de esa
+                // llamada, porque es el hook que el paquete expone sobre WolverineOptions:
+                // Cosmos.EventSourcing.CritterStack 2.3.1 lo corre PRIMERO y despues solo reasigna
+                // Durability.Mode = Solo -- esa reasignacion pisaria en silencio cualquier intento
+                // de tocar Mode desde aqui, pero no toca DurabilityMetricsEnabled (verificado
+                // descompilando el paquete). Que sobreviva no es contrato del paquete: lo sostiene
+                // el guardrail de ComposicionServiciosTests sobre el contenedor real.
+                options.Durability.DurabilityMetricsEnabled = false;
+
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
                 // HU-108: registra el topic destino para DiaCalculado.
                 // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.

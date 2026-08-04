@@ -36,6 +36,7 @@ using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.Mult
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
+using Wolverine;
 using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
 using ListarTurnosDiariosEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios.FunctionEndpoint;
 
@@ -428,4 +429,56 @@ public class ComposicionServiciosTests
     // ("TraceIdRatioBasedSampler{0.200000}"), verificado contra OpenTelemetry 1.16.0.
     private static string FormatearRatio(double ratio) =>
         ratio.ToString("F6", CultureInfo.InvariantCulture);
+
+    // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-1, CA-3) ---
+    //
+    // PersistenceMetrics.StartPolling (Wolverine.RDBMS.DurabilityAgent.StartAsync) es un
+    // PeriodicTimer(DurabilitySettings.UpdateMetricsPeriod, default 5s) que llama
+    // store.Admin.FetchCountsAsync() -- de ahi salen las cuatro consultas Postgres medidas en dev
+    // (123.050 spans/24h, 85/min): el "group by status" de wolverine_incoming_envelopes mas dos
+    // estimateTableCount (pg_class) con su fallback select count(*). Nadie consume esas metricas
+    // hoy (sin dashboard ni alerta) y CheckHealthAsync llama FetchCountsAsync por su cuenta, asi
+    // que el health check no depende de este polling.
+    //
+    // Se resuelve WolverineOptions del CONTENEDOR REAL (no un DurabilitySettings construido a
+    // mano) porque el gotcha de wiring verificado en el issue es de ORDEN: dentro de
+    // AgregarWolverineParaComandosServerless (Cosmos.EventSourcing.CritterStack 2.3.1) el callback
+    // del consumidor corre PRIMERO y options.Durability.Mode = Solo se asigna DESPUES, pisando
+    // cualquier intento de tocar Mode desde el callback -- pero NO pisa DurabilityMetricsEnabled.
+    // Un test que solo construyera un DurabilitySettings a mano nunca detectaria si un futuro
+    // upgrade del paquete empieza a pisar tambien esa bandera; resolver el WolverineOptions
+    // efectivo del grafo de DI si lo detecta.
+    //
+    // El provider se libera con await using porque WolverineOptions se registra Singleton via
+    // factory-lambda -- el contenedor lo trackea para disposal -- y solo implementa IAsyncDisposable:
+    // el Dispose() sincrono del provider raiz lanzaria InvalidOperationException al encontrarlo entre
+    // sus disposables. Mismo motivo por el que los tests de ICommandRouter/IPrivateEventRouter usan
+    // await using, y a diferencia de los de TracerProvider (singleton IDisposable, que si tolera el
+    // using sincrono).
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<WolverineOptions>();
+
+        opciones.Durability.DurabilityMetricsEnabled.Should().BeFalse();
+    }
+
+    // CA-3: este issue apaga la recoleccion de METRICAS de cola, no la durabilidad real -- recovery,
+    // scheduled jobs y dead letters (procesados por el mismo DurabilityAgent) siguen activos. Fijar
+    // Mode en el mismo test que DurabilityMetricsEnabled evita que una futura correccion de CA-1 se
+    // resuelva "apagando" la durabilidad completa (p.ej. cambiando Mode) en vez de solo la bandera de
+    // metricas -- Mode sigue siendo Solo, el valor que AgregarWolverineParaComandosServerless fija
+    // incondicionalmente DESPUES del callback del consumidor.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
+    {
+        await using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<WolverineOptions>();
+
+        opciones.Durability.DurabilityAgentEnabled.Should().BeTrue();
+        opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
+    }
 }

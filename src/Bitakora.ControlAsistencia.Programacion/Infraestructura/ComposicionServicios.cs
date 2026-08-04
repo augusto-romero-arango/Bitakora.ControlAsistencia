@@ -32,6 +32,26 @@ public static class ComposicionServicios
             isDev,
             options =>
             {
+                // Issue #309: apaga el polling de metricas de profundidad de cola de Wolverine
+                // (PersistenceMetrics.StartPolling, PeriodicTimer de 5s que llama
+                // store.Admin.FetchCountsAsync()). Este Function App aun no emite telemetria (no
+                // llama UseAzureMonitorExporter, issue #308) y esta frio, asi que el polling no
+                // aparece en Application Insights hoy, pero corre igual cada 5s y carga Postgres --
+                // se apaga aqui para que el dominio no quede con la regresion latente esperando a
+                // que se instrumente.
+                //
+                // Se conserva la durabilidad real -- recovery, scheduled jobs y dead letters, que
+                // corren en el mismo DurabilityAgent: DurabilityAgentEnabled y Mode no se tocan.
+                //
+                // Va en el callback de AgregarWolverineParaComandosServerless, y no despues de esa
+                // llamada, porque es el hook que el paquete expone sobre WolverineOptions:
+                // Cosmos.EventSourcing.CritterStack 2.3.1 lo corre PRIMERO y despues solo reasigna
+                // Durability.Mode = Solo -- esa reasignacion pisaria en silencio cualquier intento
+                // de tocar Mode desde aqui, pero no toca DurabilityMetricsEnabled (verificado
+                // descompilando el paquete). Que sobreviva no es contrato del paquete: lo sostiene
+                // el guardrail de ComposicionServiciosTests sobre el contenedor real.
+                options.Durability.DurabilityMetricsEnabled = false;
+
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
                 // ADR-0024 decision #3: aunque ProgramacionTurnoDiarioSolicitada es IPrivateEvent (issue #210),
                 // sigue cruzando fisicamente el ASB interno del BC. El topic mapping se conserva: el constraint
