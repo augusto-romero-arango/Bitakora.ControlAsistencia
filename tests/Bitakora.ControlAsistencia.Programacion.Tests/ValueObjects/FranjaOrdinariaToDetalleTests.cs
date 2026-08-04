@@ -1,8 +1,6 @@
 // Issue #288 CA-3: coherencia entre FranjaOrdinaria.ToDetalle().Descripcion y FranjaOrdinaria.ToString().
 // El formato tecnico ya existente (CA-20/CA-21 de FranjaOrdinariaTests, que NO se modifica -- CA-6
-// del issue) se persiste tal cual en el DTO plano. Hoy FranjaOrdinaria.ToDetalle() todavia asigna un
-// placeholder (fase roja); este test queda en rojo hasta que el implementer asigne ToString() en el
-// sitio de produccion.
+// del issue) se persiste tal cual en el DTO plano.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 

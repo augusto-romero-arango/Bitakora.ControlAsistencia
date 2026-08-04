@@ -17,6 +17,13 @@ public record DetalleSubFranja(
     int DiaOffsetFin,
     string Descripcion)
 {
+    /// <summary>
+    /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro
+    /// posicional y la propiedad declarada como string no anulable mentiria. Se normaliza a
+    /// cadena vacia, que es la consecuencia que el issue asumio para los eventos ya persistidos.
+    /// </summary>
+    public string Descripcion { get; init; } = Descripcion ?? string.Empty;
+
     public virtual bool Equals(DetalleSubFranja? other)
     {
         if (other is null) return false;

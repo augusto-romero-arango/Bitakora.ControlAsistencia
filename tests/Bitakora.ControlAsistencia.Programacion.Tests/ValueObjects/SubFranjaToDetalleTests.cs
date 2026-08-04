@@ -1,8 +1,7 @@
 // Issue #288 CA-3: coherencia entre SubFranja.ToDetalle().Descripcion y SubFranja.ToString().
 // El formato tecnico ya existente (CA-20/CA-21 de SubFranjaTests, que NO se modifica -- CA-6 del
 // issue) se persiste tal cual en el DTO plano: una sola implementacion, sin inventar un formato
-// nuevo (decision del issue). Hoy SubFranja.ToDetalle() todavia asigna un placeholder (fase roja);
-// este test queda en rojo hasta que el implementer asigne ToString() en el sitio de produccion.
+// nuevo (decision del issue).
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 

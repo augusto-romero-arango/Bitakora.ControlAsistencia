@@ -30,15 +30,20 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     private static JsonSerializerOptions CrearOpcionesProductor() =>
         new(JsonSerializerDefaults.Web);
 
+    // Turno con descanso: cubre los tres niveles de Descripcion (turno, franja y sub-franja).
+    private static DetalleTurno CrearDetalleTurno() => new(
+        "Turno Manana",
+        [new DetalleFranjaOrdinaria(
+            new TimeOnly(8, 0), new TimeOnly(16, 0), 0,
+            [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(13, 0), 0, 0, "(12:00-13:00)")],
+            [],
+            "(08:00-16:00)[Descansos:(12:00-13:00)]")],
+        "Turno Manana (08:00-16:00)[Descansos:(12:00-13:00)]");
+
     [Fact]
     public void RoundTrip_PreservaDescripcion_ConSerializadorPorDefectoDelBus()
     {
-        var detalleTurno = new DetalleTurno(
-            "Turno Manana",
-            [new DetalleFranjaOrdinaria(
-                new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [],
-                "(08:00-16:00)")],
-            "Turno Manana (08:00-16:00)");
+        var detalleTurno = CrearDetalleTurno();
         var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno);
 
         // El productor publica con sus propias opciones (sin resolver custom, DTO plano)...
@@ -50,8 +55,49 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(body);
 
         restaurado.Should().NotBeNull();
+        var franjaRestaurada = restaurado.DetalleTurno.FranjasOrdinarias[0];
         restaurado.DetalleTurno.Descripcion.Should().Be(detalleTurno.Descripcion);
-        restaurado.DetalleTurno.FranjasOrdinarias[0].Descripcion
-            .Should().Be(detalleTurno.FranjasOrdinarias[0].Descripcion);
+        franjaRestaurada.Descripcion.Should().Be(detalleTurno.FranjasOrdinarias[0].Descripcion);
+        franjaRestaurada.Descansos[0].Descripcion
+            .Should().Be(detalleTurno.FranjasOrdinarias[0].Descansos[0].Descripcion);
+    }
+
+    // Retro-compatibilidad: los eventos publicados antes de #288 no llevan el campo. STJ dejaria
+    // null en un parametro posicional declarado como string no anulable, lo que seria una mina
+    // para cualquier consumidor. Los DTOs lo normalizan a cadena vacia -- la consecuencia que el
+    // issue asumio explicitamente ("habra mezcla entre solicitudes viejas sin texto y nuevas").
+    [Fact]
+    public void Deserializar_DejaDescripcionEnCadenaVacia_CuandoEventoNoLlevaElCampo()
+    {
+        const string jsonPrevioAlCampo = """
+            {
+              "solicitudId": "019600b0-0000-7000-8000-000000000009",
+              "informacionEmpleado": {
+                "empleadoId": "EMP-001", "tipoDocumento": "CC", "numeroDocumento": "1234567890",
+                "nombres": "Luis Augusto", "apellidos": "Barreto"
+              },
+              "fecha": "2026-03-15",
+              "detalleTurno": {
+                "nombre": "Turno Manana",
+                "franjasOrdinarias": [{
+                  "horaInicio": "08:00:00", "horaFin": "16:00:00", "diaOffsetFin": 0,
+                  "descansos": [{
+                    "horaInicio": "12:00:00", "horaFin": "13:00:00",
+                    "diaOffsetInicio": 0, "diaOffsetFin": 0
+                  }],
+                  "extras": []
+                }]
+              }
+            }
+            """;
+
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(
+            BinaryData.FromString(jsonPrevioAlCampo));
+
+        restaurado.Should().NotBeNull();
+        var franja = restaurado.DetalleTurno.FranjasOrdinarias[0];
+        restaurado.DetalleTurno.Descripcion.Should().BeEmpty();
+        franja.Descripcion.Should().BeEmpty();
+        franja.Descansos[0].Descripcion.Should().BeEmpty();
     }
 }

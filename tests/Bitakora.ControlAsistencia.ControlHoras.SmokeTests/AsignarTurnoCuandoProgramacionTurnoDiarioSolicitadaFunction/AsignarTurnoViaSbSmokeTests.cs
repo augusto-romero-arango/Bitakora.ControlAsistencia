@@ -89,10 +89,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
         infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
 
-        // Issue #288: el evento crudo publicado arriba (objeto anonimo) no lleva "Descripcion" -- el
-        // dato derivado lo asigna Programacion en produccion (CatalogoTurnos/FranjaOrdinaria/SubFranja),
-        // no este payload de smoke test. Se excluye de la comparacion estructural porque no es
-        // relevante para lo que este smoke test verifica (que el mensaje crudo se persiste).
+        // Issue #288: el mensaje crudo publicado arriba (objeto anonimo) no lleva "Descripcion" -- el
+        // dato derivado solo lo asigna Programacion en produccion (CatalogoTurnos/FranjaOrdinaria/
+        // SubFranja), no este payload sintetico. Los DTOs lo normalizan a cadena vacia; el campo se
+        // excluye de la comparacion estructural porque aqui no hay texto real que verificar (esa
+        // normalizacion la cubre ProgramacionTurnoDiarioSolicitadaPortabilidadTests).
         var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Smoke SB", [
             new DetalleFranjaOrdinaria(
                 new TimeOnly(8, 0), new TimeOnly(16, 0), 0,
@@ -223,7 +224,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
         infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
 
-        // Issue #288: mismo motivo que el test anterior - el mensaje crudo en camelCase no lleva
+        // Issue #288: mismo motivo que el test anterior -- el mensaje crudo en camelCase no lleva
         // "descripcion", asi que se excluye de la comparacion estructural.
         var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Wolverine CamelCase", [
             new DetalleFranjaOrdinaria(
