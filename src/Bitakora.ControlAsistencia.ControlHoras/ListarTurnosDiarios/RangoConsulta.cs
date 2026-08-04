@@ -16,15 +16,20 @@ public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRe
 ///
 /// Sin dependencias de Marten/Postgres: se prueba como funcion pura sobre <see cref="DateOnly"/>,
 /// sin QuerySession (skills/projections/read-apis.md).
-///
-/// FASE ROJA (projection-test-writer): Recortar es un stub. projection-implementer completa la
-/// aritmetica de fechas que satisface RangoConsultaTests.
 /// </summary>
 public static class RangoConsulta
 {
     /// <summary>Cota maxima del rango, en dias, INCLUSIVE (CA-3): desde y desde + 30 dias caben.</summary>
     public const int CotaDias = 31;
 
-    public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta) =>
-        throw new NotImplementedException();
+    public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)
+    {
+        // CotaDias es INCLUSIVE (CA-4): desde + (CotaDias - 1) dias es el limite exacto que
+        // todavia no excede la cota (31 dias inclusive = desde + 30 dias).
+        var hastaMaxima = desde.AddDays(CotaDias - 1);
+
+        return hasta > hastaMaxima
+            ? new RangoAplicado(hastaMaxima, true)
+            : new RangoAplicado(hasta, false);
+    }
 }
