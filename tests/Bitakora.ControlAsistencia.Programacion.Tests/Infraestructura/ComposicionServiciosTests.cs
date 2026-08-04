@@ -26,6 +26,7 @@ using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
+using Wolverine;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
@@ -146,5 +147,45 @@ public class ComposicionServiciosTests
             [typeof(TurnoCreado)] = "turno_creado",
             [typeof(ProgramacionTurnoSolicitada)] = "programacion_turno_solicitada"
         });
+    }
+
+    // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-2, CA-3) ---
+    //
+    // Mismo wiring que ControlHoras (AgregarWolverineParaComandosServerless): Programacion no emite
+    // telemetria hoy (no llama UseAzureMonitorExporter, issue #308) y ademas esta frio, asi que el
+    // polling de FetchCountsAsync no aparece en Application Insights -- pero corre igual cada 5s y
+    // carga Postgres. El issue #309 alcanza a los DOS Function Apps para que el dominio no quede con
+    // la regresion latente esperando a que se instrumente.
+    //
+    // Se resuelve WolverineOptions del CONTENEDOR REAL (no un DurabilitySettings construido a mano):
+    // el gotcha de wiring verificado en el issue es de ORDEN -- dentro de
+    // AgregarWolverineParaComandosServerless el callback del consumidor corre PRIMERO y
+    // options.Durability.Mode = Solo se asigna DESPUES, pisando cualquier intento de tocar Mode
+    // desde el callback, pero NO pisa DurabilityMetricsEnabled. Ver el guardrail hermano en
+    // ControlHoras.Tests para el detalle completo de FetchCountsAsync/PersistenceMetrics.
+    [Fact]
+    public void AgregarServiciosProgramacion_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<WolverineOptions>();
+
+        opciones.Durability.DurabilityMetricsEnabled.Should().BeFalse();
+    }
+
+    // CA-3: este issue apaga la recoleccion de METRICAS de cola, no la durabilidad real -- recovery,
+    // scheduled jobs y dead letters siguen activos. Fijar Mode en el mismo test que
+    // DurabilityMetricsEnabled evita que una futura correccion de CA-2 se resuelva apagando la
+    // durabilidad completa en vez de solo la bandera de metricas -- Mode sigue siendo Solo, el valor
+    // que AgregarWolverineParaComandosServerless fija incondicionalmente despues del callback.
+    [Fact]
+    public void AgregarServiciosProgramacion_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<WolverineOptions>();
+
+        opciones.Durability.DurabilityAgentEnabled.Should().BeTrue();
+        opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
     }
 }
