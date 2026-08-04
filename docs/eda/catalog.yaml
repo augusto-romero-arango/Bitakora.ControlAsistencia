@@ -94,7 +94,7 @@ events:
   - name: MarcacionRegistrada
     context: ControlHoras
     description: Una marcacion fue recibida, normalizada y persistida en RegistroDeMarcacion
-    visibility: private  # IPrivateEvent: lo consume AdicionarMarcacion (mismo dominio/BC). Debe cruzar el ASB interno; hoy se rutea in-process (gap ADR-0024).
+    visibility: event-sourcing  # evento de dominio del aggregate RegistroDeMarcacion. Hasta #270 tambien era IPrivateEvent (doble rol); #270 lo libera del bus y CA-ADR-0029 documenta la regla: un tipo por rol.
     payload:
       - field: EmpleadoId
         type: string
@@ -107,9 +107,32 @@ events:
       - field: DispositivoId
         type: string?
         note: "Opcional. ID del dispositivo que capturo la marcacion"
-    published_to: "ASB interno (via IPrivateEventSender). Hoy in-process; pendiente topic+trigger fisico (ADR-0024)"
-    consumed_by: ["AdicionarMarcacionCuandoMarcacionRegistrada (mismo BC)"]
-    used_in: ["#105"]
+    published_to: null  # se persiste en el stream de RegistroDeMarcacion; el anuncio al BC lo lleva RegistroDeMarcacionCreado
+    consumed_by: []
+    used_in: ["#105", "#270"]
+
+  - name: RegistroDeMarcacionCreado
+    context: ControlHoras
+    description: >
+      Contrato de bus que anuncia al BC que nacio un Registro de Marcacion. Gemelo plano de
+      MarcacionRegistrada: misma informacion, objetivo de negocio distinto -- el evento de dominio
+      se persiste y es protegido, este solo comunica y es portable (CA-ADR-0025, CA-ADR-0029).
+    visibility: private  # IPrivateEvent en PrivateEvents.ControlHoras. Cruza fisicamente el ASB interno del BC (MEF-ADR-0024 decision #3).
+    payload:
+      - field: EmpleadoId
+        type: string
+      - field: TimestampNormalizado
+        type: DateTime
+        note: "Truncado al minuto (floor), tal como lo normalizo el Registro de Marcacion"
+      - field: TipoMarcacion
+        type: string?
+        note: "Opcional. Entrada o salida, si el dispositivo lo sabe"
+      - field: DispositivoId
+        type: string?
+        note: "Opcional. ID del dispositivo que capturo la marcacion"
+    published_to: "topic registro-de-marcacion-creado (ASB interno, via IPrivateEventSender). Provisionado en #274"
+    consumed_by: ["AdicionarMarcacionCuandoRegistroDeMarcacionCreado (mismo BC)"]
+    used_in: ["#270"]
 
   - name: MarcacionAdicionada
     context: ControlHoras
@@ -211,8 +234,8 @@ commands:
       - field: DispositivoId
         type: string?
         note: "Opcional. ID del dispositivo"
-    produces: [MarcacionRegistrada]
-    used_in: ["#105"]
+    produces: [MarcacionRegistrada, RegistroDeMarcacionCreado]
+    used_in: ["#105", "#270"]
 
 policies: []
 
@@ -235,9 +258,9 @@ aggregates:
 
   - name: RegistroDeMarcacionAggregateRoot
     context: ControlHoras
-    description: "Registro individual de una marcacion. Identidad determinista: {EmpleadoId}:{TimestampCrudo}. Normaliza y emite MarcacionRegistrada."
+    description: "Registro individual de una marcacion. Identidad determinista: {EmpleadoId}:{TimestampCrudo}. Normaliza, persiste MarcacionRegistrada y empaqueta el contrato de bus RegistroDeMarcacionCreado (Tell-don't-Ask, espejo de ControlDiario.CrearDiaCalculado)."
     identity: "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss} — stream ID determinista para idempotencia por duplicado exacto"
-    used_in: ["#105"]
+    used_in: ["#105", "#270", "#275"]
 
 value_objects:
   - name: FranjaOrdinaria
