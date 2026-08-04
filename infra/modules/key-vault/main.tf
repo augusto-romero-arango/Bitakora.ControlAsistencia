@@ -42,9 +42,13 @@ resource "azurerm_key_vault" "this" {
   tenant_id           = var.tenant_id
   sku_name            = var.sku_name
   # `enable_rbac_authorization` (nombre historico del ADR-0021 del harness)
-  # esta deprecado desde azurerm ~> 4.x en favor de `rbac_authorization_enabled`
-  # y sera removido en v5.0 del provider (fuente: terraform-provider-azurerm,
-  # website/docs/r/key_vault.html.markdown, seccion "Arguments Reference").
+  # quedo deprecado en azurerm ~> 4.x y FUE REMOVIDO en 5.0 en favor de
+  # `rbac_authorization_enabled`, que ademas ahora es Required ("The deprecated
+  # `enable_rbac_authorization` property has been removed in favour of the
+  # `rbac_authorization_enabled` property. The `rbac_authorization_enabled`
+  # property is now Required" -- guia oficial 5.0-upgrade-guide, seccion
+  # azurerm_key_vault). Este modulo ya usaba el nombre nuevo, asi que la
+  # migracion del issue #304 no lo toco.
   rbac_authorization_enabled = true
   soft_delete_retention_days = 7
   tags                       = var.tags

@@ -47,14 +47,19 @@ resource "azurerm_log_analytics_workspace" "this" {
 }
 
 resource "azurerm_application_insights" "this" {
-  name                                  = "${var.name}-ai"
-  location                              = var.location
-  resource_group_name                   = var.resource_group_name
-  workspace_id                          = azurerm_log_analytics_workspace.this.id
-  application_type                      = "web"
-  daily_data_cap_in_gb                  = var.daily_data_cap_in_gb
-  daily_data_cap_notifications_disabled = false
-  tags                                  = var.tags
+  name                 = "${var.name}-ai"
+  location             = var.location
+  resource_group_name  = var.resource_group_name
+  workspace_id         = azurerm_log_analytics_workspace.this.id
+  application_type     = "web"
+  daily_data_cap_in_gb = var.daily_data_cap_in_gb
+  # Provider azurerm v5: la propiedad deprecada daily_data_cap_notifications_disabled
+  # (false) fue removida en favor de daily_data_cap_notifications_enabled (true) --
+  # mismo comportamiento, nombre invertido. Ver guia de migracion a v5, seccion
+  # azurerm_application_insights. No estaba en el analisis original del issue #304;
+  # se detecto al correr terraform validate (CA-5) contra el provider 5.0.1.
+  daily_data_cap_notifications_enabled = true
+  tags                                 = var.tags
 }
 
 resource "azurerm_monitor_action_group" "cost_alerts" {
