@@ -244,6 +244,43 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
     }
 
+    // Issue #294: la guarda de arriba pineaba tabla, tenancy e Id -- las tres convergian -- pero no
+    // la forma de la columna de version, y por ahi se colo el fallo. Marten aplica
+    // ProjectionDocumentPolicy a todo documento que sea target de una proyeccion REGISTRADA en ese
+    // store: le pone UseNumericRevisions = true, habilita Metadata.Revision (mt_version bigint) y
+    // DESHABILITA Metadata.Version (mt_version uuid). No es opt-in ni depende de IRevisioned ni del
+    // lifecycle -- la doc lo declara como la excepcion a que el versionado sea opt-in
+    // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents") y el codigo lo
+    // hace incondicional (Marten/Events/Projections/ProjectionDocumentPolicy.cs).
+    //
+    // El worker registra TurnoDiarioProjection, asi que crea mt_version como bigint. Este Function
+    // App NO la registra -- no puede: TurnoDiarioProjection vive en el ensamblado del worker y
+    // referenciarlo violaria CA-ADR-0029 -- asi que sin declaracion explicita esperaria mt_version
+    // uuid sobre la MISMA tabla. Con AutoCreate en su default CreateOrUpdate, Marten no devuelve un
+    // 404: intenta "alter column mt_version type uuid" en cada request, Postgres lo rechaza con
+    // 42804 (no hay cast automatico bigint -> uuid) y los dos GET responden 500 permanentemente.
+    // Eso es exactamente lo que ocurrio en dev tras el deploy de #290.
+    //
+    // Oraculo literal y espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoDiarioViewConRevisionNumerica, que congela los mismos
+    // cuatro valores desde el worker. Juntos cierran la dimension que el par anterior dejo abierta.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
+
+        // Las dos columnas comparten el nombre fisico mt_version y solo una puede estar habilitada:
+        // por eso el oraculo mide ambas. Medir solo Revision dejaria pasar el caso en que las dos
+        // queden activas, que es justo la divergencia que produjo el 500.
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
     // Issue #290 CA-7: test de composicion de la segunda Function GET del BC, hermano del de
     // ObtenerTurnoDiario (#289 CA-7, comentario arriba) y de MEF-ADR-0029. Misma vista materializada
     // TurnoDiarioView, ninguna proyeccion nueva -- solo una nueva superficie de consulta
