@@ -96,7 +96,6 @@ El script imprime 4 valores. Configurarlos como secrets en GitHub:
 | Secret | Descripcion |
 |---|---|
 | `AZURE_CLIENT_ID` | Client ID del Service Principal |
-| `AZURE_CLIENT_SECRET` | Client Secret (expira en 1 ano) |
 | `AZURE_TENANT_ID` | Tenant ID de Azure AD |
 | `AZURE_SUBSCRIPTION_ID` | ID de la suscripcion Azure |
 
@@ -125,19 +124,18 @@ En GitHub: **Actions** > seleccionar el workflow `Infra CD - Terraform Apply` > 
 
 ## Mantenimiento
 
-### Renovar el client secret del Service Principal
+### Autenticacion keyless (sin rotacion de secretos)
 
-El secret expira en 1 ano por defecto. Para renovarlo:
+El backend del tfstate es **keyless por AAD** (`use_azuread_auth = true` en el bloque `backend "azurerm"` de `providers.tf`, MEF-ADR-0025 decision #8): el plano de datos del blob se autentica por Microsoft Entra ID/RBAC en vez de la account key de la storage account. No hay client secret que rotar: el SP de CI se autentica por OIDC/token federado (MEF-ADR-0022), que no expira como un client secret tradicional.
+
+Si tenes un `.terraform/` previo a este cambio (creado antes de que el backend declarara `use_azuread_auth`), `terraform init` va a detectar el cambio de configuracion del backend y va a pedir reconfigurar:
 
 ```bash
-# Obtener el Client ID del SP
-CLIENT_ID=$(az ad sp list --display-name github-controlasistencias-ci --query "[0].appId" -o tsv)
-
-# Resetear las credenciales
-az ad sp credential reset --id "$CLIENT_ID"
+cd infra/environments/dev
+terraform init -reconfigure
 ```
 
-Actualizar el secret `AZURE_CLIENT_SECRET` en GitHub con el nuevo valor.
+Esto no migra ni mueve el state -- sigue siendo el mismo resource group, cuenta, contenedor y key. Solo cambia *como* se autentica el plano de datos.
 
 ### Agregar un nuevo ambiente
 

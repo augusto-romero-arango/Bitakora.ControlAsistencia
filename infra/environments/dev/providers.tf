@@ -19,6 +19,12 @@ terraform {
     storage_account_name = "stcatfstatedev"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
+
+    # Backend keyless por AAD (MEF-ADR-0025 decision #8): el plano de datos del
+    # blob se autentica por Microsoft Entra ID/RBAC en vez de la account key.
+    # ARM_USE_OIDC habilita tanto al provider azurerm como al backend azurerm a
+    # autenticarse con el mismo token federado (MEF-ADR-0022).
+    use_azuread_auth = true
   }
 }
 
