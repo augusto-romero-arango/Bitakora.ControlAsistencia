@@ -163,10 +163,16 @@ public class ComposicionServiciosTests
     // options.Durability.Mode = Solo se asigna DESPUES, pisando cualquier intento de tocar Mode
     // desde el callback, pero NO pisa DurabilityMetricsEnabled. Ver el guardrail hermano en
     // ControlHoras.Tests para el detalle completo de FetchCountsAsync/PersistenceMetrics.
+    //
+    // El provider se libera con await using porque WolverineOptions se registra Singleton via
+    // factory-lambda -- el contenedor lo trackea para disposal -- y solo implementa IAsyncDisposable:
+    // el Dispose() sincrono del provider raiz lanzaria InvalidOperationException al encontrarlo entre
+    // sus disposables. Mismo motivo por el que los tests de ICommandRouter/IPrivateEventRouter de
+    // este archivo usan await using.
     [Fact]
-    public void AgregarServiciosProgramacion_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
+    public async Task AgregarServiciosProgramacion_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
     {
-        using var provider = ComponerServiceProvider();
+        await using var provider = ComponerServiceProvider();
 
         var opciones = provider.GetRequiredService<WolverineOptions>();
 
@@ -179,9 +185,9 @@ public class ComposicionServiciosTests
     // durabilidad completa en vez de solo la bandera de metricas -- Mode sigue siendo Solo, el valor
     // que AgregarWolverineParaComandosServerless fija incondicionalmente despues del callback.
     [Fact]
-    public void AgregarServiciosProgramacion_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
+    public async Task AgregarServiciosProgramacion_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
     {
-        using var provider = ComponerServiceProvider();
+        await using var provider = ComponerServiceProvider();
 
         var opciones = provider.GetRequiredService<WolverineOptions>();
 

@@ -448,10 +448,17 @@ public class ComposicionServiciosTests
     // Un test que solo construyera un DurabilitySettings a mano nunca detectaria si un futuro
     // upgrade del paquete empieza a pisar tambien esa bandera; resolver el WolverineOptions
     // efectivo del grafo de DI si lo detecta.
+    //
+    // El provider se libera con await using porque WolverineOptions se registra Singleton via
+    // factory-lambda -- el contenedor lo trackea para disposal -- y solo implementa IAsyncDisposable:
+    // el Dispose() sincrono del provider raiz lanzaria InvalidOperationException al encontrarlo entre
+    // sus disposables. Mismo motivo por el que los tests de ICommandRouter/IPrivateEventRouter usan
+    // await using, y a diferencia de los de TracerProvider (singleton IDisposable, que si tolera el
+    // using sincrono).
     [Fact]
-    public void AgregarServiciosControlHoras_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
+    public async Task AgregarServiciosControlHoras_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
     {
-        using var provider = ComponerServiceProvider();
+        await using var provider = ComponerServiceProvider();
 
         var opciones = provider.GetRequiredService<WolverineOptions>();
 
@@ -465,9 +472,9 @@ public class ComposicionServiciosTests
     // metricas -- Mode sigue siendo Solo, el valor que AgregarWolverineParaComandosServerless fija
     // incondicionalmente DESPUES del callback del consumidor.
     [Fact]
-    public void AgregarServiciosControlHoras_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
+    public async Task AgregarServiciosControlHoras_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
     {
-        using var provider = ComponerServiceProvider();
+        await using var provider = ComponerServiceProvider();
 
         var opciones = provider.GetRequiredService<WolverineOptions>();
 

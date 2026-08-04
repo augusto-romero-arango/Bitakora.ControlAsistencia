@@ -39,18 +39,21 @@ public static class ComposicionServicios
             {
                 // Issue #309: apaga el polling de metricas de profundidad de cola de Wolverine
                 // (PersistenceMetrics.StartPolling, PeriodicTimer de 5s que llama
-                // store.Admin.FetchCountsAsync() -- origen de 4 de las 8 consultas Postgres
-                // repetitivas medidas en dev, 4.320 spans/6h cada una). Se conserva la durabilidad
-                // real: recovery, scheduled jobs y dead letters siguen activos (DurabilityAgentEnabled
-                // y Mode no se tocan aqui). Nadie consume hoy esas metricas (sin dashboard ni
-                // alerta) y CheckHealthAsync llama FetchCountsAsync por su cuenta, asi que el
-                // health check no depende de este polling.
+                // store.Admin.FetchCountsAsync()) -- origen de 4 de las 8 consultas Postgres
+                // repetitivas medidas en dev, 4.320 spans/6h cada una. Nadie las consume hoy (sin
+                // dashboard ni alerta) y CheckHealthAsync llama FetchCountsAsync por su cuenta, asi
+                // que el health check no depende de este polling.
                 //
-                // Debe fijarse en ESTE callback (el que recibe AgregarWolverineParaComandosServerless)
-                // porque corre ANTES de que Cosmos.EventSourcing.CritterStack 2.3.1 asigne
-                // options.Durability.Mode = Solo incondicionalmente despues del callback -- ese
-                // orden pisaria cualquier intento de tocar Mode desde aqui, pero NO pisa
-                // DurabilityMetricsEnabled (verificado descompilando el paquete, ver issue #309).
+                // Se conserva la durabilidad real -- recovery, scheduled jobs y dead letters, que
+                // corren en el mismo DurabilityAgent: DurabilityAgentEnabled y Mode no se tocan.
+                //
+                // Va en el callback de AgregarWolverineParaComandosServerless, y no despues de esa
+                // llamada, porque es el hook que el paquete expone sobre WolverineOptions:
+                // Cosmos.EventSourcing.CritterStack 2.3.1 lo corre PRIMERO y despues solo reasigna
+                // Durability.Mode = Solo -- esa reasignacion pisaria en silencio cualquier intento
+                // de tocar Mode desde aqui, pero no toca DurabilityMetricsEnabled (verificado
+                // descompilando el paquete). Que sobreviva no es contrato del paquete: lo sostiene
+                // el guardrail de ComposicionServiciosTests sobre el contenedor real.
                 options.Durability.DurabilityMetricsEnabled = false;
 
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
