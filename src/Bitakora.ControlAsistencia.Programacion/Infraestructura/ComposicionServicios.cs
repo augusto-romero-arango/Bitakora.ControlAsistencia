@@ -32,6 +32,22 @@ public static class ComposicionServicios
             isDev,
             options =>
             {
+                // Issue #309: apaga el polling de metricas de profundidad de cola de Wolverine
+                // (PersistenceMetrics.StartPolling, PeriodicTimer de 5s que llama
+                // store.Admin.FetchCountsAsync()). Este Function App aun no emite telemetria (no
+                // llama UseAzureMonitorExporter, issue #308) y esta frio, asi que el polling no
+                // aparece en Application Insights hoy, pero corre igual cada 5s y carga Postgres --
+                // se apaga aqui para que el dominio no quede con la regresion latente esperando a
+                // que se instrumente. Se conserva la durabilidad real: recovery, scheduled jobs y
+                // dead letters siguen activos (DurabilityAgentEnabled y Mode no se tocan aqui).
+                //
+                // Debe fijarse en ESTE callback (el que recibe AgregarWolverineParaComandosServerless)
+                // porque corre ANTES de que Cosmos.EventSourcing.CritterStack 2.3.1 asigne
+                // options.Durability.Mode = Solo incondicionalmente despues del callback -- ese
+                // orden pisaria cualquier intento de tocar Mode desde aqui, pero NO pisa
+                // DurabilityMetricsEnabled (verificado descompilando el paquete, ver issue #309).
+                options.Durability.DurabilityMetricsEnabled = false;
+
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
                 // ADR-0024 decision #3: aunque ProgramacionTurnoDiarioSolicitada es IPrivateEvent (issue #210),
                 // sigue cruzando fisicamente el ASB interno del BC. El topic mapping se conserva: el constraint
