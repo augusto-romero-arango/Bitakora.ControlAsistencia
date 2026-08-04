@@ -34,6 +34,7 @@ using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.Mult
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
+using ListarTurnosDiariosEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -241,5 +242,27 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnodiarioview");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
+    }
+
+    // Issue #290 CA-7: test de composicion de la segunda Function GET del BC, hermano del de
+    // ObtenerTurnoDiario (#289 CA-7, comentario arriba) y de MEF-ADR-0029. Misma vista materializada
+    // TurnoDiarioView, ninguna proyeccion nueva -- solo una nueva superficie de consulta
+    // (session.Query en vez de session.LoadAsync). ActivatorUtilities.CreateInstance reproduce la
+    // activacion por tipo que hace el host de Azure Functions isolated worker, sin levantar el host
+    // real (Alt 1 de MEF-ADR-0029).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (parseo de desde/hasta/empleadoId, recorte de rango, session.Query y
+    // mapeo a ListaTurnosDiarios), que es responsabilidad de projection-implementer y del smoke test
+    // (CA-8), no de este guardrail de wiring.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarTurnosDiarios_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarTurnosDiariosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }
