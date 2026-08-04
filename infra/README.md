@@ -70,13 +70,13 @@ Usar el pipeline IaC desde la raiz del proyecto:
 ./scripts/iac-pipeline.sh <numero-de-issue> --env dev
 ```
 
-O directamente con Terraform:
+El `plan` real corre en CI sobre el PR y el `apply` real al mergear a `main` (MEF-ADR-0021, MEF-ADR-0022): el desarrollador no accede al tfstate ni ejecuta `apply` en local. La revision local es **estatica**, sin backend ni credenciales de Azure:
 
 ```bash
 cd infra/environments/dev
-terraform init
-terraform plan
-terraform apply
+terraform fmt -check -recursive ../..
+terraform init -backend=false -input=false
+terraform validate
 ```
 
 ## Paso 4 — Configurar CI/CD
@@ -89,16 +89,17 @@ El workflow `.github/workflows/infra-ci.yml` ejecuta `terraform plan` automatica
 ./scripts/setup-github-ci.sh <subscription-id>
 ```
 
-El script imprime 4 valores. Configurarlos como secrets en GitHub:
+El script imprime 3 valores, todos identificadores (ninguno es una credencial). Configurarlos como secrets en GitHub:
 
 **Settings > Secrets and variables > Actions > New repository secret**
 
 | Secret | Descripcion |
 |---|---|
 | `AZURE_CLIENT_ID` | Client ID del Service Principal |
-| `AZURE_CLIENT_SECRET` | Client Secret (expira en 1 ano) |
 | `AZURE_TENANT_ID` | Tenant ID de Azure AD |
 | `AZURE_SUBSCRIPTION_ID` | ID de la suscripcion Azure |
+
+El Service Principal necesita ademas `Storage Blob Data Contributor` sobre la storage account del tfstate (`stcatfstatedev`): con el backend keyless (ver Mantenimiento) el state se escribe y se bloquea por AAD, no con la account key.
 
 ### Verificar que el CI funciona
 
@@ -125,19 +126,20 @@ En GitHub: **Actions** > seleccionar el workflow `Infra CD - Terraform Apply` > 
 
 ## Mantenimiento
 
-### Renovar el client secret del Service Principal
+### Autenticacion keyless (sin rotacion de secretos)
 
-El secret expira en 1 ano por defecto. Para renovarlo:
+El backend del tfstate es **keyless por AAD** (`use_azuread_auth = true` en el bloque `backend "azurerm"` de `providers.tf`, MEF-ADR-0025 decision #8): el plano de datos del blob se autentica por Microsoft Entra ID/RBAC en vez de la account key de la storage account, que el backend resolvia via `listKeys` en cada corrida. La identidad de CI necesita `Storage Blob Data Contributor` sobre `stcatfstatedev`.
+
+No hay account key ni client secret que rotar: la autenticacion del SP de CI hacia AAD es por OIDC/token federado (MEF-ADR-0022), que no expira como una credencial estatica. La migracion de los workflows a OIDC la completa el issue #297; el backend keyless de aca es independiente de ese paso y ya elimina la account key del camino.
+
+Si tenes un `.terraform/` previo a este cambio (creado antes de que el backend declarara `use_azuread_auth`), `terraform init` va a detectar el cambio de configuracion del backend y va a pedir reconfigurar:
 
 ```bash
-# Obtener el Client ID del SP
-CLIENT_ID=$(az ad sp list --display-name github-controlasistencias-ci --query "[0].appId" -o tsv)
-
-# Resetear las credenciales
-az ad sp credential reset --id "$CLIENT_ID"
+cd infra/environments/dev
+terraform init -reconfigure
 ```
 
-Actualizar el secret `AZURE_CLIENT_SECRET` en GitHub con el nuevo valor.
+Esto no migra ni mueve el state -- sigue siendo el mismo resource group, cuenta, contenedor y key. Solo cambia *como* se autentica el plano de datos.
 
 ### Agregar un nuevo ambiente
 
