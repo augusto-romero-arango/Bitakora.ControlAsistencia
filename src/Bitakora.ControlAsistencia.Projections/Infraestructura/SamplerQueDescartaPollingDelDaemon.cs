@@ -11,10 +11,9 @@ namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
 /// empiricamente por el planner: "hijo npgsql -> Activity NULL"), asi que no hace falta un
 /// BaseProcessor ni filtrar el hijo por separado.
 ///
-/// STUB de compilacion (fase roja, test-writer): ShouldSample lanza NotImplementedException.
-/// Lo implementa projection-implementer. Solo un consumidor (el worker de proyecciones, que corre
-/// el daemon) -- MEF-ADR-0018 Rule of Three: NO se generaliza a los Function Apps
-/// (ControlHoras/Programacion), que no corren daemon y por tanto no emiten este span.
+/// Solo un consumidor (el worker de proyecciones, que corre el daemon) -- MEF-ADR-0018 Rule of
+/// Three: NO se generaliza a los Function Apps (ControlHoras/Programacion), que no corren daemon
+/// y por tanto no emiten este span.
 /// </summary>
 public sealed class SamplerQueDescartaPollingDelDaemon : Sampler
 {
@@ -39,5 +38,7 @@ public sealed class SamplerQueDescartaPollingDelDaemon : Sampler
     }
 
     public override SamplingResult ShouldSample(in SamplingParameters samplingParameters) =>
-        throw new NotImplementedException();
+        samplingParameters.Name == NombreSpanPollingDaemon
+            ? new SamplingResult(SamplingDecision.Drop)
+            : Delegado.ShouldSample(in samplingParameters);
 }

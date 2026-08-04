@@ -13,6 +13,7 @@ using FluentValidation;
 using Marten;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
@@ -141,15 +142,27 @@ public static class ComposicionServicios
                 ? ratio
                 : 0.2;
 
+        // Issue #308 (hallazgo 1): UseAzureMonitorExporter() llama SetSampler internamente
+        // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler porque
+        // AzureMonitorExporterOptions.TracesPerSecond tiene default 5.0. Si el SetSampler del
+        // proyecto se escribe ANTES de UseAzureMonitorExporter() (como estaba), ese SetSampler
+        // interno lo pisa y el sampler configurado aqui nunca se instala -- verificado en runtime.
+        // La correccion es de ORDEN: un segundo .WithTracing(...) DESPUES de
+        // .UseAzureMonitorExporter() para que el SetSampler de este seam sea el que gane.
+        // A diferencia de Projections (que envuelve el sampler con SamplerQueDescartaPollingDelDaemon
+        // porque el worker corre el daemon HotCold de Marten), ControlHoras no corre ningun daemon
+        // -- MEF-ADR-0018 Rule of Three: el filtro tiene un solo consumidor real y no se generaliza
+        // aqui.
         services.AddOpenTelemetry()
             .WithTracing(tracing => tracing
-                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
                 .AddSource("Wolverine")
                 .AddSource("Marten")
                 .AddSource("Npgsql")
                 .AddSource("Bitakora.ControlAsistencia.ControlHoras.*"))
             .UseFunctionsWorkerDefaults()
-            .UseAzureMonitorExporter();
+            .UseAzureMonitorExporter()
+            .WithTracing(tracing => tracing
+                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))));
 
         // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
         services.Configure<JsonSerializerOptions>(options =>

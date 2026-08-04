@@ -1,5 +1,6 @@
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
+using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -64,14 +65,27 @@ public static class ConfiguracionObservabilidadProjections
         var samplingRatio = ResolverRatioDeSampling(
             Environment.GetEnvironmentVariable(VariableRatioSampling));
 
+        // Issue #308 (hallazgo 1): UseAzureMonitorExporter() llama SetSampler internamente
+        // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler porque
+        // AzureMonitorExporterOptions.TracesPerSecond tiene default 5.0. Si el SetSampler del
+        // proyecto se escribe ANTES de UseAzureMonitorExporter() (como estaba), ese SetSampler
+        // interno lo pisa y el sampler configurado aqui nunca se instala -- verificado en runtime.
+        // La correccion es de ORDEN: un segundo .WithTracing(...) DESPUES de
+        // .UseAzureMonitorExporter() para que el SetSampler de este seam sea el que gane.
         services.AddOpenTelemetry()
             .ConfigureResource(ConfigurarRecurso)
             .WithTracing(tracing => tracing
-                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
                 .AddSource("Marten")
                 .AddSource("Npgsql")
                 .AddSource(PatronFuentePropia))
-            .UseAzureMonitorExporter();
+            .UseAzureMonitorExporter()
+            .WithTracing(tracing => tracing
+                // Issue #308 (hallazgo 2): el daemon HotCold de Marten emite un span de polling sin
+                // valor diagnostico cada 5s (marten.daemon.highwatermark) del que cuelga el 95% de
+                // los spans Postgres del worker. Se envuelve el sampler de ratio para descartar esa
+                // actividad puntual sin afectar al resto de la fuente Marten.
+                .SetSampler(new SamplerQueDescartaPollingDelDaemon(
+                    new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))));
 
         return services;
     }
