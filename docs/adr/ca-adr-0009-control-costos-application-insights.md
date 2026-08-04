@@ -98,3 +98,87 @@ al 100%. Mitigaciones:
 
 Capas 3 y 4 sin cambios. Esta adaptacion aplica al dominio ControlHoras; los demas dominios
 mantienen el modelo clasico hasta que se instrumenten igual.
+
+## Actualizacion (2026-08-04, issue #308): la Capa 2 descrita arriba nunca estuvo activa
+
+La actualizacion anterior describia la Capa 2 bajo OpenTelemetry como
+`ParentBased(TraceIdRatioBased(ratio))`, wireado con `SetSampler(...)` **antes** de
+`UseAzureMonitorExporter()`. Midiendo 24h de ingestion real en dev se encontro que ese sampler
+**nunca llegaba a instalarse**: `UseAzureMonitorExporter()` (`Azure.Monitor.OpenTelemetry.Exporter`
+1.8.1) llama `SetSampler(...)` internamente, y como `AzureMonitorExporterOptions.TracesPerSecond`
+tiene default `5.0`, siempre construye un `RateLimitedSampler` que pisa al sampler que este seam
+configuraba. Verificado en runtime leyendo el sampler efectivo del `TracerProvider` resuelto:
+
+```
+Sampler efectivo con el wiring anterior: Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler
+Sampler que el codigo del proyecto pretendia instalar: OpenTelemetry.Trace.ParentBasedSampler
+```
+
+Consecuencia medida: el "sampler de ratio 0.2" nunca recortaba nada. Lo que realmente corria era un
+techo de 5 traces/s (~432k/dia), y los procesos operaban muy por debajo de ese techo (~1,4-1,6/s),
+asi que **no habia sampling efectivo en absoluto** desde que se adopto OpenTelemetry -- toda la
+telemetria de trazas se exportaba integra. `TELEMETRY_SAMPLING_RATIO` era, en la practica, una
+variable inerte: aunque se hubiera puesto en algun recurso (no lo estaba), el valor se calculaba y
+se descartaba.
+
+**Correccion (de orden, no de contenido).** `SetSampler(...)` del proyecto debe ejecutarse
+**despues** de `UseAzureMonitorExporter()`, no antes. En la forma `IOpenTelemetryBuilder` esto se
+expresa encadenando un **segundo** `.WithTracing(...)` posterior al `.UseAzureMonitorExporter()`
+(cada llamada a `WithTracing` registra un callback de configuracion sobre el mismo
+`TracerProviderBuilder`; el que se registra al final es el que gana). El sampler sigue siendo
+`ParentBased(TraceIdRatioBased(ratio))`, ratio configurable via `TELEMETRY_SAMPLING_RATIO` (default
+0.2) -- ahora si efectivo.
+
+**El orden es fragil por naturaleza, asi que queda protegido por guardrail y no por convencion.**
+Cualquier reordenamiento futuro (o una version del exporter que cambie cuando registra su sampler)
+volveria a dejar el sampler del proyecto sin instalar, compilando y con los tests unitarios en
+verde: es el modo de falla que costo dos meses de ingestion completa. Los tests de composicion de
+ambos procesos (`ConfiguracionObservabilidadProjectionsTests`, `ComposicionServiciosTests`,
+MEF-ADR-0029) leen el sampler **efectivo** del `TracerProvider` resuelto del contenedor y afirman
+que no es `RateLimitedSampler` y que el ratio -- configurado y por defecto -- llego hasta el. La
+tecnica es determinista: compara tipos y lee `Sampler.Description`, sin muestrear actividades contra
+un ratio fraccionario. Esto deroga el "limite conocido" que esos archivos declaraban antes ("el
+sampler compuesto vive dentro de `TracerProviderSdk`, que OpenTelemetry no expone publicamente...
+queda cubierto por revision de codigo"): la revision de codigo no podia atrapar este defecto, porque
+el codigo visible era correcto.
+
+**Estado real de `TELEMETRY_SAMPLING_RATIO` frente a la tabla "Valores por ambiente" de arriba.** La
+variable no esta declarada en Terraform en **ningun** ambiente (verificado con `az functionapp config
+appsettings list`), asi que los valores de esa fila expresan la intencion de diseno, no lo que corre:
+hoy los tres ambientes usan el default de codigo (0.2). Declararla por ambiente queda fuera del
+alcance del issue #308 a proposito -- recalibrar el ratio se decide **despues** de medir con el
+sampler ya efectivo, no antes.
+
+**Alternativa considerada y descartada: configurar `AzureMonitorExporterOptions` en vez de
+reordenar.** Poner `o.TracesPerSecond = null; o.SamplingRatio = ratio;` hace que
+`UseAzureMonitorExporter()` instale `ApplicationInsightsSampler` en vez de `RateLimitedSampler`. Es
+la via idiomatica del exporter y tiene una ventaja real: `ApplicationInsightsSampler` estampa el
+campo `sampleRate` en cada item para que Application Insights **extrapole** los conteos (a
+diferencia de `TraceIdRatioBasedSampler`, que subcuenta las metricas sin ese campo). Se descarto
+porque `ApplicationInsightsSampler` es `internal`
+(`Azure.Monitor.OpenTelemetry.Exporter.Internals`) y no se puede componer con el filtro de la
+siguiente seccion (envolverlo para descartar un span por nombre). **Se asume la subcuenta de
+metricas** como consecuencia conocida de esta decision: los conteos de trazas en Application
+Insights para estos dos procesos no reflejan el volumen real por encima de 1/ratio -- solo el
+volumen efectivamente exportado, sin extrapolar.
+
+## Actualizacion (2026-08-04, issue #308): filtro del span de polling del daemon (worker de Projections)
+
+El worker de proyecciones (`Bitakora.ControlAsistencia.Projections`) corre el daemon HotCold de
+Marten, que emite una actividad `marten.daemon.highwatermark` cada ~5s sin valor diagnostico. Con
+la Capa 2 corregida (arriba) ese span pasa a competir por el mismo ratio de sampling que las
+actividades con valor real, y su hijo Postgres (`Npgsql`) explicaba el 95% de los spans Postgres del
+worker en la medicion de 24h que motivo este issue.
+
+Se agrego `SamplerQueDescartaPollingDelDaemon`, que envuelve el sampler de ratio y descarta esa
+actividad especifica por nombre (`Drop`, sin delegar) dejando pasar el resto de la fuente `Marten`
+sin alterar el ratio configurado. Un `Drop` en la actividad raiz basta para que su hija Npgsql ni
+siquiera se instancie (verificado empiricamente: `ParentBasedSampler` resuelve al hijo por el
+contexto del padre sin `Recorded`, y devuelve `AlwaysOffSampler`) -- no hace falta un
+`BaseProcessor<Activity>` adicional para filtrar el hijo por separado.
+
+Este filtro **solo se aplica en el worker de Projections** (MEF-ADR-0018, Rule of Three): es el unico
+proceso que corre el daemon HotCold. `ControlHoras` y `Programacion` no lo necesitan -- no emiten
+ese span -- y no se generaliza el wrapper a ellos hasta que exista un segundo consumidor real.
+
+Capas 3 y 4 sin cambios.

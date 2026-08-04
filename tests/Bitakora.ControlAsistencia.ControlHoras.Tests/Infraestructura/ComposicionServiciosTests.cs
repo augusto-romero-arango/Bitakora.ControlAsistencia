@@ -19,6 +19,8 @@
 // downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
 // -> MetadataConfig (IReadonlyMetadataConfig).
 
+using System.Globalization;
+using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -33,6 +35,7 @@ using FluentValidation;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
 using ListarTurnosDiariosEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios.FunctionEndpoint;
 
@@ -46,6 +49,15 @@ public class ComposicionServiciosTests
     private const string ServiceBusConnectionStringDummy =
         "Endpoint=sb://dummy.servicebus.windows.net/;SharedAccessKeyName=dummy;SharedAccessKey=dummy";
 
+    // Issue #308: nombre de la variable de entorno y default del ratio de sampling (CA-ADR-0009
+    // Capa 2). Ambos se repiten como literal inline en ComposicionServicios.cs -- a diferencia de
+    // Projections, que los extrae a constantes internas testeables -- porque este dominio no declara
+    // InternalsVisibleTo hacia su proyecto de tests. Se fijan aqui una sola vez para no repetirlos
+    // en cada test; si algun dia el dominio abre sus internals, estas dos constantes se reemplazan
+    // por las de produccion.
+    private const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
+    private const double RatioSamplingPorDefecto = 0.2;
+
     private static ServiceProvider ComponerServiceProvider()
     {
         var services = new ServiceCollection();
@@ -57,6 +69,42 @@ public class ComposicionServiciosTests
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+    }
+
+    // Fija el valor de la variable de entorno mientras corre la accion y lo restaura despues (null
+    // la elimina). Mismo patron que ConfiguracionObservabilidadProjectionsTests.ConVariableDeEntorno
+    // (issue #250/#308): sin esto, el escenario de ratio configurado no seria determinista frente a
+    // tests corriendo en paralelo.
+    private static void ConVariableDeEntorno(string nombre, string? valor, Action accion)
+    {
+        var original = Environment.GetEnvironmentVariable(nombre);
+        Environment.SetEnvironmentVariable(nombre, valor);
+        try
+        {
+            accion();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(nombre, original);
+        }
+    }
+
+    // Issue #308: lee la propiedad interna `Sampler` de TracerProviderSdk (OpenTelemetry.dll no la
+    // expone publicamente). Determinista -- compara tipos y lee Sampler.Description (publica) --,
+    // no requiere muestrear actividades reales contra un ratio fraccionario. Duplicado deliberado
+    // del mismo helper en Bitakora.ControlAsistencia.Projections.Tests (SamplerEfectivo.De): son
+    // proyectos de test distintos, sin un ensamblado compartido entre ambos (CA-ADR-0029:
+    // Contracts.Tests fue eliminado). Dos sitios -- MEF-ADR-0018 Rule of Three: se tolera la
+    // duplicacion hasta que aparezca un tercer consumidor que justifique un ensamblado comun.
+    private static Sampler ObtenerSamplerEfectivo(TracerProvider tracerProvider)
+    {
+        var propiedad = tracerProvider.GetType()
+            .GetProperty("Sampler", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException(
+                "TracerProviderSdk ya no expone la propiedad interna 'Sampler' " +
+                "(OpenTelemetry 1.16.0) -- actualizar este helper de reflection.");
+
+        return (Sampler)propiedad.GetValue(tracerProvider)!;
     }
 
     [Fact]
@@ -302,4 +350,82 @@ public class ComposicionServiciosTests
 
         act.Should().NotThrow();
     }
+
+    // --- Sampler efectivo del TracerProvider (issue #308 CA-2, CA-3) ---
+    //
+    // Hallazgo 1 del issue #308: UseAzureMonitorExporter llama SetSampler internamente
+    // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler porque
+    // AzureMonitorExporterOptions.TracesPerSecond tiene default 5.0. Escrito en el orden actual de
+    // este seam (SetSampler ANTES de UseAzureMonitorExporter), ese SetSampler interno pisa al
+    // ParentBasedSampler{TraceIdRatioBasedSampler{ratio}} que CA-ADR-0009 Capa 2 describe -- nunca
+    // llega a instalarse. La correccion es de ORDEN (un segundo .WithTracing(...) despues de
+    // .UseAzureMonitorExporter()), asi que el guardrail verifica el sampler EFECTIVO resuelto del
+    // contenedor, no que el codigo "llame a SetSampler" (eso ya lo hacia el seam roto).
+    //
+    // A diferencia de Projections (que envuelve el sampler de ratio con
+    // SamplerQueDescartaPollingDelDaemon porque el worker corre el daemon HotCold de Marten),
+    // ControlHoras no corre ningun daemon -- MEF-ADR-0018 Rule of Three: el filtro tiene un solo
+    // consumidor real (el worker) y no se generaliza aqui. El sampler efectivo esperado es
+    // directamente el ParentBasedSampler configurado por el proyecto, sin wrapper.
+    [Fact]
+    public void AgregarServiciosControlHoras_ResuelveElSamplerConfiguradoPorElProyecto_EnVezDeRateLimitedSampler()
+    {
+        // TracerProvider se registra Singleton (default de OpenTelemetry): no requiere un scope
+        // Wolverine (IAsyncDisposable) para resolverse, a diferencia de ICommandRouter/
+        // IPrivateEventRouter arriba -- Dispose() sincrono del ServiceProvider raiz basta.
+        using var provider = ComponerServiceProvider();
+        var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+        var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
+
+        // Oraculo por nombre completo, no por referencia al tipo (es internal en otro ensamblado:
+        // Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler no se puede nombrar
+        // desde este proyecto). Verificado en runtime (issue #308) que este es exactamente el tipo
+        // que gana hoy con el wiring actual.
+        samplerEfectivo.GetType().FullName.Should().NotBe(
+            "Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler");
+        samplerEfectivo.Should().BeOfType<ParentBasedSampler>();
+    }
+
+    // CA-3: complementa (no reemplaza) el parsing inline del ratio que ya vive en
+    // ComposicionServicios.cs -- verifica que el ratio efectivamente llega al sampler compuesto que
+    // el contenedor resuelve, no solo que se calcula correctamente. Determinista via
+    // Sampler.Description (propiedad publica: "ParentBased{TraceIdRatioBasedSampler{F6}}").
+    [Fact]
+    public void AgregarServiciosControlHoras_PropagaElRatioDeSamplingConfigurado_AlSamplerEfectivo()
+    {
+        ConVariableDeEntorno(VariableRatioSampling, "0.5", () =>
+        {
+            using var provider = ComponerServiceProvider();
+            var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+            var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
+
+            samplerEfectivo.Description.Should().Contain(FormatearRatio(0.5));
+        });
+    }
+
+    // La otra mitad de CA-3, y la que mas importa hoy: TELEMETRY_SAMPLING_RATIO no esta puesta en
+    // ningun recurso desplegado (medido en el issue #308), asi que el camino que efectivamente corre
+    // en dev es el del DEFAULT. Sin este guardrail, el sampler efectivo podria quedar con un ratio
+    // distinto al declarado y solo se veria como un volumen de ingestion inesperado -- el mismo modo
+    // de falla silenciosa que este issue corrige.
+    [Fact]
+    public void AgregarServiciosControlHoras_PropagaElRatioPorDefecto_AlSamplerEfectivo_CuandoLaVariableEstaAusente()
+    {
+        ConVariableDeEntorno(VariableRatioSampling, null, () =>
+        {
+            using var provider = ComponerServiceProvider();
+            var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+            var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
+
+            samplerEfectivo.Description.Should().Contain(FormatearRatio(RatioSamplingPorDefecto));
+        });
+    }
+
+    // TraceIdRatioBasedSampler embebe el ratio en su Description con formato F6 invariante
+    // ("TraceIdRatioBasedSampler{0.200000}"), verificado contra OpenTelemetry 1.16.0.
+    private static string FormatearRatio(double ratio) =>
+        ratio.ToString("F6", CultureInfo.InvariantCulture);
 }

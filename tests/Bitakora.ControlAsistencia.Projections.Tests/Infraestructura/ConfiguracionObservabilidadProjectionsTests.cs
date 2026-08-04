@@ -19,17 +19,25 @@
 //
 // Limites conocidos de esta clase (documentados, no huecos accidentales):
 //
-// 1. Que el ratio resuelto llegue efectivamente al ParentBasedSampler/TraceIdRatioBasedSampler no
-//    se verifica: el sampler compuesto vive dentro de TracerProviderSdk, que OpenTelemetry no
-//    expone publicamente. Ejercitarlo end-to-end exigiria muestrear actividades reales contra un
-//    ratio fraccionario -- probabilistico y flaky. Queda cubierto por revision de codigo.
-// 2. Que Program.cs invoque el seam (CA-4) tampoco: Program.cs son top-level statements y el
-//    worker no tiene equivalente a WebApplicationFactory (limite que MEF-ADR-0029 ya reconoce).
-//    Lo mas cerca que llega esta clase es componer juntos los dos seams del worker
-//    (ConfigurarEventos + ConfigurarObservabilidad), que es lo que Program.cs encadena; el enlace
-//    literal queda cubierto por revision de codigo (CA-4) y por el arranque real post-deploy
+// 1. Que Program.cs invoque el seam (CA-4 del issue #250) no se verifica: Program.cs son
+//    top-level statements y el worker no tiene equivalente a WebApplicationFactory (limite que
+//    MEF-ADR-0029 ya reconoce). Lo mas cerca que llega esta clase es componer juntos los dos seams
+//    del worker (ConfigurarEventos + ConfigurarObservabilidad), que es lo que Program.cs encadena;
+//    el enlace literal queda cubierto por revision de codigo y por el arranque real post-deploy
 //    (MEF-ADR-0013).
+//
+// Issue #308: el limite "el sampler compuesto vive dentro de TracerProviderSdk, que OpenTelemetry
+// no expone publicamente" que este archivo declaraba antes resulto SUPERABLE -- ver el helper
+// SamplerEfectivo.De (reflection sobre la propiedad interna Sampler) y los tests
+// "ConfigurarObservabilidad_*ElSampler*" mas abajo. Es determinista (compara tipos y lee
+// Description, que es publica), no probabilistico: no hace falta muestrear actividades reales
+// contra un ratio fraccionario. La revision de codigo
+// NO detecto el hallazgo 1 del issue #308 (UseAzureMonitorExporter pisa el sampler por dentro)
+// precisamente porque el codigo visible de este seam era correcto -- el defecto estaba en la
+// implementacion interna del exporter. De ahi que el guardrail deje de asumir que ese limite es
+// permanente.
 using System.Diagnostics;
+using System.Globalization;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
@@ -144,6 +152,81 @@ public class ConfiguracionObservabilidadProjectionsTests
         provider.GetService<IProgramacionProjectionStore>().Should().NotBeNull();
         provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
     }
+
+    // --- Sampler efectivo del TracerProvider (issue #308 CA-1, CA-3) ---
+    //
+    // Hallazgo 1 del issue: UseAzureMonitorExporter llama SetSampler internamente
+    // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler cuando
+    // AzureMonitorExporterOptions.TracesPerSecond tiene valor (default 5.0, SIEMPRE lo tiene salvo
+    // que el codigo lo ponga en null explicitamente). Escrito en el orden actual de este seam
+    // (SetSampler ANTES de UseAzureMonitorExporter), ese SetSampler interno pisa al que el proyecto
+    // configura -- el ParentBasedSampler{TraceIdRatioBasedSampler{ratio}} que CA-ADR-0009 Capa 2
+    // describe nunca llega a instalarse. La correccion es de ORDEN (un segundo .WithTracing(...)
+    // despues de .UseAzureMonitorExporter()), no de contenido: por eso el guardrail verifica el
+    // sampler EFECTIVO del contenedor, no que el codigo "llame a SetSampler" (eso ya lo hacia el
+    // seam roto).
+    [Fact]
+    public void ConfigurarObservabilidad_ResuelveElSamplerConfiguradoPorElProyecto_EnVezDeRateLimitedSampler()
+    {
+        using var provider = ComponerServiceProvider();
+        var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+        var samplerEfectivo = SamplerEfectivo.De(tracerProvider);
+
+        // Oraculo por nombre completo, no por referencia al tipo (es internal en otro ensamblado:
+        // Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler no se puede nombrar
+        // desde este proyecto). Verificado en runtime (issue #308) que este es exactamente el tipo
+        // que gana hoy con el wiring actual.
+        samplerEfectivo.GetType().FullName.Should().NotBe(
+            "Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler");
+        samplerEfectivo.Should().BeOfType<SamplerQueDescartaPollingDelDaemon>();
+    }
+
+    // CA-3: complementa (no reemplaza) ResolverRatioDeSampling_* de mas abajo -- aquellos verifican
+    // solo el PARSING del valor de entorno; este verifica que el ratio resuelto efectivamente llega
+    // al sampler compuesto que el contenedor resuelve. Antes del issue #308 esto se declaraba como
+    // limite conocido (no observable sin acceder a TracerProviderSdk); dejo de serlo con
+    // SamplerEfectivo.De + Sampler.Description (propiedad publica, que el wrapper compone con la del
+    // sampler de ratio que envuelve:
+    // "SamplerQueDescartaPollingDelDaemon{ParentBased{TraceIdRatioBasedSampler{F6}}}").
+    [Fact]
+    public void ConfigurarObservabilidad_PropagaElRatioDeSamplingConfigurado_AlSamplerEfectivo()
+    {
+        ConVariableDeEntorno(ConfiguracionObservabilidadProjections.VariableRatioSampling, "0.5", () =>
+        {
+            using var provider = ComponerServiceProvider();
+            var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+            var samplerEfectivo = SamplerEfectivo.De(tracerProvider);
+
+            samplerEfectivo.Description.Should().Contain(FormatearRatio(0.5));
+        });
+    }
+
+    // La otra mitad de CA-3, y la que mas importa hoy: TELEMETRY_SAMPLING_RATIO no esta puesta en
+    // ningun recurso desplegado (medido en el issue #308), asi que el camino que efectivamente corre
+    // en dev es el del DEFAULT. Sin este guardrail, el sampler efectivo podria quedar con un ratio
+    // distinto al que RatioSamplingPorDefecto declara y solo se veria como un volumen de ingestion
+    // inesperado -- el mismo modo de falla silenciosa que este issue corrige.
+    [Fact]
+    public void ConfigurarObservabilidad_PropagaElRatioPorDefecto_AlSamplerEfectivo_CuandoLaVariableEstaAusente()
+    {
+        ConVariableDeEntorno(ConfiguracionObservabilidadProjections.VariableRatioSampling, null, () =>
+        {
+            using var provider = ComponerServiceProvider();
+            var tracerProvider = provider.GetRequiredService<TracerProvider>();
+
+            var samplerEfectivo = SamplerEfectivo.De(tracerProvider);
+
+            samplerEfectivo.Description.Should().Contain(
+                FormatearRatio(ConfiguracionObservabilidadProjections.RatioSamplingPorDefecto));
+        });
+    }
+
+    // TraceIdRatioBasedSampler embebe el ratio en su Description con formato F6 invariante
+    // ("TraceIdRatioBasedSampler{0.200000}"), verificado contra OpenTelemetry 1.16.0.
+    private static string FormatearRatio(double ratio) =>
+        ratio.ToString("F6", CultureInfo.InvariantCulture);
 
     // El patron de la fuente propia (CA-2) va sin punto antes del asterisco a proposito. Verificado
     // contra OpenTelemetry 1.16.0: "X.*" se ancla como ^X\..*$ y descarta una ActivitySource
