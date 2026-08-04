@@ -328,6 +328,34 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
     }
 
+    // Issue #294, mitad worker de la dimension que el par de #289 dejo abierta: la guarda de arriba
+    // pinea tabla, tenancy e Id, y las tres convergian -- el 500 en dev entro por la forma de
+    // mt_version, que nadie media.
+    //
+    // Este lado NO declara nada para que estos valores sean asi: los impone Marten al registrar
+    // TurnoDiarioProjection, via ProjectionDocumentPolicy, sobre todo documento target de una
+    // proyeccion registrada en el store (https://martendb.io/documents/concurrency, "Numeric
+    // Revisioned Documents"; Marten/Events/Projections/ProjectionDocumentPolicy.cs). O sea que este
+    // es el lado que DEFINE la forma fisica de la tabla, y el write-side es el que debe replicarla.
+    // Por eso el oraculo se congela aqui tambien: si una version futura de Marten cambiara el tipo
+    // por defecto de Metadata.Revision, este test se pondria rojo junto con su hermano
+    // ComposicionServiciosTests.AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaElWorker...
+    // en vez de dejar que la divergencia llegue a dev como un 42804 por request.
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaTurnoDiarioViewConRevisionNumerica()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
+
+        // Mismos literales que congela el write-side. Las dos columnas comparten el nombre fisico
+        // mt_version y solo una puede estar habilitada, de ahi que se midan ambas.
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
