@@ -198,3 +198,34 @@ jobs:
           # de Postgres, permisos DDL sobre el schema) NO lo detecta este job -- la revision se
           # aprovisiona igual. Verlo requiere los logs del contenedor:
           #   az containerapp logs show -n ca-asist-dev -g rg-controlasistencias-dev --follow
+
+  smoke-tests:
+    # (issue #314) 'Verificar la revision activa' solo prueba que el contenedor arranco
+    # (provisioningState/runningState del Container App), no que las proyecciones sigan
+    # materializando lo que los GET de lectura esperan. Este job cierra ese hueco: corre DESPUES
+    # de 'deploy' y depende de el via 'needs', nunca en paralelo (CA-3). Si 'deploy' no corre (el
+    # push no toco el worker, ver filtro de 'paths' arriba) o falla, este job se salta solo -- no
+    # hace falta un 'if' explicito (CA-4).
+    needs: deploy
+    uses: ./.github/workflows/smoke-tests-dominio.yml
+    with:
+      # ControlHoras es hoy el unico dominio con una proyeccion registrada
+      # (TurnoDiarioProjection es la unica entrada del worker en Program.cs), asi que basta su
+      # suite de smoke tests para cubrir lo que este worker materializa.
+      #
+      # Desviacion documentada frente a la propuesta del issue de reusar
+      # .github/smoke-tests-dominios.json (la matriz de "todos los dominios" que consume
+      # smoke-tests.yml): esa matriz incluye tambien Programacion, que no tiene ninguna
+      # proyeccion registrada -- correr su suite aca probaria un dominio sin relacion con lo que
+      # el worker acaba de desplegar. Cuando Programacion adopte proyecciones, este job deberia
+      # migrar a esa matriz para no mantener dos listas del mismo hecho en paralelo.
+      base_url: https://func-asist-dev-control-horas.azurewebsites.net
+      test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
+      # expected_sha vacio a proposito (CA-2): /api/version lo expone el Function App de
+      # ControlHoras, no el worker de proyecciones -- un deploy de este worker no cambia ese
+      # valor, asi que esperar un SHA aca solo agotaria el timeout de 120s sin motivo. El
+      # reusable ya degrada a esperar HTTP 200 en /api/health cuando expected_sha llega vacio.
+      expected_sha: ''
+    secrets:
+      SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}

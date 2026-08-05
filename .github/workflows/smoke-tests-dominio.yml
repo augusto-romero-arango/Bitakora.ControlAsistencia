@@ -35,22 +35,24 @@ on:
       POSTGRES_CONNECTION_STRING:
         required: false
 
-# Serializa las tres rutas que invocan este reusable (deploy-control-horas.yml,
-# deploy-programacion.yml y la matrix de smoke-tests.yml) contra el mismo Service Bus de dev y su
-# unica suscripcion 'smoke-tests' -- issue #313. Dos suites corriendo a la vez se roban
+# Serializa las cuatro rutas que invocan este reusable (deploy-control-horas.yml,
+# deploy-programacion.yml, deploy-projections.yml -- issue #314 -- y la matrix de
+# smoke-tests.yml) contra el mismo Service Bus de dev y su unica suscripcion 'smoke-tests' --
+# issue #313. Dos suites corriendo a la vez se roban
 # mutuamente el mensaje que cada una espera (cada CompleteMessageAsync de una destruye el
 # mensaje que la otra necesitaba).
 #
-# El grupo va AQUI, en el workflow LLAMADO, porque es el unico punto por el que pasan las tres
+# El grupo va AQUI, en el workflow LLAMADO, porque es el unico punto por el que pasan las cuatro
 # rutas de disparo: un solo bloque las cubre. Que un workflow llamado reserve su propio grupo,
 # independiente del run que lo invoca, esta evidenciado en github/community#30708: alli el sintoma
 # es que el caller se cancela a si mismo cuando ambos piden el mismo grupo -- prueba de que la
 # reserva del llamado ocurre de verdad y por invocacion.
 #
 # El nombre del grupo es un literal fijo a proposito, y no ${{ github.workflow }}: un workflow
-# llamado hereda en ese contexto el nombre del CALLER (Deploy ControlHoras, Deploy Programacion o
-# Smoke Tests (todos los dominios)). Interpolarlo aca daria un grupo distinto por invocador
-# -- anulando la serializacion -- y ademas chocaria con el grupo del caller si este declarara uno.
+# llamado hereda en ese contexto el nombre del CALLER (Deploy ControlHoras, Deploy Programacion,
+# Deploy Projections o Smoke Tests (todos los dominios)). Interpolarlo aca daria un grupo distinto
+# por invocador -- anulando la serializacion -- y ademas chocaria con el grupo del caller si este
+# declarara uno.
 # Es justamente la correccion que recomienda ese hilo.
 #
 # cancel-in-progress: false (CA-3) -- la corrida encolada espera; nunca cancela a la que esta
