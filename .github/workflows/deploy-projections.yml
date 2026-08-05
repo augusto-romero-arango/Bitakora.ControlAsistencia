@@ -200,31 +200,50 @@ jobs:
           #   az containerapp logs show -n ca-asist-dev -g rg-controlasistencias-dev --follow
 
   smoke-tests:
-    # (issue #314) 'Verificar la revision activa' solo prueba que el contenedor arranco
-    # (provisioningState/runningState del Container App), no que las proyecciones sigan
-    # materializando lo que los GET de lectura esperan. Este job cierra ese hueco: corre DESPUES
-    # de 'deploy' y depende de el via 'needs', nunca en paralelo (CA-3). Si 'deploy' no corre (el
-    # push no toco el worker, ver filtro de 'paths' arriba) o falla, este job se salta solo -- no
-    # hace falta un 'if' explicito (CA-4).
+    # (issue #314) 'Verificar la revision activa' comprueba el CONTRATO DE DESPLIEGUE -- que la
+    # revision mas nueva corre exactamente la imagen que este run publico y quedo activa --, no que
+    # las proyecciones sigan materializando lo que los GET de lectura esperan. provisioningState y
+    # runningState ni siquiera se afirman ahi: se imprimen como informacion. La nota final de ese
+    # paso lo dice sin rodeos: un fallo de arranque del worker (secreto sin resolver, credenciales
+    # de Postgres, permisos DDL) NO lo detecta, porque la revision se aprovisiona igual. Este job
+    # cierra ese hueco ejerciendo los GET de verdad (CA-1).
+    #
+    # 'needs: deploy' (CA-3) lo pone DESPUES del deploy, nunca en paralelo; y si 'deploy' falla o
+    # queda saltado, un job cuyo 'needs' no se cumplio no arranca, asi que la suite no corre sin
+    # motivo (CA-4) sin necesidad de un 'if' explicito. Ojo con la diferencia frente a
+    # deploy-control-horas.yml: aqui 'deploy' no tiene guarda 'if' propia. El push que no toca el
+    # worker se filtra antes, en el 'paths' de arriba, y en ese caso no arranca el workflow entero.
     needs: deploy
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
-      # ControlHoras es hoy el unico dominio con una proyeccion registrada
-      # (TurnoDiarioProjection es la unica entrada del worker en Program.cs), asi que basta su
-      # suite de smoke tests para cubrir lo que este worker materializa.
+      # ControlHoras es hoy el unico dominio con una proyeccion CONCRETA: el unico
+      # 'opts.Projections.Add<>' del worker es TurnoDiarioProjection, y vive en
+      # src/Bitakora.ControlAsistencia.Projections/Infraestructura/ConfiguracionMartenProjectionsControlHoras.cs.
+      # Ese es el archivo a revisar cuando esta eleccion se ponga en duda, NO Program.cs: Program.cs
+      # solo llama ConfigurarEventos, que registra el named store y el daemon de los DOS dominios
+      # -- el de Programacion existe y arranca, pero todavia no materializa nada. Asi que la suite
+      # de ControlHoras cubre todo lo que este worker proyecta.
       #
       # Desviacion documentada frente a la propuesta del issue de reusar
       # .github/smoke-tests-dominios.json (la matriz de "todos los dominios" que consume
-      # smoke-tests.yml): esa matriz incluye tambien Programacion, que no tiene ninguna
-      # proyeccion registrada -- correr su suite aca probaria un dominio sin relacion con lo que
-      # el worker acaba de desplegar. Cuando Programacion adopte proyecciones, este job deberia
-      # migrar a esa matriz para no mantener dos listas del mismo hecho en paralelo.
+      # smoke-tests.yml): esa matriz incluye tambien Programacion, cuya suite probaria un dominio
+      # sin ninguna proyeccion detras de este deploy. Cuando Programacion registre su primera
+      # proyeccion, este job deberia migrar a esa matriz para no mantener dos listas del mismo
+      # hecho en paralelo.
       base_url: https://func-asist-dev-control-horas.azurewebsites.net
       test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
       # expected_sha vacio a proposito (CA-2): /api/version lo expone el Function App de
       # ControlHoras, no el worker de proyecciones -- un deploy de este worker no cambia ese
       # valor, asi que esperar un SHA aca solo agotaria el timeout de 120s sin motivo. El
       # reusable ya degrada a esperar HTTP 200 en /api/health cuando expected_sha llega vacio.
+      #
+      # Consecuencia a vigilar (la carrera worker/consulta que anticipa el issue): ese health check
+      # pega contra el Function App, que este run NO redespliega, asi que responde 200 casi de
+      # inmediato y no le da margen a la revision nueva del worker para tomar el advisory lock de
+      # HotCold que la anterior esta liberando. El margen real lo pone el presupuesto de Polling de
+      # los tests que consultan turnos -- 30s, el campo 'Timeout' de ObtenerTurnoDiarioSmokeTests y
+      # ListarTurnosDiariosSmokeTests. Si este job sale intermitente, ese es el primer numero a
+      # mirar, antes de sospechar de la suite o del deploy.
       expected_sha: ''
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}

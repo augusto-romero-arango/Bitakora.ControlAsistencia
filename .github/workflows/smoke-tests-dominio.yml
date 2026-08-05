@@ -38,9 +38,8 @@ on:
 # Serializa las cuatro rutas que invocan este reusable (deploy-control-horas.yml,
 # deploy-programacion.yml, deploy-projections.yml -- issue #314 -- y la matrix de
 # smoke-tests.yml) contra el mismo Service Bus de dev y su unica suscripcion 'smoke-tests' --
-# issue #313. Dos suites corriendo a la vez se roban
-# mutuamente el mensaje que cada una espera (cada CompleteMessageAsync de una destruye el
-# mensaje que la otra necesitaba).
+# issue #313. Dos suites corriendo a la vez se roban mutuamente el mensaje que cada una espera
+# (cada CompleteMessageAsync de una destruye el mensaje que la otra necesitaba).
 #
 # El grupo va AQUI, en el workflow LLAMADO, porque es el unico punto por el que pasan las cuatro
 # rutas de disparo: un solo bloque las cubre. Que un workflow llamado reserve su propio grupo,
@@ -60,10 +59,13 @@ on:
 #
 # queue: max (CA-4) -- el default 'queue: single' admite UNA sola corrida pendiente por grupo, y la
 # tercera en llegar cancela a la que estaba esperando, que queda reportada como 'cancelled' en el
-# check. Con tres invocadores eso es alcanzable hoy: un apply de infra dispara los dos deploys y
-# basta un workflow_dispatch de "Smoke Tests (todos los dominios)" en esa ventana. 'max' admite
-# hasta 100 pendientes en orden FIFO segun cuando cada una entro al grupo. Solo es valido con
-# cancel-in-progress en false; combinarlo con true es error de validacion del workflow.
+# check. Con cuatro invocadores eso es alcanzable con UN solo push: los tres deploy-*.yml incluyen
+# 'src/Bitakora.ControlAsistencia.PublicEvents/**', 'src/Bitakora.ControlAsistencia.PrivateEvents/**'
+# y 'global.json' en su filtro de 'paths', asi que un push a main que toque cualquiera de esas rutas
+# los dispara a los tres a la vez y los tres terminan pidiendo este grupo. Con 'queue: single' uno
+# de ellos moriria como 'cancelled'. 'max' admite hasta 100 pendientes en orden FIFO segun cuando
+# cada una entro al grupo. Solo es valido con cancel-in-progress en false; combinarlo con true es
+# error de validacion del workflow.
 # https://github.blog/changelog/2026-05-07-github-actions-concurrency-groups-now-allow-larger-queues/
 #
 # OJO si corres actionlint local: hasta 1.7.12 su schema no conoce 'queue' y lo reporta como
