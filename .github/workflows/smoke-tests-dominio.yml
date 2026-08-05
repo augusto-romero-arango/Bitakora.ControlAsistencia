@@ -35,6 +35,31 @@ on:
       POSTGRES_CONNECTION_STRING:
         required: false
 
+# Serializa las tres rutas que invocan este reusable (deploy-control-horas.yml,
+# deploy-programacion.yml y la matrix de smoke-tests.yml) contra el mismo Service Bus de dev y su
+# unica suscripcion 'smoke-tests' -- issue #313. Dos suites corriendo a la vez se roban
+# mutuamente el mensaje que cada una espera (cada CompleteMessageAsync de una destruye el
+# mensaje que la otra necesitaba).
+#
+# El grupo va AQUI, a nivel de ESTE workflow llamado, y no como jobs.<job_id>.concurrency en el
+# job 'uses:' de cada caller: la documentacion de GitHub Actions sobre reusable workflows solo
+# lista jobs.<job_id>.concurrency como valido en el job que hace la llamada, pero la comunidad
+# (github/community#30708) confirma que ese punto no serializa invocaciones del reusable como
+# cabria esperar -- lo que si funciona es declarar 'concurrency' en el propio workflow llamado.
+#
+# El nombre del grupo es un literal fijo a proposito: un workflow llamado hereda
+# ${{ github.workflow }} del CALLER (Deploy ControlHoras, Deploy Programacion o Smoke Tests
+# (todos los dominios)), asi que interpolarlo aca produciria un grupo distinto por invocador y
+# anularia la serializacion que este cambio busca.
+#
+# cancel-in-progress: false (CA-3) -- una corrida encolada espera a la que esta verificando un
+# deploy en curso, nunca la cancela. Con 2 invocadores simultaneos como maximo hoy, el default de
+# 'queue' (una corrida pendiente por grupo) alcanza; si se suma un tercer invocador (#314), revisar
+# 'queue: max'.
+concurrency:
+  group: smoke-tests-dev
+  cancel-in-progress: false
+
 jobs:
   smoke-tests:
     runs-on: ubuntu-latest

@@ -17,6 +17,11 @@ jobs:
     needs: discovery
     strategy:
       fail-fast: false
+      # CA-2 (issue #313): un dominio a la vez. El concurrency del reusable smoke-tests-dominio.yml
+      # ya serializa las invocaciones entre si, pero max-parallel lo deja explicito tambien aqui:
+      # sin el, ambas legs de la matrix arrancarian juntas y solo una avanzaria mientras la otra
+      # queda encolada -- no es un fallo, pero oculta en el arranque lo que el CA pide visible.
+      max-parallel: 1
       matrix:
         include: ${{ fromJson(needs.discovery.outputs.matrix) }}
     uses: ./.github/workflows/smoke-tests-dominio.yml
