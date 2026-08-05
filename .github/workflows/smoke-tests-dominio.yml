@@ -35,22 +35,23 @@ on:
       POSTGRES_CONNECTION_STRING:
         required: false
 
-# Serializa las tres rutas que invocan este reusable (deploy-control-horas.yml,
-# deploy-programacion.yml y la matrix de smoke-tests.yml) contra el mismo Service Bus de dev y su
-# unica suscripcion 'smoke-tests' -- issue #313. Dos suites corriendo a la vez se roban
-# mutuamente el mensaje que cada una espera (cada CompleteMessageAsync de una destruye el
-# mensaje que la otra necesitaba).
+# Serializa las cuatro rutas que invocan este reusable (deploy-control-horas.yml,
+# deploy-programacion.yml, deploy-projections.yml -- issue #314 -- y la matrix de
+# smoke-tests.yml) contra el mismo Service Bus de dev y su unica suscripcion 'smoke-tests' --
+# issue #313. Dos suites corriendo a la vez se roban mutuamente el mensaje que cada una espera
+# (cada CompleteMessageAsync de una destruye el mensaje que la otra necesitaba).
 #
-# El grupo va AQUI, en el workflow LLAMADO, porque es el unico punto por el que pasan las tres
+# El grupo va AQUI, en el workflow LLAMADO, porque es el unico punto por el que pasan las cuatro
 # rutas de disparo: un solo bloque las cubre. Que un workflow llamado reserve su propio grupo,
 # independiente del run que lo invoca, esta evidenciado en github/community#30708: alli el sintoma
 # es que el caller se cancela a si mismo cuando ambos piden el mismo grupo -- prueba de que la
 # reserva del llamado ocurre de verdad y por invocacion.
 #
 # El nombre del grupo es un literal fijo a proposito, y no ${{ github.workflow }}: un workflow
-# llamado hereda en ese contexto el nombre del CALLER (Deploy ControlHoras, Deploy Programacion o
-# Smoke Tests (todos los dominios)). Interpolarlo aca daria un grupo distinto por invocador
-# -- anulando la serializacion -- y ademas chocaria con el grupo del caller si este declarara uno.
+# llamado hereda en ese contexto el nombre del CALLER (Deploy ControlHoras, Deploy Programacion,
+# Deploy Projections o Smoke Tests (todos los dominios)). Interpolarlo aca daria un grupo distinto
+# por invocador -- anulando la serializacion -- y ademas chocaria con el grupo del caller si este
+# declarara uno.
 # Es justamente la correccion que recomienda ese hilo.
 #
 # cancel-in-progress: false (CA-3) -- la corrida encolada espera; nunca cancela a la que esta
@@ -58,10 +59,13 @@ on:
 #
 # queue: max (CA-4) -- el default 'queue: single' admite UNA sola corrida pendiente por grupo, y la
 # tercera en llegar cancela a la que estaba esperando, que queda reportada como 'cancelled' en el
-# check. Con tres invocadores eso es alcanzable hoy: un apply de infra dispara los dos deploys y
-# basta un workflow_dispatch de "Smoke Tests (todos los dominios)" en esa ventana. 'max' admite
-# hasta 100 pendientes en orden FIFO segun cuando cada una entro al grupo. Solo es valido con
-# cancel-in-progress en false; combinarlo con true es error de validacion del workflow.
+# check. Con cuatro invocadores eso es alcanzable con UN solo push: los tres deploy-*.yml incluyen
+# 'src/Bitakora.ControlAsistencia.PublicEvents/**', 'src/Bitakora.ControlAsistencia.PrivateEvents/**'
+# y 'global.json' en su filtro de 'paths', asi que un push a main que toque cualquiera de esas rutas
+# los dispara a los tres a la vez y los tres terminan pidiendo este grupo. Con 'queue: single' uno
+# de ellos moriria como 'cancelled'. 'max' admite hasta 100 pendientes en orden FIFO segun cuando
+# cada una entro al grupo. Solo es valido con cancel-in-progress en false; combinarlo con true es
+# error de validacion del workflow.
 # https://github.blog/changelog/2026-05-07-github-actions-concurrency-groups-now-allow-larger-queues/
 #
 # OJO si corres actionlint local: hasta 1.7.12 su schema no conoce 'queue' y lo reporta como
