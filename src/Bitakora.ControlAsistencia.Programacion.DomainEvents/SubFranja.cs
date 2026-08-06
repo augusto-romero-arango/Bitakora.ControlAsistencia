@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -29,9 +28,11 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
         return new SubFranja(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
     }
 
-    // Conversion a DTO plano para eventos entre dominios
-    // Issue #288 CA-2: Descripcion se asigna con el ToString() de este mismo tipo rico.
-    public DetalleSubFranja ToDetalle() =>
+    // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.SubFranjaProgramada).
+    // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleSubFranja, PrivateEvents) -- el
+    // FA mapea SubFranjaProgramada -> DetalleSubFranja solo para los eventos que cruzan el bus
+    // (CA-5). Tell-don't-Ask preservado: la conversion sigue viviendo en este VO (MEF-ADR-0012).
+    public SubFranjaProgramada ToDetalle() =>
         new(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin, ToString());
 
     // CA-20, CA-21: formato legible con offsets

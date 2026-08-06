@@ -6,10 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
-  </ItemGroup>
+  <!-- Isla de eventos (CA-ADR-0029 decision #2, canon MEF-ADR-0039): ninguna dependencia de
+       proyecto, tampoco hacia los otros ensamblados de eventos, y ningun paquete que retirar.
+       Los payloads del evento persistido son propios de este ensamblado (payload por rol,
+       decision #5), no tipos importados de PublicEvents ni de PrivateEvents. -->
 
   <!-- TurnoCreado.Mensajes es internal y los tests lo usan en sus asserts (MEF-ADR-0009). -->
   <ItemGroup>

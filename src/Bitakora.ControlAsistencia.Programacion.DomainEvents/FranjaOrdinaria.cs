@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -67,9 +66,12 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         return ordinaria;
     }
 
-    // Conversion a DTO plano para eventos entre dominios
-    // Issue #288 CA-2: Descripcion se asigna con el ToString() de este mismo tipo rico.
-    public DetalleFranjaOrdinaria ToDetalle() => new(
+    // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.FranjaProgramada).
+    // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleFranjaOrdinaria, PrivateEvents)
+    // -- el FA mapea FranjaProgramada -> DetalleFranjaOrdinaria solo para los eventos que cruzan
+    // el bus (CA-5). Tell-don't-Ask preservado: la conversion sigue viviendo en este VO, sin abrir
+    // _descansos/_extras (MEF-ADR-0012).
+    public FranjaProgramada ToDetalle() => new(
         _horaInicio, _horaFin, _diaOffsetFin,
         _descansos.Select(d => d.ToDetalle()).ToList().AsReadOnly(),
         _extras.Select(e => e.ToDetalle()).ToList().AsReadOnly(),

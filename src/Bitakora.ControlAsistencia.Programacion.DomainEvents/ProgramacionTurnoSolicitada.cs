@@ -1,24 +1,29 @@
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
-
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 /// <summary>
 /// Evento de event sourcing (privado). Se persiste en el stream de SolicitudProgramacionAggregateRoot.
 /// No se publica al Service Bus.
 /// </summary>
+/// <remarks>
+/// Issue #319 (tres islas, MEF-ADR-0039 decision 2 y 6): Empleado y DetalleTurno tipan con los
+/// records propios de este ensamblado (Empleado, TurnoProgramado) en vez de InformacionEmpleado
+/// (PublicEvents) y DetalleTurno (PrivateEvents). Los NOMBRES de las propiedades no cambian --
+/// son las claves JSON persistidas en mt_events (CA-2); solo cambian los TIPOS. Sin migracion de
+/// datos: STJ no persiste $type para records anidados, asi que el JSON ya escrito deserializa
+/// identico contra los tipos nuevos (ver ProgramacionTurnoSolicitadaSerializacionTests).
+/// </remarks>
 public sealed class ProgramacionTurnoSolicitada
 {
     public Guid Id { get; private set; }
-    public InformacionEmpleado Empleado { get; private set; } = null!;
+    public Empleado Empleado { get; private set; } = null!;
     public IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
-    public DetalleTurno DetalleTurno { get; private set; } = null!;
+    public TurnoProgramado DetalleTurno { get; private set; } = null!;
 
     public ProgramacionTurnoSolicitada(
         Guid id,
-        InformacionEmpleado empleado,
+        Empleado empleado,
         IReadOnlyList<DateOnly> fechas,
-        DetalleTurno detalleTurno)
+        TurnoProgramado detalleTurno)
     {
         Id = id;
         Empleado = empleado;
