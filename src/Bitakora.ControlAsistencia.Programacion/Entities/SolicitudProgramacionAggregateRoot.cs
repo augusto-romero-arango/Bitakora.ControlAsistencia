@@ -1,15 +1,16 @@
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
+// Issue #319 (tres islas, MEF-ADR-0039 decision 2): Empleado y DetalleTurno tipan con los records
+// propios del dominio (Programacion.DomainEvents) -- ya no con InformacionEmpleado (PublicEvents)
+// ni DetalleTurno (PrivateEvents).
 public partial class SolicitudProgramacionAggregateRoot : AggregateRoot
 {
-    internal InformacionEmpleado? Empleado { get; private set; }
+    internal Empleado? Empleado { get; private set; }
     internal IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
-    internal DetalleTurno? DetalleTurno { get; private set; }
+    internal TurnoProgramado? DetalleTurno { get; private set; }
 
     public void Apply(ProgramacionTurnoSolicitada e)
     {

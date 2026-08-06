@@ -30,7 +30,13 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly DetalleEmpleado EmpleadoDetalle =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
-    // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno()
+    // Issue #319 CA-2/CA-5: mismo empleado, en el record propio de Programacion.DomainEvents que
+    // ahora tipa ProgramacionTurnoSolicitada.Empleado (tres islas, MEF-ADR-0039 decision 2).
+    private static readonly Empleado EmpleadoProgramado =
+        new("E001", "CC", "12345678", "Juan", "Perez");
+
+    // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno(). Forma de BUS
+    // (PrivateEvents) -- solo se usa en ThenIsPublishedPrivately (CA-5: unico punto de mapeo).
     // Issue #288 CA-2: Descripcion lleva el texto real que produce el ToString() del tipo rico
     // (CatalogoTurnos a nivel turno, FranjaOrdinaria a nivel franja). La coherencia entre ambos
     // la prueban CatalogoTurnosTests y FranjaOrdinariaToDetalleTests; aqui el valor literal
@@ -38,6 +44,16 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly DetalleTurno DetalleEsperado = new(
         "Turno Manana",
         new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
+    // Issue #319 CA-1/CA-5: mismo turno, en el record propio del dominio (Programacion.DomainEvents)
+    // que ahora tipa el evento persistido ProgramacionTurnoSolicitada.DetalleTurno.
+    private static readonly TurnoProgramado TurnoProgramadoEsperado = new(
+        "Turno Manana",
+        new List<FranjaProgramada>
         {
             new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")
         }.AsReadOnly(),
@@ -67,7 +83,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Empleado, [Fecha1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, Empleado, [Fecha1], DetalleEsperado));
+            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
             GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
@@ -82,7 +98,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Empleado, [Fecha1, Fecha2]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, Empleado, [Fecha1, Fecha2], DetalleEsperado));
+            GuidAggregateId, EmpleadoProgramado, [Fecha1, Fecha2], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(
             new ProgramacionTurnoDiarioSolicitada(
                 GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado),
@@ -97,7 +113,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, Empleado, [Fecha1], DetalleEsperado));
+            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado));
 
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Empleado, [Fecha1]));

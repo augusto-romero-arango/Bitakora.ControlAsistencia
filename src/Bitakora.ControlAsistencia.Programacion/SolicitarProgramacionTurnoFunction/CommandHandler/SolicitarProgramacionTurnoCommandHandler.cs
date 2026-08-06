@@ -32,10 +32,17 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
-        var detalleTurno = catalogo.ObtenerDetalle();
+        // Issue #319 (tres islas, MEF-ADR-0039 decision 2): ObtenerDetalle() ya no produce el DTO
+        // de bus (DetalleTurno, PrivateEvents) -- produce el tipo propio del dominio
+        // (TurnoProgramado, Programacion.DomainEvents). El FA mapea a DetalleTurno solo para los
+        // eventos que cruzan el bus (CA-5).
+        var turnoProgramado = catalogo.ObtenerDetalle();
         var fechas = command.Fechas.AsReadOnly();
 
-        var evento = new ProgramacionTurnoSolicitada(command.Id, command.Empleado, fechas, detalleTurno);
+        // Issue #319 CA-2/CA-5: el comando HTTP conserva InformacionEmpleado (PublicEvents, fuera
+        // de alcance); el evento persistido tipa con Empleado (dominio) -- el mapeo vive aqui.
+        var empleadoDominio = MapearEmpleadoDominio(command.Empleado);
+        var evento = new ProgramacionTurnoSolicitada(command.Id, empleadoDominio, fechas, turnoProgramado);
         var solicitud = SolicitudProgramacionAggregateRoot.Iniciar(evento);
 
         _eventStore.StartStream(solicitud);
@@ -46,6 +53,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // (PublicEvents) y el evento privado lleva DetalleEmpleado, asi que el mapeo vive aqui --
         // la Function App es el unico proyecto que ve ambos ensamblados.
         var empleado = MapearEmpleado(command.Empleado);
+        // Issue #319 CA-5: DetalleTurno (PrivateEvents) se deriva de TurnoProgramado (dominio),
+        // no directamente del catalogo -- unico punto de mapeo hacia el payload de bus.
+        var detalleTurno = MapearTurno(turnoProgramado);
         var eventosPrivados = command.Fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
                 command.Id, empleado, fecha, detalleTurno))
@@ -57,4 +67,15 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     private static DetalleEmpleado MapearEmpleado(InformacionEmpleado empleado) =>
         new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
             empleado.Nombres, empleado.Apellidos);
+
+    // Stub de fase roja (issue #319 CA-5) -- el implementer completa el mapeo campo a campo hacia
+    // el record propio del dominio (Programacion.DomainEvents.Empleado).
+    private static Empleado MapearEmpleadoDominio(InformacionEmpleado empleado) =>
+        throw new NotImplementedException();
+
+    // Stub de fase roja (issue #319 CA-5) -- el implementer completa el mapeo (incluyendo las
+    // listas anidadas de franjas y sub-franjas) desde TurnoProgramado (dominio) hacia DetalleTurno
+    // (PrivateEvents), el unico punto de traduccion hacia el payload que cruza el bus interno.
+    private static DetalleTurno MapearTurno(TurnoProgramado turno) =>
+        throw new NotImplementedException();
 }

@@ -1,4 +1,3 @@
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Cosmos.EventSourcing.Abstractions;
 
@@ -29,12 +28,11 @@ public partial class CatalogoTurnos : AggregateRoot
     public override string ToString() =>
         $"{_nombre} {string.Join("", _franjasOrdinarias)}";
 
-    // Devuelve una representacion plana del turno para usar en eventos entre dominios
-    // Issue #288 CA-2: Descripcion se asigna con el ToString() de este mismo aggregate.
-    internal DetalleTurno ObtenerDetalle() => new(
-        _nombre,
-        _franjasOrdinarias.Select(f => f.ToDetalle()).ToList().AsReadOnly(),
-        ToString());
+    // Devuelve el turno programado propio del dominio (Programacion.DomainEvents.TurnoProgramado).
+    // Issue #319 (tres islas): ya no construye el DTO de bus (DetalleTurno, PrivateEvents) -- el
+    // FA mapea TurnoProgramado -> DetalleTurno solo para los eventos que cruzan el bus (CA-5).
+    // Stub de fase roja (issue #319 CA-5) -- el implementer completa el mapeo campo a campo.
+    internal TurnoProgramado ObtenerDetalle() => throw new NotImplementedException();
 
     // Factory interno: crea el aggregate con el evento en _uncommittedEvents
     // Usado por el handler para StartStream -- no es parte de la interfaz publica del dominio
