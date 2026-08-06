@@ -4,7 +4,7 @@
 //       y TotalMinutosPorConcepto vacio
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
@@ -19,8 +19,8 @@ public class DesgloseHorasTests
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static DetalleFranjaOrdinaria CrearFranjaProgramada() =>
-        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
+    private static FranjaProgramada CrearFranjaProgramada() =>
+        new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
     private static DesgloseFranja CrearFranjaConIntervalos(
         params (TimeOnly inicio, TimeOnly fin, Concepto concepto)[] datos)

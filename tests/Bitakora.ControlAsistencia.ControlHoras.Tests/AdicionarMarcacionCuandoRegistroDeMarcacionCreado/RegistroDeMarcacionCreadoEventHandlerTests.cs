@@ -6,8 +6,6 @@ using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDe
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -59,9 +57,9 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampFueraDeVentana));
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
-        And<ControlDiarioAggregateRoot, InformacionEmpleado?>(
+        And<ControlDiarioAggregateRoot, Empleado?>(
             StreamIdDia15, c => c.InformacionEmpleado, null);
-        And<ControlDiarioAggregateRoot, DetalleTurno?>(
+        And<ControlDiarioAggregateRoot, TurnoDiario?>(
             StreamIdDia15, c => c.DetalleTurno, null);
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia15, c => c.Marcaciones.Count, 1);

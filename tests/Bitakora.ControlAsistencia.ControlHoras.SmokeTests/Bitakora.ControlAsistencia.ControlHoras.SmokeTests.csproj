@@ -20,6 +20,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
+    <!-- Issue #322: TurnoDiarioAsignado persiste Empleado/TurnoDiario propios de este ensamblado
+         (payload por rol, CA-ADR-0029 decision #5). El smoke test verifica el evento realmente
+         persistido con su tipo dueno, no con un tipo de bus que ya no describe ese payload. -->
+    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.ControlHoras.DomainEvents\Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
   </ItemGroup>
 
   <ItemGroup>

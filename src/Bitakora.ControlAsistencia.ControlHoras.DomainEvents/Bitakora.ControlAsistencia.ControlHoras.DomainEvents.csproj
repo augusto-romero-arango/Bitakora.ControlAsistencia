@@ -6,17 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- Issue #270: MarcacionRegistrada ya no implementa IPrivateEvent: es el evento de dominio
-       persistido en el stream, no cruza el bus. El contrato de bus es RegistroDeMarcacionCreado
-       en PrivateEvents.ControlHoras. -->
-  <ItemGroup>
-    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
-  </ItemGroup>
+  <!-- Isla de eventos (CA-ADR-0029 decision #2, canon MEF-ADR-0039): ninguna dependencia de
+       proyecto, tampoco hacia los otros ensamblados de eventos, y ningun paquete que retirar.
+       Issue #322: retirado Cosmos.EventDriven.Abstractions (ya no aparecia mas que en comentarios,
+       desde #270) y los ProjectReference a PublicEvents/PrivateEvents. Los payloads del evento
+       persistido (Empleado, TurnoDiario, FranjaProgramada, SubFranjaProgramada) son propios de
+       este ensamblado (payload por rol, decision #5), no tipos importados. -->
 
   <!-- Issue #275: MarcacionRegistrada.Mensajes es internal y los tests lo usan en sus asserts
        (MEF-ADR-0009, patron TurnoCreado.Mensajes). -->

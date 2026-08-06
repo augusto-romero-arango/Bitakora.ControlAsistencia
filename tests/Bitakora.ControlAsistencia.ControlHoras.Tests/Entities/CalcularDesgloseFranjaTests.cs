@@ -15,7 +15,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
@@ -36,7 +36,7 @@ public class CalcularDesgloseFranjaTests
     // Construccion de la entrada del metodo: ControlFranja recibe DateTime? (frontera del dominio).
     private static DateTime Dt(int hora, int minuto = 0) => new(2026, 3, 16, hora, minuto, 0);
 
-    private static ControlFranja Control(DetalleFranjaOrdinaria programada, DateTime? entrada, DateTime? salida) =>
+    private static ControlFranja Control(FranjaProgramada programada, DateTime? entrada, DateTime? salida) =>
         new(programada, entrada, salida);
 
     // Helpers de asercion: siempre en MomentoDelDia / IntervaloTemporal, nunca DateTime.
@@ -50,15 +50,15 @@ public class CalcularDesgloseFranjaTests
         new(IntervaloTemporal.Crear(inicio, fin), concepto);
 
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static DetalleSubFranja Sub(int horaInicio, int horaFin, int diaOffsetInicio = 0, int diaOffsetFin = 0) =>
+    private static SubFranjaProgramada Sub(int horaInicio, int horaFin, int diaOffsetInicio = 0, int diaOffsetFin = 0) =>
         new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetInicio, diaOffsetFin, "");
 
-    private static DetalleFranjaOrdinaria Franja(
+    private static FranjaProgramada Franja(
         int horaInicio,
         int horaFin,
         int diaOffsetFin = 0,
-        IReadOnlyList<DetalleSubFranja>? descansos = null,
-        IReadOnlyList<DetalleSubFranja>? extras = null) =>
+        IReadOnlyList<SubFranjaProgramada>? descansos = null,
+        IReadOnlyList<SubFranjaProgramada>? extras = null) =>
         new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetFin,
             descansos ?? [], extras ?? [], "");
 

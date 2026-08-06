@@ -22,20 +22,28 @@ public class DepurarAlAsignarTurnoTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600c0-0000-7000-8000-000000000002");
 
-    private static readonly InformacionEmpleado Empleado = new(
+    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly Empleado Empleado = new(
+        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+
+    // InformacionEmpleado (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
+    private static readonly InformacionEmpleado EmpleadoPublico = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
     private static readonly DetalleEmpleado EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
-    // CA-4: franja unica 06:00-14:00 para el turno asignado
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja06_14 =
+    // CA-4: franja unica 06:00-14:00 para el turno asignado -- FranjaProgramada (ControlHoras.DomainEvents)
+    // es lo que el ControlDiario persiste; DetalleFranjaOrdinaria (PrivateEvents) es lo que trae el
+    // evento privado entrante. Issue #288: Descripcion (dato derivado) irrelevante -> placeholder "".
+    private static readonly FranjaProgramada Franja06_14 =
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
+    private static readonly DetalleFranjaOrdinaria Franja06_14Detalle =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // Timestamps de las marcaciones que llegan antes que el turno
@@ -49,8 +57,8 @@ public class DepurarAlAsignarTurnoTests
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
         new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
 
-    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
-        new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
+    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
+        new(StreamId, Empleado, Fecha, turnoDiario, SolicitudId);
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
@@ -72,13 +80,14 @@ public class DepurarAlAsignarTurnoTests
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_CalculaControlFranja_CuandoMarcacionesLlegaronAntesQueTurno()
     {
-        var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
+        var turnoConFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
         Given(StreamId,
             CrearMarcacionAdicionada(Timestamp07_00),
             CrearMarcacionAdicionada(Timestamp15_00));
 
-        await WhenAsync(CrearEvento(turnoConFranjaUnica));
+        await WhenAsync(CrearEvento(turnoConFranjaUnicaDetalle));
 
+        var turnoConFranjaUnica = new TurnoDiario("Turno Manana", [Franja06_14], "");
         Then(StreamId, CrearTurnoDiarioAsignado(turnoConFranjaUnica));
         And<ControlDiarioAggregateRoot, IReadOnlyList<ControlFranja>>(
             StreamId,
@@ -97,7 +106,7 @@ public class DepurarAlAsignarTurnoTests
         // unico concepto del dia (ordinaria 07:00-14:00, DominicalFestivaDiurna) genera una sola linea,
         // construida con LineaConcepto desde el intervalo 07:00-14:00 y la etiqueta traducida del recurso.
         ThenIsPublishedPublicly(new DiaCalculado(
-            Empleado,
+            EmpleadoPublico,
             Fecha,
             new HorasDiscriminadas(
                 new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 },
@@ -111,10 +120,11 @@ public class DepurarAlAsignarTurnoTests
     public async Task ProgramacionTurnoDiarioSolicitada_PublicaDiaCalculado_CuandoNoHayMarcacionesPrevias()
     {
         // Sin Given - stream nuevo, sin marcaciones previas
-        var turnoConFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
+        var turnoConFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
 
-        await WhenAsync(CrearEvento(turnoConFranjaUnica));
+        await WhenAsync(CrearEvento(turnoConFranjaUnicaDetalle));
 
+        var turnoConFranjaUnica = new TurnoDiario("Turno Manana", [Franja06_14], "");
         Then(StreamId, CrearTurnoDiarioAsignado(turnoConFranjaUnica));
         And<ControlDiarioAggregateRoot, IReadOnlyList<ControlFranja>>(
             StreamId,
@@ -125,7 +135,7 @@ public class DepurarAlAsignarTurnoTests
         // Issue #183 CA-6: la franja anomala no aporta minutos calculables y no hay retardo, asi que
         // MinutosPorConcepto viaja vacio. El contrato plano no lleva senal de anomalia (riesgo aceptado).
         ThenIsPublishedPublicly(new DiaCalculado(
-            Empleado,
+            EmpleadoPublico,
             Fecha,
             new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }
@@ -136,10 +146,11 @@ public class DepurarAlAsignarTurnoTests
     public async Task ProgramacionTurnoDiarioSolicitada_PublicaDiaCalculado_CuandoTurnoNoTieneFranjas()
     {
         // Sin Given - stream nuevo, turno sin franjas ordinarias
-        var turnoSinFranjas = new DetalleTurno("Turno Sin Franjas", [], "");
+        var turnoSinFranjasDetalle = new DetalleTurno("Turno Sin Franjas", [], "");
 
-        await WhenAsync(CrearEvento(turnoSinFranjas));
+        await WhenAsync(CrearEvento(turnoSinFranjasDetalle));
 
+        var turnoSinFranjas = new TurnoDiario("Turno Sin Franjas", [], "");
         Then(StreamId, CrearTurnoDiarioAsignado(turnoSinFranjas));
         And<ControlDiarioAggregateRoot, int>(
             StreamId,
@@ -148,7 +159,7 @@ public class DepurarAlAsignarTurnoTests
         // HU-131 CA-2: DiaCalculado se publica aunque el turno no tenga franjas.
         // Issue #183 CA-6: sin franjas que consolidar ni retardo, MinutosPorConcepto viaja vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
-            Empleado,
+            EmpleadoPublico,
             Fecha,
             new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }

@@ -17,8 +17,6 @@ using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDe
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -31,15 +29,16 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
-    private static readonly InformacionEmpleado Empleado = new(
+    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly Empleado Empleado = new(
         EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000003");
 
     // CA-1: turno partido con dos franjas ordinarias 08:00-12:00 y 14:00-18:00
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja08_12 =
+    private static readonly FranjaProgramada Franja08_12 =
         new(new TimeOnly(8, 0), new TimeOnly(12, 0), 0, [], [], "");
-    private static readonly DetalleFranjaOrdinaria Franja14_18 =
+    private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
@@ -58,7 +57,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
-    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
+    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario detalleTurno) =>
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
 
     // CA-1: con TurnoDiarioAsignado (turno partido 08:00-12:00 y 14:00-18:00) previo y
@@ -68,7 +67,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     [Fact]
     public async Task RegistroDeMarcacionCreado_RecalculaDesgloseHoras_CuandoMarcacionCompletaUltimaFranja()
     {
-        var turnoPartido = new DetalleTurno("Turno Partido", [Franja08_12, Franja14_18], "");
+        var turnoPartido = new TurnoDiario("Turno Partido", [Franja08_12, Franja14_18], "");
         Given(StreamId,
             CrearTurnoDiarioAsignado(turnoPartido),
             CrearMarcacionAdicionada(Timestamp08_00),

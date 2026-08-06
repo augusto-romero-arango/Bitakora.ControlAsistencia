@@ -27,7 +27,6 @@ using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -37,11 +36,12 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
 {
     // Datos compartidos - el stream ID es determinista a partir de EmpleadoId+Fecha.
     // private static: las nested classes acceden a los miembros privados de la clase contenedora.
-    private static readonly InformacionEmpleado Empleado = new(
+    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly Empleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
     private static readonly DetalleEmpleado EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
@@ -49,9 +49,13 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
     private static readonly Guid SolicitudId = Guid.Parse("019600d0-0000-7000-8000-000000000001");
 
-    // Franja unica 06:00-14:00 usada por los escenarios de turno.
+    // Franja unica 06:00-14:00 usada por los escenarios de turno. FranjaProgramada
+    // (ControlHoras.DomainEvents) es lo que el ControlDiario persiste; DetalleFranjaOrdinaria
+    // (PrivateEvents) es lo que trae el evento privado entrante.
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja06_14 =
+    private static readonly FranjaProgramada Franja06_14 =
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
+    private static readonly DetalleFranjaOrdinaria Franja06_14Detalle =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // Marcaciones que completan la franja (entrada+salida) -> franja NO anomala (CA-4).
@@ -61,8 +65,8 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
-    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
-        new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
+    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
+        new(StreamId, Empleado, Fecha, turnoDiario, SolicitudId);
 
     // Oraculo independiente: dia con franja 06:00-14:00 trabajada 07:00-15:00 (domingo 2026-03-15,
     // no anomala). El retardo 60min (06:00-07:00) se compensa con el excedente 60min (14:00-15:00) ->
@@ -96,9 +100,10 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
                 CrearMarcacionAdicionada(Timestamp07_00),
                 CrearMarcacionAdicionada(Timestamp15_00));
 
-            var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
-            await WhenAsync(CrearEvento(turnoFranjaUnica));
+            var turnoFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
+            await WhenAsync(CrearEvento(turnoFranjaUnicaDetalle));
 
+            var turnoFranjaUnica = new TurnoDiario("Turno Manana", [Franja06_14], "");
             Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
 
             And<ControlDiarioAggregateRoot, IReadOnlyDictionary<string, int>>(
@@ -120,9 +125,10 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
         public async Task CrearDiaCalculado_LlevaMinutosPorConceptoVacio_CuandoTurnoSinMarcaciones()
         {
             // Sin Given - stream nuevo, turno sin marcaciones previas.
-            var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
-            await WhenAsync(CrearEvento(turnoFranjaUnica));
+            var turnoFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
+            await WhenAsync(CrearEvento(turnoFranjaUnicaDetalle));
 
+            var turnoFranjaUnica = new TurnoDiario("Turno Manana", [Franja06_14], "");
             Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
 
             And<ControlDiarioAggregateRoot, HorasDiscriminadas>(

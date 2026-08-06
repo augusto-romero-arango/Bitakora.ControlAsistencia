@@ -15,7 +15,7 @@
 // e intervalos), mas RetardoNeto.
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
@@ -37,7 +37,7 @@ internal static class ConsolidadorDesgloseHorasTestData
     // viaja en el DesgloseFranja para que el consolidador la preserve en DesglosePorFranja.
     // El detalle real de lo trabajado vive en los IntervaloClasificado de cada franja.
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    public static DetalleFranjaOrdinaria Programada(int horaInicio, int horaFin, int diaOffsetFin = 0) =>
+    public static FranjaProgramada Programada(int horaInicio, int horaFin, int diaOffsetFin = 0) =>
         new(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), diaOffsetFin, [], [], "");
 
     // Retardo de una franja, a partir de sus intervalos retardados y compensados.
@@ -48,7 +48,7 @@ internal static class ConsolidadorDesgloseHorasTestData
 
     // DesgloseFranja sintetico: programada + intervalos clasificados + detalle de retardo.
     public static DesgloseFranja Desglose(
-        DetalleFranjaOrdinaria programada,
+        FranjaProgramada programada,
         IReadOnlyList<IntervaloClasificado> intervalos,
         Retardo retardo) =>
         new(programada, intervalos, retardo);

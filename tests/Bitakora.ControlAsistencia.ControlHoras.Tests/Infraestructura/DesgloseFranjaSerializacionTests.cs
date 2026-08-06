@@ -8,7 +8,6 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -21,14 +20,14 @@ public class DesgloseFranjaSerializacionTests
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static DetalleFranjaOrdinaria CrearFranjaProgramadaConDescanso() =>
-        new DetalleFranjaOrdinaria(
+    private static FranjaProgramada CrearFranjaProgramadaConDescanso() =>
+        new FranjaProgramada(
             new TimeOnly(8, 0), new TimeOnly(17, 0), 0,
-            [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(13, 0), 0, 0, "")],
+            [new SubFranjaProgramada(new TimeOnly(12, 0), new TimeOnly(13, 0), 0, 0, "")],
             [], "");
 
-    private static DetalleFranjaOrdinaria CrearFranjaProgramadaSimple() =>
-        new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
+    private static FranjaProgramada CrearFranjaProgramadaSimple() =>
+        new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
     [Fact]
     public void RoundTrip_PreservaProgramada_CuandoFranjaConDescanso()

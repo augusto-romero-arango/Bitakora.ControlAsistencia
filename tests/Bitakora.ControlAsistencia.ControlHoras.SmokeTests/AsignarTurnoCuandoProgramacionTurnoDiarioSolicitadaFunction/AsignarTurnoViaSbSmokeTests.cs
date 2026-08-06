@@ -1,9 +1,8 @@
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
@@ -78,30 +77,35 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existe.Should().BeTrue(
             $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir en el stream {streamId}");
 
-        // Assert detallado: obtener el evento especifico y comparar value objects
+        // Assert detallado: obtener el evento especifico y comparar value objects.
+        // Issue #322: InformacionEmpleado/DetalleTurno son las CLAVES JSON persistidas (no cambian,
+        // MEF-ADR-0036), pero el evento persistido ya no tipa esos campos con InformacionEmpleado
+        // (PublicEvents) ni DetalleTurno (PrivateEvents) -- ahora son Empleado y TurnoDiario, propios
+        // de ControlHoras.DomainEvents (payload por rol). El smoke test deserializa con el tipo que
+        // realmente posee el payload persistido.
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaControlHoras, streamId, tipoEvento,
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        var infoEmpleadoEsperada = new InformacionEmpleado(
+        var empleadoEsperado = new Empleado(
             empleadoId, "CC", "999888777", "[TEST] Smoke ServiceBus", "[TEST] Verificacion");
-        var infoEmpleadoPersistida = eventoPersistido
-            .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
-        infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
+        var empleadoPersistido = eventoPersistido
+            .GetProperty("InformacionEmpleado").Deserialize<Empleado>();
+        empleadoPersistido.Should().Be(empleadoEsperado);
 
         // Issue #288: el mensaje crudo publicado arriba (objeto anonimo) no lleva "Descripcion" -- el
         // dato derivado solo lo asigna Programacion en produccion (CatalogoTurnos/FranjaOrdinaria/
         // SubFranja), no este payload sintetico. Los DTOs lo normalizan a cadena vacia; el campo se
         // excluye de la comparacion estructural porque aqui no hay texto real que verificar (esa
         // normalizacion la cubre ProgramacionTurnoDiarioSolicitadaPortabilidadTests).
-        var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Smoke SB", [
-            new DetalleFranjaOrdinaria(
+        var turnoDiarioEsperado = new TurnoDiario("[TEST] Turno Smoke SB", [
+            new FranjaProgramada(
                 new TimeOnly(8, 0), new TimeOnly(16, 0), 0,
-                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>(), "")
+                Array.Empty<SubFranjaProgramada>(), Array.Empty<SubFranjaProgramada>(), "")
         ], "");
-        var detalleTurnoPersistido = eventoPersistido
-            .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
-        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado,
+        var turnoDiarioPersistido = eventoPersistido
+            .GetProperty("DetalleTurno").Deserialize<TurnoDiario>();
+        turnoDiarioPersistido.Should().BeEquivalentTo(turnoDiarioEsperado,
             opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
         // Assert HU-131 CA-1/CA-2: DiaCalculado publicado al topic dia-calculado.
@@ -213,27 +217,30 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir. " +
             $"Si falla, ServiceBusDeserializador no esta usando PropertyNameCaseInsensitive=true.");
 
-        // Assert detallado: verificar que los datos se mapearon correctamente
+        // Assert detallado: verificar que los datos se mapearon correctamente.
+        // Issue #322: el evento persistido tipa InformacionEmpleado/DetalleTurno con Empleado/
+        // TurnoDiario (ControlHoras.DomainEvents), no con los tipos de bus -- ver comentario del
+        // primer test de esta clase.
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaControlHoras, streamId, tipoEvento,
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        var infoEmpleadoEsperada = new InformacionEmpleado(
+        var empleadoEsperado = new Empleado(
             empleadoId, "CC", "111222333", "[TEST] Smoke Wolverine", "[TEST] CamelCase Fix");
-        var infoEmpleadoPersistida = eventoPersistido
-            .GetProperty("InformacionEmpleado").Deserialize<InformacionEmpleado>();
-        infoEmpleadoPersistida.Should().Be(infoEmpleadoEsperada);
+        var empleadoPersistido = eventoPersistido
+            .GetProperty("InformacionEmpleado").Deserialize<Empleado>();
+        empleadoPersistido.Should().Be(empleadoEsperado);
 
         // Issue #288: mismo motivo que el test anterior -- el mensaje crudo en camelCase no lleva
         // "descripcion", asi que se excluye de la comparacion estructural.
-        var detalleTurnoEsperado = new DetalleTurno("[TEST] Turno Wolverine CamelCase", [
-            new DetalleFranjaOrdinaria(
+        var turnoDiarioEsperado = new TurnoDiario("[TEST] Turno Wolverine CamelCase", [
+            new FranjaProgramada(
                 new TimeOnly(7, 0), new TimeOnly(15, 0), 0,
-                Array.Empty<DetalleSubFranja>(), Array.Empty<DetalleSubFranja>(), "")
+                Array.Empty<SubFranjaProgramada>(), Array.Empty<SubFranjaProgramada>(), "")
         ], "");
-        var detalleTurnoPersistido = eventoPersistido
-            .GetProperty("DetalleTurno").Deserialize<DetalleTurno>();
-        detalleTurnoPersistido.Should().BeEquivalentTo(detalleTurnoEsperado,
+        var turnoDiarioPersistido = eventoPersistido
+            .GetProperty("DetalleTurno").Deserialize<TurnoDiario>();
+        turnoDiarioPersistido.Should().BeEquivalentTo(turnoDiarioEsperado,
             opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
         // Assert HU-131: DiaCalculado publicado incluso cuando el mensaje llega en camelCase.

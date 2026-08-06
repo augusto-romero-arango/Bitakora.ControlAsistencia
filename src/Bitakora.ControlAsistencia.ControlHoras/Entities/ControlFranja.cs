@@ -1,5 +1,5 @@
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -7,7 +7,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 // No viaja entre dominios - vive en ControlHoras junto al aggregate que lo usa.
 // Issue #183: ya no se mapea a un DTO publico; el payload de DiaCalculado viaja plano
 // (HorasDiscriminadas). ControlFranja queda como estado interno del aggregate.
-public record ControlFranja(DetalleFranjaOrdinaria Programada, DateTime? Entrada, DateTime? Salida)
+// Issue #322: DetalleFranjaOrdinaria (PrivateEvents) -> FranjaProgramada (ControlHoras.DomainEvents).
+public record ControlFranja(FranjaProgramada Programada, DateTime? Entrada, DateTime? Salida)
 {
     // CA-9: propiedad calculada; anomala cuando falta Entrada o Salida
     public bool EsAnomala => Entrada is null || Salida is null;
