@@ -31,20 +31,24 @@ public class TurnoDiarioProjectionTests
     private static InformacionEmpleado EmpleadoEsperadoEnVista() =>
         new("EMP-001", "CC", "1098765432", "Ana", "Ramirez");
 
+    // Issue #322 (revision): la franja lleva un descanso que cruza medianoche (offsets 0 -> 1) y una
+    // extra al dia siguiente (1 -> 1). Con los offsets todos en cero, un mapeo que cruzara
+    // DiaOffsetInicio con DiaOffsetFin producia el mismo resultado y ningun test lo veia.
     private static TurnoDiario TurnoDiarioDePrueba(string nombre) =>
         new(
             nombre,
             [
                 new FranjaProgramada(
+                    new TimeOnly(22, 0),
                     new TimeOnly(6, 0),
-                    new TimeOnly(14, 0),
-                    DiaOffsetFin: 0,
+                    DiaOffsetFin: 1,
                     Descansos: [new SubFranjaProgramada(
-                        new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0, "(10:00-10:15)")],
-                    Extras: [],
-                    Descripcion: "(06:00-14:00)[Descansos:(10:00-10:15)]")
+                        new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)")],
+                    Extras: [new SubFranjaProgramada(
+                        new TimeOnly(6, 0), new TimeOnly(8, 0), 1, 1, "(06:00+1-08:00+1)")],
+                    Descripcion: "(22:00-06:00+1)[Descansos:(23:50-00:10+1)]")
             ],
-            $"{nombre}: (06:00-14:00)[Descansos:(10:00-10:15)]");
+            $"{nombre}: (22:00-06:00+1)[Descansos:(23:50-00:10+1)]");
 
     // DetalleTurno (PrivateEvents) -- lo que espera TurnoDiarioView, con la misma forma de datos
     // que TurnoDiarioDePrueba pero en el tipo de bus (mapeo mecanico que Create/Apply deben hacer).
@@ -53,15 +57,16 @@ public class TurnoDiarioProjectionTests
             nombre,
             [
                 new DetalleFranjaOrdinaria(
+                    new TimeOnly(22, 0),
                     new TimeOnly(6, 0),
-                    new TimeOnly(14, 0),
-                    DiaOffsetFin: 0,
+                    DiaOffsetFin: 1,
                     Descansos: [new DetalleSubFranja(
-                        new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0, "(10:00-10:15)")],
-                    Extras: [],
-                    Descripcion: "(06:00-14:00)[Descansos:(10:00-10:15)]")
+                        new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)")],
+                    Extras: [new DetalleSubFranja(
+                        new TimeOnly(6, 0), new TimeOnly(8, 0), 1, 1, "(06:00+1-08:00+1)")],
+                    Descripcion: "(22:00-06:00+1)[Descansos:(23:50-00:10+1)]")
             ],
-            $"{nombre}: (06:00-14:00)[Descansos:(10:00-10:15)]");
+            $"{nombre}: (22:00-06:00+1)[Descansos:(23:50-00:10+1)]");
 
     // CA-2/CA-5: Create mapea los cinco campos de la vista desde el evento fundacional, incluida
     // la estructura completa de franjas anidadas (descansos/extras) que trae TurnoDiario.
@@ -82,6 +87,19 @@ public class TurnoDiarioProjectionTests
             fecha,
             DetalleTurnoEsperadoEnVista("Turno Manana"),
             solicitudId));
+
+        // Issue #322 (revision): la igualdad de DetalleTurno/DetalleFranjaOrdinaria/DetalleSubFranja
+        // EXCLUYE Descripcion por diseno (dato derivado, no identidad), asi que el assert de arriba
+        // no cubre ese campo: si el mapeo del worker lo dejara caer, la vista quedaria sin la
+        // memoria de calculo y ningun test lo veria. Se verifica en los tres niveles.
+        var franjaProyectada = vista.DetalleTurno.FranjasOrdinarias.Should().ContainSingle().Subject;
+        vista.DetalleTurno.Descripcion
+            .Should().Be("Turno Manana: (22:00-06:00+1)[Descansos:(23:50-00:10+1)]");
+        franjaProyectada.Descripcion.Should().Be("(22:00-06:00+1)[Descansos:(23:50-00:10+1)]");
+        franjaProyectada.Descansos.Should().ContainSingle()
+            .Which.Descripcion.Should().Be("(23:50-00:10+1)");
+        franjaProyectada.Extras.Should().ContainSingle()
+            .Which.Descripcion.Should().Be("(06:00+1-08:00+1)");
     }
 
     // CA-3: la reasignacion sobrescribe -- dos TurnoDiarioAsignado consecutivos sobre el mismo

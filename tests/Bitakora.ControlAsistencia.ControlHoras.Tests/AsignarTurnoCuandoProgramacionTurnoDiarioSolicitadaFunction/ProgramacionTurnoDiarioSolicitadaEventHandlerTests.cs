@@ -88,4 +88,45 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, Guid>(StreamId, c => c.UltimaSolicitudId, SolicitudId);
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, TurnoDiarioTest.Nombre);
     }
+
+    // CA-4 (agregado en revision): el mapeo del Function App es recursivo hasta las sub-franjas,
+    // pero los dos tests anteriores solo pasan franjas con Descansos/Extras vacios, asi que
+    // MapearFranja/MapearSubFranja quedaban sin ejercitar. Aqui el evento privado entrante trae un
+    // descanso y una extra con offsets distintos y Descripcion no vacia en los tres niveles: si el
+    // mapeo perdiera un campo o cruzara DiaOffsetInicio/DiaOffsetFin, la comparacion
+    // member-by-member de Then/And lo delata.
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_MapeaDescansosYExtrasConSusOffsets_CuandoLaFranjaTraeSubFranjas()
+    {
+        var turnoEntrante = new DetalleTurno(
+            "Turno Nocturno",
+            [
+                new DetalleFranjaOrdinaria(
+                    new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
+                    [new DetalleSubFranja(new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)")],
+                    [new DetalleSubFranja(new TimeOnly(6, 0), new TimeOnly(8, 0), 1, 1, "(06:00+1-08:00+1)")],
+                    "(22:00-06:00+1)")
+            ],
+            "Turno Nocturno (22:00-06:00+1)");
+
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, EmpleadoDetalle, Fecha, turnoEntrante));
+
+        // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
+        var turnoPersistidoEsperado = new TurnoDiario(
+            "Turno Nocturno",
+            [
+                new FranjaProgramada(
+                    new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
+                    [new SubFranjaProgramada(new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)")],
+                    [new SubFranjaProgramada(new TimeOnly(6, 0), new TimeOnly(8, 0), 1, 1, "(06:00+1-08:00+1)")],
+                    "(22:00-06:00+1)")
+            ],
+            "Turno Nocturno (22:00-06:00+1)");
+
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Empleado, Fecha, turnoPersistidoEsperado, SolicitudId));
+        And<ControlDiarioAggregateRoot, TurnoDiario?>(
+            StreamId, c => c.DetalleTurno, turnoPersistidoEsperado);
+    }
 }
