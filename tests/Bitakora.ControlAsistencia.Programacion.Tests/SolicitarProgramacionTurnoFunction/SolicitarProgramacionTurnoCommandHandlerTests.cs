@@ -25,6 +25,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly InformacionEmpleado Empleado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
+    // Issue #318 CA-4: payload propio de PrivateEvents (DetalleEmpleado) con paridad de campos
+    // con Empleado (InformacionEmpleado) -- el mapeo lo hace el handler bajo prueba.
+    private static readonly DetalleEmpleado EmpleadoDetalle =
+        new("E001", "CC", "12345678", "Juan", "Perez");
+
     // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno()
     // Issue #288 CA-2: Descripcion lleva el texto real que produce el ToString() del tipo rico
     // (CatalogoTurnos a nivel turno, FranjaOrdinaria a nivel franja). La coherencia entre ambos
@@ -64,7 +69,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, Empleado, [Fecha1], DetalleEsperado));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, Empleado, Fecha1, DetalleEsperado));
+            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
@@ -80,9 +85,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, Empleado, [Fecha1, Fecha2], DetalleEsperado));
         ThenIsPublishedPrivately(
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, Empleado, Fecha1, DetalleEsperado),
+                GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado),
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, Empleado, Fecha2, DetalleEsperado));
+                GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 

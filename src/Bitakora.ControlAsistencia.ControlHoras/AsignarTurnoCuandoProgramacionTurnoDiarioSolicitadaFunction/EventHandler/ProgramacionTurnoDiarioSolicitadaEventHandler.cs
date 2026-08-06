@@ -1,6 +1,7 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -36,8 +37,12 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
             @event.Empleado.EmpleadoId, @event.Fecha);
 
+        // Issue #318 CA-4: @event.Empleado es DetalleEmpleado (payload propio de PrivateEvents,
+        // tres islas). TurnoDiarioAsignado sigue tipando InformacionEmpleado (PublicEvents) hasta
+        // que #319 le de a ControlHoras.DomainEvents su propio record -- el mapeo inverso vive
+        // aqui, el unico proyecto que ve PrivateEvents y PublicEvents a la vez.
         var evento = new TurnoDiarioAsignado(
-            streamId, @event.Empleado, @event.Fecha, @event.DetalleTurno, @event.SolicitudId);
+            streamId, MapearEmpleado(@event.Empleado), @event.Fecha, @event.DetalleTurno, @event.SolicitudId);
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 
@@ -60,4 +65,8 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         // todos son anomalos (CA-2): AsignarTurno/Iniciar siempre agregan el evento al stream.
         await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
     }
+
+    // Stub de fase roja (issue #318 CA-4) -- el implementer completa el mapeo campo a campo.
+    private static InformacionEmpleado MapearEmpleado(DetalleEmpleado empleado) =>
+        throw new NotImplementedException();
 }

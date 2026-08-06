@@ -25,6 +25,11 @@ public class DepurarAlAsignarTurnoTests
     private static readonly InformacionEmpleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
+    // Issue #318 CA-4: payload propio de PrivateEvents que llega en el evento bajo prueba;
+    // el handler lo mapea a InformacionEmpleado. Paridad de campos con Empleado.
+    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
@@ -42,7 +47,7 @@ public class DepurarAlAsignarTurnoTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-        new(SolicitudId, Empleado, Fecha, detalleTurno);
+        new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);

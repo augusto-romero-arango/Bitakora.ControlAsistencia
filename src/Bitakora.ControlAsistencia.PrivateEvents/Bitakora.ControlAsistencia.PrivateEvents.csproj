@@ -10,8 +10,8 @@
     <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
-  </ItemGroup>
+  <!-- Issue #318 (tres islas, MEF-ADR-0039 decision 2): cero ProjectReference entre ensamblados
+       de eventos. PrivateEvents ya no depende de PublicEvents: DetalleEmpleado sustituye el
+       unico uso de InformacionEmpleado que quedaba (ProgramacionTurnoDiarioSolicitada). -->
 
 </Project>

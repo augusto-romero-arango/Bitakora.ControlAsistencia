@@ -1,6 +1,7 @@
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -41,11 +42,19 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         // ADR-0024 decision #2/#3: ProgramacionTurnoDiarioSolicitada es intra-BC (lo consume
         // ControlHoras, mismo BC) -> IPrivateEvent publicado al ASB interno via IPrivateEventSender.
+        // Issue #318 CA-4: DetalleEmpleado es el payload propio de PrivateEvents (tres islas);
+        // el mapeo desde InformacionEmpleado (tipo del comando HTTP, sin cambios) vive aqui,
+        // el unico proyecto que ve PublicEvents y PrivateEvents a la vez.
+        var empleado = MapearEmpleado(command.Empleado);
         var eventosPrivados = command.Fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
-                command.Id, command.Empleado, fecha, detalleTurno))
+                command.Id, empleado, fecha, detalleTurno))
             .ToArray();
 
         await _privateEventSender.PublishAsync(eventosPrivados);
     }
+
+    // Stub de fase roja (issue #318 CA-4) -- el implementer completa el mapeo campo a campo.
+    private static DetalleEmpleado MapearEmpleado(InformacionEmpleado empleado) =>
+        throw new NotImplementedException();
 }
