@@ -34,4 +34,14 @@ public record SubFranjaProgramada(
 
     public override int GetHashCode() =>
         HashCode.Combine(HoraInicio, HoraFin, DiaOffsetInicio, DiaOffsetFin);
+
+    /// <summary>
+    /// Traduce la sub-franja al tramo en minutos absolutos que le corresponde dentro de la
+    /// segmentacion del turno (issue #327). Cada extremo resuelve su propio offset de dia contra la
+    /// fecha de asignacion -- no contra el inicio de la franja que la contiene.
+    /// </summary>
+    internal Tramo ATramo(TipoBloque tipo) => new(
+        tipo,
+        Tramo.MinutosAbsolutos(HoraInicio, DiaOffsetInicio),
+        Tramo.MinutosAbsolutos(HoraFin, DiaOffsetFin));
 }
