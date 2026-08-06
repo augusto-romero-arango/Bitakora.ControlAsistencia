@@ -40,4 +40,13 @@ public record TurnoDiario(
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }
+
+    /// <summary>
+    /// Segmenta el turno en bloques absolutos de tiempo (issue #327): resuelve los offsets de dia de
+    /// cada franja/descanso/extra contra <paramref name="fecha"/> (el dia de asignacion del turno) y
+    /// rompe en la medianoche cualquier bloque que cruce el limite del dia. Lectura pura -- no muta
+    /// el turno ni persiste el resultado (MEF-ADR-0012, Tell-don't-Ask: la aritmetica vive junto al
+    /// dato, no como calculo externo sobre TimeOnly/DiaOffset crudos).
+    /// </summary>
+    public IReadOnlyList<BloqueTurno> Segmentar(DateOnly fecha) => throw new NotImplementedException();
 }
