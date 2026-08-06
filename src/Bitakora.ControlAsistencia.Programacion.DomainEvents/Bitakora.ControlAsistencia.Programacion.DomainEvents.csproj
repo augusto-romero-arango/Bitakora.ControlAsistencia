@@ -6,12 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- Issue #319 (tres islas, MEF-ADR-0039 decision 2): este ensamblado quedo sin referencias a
-       PublicEvents ni PrivateEvents. Empleado, TurnoProgramado, FranjaProgramada y
-       SubFranjaProgramada sustituyen los ultimos usos de InformacionEmpleado (PublicEvents) y de
-       DetalleTurno, DetalleFranjaOrdinaria y DetalleSubFranja (PrivateEvents) que quedaban aqui.
-       CA-4 se verifica literalmente con grep, por eso este comentario evita a proposito la
-       palabra que ese grep busca. -->
+  <!-- Isla de eventos (CA-ADR-0029 decision #2, canon MEF-ADR-0039): ninguna dependencia de
+       proyecto, tampoco hacia los otros ensamblados de eventos, y ningun paquete que retirar.
+       Los payloads del evento persistido son propios de este ensamblado (payload por rol,
+       decision #5), no tipos importados de PublicEvents ni de PrivateEvents. -->
 
   <!-- TurnoCreado.Mensajes es internal y los tests lo usan en sus asserts (MEF-ADR-0009). -->
   <ItemGroup>
