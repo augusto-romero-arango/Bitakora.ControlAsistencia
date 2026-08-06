@@ -122,6 +122,64 @@ public class TurnoDiarioSegmentarTests
     }
 
     [Fact]
+    public void Segmentar_IntercalaDescansoYExtraEnOrdenCronologico_CuandoLaFranjaTieneAmbos()
+    {
+        // CA-2 + CA-3 combinados: descansos y extras conviven en la misma franja y el recorte los
+        // intercala por hora de inicio, no por la coleccion en que fueron declarados. Los datos
+        // declaran la extra (13:00) ANTES que el descanso (10:00) a proposito: el orden del
+        // resultado depende del reloj, no del orden de llegada.
+        var extra = SubFranja(13, 0, 14, 0);
+        var descanso = SubFranja(10, 0, 11, 0);
+        var franja = Franja(6, 0, 16, 0, descansos: [descanso], extras: [extra]);
+        var turno = Turno(franja);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        var esperado = new[]
+        {
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 10, 6, 0, 0), new DateTime(2026, 8, 10, 10, 0, 0)),
+            new BloqueTurno(TipoBloque.Descanso,
+                new DateTime(2026, 8, 10, 10, 0, 0), new DateTime(2026, 8, 10, 11, 0, 0)),
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 10, 11, 0, 0), new DateTime(2026, 8, 10, 13, 0, 0)),
+            new BloqueTurno(TipoBloque.Extra,
+                new DateTime(2026, 8, 10, 13, 0, 0), new DateTime(2026, 8, 10, 14, 0, 0)),
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 10, 14, 0, 0), new DateTime(2026, 8, 10, 16, 0, 0)),
+        };
+        resultado.Should().Equal(esperado);
+        AsegurarCobertura(resultado, new DateTime(2026, 8, 10, 6, 0, 0), new DateTime(2026, 8, 10, 16, 0, 0));
+    }
+
+    [Fact]
+    public void Segmentar_NoEmiteBloquesOrdinariosDeDuracionCero_CuandoLasSubFranjasTocanLosExtremosDeLaFranja()
+    {
+        // CA-5 en su borde degenerado: cuando una sub-franja arranca exactamente donde arranca la
+        // franja (06:00) y otra termina exactamente donde termina (14:00), no debe aparecer un
+        // bloque Ordinaria de duracion cero en ninguno de los dos extremos.
+        var descanso = SubFranja(6, 0, 7, 0);
+        var extra = SubFranja(13, 0, 14, 0);
+        var franja = Franja(6, 0, 14, 0, descansos: [descanso], extras: [extra]);
+        var turno = Turno(franja);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        var esperado = new[]
+        {
+            new BloqueTurno(TipoBloque.Descanso,
+                new DateTime(2026, 8, 10, 6, 0, 0), new DateTime(2026, 8, 10, 7, 0, 0)),
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 10, 7, 0, 0), new DateTime(2026, 8, 10, 13, 0, 0)),
+            new BloqueTurno(TipoBloque.Extra,
+                new DateTime(2026, 8, 10, 13, 0, 0), new DateTime(2026, 8, 10, 14, 0, 0)),
+        };
+        resultado.Should().Equal(esperado);
+        resultado.Should().OnlyContain(b => b.Fin > b.Inicio);
+        AsegurarCobertura(resultado, new DateTime(2026, 8, 10, 6, 0, 0), new DateTime(2026, 8, 10, 14, 0, 0));
+    }
+
+    [Fact]
     public void Segmentar_RompeEnMedianoche_CuandoLaFranjaCruzaElLimiteDelDia()
     {
         // CA-4: franja nocturna 22:00-06:00+1 (DiaOffsetFin=1) sin descansos ni extras -> se rompe

@@ -48,4 +48,37 @@ public record FranjaProgramada(
         foreach (var e in Extras) hash.Add(e);
         return hash.ToHashCode();
     }
+
+    /// <summary>
+    /// Recorta la franja por sus descansos y extras y devuelve los tramos resultantes en orden
+    /// cronologico (issue #327): un tramo tipado por cada sub-franja y un tramo Ordinaria en cada
+    /// hueco entre ellas. El glosario define descansos y extras como contenidos en la ordinaria, y
+    /// el algoritmo los trata igual -- por eso se fusionan en una sola secuencia ordenada, que
+    /// admite ademas que se intercalen entre si.
+    /// </summary>
+    /// <remarks>
+    /// La hora de inicio de la franja pertenece siempre al dia de asignacion (offset 0); solo su
+    /// hora de fin lleva <see cref="DiaOffsetFin"/>. Cada sub-franja resuelve sus dos offsets
+    /// propios (<see cref="SubFranjaProgramada.ATramo"/>).
+    /// </remarks>
+    internal IEnumerable<Tramo> Segmentar()
+    {
+        var subFranjas = Descansos
+            .Select(descanso => descanso.ATramo(TipoBloque.Descanso))
+            .Concat(Extras.Select(extra => extra.ATramo(TipoBloque.Extra)))
+            .OrderBy(sub => sub.Inicio);
+
+        var finFranja = Tramo.MinutosAbsolutos(HoraFin, DiaOffsetFin);
+        var cursor = Tramo.MinutosAbsolutos(HoraInicio, 0);
+        foreach (var sub in subFranjas)
+        {
+            if (sub.Inicio > cursor)
+                yield return new Tramo(TipoBloque.Ordinaria, cursor, sub.Inicio);
+            yield return sub;
+            cursor = sub.Fin;
+        }
+
+        if (cursor < finFranja)
+            yield return new Tramo(TipoBloque.Ordinaria, cursor, finFranja);
+    }
 }
