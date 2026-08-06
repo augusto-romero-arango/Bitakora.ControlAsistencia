@@ -25,8 +25,8 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly InformacionEmpleado Empleado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
-    // Issue #318 CA-4: payload propio de PrivateEvents (DetalleEmpleado) con paridad de campos
-    // con Empleado (InformacionEmpleado) -- el mapeo lo hace el handler bajo prueba.
+    // Mismo empleado, en la forma que el handler debe producir para el evento privado
+    // (CA-ADR-0029 decision #5): si el mapeo pierde o permuta un campo, estos tests lo delatan.
     private static readonly DetalleEmpleado EmpleadoDetalle =
         new("E001", "CC", "12345678", "Juan", "Perez");
 

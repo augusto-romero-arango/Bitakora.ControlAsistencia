@@ -96,10 +96,9 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         new[] { evento1.Fecha, evento2.Fecha }.Should()
             .BeEquivalentTo(new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
 
-        // Verificar datos del empleado y turno en uno de los eventos.
-        // Issue #318 CA-2: evento1.Empleado tipa con DetalleEmpleado (payload propio de
-        // PrivateEvents), no InformacionEmpleado (PublicEvents) -- el JSON en el cable es
-        // identico por la paridad de campos.
+        // Verificar datos del empleado y turno en uno de los eventos. El payload del empleado es
+        // DetalleEmpleado (PrivateEvents): con la paridad de campos el JSON del cable no cambia,
+        // asi que este smoke test tambien evidencia la compatibilidad del despliegue rolling.
         var empleadoEsperado = new DetalleEmpleado(
             empleadoId, "CC", "555666777", "[TEST] Smoke ServiceBus", "[TEST] Publicacion");
         evento1.Empleado.Should().Be(empleadoEsperado);

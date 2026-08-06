@@ -8,9 +8,8 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// Se emite uno por cada fecha del arreglo del comando.
 /// Consumidor: ControlHoras (mismo Bounded Context "Control de Asistencia") -> es intra-BC,
 /// por eso es IPrivateEvent y no IPublicEvent (ADR-0024 decision #2).
-/// Issue #318: Empleado tipa con DetalleEmpleado (payload propio de PrivateEvents, MEF-ADR-0039
-/// decision 6) en vez de InformacionEmpleado (PublicEvents) -- PrivateEvents queda sin
-/// ProjectReference a PublicEvents (tres islas, CA-ADR-0029 enmendado por #317).
+/// Todo su payload es propio de este ensamblado -- DetalleEmpleado incluido, que duplica a
+/// InformacionEmpleado (PublicEvents) en vez de importarlo (CA-ADR-0029 decisiones #2 y #5).
 /// </summary>
 public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
 {

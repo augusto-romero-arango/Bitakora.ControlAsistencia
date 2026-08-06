@@ -42,9 +42,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         // ADR-0024 decision #2/#3: ProgramacionTurnoDiarioSolicitada es intra-BC (lo consume
         // ControlHoras, mismo BC) -> IPrivateEvent publicado al ASB interno via IPrivateEventSender.
-        // Issue #318 CA-4: DetalleEmpleado es el payload propio de PrivateEvents (tres islas);
-        // el mapeo desde InformacionEmpleado (tipo del comando HTTP, sin cambios) vive aqui,
-        // el unico proyecto que ve PublicEvents y PrivateEvents a la vez.
+        // CA-ADR-0029 decision #5 (payload por rol): el comando HTTP trae InformacionEmpleado
+        // (PublicEvents) y el evento privado lleva DetalleEmpleado, asi que el mapeo vive aqui --
+        // la Function App es el unico proyecto que ve ambos ensamblados.
         var empleado = MapearEmpleado(command.Empleado);
         var eventosPrivados = command.Fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(

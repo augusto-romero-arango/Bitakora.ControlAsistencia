@@ -21,9 +21,8 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     private static readonly InformacionEmpleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // Issue #318 CA-4: DetalleEmpleado es el payload propio de PrivateEvents (tres islas) que
-    // llega en el evento bajo prueba; el handler lo mapea a InformacionEmpleado para
-    // TurnoDiarioAsignado. Misma persona, paridad de campos con Empleado.
+    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
     private static readonly DetalleEmpleado EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 

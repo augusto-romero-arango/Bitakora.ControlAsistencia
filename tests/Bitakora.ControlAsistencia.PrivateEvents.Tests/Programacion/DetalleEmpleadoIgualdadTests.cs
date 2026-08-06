@@ -1,8 +1,8 @@
-// Issue #318: DetalleEmpleado es el payload propio de PrivateEvents (tres islas, MEF-ADR-0039
-// decision 6) que sustituye a InformacionEmpleado (PublicEvents) en ProgramacionTurnoDiarioSolicitada.
-// A diferencia de DetalleTurno/DetalleFranjaOrdinaria/DetalleSubFranja, todos sus campos son
-// string: la igualdad por valor del record por defecto es correcta, sin Equals/GetHashCode custom
-// (no hay IReadOnlyList que el record compare por referencia, ADR-0015).
+// Contrato de igualdad de DetalleEmpleado, por simetria con la familia Detalle*IgualdadTests.
+// A diferencia de sus hermanos, todos sus campos son string: la igualdad por valor del record por
+// defecto ya es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012). Estos tests
+// congelan esa premisa: si el record gana una coleccion, el record la compararia por referencia
+// y el test rojo lo delata.
 
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 

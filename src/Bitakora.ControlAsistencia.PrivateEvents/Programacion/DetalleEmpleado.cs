@@ -4,15 +4,14 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// Representacion plana del empleado que viaja en eventos privados intra-BC.
 /// </summary>
 /// <remarks>
-/// Issue #318 (tres islas, MEF-ADR-0039 decision 2 y 6): payload propio de PrivateEvents con
-/// paridad exacta de campos con InformacionEmpleado (PublicEvents/Empleados). No referencia ese
-/// tipo -- PrivateEvents queda sin ProjectReference a PublicEvents (CA-ADR-0029 enmendado por
-/// #317). El nombre difiere a proposito de "InformacionEmpleado" para que un using equivocado
-/// no resuelva en silencio en los ~20 archivos que importan ambos namespaces (MEF-ADR-0039
-/// decision 6).
-/// Sin comportamiento, sin Equals custom: todos los campos son string, la igualdad por valor
-/// del record por defecto es correcta (a diferencia de DetalleTurno/DetalleFranjaOrdinaria/
-/// DetalleSubFranja, que tienen IReadOnlyList y necesitan Equals propio, ADR-0015).
+/// Payload por rol (CA-ADR-0029 decision #5): duplica con paridad exacta de campos a
+/// InformacionEmpleado (PublicEvents/Empleados) en vez de importarlo, porque los ensamblados de
+/// eventos son tres islas sin referencias entre si (decision #2). El nombre simple es
+/// deliberadamente distinto para que un using equivocado no compile en los proyectos que ven
+/// ambos namespaces -- mismo criterio que RegistroDeMarcacionCreado frente a MarcacionRegistrada.
+/// Sin Equals custom: todos los campos son string, asi que la igualdad por valor del record por
+/// defecto ya es correcta (a diferencia de DetalleTurno/DetalleFranjaOrdinaria/DetalleSubFranja,
+/// cuyas IReadOnlyList el record compararia por referencia -- MEF-ADR-0012).
 /// </remarks>
 public record DetalleEmpleado(
     string EmpleadoId,

@@ -37,10 +37,9 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
             @event.Empleado.EmpleadoId, @event.Fecha);
 
-        // Issue #318 CA-4: @event.Empleado es DetalleEmpleado (payload propio de PrivateEvents,
-        // tres islas). TurnoDiarioAsignado sigue tipando InformacionEmpleado (PublicEvents) hasta
-        // que #319 le de a ControlHoras.DomainEvents su propio record -- el mapeo inverso vive
-        // aqui, el unico proyecto que ve PrivateEvents y PublicEvents a la vez.
+        // CA-ADR-0029 decision #5 (payload por rol): el evento llega con DetalleEmpleado
+        // (PrivateEvents) y TurnoDiarioAsignado persiste InformacionEmpleado (PublicEvents), asi
+        // que el mapeo vive aqui -- la Function App es el unico proyecto que ve ambos ensamblados.
         var evento = new TurnoDiarioAsignado(
             streamId, MapearEmpleado(@event.Empleado), @event.Fecha, @event.DetalleTurno, @event.SolicitudId);
 
