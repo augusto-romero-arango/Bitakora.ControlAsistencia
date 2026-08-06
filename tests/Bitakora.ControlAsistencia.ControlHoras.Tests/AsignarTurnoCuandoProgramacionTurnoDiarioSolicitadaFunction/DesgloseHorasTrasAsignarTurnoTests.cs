@@ -29,6 +29,11 @@ public class DesgloseHorasTrasAsignarTurnoTests
     private static readonly InformacionEmpleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
+    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
@@ -51,7 +56,7 @@ public class DesgloseHorasTrasAsignarTurnoTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-        new(SolicitudId, Empleado, Fecha, detalleTurno);
+        new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
         new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);

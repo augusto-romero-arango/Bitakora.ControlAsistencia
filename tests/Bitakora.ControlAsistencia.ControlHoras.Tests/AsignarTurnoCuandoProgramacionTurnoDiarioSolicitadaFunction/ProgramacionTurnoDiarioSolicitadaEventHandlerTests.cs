@@ -21,6 +21,11 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     private static readonly InformacionEmpleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
+    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
     // CA-7: stream ID determinista que el handler debe computar internamente
@@ -36,7 +41,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento() =>
-        new(SolicitudId, Empleado, Fecha, DetalleTurnoTest);
+        new(SolicitudId, EmpleadoDetalle, Fecha, DetalleTurnoTest);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado() =>
         new(StreamId, Empleado, Fecha, DetalleTurnoTest, SolicitudId);

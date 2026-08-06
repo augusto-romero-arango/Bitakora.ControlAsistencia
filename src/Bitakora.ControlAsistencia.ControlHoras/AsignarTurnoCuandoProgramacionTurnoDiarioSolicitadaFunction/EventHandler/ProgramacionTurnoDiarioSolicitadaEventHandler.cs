@@ -1,6 +1,7 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -36,8 +37,11 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
             @event.Empleado.EmpleadoId, @event.Fecha);
 
+        // CA-ADR-0029 decision #5 (payload por rol): el evento llega con DetalleEmpleado
+        // (PrivateEvents) y TurnoDiarioAsignado persiste InformacionEmpleado (PublicEvents), asi
+        // que el mapeo vive aqui -- la Function App es el unico proyecto que ve ambos ensamblados.
         var evento = new TurnoDiarioAsignado(
-            streamId, @event.Empleado, @event.Fecha, @event.DetalleTurno, @event.SolicitudId);
+            streamId, MapearEmpleado(@event.Empleado), @event.Fecha, @event.DetalleTurno, @event.SolicitudId);
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 
@@ -60,4 +64,8 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         // todos son anomalos (CA-2): AsignarTurno/Iniciar siempre agregan el evento al stream.
         await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
     }
+
+    private static InformacionEmpleado MapearEmpleado(DetalleEmpleado empleado) =>
+        new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
+            empleado.Nombres, empleado.Apellidos);
 }

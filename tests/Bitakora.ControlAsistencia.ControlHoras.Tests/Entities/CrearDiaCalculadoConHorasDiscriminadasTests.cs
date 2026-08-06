@@ -40,6 +40,11 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     private static readonly InformacionEmpleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
+    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
     private static readonly Guid SolicitudId = Guid.Parse("019600d0-0000-7000-8000-000000000001");
@@ -74,7 +79,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
                 EventStore, PublicEventSender);
 
         private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-            new(SolicitudId, Empleado, Fecha, detalleTurno);
+            new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
 
         // CA-4: con turno (franja 06:00-14:00) y marcaciones previas que la completan (07:00, 15:00),
         //       la franja queda NO anomala. CrearDiaCalculado() debe empaquetar el payload plano

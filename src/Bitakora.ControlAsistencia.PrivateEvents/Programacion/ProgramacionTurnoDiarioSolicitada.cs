@@ -1,4 +1,3 @@
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -9,17 +8,19 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// Se emite uno por cada fecha del arreglo del comando.
 /// Consumidor: ControlHoras (mismo Bounded Context "Control de Asistencia") -> es intra-BC,
 /// por eso es IPrivateEvent y no IPublicEvent (ADR-0024 decision #2).
+/// Todo su payload es propio de este ensamblado -- DetalleEmpleado incluido, que duplica a
+/// InformacionEmpleado (PublicEvents) en vez de importarlo (CA-ADR-0029 decisiones #2 y #5).
 /// </summary>
 public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
 {
     public Guid SolicitudId { get; private set; }
-    public InformacionEmpleado Empleado { get; private set; } = null!;
+    public DetalleEmpleado Empleado { get; private set; } = null!;
     public DateOnly Fecha { get; private set; }
     public DetalleTurno DetalleTurno { get; private set; } = null!;
 
     public ProgramacionTurnoDiarioSolicitada(
         Guid solicitudId,
-        InformacionEmpleado empleado,
+        DetalleEmpleado empleado,
         DateOnly fecha,
         DetalleTurno detalleTurno)
     {

@@ -11,7 +11,6 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
 
@@ -20,7 +19,8 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000009");
 
-    private static readonly InformacionEmpleado Empleado = new(
+    // Issue #318 CA-2: Empleado ahora tipa con DetalleEmpleado (payload propio de PrivateEvents).
+    private static readonly DetalleEmpleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
