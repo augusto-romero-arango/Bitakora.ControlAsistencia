@@ -2,7 +2,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
@@ -13,7 +13,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 public class ControlFranjaTests
 {
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja06_14 = new(
+    private static readonly FranjaProgramada Franja06_14 = new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     private static readonly DateTime T07 = new(2026, 3, 15, 7, 0, 0);

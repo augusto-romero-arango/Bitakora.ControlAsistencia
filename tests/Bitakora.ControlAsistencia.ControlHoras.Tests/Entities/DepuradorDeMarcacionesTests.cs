@@ -2,7 +2,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
@@ -14,17 +14,17 @@ public class DepuradorDeMarcacionesTests
 {
     // Franjas nombradas semanticamente
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja06_14 = new(
+    private static readonly FranjaProgramada Franja06_14 = new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
-    private static readonly DetalleFranjaOrdinaria Franja06_12 = new(
+    private static readonly FranjaProgramada Franja06_12 = new(
         new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
 
-    private static readonly DetalleFranjaOrdinaria Franja14_18 = new(
+    private static readonly FranjaProgramada Franja14_18 = new(
         new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // DiaOffsetFin=1 porque 22:00 > 06:00 (fin al dia siguiente)
-    private static readonly DetalleFranjaOrdinaria Franja22_06_Nocturna = new(
+    private static readonly FranjaProgramada Franja22_06_Nocturna = new(
         new TimeOnly(22, 0), new TimeOnly(6, 0), 1, [], [], "");
 
     // Fecha de referencia para todos los tests
@@ -49,7 +49,7 @@ public class DepuradorDeMarcacionesTests
     {
         // CA-1: Una franja (06:00-14:00) con dos marcaciones (07:00, 15:00)
         // Con franja unica el rango es (-inf, +inf) -> primera=Entrada, ultima=Salida
-        var turno = new DetalleTurno("Diurno", [Franja06_14], "");
+        var turno = new TurnoDiario("Diurno", [Franja06_14], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(7, 0), M(15, 0)]);
 
@@ -65,7 +65,7 @@ public class DepuradorDeMarcacionesTests
         // Gap 12:00-14:00 -> punto de corte = 13:00 (punto medio del gap)
         // F1 captura marcaciones antes de 13:00: 05:50 y 12:05
         // F2 captura marcaciones desde 13:00: 14:10 y 18:15
-        var turno = new DetalleTurno("Partido", [Franja06_12, Franja14_18], "");
+        var turno = new TurnoDiario("Partido", [Franja06_12, Franja14_18], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase,
             [Marcacion05_50, Marcacion12_05, M(14, 10), M(18, 15)]);
@@ -81,7 +81,7 @@ public class DepuradorDeMarcacionesTests
     public void Depurar_ProduceEntradaConSalidaNull_CuandoFranjaTieneUnaSolaMarcacion()
     {
         // CA-3: Franja con una sola marcacion -> Entrada poblada, Salida null, EsAnomala true
-        var turno = new DetalleTurno("Diurno", [Franja06_14], "");
+        var turno = new TurnoDiario("Diurno", [Franja06_14], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(7, 0)]);
 
@@ -95,7 +95,7 @@ public class DepuradorDeMarcacionesTests
     public void Depurar_ProduceEntradaYSalidaNull_CuandoFranjaSinMarcaciones()
     {
         // CA-4: Franja sin marcaciones -> Entrada null, Salida null, EsAnomala true
-        var turno = new DetalleTurno("Diurno", [Franja06_14], "");
+        var turno = new TurnoDiario("Diurno", [Franja06_14], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, []);
 
@@ -110,7 +110,7 @@ public class DepuradorDeMarcacionesTests
     {
         // CA-5: Franja unica con marcaciones 07:00, 10:00, 12:00, 15:00
         // -> Entrada=07:00, Salida=15:00; las de 10:00 y 12:00 se descartan
-        var turno = new DetalleTurno("Diurno", [Franja06_14], "");
+        var turno = new TurnoDiario("Diurno", [Franja06_14], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase,
             [M(7, 0), M(10, 0), M(12, 0), M(15, 0)]);
@@ -135,7 +135,7 @@ public class DepuradorDeMarcacionesTests
         // CA-7: Franja nocturna 22:00-06:00 con DiaOffsetFin=1, fecha ancla 2026-03-15
         // Rango resuelto: 2026-03-15 22:00 -> 2026-03-16 06:00
         // Marcacion 22:30 del 15 y 05:30 del 16 quedan en la misma franja
-        var turno = new DetalleTurno("Nocturno", [Franja22_06_Nocturna], "");
+        var turno = new TurnoDiario("Nocturno", [Franja22_06_Nocturna], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(22, 30), MSig(5, 30)]);
 
@@ -149,7 +149,7 @@ public class DepuradorDeMarcacionesTests
     {
         // CA-8: Con una sola franja, el rango es (-inf, +inf) -> todas las marcaciones le pertenecen.
         // Timestamps fuera del horario nominal de la franja para verificar que no se filtra por hora.
-        var turno = new DetalleTurno("Diurno", [Franja06_14], "");
+        var turno = new TurnoDiario("Diurno", [Franja06_14], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(3, 0), M(20, 0)]);
 
@@ -164,7 +164,7 @@ public class DepuradorDeMarcacionesTests
         // CA-10: Turno partido donde solo la primera franja tiene marcaciones
         // F1 (06:00-12:00): Entrada=05:50, Salida=12:05 -> EsAnomala false
         // F2 (14:00-18:00): Entrada=null, Salida=null -> EsAnomala true
-        var turno = new DetalleTurno("Partido", [Franja06_12, Franja14_18], "");
+        var turno = new TurnoDiario("Partido", [Franja06_12, Franja14_18], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase,
             [Marcacion05_50, Marcacion12_05]);

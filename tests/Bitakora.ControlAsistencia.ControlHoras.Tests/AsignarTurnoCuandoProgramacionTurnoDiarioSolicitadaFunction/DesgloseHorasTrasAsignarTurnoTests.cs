@@ -13,7 +13,6 @@ using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurn
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -26,26 +25,34 @@ public class DesgloseHorasTrasAsignarTurnoTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600c0-0000-7000-8000-000000000004");
 
-    private static readonly InformacionEmpleado Empleado = new(
+    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly Empleado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a InformacionEmpleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
     private static readonly DetalleEmpleado EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
-    // CA-3: franja unica 06:00-14:00 para el turno asignado
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja06_14 =
+    // CA-3: franja unica 06:00-14:00 para el turno asignado -- FranjaProgramada (ControlHoras.DomainEvents)
+    // es lo que el ControlDiario persiste; DetalleFranjaOrdinaria (PrivateEvents) es lo que trae el
+    // evento privado entrante. Issue #288: Descripcion (dato derivado) irrelevante -> placeholder "".
+    private static readonly FranjaProgramada Franja06_14 =
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
+    private static readonly DetalleFranjaOrdinaria Franja06_14Detalle =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // CA-4: turno partido con dos franjas ordinarias (ambas quedaran anomalas sin marcaciones)
-    private static readonly DetalleFranjaOrdinaria Franja06_12 =
+    private static readonly FranjaProgramada Franja06_12 =
         new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
-    private static readonly DetalleFranjaOrdinaria Franja14_18 =
+    private static readonly DetalleFranjaOrdinaria Franja06_12Detalle =
+        new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
+    private static readonly FranjaProgramada Franja14_18 =
+        new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
+    private static readonly DetalleFranjaOrdinaria Franja14_18Detalle =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // Timestamps de las marcaciones que llegan antes que el turno (CA-3)
@@ -58,8 +65,8 @@ public class DesgloseHorasTrasAsignarTurnoTests
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
         new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
 
-    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
-        new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
+    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
+        new(StreamId, Empleado, Fecha, turnoDiario, SolicitudId);
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
@@ -75,9 +82,10 @@ public class DesgloseHorasTrasAsignarTurnoTests
             CrearMarcacionAdicionada(Timestamp07_00),
             CrearMarcacionAdicionada(Timestamp15_00));
 
-        var turnoFranjaUnica = new DetalleTurno("Turno Manana", [Franja06_14], "");
-        await WhenAsync(CrearEvento(turnoFranjaUnica));
+        var turnoFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
+        await WhenAsync(CrearEvento(turnoFranjaUnicaDetalle));
 
+        var turnoFranjaUnica = new TurnoDiario("Turno Manana", [Franja06_14], "");
         Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
 
         // Depuracion esperada: una franja con Entrada=07:00 y Salida=15:00 (no anomala).
@@ -120,10 +128,11 @@ public class DesgloseHorasTrasAsignarTurnoTests
     public async Task ProgramacionTurnoDiarioSolicitada_DejaDesgloseHorasConFranjasAnomalas_CuandoTurnoSinMarcaciones()
     {
         // Sin Given - stream nuevo, turno partido sin marcaciones previas
-        var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18], "");
+        var turnoPartidoDetalle = new DetalleTurno("Turno Partido", [Franja06_12Detalle, Franja14_18Detalle], "");
 
-        await WhenAsync(CrearEvento(turnoPartido));
+        await WhenAsync(CrearEvento(turnoPartidoDetalle));
 
+        var turnoPartido = new TurnoDiario("Turno Partido", [Franja06_12, Franja14_18], "");
         Then(StreamId, CrearTurnoDiarioAsignado(turnoPartido));
 
         // FranjasAnomalas = 2 (las dos franjas ordinarias del turno, ambas sin entrada ni salida).

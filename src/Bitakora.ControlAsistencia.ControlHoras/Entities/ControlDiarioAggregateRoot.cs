@@ -1,6 +1,5 @@
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventSourcing.Abstractions;
@@ -10,12 +9,14 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 // HU-12: Aggregate root del dia de trabajo de un empleado
 // Identidad: EmpleadoId + Fecha como stream ID determinista (CA-7)
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
+// Issue #322: InformacionEmpleado y DetalleTurno cambian de tipo (Empleado/TurnoDiario, propios de
+// ControlHoras.DomainEvents) -- los NOMBRES de las propiedades no cambian.
 public partial class ControlDiarioAggregateRoot : AggregateRoot
 {
     // CA-6: estado que actualiza al aplicar TurnoDiarioAsignado
-    public InformacionEmpleado? InformacionEmpleado { get; private set; }
+    public Empleado? InformacionEmpleado { get; private set; }
     public DateOnly Fecha { get; private set; }
-    public DetalleTurno? DetalleTurno { get; private set; }
+    public TurnoDiario? DetalleTurno { get; private set; }
 
     // Trazabilidad: id de la ultima solicitud que asigno un turno (CA-5)
     public Guid UltimaSolicitudId { get; private set; }
@@ -157,5 +158,16 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     //         Discriminar(). Ya no se mapean los ControlFranja a un DTO rico: el contrato pierde la
     //         senal de anomalia a proposito (riesgo aceptado, diferido al flujo de aprobacion).
     public DiaCalculado CrearDiaCalculado() =>
-        new(InformacionEmpleado, Fecha, _desgloseHoras.Discriminar());
+        new(MapearInformacionEmpleado(InformacionEmpleado), Fecha, _desgloseHoras.Discriminar());
+
+    // Issue #322: InformacionEmpleado del aggregate ahora es Empleado (ControlHoras.DomainEvents);
+    // DiaCalculado (PublicEvents) sigue esperando InformacionEmpleado (PublicEvents.Empleados) -- el
+    // aggregate vive en el Function App, el unico ensamblado que ve los tres ensamblados de eventos,
+    // asi que el mapeo vive aqui (CA-ADR-0029 decision #5).
+    private static InformacionEmpleado? MapearInformacionEmpleado(Empleado? empleado) =>
+        empleado is null
+            ? null
+            : new InformacionEmpleado(
+                empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
+                empleado.Nombres, empleado.Apellidos);
 }

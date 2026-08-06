@@ -10,7 +10,6 @@ using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDe
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
 using Cosmos.EventDriven.Abstractions;
@@ -26,20 +25,24 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static readonly string StreamId = $"{EmpleadoId}:{Fecha:yyyy-MM-dd}";
     private static readonly string StreamIdDiaAnterior = $"{EmpleadoId}:2026-03-14";
 
-    // Empleado para construir TurnoDiarioAsignado en Given
-    private static readonly InformacionEmpleado Empleado = new(
+    // Issue #322: Empleado (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
+    private static readonly Empleado EmpleadoPersistido = new(
+        EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
+
+    // InformacionEmpleado (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
+    private static readonly InformacionEmpleado EmpleadoPublico = new(
         EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000001");
 
     // CA-1: franja unica 06:00-14:00
     // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
-    private static readonly DetalleFranjaOrdinaria Franja06_14 =
+    private static readonly FranjaProgramada Franja06_14 =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
     // CA-3: turno partido con dos franjas
-    private static readonly DetalleFranjaOrdinaria Franja06_12 =
+    private static readonly FranjaProgramada Franja06_12 =
         new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
-    private static readonly DetalleFranjaOrdinaria Franja14_18 =
+    private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
     // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
@@ -58,8 +61,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
         new(StreamId, EmpleadoId, timestamp, "ENTRADA", "DEV-001");
 
-    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(DetalleTurno detalleTurno) =>
-        new(StreamId, Empleado, Fecha, detalleTurno, SolicitudId);
+    private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario detalleTurno) =>
+        new(StreamId, EmpleadoPersistido, Fecha, detalleTurno, SolicitudId);
 
     // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
     // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
@@ -75,7 +78,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     [Fact]
     public async Task RegistroDeMarcacionCreado_CalculaControlFranja_CuandoHayTurnoYLlegaMarcacion()
     {
-        var turnoUnico = new DetalleTurno("Turno Manana", [Franja06_14], "");
+        var turnoUnico = new TurnoDiario("Turno Manana", [Franja06_14], "");
         Given(StreamId, CrearTurnoDiarioAsignado(turnoUnico));
 
         await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
@@ -92,12 +95,12 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // que MinutosPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano ya no
         // distingue "franja anomala" de "dia sin horas"; ambos publican el mismo diccionario vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
-            Empleado,
+            EmpleadoPublico,
             Fecha,
             new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }
 
-    // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin DetalleTurno.
+    // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin TurnoDiario.
     //        Depurar() retorna lista vacia porque DepuradorDeMarcaciones.Depurar(null,...) -> [].
     //        Verifica el caso "marcacion llega antes del turno" donde el aggregate
     //        se inicia solo con marcacion y no hay nada que depurar.
@@ -105,7 +108,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     [Fact]
     public async Task RegistroDeMarcacionCreado_DejaControlesDeFranjaVacios_CuandoNoHayTurnoPrevio()
     {
-        // Sin Given - el aggregate se crea solo con la marcacion (DetalleTurno queda null)
+        // Sin Given - el aggregate se crea solo con la marcacion (TurnoDiario queda null)
         await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
@@ -129,7 +132,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     [Fact]
     public async Task RegistroDeMarcacionCreado_RecalculaControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
     {
-        var turnoPartido = new DetalleTurno("Turno Partido", [Franja06_12, Franja14_18], "");
+        var turnoPartido = new TurnoDiario("Turno Partido", [Franja06_12, Franja14_18], "");
         Given(StreamId,
             CrearTurnoDiarioAsignado(turnoPartido),
             CrearMarcacionAdicionada(Timestamp05_50),
@@ -161,7 +164,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // con LineaConcepto desde su intervalo y la etiqueta traducida. F2 es anomala (Salida null): no
         // aporta intervalos ni lineas.
         ThenIsPublishedPublicly(new DiaCalculado(
-            Empleado,
+            EmpleadoPublico,
             Fecha,
             new HorasDiscriminadas(
                 new Dictionary<string, int>

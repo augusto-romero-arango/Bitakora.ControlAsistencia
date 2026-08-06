@@ -1,4 +1,4 @@
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -6,10 +6,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 // marcaciones normalizadas a franjas ordinarias del turno.
 // Sin estado propio - no necesita inyeccion ni ser instanciada.
 // Funciones auxiliares (resolver franjas a DateTime, calcular cortes) son internal/private.
+// Issue #322: DetalleTurno/DetalleFranjaOrdinaria (PrivateEvents) -> TurnoDiario/FranjaProgramada
+// (ControlHoras.DomainEvents, payload por rol).
 public static class DepuradorDeMarcaciones
 {
     public static IReadOnlyList<ControlFranja> Depurar(
-        DetalleTurno? turno,
+        TurnoDiario? turno,
         DateOnly fecha,
         IReadOnlyList<MarcacionNormalizada> marcaciones)
     {
@@ -37,7 +39,7 @@ public static class DepuradorDeMarcaciones
 
     // Convierte una franja (TimeOnly + DiaOffsetFin) a un rango DateTime relativo a la fecha ancla.
     // Para franjas nocturnas con DiaOffsetFin=1 el fin cae en el dia siguiente.
-    private static (DateTime Inicio, DateTime Fin) ResolverRango(DetalleFranjaOrdinaria franja, DateOnly fecha)
+    private static (DateTime Inicio, DateTime Fin) ResolverRango(FranjaProgramada franja, DateOnly fecha)
     {
         var inicio = fecha.ToDateTime(franja.HoraInicio);
         var fin = fecha.AddDays(franja.DiaOffsetFin).ToDateTime(franja.HoraFin);
@@ -65,7 +67,7 @@ public static class DepuradorDeMarcaciones
     // Construye el ControlFranja asignando primera=Entrada y ultima=Salida dentro del rango.
     // Con cero marcaciones: ambas null. Con una: Entrada poblada, Salida null. Intermedias se descartan.
     private static ControlFranja ConstruirControlFranja(
-        DetalleFranjaOrdinaria franja,
+        FranjaProgramada franja,
         (DateTime Inicio, DateTime Fin) rango,
         IReadOnlyList<MarcacionNormalizada> marcacionesOrdenadas)
     {

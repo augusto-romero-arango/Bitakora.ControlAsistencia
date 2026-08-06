@@ -1,12 +1,13 @@
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 // Issue #129: Estructura agregada del desglose de una sola franja.
 // Record con constructor primario publico - STJ lo serializa nativamente sin ConfigurarSerializacion (ADR-0015).
 // Las propiedades calculadas se recalculan en cada acceso desde los parametros del ctor.
+// Issue #322: DetalleFranjaOrdinaria (PrivateEvents) -> FranjaProgramada (ControlHoras.DomainEvents).
 public record DesgloseFranja(
-    DetalleFranjaOrdinaria Programada,
+    FranjaProgramada Programada,
     IReadOnlyList<IntervaloClasificado> Intervalos,
     Retardo Retardo)
 {

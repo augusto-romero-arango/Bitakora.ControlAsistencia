@@ -4,7 +4,7 @@
 // descansos, extras programadas y excedente (salida mas alla del fin programado).
 // Trabaja siempre en MomentoDelDia - no construye ningun DateTime en este nivel.
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -41,7 +41,7 @@ public static class ClasificadorTrabajo
     /// Precondicion: trabajado es un intervalo valido (no vacio); la franja anomala se maneja en #136.
     /// </summary>
     public static IReadOnlyList<IntervaloClasificado> Clasificar(
-        DetalleFranjaOrdinaria programada,
+        FranjaProgramada programada,
         IntervaloTemporal trabajado,
         DateOnly fechaAncla,
         Func<DateOnly, bool> esFestivo)
@@ -175,7 +175,7 @@ public static class ClasificadorTrabajo
     }
 
     // Convierte una sub-franja (descanso o extra) a su par de minutos absolutos [Inicio, Fin).
-    private static (int Inicio, int Fin) AMinutos(DetalleSubFranja sub) =>
+    private static (int Inicio, int Fin) AMinutos(SubFranjaProgramada sub) =>
         (new MomentoDelDia(sub.HoraInicio, sub.DiaOffsetInicio).MinutosAbsolutos,
          new MomentoDelDia(sub.HoraFin, sub.DiaOffsetFin).MinutosAbsolutos);
 
