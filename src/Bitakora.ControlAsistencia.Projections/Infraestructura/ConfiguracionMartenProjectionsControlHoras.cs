@@ -108,6 +108,11 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 // seccion 3); Inline solo seria valido con justificacion explicita del issue, que
                 // este no la da.
                 opts.Projections.Add<TurnoDiarioProjection>(ProjectionLifecycle.Async);
+
+                // Issue #328 CA-3: segunda proyeccion concreta del BC, sumada aditivamente a la de
+                // arriba (mismo stream (EmpleadoId, Fecha), otra vista). N1, lifecycle Async
+                // -- mismo criterio que TurnoDiarioProjection.
+                opts.Projections.Add<TurnoVigenteProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

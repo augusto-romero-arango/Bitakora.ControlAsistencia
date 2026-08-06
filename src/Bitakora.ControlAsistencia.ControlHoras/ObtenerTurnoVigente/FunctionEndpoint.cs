@@ -1,3 +1,6 @@
+using System.Globalization;
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.MultiTenancy;
 using Marten;
 using Microsoft.AspNetCore.Http;
@@ -12,24 +15,46 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente;
 // con ObtenerTurnoDiario/ListarTurnosDiarios/RegistrarMarcacionFunction/... porque cada una vive en
 // su propio namespace.
 //
-// FASE ROJA (projection-test-writer, issue #328): Run es un stub que lanza NotImplementedException
-// a proposito -- el comportamiento real (parseo tipado de empleadoId/fecha con 400 explicito,
-// ControlDiarioAggregateRoot.ComputarStreamId, QuerySession acotada al tenant de ITenantResolver,
-// session.LoadAsync<TurnoVigente> y el 200/404, CA-4) es responsabilidad de projection-implementer.
-// El constructor SI se prueba (ComposicionServiciosTests.AgregarServiciosControlHoras_
-// ResuelveElEndpointDeObtenerTurnoVigente...): IDocumentStore e ITenantResolver ya resuelven del
-// contenedor del write-side (los usa ObtenerTurnoDiario), asi que ese test de composicion no
-// requiere implementar Run para quedar en verde -- solo prueba wiring, no comportamiento.
+// Mismo patron que ObtenerTurnoDiario (issue #289): la ruta recibe empleadoId y fecha como los
+// componentes tipados de la clave natural compuesta -- la clave se reconstruye con
+// ControlDiarioAggregateRoot.ComputarStreamId, nunca con una concatenacion propia del endpoint
+// (MEF-ADR-0037). CA-4: fecha invalida -> 400 explicito; 200 con la vista completa (Id incluido --
+// la UI lo necesita como ancla de comandos, ver issue "Notas tecnicas") o 404 sin body cuando no
+// hay turno vigente.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
+    private const string FormatoFecha = "yyyy-MM-dd";
+
     [Function("ObtenerTurnoVigente")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "control-horas/turnos-vigentes/{empleadoId}/{fecha}")]
         HttpRequest req,
         string empleadoId,
         string fecha,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        // Fecha no liga directo a DateOnly en el modelo aislado de Functions: se recibe como
+        // string y se parsea con formato explicito, devolviendo 400 ante formato invalido
+        // (mismo patron de ObtenerTurnoDiario, issue #289).
+        if (!DateOnly.TryParseExact(
+                fecha, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParseada))
+            return new BadRequestObjectResult(
+                $"El parametro 'fecha' debe tener el formato {FormatoFecha}");
+
+        var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(empleadoId, fechaParseada);
+
+        // CA-4: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
+        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). empleadoId y fecha SI vienen de
+        // la ruta: son el recurso, no el tenant.
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        var vista = await session.LoadAsync<TurnoVigente>(streamKey, ct);
+
+        // CA-4: 404 sin body cuando no hay turno vigente para ese (empleado, fecha) -- no es un
+        // error, significa que ese dia no tiene turno asignado.
+        if (vista is null)
+            return new NotFoundResult();
+
+        return new OkObjectResult(vista);
     }
 }
