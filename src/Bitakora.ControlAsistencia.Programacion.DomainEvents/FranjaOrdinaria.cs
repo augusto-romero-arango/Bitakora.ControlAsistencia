@@ -71,8 +71,11 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     // -- el FA mapea FranjaProgramada -> DetalleFranjaOrdinaria solo para los eventos que cruzan
     // el bus (CA-5). Tell-don't-Ask preservado: la conversion sigue viviendo en este VO, sin abrir
     // _descansos/_extras (MEF-ADR-0012).
-    // Stub de fase roja (issue #319 CA-3) -- el implementer completa el mapeo campo a campo.
-    public FranjaProgramada ToDetalle() => throw new NotImplementedException();
+    public FranjaProgramada ToDetalle() => new(
+        _horaInicio, _horaFin, _diaOffsetFin,
+        _descansos.Select(d => d.ToDetalle()).ToList().AsReadOnly(),
+        _extras.Select(e => e.ToDetalle()).ToList().AsReadOnly(),
+        ToString());
 
     // CA-20, CA-21: formato "(06:00-12:00)" o "(22:00-06:00+1)"
     public override string ToString()

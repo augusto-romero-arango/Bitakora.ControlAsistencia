@@ -68,14 +68,27 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
             empleado.Nombres, empleado.Apellidos);
 
-    // Stub de fase roja (issue #319 CA-5) -- el implementer completa el mapeo campo a campo hacia
-    // el record propio del dominio (Programacion.DomainEvents.Empleado).
+    // Issue #319 CA-5: mapeo campo a campo hacia el record propio del dominio
+    // (Programacion.DomainEvents.Empleado), tipo del evento persistido ProgramacionTurnoSolicitada.
     private static Empleado MapearEmpleadoDominio(InformacionEmpleado empleado) =>
-        throw new NotImplementedException();
+        new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
+            empleado.Nombres, empleado.Apellidos);
 
-    // Stub de fase roja (issue #319 CA-5) -- el implementer completa el mapeo (incluyendo las
-    // listas anidadas de franjas y sub-franjas) desde TurnoProgramado (dominio) hacia DetalleTurno
-    // (PrivateEvents), el unico punto de traduccion hacia el payload que cruza el bus interno.
+    // Issue #319 CA-5: unico punto de traduccion desde TurnoProgramado (dominio) hacia el payload
+    // que cruza el bus interno (DetalleTurno, PrivateEvents), incluidas las listas anidadas de
+    // franjas y sub-franjas.
     private static DetalleTurno MapearTurno(TurnoProgramado turno) =>
-        throw new NotImplementedException();
+        new(turno.Nombre,
+            turno.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
+            turno.Descripcion);
+
+    private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>
+        new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,
+            franja.Descansos.Select(MapearSubFranja).ToList().AsReadOnly(),
+            franja.Extras.Select(MapearSubFranja).ToList().AsReadOnly(),
+            franja.Descripcion);
+
+    private static DetalleSubFranja MapearSubFranja(SubFranjaProgramada subFranja) =>
+        new(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio,
+            subFranja.DiaOffsetFin, subFranja.Descripcion);
 }

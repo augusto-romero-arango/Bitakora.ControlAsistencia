@@ -32,8 +32,8 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
     // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleSubFranja, PrivateEvents) -- el
     // FA mapea SubFranjaProgramada -> DetalleSubFranja solo para los eventos que cruzan el bus
     // (CA-5). Tell-don't-Ask preservado: la conversion sigue viviendo en este VO (MEF-ADR-0012).
-    // Stub de fase roja (issue #319 CA-3) -- el implementer completa el mapeo campo a campo.
-    public SubFranjaProgramada ToDetalle() => throw new NotImplementedException();
+    public SubFranjaProgramada ToDetalle() =>
+        new(_horaInicio, _horaFin, _diaOffsetInicio, _diaOffsetFin, ToString());
 
     // CA-20, CA-21: formato legible con offsets
     public override string ToString() =>
