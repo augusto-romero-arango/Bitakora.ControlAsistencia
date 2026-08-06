@@ -328,6 +328,46 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
     }
 
+    // Issue #328 CA-3: segunda proyeccion concreta del dominio (N1, SingleStreamProjection
+    // <TurnoVigente, string>, mismo stream que TurnoDiarioProjection -- (EmpleadoId, Fecha)).
+    // Complementa ConfigurarControlHoras_NoRegistraNingunaProyeccionInline (que solo prueba que
+    // NADA quedo Inline; una lista sin TurnoVigente la pasaria igual) verificando que la proyeccion
+    // CONCRETA de este issue si quedo registrada con lifecycle Async. FASE ROJA: hoy el seam
+    // (ConfiguracionMartenProjectionsControlHoras.ConfigurarControlHoras) todavia no encadena
+    // opts.Projections.Add<TurnoVigenteProjection>(...) -- eso es alcance de projection-implementer.
+    [Fact]
+    public void ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("TurnoVigente");
+    }
+
+    // Issue #328, mismo gotcha de "Numeric Revisioned Documents" que ya peno a TurnoDiarioView
+    // (issue #294): Marten aplica ProjectionDocumentPolicy SOLO a los documentos que son target de
+    // una proyeccion REGISTRADA en el store (UseNumericRevisions = true, Metadata.Revision --
+    // mt_version bigint -- habilitada, Metadata.Version -- mt_version uuid -- deshabilitada). Hasta
+    // que TurnoVigenteProjection se registre arriba, este mapping cae al default (Version
+    // habilitado, Revision deshabilitado) y este test queda en rojo.
+    //
+    // El oraculo es literal y espejo del que ComposicionServiciosTests
+    // .AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_
+    // ParaTurnoVigente congela desde el write-side -- juntos cierran la misma dimension que #294
+    // tuvo que cerrar para TurnoDiarioView, antes de que un 42804 llegue a dev.
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoVigente));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
     // Issue #294, mitad worker de la dimension que el par de #289 dejo abierta: la guarda de arriba
     // pinea tabla, tenancy e Id, y las tres convergian -- el 500 en dev entro por la forma de
     // mt_version, que nadie media.
