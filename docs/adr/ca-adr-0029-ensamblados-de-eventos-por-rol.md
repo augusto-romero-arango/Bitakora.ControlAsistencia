@@ -45,22 +45,49 @@ por eso reemplaza a "lo compartido":
 Un ensamblado de eventos contiene los eventos y los tipos que los componen (su payload). No contiene
 aggregates, ni value objects de cálculo, ni comandos.
 
-### 2. Sentido de las dependencias
+### 2. Tres islas: cero referencias entre los ensamblados de eventos
+
+*Enmienda incorporada por el issue #317, que alinea esta decisión con el canon del marco
+(MEF-ADR-0039 decisión #2, ver decisión #7 de este ADR). Reescribe **in situ** la versión original
+de esta decisión -- el grafo encadenado de abajo --, que el marco descartó como Alt 5 de
+MEF-ADR-0039.*
+
+Los tres ensamblados de eventos de la decisión #1 -- `PublicEvents`, `PrivateEvents`,
+`{Dominio}.DomainEvents` -- son **tres islas**: cada uno declara **cero `<ProjectReference>`**, ni
+hacia los otros dos ni hacia ningún otro proyecto del repo. La composición ocurre exclusivamente en
+los dos proyectos que la necesitan:
 
 ```
-PublicEvents                                  <- futuro paquete NuGet, sin dependencias de proyecto
-   ^
-   |
-PrivateEvents                                 <- interno al BC
-   ^                    ^
-   |                    |
-Programacion.DomainEvents   ControlHoras.DomainEvents      <- uno por dominio
-   ^                            ^
-   |                            |
-Function App Programacion   Function App ControlHoras
-   \                            /
-    \____ Projections (worker) /                <- referencia ambos DomainEvents, ningún Function App
+PublicEvents        PrivateEvents        Programacion.DomainEvents      ControlHoras.DomainEvents
+(cero refs)          (cero refs)              (cero refs)                     (cero refs)
+
+Referenciados directamente, sin transitividad, por:
+
+Function App Programacion   ->  Programacion.DomainEvents + PrivateEvents + PublicEvents
+Function App ControlHoras   ->  ControlHoras.DomainEvents + PrivateEvents + PublicEvents
+
+Projections (worker)        ->  Programacion.DomainEvents + ControlHoras.DomainEvents + ReadModels
+                                 (nunca PublicEvents/PrivateEvents, nunca un Function App)
 ```
+
+- El **Function App** de cada dominio referencia los tres ensamblados de eventos directamente: su
+  propio `{Dominio}.DomainEvents`, más `PrivateEvents` y `PublicEvents` del BC.
+- El **worker de proyecciones** referencia `{Dominio}.DomainEvents` de cada dominio que proyecta más
+  `ReadModels` -- nunca `PublicEvents`/`PrivateEvents` ni el `.csproj` de un Function App.
+
+**Motivación del cambio -- por qué ya no hay cadena**: cada ensamblado evoluciona a una velocidad
+distinta. El bus público evoluciona bajo presión de consumidores externos y el versionado V2
+(MEF-ADR-0005); el bus interno evoluciona libre dentro del BC; el event store es el contrato más
+longevo de los tres -- el JSON persistido en `mt_events` se relee durante toda la vida del sistema
+(MEF-ADR-0036). Con el grafo encadenado (versión original de esta decisión), un cambio hacia afuera
+(evolucionar el contrato público) exigía revisar hacia adentro (el tipo persistido que lo
+referenciaba), y un evento persistido cuyo payload fuera un tipo de bus quedaba amarrado a la
+evolución de ese bus -- el modo de fallo concreto de ese acoplamiento se documenta en la decisión #5.
+
+**Estado real de este repo frente a esta decisión**: no se cumple todavía -- ver "Negativas y deuda
+asumida". El grafo encadenado original sigue construido en el código (`PrivateEvents` referencia
+`PublicEvents`; ambos `DomainEvents` referencian los dos buses). Migrar a cero referencias es el
+alcance de los issues #318 y #319; el enforcement mecánico de que no regrese, el issue #320.
 
 ### 3. Tres reglas que garantiza el grafo de compilación, no la disciplina
 
@@ -70,9 +97,18 @@ Function App Programacion   Function App ControlHoras
   (CA-ADR-0001, autonomía de dominio). Un `DomainEvents` compartido no daría esta garantía.
 - Nada en `PublicEvents` puede depender de un tipo interno, porque el grafo no lo permite.
 
-Se agrega una cuarta, del lado de los tests: `PublicEvents.Tests` referencia **únicamente**
-`PublicEvents`, de modo que si un test suyo llegara a necesitar `PrivateEvents` o un `DomainEvents`,
-el compilador delata que el tipo bajo prueba no es distribuible.
+Se agrega una cuarta, del lado de los tests, generalizada por el issue #317 a los dos ensamblados de
+bus (MEF-ADR-0039 decisión #7): cada uno tiene su propio proyecto de tests, que referencia
+**únicamente** su propio ensamblado. `PublicEvents.Tests` referencia únicamente `PublicEvents`, de
+modo que si un test suyo llegara a necesitar `PrivateEvents` o un `DomainEvents`, el compilador
+delata que el tipo bajo prueba no es distribuible como Published Language (MEF-ADR-0005).
+`PrivateEvents.Tests` referencia únicamente `PrivateEvents`, por el mismo motivo de aislamiento
+aunque sin la restricción de distribución externa (`PrivateEvents` nunca sale del BC): si un test
+suyo necesitara `PublicEvents`, un `DomainEvents` o un Function App, delataría que está probando
+composición de dominio, no el ensamblado del bus interno en sí mismo. Los `.csproj` de ambos
+proyectos de test ya declaran hoy esa única referencia (verificado en el análisis del issue #318);
+lo que todavía no cumple la regla es `PrivateEvents.csproj` mismo, que sigue referenciando
+`PublicEvents` (ver decisión #2 y "Negativas y deuda asumida").
 
 ### 4. Un ensamblado de eventos aloja la lista completa de serialización de su dominio
 
@@ -82,7 +118,7 @@ Function App las invoca en vez de declarar el resolver inline, y el worker puede
 lista en su propio store. Antes del refactor esa lista cruzaba dos proyectos y la mitad de
 Programación no existía como clase, lo que hacía imposible replicarla.
 
-### 5. Los eventos no conocen los comandos
+### 5. Los eventos no conocen los comandos; payload por rol -- un tipo no cruza ensamblados de eventos
 
 El factory de un evento persistido no recibe el comando que lo origina: recibe un tipo de entrada
 propio del ensamblado de eventos. `TurnoCreado.Crear(Guid, string, IReadOnlyList<DatosFranja>)`, y el
@@ -93,6 +129,33 @@ con ese mapeo, reusado por el handler y por sus tests.
 La razón es estructural, no estética: `CrearTurno` vive en la Function App, que referencia
 `Programacion.DomainEvents`, así que un factory que reciba el comando cierra un ciclo de referencias
 y no compila.
+
+*Generalización incorporada por el issue #317 (MEF-ADR-0039 decisión #6), a partir de las tres islas
+de la decisión #2.* El mismo argumento aplica a cualquier payload, no solo al comando. Bajo cero
+`ProjectReference` entre los tres ensamblados de eventos, **un tipo de payload no cruza ensamblados
+de eventos**: cuando el mismo dato viaja por el bus (tipo de `PublicEvents` o `PrivateEvents`) y
+además se persiste (tipo de `{Dominio}.DomainEvents`), cada ensamblado declara su **propio record
+plano** con ese dato -- duplicación deliberada, con paridad de campos -- en vez de importar el tipo
+del otro ensamblado. Todo el mapeo entre el tipo de bus y su equivalente persistido vive en el
+**Function App**, el único ensamblado que ve los tres.
+
+La motivación no es solo estructural: el bus público evoluciona bajo presión de consumidores
+externos y versionado V2 (MEF-ADR-0005), el bus interno evoluciona libre dentro del BC, y el event
+store es el contrato más longevo -- releído durante toda la vida del sistema (MEF-ADR-0036). Un
+payload compartido por referencia entre un evento de bus y uno persistido tiene además un **modo de
+fallo silencioso** verificado empíricamente en este repo (issue #270, ver "Negativas y deuda
+asumida" más abajo): System.Text.Json, al deserializar un payload anidado que no calza con el tipo
+esperado -- típicamente tras evolucionar un lado sin el otro --, no lanza excepción: deja los campos
+no resueltos en su valor default. Un campo en su valor default dentro de un evento ya persistido en
+`mt_events` es un dato corrupto que el sistema releerá durante toda su vida.
+
+**Estado real de este repo frente a esta regla**: no se cumple todavía (ver "Negativas y deuda
+asumida"). `TurnoDiarioAsignado` (persistido en `ControlHoras.DomainEvents`) embebe
+`InformacionEmpleado` (tipo de `PublicEvents`) y `DetalleTurno` (tipo de `PrivateEvents`) como
+payload anidado; `ProgramacionTurnoSolicitada` (persistido en `Programacion.DomainEvents`) hace lo
+mismo; y `FranjaOrdinaria.ToDetalle()`/`SubFranja.ToDetalle()` retornan
+`DetalleFranjaOrdinaria`/`DetalleSubFranja`, tipos de `PrivateEvents`. Pagar esta deuda es el alcance
+del issue #319.
 
 ### 6. El alias es la identidad del evento persistido, y se registra explícitamente
 
@@ -133,6 +196,24 @@ memoria): uno verifica que los tipos estén registrados en el store real que com
 **congela el alias contra literales** (`turno_creado`, `marcacion_registrada`, ...), de modo que el
 día en que un rename de clase cambie la identidad de un evento ya persistido se vea en la suite, no
 en producción.
+
+### 7. MEF-ADR-0039 es el canon del marco; este ADR es su aplicación local
+
+*Decisión incorporada por el issue #317.*
+
+MEF-ADR-0039, del harness (`eda-evsourcing-azure-harness`), generaliza la partición de ensamblados
+de eventos por rol como composición canónica para todo Bounded Context que el marco scaffoldea.
+Este ADR es la **aplicación local** de ese canon en este repo, no una fuente independiente de la
+regla: cuando este ADR y MEF-ADR-0039 coincidan, es porque este ADR fue la fuente de referencia
+empírica que informó al marco (ver "Referencias" de MEF-ADR-0039); cuando difieran, **gana el
+marco**, y la divergencia se paga en este repo, documentada como deuda abierta en "Negativas y deuda
+asumida" hasta que un issue local la resuelva.
+
+Esta regla anti-divergencia no es retroactiva a las decisiones que este ADR ya fijó y que
+MEF-ADR-0039 no contradice: la partición por rol (decisión #1), las listas de serialización por
+dominio (decisión #4) y la identidad del evento por alias (decisión #6) coinciden con el canon del
+marco y no requieren cambio. Donde el marco divergió de la versión original de este ADR -- el grafo
+encadenado de la decisión #2 -- esta misma enmienda ya reescribió la decisión local para alinearla.
 
 ## Alternativas consideradas
 
@@ -234,6 +315,22 @@ de **salida** hacia ControlHoras, no de entrada.
 - Los filtros `paths` de los tres workflows de deploy deben enumerar los ensamblados nuevos. Sin eso,
   un cambio en un evento no dispara el despliegue del proceso que lo consume: la misma staleness
   silenciosa que esos workflows ya documentaban para `global.json`.
+- **El grafo de referencias entre ensamblados de eventos todavía es el encadenado, no las tres islas
+  que la decisión #2 fija desde esta enmienda (issue #317). Deuda abierta, sin pagar.** Evidencia
+  concreta verificada en este repo: `PrivateEvents.csproj` tiene `<ProjectReference>` hacia
+  `PublicEvents.csproj`; `ControlHoras.DomainEvents.csproj` y `Programacion.DomainEvents.csproj`
+  tienen `<ProjectReference>` hacia ambos ensamblados de bus; `TurnoDiarioAsignado` (persistido)
+  embebe `InformacionEmpleado` (`PublicEvents`) y `DetalleTurno` (`PrivateEvents`) como payload
+  anidado; `ProgramacionTurnoSolicitada` (persistido) hace lo mismo;
+  `ProgramacionTurnoDiarioSolicitada` (bus privado) usa `InformacionEmpleado` (`PublicEvents`); y
+  `FranjaOrdinaria.ToDetalle()`/`SubFranja.ToDetalle()` retornan
+  `DetalleFranjaOrdinaria`/`DetalleSubFranja`, tipos de `PrivateEvents`. El retiro de la referencia
+  `PrivateEvents -> PublicEvents` es el issue #318; el retiro de las referencias de ambos
+  `DomainEvents` hacia los buses y la duplicación de payload por rol que las reemplaza, el issue
+  #319; el enforcement mecánico con tests de arquitectura que impida que el grafo regrese al
+  encadenado, el issue #320. Esta enmienda fija la doctrina primero, a propósito: no afirma un
+  cumplimiento que todavía no existe -- mismo aprendizaje que la purga nunca ejecutada que este ADR
+  ya documenta más arriba.
 
 ## Referencias
 
@@ -254,6 +351,12 @@ de **salida** hacia ControlHoras, no de entrada.
   `PublicEvents`/`PrivateEvents`.
 - MEF-ADR-0034 sección 5 (worker de proyecciones): fija que las clases de proyección viven en el
   worker y que este no puede alcanzar un Function App, la restricción que origina todo el refactor.
+- MEF-ADR-0039 (marco, composición canónica de ensamblados por rol del evento): **canon** del que
+  este ADR es aplicación local (decisión #7). Generaliza la partición por rol (decisión #1 de este
+  ADR) y sustituye el grafo encadenado de la versión original de la decisión #2 por tres islas con
+  cero `<ProjectReference>`; generaliza también la decisión #5 de este ADR como payload por rol.
+  Cuando el marco y este repo difieran en composición de ensamblados de eventos, gana el marco y la
+  divergencia se paga aquí.
 
 ## Control de cambios
 
@@ -276,3 +379,18 @@ de **salida** hacia ControlHoras, no de entrada.
   case-insensitive (`ServiceBusDeserializador`), falso para camelCase estricto --el modo de fallo es
   pérdida silenciosa de datos, no una excepción-- y depende del `PropertyNameCaseInsensitive = true`
   del consumidor, no de la forma del tipo.
+- 2026-08-05: enmienda (issue #317). Reescribe la decisión #2: de grafo encadenado (`PublicEvents <-
+  PrivateEvents <- {Dominio}.DomainEvents <- Function App`) a **tres islas** con cero
+  `<ProjectReference>` cada una, ni entre ellas ni hacia ningún otro proyecto del repo; el Function
+  App de cada dominio referencia los tres directamente y el worker de proyecciones solo
+  `{Dominio}.DomainEvents` + `ReadModels`. Generaliza la decisión #5 con la regla de **payload por
+  rol**: un tipo de payload no cruza ensamblados de eventos, con el mapeo entre bus y event store
+  concentrado en el Function App. Alinea la cuarta regla de la decisión #3 con MEF-ADR-0039 decisión
+  #7: la referencia única se declara explícita también para `PrivateEvents.Tests`, no solo para
+  `PublicEvents.Tests`. Agrega la decisión #7: MEF-ADR-0039 (marco) es el canon, este ADR es su
+  aplicación local, con regla anti-divergencia explícita ("gana el marco"). Registra como deuda
+  **abierta** (sin pagar) el estado real del grafo de referencias de este repo, con evidencia
+  concreta (`PrivateEvents.csproj -> PublicEvents.csproj`; ambos `DomainEvents` hacia los dos buses;
+  `TurnoDiarioAsignado`, `ProgramacionTurnoSolicitada`, `ProgramacionTurnoDiarioSolicitada`,
+  `FranjaOrdinaria`/`SubFranja`) y puntero a los issues que la pagan (#318, #319) y la congelan con
+  tests de arquitectura (#320). Enmienda puramente doctrinal: no modifica ningún `.csproj` ni código.

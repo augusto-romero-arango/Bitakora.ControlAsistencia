@@ -152,7 +152,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | Naming de funciones Azure (HTTP y Service Bus) | MEF-ADR-0006 |
 | Topics y subscriptions de Service Bus, un topic por evento | MEF-ADR-0001 |
 | Estrategia de testing con event sourcing, DSL de tests | MEF-ADR-0002 |
-| **Dónde va un evento nuevo: `PublicEvents` vs `PrivateEvents` vs `{Dominio}.DomainEvents`; qué referencia el worker de proyecciones; por qué un evento no conoce su comando** | CA-ADR-0029 |
+| **Dónde va un evento nuevo: `PublicEvents` vs `PrivateEvents` vs `{Dominio}.DomainEvents`; qué referencia el worker de proyecciones; por qué un evento no conoce su comando; cero referencias entre los tres ensamblados (tres islas); payload por rol** | CA-ADR-0029 (aplicación local), MEF-ADR-0039 (canon del marco) |
 | **Identidad del evento en el event store: el alias manda, registro explícito con `AddEventTypes`, mover un evento de namespace sin migrar datos; proscripción de `MapEventType` y de alterar `EventNamingStyle`** | CA-ADR-0029 (decisión #6) |
 | Mensajes en `.resx` por aggregate/handler | MEF-ADR-0009 |
 | Definition of Ready | MEF-ADR-0011 |
