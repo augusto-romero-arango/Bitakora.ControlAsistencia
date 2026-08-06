@@ -54,7 +54,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         await _privateEventSender.PublishAsync(eventosPrivados);
     }
 
-    // Stub de fase roja (issue #318 CA-4) -- el implementer completa el mapeo campo a campo.
     private static DetalleEmpleado MapearEmpleado(InformacionEmpleado empleado) =>
-        throw new NotImplementedException();
+        new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
+            empleado.Nombres, empleado.Apellidos);
 }

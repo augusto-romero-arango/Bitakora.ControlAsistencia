@@ -66,7 +66,7 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
     }
 
-    // Stub de fase roja (issue #318 CA-4) -- el implementer completa el mapeo campo a campo.
     private static InformacionEmpleado MapearEmpleado(DetalleEmpleado empleado) =>
-        throw new NotImplementedException();
+        new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
+            empleado.Nombres, empleado.Apellidos);
 }
