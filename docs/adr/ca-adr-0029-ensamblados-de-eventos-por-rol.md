@@ -54,8 +54,10 @@ MEF-ADR-0039.*
 
 Los tres ensamblados de eventos de la decisión #1 -- `PublicEvents`, `PrivateEvents`,
 `{Dominio}.DomainEvents` -- son **tres islas**: cada uno declara **cero `<ProjectReference>`**, ni
-hacia los otros dos ni hacia ningún otro proyecto del repo. La composición ocurre exclusivamente en
-los dos proyectos que la necesitan:
+hacia los otros dos ni hacia ningún otro proyecto del repo. Los `PackageReference` no quedan
+restringidos por esta decisión (los dos ensamblados de bus llevan el paquete de markers
+`IPublicEvent`/`IPrivateEvent`). La composición ocurre exclusivamente en los dos puntos que la
+necesitan -- el Function App de cada dominio y el worker de proyecciones:
 
 ```
 PublicEvents        PrivateEvents        Programacion.DomainEvents      ControlHoras.DomainEvents
@@ -67,13 +69,25 @@ Function App Programacion   ->  Programacion.DomainEvents + PrivateEvents + Publ
 Function App ControlHoras   ->  ControlHoras.DomainEvents + PrivateEvents + PublicEvents
 
 Projections (worker)        ->  Programacion.DomainEvents + ControlHoras.DomainEvents + ReadModels
-                                 (nunca PublicEvents/PrivateEvents, nunca un Function App)
+                                 (sin referencia directa a PublicEvents/PrivateEvents, nunca un
+                                  Function App; ver nota de transitividad via ReadModels abajo)
 ```
 
 - El **Function App** de cada dominio referencia los tres ensamblados de eventos directamente: su
   propio `{Dominio}.DomainEvents`, más `PrivateEvents` y `PublicEvents` del BC.
 - El **worker de proyecciones** referencia `{Dominio}.DomainEvents` de cada dominio que proyecta más
-  `ReadModels` -- nunca `PublicEvents`/`PrivateEvents` ni el `.csproj` de un Function App.
+  `ReadModels` -- ningún `<ProjectReference>` **directo** hacia `PublicEvents`/`PrivateEvents` ni
+  hacia el `.csproj` de un Function App (MEF-ADR-0034 sección 5, MEF-ADR-0039 decisión #4).
+
+El propósito declarado de ese grafo en el canon es que el worker no arrastre `PublicEvents`/
+`PrivateEvents` **ni transitivamente**. En este repo eso todavía no se cumple, por una vía que no
+es ninguno de los tres ensamblados de eventos: `ReadModels` referencia ambos buses desde el issue
+#289 (`TurnoDiarioView` reusa `InformacionEmpleado` de `PublicEvents` y `DetalleTurno` de
+`PrivateEvents` en vez de redeclararlos), así que el worker los ve por transitividad a través de
+`ReadModels`. La regla de cero `<ProjectReference>` de esta decisión **no** alcanza a `ReadModels`
+--no es un ensamblado de eventos--, y por eso esa referencia no es una violación de las tres islas;
+pero sí deja el propósito a medias, y queda registrada como deuda propia en "Negativas y deuda
+asumida": no la paga ninguno de los issues #318/#319/#320.
 
 **Motivación del cambio -- por qué ya no hay cadena**: cada ensamblado evoluciona a una velocidad
 distinta. El bus público evoluciona bajo presión de consumidores externos y el versionado V2
@@ -100,15 +114,24 @@ alcance de los issues #318 y #319; el enforcement mecánico de que no regrese, e
 Se agrega una cuarta, del lado de los tests, generalizada por el issue #317 a los dos ensamblados de
 bus (MEF-ADR-0039 decisión #7): cada uno tiene su propio proyecto de tests, que referencia
 **únicamente** su propio ensamblado. `PublicEvents.Tests` referencia únicamente `PublicEvents`, de
-modo que si un test suyo llegara a necesitar `PrivateEvents` o un `DomainEvents`, el compilador
-delata que el tipo bajo prueba no es distribuible como Published Language (MEF-ADR-0005).
-`PrivateEvents.Tests` referencia únicamente `PrivateEvents`, por el mismo motivo de aislamiento
-aunque sin la restricción de distribución externa (`PrivateEvents` nunca sale del BC): si un test
-suyo necesitara `PublicEvents`, un `DomainEvents` o un Function App, delataría que está probando
-composición de dominio, no el ensamblado del bus interno en sí mismo. Los `.csproj` de ambos
-proyectos de test ya declaran hoy esa única referencia (verificado en el análisis del issue #318);
-lo que todavía no cumple la regla es `PrivateEvents.csproj` mismo, que sigue referenciando
-`PublicEvents` (ver decisión #2 y "Negativas y deuda asumida").
+modo que si un test suyo llegara a necesitar `PrivateEvents` o un `DomainEvents`, eso delata que el
+tipo bajo prueba no es distribuible como Published Language (MEF-ADR-0005): un consumidor externo
+del paquete tampoco tendría ese otro ensamblado. `PrivateEvents.Tests` referencia únicamente
+`PrivateEvents`, por el mismo motivo de aislamiento aunque sin la restricción de distribución externa
+(`PrivateEvents` nunca sale del BC): si un test suyo necesitara `PublicEvents`, un `DomainEvents` o
+un Function App, delataría que está probando composición de dominio, no el ensamblado del bus interno
+en sí mismo.
+
+A diferencia de las tres primeras, **esta cuarta regla el grafo no la garantiza**: las tres islas de
+la decisión #2 solo cierran la vía accidental --ya no existe transitividad por la que un test alcance
+otro ensamblado de eventos sin declararla--, pero un `.csproj` de tests puede declarar la referencia
+que quiera, porque la decisión #2 restringe los `.csproj` de los tres ensamblados de eventos, no los
+de sus proyectos de test (MEF-ADR-0039 decisión #7). Por eso es un guardrail de diseño cuyo
+enforcement mecánico es el issue #320, junto con el de la decisión #2 (MEF-ADR-0039 decisión #10).
+Hoy ambos `.csproj` de test ya declaran esa única referencia (verificado por inspección directa:
+`PublicEvents.Tests -> PublicEvents`, `PrivateEvents.Tests -> PrivateEvents`); lo que todavía no
+cumple la regla es `PrivateEvents.csproj` mismo, que sigue referenciando `PublicEvents` (ver
+decisión #2 y "Negativas y deuda asumida").
 
 ### 4. Un ensamblado de eventos aloja la lista completa de serialización de su dominio
 
@@ -208,6 +231,13 @@ regla: cuando este ADR y MEF-ADR-0039 coincidan, es porque este ADR fue la fuent
 empírica que informó al marco (ver "Referencias" de MEF-ADR-0039); cuando difieran, **gana el
 marco**, y la divergencia se paga en este repo, documentada como deuda abierta en "Negativas y deuda
 asumida" hasta que un issue local la resuelva.
+
+Que "gana el marco" es una regla que **este repo adopta por decisión propia**, no una obligación que
+el marco imponga: MEF-ADR-0039 decisión #9 fija su alcance como *greenfield-only* y declara la
+migración de consumidores existentes **no-objetivo explícito** -- cada consumidor decide cuándo el
+costo se justifica. Esta enmienda y sus issues hermanos (#318, #319, #320) **son** esa decisión local
+de migrar, tomada aquí. Lo que la regla anti-divergencia fija es la dirección: el destino de la
+composición lo define el canon, y este repo no mantiene una variante propia en competencia.
 
 Esta regla anti-divergencia no es retroactiva a las decisiones que este ADR ya fijó y que
 MEF-ADR-0039 no contradice: la partición por rol (decisión #1), las listas de serialización por
@@ -331,6 +361,22 @@ de **salida** hacia ControlHoras, no de entrada.
   encadenado, el issue #320. Esta enmienda fija la doctrina primero, a propósito: no afirma un
   cumplimiento que todavía no existe -- mismo aprendizaje que la purga nunca ejecutada que este ADR
   ya documenta más arriba.
+- **El worker alcanza `PublicEvents`/`PrivateEvents` transitivamente vía `ReadModels`, y ningún issue
+  hermano lo paga. Deuda abierta, propia de esta enmienda.** `ReadModels.csproj` referencia ambos
+  buses desde el issue #289 CA-1 --decisión deliberada y justificada en su momento: `TurnoDiarioView`
+  reusa `InformacionEmpleado` (`PublicEvents`) y `DetalleTurno` (`PrivateEvents`) porque son
+  exactamente los DTOs planos destinados a cruzar fronteras, y el paquete de markers no arrastra
+  dependencias--. Como el worker referencia `ReadModels`, los dos ensamblados de bus le llegan por
+  transitividad, lo que cumple la letra de la decisión #2 (`ReadModels` no es un ensamblado de eventos,
+  así que el cero `<ProjectReference>` no lo alcanza; el worker no declara ninguna referencia directa
+  a un bus) pero no su propósito declarado en el canon: "no arrastrar transitivamente
+  `PrivateEvents`/`PublicEvents` a un proceso que no los necesita" (MEF-ADR-0039 decisión #2).
+  Resolverlo exigiría que `ReadModels` redeclare esos dos DTOs como records propios --el mismo patrón
+  de duplicación por rol de la decisión #5, aplicado al read-side--, y eso **revisaría** una decisión
+  vigente (#289 CA-1), no solo pagaría deuda: queda fuera del alcance de #318 (retiro
+  `PrivateEvents -> PublicEvents`), #319 (payload por rol en los `DomainEvents`) y #320 (tests de
+  arquitectura sobre los tres ensamblados y el worker). Sin issue asignado todavía; se registra aquí
+  para que #320 no escriba su suite asumiendo que el worker ya está limpio.
 
 ## Referencias
 
@@ -393,4 +439,10 @@ de **salida** hacia ControlHoras, no de entrada.
   concreta (`PrivateEvents.csproj -> PublicEvents.csproj`; ambos `DomainEvents` hacia los dos buses;
   `TurnoDiarioAsignado`, `ProgramacionTurnoSolicitada`, `ProgramacionTurnoDiarioSolicitada`,
   `FranjaOrdinaria`/`SubFranja`) y puntero a los issues que la pagan (#318, #319) y la congelan con
-  tests de arquitectura (#320). Enmienda puramente doctrinal: no modifica ningún `.csproj` ni código.
+  tests de arquitectura (#320). Registra además una segunda deuda abierta, sin issue asignado: el
+  worker alcanza ambos buses **transitivamente** vía `ReadModels` (issue #289 CA-1), lo que cumple la
+  letra de la decisión #2 pero no el propósito del canon. Aclara que la cuarta regla de la decisión #3
+  es un guardrail de diseño que el grafo **no** garantiza (la vía deliberada queda abierta; su
+  enforcement es el issue #320) y que "gana el marco" es una adopción local, no una imposición del
+  marco, que declara la migración de consumidores existentes no-objetivo (MEF-ADR-0039 decisión #9).
+  Enmienda puramente doctrinal: no modifica ningún `.csproj` ni código.
