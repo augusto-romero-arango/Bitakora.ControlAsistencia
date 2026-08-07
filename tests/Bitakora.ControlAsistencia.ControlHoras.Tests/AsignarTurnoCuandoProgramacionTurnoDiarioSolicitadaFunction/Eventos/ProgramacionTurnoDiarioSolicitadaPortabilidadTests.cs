@@ -8,6 +8,7 @@
 // privados como SubFranja/FranjaOrdinaria).
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -81,18 +82,35 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     }
 
     // Issue #331 CA-2/CA-4: sede es opcional y aditiva -- los mensajes publicados antes de este
-    // issue no llevan el campo "sede", STJ deja null en el parametro posicional opcional.
+    // issue no llevan la clave "sede" en el JSON del bus. Serializar el evento con Sede = null y
+    // volver a leerlo solo probaria que un null explicito ("sede": null) sobrevive; lo que este
+    // test ejercita es la AUSENCIA de la clave, que es la forma real de los mensajes viejos --
+    // el mismo camino que ya cubre Deserializar_DejaDescripcionEnCadenaVacia_... para #288.
     [Fact]
-    public void Deserializar_DejaSedeEnNull_CuandoEventoNoLlevaElCampo()
+    public void Deserializar_DejaSedeEnNull_CuandoElMensajeNoLlevaLaClaveSede()
     {
-        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, CrearDetalleTurno());
-
-        var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
         var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(
-            BinaryData.FromString(json));
+            BinaryData.FromString(JsonSinLaClaveSede()));
 
         restaurado.Should().NotBeNull();
         restaurado.Sede.Should().BeNull();
+        restaurado.DetalleTurno.Nombre.Should().Be("Turno Manana");
+    }
+
+    // La forma anterior a #331 es exactamente la actual SIN la clave "sede" -- quitarla del JSON
+    // canonico expresa esa relacion mejor que reescribir el mensaje completo a mano (mismo recurso
+    // que JsonConFormaPersistidaSinDescripcion en Programacion.Tests). Se parte de un evento CON
+    // sede para que la asercion sobre Remove() delate un test vacuo si la clave cambiara de nombre.
+    private static string JsonSinLaClaveSede()
+    {
+        var conSede = new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, Empleado, Fecha, CrearDetalleTurno(), new DetalleSede("SEDE-01", "Sede Principal"));
+
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(conSede, CrearOpcionesProductor()))!;
+        nodo.AsObject().Remove("sede").Should().BeTrue(
+            "el JSON del bus debe llevar la clave 'sede' para que quitarla represente la forma anterior a #331");
+
+        return nodo.ToJsonString();
     }
 
     // Retro-compatibilidad: los eventos publicados antes de #288 no llevan el campo. STJ dejaria

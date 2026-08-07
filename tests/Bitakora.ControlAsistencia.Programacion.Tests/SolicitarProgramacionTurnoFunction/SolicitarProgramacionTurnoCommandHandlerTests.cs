@@ -188,18 +188,23 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
     // Issue #331 CA-1: la sede viaja resuelta en el comando (el cliente la resuelve, el servidor
     // NUNCA consulta el maestro) y queda grabada tanto en el evento persistido (SedeProgramada,
-    // dominio) como en cada evento diario publicado al bus interno (DetalleSede, gemelo deliberado).
+    // dominio) como en CADA evento diario publicado al bus interno (DetalleSede, gemelo deliberado).
+    // Dos fechas a proposito: CA-1 dice "cada ProgramacionTurnoDiarioSolicitada", asi que con una
+    // sola fecha una implementacion que solo poblara el primer evento pasaria en verde.
     [Fact]
     public async Task SolicitarProgramacionTurno_PersisteYPublicaLaSedeProgramada_CuandoLaSolicitudIncluyeSede()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1], SedePrincipal));
+            GuidAggregateId, TurnoId, Empleado, [Fecha1, Fecha2], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado, SedePrincipal));
-        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, SedePrincipalDetalle));
+            GuidAggregateId, EmpleadoProgramado, [Fecha1, Fecha2], TurnoProgramadoEsperado, SedePrincipal));
+        ThenIsPublishedPrivately(
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, SedePrincipalDetalle),
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, SedePrincipal);
     }
 

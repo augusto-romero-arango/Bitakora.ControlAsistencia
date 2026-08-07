@@ -127,7 +127,7 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebePublicarProgramacionTurnoDiarioSolicitada_ConSedeCorrecta_CuandoSolicitudIncluyeSede()
+    public async Task SolicitarProgramacionTurno_PublicaElEventoDiarioConLaSede_CuandoLaSolicitudIncluyeSede()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
@@ -188,6 +188,19 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
 
         var sedeEsperada = new DetalleSede(sedeId, sedeNombre);
         evento.Sede.Should().Be(sedeEsperada);
+
+        // Assert: el campo nuevo es aditivo y TOLERANTE para el consumidor real -- ControlHoras
+        // todavia no conoce "sede" (lo consumira en #336) y debe seguir procesando el mensaje sin
+        // dead-letter. Es la unica evidencia end-to-end de esa tolerancia: el test de arriba
+        // (sin sede) nunca pone el campo nuevo en el cable.
+        await Task.Delay(TimeSpan.FromSeconds(5), ct);
+
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
+            TopicSalida, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
+
+        existeDeadLetter.Should().BeFalse(
+            "el campo 'sede' es aditivo: ControlHoras debe ignorarlo sin fallar (SolicitudId {0}, suscripcion '{1}')",
+            solicitudId, SuscripcionConsumidor);
     }
 
     [Fact]
@@ -377,7 +390,7 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
     // Issue #331 CA-3: sede presente pero con Id vacio se rechaza con 400, sin emitir eventos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoSedeTieneIdVacio()
+    public async Task SolicitarProgramacionTurno_Retorna400_CuandoSedeTieneIdVacio()
     {
         var ct = TestContext.Current.CancellationToken;
         var payload = new
@@ -404,7 +417,7 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
     // Issue #331 CA-3: sede presente pero con Nombre en blanco se rechaza con 400, sin emitir eventos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoSedeTieneNombreEnBlanco()
+    public async Task SolicitarProgramacionTurno_Retorna400_CuandoSedeTieneNombreEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
         var payload = new
