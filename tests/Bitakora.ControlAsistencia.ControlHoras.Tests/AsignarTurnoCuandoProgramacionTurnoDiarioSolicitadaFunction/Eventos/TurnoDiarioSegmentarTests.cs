@@ -324,4 +324,27 @@ public class TurnoDiarioSegmentarTests
         resultado[0].Sede.Should().Be(sedeSuba);
         resultado[1].Sede.Should().Be(sedeChapinero);
     }
+
+    [Fact]
+    public void Segmentar_ConservaLaSedeEnLosDosBloquesPartidos_CuandoLaFranjaConSedeCruzaMedianoche()
+    {
+        // CA-3 x CA-4 (agregado en revision): la sede se estampa antes del corte en medianoche, asi
+        // que el corte debe preservarla en AMBOS lados. Sin este test, romper la copia de Sede en
+        // Tramo.RomperEnMedianoche dejaria sin sede a todo turno nocturno -- la mitad del dominio --
+        // y ningun otro test lo delataria: los demas casos de sede no cruzan el limite del dia.
+        var sedeSuba = new SedeProgramada("SEDE-SUBA", "Suba");
+        var franja = Franja(22, 0, 6, 0, diaOffsetFin: 1, sede: sedeSuba);
+        var turno = Turno(franja);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        var esperado = new[]
+        {
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 10, 22, 0, 0), new DateTime(2026, 8, 11, 0, 0, 0), sedeSuba),
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 11, 0, 0, 0), new DateTime(2026, 8, 11, 6, 0, 0), sedeSuba),
+        };
+        resultado.Should().Equal(esperado);
+    }
 }

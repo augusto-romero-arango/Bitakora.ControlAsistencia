@@ -72,9 +72,18 @@ public record FranjaProgramada(
     ///
     /// Issue #336: la franja madre es la unica duena de la sede -- estampa <see cref="Sede"/> en
     /// TODOS los tramos que produce, tipados o no (los descansos y extras no tienen sede propia,
-    /// la heredan de aqui).
+    /// la heredan de aqui). El estampado es un unico paso al final de la tuberia, no un argumento
+    /// repetido en cada <c>new Tramo(...)</c>: asi un tramo nuevo que se agregue al recorte hereda
+    /// la sede por construccion, sin poder olvidarla.
     /// </remarks>
-    internal IEnumerable<Tramo> Segmentar()
+    internal IEnumerable<Tramo> Segmentar() =>
+        Recortar().Select(tramo => tramo with { Sede = Sede });
+
+    /// <summary>
+    /// Aritmetica pura del recorte, sin sede: produce los tramos en minutos absolutos que
+    /// <see cref="Segmentar"/> despues estampa.
+    /// </summary>
+    private IEnumerable<Tramo> Recortar()
     {
         var subFranjas = Descansos
             .Select(descanso => descanso.ATramo(TipoBloque.Descanso))
@@ -86,12 +95,12 @@ public record FranjaProgramada(
         foreach (var sub in subFranjas)
         {
             if (sub.Inicio > cursor)
-                yield return new Tramo(TipoBloque.Ordinaria, cursor, sub.Inicio, Sede);
-            yield return sub with { Sede = Sede };
+                yield return new Tramo(TipoBloque.Ordinaria, cursor, sub.Inicio);
+            yield return sub;
             cursor = sub.Fin;
         }
 
         if (cursor < finFranja)
-            yield return new Tramo(TipoBloque.Ordinaria, cursor, finFranja, Sede);
+            yield return new Tramo(TipoBloque.Ordinaria, cursor, finFranja);
     }
 }

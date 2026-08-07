@@ -148,9 +148,15 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
     // sede, la segunda no: mismo escenario "Turno Partido" que
     // ProgramacionTurnoDiarioSolicitadaEventHandlerTests, verificado aqui contra el entorno real
     // (persistencia en Postgres + cadena de eventos de Service Bus intacta).
+    //
+    // Nombre segun MEF-ADR-0016 (<Sujeto>_<LoQuePasa>_Cuando<Condicion>, que el ADR aplica tambien
+    // a los smoke tests): el sujeto es el evento de bus que dispara el flujo, igual que en los unit
+    // tests del handler. Los dos tests hermanos de esta clase conservan el patron "Debe..." previo
+    // al ADR -- son parte de los 60 casos que el ADR deja para un refactor dedicado, no un
+    // precedente a replicar en tests nuevos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebeAsignarTurnoDiario_ConSedePorFranja_CuandoElEventoTraeSedesEfectivas()
+    public async Task ProgramacionTurnoDiarioSolicitada_PersisteElTurnoConSedePorFranja_CuandoElEventoTraeSedesEfectivas()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");

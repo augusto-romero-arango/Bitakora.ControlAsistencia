@@ -2,10 +2,13 @@
 // CA-ADR-0029 decisiones #2 y #5): SedeProgramada (ControlHoras.DomainEvents) y DetalleSede
 // (PrivateEvents.Programacion) declaran el mismo dato en dos ensamblados que no se referencian
 // entre si. Sin este guardrail, agregar un campo a uno de los dos no rompe nada y el dato se
-// pierde en silencio en MapearFranja -- el mismo modo de fallo que ya cubren los pares de gemelos
-// analogos de este ensamblado (Empleado/DetalleEmpleado, TurnoDiario/DetalleTurno,
-// FranjaProgramada/DetalleFranjaOrdinaria, SubFranjaProgramada/DetalleSubFranja) y el gemelo
-// equivalente del lado de Programacion (SedeProgramadaParidadConDetalleSedeTests, issue #331).
+// pierde en silencio en MapearFranja -- el mismo modo de fallo que cubre el gemelo equivalente del
+// lado de Programacion (SedeProgramadaParidadConDetalleSedeTests, Programacion.Tests, issue #331).
+//
+// Su par contenedor lo cubre FranjaProgramadaParidadConDetalleFranjaOrdinariaTests (agregado en la
+// revision de este issue). Los otros gemelos de esta isla -- Empleado/DetalleEmpleado,
+// TurnoDiario/DetalleTurno, SubFranjaProgramada/DetalleSubFranja (issue #322) -- todavia NO tienen
+// guardrail de paridad de este lado, a diferencia de Programacion.Tests, que los tiene los cuatro.
 
 using System.Reflection;
 using AwesomeAssertions;

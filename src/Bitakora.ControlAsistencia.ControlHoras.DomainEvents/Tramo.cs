@@ -14,8 +14,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// CA-ADR-0029 decision #2 / MEF-ADR-0039 decisiones 2 y 4).
 ///
 /// Issue #336: Sede viaja como dato inerte a traves de toda la cadena (Segmentar ->
-/// RomperEnMedianoche -> ResolverA): el tramo la transporta sin interpretarla, la franja madre es
-/// quien la estampa al construir cada Tramo (Tell-don't-Ask -- MEF-ADR-0012).
+/// RomperEnMedianoche -> ResolverA): el tramo la transporta sin interpretarla ni decidir nada
+/// sobre ella. Quien la estampa es la franja madre, duena del dato, en un unico paso al cierre de
+/// <see cref="FranjaProgramada.Segmentar"/> (Tell-don't-Ask -- MEF-ADR-0012); por eso ningun
+/// <c>new Tramo(...)</c> de la aritmetica de recorte necesita pasarla.
 /// </remarks>
 internal readonly record struct Tramo(TipoBloque Tipo, int Inicio, int Fin, SedeProgramada? Sede = null)
 {
