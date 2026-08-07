@@ -40,6 +40,7 @@ using Wolverine;
 using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
 using ListarTurnosDiariosEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios.FunctionEndpoint;
 using ObtenerTurnoVigenteEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente.FunctionEndpoint;
+using ListarTurnosVigentesEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -429,6 +430,32 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
+    }
+
+    // Issue #329: test de composicion de la Function GET de listado sobre TurnoVigente (#328),
+    // hermano del de ObtenerTurnoDiario (#289 CA-7), ListarTurnosDiarios (#290 CA-7) y
+    // ObtenerTurnoVigente (#328 CA-4), a su vez hermanos de MEF-ADR-0029. ActivatorUtilities
+    // .CreateInstance reproduce la activacion por tipo que hace el host de Azure Functions isolated
+    // worker, sin levantar el host real (Alt 1 de MEF-ADR-0029).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (parseo de desde/hasta/empleadoId, recorte de rango, session.Query y
+    // mapeo al envelope de respuesta), que es responsabilidad de projection-implementer y del smoke
+    // test, no de este guardrail de wiring. Este issue no crea proyeccion nueva ni toca el seam del
+    // worker (issue #329, "Necesidad de lectura"): esta es la UNICA capa read-side declarada para
+    // el, junto con la ausencia deliberada de config-test/unit tests de proyeccion (carve-out de
+    // coverage de Functions GET, MEF-ADR-0035/issue #371) -- por eso este test queda en verde tan
+    // pronto exista el FunctionEndpoint stub con el constructor correcto, igual que su hermano de
+    // ObtenerTurnoVigente arriba.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarTurnosVigentes_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarTurnosVigentesEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 
     // --- Sampler efectivo del TracerProvider (issue #308 CA-2, CA-3) ---
