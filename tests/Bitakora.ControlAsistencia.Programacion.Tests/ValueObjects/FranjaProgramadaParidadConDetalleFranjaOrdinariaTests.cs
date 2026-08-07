@@ -7,12 +7,10 @@
 // al tipo hijo correcto de cada lado (cuya propia paridad la cubre
 // SubFranjaProgramadaParidadConDetalleSubFranjaTests).
 //
-// Issue #335 (desviacion documentada, MEF-ADR-0012/CA-ADR-0029 decision #5): FranjaProgramada gana
-// el campo Sede (payload propio del dominio); el mapeo hacia el bus interno (DetalleFranjaOrdinaria)
-// queda explicitamente fuera de alcance de este issue -- ver
-// SolicitarProgramacionTurnoCommandHandler.MapearFranja, que no lo propaga todavia. El guardrail de
-// paridad exacta se relaja para permitir ESTA UNICA divergencia (Sede); cualquier otro campo nuevo
-// que no aparezca en ambos lados sigue rompiendo el test.
+// Issue #335 abrio una divergencia temporal deliberada (Sede solo en FranjaProgramada, el mapeo
+// hacia el bus interno quedaba fuera de alcance). Issue #341 la CIERRA: DetalleFranjaOrdinaria
+// gana su propio campo Sede (la sede EFECTIVA que resuelve la cascada) -- el guardrail vuelve a
+// exigir paridad EXACTA de nombres de campo en ambos lados, sin excepciones.
 
 using System.Reflection;
 using AwesomeAssertions;
@@ -27,14 +25,9 @@ public class FranjaProgramadaParidadConDetalleFranjaOrdinariaTests
         typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name);
 
     [Fact]
-    public void FranjaProgramada_DeclaraLosMismosNombresDeCampoQueDetalleFranjaOrdinariaMasSedePropia()
+    public void FranjaProgramada_DeclaraLosMismosNombresDeCampoQueDetalleFranjaOrdinaria()
     {
-        var nombresProgramada = NombresDeCampos<FranjaProgramada>().ToList();
-        var nombresDetalle = NombresDeCampos<DetalleFranjaOrdinaria>().ToList();
-
-        nombresProgramada.Where(n => n != nameof(FranjaProgramada.Sede))
-            .Should().Equal(nombresDetalle);
-        nombresProgramada.Should().Contain(nameof(FranjaProgramada.Sede));
+        NombresDeCampos<FranjaProgramada>().Should().Equal(NombresDeCampos<DetalleFranjaOrdinaria>());
     }
 
     [Fact]
@@ -57,5 +50,17 @@ public class FranjaProgramadaParidadConDetalleFranjaOrdinariaTests
             .Should().Be(typeof(DetalleFranjaOrdinaria).GetProperty(nameof(DetalleFranjaOrdinaria.DiaOffsetFin))!.PropertyType);
         typeof(FranjaProgramada).GetProperty(nameof(FranjaProgramada.Descripcion))!.PropertyType
             .Should().Be(typeof(DetalleFranjaOrdinaria).GetProperty(nameof(DetalleFranjaOrdinaria.Descripcion))!.PropertyType);
+    }
+
+    // Issue #341: Sede tipa DELIBERADAMENTE distinto en cada lado (SedeProgramada vs DetalleSede,
+    // gemelos de payload por rol -- mismo criterio que Descansos/Extras con SubFranjaProgramada vs
+    // DetalleSubFranja).
+    [Fact]
+    public void FranjaProgramada_TipaSedeComoSedeProgramadaYDetalleFranjaOrdinariaComoDetalleSede()
+    {
+        typeof(FranjaProgramada).GetProperty(nameof(FranjaProgramada.Sede))!.PropertyType
+            .Should().Be(typeof(SedeProgramada));
+        typeof(DetalleFranjaOrdinaria).GetProperty(nameof(DetalleFranjaOrdinaria.Sede))!.PropertyType
+            .Should().Be(typeof(DetalleSede));
     }
 }

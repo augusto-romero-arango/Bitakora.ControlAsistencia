@@ -113,6 +113,62 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         return nodo.ToJsonString();
     }
 
+    // Issue #341 CA-5: la sede EFECTIVA de la franja (ya resuelta por la cascada del handler) es
+    // otro DTO plano de strings (DetalleSede, anidado dentro de DetalleFranjaOrdinaria) -- portable
+    // por el serializador por defecto del bus, igual que la sede a nivel del evento (arriba).
+    // Verifica ademas la igualdad por valor de DetalleFranjaOrdinaria completo (con Sede incluida
+    // en su Equals custom), no solo el campo Sede en aislado.
+    [Fact]
+    public void RoundTrip_PreservaLaSedeDeLaFranja_ConSerializadorPorDefectoDelBus()
+    {
+        var sedeFranja = new DetalleSede("SEDE-SUBA", "Suba");
+        var franja = new DetalleFranjaOrdinaria(
+            new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)[sede:Suba]", sedeFranja);
+        var detalleTurno = new DetalleTurno("Turno Manana", [franja], "Turno Manana (08:00-16:00)[sede:Suba]");
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno);
+
+        var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
+
+        var body = BinaryData.FromString(json);
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(body);
+
+        restaurado.Should().NotBeNull();
+        var franjaRestaurada = restaurado.DetalleTurno.FranjasOrdinarias[0];
+        franjaRestaurada.Sede.Should().Be(sedeFranja);
+        franjaRestaurada.Should().Be(franja);
+    }
+
+    // Issue #341 CA-4: retrocompatibilidad -- los mensajes publicados antes de este issue no llevan
+    // la clave "sede" dentro de cada franja. Se parte de un evento CON sede en la franja para que la
+    // asercion sobre Remove() delate un test vacuo si la clave cambiara de nombre (mismo patron que
+    // JsonSinLaClaveSede, arriba, para la sede a nivel del evento).
+    [Fact]
+    public void Deserializar_DejaSedeDeLaFranjaEnNull_CuandoElMensajeNoLlevaLaClaveSedeEnLaFranja()
+    {
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(
+            BinaryData.FromString(JsonSinLaClaveSedeEnLaFranja()));
+
+        restaurado.Should().NotBeNull();
+        restaurado.DetalleTurno.FranjasOrdinarias[0].Sede.Should().BeNull();
+        restaurado.DetalleTurno.Nombre.Should().Be("Turno Manana");
+    }
+
+    private static string JsonSinLaClaveSedeEnLaFranja()
+    {
+        var franjaConSede = new DetalleFranjaOrdinaria(
+            new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)[sede:Suba]",
+            new DetalleSede("SEDE-SUBA", "Suba"));
+        var detalleTurno = new DetalleTurno("Turno Manana", [franjaConSede], "Turno Manana (08:00-16:00)[sede:Suba]");
+        var conSede = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno);
+
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(conSede, CrearOpcionesProductor()))!;
+        var franjaNodo = nodo["detalleTurno"]!["franjasOrdinarias"]![0]!.AsObject();
+        franjaNodo.Remove("sede").Should().BeTrue(
+            "el JSON del bus debe llevar la clave 'sede' en la franja para que quitarla represente la forma anterior a #341");
+
+        return nodo.ToJsonString();
+    }
+
     // Retro-compatibilidad: los eventos publicados antes de #288 no llevan el campo. STJ dejaria
     // null en un parametro posicional declarado como string no anulable, lo que seria una mina
     // para cualquier consumidor. Los DTOs lo normalizan a cadena vacia -- la consecuencia que el

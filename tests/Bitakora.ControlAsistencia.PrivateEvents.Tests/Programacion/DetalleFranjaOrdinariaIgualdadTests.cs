@@ -5,6 +5,8 @@
 // Issue #288: se agrego Descripcion (dato derivado, texto del formato tecnico) al constructor
 // primario. NO participa en Equals/GetHashCode (ver DetalleFranjaOrdinaria.cs); los construction
 // sites de este archivo pasan "" porque el valor es irrelevante para estos tests de igualdad.
+// Issue #341: se agrego Sede (dato de IDENTIDAD, la sede efectiva ya resuelta por la cascada) --
+// SI participa en Equals/GetHashCode, a diferencia de Descripcion.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
@@ -18,24 +20,28 @@ public class DetalleFranjaOrdinariaIgualdadTests : IgualdadTestBase<DetalleFranj
     private static DetalleSubFranja Extra() =>
         new(new TimeOnly(17, 0), new TimeOnly(19, 0), 0, 0, "");
 
+    private static DetalleSede Sede() => new("SEDE-01", "Sede Principal");
+
     protected override DetalleFranjaOrdinaria CrearInstancia() =>
-        new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "");
+        new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "", Sede());
 
     protected override DetalleFranjaOrdinaria CrearInstanciaCopia() =>
-        new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "");
+        new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "", Sede());
 
     protected override IEnumerable<(string, DetalleFranjaOrdinaria)> CrearInstanciasDiferentes()
     {
         yield return ("HoraInicio",
-            new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], ""));
+            new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "", Sede()));
         yield return ("HoraFin",
-            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(18, 0), 0, [Descanso()], [Extra()], ""));
+            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(18, 0), 0, [Descanso()], [Extra()], "", Sede()));
         yield return ("DiaOffsetFin",
-            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 1, [Descanso()], [Extra()], ""));
+            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 1, [Descanso()], [Extra()], "", Sede()));
         yield return ("Descansos",
-            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [Extra()], ""));
+            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [Extra()], "", Sede()));
         yield return ("Extras",
-            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [], ""));
+            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [], "", Sede()));
+        yield return ("Sede",
+            new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "", Sede: null));
     }
 
     // Cobertura especifica del override: las listas se comparan por valor, no por referencia.
