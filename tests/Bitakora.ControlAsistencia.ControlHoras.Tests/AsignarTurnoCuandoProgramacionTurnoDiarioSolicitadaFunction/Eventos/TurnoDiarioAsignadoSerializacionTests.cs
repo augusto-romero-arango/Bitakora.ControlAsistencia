@@ -263,4 +263,76 @@ public class TurnoDiarioAsignadoSerializacionTests
             ],
             ""));
     }
+
+    // Issue #336 CA-4: JSON persistido antes de este issue no lleva la clave "Sede" en ninguna
+    // franja (ultimo parametro posicional, aditivo y opcional). A diferencia de Descripcion, aqui
+    // null ES el valor correcto de retrocompatibilidad -- no hay normalizacion especial, "sin sede
+    // asignada" es una franja real y valida (turno prearmado multi-sede sin resolver).
+    [Fact]
+    public void Deserializar_DejaLaSedeEnNull_CuandoElJsonPersistidoNoLlevaLaClaveSede()
+    {
+        const string jsonPersistidoSinSede = """
+            {
+              "Id": "EMP-001:2026-03-15",
+              "InformacionEmpleado": {
+                "EmpleadoId": "EMP-001",
+                "TipoIdentificacion": "CC",
+                "NumeroIdentificacion": "1234567890",
+                "Nombres": "Luis Augusto",
+                "Apellidos": "Barreto"
+              },
+              "Fecha": "2026-03-15",
+              "DetalleTurno": {
+                "Nombre": "Turno Manana",
+                "FranjasOrdinarias": [
+                  {
+                    "HoraInicio": "08:00:00",
+                    "HoraFin": "16:00:00",
+                    "DiaOffsetFin": 0,
+                    "Descansos": [],
+                    "Extras": [],
+                    "Descripcion": "(08:00-16:00)"
+                  }
+                ],
+                "Descripcion": "Turno Manana (08:00-16:00)"
+              },
+              "SolicitudId": "019600b0-0000-7000-8000-000000000001"
+            }
+            """;
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(jsonPersistidoSinSede, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.DetalleTurno.FranjasOrdinarias.Should().ContainSingle()
+            .Which.Sede.Should().BeNull();
+    }
+
+    // Issue #336 CA-5: round-trip Marten con sedes pobladas en las franjas de un turno partido --
+    // incluye igualdad por valor de FranjaProgramada con sede (Equals custom ahora la compara).
+    [Fact]
+    public void Deserializar_ReconstruyeIdentico_ConSedesPobladasEnLasFranjas()
+    {
+        var sedeSuba = new SedeProgramada("SEDE-SUBA", "Suba");
+        var sedeChapinero = new SedeProgramada("SEDE-CHAPINERO", "Chapinero");
+        var turnoConSedes = new TurnoDiario(
+            "Turno Partido",
+            [
+                new FranjaProgramada(
+                    new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], "(06:00-10:00)", sedeSuba),
+                new FranjaProgramada(
+                    new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "(14:00-18:00)", sedeChapinero)
+            ],
+            "Turno Partido");
+        var evento = new TurnoDiarioAsignado(StreamId, EmpleadoDePrueba, Fecha, turnoConSedes, SolicitudId);
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.DetalleTurno.Should().Be(turnoConSedes);
+        deserializado.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeSuba);
+        deserializado.DetalleTurno.FranjasOrdinarias[1].Sede.Should().Be(sedeChapinero);
+    }
 }

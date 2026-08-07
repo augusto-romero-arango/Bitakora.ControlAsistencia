@@ -12,8 +12,14 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// La aritmetica replica la de <c>MomentoDelDia</c> (ControlHoras/ValueObjects) en vez de reusarla:
 /// aquel vive en el Function App, que referencia este ensamblado y no al reves (isla de eventos,
 /// CA-ADR-0029 decision #2 / MEF-ADR-0039 decisiones 2 y 4).
+///
+/// Issue #336: Sede viaja como dato inerte a traves de toda la cadena (Segmentar ->
+/// RomperEnMedianoche -> ResolverA): el tramo la transporta sin interpretarla ni decidir nada
+/// sobre ella. Quien la estampa es la franja madre, duena del dato, en un unico paso al cierre de
+/// <see cref="FranjaProgramada.Segmentar"/> (Tell-don't-Ask -- MEF-ADR-0012); por eso ningun
+/// <c>new Tramo(...)</c> de la aritmetica de recorte necesita pasarla.
 /// </remarks>
-internal readonly record struct Tramo(TipoBloque Tipo, int Inicio, int Fin)
+internal readonly record struct Tramo(TipoBloque Tipo, int Inicio, int Fin, SedeProgramada? Sede = null)
 {
     private const int MinutosPorHora = 60;
     private const int MinutosPorDia = 1440;
@@ -46,6 +52,6 @@ internal readonly record struct Tramo(TipoBloque Tipo, int Inicio, int Fin)
     internal BloqueTurno ResolverA(DateOnly fecha)
     {
         var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
-        return new BloqueTurno(Tipo, medianoche.AddMinutes(Inicio), medianoche.AddMinutes(Fin));
+        return new BloqueTurno(Tipo, medianoche.AddMinutes(Inicio), medianoche.AddMinutes(Fin), Sede);
     }
 }
