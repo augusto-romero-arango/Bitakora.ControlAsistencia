@@ -11,6 +11,11 @@
 // usa DiaOffsetFin; cada SubFranjaProgramada (descanso/extra) usa su propio DiaOffsetInicio/Fin.
 // Todos los offsets son relativos a la MISMA fecha ancla (la fecha de asignacion del turno), no al
 // inicio de la franja individual.
+//
+// Issue #336 CA-3: Segmentar estampa en cada BloqueTurno la sede de su franja madre. Los
+// descansos y extras NO tienen sede propia -- heredan la de la franja que los contiene (el
+// glosario los define como contenidos en la ordinaria). Una franja sin sede asignada (turno
+// prearmado multi-sede sin resolver) produce bloques con sede null.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -30,9 +35,10 @@ public class TurnoDiarioSegmentarTests
     private static FranjaProgramada Franja(
         int horaInicio, int minutoInicio, int horaFin, int minutoFin, int diaOffsetFin = 0,
         IReadOnlyList<SubFranjaProgramada>? descansos = null,
-        IReadOnlyList<SubFranjaProgramada>? extras = null) =>
+        IReadOnlyList<SubFranjaProgramada>? extras = null,
+        SedeProgramada? sede = null) =>
         new(new TimeOnly(horaInicio, minutoInicio), new TimeOnly(horaFin, minutoFin), diaOffsetFin,
-            descansos ?? [], extras ?? [], "");
+            descansos ?? [], extras ?? [], "", sede);
 
     private static TurnoDiario Turno(params FranjaProgramada[] franjas) =>
         new("Turno", franjas, "");
@@ -250,5 +256,72 @@ public class TurnoDiarioSegmentarTests
                 new DateTime(2026, 8, 10, 14, 0, 0), new DateTime(2026, 8, 10, 18, 0, 0)),
         };
         resultado.Should().Equal(esperado);
+    }
+
+    [Fact]
+    public void Segmentar_EstampaLaSedeDeLaFranjaEnElBloqueOrdinario_CuandoLaFranjaTraeSede()
+    {
+        // CA-3: franja simple 06:00-14:00 con sede -> el unico bloque ordinario hereda esa sede.
+        var sedeSuba = new SedeProgramada("SEDE-SUBA", "Suba");
+        var franja = Franja(6, 0, 14, 0, sede: sedeSuba);
+        var turno = Turno(franja);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        var esperado = new[]
+        {
+            new BloqueTurno(TipoBloque.Ordinaria,
+                new DateTime(2026, 8, 10, 6, 0, 0), new DateTime(2026, 8, 10, 14, 0, 0), sedeSuba),
+        };
+        resultado.Should().Equal(esperado);
+    }
+
+    [Fact]
+    public void Segmentar_PropagaLaSedeDeLaFranjaATodosLosBloques_CuandoHayDescansoYExtra()
+    {
+        // CA-3: los descansos y extras no tienen sede propia -- heredan la de la franja madre que
+        // los contiene (mismo criterio del glosario que ya aplica Segmentar para los tramos).
+        var sedeChapinero = new SedeProgramada("SEDE-CHAPINERO", "Chapinero");
+        var descanso = SubFranja(10, 0, 11, 0);
+        var extra = SubFranja(12, 0, 13, 0);
+        var franja = Franja(6, 0, 14, 0, descansos: [descanso], extras: [extra], sede: sedeChapinero);
+        var turno = Turno(franja);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        resultado.Should().HaveCount(5);
+        resultado.Should().OnlyContain(b => b.Sede == sedeChapinero);
+    }
+
+    [Fact]
+    public void Segmentar_DejaLaSedeEnNullEnTodosLosBloques_CuandoLaFranjaNoTraeSede()
+    {
+        // CA-3 (borde documentado en el issue): turno prearmado multi-sede asignado sin sede en la
+        // solicitud -> la franja llega sin sede y esa ausencia se propaga tal cual a los bloques.
+        var descanso = SubFranja(10, 0, 11, 0);
+        var franja = Franja(6, 0, 14, 0, descansos: [descanso]);
+        var turno = Turno(franja);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        resultado.Should().OnlyContain(b => b.Sede == null);
+    }
+
+    [Fact]
+    public void Segmentar_AsignaACadaBloqueLaSedeDeSuPropiaFranja_CuandoElTurnoTieneVariasFranjasConSedesDistintas()
+    {
+        // CA-3: turno partido con sedes distintas por franja (escenario que fija la semantica del
+        // issue) -- cada bloque lleva la sede de SU franja madre, nunca una sede global del turno.
+        var sedeSuba = new SedeProgramada("SEDE-SUBA", "Suba");
+        var sedeChapinero = new SedeProgramada("SEDE-CHAPINERO", "Chapinero");
+        var franjaManana = Franja(6, 0, 10, 0, sede: sedeSuba);
+        var franjaTarde = Franja(14, 0, 18, 0, sede: sedeChapinero);
+        var turno = Turno(franjaManana, franjaTarde);
+
+        var resultado = turno.Segmentar(Fecha);
+
+        resultado.Should().HaveCount(2);
+        resultado[0].Sede.Should().Be(sedeSuba);
+        resultado[1].Sede.Should().Be(sedeChapinero);
     }
 }

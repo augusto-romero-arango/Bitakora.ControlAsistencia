@@ -129,4 +129,57 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, TurnoDiario?>(
             StreamId, c => c.DetalleTurno, turnoPersistidoEsperado);
     }
+
+    // Issue #336 CA-1: el evento de bus trae la sede EFECTIVA ya resuelta por la cascada del lado
+    // de Programacion (#341) en cada franja -- el handler la propaga (DetalleSede -> SedeProgramada,
+    // mapeo mecanico) al persistir TurnoDiarioAsignado. La segunda franja llega sin sede y el mapeo
+    // tolerante la deja null: no todas las franjas de un turno multi-sede tienen que traerla.
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_PropagaLaSedeDeCadaFranja_CuandoElEventoTraeSedesEfectivas()
+    {
+        var sedeSubaDetalle = new DetalleSede("SEDE-SUBA", "Suba");
+        var turnoEntrante = new DetalleTurno(
+            "Turno Partido",
+            [
+                new DetalleFranjaOrdinaria(
+                    new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], "(06:00-10:00)", sedeSubaDetalle),
+                new DetalleFranjaOrdinaria(
+                    new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "(14:00-18:00)")
+            ],
+            "Turno Partido");
+
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, EmpleadoDetalle, Fecha, turnoEntrante));
+
+        // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
+        var sedeSubaEsperada = new SedeProgramada("SEDE-SUBA", "Suba");
+        var turnoPersistidoEsperado = new TurnoDiario(
+            "Turno Partido",
+            [
+                new FranjaProgramada(
+                    new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], "(06:00-10:00)", sedeSubaEsperada),
+                new FranjaProgramada(
+                    new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "(14:00-18:00)")
+            ],
+            "Turno Partido");
+
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Empleado, Fecha, turnoPersistidoEsperado, SolicitudId));
+        And<ControlDiarioAggregateRoot, SedeProgramada?>(
+            StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, sedeSubaEsperada);
+        And<ControlDiarioAggregateRoot, SedeProgramada?>(
+            StreamId, c => c.DetalleTurno!.FranjasOrdinarias[1].Sede, null);
+    }
+
+    // Issue #336 CA-2: evento de bus sin sedes en las franjas -> comportamiento actual intacto,
+    // todas las franjas persisten con Sede null (regresion explicita, en verde).
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_DejaLaSedeEnNull_CuandoElEventoNoTraeSedesEnLasFranjas()
+    {
+        await WhenAsync(CrearEvento());
+
+        Then(StreamId, CrearTurnoDiarioAsignado());
+        And<ControlDiarioAggregateRoot, SedeProgramada?>(
+            StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, null);
+    }
 }

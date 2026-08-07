@@ -4,6 +4,9 @@
 // (IReadOnlyList) se comparan POR VALOR (SequenceEqual), no por referencia (MEF-ADR-0012). Mismo
 // patron que DetalleFranjaOrdinariaIgualdadTests (PrivateEvents.Tests), del cual este archivo es
 // espejo deliberado.
+//
+// Issue #336: Sede se agrega al caso "instancias diferentes" -- a diferencia de Descripcion, SI
+// entra en la identidad de la franja (Equals/GetHashCode custom).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -37,6 +40,9 @@ public class FranjaProgramadaIgualdadTests : IgualdadTestBase<FranjaProgramada>
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [Extra()], ""));
         yield return ("Extras",
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [], ""));
+        yield return ("Sede",
+            new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "",
+                new SedeProgramada("SEDE-SUBA", "Suba")));
     }
 
     // Cobertura especifica del override: las listas se comparan por valor, no por referencia.
