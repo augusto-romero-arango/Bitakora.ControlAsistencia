@@ -60,11 +60,11 @@ public static class AssertsProyecciones
     /// Async -- complementa AssertSinProyeccionesInline (que solo prueba que NADA quedo Inline; una
     /// lista de proyecciones vacia pasaria esa guarda sin decir nada sobre si la proyeccion
     /// concreta llego a registrarse). <paramref name="nombreVista"/> es el nombre de la VISTA
-    /// (p. ej. "TurnoDiarioView"), no el de la clase de proyeccion -- verificado por decompilacion
+    /// (p. ej. "TurnoVigente"), no el de la clase de proyeccion -- verificado por decompilacion
     /// con ilspycmd contra JasperFx.Events 2.18.1 (investigacion del planner, issue #289):
     /// ISubscriptionSource.Name es la propiedad real (no "ProjectionName", que no existe en la
     /// interfaz), y Marten la deriva del tipo de documento agregado, nunca del nombre de la clase
-    /// companion (p. ej. TurnoDiarioProjection).
+    /// companion (p. ej. TurnoVigenteProjection).
     /// </summary>
     public static void AssertProyeccionAsyncRegistrada(this IDocumentStore store, string nombreVista) =>
         store.Options.Events.Projections()

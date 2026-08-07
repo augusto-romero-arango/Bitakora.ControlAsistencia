@@ -13,8 +13,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // "Este issue NO crea read model, ni clase de proyeccion, ni lifecycle: solo la Function GET de
 // listado"). Feature folder propio (un namespace por query, skills/projections/naming.md y
 // read-apis.md): esta clase FunctionEndpoint no colisiona con las demas homonimas del ensamblado
-// (ObtenerTurnoDiario/ListarTurnosDiarios/ObtenerTurnoVigente/RegistrarMarcacionFunction/...)
-// porque cada una vive en su propio namespace.
+// (ObtenerTurnoVigente/RegistrarMarcacionFunction/...) porque cada una vive en su propio
+// namespace.
 //
 // Ruta sin {empleadoId}/{fecha}: reutiliza el mismo segmento de recurso
 // "control-horas/turnos-vigentes" que ObtenerTurnoVigente (#328) -- naming.md: "una query reutiliza
@@ -26,10 +26,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // mitigacion estructural contra BOLA/IDOR). desde/hasta/empleadoId SI vienen del query string: son
 // el filtro del recurso, no el tenant.
 //
-// Mismo patron que ListarTurnosDiarios (#290): desde/hasta obligatorios con formato yyyy-MM-dd
-// (CA-4), rango invertido rechazado con 400, empleadoId opcional filtra a un solo empleado (CA-2),
-// recorte de rango con RangoConsulta.Recortar (CA-3) y 200 con lista vacia cuando no hay datos en
-// el rango (CA-4) -- nunca 404: un rango sin turnos asignados no es un error.
+// Contrato de la consulta: desde/hasta obligatorios con formato yyyy-MM-dd (CA-4), rango invertido
+// rechazado con 400, empleadoId opcional filtra a un solo empleado (CA-2), recorte de rango con
+// RangoConsulta.Recortar (CA-3) y 200 con lista vacia cuando no hay datos en el rango (CA-4)
+// -- nunca 404: un rango sin turnos asignados no es un error.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -42,14 +42,15 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
     {
         // CA-4: desde/hasta son obligatorios -- ausencia o formato invalido devuelve 400. DateOnly
         // no liga directo desde el query string en el modelo aislado de Functions, se parsea con
-        // formato explicito yyyy-MM-dd (mismo patron que ListarTurnosDiarios, #290).
+        // formato explicito yyyy-MM-dd.
         if (!TryLeerFecha(req, "desde", out var desde, out var errorDesde))
             return new BadRequestObjectResult(errorDesde);
 
         if (!TryLeerFecha(req, "hasta", out var hasta, out var errorHasta))
             return new BadRequestObjectResult(errorHasta);
 
-        // CA-4: rango invertido (hasta < desde) -> 400, mismo criterio que ListarTurnosDiarios.
+        // CA-4: rango invertido (hasta < desde) -> 400. Es un error del llamador, no una lista
+        // vacia.
         if (hasta < desde)
             return new BadRequestObjectResult("El parametro 'hasta' no puede ser anterior a 'desde'");
 
@@ -70,8 +71,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         await using var session = store.QuerySession(tenantResolver.TenantId);
 
         // Composicion en pasos (no un unico Where con el filtro de empleadoId embebido
-        // condicionalmente) -- mismo estilo que ListarTurnosDiarios, mas legible que anidar el
-        // ternario dentro de la expresion LINQ.
+        // condicionalmente): mas legible que anidar el ternario dentro de la expresion LINQ.
         IQueryable<TurnoVigente> query = session.Query<TurnoVigente>()
             .Where(v => v.Fecha >= desde && v.Fecha <= rangoAplicado.HastaAplicado);
 

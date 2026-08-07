@@ -7,16 +7,16 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRecortado);
 
 /// <summary>
-/// Logica pura de recorte del rango de consulta de ListarTurnosVigentes (issue #329, CA-3),
-/// mismo patron que <c>ListarTurnosDiarios.RangoConsulta</c> (issue #290).
+/// Logica pura de recorte del rango de consulta de ListarTurnosVigentes (issue #329, CA-3).
 ///
-/// Duplicada a proposito en vez de compartida entre los dos namespaces: cada Function GET es un
-/// feature folder propio (skills/projections/naming.md) y, con solo dos consumidores, MEF-ADR-0018
-/// (Rule of Three) tolera la duplicacion hasta que un tercer consumidor justifique extraerla.
+/// Vive en el feature folder de esta query y no en un helper compartido: cada Function GET es un
+/// feature folder propio (skills/projections/naming.md) y hoy es su unico consumidor -- el dia que
+/// aparezca un segundo listado con cota de rango, MEF-ADR-0018 (Rule of Three) decide si se
+/// extrae.
 ///
-/// El recorte es SIEMPRE hacia adelante desde <c>desde</c> -- nunca relativo a la fecha de hoy
-/// (mismo razonamiento que #290, seccion "El envelope, y por que existe"): un recorte relativo a
-/// "hoy" haria que la misma consulta devolviera datos distintos segun el dia en que se ejecuta.
+/// El recorte es SIEMPRE hacia adelante desde <c>desde</c> -- nunca relativo a la fecha de hoy: un
+/// recorte relativo a "hoy" haria que la misma consulta devolviera datos distintos segun el dia en
+/// que se ejecuta.
 ///
 /// Sin dependencias de Marten/Postgres: se prueba como funcion pura sobre <see cref="DateOnly"/>,
 /// sin QuerySession (skills/projections/read-apis.md).

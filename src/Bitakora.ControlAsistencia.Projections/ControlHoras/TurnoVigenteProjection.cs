@@ -21,8 +21,7 @@ namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 ///
 /// Se registra en ConfiguracionMartenProjectionsControlHoras.ConfigurarControlHoras con
 /// opts.Projections.Add&lt;TurnoVigenteProjection&gt;(ProjectionLifecycle.Async) -- lifecycle
-/// canonico del worker (MEF-ADR-0034 seccion 3), sumado aditivamente junto a TurnoDiarioProjection
-/// (issue #289) en el mismo AddMartenStore.
+/// canonico del worker (MEF-ADR-0034 seccion 3).
 ///
 /// Create/Apply invocan evento.DetalleTurno.Segmentar(evento.Fecha) (issue #327, Tell-don't-Ask
 /// MEF-ADR-0012: la aritmetica de segmentacion vive en TurnoDiario, no se reimplementa aqui) y
@@ -53,8 +52,7 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     //
     // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload Empleado completo, y
     // el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba -- dejarlo fijo
-    // congelaria para siempre el nombre de la primera asignacion. Mismo criterio que la proyeccion
-    // hermana sobre este stream (TurnoDiarioProjection.Apply refresca Empleado entero, issue #289).
+    // congelaria para siempre el nombre de la primera asignacion.
     public static TurnoVigente Apply(TurnoDiarioAsignado evento, TurnoVigente vista) =>
         vista with
         {

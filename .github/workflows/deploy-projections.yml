@@ -216,8 +216,8 @@ jobs:
     needs: deploy
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
-      # ControlHoras es hoy el unico dominio con una proyeccion CONCRETA: el unico
-      # 'opts.Projections.Add<>' del worker es TurnoDiarioProjection, y vive en
+      # ControlHoras es hoy el unico dominio con proyecciones CONCRETAS: los unicos
+      # 'opts.Projections.Add<>' del worker viven en
       # src/Bitakora.ControlAsistencia.Projections/Infraestructura/ConfiguracionMartenProjectionsControlHoras.cs.
       # Ese es el archivo a revisar cuando esta eleccion se ponga en duda, NO Program.cs: Program.cs
       # solo llama ConfigurarEventos, que registra el named store y el daemon de los DOS dominios
@@ -241,8 +241,8 @@ jobs:
       # pega contra el Function App, que este run NO redespliega, asi que responde 200 casi de
       # inmediato y no le da margen a la revision nueva del worker para tomar el advisory lock de
       # HotCold que la anterior esta liberando. El margen real lo pone el presupuesto de Polling de
-      # los tests que consultan turnos -- 30s, el campo 'Timeout' de ObtenerTurnoDiarioSmokeTests y
-      # ListarTurnosDiariosSmokeTests. Si este job sale intermitente, ese es el primer numero a
+      # los tests que consultan turnos -- 30s, el campo 'Timeout' de ObtenerTurnoVigenteSmokeTests
+      # y ListarTurnosVigentesSmokeTests. Si este job sale intermitente, ese es el primer numero a
       # mirar, antes de sospechar de la suite o del deploy.
       expected_sha: ''
     secrets:

@@ -37,8 +37,6 @@ using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 using Wolverine;
-using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
-using ListarTurnosDiariosEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios.FunctionEndpoint;
 using ObtenerTurnoVigenteEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente.FunctionEndpoint;
 using ListarTurnosVigentesEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.FunctionEndpoint;
 
@@ -242,9 +240,9 @@ public class ComposicionServiciosTests
         });
     }
 
-    // Issue #289 CA-7: test de composicion de la primera Function GET del BC, hermano de
-    // MEF-ADR-0029 -- misma idea que las guardas de arriba (grafo de DI real, sin infra
-    // desplegada), pero sobre un FunctionEndpoint en vez de un router de Wolverine.
+    // Issue #328 CA-4: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma
+    // idea que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
+    // FunctionEndpoint en vez de un router de Wolverine.
     //
     // Ninguna Function de este ensamblado se registra explicitamente en el contenedor
     // (RegistrarMarcacionFunction, AdicionarMarcacionCuandoRegistroDeMarcacionCreado,
@@ -254,111 +252,6 @@ public class ComposicionServiciosTests
     // arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa misma activacion sin
     // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
     // Functions isolated worker).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (CA-5/CA-6, LoadAsync + mapeo + 404), que es responsabilidad del smoke
-    // test (CA-8) y de projection-implementer, no de este guardrail de wiring.
-    [Fact]
-    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerTurnoDiario_CuandoElContenedorEstaCompuesto()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var act = () => ActivatorUtilities.CreateInstance<ObtenerTurnoDiarioEndpoint>(scope.ServiceProvider);
-
-        act.Should().NotThrow();
-    }
-
-    // Issue #289 CA-5, mitad write-side del punto abierto de MEF-ADR-0035 seccion 4: el daemon
-    // materializa TurnoDiarioView desde el named store del worker (otro proceso) y este Function App
-    // la lee con session.LoadAsync sin registrar la proyeccion ni el documento. Que ambos lados
-    // converjan en la MISMA tabla fisica y la MISMA tenancy no lo garantiza ningun compilador: es
-    // configuracion cruzada entre dos procesos sobre el mismo schema. Si divergieran, el GET
-    // devolveria 404 para siempre con el daemon funcionando -- fallo silencioso que hoy solo
-    // detectaria el smoke test contra dev (CA-8), fuera del CI de PR.
-    //
-    // El oraculo es literal (MEF-ADR-0002, no-tautologia) y ConfiguracionMartenProjectionsTests
-    // .ConfigurarControlHoras_MaterializaTurnoDiarioViewSobreLaTablaQueConsultaElWriteSide congela
-    // el MISMO literal desde el worker: juntos pinean las dos mitades sin que ningun ensamblado
-    // tenga que referenciar al otro (CA-ADR-0028/CA-ADR-0029).
-    [Fact]
-    public async Task AgregarServiciosControlHoras_ResuelveTurnoDiarioViewSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
-            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
-
-        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnodiarioview");
-        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
-        mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
-    }
-
-    // Issue #294: la guarda de arriba pineaba tabla, tenancy e Id -- las tres convergian -- pero no
-    // la forma de la columna de version, y por ahi se colo el fallo. Marten aplica
-    // ProjectionDocumentPolicy a todo documento que sea target de una proyeccion REGISTRADA en ese
-    // store: le pone UseNumericRevisions = true, habilita Metadata.Revision (mt_version bigint) y
-    // DESHABILITA Metadata.Version (mt_version uuid). No es opt-in ni depende de IRevisioned ni del
-    // lifecycle -- la doc lo declara como la excepcion a que el versionado sea opt-in
-    // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents") y el codigo lo
-    // hace incondicional (Marten/Events/Projections/ProjectionDocumentPolicy.cs).
-    //
-    // El worker registra TurnoDiarioProjection, asi que crea mt_version como bigint. Este Function
-    // App NO la registra -- no puede: TurnoDiarioProjection vive en el ensamblado del worker y
-    // referenciarlo violaria CA-ADR-0029 -- asi que sin declaracion explicita esperaria mt_version
-    // uuid sobre la MISMA tabla. Con AutoCreate en su default CreateOrUpdate, Marten no devuelve un
-    // 404: intenta "alter column mt_version type uuid" en cada request, Postgres lo rechaza con
-    // 42804 (no hay cast automatico bigint -> uuid) y los dos GET responden 500 permanentemente.
-    // Eso es exactamente lo que ocurrio en dev tras el deploy de #290.
-    //
-    // Oraculo literal y espejo de ConfiguracionMartenProjectionsTests
-    // .ConfigurarControlHoras_MaterializaTurnoDiarioViewConRevisionNumerica, que congela los mismos
-    // cuatro valores desde el worker. Juntos cierran la dimension que el par anterior dejo abierta.
-    [Fact]
-    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
-            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
-
-        // Las dos columnas comparten el nombre fisico mt_version y solo una puede estar habilitada:
-        // por eso el oraculo mide ambas. Medir solo Revision dejaria pasar el caso en que las dos
-        // queden activas, que es justo la divergencia que produjo el 500.
-        mapping.Metadata.Revision.Enabled.Should().BeTrue();
-        mapping.Metadata.Revision.Type.Should().Be("bigint");
-        mapping.Metadata.Version.Enabled.Should().BeFalse();
-    }
-
-    // Issue #290 CA-7: test de composicion de la segunda Function GET del BC, hermano del de
-    // ObtenerTurnoDiario (#289 CA-7, comentario arriba) y de MEF-ADR-0029. Misma vista materializada
-    // TurnoDiarioView, ninguna proyeccion nueva -- solo una nueva superficie de consulta
-    // (session.Query en vez de session.LoadAsync). ActivatorUtilities.CreateInstance reproduce la
-    // activacion por tipo que hace el host de Azure Functions isolated worker, sin levantar el host
-    // real (Alt 1 de MEF-ADR-0029).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (parseo de desde/hasta/empleadoId, recorte de rango, session.Query y
-    // mapeo a ListaTurnosDiarios), que es responsabilidad de projection-implementer y del smoke test
-    // (CA-8), no de este guardrail de wiring.
-    [Fact]
-    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarTurnosDiarios_CuandoElContenedorEstaCompuesto()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var act = () => ActivatorUtilities.CreateInstance<ListarTurnosDiariosEndpoint>(scope.ServiceProvider);
-
-        act.Should().NotThrow();
-    }
-
-    // Issue #328 CA-4: test de composicion de la Function GET de TurnoVigente, hermano del de
-    // ObtenerTurnoDiario (#289 CA-7, comentario arriba) y del propio ListarTurnosDiarios (#290
-    // CA-7), a su vez hermanos de MEF-ADR-0029. ActivatorUtilities.CreateInstance reproduce la
-    // activacion por tipo que hace el host de Azure Functions isolated worker, sin levantar el
-    // host real (Alt 1 de MEF-ADR-0029).
     //
     // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
     // comportamiento de Run (parseo de empleadoId/fecha con 400 explicito, session.LoadAsync y el
@@ -377,20 +270,17 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #328, mismo par que TurnoDiarioView tuvo que cerrar en el issue #294 (comentarios
-    // arriba, "AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaElWorker"):
-    // en cuanto TurnoVigenteProjection se registre en el worker (ver ConfiguracionMartenProjections
-    // Tests.ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync), Marten le aplicara
-    // ProjectionDocumentPolicy alla (UseNumericRevisions = true, mt_version bigint) -- este
-    // Function App NO puede registrar esa proyeccion (vive en el ensamblado del worker,
-    // referenciarla violaria CA-ADR-0029) asi que, sin declarar la misma forma explicitamente con
-    // Schema.For<TurnoVigente>().UseNumericRevisions(true), esperaria mt_version uuid sobre la
-    // MISMA tabla fisica y las dos lecturas convergerian en un "alter column" incompatible (42804),
-    // el mismo 500 permanente que produjo el deploy de #290.
+    // Issue #328, mismo par que el issue #294 tuvo que cerrar en su momento para el read model
+    // anterior (retirado por #323): TurnoVigenteProjection esta registrada en el worker (ver
+    // ConfiguracionMartenProjectionsTests.ConfigurarControlHoras_RegistraTurnoVigenteProjection
+    // ComoAsync), asi que Marten le aplica ProjectionDocumentPolicy alla (UseNumericRevisions =
+    // true, mt_version bigint) -- este Function App NO puede registrar esa proyeccion (vive en el
+    // ensamblado del worker, referenciarla violaria CA-ADR-0029) asi que, sin declarar la misma
+    // forma explicitamente con Schema.For<TurnoVigente>().UseNumericRevisions(true), esperaria
+    // mt_version uuid sobre la MISMA tabla fisica y las dos lecturas convergerian en un "alter
+    // column" incompatible (42804), el mismo 500 permanente que produjo el deploy de #290.
     //
-    // FASE ROJA: ComposicionServicios.AgregarServiciosControlHoras todavia no declara ese
-    // Schema.For -- este test es el que projection-implementer debe poner en verde. Oraculo literal,
-    // espejo del que ConfiguracionMartenProjectionsTests
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
     // .ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica congela desde el worker.
     [Fact]
     public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaTurnoVigente()
@@ -407,10 +297,10 @@ public class ComposicionServiciosTests
     }
 
     // Issue #328, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6), hermana de la que #289 dejo para TurnoDiarioView (arriba): este Function App lee
-    // TurnoVigente con session.LoadAsync sin registrar la proyeccion, y el worker la materializa en
-    // otro proceso. Tabla, tenancy e IdMember tienen que converger o el GET devuelve 404 para
-    // siempre con el daemon funcionando.
+    // seccion 6), heredada de la guarda equivalente que #289 dejo para el read model anterior: este
+    // Function App lee TurnoVigente con session.LoadAsync sin registrar la proyeccion, y el worker
+    // la materializa en otro proceso. Tabla, tenancy e IdMember tienen que converger o el GET
+    // devuelve 404 para siempre con el daemon funcionando.
     //
     // Anadida en la revision de #328: los tres valores los resuelve Marten por convencion, pero este
     // lado ya declara un Schema.For<TurnoVigente>() propio (la linea de UseNumericRevisions del test
@@ -433,8 +323,7 @@ public class ComposicionServiciosTests
     }
 
     // Issue #329: test de composicion de la Function GET de listado sobre TurnoVigente (#328),
-    // hermano del de ObtenerTurnoDiario (#289 CA-7), ListarTurnosDiarios (#290 CA-7) y
-    // ObtenerTurnoVigente (#328 CA-4), a su vez hermanos de MEF-ADR-0029. ActivatorUtilities
+    // hermano del de ObtenerTurnoVigente (#328 CA-4, arriba) y de MEF-ADR-0029. ActivatorUtilities
     // .CreateInstance reproduce la activacion por tipo que hace el host de Azure Functions isolated
     // worker, sin levantar el host real (Alt 1 de MEF-ADR-0029).
     //

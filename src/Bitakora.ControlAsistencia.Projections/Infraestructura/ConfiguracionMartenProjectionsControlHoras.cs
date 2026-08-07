@@ -23,9 +23,9 @@ public interface IControlHorasProjectionStore : IDocumentStore;
 /// Registra el named store sobre la misma conexion y el mismo schema "control_horas" que ya usa
 /// el write-side (ComposicionServicios.AgregarServiciosControlHoras) -- el read-side no crea
 /// base ni schema nuevos, solo re-declara del lado lectura lo que el dominio ya posee del lado
-/// escritura. Issue #289: primera proyeccion concreta del BC (TurnoDiarioProjection), registrada
-/// mas abajo con lifecycle Async (MEF-ADR-0034 seccion 3). Cualquier proyeccion futura de este
-/// dominio se suma aditivamente en el mismo AddMartenStore, sin remover esta.
+/// escritura. Issue #328: TurnoVigenteProjection queda registrada mas abajo con lifecycle Async
+/// (MEF-ADR-0034 seccion 3). Cualquier proyeccion futura de este dominio se suma aditivamente en
+/// el mismo AddMartenStore.
 ///
 /// El seam se declara con modificadores de acceso y sin partial: un metodo partial sin
 /// modificadores desaparece en silencio al compilar si nadie lo implementa, y ademas seria
@@ -103,15 +103,11 @@ public static class ConfiguracionMartenProjectionsControlHoras
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
-                // Issue #289 CA-4: primera proyeccion concreta del BC. N1 -- un solo stream
+                // Issue #328 CA-3: proyeccion del turno vigente. N1 -- un solo stream
                 // (EmpleadoId, Fecha) -- lifecycle Async es el canonico del worker (MEF-ADR-0034
                 // seccion 3); Inline solo seria valido con justificacion explicita del issue, que
-                // este no la da.
-                opts.Projections.Add<TurnoDiarioProjection>(ProjectionLifecycle.Async);
-
-                // Issue #328 CA-3: segunda proyeccion concreta del BC, sumada aditivamente a la de
-                // arriba (mismo stream (EmpleadoId, Fecha), otra vista). N1, lifecycle Async
-                // -- mismo criterio que TurnoDiarioProjection.
+                // este no la da. Aqui mismo, y por esta via, el issue #323 retiro la proyeccion
+                // del read model anterior (#289).
                 opts.Projections.Add<TurnoVigenteProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
