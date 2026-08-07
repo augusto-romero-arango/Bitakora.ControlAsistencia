@@ -46,4 +46,28 @@ public class FranjaOrdinariaToDetalleTests
 
         detalle.Descansos[0].Descripcion.Should().Be(descanso.ToString());
     }
+
+    // ---------- Issue #335 CA-1/CA-2: la sede prearmada fluye (o no) al DTO plano ----------
+
+    [Fact]
+    public void ToDetalle_CopiaLaSede_CuandoFranjaTieneSedeAsignada()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba");
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0), sede: sede);
+
+        var detalle = franja.ToDetalle();
+
+        detalle.Sede.Should().Be(sede);
+    }
+
+    // CA-2: regresion -- una franja sin sede prearmada conserva el comportamiento actual.
+    [Fact]
+    public void ToDetalle_DejaSedeNull_CuandoFranjaNoTieneSedeAsignada()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+
+        var detalle = franja.ToDetalle();
+
+        detalle.Sede.Should().BeNull();
+    }
 }

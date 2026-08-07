@@ -27,6 +27,10 @@ public class FranjaOrdinariaIgualdadTests : IgualdadTestBase<FranjaOrdinaria>
         yield return ("Extras",
             FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
                 extras: [SubFranja.Crear(new TimeOnly(6, 0), new TimeOnly(7, 0))]));
+        // Issue #335 CA-5: la sede prearmada es dato de identidad del diseno de la franja.
+        yield return ("Sede",
+            FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0),
+                sede: new SedeProgramada("SEDE-SUBA", "Suba")));
     }
 
     // Tests adicionales especificos de FranjaOrdinaria (colecciones de hijos)

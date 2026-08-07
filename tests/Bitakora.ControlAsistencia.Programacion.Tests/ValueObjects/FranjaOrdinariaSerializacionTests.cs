@@ -91,4 +91,19 @@ public class FranjaOrdinariaSerializacionTests
 
         restaurado.Should().Be(original);
     }
+
+    // Issue #335 CA-5: round-trip de una ordinaria con sede prearmada.
+    [Fact]
+    public void RoundTrip_PreservaLaSede_CuandoOrdinariaTieneSedeAsignada()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba");
+        var original = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0), sede: sede);
+        var opciones = CrearOpciones();
+
+        var json = JsonSerializer.Serialize(original, opciones);
+        var restaurado = JsonSerializer.Deserialize<FranjaOrdinaria>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.ToDetalle().Sede.Should().Be(sede);
+    }
 }

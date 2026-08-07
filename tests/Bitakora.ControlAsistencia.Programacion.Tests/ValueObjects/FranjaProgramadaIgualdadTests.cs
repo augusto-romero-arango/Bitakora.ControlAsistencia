@@ -35,6 +35,11 @@ public class FranjaProgramadaIgualdadTests : IgualdadTestBase<FranjaProgramada>
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [Extra()], ""));
         yield return ("Extras",
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [], ""));
+        // Issue #335: Sede entra en Equals/GetHashCode -- es dato de identidad del diseno de la
+        // franja, a diferencia de Descripcion (derivado, excluido).
+        yield return ("Sede",
+            new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "",
+                new SedeProgramada("SEDE-01", "Sede Principal")));
     }
 
     // Cobertura especifica del override: las listas se comparan por valor, no por referencia.

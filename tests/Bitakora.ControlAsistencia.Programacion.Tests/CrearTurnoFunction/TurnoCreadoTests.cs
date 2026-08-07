@@ -236,4 +236,50 @@ public class TurnoCreadoTests
         var ex = act.Should().ThrowExactly<AggregateException>().Which;
         ex.InnerExceptions.Should().AllBeAssignableTo<ArgumentException>();
     }
+
+    // ---------- Issue #335: sede prearmada por franja ----------
+
+    // CA-1: la sede prearmada de una franja fluye hasta el evento persistido.
+    [Fact]
+    public void Crear_PropagaSedePorFranja_CuandoDatosFranjaTraeSedeValida()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba");
+
+        var evento = TurnoCreado.Crear(
+            TurnoId, NombreValido,
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], sede)]);
+
+        evento.FranjasOrdinarias[0].ToDetalle().Sede.Should().Be(sede);
+    }
+
+    // CA-3: sede con Id vacio se acumula junto a las demas invariantes del factory.
+    [Fact]
+    public void Crear_LanzaAggregateException_CuandoSedeDeFranjaTieneIdVacio()
+    {
+        var sedeInvalida = new SedeProgramada("", "Suba");
+
+        var act = () => TurnoCreado.Crear(
+            TurnoId, NombreValido,
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], sedeInvalida)]);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(FranjaOrdinaria.Mensajes.SedeIncompleta));
+    }
+
+    // CA-3: sede invalida se acumula junto a otros errores (no fail-fast).
+    [Fact]
+    public void Crear_LanzaAggregateExceptionConErroresPropiosYDeSede_CuandoNombreVacioYSedeIncompleta()
+    {
+        var sedeInvalida = new SedeProgramada("SEDE-SUBA", "   ");
+
+        var act = () => TurnoCreado.Crear(
+            TurnoId, "",
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], sedeInvalida)]);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.Should().HaveCount(2);
+        ex.InnerExceptions.Should().Contain(e => e.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+        ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaOrdinaria.Mensajes.SedeIncompleta));
+    }
 }

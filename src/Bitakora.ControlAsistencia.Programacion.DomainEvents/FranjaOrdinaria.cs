@@ -6,19 +6,25 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 // Segmento continuo de trabajo dentro de un turno.
 // Contiene sub-franjas de descanso y extras.
 // ADR-0015: sealed class con factory static, constructor privado, campos readonly.
-public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria>
+public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria>
 {
     private readonly List<SubFranja> _descansos;
     private readonly List<SubFranja> _extras;
 
+    // Issue #335: sede prearmada para esta franja del catalogo (null = sin sede asignada). Campo
+    // interno, sin propiedad publica (MEF-ADR-0012, Tell-don't-Ask) -- se expone SOLO via
+    // ToDetalle() y ToString() (pendiente de wiring: ver comentarios en Crear/ToDetalle/ToString).
+    private readonly SedeProgramada? _sede;
+
     // Constructor real: usado por el factory
     // diaOffsetInicio siempre es 0 — la ordinaria empieza en el dia base
     private FranjaOrdinaria(TimeOnly horaInicio, TimeOnly horaFin, int diaOffsetFin,
-        List<SubFranja> descansos, List<SubFranja> extras)
+        List<SubFranja> descansos, List<SubFranja> extras, SedeProgramada? sede)
         : base(horaInicio, horaFin, diaOffsetInicio: 0, diaOffsetFin)
     {
         _descansos = descansos;
         _extras = extras;
+        _sede = sede;
     }
 
     // Constructor vacio para STJ/Marten
@@ -33,12 +39,15 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     // CA-13: infiere offset +1 cuando fin < inicio
     // CA-14 a CA-16: valida que descansos y extras esten contenidos
     // CA-17 a CA-19: valida que descansos y extras no se solapen entre si
+    // Issue #335 (fase roja): el parametro sede se acepta y se guarda en _sede, pero su invariante
+    // (Id/Nombre no vacios) NO se valida todavia -- queda pendiente para el implementer (CA-3).
     public static FranjaOrdinaria Crear(
         TimeOnly horaInicio,
         TimeOnly horaFin,
         int diaOffsetFin = 0,
         IEnumerable<SubFranja>? descansos = null,
-        IEnumerable<SubFranja>? extras = null)
+        IEnumerable<SubFranja>? extras = null,
+        SedeProgramada? sede = null)
     {
         // CA-13: inferir offset cuando fin < inicio y no se especifico
         if (diaOffsetFin == 0 && horaFin < horaInicio)
@@ -46,13 +55,13 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
 
         // CA-7: rechazar duracion cero
         if (horaInicio == horaFin && diaOffsetFin == 0)
-            throw new ArgumentException(Mensajes.InicioYFinIguales);
+            throw new ArgumentException(FranjaTemporal.Mensajes.InicioYFinIguales);
 
         var listaDescansos = descansos?.ToList() ?? [];
         var listaExtras = extras?.ToList() ?? [];
 
         var ordinaria = new FranjaOrdinaria(horaInicio, horaFin, diaOffsetFin,
-            listaDescansos, listaExtras);
+            listaDescansos, listaExtras, sede);
 
         // Proyectar todas las hijas como FranjaTemporal para validaciones unificadas
         var hijas = listaDescansos.Cast<FranjaTemporal>().Concat(listaExtras).ToList();
@@ -71,6 +80,7 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     // -- el FA mapea FranjaProgramada -> DetalleFranjaOrdinaria solo para los eventos que cruzan
     // el bus (CA-5). Tell-don't-Ask preservado: la conversion sigue viviendo en este VO, sin abrir
     // _descansos/_extras (MEF-ADR-0012).
+    // Issue #335 (fase roja): NO copia _sede todavia al DTO -- pendiente para el implementer (CA-1).
     public FranjaProgramada ToDetalle() => new(
         _horaInicio, _horaFin, _diaOffsetFin,
         _descansos.Select(d => d.ToDetalle()).ToList().AsReadOnly(),
@@ -78,20 +88,23 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         ToString());
 
     // CA-20, CA-21: formato "(06:00-12:00)" o "(22:00-06:00+1)"
+    // Issue #335 (fase roja): NO incluye el label de sede todavia -- pendiente para el implementer.
     public override string ToString()
     {
         var resultado = $"({FormatearHora(_horaInicio, 0)}-{FormatearHora(_horaFin, _diaOffsetFin)})";
 
         if (_descansos.Count > 0)
-            resultado += $"[{Mensajes.LabelDescansos}:{string.Join(", ", _descansos)}]";
+            resultado += $"[{FranjaTemporal.Mensajes.LabelDescansos}:{string.Join(", ", _descansos)}]";
 
         if (_extras.Count > 0)
-            resultado += $"[{Mensajes.LabelExtras}:{string.Join(", ", _extras)}]";
+            resultado += $"[{FranjaTemporal.Mensajes.LabelExtras}:{string.Join(", ", _extras)}]";
 
         return resultado;
     }
 
     // Igualdad por valor
+    // Issue #335 (fase roja): _sede NO entra todavia en Equals/GetHashCode -- pendiente para el
+    // implementer (CA-5, la sede es dato de identidad del diseno de la franja).
     public bool Equals(FranjaOrdinaria? other)
     {
         if (other is null) return false;
@@ -115,7 +128,7 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
     private static void ValidarContencion(FranjaOrdinaria contenedor, List<FranjaTemporal> hijas)
     {
         if (hijas.Any(h => !h.EstaContenidaEn(contenedor)))
-            throw new ArgumentException(Mensajes.FranjaHijaFueraDeContenedor);
+            throw new ArgumentException(FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor);
     }
 
     // Verifica que ningun par de franjas hijas se solapen
@@ -125,10 +138,12 @@ public sealed class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria
         for (var i = 0; i < hijas.Count; i++)
             for (var j = i + 1; j < hijas.Count; j++)
                 if (hijas[i].SeSolapaCon(hijas[j]))
-                    throw new ArgumentException(Mensajes.FranjasHijasSeSuperponen);
+                    throw new ArgumentException(FranjaTemporal.Mensajes.FranjasHijasSeSuperponen);
     }
 
     // Mapping de serializacion - vive aqui porque cambia con la clase
+    // Issue #335 (fase roja): _sede NO se registra todavia -- pendiente para el implementer (CA-5,
+    // el round-trip pierde el valor hasta que se agregue un RegistrarCampo/JsonPropertyInfo para el).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(FranjaOrdinaria)

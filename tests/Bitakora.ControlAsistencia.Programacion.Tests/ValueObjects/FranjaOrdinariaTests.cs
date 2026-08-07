@@ -345,4 +345,40 @@ public class FranjaOrdinariaTests
 
         franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:15)][Extras:(23:15-00:00+1)]");
     }
+
+    // ---------- Issue #335: sede prearmada por franja ----------
+
+    [Fact]
+    public void ToString_IncluyeLabelDeSede_CuandoFranjaTieneSedeAsignada()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba");
+
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0), sede: sede);
+
+        franja.ToString().Should().Be($"(06:00-12:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]");
+    }
+
+    [Fact]
+    public void Crear_LanzaExcepcion_CuandoSedeTieneIdVacio()
+    {
+        var sedeInvalida = new SedeProgramada("", "Suba");
+
+        var act = () => FranjaOrdinaria.Crear(
+            new TimeOnly(6, 0), new TimeOnly(12, 0), sede: sedeInvalida);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaOrdinaria.Mensajes.SedeIncompleta}*");
+    }
+
+    [Fact]
+    public void Crear_LanzaExcepcion_CuandoSedeTieneNombreEnBlanco()
+    {
+        var sedeInvalida = new SedeProgramada("SEDE-SUBA", "   ");
+
+        var act = () => FranjaOrdinaria.Crear(
+            new TimeOnly(6, 0), new TimeOnly(12, 0), sede: sedeInvalida);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaOrdinaria.Mensajes.SedeIncompleta}*");
+    }
 }

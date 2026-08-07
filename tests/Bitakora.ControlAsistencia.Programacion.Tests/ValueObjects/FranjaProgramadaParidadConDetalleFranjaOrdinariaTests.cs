@@ -6,6 +6,13 @@
 // verifica en dos pasos: nombres de propiedad iguales, y las dos propiedades de lista apuntando
 // al tipo hijo correcto de cada lado (cuya propia paridad la cubre
 // SubFranjaProgramadaParidadConDetalleSubFranjaTests).
+//
+// Issue #335 (desviacion documentada, MEF-ADR-0012/CA-ADR-0029 decision #5): FranjaProgramada gana
+// el campo Sede (payload propio del dominio); el mapeo hacia el bus interno (DetalleFranjaOrdinaria)
+// queda explicitamente fuera de alcance de este issue -- ver
+// SolicitarProgramacionTurnoCommandHandler.MapearFranja, que no lo propaga todavia. El guardrail de
+// paridad exacta se relaja para permitir ESTA UNICA divergencia (Sede); cualquier otro campo nuevo
+// que no aparezca en ambos lados sigue rompiendo el test.
 
 using System.Reflection;
 using AwesomeAssertions;
@@ -20,9 +27,14 @@ public class FranjaProgramadaParidadConDetalleFranjaOrdinariaTests
         typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name);
 
     [Fact]
-    public void FranjaProgramada_DeclaraLosMismosNombresDeCampoQueDetalleFranjaOrdinaria()
+    public void FranjaProgramada_DeclaraLosMismosNombresDeCampoQueDetalleFranjaOrdinaria_MasSedePropiaDelDominio()
     {
-        NombresDeCampos<FranjaProgramada>().Should().Equal(NombresDeCampos<DetalleFranjaOrdinaria>());
+        var nombresProgramada = NombresDeCampos<FranjaProgramada>().ToList();
+        var nombresDetalle = NombresDeCampos<DetalleFranjaOrdinaria>().ToList();
+
+        nombresProgramada.Where(n => n != nameof(FranjaProgramada.Sede))
+            .Should().Equal(nombresDetalle);
+        nombresProgramada.Should().Contain(nameof(FranjaProgramada.Sede));
     }
 
     [Fact]

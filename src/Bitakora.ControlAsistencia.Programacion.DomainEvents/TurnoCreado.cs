@@ -82,7 +82,7 @@ public sealed partial class TurnoCreado
                 var descansos = franja.Descansos.Select(d => SubFranja.Crear(d.inicio, d.fin));
                 var extras = franja.Extras.Select(e => SubFranja.Crear(e.inicio, e.fin));
                 franjasOrdinarias.Add(FranjaOrdinaria.Crear(franja.Inicio, franja.Fin,
-                    descansos: descansos, extras: extras));
+                    descansos: descansos, extras: extras, sede: franja.Sede));
             }
             catch (ArgumentException ex)
             {

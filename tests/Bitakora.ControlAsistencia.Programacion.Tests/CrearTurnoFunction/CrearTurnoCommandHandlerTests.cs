@@ -55,4 +55,27 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.TurnoYaExiste}*");
     }
+
+    // Issue #335 CA-1: la sede prearmada de cada franja del catalogo llega hasta el detalle del
+    // aggregate cuando el comando la trae en algunas franjas (turno partido multi-sede).
+    [Fact]
+    public async Task CrearTurno_PersisteSedePorFranja_CuandoComandoTraeSedeEnAlgunasFranjas()
+    {
+        var sedeManana = new SedeProgramada("SEDE-SUBA", "Suba");
+        var franjaConSede = new CrearTurno.Franja(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], sedeManana);
+        var franjaSinSede = new CrearTurno.Franja(
+            new TimeOnly(14, 0), new TimeOnly(22, 0), [], []);
+        var comando = new CrearTurno(GuidAggregateId, "Turno Partido", [franjaConSede, franjaSinSede]);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, SedeProgramada?>(
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, sedeManana);
+        And<CatalogoTurnos, SedeProgramada?>(
+            c => c.ObtenerDetalle().FranjasOrdinarias[1].Sede, null);
+    }
 }
