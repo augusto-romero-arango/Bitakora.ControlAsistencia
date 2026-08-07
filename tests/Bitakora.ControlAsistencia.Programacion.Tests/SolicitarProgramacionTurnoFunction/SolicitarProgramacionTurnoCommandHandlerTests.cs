@@ -99,6 +99,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private const string DescripcionTurnoConHijas =
         "Turno Partido (06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-14:00)]";
 
+    // Issue #331: sede efectiva del dia, en los dos roles de payload (evento persistido y evento
+    // que cruza el bus interno) -- gemelos deliberados con paridad de campos (CA-ADR-0029/MEF-ADR-0039).
+    private static readonly SedeProgramada SedePrincipal = new("SEDE-01", "Sede Principal");
+    private static readonly DetalleSede SedePrincipalDetalle = new("SEDE-01", "Sede Principal");
+
     private static readonly TurnoProgramado TurnoConHijasProgramadoEsperado = new(
         "Turno Partido",
         new List<FranjaProgramada>
@@ -179,6 +184,40 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             new ProgramacionTurnoDiarioSolicitada(
                 GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
+    }
+
+    // Issue #331 CA-1: la sede viaja resuelta en el comando (el cliente la resuelve, el servidor
+    // NUNCA consulta el maestro) y queda grabada tanto en el evento persistido (SedeProgramada,
+    // dominio) como en cada evento diario publicado al bus interno (DetalleSede, gemelo deliberado).
+    [Fact]
+    public async Task SolicitarProgramacionTurno_PersisteYPublicaLaSedeProgramada_CuandoLaSolicitudIncluyeSede()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Empleado, [Fecha1], SedePrincipal));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado, SedePrincipal));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, SedePrincipalDetalle));
+        And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, SedePrincipal);
+    }
+
+    // Issue #331 CA-2: sede es opcional -- una solicitud sin sede (campo ausente) deja Sede en
+    // null tanto en el evento persistido como en el evento diario publicado; el comportamiento
+    // actual (anterior a este issue) queda intacto.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_DejaSedeEnNull_CuandoLaSolicitudNoIncluyeSede()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Empleado, [Fecha1]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado, sede: null));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, sede: null));
+        And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, null);
     }
 
     // CA-6: idempotencia - solicitud ya existe lanza excepcion que el endpoint mapea a 409

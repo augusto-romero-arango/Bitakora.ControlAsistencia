@@ -62,6 +62,39 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
             .Should().Be(detalleTurno.FranjasOrdinarias[0].Descansos[0].Descripcion);
     }
 
+    // Issue #331 CA-5: la sede es un DTO plano de strings (DetalleSede) -- portable por el
+    // serializador por defecto del bus, igual que DetalleTurno/DetalleEmpleado.
+    [Fact]
+    public void RoundTrip_PreservaLaSede_ConSerializadorPorDefectoDelBus()
+    {
+        var detalleTurno = CrearDetalleTurno();
+        var sede = new DetalleSede("SEDE-01", "Sede Principal");
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno, sede);
+
+        var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
+
+        var body = BinaryData.FromString(json);
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(body);
+
+        restaurado.Should().NotBeNull();
+        restaurado.Sede.Should().Be(sede);
+    }
+
+    // Issue #331 CA-2/CA-4: sede es opcional y aditiva -- los mensajes publicados antes de este
+    // issue no llevan el campo "sede", STJ deja null en el parametro posicional opcional.
+    [Fact]
+    public void Deserializar_DejaSedeEnNull_CuandoEventoNoLlevaElCampo()
+    {
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, CrearDetalleTurno());
+
+        var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(
+            BinaryData.FromString(json));
+
+        restaurado.Should().NotBeNull();
+        restaurado.Sede.Should().BeNull();
+    }
+
     // Retro-compatibilidad: los eventos publicados antes de #288 no llevan el campo. STJ dejaria
     // null en un parametro posicional declarado como string no anulable, lo que seria una mina
     // para cualquier consumidor. Los DTOs lo normalizan a cadena vacia -- la consecuencia que el
