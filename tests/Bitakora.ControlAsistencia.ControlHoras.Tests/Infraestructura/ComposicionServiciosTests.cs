@@ -39,6 +39,7 @@ using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerTurnoDiarioEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoDiario.FunctionEndpoint;
 using ListarTurnosDiariosEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosDiarios.FunctionEndpoint;
+using ObtenerTurnoVigenteEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -350,6 +351,84 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ListarTurnosDiariosEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    // Issue #328 CA-4: test de composicion de la Function GET de TurnoVigente, hermano del de
+    // ObtenerTurnoDiario (#289 CA-7, comentario arriba) y del propio ListarTurnosDiarios (#290
+    // CA-7), a su vez hermanos de MEF-ADR-0029. ActivatorUtilities.CreateInstance reproduce la
+    // activacion por tipo que hace el host de Azure Functions isolated worker, sin levantar el
+    // host real (Alt 1 de MEF-ADR-0029).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (parseo de empleadoId/fecha con 400 explicito, session.LoadAsync y el
+    // 200/404, CA-4), que es responsabilidad de projection-implementer y del smoke test (CA-8), no
+    // de este guardrail de wiring. Por eso este test queda en verde tan pronto exista el
+    // FunctionEndpoint stub con el constructor correcto -- no es la guarda que fuerza el rojo de
+    // este issue (esa la dan los unit tests de la proyeccion y el config-test del worker).
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerTurnoVigente_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerTurnoVigenteEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #328, mismo par que TurnoDiarioView tuvo que cerrar en el issue #294 (comentarios
+    // arriba, "AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaElWorker"):
+    // en cuanto TurnoVigenteProjection se registre en el worker (ver ConfiguracionMartenProjections
+    // Tests.ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync), Marten le aplicara
+    // ProjectionDocumentPolicy alla (UseNumericRevisions = true, mt_version bigint) -- este
+    // Function App NO puede registrar esa proyeccion (vive en el ensamblado del worker,
+    // referenciarla violaria CA-ADR-0029) asi que, sin declarar la misma forma explicitamente con
+    // Schema.For<TurnoVigente>().UseNumericRevisions(true), esperaria mt_version uuid sobre la
+    // MISMA tabla fisica y las dos lecturas convergerian en un "alter column" incompatible (42804),
+    // el mismo 500 permanente que produjo el deploy de #290.
+    //
+    // FASE ROJA: ComposicionServicios.AgregarServiciosControlHoras todavia no declara ese
+    // Schema.For -- este test es el que projection-implementer debe poner en verde. Oraculo literal,
+    // espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica congela desde el worker.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaTurnoVigente()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoVigente));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #328, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6), hermana de la que #289 dejo para TurnoDiarioView (arriba): este Function App lee
+    // TurnoVigente con session.LoadAsync sin registrar la proyeccion, y el worker la materializa en
+    // otro proceso. Tabla, tenancy e IdMember tienen que converger o el GET devuelve 404 para
+    // siempre con el daemon funcionando.
+    //
+    // Anadida en la revision de #328: los tres valores los resuelve Marten por convencion, pero este
+    // lado ya declara un Schema.For<TurnoVigente>() propio (la linea de UseNumericRevisions del test
+    // de arriba) -- justo el tipo de declaracion por documento que puede desviar la tabla o la
+    // tenancy de un solo lado. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoVigenteSobreLaTablaQueConsultaElWriteSide congela desde
+    // el worker.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveTurnoVigenteSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoVigente));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
     }
 
     // --- Sampler efectivo del TracerProvider (issue #308 CA-2, CA-3) ---

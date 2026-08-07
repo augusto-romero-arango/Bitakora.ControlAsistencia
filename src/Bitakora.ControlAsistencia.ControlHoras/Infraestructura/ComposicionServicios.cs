@@ -124,6 +124,13 @@ public static class ComposicionServicios
             // los mismos valores literales, que es la dimension que el par de #289 dejo abierta.
             options.Schema.For<TurnoDiarioView>().UseNumericRevisions(true);
 
+            // Issue #328, mismo par que #294 cerro para TurnoDiarioView (comentario arriba): el
+            // worker registra TurnoVigenteProjection, asi que Marten crea mt_version de TurnoVigente
+            // como bigint alla. Este Function App no puede registrar esa proyeccion (vive en el
+            // ensamblado del worker, CA-ADR-0029) asi que declara la misma forma explicitamente
+            // para no divergir sobre la MISMA tabla fisica.
+            options.Schema.For<TurnoVigente>().UseNumericRevisions(true);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>
