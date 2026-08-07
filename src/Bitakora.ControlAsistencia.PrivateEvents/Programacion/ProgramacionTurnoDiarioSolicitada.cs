@@ -18,16 +18,23 @@ public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
     public DateOnly Fecha { get; private set; }
     public DetalleTurno DetalleTurno { get; private set; } = null!;
 
+    // Issue #331: sede efectiva del dia, opcional (null = sin sede asignada). Campo aditivo y
+    // tolerante: los mensajes publicados antes de este issue no llevan la clave "sede" en el JSON
+    // del bus; STJ deja null en el parametro posicional opcional (precedente Descripcion, #288).
+    public DetalleSede? Sede { get; private set; }
+
     public ProgramacionTurnoDiarioSolicitada(
         Guid solicitudId,
         DetalleEmpleado empleado,
         DateOnly fecha,
-        DetalleTurno detalleTurno)
+        DetalleTurno detalleTurno,
+        DetalleSede? sede = null)
     {
         SolicitudId = solicitudId;
         Empleado = empleado;
         Fecha = fecha;
         DetalleTurno = detalleTurno;
+        Sede = sede;
     }
 
     // Constructor para Marten/serializacion

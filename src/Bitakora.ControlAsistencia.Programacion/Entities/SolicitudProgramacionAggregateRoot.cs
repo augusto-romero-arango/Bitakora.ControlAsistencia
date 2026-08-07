@@ -12,12 +12,16 @@ public partial class SolicitudProgramacionAggregateRoot : AggregateRoot
     internal IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
     internal TurnoProgramado? DetalleTurno { get; private set; }
 
+    // Issue #331: sede efectiva del dia, opcional (null = sin sede asignada).
+    internal SedeProgramada? Sede { get; private set; }
+
     public void Apply(ProgramacionTurnoSolicitada e)
     {
         Id = e.Id.ToString();
         Empleado = e.Empleado;
         Fechas = e.Fechas;
         DetalleTurno = e.DetalleTurno;
+        Sede = e.Sede;
     }
 
     internal static SolicitudProgramacionAggregateRoot Iniciar(ProgramacionTurnoSolicitada evento)

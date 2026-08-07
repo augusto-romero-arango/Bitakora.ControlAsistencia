@@ -19,16 +19,24 @@ public sealed class ProgramacionTurnoSolicitada
     public IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
     public TurnoProgramado DetalleTurno { get; private set; } = null!;
 
+    // Issue #331: sede efectiva del dia, opcional (null = sin sede asignada). Campo aditivo: los
+    // streams escritos antes de este issue no llevan la clave "Sede" en el JSON persistido; STJ
+    // deja null en el parametro posicional opcional (ver ProgramacionTurnoSolicitadaSerializacionTests,
+    // precedente #288/#319).
+    public SedeProgramada? Sede { get; private set; }
+
     public ProgramacionTurnoSolicitada(
         Guid id,
         Empleado empleado,
         IReadOnlyList<DateOnly> fechas,
-        TurnoProgramado detalleTurno)
+        TurnoProgramado detalleTurno,
+        SedeProgramada? sede = null)
     {
         Id = id;
         Empleado = empleado;
         Fechas = fechas;
         DetalleTurno = detalleTurno;
+        Sede = sede;
     }
 
     // Constructor para Marten/serializacion

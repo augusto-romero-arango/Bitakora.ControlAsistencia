@@ -42,7 +42,8 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // Issue #319 CA-2/CA-5: el comando HTTP conserva InformacionEmpleado (PublicEvents, fuera
         // de alcance); el evento persistido tipa con Empleado (dominio) -- el mapeo vive aqui.
         var empleadoDominio = MapearEmpleadoDominio(command.Empleado);
-        var evento = new ProgramacionTurnoSolicitada(command.Id, empleadoDominio, fechas, turnoProgramado);
+        var evento = new ProgramacionTurnoSolicitada(
+            command.Id, empleadoDominio, fechas, turnoProgramado, command.Sede);
         var solicitud = SolicitudProgramacionAggregateRoot.Iniciar(evento);
 
         _eventStore.StartStream(solicitud);
@@ -56,9 +57,12 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // Issue #319 CA-5: DetalleTurno (PrivateEvents) se deriva de TurnoProgramado (dominio),
         // no directamente del catalogo -- unico punto de mapeo hacia el payload de bus.
         var detalleTurno = MapearTurno(turnoProgramado);
+        // Issue #331: la sede es un gemelo deliberado (CA-ADR-0029 decision #5) -- mismo mapeo
+        // campo a campo que Empleado/DetalleTurno hacia su forma de bus.
+        var sede = MapearSede(command.Sede);
         var eventosPrivados = command.Fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
-                command.Id, empleado, fecha, detalleTurno))
+                command.Id, empleado, fecha, detalleTurno, sede))
             .ToArray();
 
         await _privateEventSender.PublishAsync(eventosPrivados);
@@ -91,4 +95,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     private static DetalleSubFranja MapearSubFranja(SubFranjaProgramada subFranja) =>
         new(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio,
             subFranja.DiaOffsetFin, subFranja.Descripcion);
+
+    // Issue #331: unico punto de mapeo desde SedeProgramada (dominio) hacia el payload que cruza
+    // el bus interno (DetalleSede, PrivateEvents). Opcional: null se conserva.
+    private static DetalleSede? MapearSede(SedeProgramada? sede) =>
+        sede is null ? null : new DetalleSede(sede.Id, sede.Nombre);
 }

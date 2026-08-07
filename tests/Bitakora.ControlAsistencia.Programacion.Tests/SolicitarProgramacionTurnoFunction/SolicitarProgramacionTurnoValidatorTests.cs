@@ -1,6 +1,7 @@
 // HU-10: Solicitar programacion de turno del catalogo - tests del validator
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 using Bitakora.ControlAsistencia.PublicEvents.Empleados;
@@ -161,5 +162,59 @@ public class SolicitarProgramacionTurnoValidatorTests
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
             e.PropertyName == nameof(SolicitarProgramacionTurno.Fechas));
+    }
+
+    // Issue #331 CA-1/CA-2: Sede es opcional -- ausente (null) sigue siendo un comando valido, el
+    // comportamiento actual (anterior a este issue) queda intacto.
+    [Fact]
+    public async Task Validar_EsValido_CuandoSedeEsNull()
+    {
+        var comando = ComandoValido() with { Sede = null };
+
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    // Issue #331 CA-1: sede presente y con Id/Nombre validos sigue siendo un comando valido.
+    [Fact]
+    public async Task Validar_EsValido_CuandoSedeTieneIdYNombre()
+    {
+        var comando = ComandoValido() with { Sede = new SedeProgramada("SEDE-01", "Sede Principal") };
+
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    // Issue #331 CA-3: sede presente pero con Id vacio se rechaza en el validator (400), antes de
+    // tocar el aggregate.
+    [Fact]
+    public async Task Validar_TieneErrorEnSedeId_CuandoSedeTieneIdVacio()
+    {
+        var comando = ComandoValido() with { Sede = new SedeProgramada("", "Sede Principal") };
+
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName.Contains(nameof(SedeProgramada.Id)));
+    }
+
+    // Issue #331 CA-3: sede presente pero con Nombre en blanco se rechaza en el validator (400).
+    [Fact]
+    public async Task Validar_TieneErrorEnSedeNombre_CuandoSedeTieneNombreEnBlanco()
+    {
+        var comando = ComandoValido() with { Sede = new SedeProgramada("SEDE-01", "   ") };
+
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName.Contains(nameof(SedeProgramada.Nombre)));
     }
 }

@@ -41,6 +41,9 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     private static readonly Empleado EmpleadoEsperado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
+    // Issue #331: sede efectiva del dia, campo aditivo y opcional.
+    private static readonly SedeProgramada SedeEsperada = new("SEDE-01", "Sede Principal");
+
     private static readonly TurnoProgramado TurnoEsperado = new(
         "Turno Manana",
         new List<FranjaProgramada>
@@ -200,5 +203,32 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
 
         evento.Empleado.Should().Be(EmpleadoEsperado);
         evento.DetalleTurno.Should().Be(TurnoEsperado);
+    }
+
+    // Issue #331 CA-4: retrocompatibilidad. Los streams escritos antes de este issue no llevan la
+    // clave "Sede" en el JSON persistido -- STJ deja null en el parametro posicional opcional
+    // (mismo mecanismo que Descripcion, #288/#319).
+    [Fact]
+    public void Deserializar_DejaSedeEnNull_CuandoElJsonPersistidoNoLlevaEseCampo()
+    {
+        var evento = Deserializar(JsonConFormaPersistidaAntesDelCambioDeTipos());
+
+        evento.Sede.Should().BeNull();
+    }
+
+    // Issue #331 CA-5: round-trip de serializacion con Marten (CrearOpcionesMarten()) cuando la
+    // sede esta poblada -- el evento persistido debe reconstruir SedeProgramada identica.
+    [Fact]
+    public void RoundTrip_PreservaLaSede_CuandoLaSedeEstaPoblada()
+    {
+        var evento = new ProgramacionTurnoSolicitada(
+            Id, EmpleadoEsperado, [Fecha1], TurnoEsperado, SedeEsperada);
+        var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Sede.Should().Be(SedeEsperada);
     }
 }
