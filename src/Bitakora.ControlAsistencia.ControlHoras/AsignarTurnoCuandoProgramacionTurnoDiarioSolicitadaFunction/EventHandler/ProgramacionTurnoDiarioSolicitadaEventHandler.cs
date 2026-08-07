@@ -75,11 +75,18 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
     private static TurnoDiario MapearTurnoDiario(DetalleTurno turno) =>
         new(turno.Nombre, turno.FranjasOrdinarias.Select(MapearFranja).ToList(), turno.Descripcion);
 
+    // Issue #336: propaga la sede EFECTIVA ya resuelta por la cascada del lado de Programacion
+    // (#341) -- mapeo mecanico DetalleSede -> SedeProgramada, tolerante a null (no toda franja de
+    // un turno multi-sede trae sede resuelta).
     private static FranjaProgramada MapearFranja(DetalleFranjaOrdinaria franja) =>
         new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,
             franja.Descansos.Select(MapearSubFranja).ToList(),
             franja.Extras.Select(MapearSubFranja).ToList(),
-            franja.Descripcion);
+            franja.Descripcion,
+            MapearSede(franja.Sede));
+
+    private static SedeProgramada? MapearSede(DetalleSede? sede) =>
+        sede is null ? null : new SedeProgramada(sede.Id, sede.Nombre);
 
     private static SubFranjaProgramada MapearSubFranja(DetalleSubFranja sub) =>
         new(sub.HoraInicio, sub.HoraFin, sub.DiaOffsetInicio, sub.DiaOffsetFin, sub.Descripcion);

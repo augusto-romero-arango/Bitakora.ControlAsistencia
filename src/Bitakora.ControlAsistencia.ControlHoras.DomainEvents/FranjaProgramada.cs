@@ -69,6 +69,10 @@ public record FranjaProgramada(
     /// La hora de inicio de la franja pertenece siempre al dia de asignacion (offset 0); solo su
     /// hora de fin lleva <see cref="DiaOffsetFin"/>. Cada sub-franja resuelve sus dos offsets
     /// propios (<see cref="SubFranjaProgramada.ATramo"/>).
+    ///
+    /// Issue #336: la franja madre es la unica duena de la sede -- estampa <see cref="Sede"/> en
+    /// TODOS los tramos que produce, tipados o no (los descansos y extras no tienen sede propia,
+    /// la heredan de aqui).
     /// </remarks>
     internal IEnumerable<Tramo> Segmentar()
     {
@@ -82,12 +86,12 @@ public record FranjaProgramada(
         foreach (var sub in subFranjas)
         {
             if (sub.Inicio > cursor)
-                yield return new Tramo(TipoBloque.Ordinaria, cursor, sub.Inicio);
-            yield return sub;
+                yield return new Tramo(TipoBloque.Ordinaria, cursor, sub.Inicio, Sede);
+            yield return sub with { Sede = Sede };
             cursor = sub.Fin;
         }
 
         if (cursor < finFranja)
-            yield return new Tramo(TipoBloque.Ordinaria, cursor, finFranja);
+            yield return new Tramo(TipoBloque.Ordinaria, cursor, finFranja, Sede);
     }
 }
