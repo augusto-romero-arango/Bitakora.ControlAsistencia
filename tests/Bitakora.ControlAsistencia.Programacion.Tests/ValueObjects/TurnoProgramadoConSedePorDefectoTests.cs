@@ -17,8 +17,8 @@ public class TurnoProgramadoConSedePorDefectoTests
     private static readonly SedeProgramada SedeCatalogo = new("SEDE-SUBA", "Suba");
     private static readonly SedeProgramada SedeSolicitud = new("SEDE-CHAPINERO", "Chapinero");
 
-    private static FranjaProgramada CrearFranja(SedeProgramada? sede, string descripcion = "(06:00-14:00)") =>
-        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], descripcion, sede);
+    private static FranjaProgramada CrearFranja(SedeProgramada? sede) =>
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", sede);
 
     private static TurnoProgramado CrearTurno(params FranjaProgramada[] franjas) =>
         new("Turno Manana", franjas.ToList().AsReadOnly(), "Turno Manana (06:00-14:00)");

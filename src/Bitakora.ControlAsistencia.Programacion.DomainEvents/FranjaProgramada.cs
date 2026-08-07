@@ -14,12 +14,16 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// defecto compararia por referencia -- ADR-0015) y EXCLUYEN Descripcion (dato derivado, no
 /// identidad de la franja) -- mismo criterio que DetalleFranjaOrdinaria (issues #129 y #288).
 ///
-/// Issue #335: Sede es campo aditivo y opcional (null = sin sede prearmada). A diferencia de
-/// Descripcion, SI entra en Equals/GetHashCode -- es dato de identidad del diseno de la franja
-/// (que sede prearmo el catalogo), no un derivado. Divergencia deliberada de payload por rol
-/// (CA-ADR-0029 decision #5) frente a DetalleFranjaOrdinaria (PrivateEvents): el mapeo hacia el
-/// bus interno queda fuera de alcance de este issue (ver
-/// FranjaProgramadaParidadConDetalleFranjaOrdinariaTests).
+/// Issue #335: Sede es campo aditivo y opcional (null = sin sede asignada). A diferencia de
+/// Descripcion, SI entra en Equals/GetHashCode -- es dato de identidad de la franja, no un
+/// derivado.
+///
+/// Issue #341: el campo tiene ya su gemelo de payload por rol (CA-ADR-0029 decision #5) en
+/// DetalleFranjaOrdinaria.Sede (PrivateEvents, tipado DetalleSede) -- la divergencia temporal que
+/// #335 abrio quedo cerrada y FranjaProgramadaParidadConDetalleFranjaOrdinariaTests vuelve a
+/// exigir paridad exacta. Su significado depende del evento que lo lleva: en el snapshot del
+/// catalogo es la sede PREARMADA por el diseno del turno; dentro de ProgramacionTurnoSolicitada es
+/// la sede EFECTIVA que resolvio la cascada (TurnoProgramado.ConSedePorDefecto).
 /// </remarks>
 public record FranjaProgramada(
     TimeOnly HoraInicio,

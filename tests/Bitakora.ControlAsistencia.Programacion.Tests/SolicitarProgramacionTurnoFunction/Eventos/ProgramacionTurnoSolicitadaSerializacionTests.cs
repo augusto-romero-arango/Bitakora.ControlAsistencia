@@ -232,11 +232,43 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         restaurado!.Sede.Should().Be(SedeEsperada);
     }
 
-    // Nota (issue #341): la retrocompatibilidad y el round-trip de la sede EFECTIVA a nivel de
-    // FranjaProgramada (dentro de este mismo evento persistido) ya quedan cubiertos por el issue
-    // #335 -- FranjaProgramada.Sede es un campo aditivo que STJ ya maneja correctamente sin
-    // resolver custom (ver FranjaOrdinariaSerializacionTests.RoundTrip_PreservaLaSede_...). Agregar
-    // aqui un test equivalente pasaria en verde de inmediato (no ejercita ningun comportamiento
-    // nuevo de este issue) -- lo nuevo de #341 en el eje de serializacion es exclusivamente
-    // DetalleFranjaOrdinaria.Sede, el DTO de BUS (ver ProgramacionTurnoDiarioSolicitadaPortabilidadTests).
+    // Issue #341 CA-4: los streams escritos antes de este issue no llevan la clave "Sede" DENTRO de
+    // cada franja. Es un eje distinto del test de arriba (la sede a nivel del evento, #331): la
+    // cascada escribe por primera vez una sede en franjas que el catalogo dejo sin ella, asi que el
+    // JSON viejo y el nuevo difieren tambien en ese nivel anidado.
+    [Fact]
+    public void Deserializar_DejaSedeDeCadaFranjaEnNull_CuandoElJsonPersistidoNoLlevaEseCampo()
+    {
+        var evento = Deserializar(JsonConFormaPersistidaAntesDelCambioDeTipos());
+
+        evento.DetalleTurno.FranjasOrdinarias.Single().Sede.Should().BeNull();
+    }
+
+    // Issue #341 CA-5, cara persistida: mt_events es el contrato mas longevo del sistema
+    // (CA-ADR-0029 decision #5), y desde este issue guarda la sede EFECTIVA de cada franja. La sede
+    // de la franja es deliberadamente DISTINTA de la del evento: son dos ejes independientes (lo
+    // efectivo por franja frente a lo solicitado a nivel del dia), y con la misma sede en ambos un
+    // round-trip que confundiera un nivel con el otro pasaria en verde.
+    [Fact]
+    public void RoundTrip_PreservaLaSedeDeCadaFranja_CuandoLaCascadaLaDejoResuelta()
+    {
+        var sedeDeLaFranja = new SedeProgramada("SEDE-SUBA", "Suba");
+        var turnoConSedePorFranja = new TurnoProgramado(
+            "Turno Manana",
+            new List<FranjaProgramada>
+            {
+                new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], DescripcionFranja, sedeDeLaFranja)
+            }.AsReadOnly(),
+            DescripcionTurno);
+        var evento = new ProgramacionTurnoSolicitada(
+            Id, EmpleadoEsperado, [Fecha1], turnoConSedePorFranja, SedeEsperada);
+        var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.FranjasOrdinarias.Single().Sede.Should().Be(sedeDeLaFranja);
+        restaurado.Sede.Should().Be(SedeEsperada);
+    }
 }

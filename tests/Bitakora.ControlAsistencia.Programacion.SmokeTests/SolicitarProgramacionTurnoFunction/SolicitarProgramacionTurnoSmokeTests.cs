@@ -1,19 +1,65 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.SolicitarProgramacionTurnoFunction;
 
-public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+public class SolicitarProgramacionTurnoSmokeTests(
+    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string TopicSalida = "programacion-turno-diario-solicitada";
     private const string Suscripcion = "smoke-tests";
     private const string SuscripcionConsumidor = "control-horas-escucha-programacion";
+    private const string SchemaProgramacion = "programacion";
+    private const string TipoEventoProgramacionSolicitada = "programacion_turno_solicitada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+
+    // Formas minimas del evento persistido, para asertar sobre el JSON de mt_events sin referenciar
+    // Programacion.DomainEvents desde los smoke tests (mismo criterio que DeadLetterMinimos y que
+    // CrearTurnoSmokeTests). Solo declaran los campos que este test verifica; leerlas de forma
+    // case-insensitive deja la politica de nombres del serializador fuera de la asercion -- lo que
+    // se verifica es el DATO que quedo grabado, no como el host llama a la clave.
+    private sealed record SedeMinima(string Id, string Nombre);
+    private sealed record FranjaMinima(SedeMinima? Sede);
+    private sealed record TurnoMinimo(IReadOnlyList<FranjaMinima> FranjasOrdinarias);
+    private sealed record SolicitudMinima(TurnoMinimo DetalleTurno, SedeMinima? Sede);
+
+    private static readonly JsonSerializerOptions OpcionesLectura = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    // Turno de catalogo con DOS franjas: la primera trae sede prearmada, la segunda no -- el
+    // arrange que ejercita la cascada franja por franja (CA-1). Horarios sin solapamiento
+    // (TurnoCreado.Crear valida solapamiento entre ordinarias).
+    private static object TurnoConFranjasMixtasPayload(Guid turnoId, string sedeId, string sedeNombre) => new
+    {
+        turnoId,
+        nombre = "[TEST] Turno Mixto Cascada",
+        ordinarias = new object[]
+        {
+            new
+            {
+                inicio = "06:00:00",
+                fin = "10:00:00",
+                descansos = Array.Empty<object>(),
+                extras = Array.Empty<object>(),
+                sede = new { id = sedeId, nombre = sedeNombre }
+            },
+            new
+            {
+                inicio = "14:00:00",
+                fin = "18:00:00",
+                descansos = Array.Empty<object>(),
+                extras = Array.Empty<object>()
+            }
+        }
+    };
 
     private static object PayloadValido(Guid? id = null, Guid? turnoId = null) => new
     {
@@ -220,40 +266,18 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         // Arrange: purgar mensajes preexistentes de ejecuciones anteriores
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
-        // Arrange: crear turno en catalogo con DOS franjas: la primera trae sede prearmada, la
-        // segunda no. Horarios sin solapamiento (TurnoCreado.Crear valida solapamiento).
+        // Arrange: crear turno en catalogo con franjas mixtas (una con sede prearmada, otra sin)
         var turnoId = Guid.CreateVersion7();
-        var turnoPayload = new
-        {
-            turnoId,
-            nombre = "[TEST] Turno Mixto Cascada",
-            ordinarias = new object[]
-            {
-                new
-                {
-                    inicio = "06:00:00",
-                    fin = "10:00:00",
-                    descansos = Array.Empty<object>(),
-                    extras = Array.Empty<object>(),
-                    sede = new { id = "SEDE-SUBA", nombre = "[TEST] Suba" }
-                },
-                new
-                {
-                    inicio = "14:00:00",
-                    fin = "18:00:00",
-                    descansos = Array.Empty<object>(),
-                    extras = Array.Empty<object>()
-                }
-            }
-        };
-        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        var sedePrincipal = new DetalleSede("SEDE-01", "[TEST] Sede Principal");
+        var sedeSuba = new DetalleSede("SEDE-SUBA", "[TEST] Suba");
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos",
+            TurnoConFranjasMixtasPayload(turnoId, sedeSuba.Id, sedeSuba.Nombre), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Arrange: solicitud CON sede -- issue #341 CA-1
         var solicitudId = Guid.CreateVersion7();
         var empleadoId = Guid.CreateVersion7().ToString();
-        var sedePrincipal = new DetalleSede("SEDE-01", "[TEST] Sede Principal");
-        var sedeSuba = new DetalleSede("SEDE-SUBA", "[TEST] Suba");
         var payload = new
         {
             id = solicitudId,
@@ -294,6 +318,71 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar el evento",
             solicitudId, SuscripcionConsumidor);
+    }
+
+    // El handler tiene DOS efectos secundarios y los tests de arriba solo cubren uno (la
+    // publicacion al bus). Este cubre el otro: la persistencia en el event store
+    // (SolicitarProgramacionTurnoCommandHandler -> IEventStore.StartStream), que es lo que CA-1
+    // pide verificar "en el evento persistido" ademas de "en cada evento diario del bus".
+    // mt_events es la unica ventana black-box a lo que quedo grabado -- y cierra el riesgo real:
+    // que la sede efectiva llegue bien al bus pero se pierda en silencio en el JSON persistido,
+    // con un 202 igual de verde. Mismo patron que CrearTurnoSmokeTests para turno_creado (#335).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_PersisteLaSedeEfectivaDeCadaFranja_CuandoElTurnoTraeFranjasMixtas()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: turno de catalogo con franjas mixtas (una con sede prearmada, otra sin)
+        var turnoId = Guid.CreateVersion7();
+        var sedeSuba = new SedeMinima("SEDE-SUBA", "[TEST] Suba");
+        var sedePrincipal = new SedeMinima("SEDE-01", "[TEST] Sede Principal");
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos",
+            TurnoConFranjasMixtasPayload(turnoId, sedeSuba.Id, sedeSuba.Nombre), ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var solicitudId = Guid.CreateVersion7();
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            empleado = new
+            {
+                empleadoId = Guid.CreateVersion7().ToString(),
+                tipoIdentificacion = "CC",
+                numeroIdentificacion = "888999000",
+                nombres = "[TEST] Smoke Persistencia",
+                apellidos = "[TEST] Cascada"
+            },
+            fechas = new[] { "2026-06-03" },
+            sede = new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre }
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // SolicitudProgramacionAggregateRoot.Apply asigna Id = evento.Id.ToString() -- el stream id
+        // es el guid canonico de la solicitud, sin formato explicito (MEF-ADR-0037).
+        var streamId = solicitudId.ToString();
+
+        var json = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
+            campoJson: "Id", valorJson: streamId, Timeout);
+
+        var eventoPersistido = json.Deserialize<SolicitudMinima>(OpcionesLectura);
+        eventoPersistido.Should().NotBeNull();
+
+        // CA-1: cada franja quedo grabada con SU sede efectiva -- la prearmada le gana al default.
+        eventoPersistido!.DetalleTurno.FranjasOrdinarias.Should().HaveCount(2);
+        eventoPersistido.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeSuba);
+        eventoPersistido.DetalleTurno.FranjasOrdinarias[1].Sede.Should().Be(sedePrincipal);
+
+        // CA-3: la cascada NO altera el nivel de la solicitud -- ahi sigue LO SOLICITADO.
+        eventoPersistido.Sede.Should().Be(sedePrincipal);
     }
 
     [Fact]

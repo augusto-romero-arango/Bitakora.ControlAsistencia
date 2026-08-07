@@ -133,8 +133,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // --- Issue #335: turno del catalogo con la sede PREARMADA por franja ---
     //
     // No la trae la solicitud (esa es la sede de #331, que aqui va en null): la trae el turno,
-    // desde que se creo. El handler no la conoce ni la mapea -- fluye sola por el snapshot
-    // existente (CatalogoTurnos.ObtenerDetalle -> FranjaOrdinaria.ToDetalle).
+    // desde que se creo, y llega por el snapshot existente (CatalogoTurnos.ObtenerDetalle ->
+    // FranjaOrdinaria.ToDetalle). Desde #341 la cascada la atraviesa -- con la solicitud sin sede
+    // es identidad -- y el handler la propaga tambien al payload de bus (MapearFranja).
     private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
     private static readonly DetalleSede SedeSubaDetalle = new("SEDE-SUBA", "Suba");
 
@@ -213,6 +214,27 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         }.AsReadOnly(),
         DescripcionTurnoMixto);
 
+    // --- Issue #341 CA-3: turno SIN sedes prearmadas + solicitud CON sede ---
+    //
+    // Es CrearEventoTurno(), la misma franja que usan los tests del camino feliz: la cascada
+    // (franja.Sede ?? sedePorDefecto) aplica SedePrincipal a la UNICA franja. La Descripcion NO
+    // cambia -- se congelo en el catalogo, ANTES de que la cascada conociera la sede de la solicitud.
+    private static readonly TurnoProgramado TurnoProgramadoConSedeAplicadaEsperado = new(
+        "Turno Manana",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipal)
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
+    private static readonly DetalleTurno DetalleConSedeAplicadaEsperado = new(
+        "Turno Manana",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipalDetalle)
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
     // --- Tests del camino feliz ---
 
     // CA-9, CA-10, CA-11, CA-12: emite evento de ES y publica evento publico por cada fecha
@@ -272,26 +294,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                 GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
-
-    // Issue #341 CA-3: turno SIN sedes prearmadas (CrearEventoTurno(), la misma franja que usan
-    // los tests del camino feliz) + solicitud CON sede -> la cascada (franja.Sede ?? sedePorDefecto)
-    // aplica SedePrincipal a la UNICA franja del turno. La Descripcion de la franja NO cambia (se
-    // congelo en el catalogo, ANTES de que la cascada conociera la sede de la solicitud).
-    private static readonly TurnoProgramado TurnoProgramadoConSedeAplicadaEsperado = new(
-        "Turno Manana",
-        new List<FranjaProgramada>
-        {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipal)
-        }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
-
-    private static readonly DetalleTurno DetalleConSedeAplicadaEsperado = new(
-        "Turno Manana",
-        new List<DetalleFranjaOrdinaria>
-        {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipalDetalle)
-        }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
 
     // Issue #331 CA-1 + Issue #341 CA-3: la sede viaja resuelta en el comando (el cliente la
     // resuelve, el servidor NUNCA consulta el maestro) y queda grabada en TRES lugares: el nivel
@@ -359,12 +361,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, null);
     }
 
-    // Issue #335: la sede PREARMADA en el catalogo llega al evento persistido sin que el flujo de
-    // solicitud la toque -- el handler no la lee ni la mapea, viaja dentro del snapshot del turno.
-    // Es el cimiento sobre el que #341 arma la cascada (sede de la franja ?? sede de la solicitud):
-    // si un refactor de ToDetalle/ObtenerDetalle dejara de copiarla, el defecto aparece aqui y no
-    // recien en #341. La solicitud va deliberadamente SIN sede propia para que el unico origen
-    // posible del dato sea el catalogo.
+    // Issue #335 + #341 CA-2: la sede PREARMADA en el catalogo llega intacta a AMBOS payloads
+    // cuando la solicitud no trae sede propia -- la cascada es identidad y el mapeo al bus la
+    // propaga. Si un refactor de ToDetalle/ObtenerDetalle dejara de copiarla, o si la cascada
+    // pisara la sede del catalogo con el null de la solicitud, el defecto aparece aqui. La
+    // solicitud va deliberadamente SIN sede propia para que el unico origen posible del dato sea
+    // el catalogo.
     [Fact]
     public async Task SolicitarProgramacionTurno_PersisteLaSedePrearmadaDelCatalogo_CuandoElTurnoLaTraePorFranja()
     {
