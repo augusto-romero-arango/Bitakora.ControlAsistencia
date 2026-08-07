@@ -56,6 +56,11 @@ public record TurnoProgramado(
     /// Tell-don't-Ask (MEF-ADR-0012): la cascada vive en el dueno de las franjas, no en el
     /// handler -- mismo precedente que TurnoDiario.Segmentar (#327).
     /// </remarks>
-    public TurnoProgramado ConSedePorDefecto(SedeProgramada? sedePorDefecto) =>
-        throw new NotImplementedException();
+    public TurnoProgramado ConSedePorDefecto(SedeProgramada? sedePorDefecto) => this with
+    {
+        FranjasOrdinarias = FranjasOrdinarias
+            .Select(franja => franja with { Sede = franja.Sede ?? sedePorDefecto })
+            .ToList()
+            .AsReadOnly()
+    };
 }

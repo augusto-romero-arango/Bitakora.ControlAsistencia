@@ -36,7 +36,11 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // de bus (DetalleTurno, PrivateEvents) -- produce el tipo propio del dominio
         // (TurnoProgramado, Programacion.DomainEvents). El FA mapea a DetalleTurno solo para los
         // eventos que cruzan el bus (CA-5).
-        var turnoProgramado = catalogo.ObtenerDetalle();
+        // Issue #341: la cascada de sede se aplica ANTES de construir cualquier evento -- ambos
+        // payloads (persistido y bus) derivan del mismo turno ya resuelto (un solo punto de
+        // resolucion). Sin ramificar por si la solicitud trae sede: con command.Sede null la
+        // cascada es identidad (Tell-don't-Ask, MEF-ADR-0012).
+        var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(command.Sede);
         var fechas = command.Fechas.AsReadOnly();
 
         // Issue #319 CA-2/CA-5: el comando HTTP conserva InformacionEmpleado (PublicEvents, fuera
@@ -86,11 +90,15 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             turno.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
             turno.Descripcion);
 
+    // Issue #341: la sede EFECTIVA de la franja (ya resuelta por la cascada, ConSedePorDefecto)
+    // se propaga al payload de bus con el mismo mapeo campo a campo que usa la sede de la
+    // solicitud (MapearSede) -- gemelo deliberado, no una traduccion nueva.
     private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>
         new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,
             franja.Descansos.Select(MapearSubFranja).ToList().AsReadOnly(),
             franja.Extras.Select(MapearSubFranja).ToList().AsReadOnly(),
-            franja.Descripcion);
+            franja.Descripcion,
+            MapearSede(franja.Sede));
 
     private static DetalleSubFranja MapearSubFranja(SubFranjaProgramada subFranja) =>
         new(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio,
