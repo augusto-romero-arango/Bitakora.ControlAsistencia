@@ -27,7 +27,7 @@ public class FranjaProgramadaParidadConDetalleFranjaOrdinariaTests
         typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name);
 
     [Fact]
-    public void FranjaProgramada_DeclaraLosMismosNombresDeCampoQueDetalleFranjaOrdinaria_MasSedePropiaDelDominio()
+    public void FranjaProgramada_DeclaraLosMismosNombresDeCampoQueDetalleFranjaOrdinariaMasSedePropia()
     {
         var nombresProgramada = NombresDeCampos<FranjaProgramada>().ToList();
         var nombresDetalle = NombresDeCampos<DetalleFranjaOrdinaria>().ToList();

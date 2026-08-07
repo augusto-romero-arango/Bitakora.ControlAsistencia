@@ -13,7 +13,7 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
 
     // Issue #335: sede prearmada para esta franja del catalogo (null = sin sede asignada). Campo
     // interno, sin propiedad publica (MEF-ADR-0012, Tell-don't-Ask) -- se expone SOLO via
-    // ToDetalle() y ToString() (pendiente de wiring: ver comentarios en Crear/ToDetalle/ToString).
+    // ToDetalle() y ToString().
     private readonly SedeProgramada? _sede;
 
     // Constructor real: usado por el factory
@@ -57,9 +57,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         if (horaInicio == horaFin && diaOffsetFin == 0)
             throw new ArgumentException(FranjaTemporal.Mensajes.InicioYFinIguales);
 
-        // CA-3: rechazar sede con Id o Nombre vacios/en blanco
-        if (sede is not null &&
-            (string.IsNullOrWhiteSpace(sede.Id) || string.IsNullOrWhiteSpace(sede.Nombre)))
+        // CA-3: rechazar sede incompleta -- la regla de completitud la responde la propia sede
+        if (sede is not null && !sede.EstaCompleta())
             throw new ArgumentException(Mensajes.SedeIncompleta);
 
         var listaDescansos = descansos?.ToList() ?? [];
