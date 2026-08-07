@@ -368,6 +368,34 @@ public class ConfiguracionMartenProjectionsTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
+    // Issue #328, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6): el daemon materializa TurnoVigente desde este named store y el Function App de
+    // ControlHoras la lee, en otro proceso, con session.LoadAsync. Misma guarda que #289 dejo para
+    // TurnoDiarioView (arriba): que ambos lados converjan en la MISMA tabla fisica, la MISMA tenancy
+    // y el MISMO IdMember no lo garantiza ningun compilador -- son dos configuraciones de Marten
+    // independientes sobre el mismo schema, y una divergencia deja el GET en 404 permanente con el
+    // daemon funcionando (fallo silencioso que solo veria el smoke test contra dev).
+    //
+    // Anadida en la revision de #328: la fase roja la omitio por no tener potencial de rojo (Marten
+    // resuelve los tres valores por convencion), pero el write-side SI declara ahora un
+    // Schema.For<TurnoVigente>() propio -- un punto por donde una divergencia futura puede entrar sin
+    // que nadie la mida. El oraculo es literal y ComposicionServiciosTests
+    // .AgregarServiciosControlHoras_ResuelveTurnoVigenteSobreLaTablaQueMaterializaElWorker... congela
+    // el MISMO literal desde el write-side, sin que ningun ensamblado referencie al otro
+    // (CA-ADR-0028/CA-ADR-0029).
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaTurnoVigenteSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoVigente));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
+    }
+
     // Issue #294, mitad worker de la dimension que el par de #289 dejo abierta: la guarda de arriba
     // pinea tabla, tenancy e Id, y las tres convergian -- el 500 en dev entro por la forma de
     // mt_version, que nadie media.

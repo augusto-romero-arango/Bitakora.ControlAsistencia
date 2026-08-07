@@ -405,6 +405,32 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
+    // Issue #328, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6), hermana de la que #289 dejo para TurnoDiarioView (arriba): este Function App lee
+    // TurnoVigente con session.LoadAsync sin registrar la proyeccion, y el worker la materializa en
+    // otro proceso. Tabla, tenancy e IdMember tienen que converger o el GET devuelve 404 para
+    // siempre con el daemon funcionando.
+    //
+    // Anadida en la revision de #328: los tres valores los resuelve Marten por convencion, pero este
+    // lado ya declara un Schema.For<TurnoVigente>() propio (la linea de UseNumericRevisions del test
+    // de arriba) -- justo el tipo de declaracion por documento que puede desviar la tabla o la
+    // tenancy de un solo lado. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoVigenteSobreLaTablaQueConsultaElWriteSide congela desde
+    // el worker.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveTurnoVigenteSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(TurnoVigente));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
+    }
+
     // --- Sampler efectivo del TracerProvider (issue #308 CA-2, CA-3) ---
     //
     // Hallazgo 1 del issue #308: UseAzureMonitorExporter llama SetSampler internamente

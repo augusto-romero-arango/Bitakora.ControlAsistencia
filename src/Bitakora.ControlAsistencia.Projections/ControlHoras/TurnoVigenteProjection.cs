@@ -1,7 +1,8 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en Marten.Events.Projections
-using BloqueVigente = Bitakora.ControlAsistencia.ReadModels.ControlHoras.Bloque;
+// Solo TipoBloque es ambiguo entre los dos namespaces de arriba (CS0104): Bloque existe unicamente
+// en ReadModels y BloqueTurno unicamente en DomainEvents, asi que ninguno de los dos necesita alias.
 using TipoBloqueVigente = Bitakora.ControlAsistencia.ReadModels.ControlHoras.TipoBloque;
 using TipoBloqueEvento = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.TipoBloque;
 
@@ -26,8 +27,8 @@ namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 /// Create/Apply invocan evento.DetalleTurno.Segmentar(evento.Fecha) (issue #327, Tell-don't-Ask
 /// MEF-ADR-0012: la aritmetica de segmentacion vive en TurnoDiario, no se reimplementa aqui) y
 /// mapean cada BloqueTurno resultante al record Bloque propio de la vista (ReadModels, sin
-/// relacion de tipo con DomainEvents -- alias BloqueVigente/TipoBloqueVigente para desambiguar del
-/// TipoBloque homonimo de ControlHoras.DomainEvents, CS0104).
+/// relacion de tipo con DomainEvents -- alias TipoBloqueVigente/TipoBloqueEvento para desambiguar
+/// el unico nombre homonimo entre ambos ensamblados, TipoBloque, CS0104).
 ///
 /// Solo TurnoDiarioAsignado alimenta esta vista: MarcacionAdicionada tambien vive en el mismo
 /// stream de ControlDiarioAggregateRoot pero esta proyeccion la ignora a proposito (issue #328,
@@ -47,11 +48,17 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             MapearBloques(evento));
 
     // CA-2: "el ultimo gana" -- una reasignacion sobre el mismo (empleado, fecha) sobrescribe
-    // turno, horario y bloques. Id, EmpleadoId, NombreCompleto y Fecha no cambian (mismo stream,
-    // mismo empleado): el evento no trae informacion distinta de empleado en una reasignacion.
+    // turno, horario y bloques. Id, EmpleadoId y Fecha no cambian: son la identidad del stream
+    // ("{EmpleadoId}:{Fecha:yyyy-MM-dd}"), invariante para todos los eventos del mismo documento.
+    //
+    // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload Empleado completo, y
+    // el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba -- dejarlo fijo
+    // congelaria para siempre el nombre de la primera asignacion. Mismo criterio que la proyeccion
+    // hermana sobre este stream (TurnoDiarioProjection.Apply refresca Empleado entero, issue #289).
     public static TurnoVigente Apply(TurnoDiarioAsignado evento, TurnoVigente vista) =>
         vista with
         {
+            NombreCompleto = NombreCompleto(evento.InformacionEmpleado),
             NombreTurno = evento.DetalleTurno.Nombre,
             HorarioResumido = evento.DetalleTurno.Descripcion,
             Bloques = MapearBloques(evento)
@@ -63,10 +70,10 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     private static string NombreCompleto(Empleado empleado) =>
         $"{empleado.Nombres} {empleado.Apellidos}";
 
-    private static IReadOnlyList<BloqueVigente> MapearBloques(TurnoDiarioAsignado evento) =>
+    private static IReadOnlyList<Bloque> MapearBloques(TurnoDiarioAsignado evento) =>
         evento.DetalleTurno.Segmentar(evento.Fecha).Select(MapearBloque).ToList();
 
-    private static BloqueVigente MapearBloque(BloqueTurno bloque) =>
+    private static Bloque MapearBloque(BloqueTurno bloque) =>
         new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin);
 
     private static TipoBloqueVigente MapearTipo(TipoBloqueEvento tipo) => tipo switch

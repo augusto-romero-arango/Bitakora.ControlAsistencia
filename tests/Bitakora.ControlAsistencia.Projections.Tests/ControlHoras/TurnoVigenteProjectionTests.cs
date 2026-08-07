@@ -119,4 +119,45 @@ public class TurnoVigenteProjectionTests
         vista.Bloques.Should().Equal(
             new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(14), medianoche.AddHours(22)));
     }
+
+    // CA-2 (borde que el test de arriba no discrimina, porque ahi los dos eventos traen el MISMO
+    // empleado): cada TurnoDiarioAsignado carga el payload Empleado completo, asi que una correccion
+    // del nombre aguas arriba llega con la reasignacion y el "ultimo gana" tambien le aplica --
+    // congelar el nombre de la primera asignacion dejaria la vista mostrando un dato viejo para
+    // siempre. Id, EmpleadoId y Fecha si son invariantes (identidad del stream), y se verifican aqui
+    // junto al refresco para que el test no pueda pasar por sobrescribir la vista entera.
+    [Fact]
+    public void Apply_RefrescaElNombreCompleto_CuandoLaReasignacionTraeElNombreCorregido()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+        var streamKey = "EMP-001:2026-08-03";
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+
+        var vistaPrevia = new TurnoVigente(
+            streamKey,
+            "EMP-001",
+            "Ana Ramirez",
+            fecha,
+            "Turno Manana",
+            "Turno Manana: (06:00-14:00)",
+            [new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14))]);
+
+        // Mismo EmpleadoId, nombre corregido aguas arriba (dos nombres y dos apellidos).
+        var empleadoCorregido = new Empleado("EMP-001", "CC", "1098765432", "Ana Maria", "Ramirez Solano");
+        var turnoTarde = new TurnoDiario(
+            "Turno Tarde",
+            [new FranjaProgramada(
+                new TimeOnly(14, 0), new TimeOnly(22, 0), DiaOffsetFin: 0,
+                Descansos: [], Extras: [], Descripcion: "(14:00-22:00)")],
+            "Turno Tarde: (14:00-22:00)");
+        var segundoEvento = new TurnoDiarioAsignado(
+            streamKey, empleadoCorregido, fecha, turnoTarde, Guid.NewGuid());
+
+        var vista = TurnoVigenteProjection.Apply(segundoEvento, vistaPrevia);
+
+        vista.NombreCompleto.Should().Be("Ana Maria Ramirez Solano");
+        vista.Id.Should().Be(streamKey);
+        vista.EmpleadoId.Should().Be("EMP-001");
+        vista.Fecha.Should().Be(fecha);
+    }
 }
