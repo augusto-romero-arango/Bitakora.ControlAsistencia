@@ -42,4 +42,20 @@ public record TurnoProgramado(
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }
+
+    /// <summary>
+    /// Issue #341: cascada de sede al copiar el turno del catalogo en la solicitud de
+    /// programacion. Cada franja resuelve su sede efectiva con
+    /// <c>franja.Sede ?? sedePorDefecto</c> -- el catalogo (intencion explicita de diseno) le gana
+    /// al default de la solicitud. Funcion pura sobre records (<c>with</c>): no muta esta
+    /// instancia, retorna un turno nuevo. Con <paramref name="sedePorDefecto"/> null la cascada es
+    /// identidad (permite invocacion incondicional desde el handler, sin ramificar por si la
+    /// solicitud trae sede).
+    /// </summary>
+    /// <remarks>
+    /// Tell-don't-Ask (MEF-ADR-0012): la cascada vive en el dueno de las franjas, no en el
+    /// handler -- mismo precedente que TurnoDiario.Segmentar (#327).
+    /// </remarks>
+    public TurnoProgramado ConSedePorDefecto(SedeProgramada? sedePorDefecto) =>
+        throw new NotImplementedException();
 }

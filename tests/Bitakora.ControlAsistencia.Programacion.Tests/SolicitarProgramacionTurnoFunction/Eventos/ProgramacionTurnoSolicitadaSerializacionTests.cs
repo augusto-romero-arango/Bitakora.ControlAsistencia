@@ -231,4 +231,12 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         restaurado.Should().NotBeNull();
         restaurado!.Sede.Should().Be(SedeEsperada);
     }
+
+    // Nota (issue #341): la retrocompatibilidad y el round-trip de la sede EFECTIVA a nivel de
+    // FranjaProgramada (dentro de este mismo evento persistido) ya quedan cubiertos por el issue
+    // #335 -- FranjaProgramada.Sede es un campo aditivo que STJ ya maneja correctamente sin
+    // resolver custom (ver FranjaOrdinariaSerializacionTests.RoundTrip_PreservaLaSede_...). Agregar
+    // aqui un test equivalente pasaria en verde de inmediato (no ejercita ningun comportamiento
+    // nuevo de este issue) -- lo nuevo de #341 en el eje de serializacion es exclusivamente
+    // DetalleFranjaOrdinaria.Sede, el DTO de BUS (ver ProgramacionTurnoDiarioSolicitadaPortabilidadTests).
 }

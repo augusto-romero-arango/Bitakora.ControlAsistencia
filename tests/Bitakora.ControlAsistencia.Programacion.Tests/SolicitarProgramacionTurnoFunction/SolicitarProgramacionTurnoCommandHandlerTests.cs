@@ -22,6 +22,8 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Guid.Parse("018e4c1a-4f2b-7000-8000-112233445566");
     private static readonly Guid TurnoConSedePrearmadaId =
         Guid.Parse("018e4c1a-4f2b-7000-8000-778899aabbcc");
+    private static readonly Guid TurnoConFranjasMixtasId =
+        Guid.Parse("018e4c1a-4f2b-7000-8000-1a2b3c4d5e6f");
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
@@ -134,6 +136,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // desde que se creo. El handler no la conoce ni la mapea -- fluye sola por el snapshot
     // existente (CatalogoTurnos.ObtenerDetalle -> FranjaOrdinaria.ToDetalle).
     private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
+    private static readonly DetalleSede SedeSubaDetalle = new("SEDE-SUBA", "Suba");
 
     private static TurnoCreado CrearEventoTurnoConSedePrearmada() =>
         TurnoCreado.Crear(
@@ -141,9 +144,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             "Turno Con Sede",
             [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], SedeSuba)]);
 
-    // La sede entra al ToString() de la franja, asi que la Descripcion derivada la incluye. Es la
-    // consecuencia aceptada en el issue (los turnos ya creados no cambian) y el UNICO rastro de la
-    // sede que hoy alcanza el payload de bus: DetalleFranjaOrdinaria no tiene campo Sede (#341).
+    // La sede entra al ToString() de la franja, asi que la Descripcion derivada la incluye.
     private static readonly string DescripcionFranjaConSede =
         $"(06:00-14:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]";
     private static readonly string DescripcionTurnoConSede =
@@ -157,13 +158,60 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         }.AsReadOnly(),
         DescripcionTurnoConSede);
 
+    // Issue #341 CA-2: la solicitud va sin sede (null), asi que la cascada (franja.Sede ??
+    // sedePorDefecto) deja la sede prearmada del catalogo intacta -- ahora tambien en el payload de
+    // bus, que gana su propio campo Sede (DetalleFranjaOrdinaria, #341). Antes de este issue
+    // DetalleFranjaOrdinaria no tenia campo Sede: el UNICO rastro de la sede en el bus era el texto
+    // de Descripcion.
     private static readonly DetalleTurno DetalleConSedePrearmadaEsperado = new(
         "Turno Con Sede",
         new List<DetalleFranjaOrdinaria>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], DescripcionFranjaConSede)
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], DescripcionFranjaConSede, SedeSubaDetalle)
         }.AsReadOnly(),
         DescripcionTurnoConSede);
+
+    // --- Issue #341: turno del catalogo con franjas MIXTAS (una con sede prearmada, otra sin) ---
+    //
+    // Ejercita CA-1: bajo una solicitud CON sede, cada franja resuelve su cascada de forma
+    // independiente -- la que ya trae sede del catalogo la conserva, la que no la recibe de la
+    // solicitud. Dos franjas en horarios distintos para no solapar (TurnoCreado.Crear valida
+    // solapamiento entre ordinarias).
+    private static TurnoCreado CrearEventoTurnoConFranjasMixtas() =>
+        TurnoCreado.Crear(
+            TurnoConFranjasMixtasId,
+            "Turno Mixto",
+            [
+                new DatosFranja(new TimeOnly(6, 0), new TimeOnly(10, 0), [], [], SedeSuba),
+                new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [])
+            ]);
+
+    private static readonly string DescripcionFranja1Mixta =
+        $"(06:00-10:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]";
+    private const string DescripcionFranja2Mixta = "(14:00-18:00)";
+    private static readonly string DescripcionTurnoMixto =
+        $"Turno Mixto {DescripcionFranja1Mixta}{DescripcionFranja2Mixta}";
+
+    // La cascada NUNCA reconstruye el ToString() ya congelado en el catalogo (Descripcion se
+    // calcula ANTES de conocer la sede de la solicitud): la franja2 queda con Sede = SedePrincipal
+    // pero su Descripcion sigue siendo "(14:00-18:00)", sin el label de sede.
+    private static readonly TurnoProgramado TurnoMixtoConCascadaEsperado = new(
+        "Turno Mixto",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], DescripcionFranja1Mixta, SedeSuba),
+            new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], DescripcionFranja2Mixta, SedePrincipal)
+        }.AsReadOnly(),
+        DescripcionTurnoMixto);
+
+    private static readonly DetalleTurno DetalleMixtoConCascadaEsperado = new(
+        "Turno Mixto",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], DescripcionFranja1Mixta, SedeSubaDetalle),
+            new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], DescripcionFranja2Mixta, SedePrincipalDetalle)
+        }.AsReadOnly(),
+        DescripcionTurnoMixto);
 
     // --- Tests del camino feliz ---
 
@@ -225,26 +273,73 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 
-    // Issue #331 CA-1: la sede viaja resuelta en el comando (el cliente la resuelve, el servidor
-    // NUNCA consulta el maestro) y queda grabada tanto en el evento persistido (SedeProgramada,
-    // dominio) como en CADA evento diario publicado al bus interno (DetalleSede, gemelo deliberado).
-    // Dos fechas a proposito: CA-1 dice "cada ProgramacionTurnoDiarioSolicitada", asi que con una
-    // sola fecha una implementacion que solo poblara el primer evento pasaria en verde.
+    // Issue #341 CA-3: turno SIN sedes prearmadas (CrearEventoTurno(), la misma franja que usan
+    // los tests del camino feliz) + solicitud CON sede -> la cascada (franja.Sede ?? sedePorDefecto)
+    // aplica SedePrincipal a la UNICA franja del turno. La Descripcion de la franja NO cambia (se
+    // congelo en el catalogo, ANTES de que la cascada conociera la sede de la solicitud).
+    private static readonly TurnoProgramado TurnoProgramadoConSedeAplicadaEsperado = new(
+        "Turno Manana",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipal)
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
+    private static readonly DetalleTurno DetalleConSedeAplicadaEsperado = new(
+        "Turno Manana",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipalDetalle)
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
+    // Issue #331 CA-1 + Issue #341 CA-3: la sede viaja resuelta en el comando (el cliente la
+    // resuelve, el servidor NUNCA consulta el maestro) y queda grabada en TRES lugares: el nivel
+    // top del evento persistido (ProgramacionTurnoSolicitada.Sede -- lo SOLICITADO, trazabilidad),
+    // CADA evento diario publicado al bus interno (DetalleSede, gemelo deliberado) y, desde #341,
+    // la UNICA franja del turno (que no traia sede propia, asi que la cascada le aplica la de la
+    // solicitud) en AMBOS payloads (persistido y bus). Dos fechas a proposito: CA-1 de #331 dice
+    // "cada ProgramacionTurnoDiarioSolicitada", asi que con una sola fecha una implementacion que
+    // solo poblara el primer evento pasaria en verde.
     [Fact]
-    public async Task SolicitarProgramacionTurno_PersisteYPublicaLaSedeProgramada_CuandoLaSolicitudIncluyeSede()
+    public async Task SolicitarProgramacionTurno_AplicaLaSedeDeLaSolicitudATodasLasFranjas_CuandoElTurnoNoTraeSedesPrearmadas()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Empleado, [Fecha1, Fecha2], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1, Fecha2], TurnoProgramadoEsperado, SedePrincipal));
+            GuidAggregateId, EmpleadoProgramado, [Fecha1, Fecha2], TurnoProgramadoConSedeAplicadaEsperado, SedePrincipal));
         ThenIsPublishedPrivately(
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, SedePrincipalDetalle),
+                GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle),
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleEsperado, SedePrincipalDetalle));
+                GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, SedePrincipal);
+        And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedePrincipal);
+    }
+
+    // Issue #341 CA-1: turno con franjas MIXTAS (una con sede prearmada del catalogo, otra sin) +
+    // solicitud CON sede -> cada franja resuelve su cascada de forma INDEPENDIENTE. La franja1
+    // conserva su sede propia (SedeSuba, el catalogo le gana al default); la franja2 (sin sede
+    // propia) adopta la de la solicitud (SedePrincipal). Se verifica en AMBOS payloads (evento
+    // persistido y evento diario publicado al bus).
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ConservaLaSedeDeLaFranjaYAplicaLaSedePorDefecto_CuandoElTurnoTraeFranjasMixtas()
+    {
+        Given(TurnoConFranjasMixtasId.ToString(), CrearEventoTurnoConFranjasMixtas());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoConFranjasMixtasId, Empleado, [Fecha1], SedePrincipal));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoMixtoConCascadaEsperado, SedePrincipal));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleMixtoConCascadaEsperado, SedePrincipalDetalle));
+        And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
+        And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[1].Sede, SedePrincipal);
     }
 
     // Issue #331 CA-2: sede es opcional -- una solicitud sin sede (campo ausente) deja Sede en

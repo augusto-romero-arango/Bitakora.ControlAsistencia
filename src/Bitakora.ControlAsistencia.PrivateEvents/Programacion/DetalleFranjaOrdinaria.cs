@@ -12,6 +12,15 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// Issue #288: Descripcion (representacion textual normalizada, formato del tipo rico
 /// FranjaOrdinaria.ToString()) se agrega como dato derivado persistido. NO se agrega a
 /// Equals/GetHashCode: es texto derivado de los demas campos, no identidad de la franja.
+///
+/// Issue #341: Sede es campo aditivo y opcional (null = sin sede asignada), gemelo deliberado de
+/// FranjaProgramada.Sede (Programacion.DomainEvents, issue #335) -- cierra la divergencia que
+/// FranjaProgramadaParidadConDetalleFranjaOrdinariaTests toleraba temporalmente. Lleva la sede
+/// EFECTIVA ya resuelta por la cascada (SolicitarProgramacionTurnoCommandHandler,
+/// TurnoProgramado.ConSedePorDefecto) -- este DTO de bus nunca aplica la cascada, solo transporta
+/// el resultado (snapshot: la verdad viaja en el evento). A diferencia de Descripcion, SI entra en
+/// Equals/GetHashCode -- es dato de identidad de la franja, no un derivado (mismo criterio que
+/// FranjaProgramada.Sede).
 /// </remarks>
 public record DetalleFranjaOrdinaria(
     TimeOnly HoraInicio,
@@ -19,7 +28,8 @@ public record DetalleFranjaOrdinaria(
     int DiaOffsetFin,
     IReadOnlyList<DetalleSubFranja> Descansos,
     IReadOnlyList<DetalleSubFranja> Extras,
-    string Descripcion)
+    string Descripcion,
+    DetalleSede? Sede = null)
 {
     /// <summary>
     /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro
@@ -36,7 +46,8 @@ public record DetalleFranjaOrdinaria(
             && HoraFin == other.HoraFin
             && DiaOffsetFin == other.DiaOffsetFin
             && Descansos.SequenceEqual(other.Descansos)
-            && Extras.SequenceEqual(other.Extras);
+            && Extras.SequenceEqual(other.Extras)
+            && Sede == other.Sede;
     }
 
     public override int GetHashCode()
@@ -47,6 +58,7 @@ public record DetalleFranjaOrdinaria(
         hash.Add(DiaOffsetFin);
         foreach (var d in Descansos) hash.Add(d);
         foreach (var e in Extras) hash.Add(e);
+        hash.Add(Sede);
         return hash.ToHashCode();
     }
 }
