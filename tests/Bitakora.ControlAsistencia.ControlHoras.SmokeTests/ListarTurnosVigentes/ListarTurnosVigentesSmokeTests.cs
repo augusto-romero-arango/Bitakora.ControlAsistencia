@@ -34,11 +34,33 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosVigente
 // Sin PostgresFixture: la verificacion de persistencia del evento turno_diario_asignado ya la cubre
 // AsignarTurnoViaSbSmokeTests (issue #322); aqui solo interesa que la vista materializada llegue al
 // endpoint HTTP -- mismo alcance que ObtenerTurnoVigenteSmokeTests.
+//
+// Issue #337 (CA-2/CA-3/CA-4): sedeId es un tercer filtro opcional sobre la MISMA Function -- ningun
+// endpoint nuevo. Para sembrar bloques con sede se publica ProgramacionTurnoDiarioSolicitada con la
+// clave "Sede" DENTRO de cada franja ordinaria (PrivateEvents.Programacion.DetalleFranjaOrdinaria.
+// Sede, issue #341) -- nunca a nivel del evento completo: la sede rige por bloque, nunca por dia
+// (issue #337, "Contexto"). El mapeo real hasta el bloque de la vista es
+// ProgramacionTurnoDiarioSolicitadaEventHandler.MapearFranja -> TurnoDiario.Segmentar (#336) ->
+// TurnoVigenteProjection.MapearBloque (#337); este smoke test no lo referencia, solo publica el JSON
+// con la forma que ese mapeo espera. El detalle de "el ultimo gana" lo cubre el unit test de la
+// proyeccion (projection-test-writer); aqui se verifica el filtro sedeId del endpoint HTTP y, sobre
+// esa misma respuesta, que los campos de sede efectivamente VIAJEN al cliente en cada bloque (CA-1
+// de punta a punta: la cadena completa, no solo la funcion pura de mapeo).
+//
+// ObtenerTurnoVigente (#328) NO se toca en este archivo ni en su propia suite: su Function.cs no
+// cambio (issue #337, "Endpoints / rutas" -- "sin cambio de firma ni ruta"), aunque su respuesta
+// tambien ganaria los campos de sede en los bloques por compartir la misma vista TurnoVigente. El
+// alcance de esta tarea son los endpoints modificados, y el unico modificado es este.
 public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
+
+    // Descripcion del turno sembrado por PublicarTurnoAsync: es el dato que la vista devuelve como
+    // HorarioResumido, asi que se afirma contra esta misma constante (eco del payload publicado).
+    private const string DescripcionTurnoSinSede = "[TEST] Turno Vigente Listar 08:00-16:00";
+
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
@@ -55,7 +77,15 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         Extra
     }
 
-    private sealed record BloqueSmoke(TipoBloqueSmoke Tipo, DateTime Inicio, DateTime Fin);
+    // Issue #337: SedeId/NombreSede son aditivos y opcionales en la vista, asi que tambien lo son en
+    // esta forma local -- un bloque sin sede (turno sembrado sin la clave "Sede", o documento
+    // proyectado antes de #336/#337) los trae null.
+    private sealed record BloqueSmoke(
+        TipoBloqueSmoke Tipo,
+        DateTime Inicio,
+        DateTime Fin,
+        string? SedeId = null,
+        string? NombreSede = null);
 
     private sealed record TurnoVigenteRespuestaSmoke(
         string Id,
@@ -72,17 +102,27 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         bool RangoRecortado,
         IReadOnlyList<TurnoVigenteRespuestaSmoke> Turnos);
 
-    private static string Ruta(DateOnly desde, DateOnly hasta, string? empleadoId = null)
+    private static string Ruta(
+        DateOnly desde, DateOnly hasta, string? empleadoId = null, string? sedeId = null)
     {
         var query = $"desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
         if (empleadoId is not null)
             query += $"&empleadoId={Uri.EscapeDataString(empleadoId)}";
+        if (sedeId is not null)
+            query += $"&sedeId={Uri.EscapeDataString(sedeId)}";
 
         return $"/api/control-horas/turnos-vigentes?{query}";
     }
 
-    private async Task PublicarTurnoAsync(
-        Guid solicitudId, string empleadoId, DateOnly fecha, string nombreTurno)
+    // Envelope UNICO de ProgramacionTurnoDiarioSolicitada para toda la suite: entre escenarios solo
+    // cambian las franjas y la descripcion del turno, nunca el empleado ni la forma del evento
+    // (antes del issue #337 esta misma forma vivia triplicada -- MEF-ADR-0018, Rule of Three).
+    // FranjasOrdinarias viaja como object[] porque las franjas con y sin la clave "Sede" son tipos
+    // anonimos distintos; STJ serializa cada elemento por su tipo en tiempo de ejecucion, asi que
+    // ninguna pierde campos al convivir en el mismo arreglo.
+    private async Task PublicarProgramacionAsync(
+        Guid solicitudId, string empleadoId, DateOnly fecha, string nombreTurno,
+        string descripcionTurno, params object[] franjasOrdinarias)
     {
         var evento = new
         {
@@ -99,24 +139,70 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             DetalleTurno = new
             {
                 Nombre = nombreTurno,
-                FranjasOrdinarias = new[]
-                {
-                    new
-                    {
-                        HoraInicio = "08:00:00",
-                        HoraFin = "16:00:00",
-                        DiaOffsetFin = 0,
-                        Descansos = Array.Empty<object>(),
-                        Extras = Array.Empty<object>(),
-                        Descripcion = (string?)null
-                    }
-                },
-                Descripcion = "[TEST] Turno Vigente Listar 08:00-16:00"
+                FranjasOrdinarias = franjasOrdinarias,
+                Descripcion = descripcionTurno
             }
         };
 
         await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
     }
+
+    // Franja ordinaria SIN la clave "Sede" -- forma exacta que ya publicaba #329: sus bloques quedan
+    // con SedeId/NombreSede null, el equivalente comportamental de un documento proyectado antes de
+    // #336/#337 (CA-4/CA-5).
+    private static object FranjaOrdinaria(string horaInicio, string horaFin) =>
+        new
+        {
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            DiaOffsetFin = 0,
+            Descansos = Array.Empty<object>(),
+            Extras = Array.Empty<object>(),
+            Descripcion = (string?)null
+        };
+
+    // Issue #337/#341: la clave "Sede" va DENTRO de la franja (DetalleFranjaOrdinaria.Sede), nunca a
+    // nivel del evento completo -- la sede rige por bloque, nunca por dia (issue #337, "Contexto").
+    private static object FranjaOrdinaria(
+        string horaInicio, string horaFin, string sedeId, string nombreSede) =>
+        new
+        {
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            DiaOffsetFin = 0,
+            Descansos = Array.Empty<object>(),
+            Extras = Array.Empty<object>(),
+            Descripcion = (string?)null,
+            Sede = new { Id = sedeId, Nombre = nombreSede }
+        };
+
+    private Task PublicarTurnoAsync(
+        Guid solicitudId, string empleadoId, DateOnly fecha, string nombreTurno) =>
+        PublicarProgramacionAsync(
+            solicitudId, empleadoId, fecha, nombreTurno, DescripcionTurnoSinSede,
+            FranjaOrdinaria("08:00:00", "16:00:00"));
+
+    // Issue #337: una sola franja que SI trae sede -- escenario de combinacion sedeId + empleadoId
+    // (CA-3).
+    private Task PublicarTurnoConSedeAsync(
+        Guid solicitudId, string empleadoId, DateOnly fecha, string nombreTurno,
+        string sedeId, string nombreSede) =>
+        PublicarProgramacionAsync(
+            solicitudId, empleadoId, fecha, nombreTurno, $"[TEST] {nombreTurno}",
+            FranjaOrdinaria("08:00:00", "16:00:00", sedeId, nombreSede));
+
+    // Issue #337: turno partido en DOS franjas, cada una en su propia sede -- el escenario del
+    // "Contexto" del issue (Carlos manana-Suba/tarde-Chapinero). Ambas franjas producen un bloque
+    // Ordinaria cada una (sin cruce de horario, sin solape) para que la vista materialice un dia
+    // multi-sede real.
+    private Task PublicarTurnoMultiSedeAsync(
+        Guid solicitudId, string empleadoId, DateOnly fecha, string nombreTurno,
+        string sedeIdManana, string nombreSedeManana,
+        string sedeIdTarde, string nombreSedeTarde) =>
+        PublicarProgramacionAsync(
+            solicitudId, empleadoId, fecha, nombreTurno, $"[TEST] {nombreTurno}",
+            FranjaOrdinaria("08:00:00", "12:00:00", sedeIdManana, nombreSedeManana),
+            FranjaOrdinaria("14:00:00", "18:00:00", sedeIdTarde, nombreSedeTarde));
 
     // Sensa la materializacion asincrona consultando ESTE mismo endpoint sobre un rango de un solo
     // dia (desde == hasta) filtrado por empleadoId, que nunca activa el recorte -- no via
@@ -269,8 +355,10 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         turno.NombreCompleto.Should().Be("[TEST] Smoke Listar [TEST] TurnosVigentes");
         turno.Fecha.Should().Be(fechaTurno);
         turno.NombreTurno.Should().Be("[TEST] Turno Vigente Trabajador");
-        turno.HorarioResumido.Should().Be("[TEST] Turno Vigente Listar 08:00-16:00");
+        turno.HorarioResumido.Should().Be(DescripcionTurnoSinSede);
 
+        // Issue #337: el turno sembrado no trae sede, asi que el bloque llega con SedeId/NombreSede
+        // null (valores por defecto de BloqueSmoke) -- regresion de #329 intacta.
         var bloqueEsperado = new BloqueSmoke(
             TipoBloqueSmoke.Ordinaria,
             fechaTurno.ToDateTime(new TimeOnly(8, 0)),
@@ -382,5 +470,167 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         // este materializada (verificado arriba) -- prueba que el recorte restringe la consulta.
         respuesta.Turnos.Should().Contain(t => t.Fecha == fechaDentro);
         respuesta.Turnos.Should().NotContain(t => t.Fecha == fechaFuera);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_IncluyeElDiaBajoCualquieraDeSusSedes_CuandoElTurnoEsMultiSede()
+    {
+        // CA-2 (issue #337): escenario del "Contexto" -- Carlos con manana-Suba/tarde-Chapinero
+        // aparece en el panorama de AMBOS jefes de sede, porque el filtro es "al menos un bloque
+        // rige en esa sede", no "el dia entero pertenece a una sola sede".
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var solicitudId = Guid.CreateVersion7();
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 6, 5);
+        var sedeIdManana = Guid.CreateVersion7().ToString();
+        var sedeIdTarde = Guid.CreateVersion7().ToString();
+        var sedeIdSinTurnosDeEsteEmpleado = Guid.CreateVersion7().ToString();
+        const string nombreSedeManana = "[TEST] Sede Suba";
+        const string nombreSedeTarde = "[TEST] Sede Chapinero";
+
+        await PublicarTurnoMultiSedeAsync(
+            solicitudId, empleadoId, fecha, "[TEST] Turno Multi Sede",
+            sedeIdManana, nombreSedeManana, sedeIdTarde, nombreSedeTarde);
+
+        var materializado = await EsperarTurnoEnLaListaAsync(empleadoId, fecha, ct);
+        materializado.Should().BeTrue(
+            $"la vista de {empleadoId} en {fecha} deberia materializarse dentro del timeout");
+
+        // Assert: aparece filtrando por la sede de la franja de la manana...
+        var responseManana = await _client.GetAsync(Ruta(fecha, fecha, empleadoId, sedeIdManana), ct);
+        responseManana.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuestaManana = await responseManana.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuestaManana!.Turnos.Should().Contain(t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+
+        // Assert (CA-1 de punta a punta): la sede no solo filtra, tambien VIAJA al cliente en cada
+        // bloque -- cada uno con la sede de SU PROPIA franja, no la del dia. Filtrar por la sede de
+        // la manana devuelve el dia COMPLETO (incluido el bloque de la tarde en otra sede): es la
+        // evidencia de que el predicado es "al menos un bloque rige en esa sede", no un recorte de
+        // los bloques devueltos.
+        var turnoMultiSede = respuestaManana.Turnos.Single(
+            t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+        turnoMultiSede.Bloques.Should().BeEquivalentTo(new[]
+        {
+            new BloqueSmoke(
+                TipoBloqueSmoke.Ordinaria,
+                fecha.ToDateTime(new TimeOnly(8, 0)), fecha.ToDateTime(new TimeOnly(12, 0)),
+                sedeIdManana, nombreSedeManana),
+            new BloqueSmoke(
+                TipoBloqueSmoke.Ordinaria,
+                fecha.ToDateTime(new TimeOnly(14, 0)), fecha.ToDateTime(new TimeOnly(18, 0)),
+                sedeIdTarde, nombreSedeTarde)
+        });
+
+        // ...y TAMBIEN filtrando por la sede de la franja de la tarde -- mismo dia, dos sedes.
+        var responseTarde = await _client.GetAsync(Ruta(fecha, fecha, empleadoId, sedeIdTarde), ct);
+        responseTarde.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuestaTarde = await responseTarde.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuestaTarde!.Turnos.Should().Contain(t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+
+        // Assert: NO aparece bajo una sede que ningun bloque de este turno tiene.
+        var responseOtraSede = await _client.GetAsync(
+            Ruta(fecha, fecha, empleadoId, sedeIdSinTurnosDeEsteEmpleado), ct);
+        responseOtraSede.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuestaOtraSede = await responseOtraSede.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuestaOtraSede!.Turnos.Should().NotContain(t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_ExcluyeElDiaSinSede_CuandoSeFiltraPorSedeId()
+    {
+        // CA-4 (issue #337): un dia cuyos bloques no tienen sede (franja sin sede asignada, o
+        // documento proyectado antes de #336/#337 -- CA-5) no aparece bajo NINGUN sedeId, pero SI
+        // en la consulta sin filtro. Regresion de #329 verificada explicitamente en el mismo test.
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var solicitudId = Guid.CreateVersion7();
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 6, 6);
+        var sedeIdCualquiera = Guid.CreateVersion7().ToString();
+
+        // PublicarTurnoAsync (helper de #329) nunca incluye la clave "Sede" en la franja --
+        // equivalente comportamental a un bloque con SedeId/NombreSede null (CA-4/CA-5).
+        await PublicarTurnoAsync(solicitudId, empleadoId, fecha, "[TEST] Turno Sin Sede");
+
+        var materializado = await EsperarTurnoEnLaListaAsync(empleadoId, fecha, ct);
+        materializado.Should().BeTrue(
+            $"la vista de {empleadoId} en {fecha} deberia materializarse dentro del timeout");
+
+        // Assert: filtrando por CUALQUIER sedeId, el dia sin sede queda fuera.
+        var responseFiltrada = await _client.GetAsync(
+            Ruta(fecha, fecha, empleadoId, sedeIdCualquiera), ct);
+        responseFiltrada.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuestaFiltrada = await responseFiltrada.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuestaFiltrada!.Turnos.Should().NotContain(t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+
+        // Assert: sin filtro de sede, el dia SI aparece -- regresion de #329 intacta.
+        var responseSinFiltro = await _client.GetAsync(Ruta(fecha, fecha, empleadoId), ct);
+        responseSinFiltro.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuestaSinFiltro = await responseSinFiltro.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuestaSinFiltro!.Turnos.Should().Contain(t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+
+        // Assert (CA-5): el dia se consulta SIN ERROR y sus bloques llegan con ambos campos de sede
+        // en null -- el mismo contrato que devuelve un documento proyectado antes de #336/#337.
+        var turnoSinSede = respuestaSinFiltro.Turnos.Single(
+            t => t.EmpleadoId == empleadoId && t.Fecha == fecha);
+        turnoSinSede.Bloques.Should().OnlyContain(b => b.SedeId == null && b.NombreSede == null);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_CombinaSedeIdConEmpleadoId_CuandoAmbosFiltrosSeAplican()
+    {
+        // CA-3 (issue #337): sedeId es combinable con empleadoId -- misma sede, dos empleados
+        // distintos, el filtro compuesto (AND) devuelve solo al empleado pedido.
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var fecha = new DateOnly(2026, 6, 7);
+        var sedeId = Guid.CreateVersion7().ToString();
+        var solicitudA = Guid.CreateVersion7();
+        var solicitudB = Guid.CreateVersion7();
+        var empleadoIdA = Guid.CreateVersion7().ToString();
+        var empleadoIdB = Guid.CreateVersion7().ToString();
+
+        await PublicarTurnoConSedeAsync(
+            solicitudA, empleadoIdA, fecha, "[TEST] Turno Combinado A", sedeId, "[TEST] Sede Combinada");
+        await PublicarTurnoConSedeAsync(
+            solicitudB, empleadoIdB, fecha, "[TEST] Turno Combinado B", sedeId, "[TEST] Sede Combinada");
+
+        var aMaterializado = await EsperarTurnoEnLaListaAsync(empleadoIdA, fecha, ct);
+        aMaterializado.Should().BeTrue(
+            $"la vista de {empleadoIdA} en {fecha} deberia materializarse dentro del timeout");
+
+        var bMaterializado = await EsperarTurnoEnLaListaAsync(empleadoIdB, fecha, ct);
+        bMaterializado.Should().BeTrue(
+            $"la vista de {empleadoIdB} en {fecha} deberia materializarse dentro del timeout");
+
+        // Act: combinar sedeId (compartido por A y B) + empleadoId=A.
+        var response = await _client.GetAsync(Ruta(fecha, fecha, empleadoIdA, sedeId), ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuesta.Should().NotBeNull();
+
+        // Assert: solo el turno de A -- el filtro compuesto excluye a B aunque comparta la sede.
+        respuesta!.Turnos.Should().ContainSingle(t => t.EmpleadoId == empleadoIdA && t.Fecha == fecha);
+        respuesta.Turnos.Should().NotContain(t => t.EmpleadoId == empleadoIdB);
     }
 }

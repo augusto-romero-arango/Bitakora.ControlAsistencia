@@ -16,6 +16,12 @@
 // vista) comparten nombre a proposito, mismo criterio de "tres islas" que ya aplican Empleado/
 // TurnoDiario/FranjaProgramada entre los ensamblados de eventos. Con ambos "using" activos el
 // simbolo corto "TipoBloque" queda ambiguo (CS0104); el alias resuelve solo el lado ReadModels.
+//
+// Issue #337 (fase roja): extension de este archivo -- CA-1, mapeo de SedeId/NombreSede en cada
+// Bloque desde la SedeProgramada que #336 ya estampa en cada BloqueTurno. MapearBloque (produccion
+// actual) ignora bloque.Sede por completo, asi que estos tests quedan en rojo hasta que
+// projection-implementer lo propague; ninguno reusa el algoritmo de Segmentar como oraculo, se
+// arma a mano igual que los tests de arriba (MEF-ADR-0002).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -159,5 +165,170 @@ public class TurnoVigenteProjectionTests
         vista.Id.Should().Be(streamKey);
         vista.EmpleadoId.Should().Be("EMP-001");
         vista.Fecha.Should().Be(fecha);
+    }
+
+    // --- Issue #337: mapeo de sede por bloque (CA-1) ---
+
+    // CA-1: una franja sin descansos ni extras con Sede asignada produce un unico Bloque Ordinaria
+    // con SedeId/NombreSede tomados de esa SedeProgramada. Hoy MapearBloque ignora bloque.Sede por
+    // completo (produccion actual: "new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin)"), asi
+    // que este test queda en rojo hasta que projection-implementer propague el dato.
+    [Fact]
+    public void Create_MapeaSedeIdYNombreSede_DesdeLaSedeDeLaFranja()
+    {
+        var empleado = EmpleadoDePrueba();
+        var fecha = new DateOnly(2026, 8, 3);
+        var streamKey = "EMP-001:2026-08-03";
+        var sede = new SedeProgramada("SD-SUBA", "Suba");
+
+        var franja = new FranjaProgramada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), DiaOffsetFin: 0,
+            Descansos: [], Extras: [], Descripcion: "(06:00-14:00)", Sede: sede);
+        var turnoDiario = new TurnoDiario("Turno Manana", [franja], "Turno Manana: (06:00-14:00)");
+        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+
+        var vista = TurnoVigenteProjection.Create(evento);
+
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+        vista.Bloques.Should().Equal(
+            new Bloque(
+                TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14),
+                SedeId: "SD-SUBA", NombreSede: "Suba"));
+    }
+
+    // CA-1 (issue #336, "Los bloques de descanso y extra heredan la sede de la franja madre que
+    // los contiene"): los CUATRO bloques que produce Segmentar sobre una franja con descanso y
+    // extra (mismo turno del test CA-1 de #328, arriba) heredan la MISMA sede de la franja madre --
+    // ninguno tiene sede propia.
+    [Fact]
+    public void Create_HeredaLaSedeDeLaFranjaEnBloquesDeDescansoYExtra()
+    {
+        var empleado = EmpleadoDePrueba();
+        var fecha = new DateOnly(2026, 8, 3);
+        var streamKey = "EMP-001:2026-08-03";
+        var sede = new SedeProgramada("SD-SUBA", "Suba");
+
+        var franja = new FranjaProgramada(
+            new TimeOnly(6, 0),
+            new TimeOnly(14, 0),
+            DiaOffsetFin: 0,
+            Descansos: [new SubFranjaProgramada(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0, "(10:00-10:15)")],
+            Extras: [new SubFranjaProgramada(new TimeOnly(5, 0), new TimeOnly(6, 0), 0, 0, "(05:00-06:00)")],
+            Descripcion: "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(05:00-06:00)]",
+            Sede: sede);
+        var turnoDiario = new TurnoDiario(
+            "Turno Manana",
+            [franja],
+            "Turno Manana: (06:00-14:00)[Descansos:(10:00-10:15)][Extras:(05:00-06:00)]");
+        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+
+        var vista = TurnoVigenteProjection.Create(evento);
+
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+        var bloquesEsperados = new[]
+        {
+            new Bloque(TipoBloqueVigente.Extra, medianoche.AddHours(5), medianoche.AddHours(6), "SD-SUBA", "Suba"),
+            new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(10), "SD-SUBA", "Suba"),
+            new Bloque(TipoBloqueVigente.Descanso, medianoche.AddHours(10), medianoche.AddHours(10).AddMinutes(15), "SD-SUBA", "Suba"),
+            new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(10).AddMinutes(15), medianoche.AddHours(14), "SD-SUBA", "Suba"),
+        };
+        vista.Bloques.Should().Equal(bloquesEsperados);
+    }
+
+    // CA-1, segunda mitad: "los bloques de franjas sin sede quedan con ambos campos null" -- una
+    // franja sin Sede (default, turno prearmado multi-sede sin resolver o evento anterior a #336)
+    // no inventa sede en ninguno de sus bloques. Oraculo explicito para que una implementacion
+    // futura no pueda "adivinar" un valor no-null y seguir pasando por casualidad.
+    [Fact]
+    public void Create_DejaSedeIdYNombreSedeNulos_CuandoLaFranjaNoTraeSede()
+    {
+        var empleado = EmpleadoDePrueba();
+        var fecha = new DateOnly(2026, 8, 3);
+        var streamKey = "EMP-001:2026-08-03";
+
+        var franja = new FranjaProgramada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), DiaOffsetFin: 0,
+            Descansos: [], Extras: [], Descripcion: "(06:00-14:00)");
+        var turnoDiario = new TurnoDiario("Turno Manana", [franja], "Turno Manana: (06:00-14:00)");
+        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+
+        var vista = TurnoVigenteProjection.Create(evento);
+
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+        vista.Bloques.Should().Equal(
+            new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14)));
+    }
+
+    // CA-2 (semantica del filtro fijada por el escenario de la conversacion del issue): un turno
+    // partido con dos franjas contiguas en sedes DISTINTAS (Suba en la manana, Chapinero en la
+    // tarde) produce bloques con la sede de SU PROPIA franja, no la del turno completo -- la razon
+    // de ser de "sede por bloque, nunca por dia" (issue #337, "Contexto").
+    [Fact]
+    public void Create_MapeaSedesDistintasPorBloque_CuandoElTurnoTieneFranjasEnSedesDistintas()
+    {
+        var empleado = EmpleadoDePrueba();
+        var fecha = new DateOnly(2026, 8, 3);
+        var streamKey = "EMP-001:2026-08-03";
+        var suba = new SedeProgramada("SD-SUBA", "Suba");
+        var chapinero = new SedeProgramada("SD-CHAPINERO", "Chapinero");
+
+        var franjaManana = new FranjaProgramada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), DiaOffsetFin: 0,
+            Descansos: [], Extras: [], Descripcion: "(06:00-14:00)", Sede: suba);
+        var franjaTarde = new FranjaProgramada(
+            new TimeOnly(14, 0), new TimeOnly(22, 0), DiaOffsetFin: 0,
+            Descansos: [], Extras: [], Descripcion: "(14:00-22:00)", Sede: chapinero);
+        var turnoDiario = new TurnoDiario(
+            "Turno Partido", [franjaManana, franjaTarde], "Turno Partido: (06:00-14:00)/(14:00-22:00)");
+        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+
+        var vista = TurnoVigenteProjection.Create(evento);
+
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+        var bloquesEsperados = new[]
+        {
+            new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14), "SD-SUBA", "Suba"),
+            new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(14), medianoche.AddHours(22), "SD-CHAPINERO", "Chapinero"),
+        };
+        vista.Bloques.Should().Equal(bloquesEsperados);
+    }
+
+    // CA-2/CA-1: "el ultimo gana" (semantica ya fijada por #328) aplica igual a la sede -- una
+    // reasignacion que cambia de sede no deja bloques con la sede VIEJA mezclada con datos nuevos.
+    // vistaPrevia simula un documento materializado antes de esta reasignacion, ya con sede (no el
+    // caso null de CA-5 -- ese es un dato persistido sin este issue desplegado, no ejercitable
+    // desde Apply).
+    [Fact]
+    public void Apply_SobrescribeLaSedeDeLosBloques_CuandoLaReasignacionCambiaDeSede()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+        var streamKey = "EMP-001:2026-08-03";
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+
+        var vistaPrevia = new TurnoVigente(
+            streamKey,
+            "EMP-001",
+            "Ana Ramirez",
+            fecha,
+            "Turno Manana",
+            "Turno Manana: (06:00-14:00)",
+            [new Bloque(
+                TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14),
+                "SD-SUBA", "Suba")]);
+
+        var chapinero = new SedeProgramada("SD-CHAPINERO", "Chapinero");
+        var franjaTarde = new FranjaProgramada(
+            new TimeOnly(14, 0), new TimeOnly(22, 0), DiaOffsetFin: 0,
+            Descansos: [], Extras: [], Descripcion: "(14:00-22:00)", Sede: chapinero);
+        var turnoTarde = new TurnoDiario("Turno Tarde", [franjaTarde], "Turno Tarde: (14:00-22:00)");
+        var segundoEvento = new TurnoDiarioAsignado(
+            streamKey, EmpleadoDePrueba(), fecha, turnoTarde, Guid.NewGuid());
+
+        var vista = TurnoVigenteProjection.Apply(segundoEvento, vistaPrevia);
+
+        vista.Bloques.Should().Equal(
+            new Bloque(
+                TipoBloqueVigente.Ordinaria, medianoche.AddHours(14), medianoche.AddHours(22),
+                "SD-CHAPINERO", "Chapinero"));
     }
 }
