@@ -107,6 +107,11 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         evento1.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
         evento1.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
 
+        // Issue #331 CA-2: la solicitud no incluye sede -> el comportamiento actual (anterior al
+        // issue) queda intacto: el evento diario publicado lleva Sede = null.
+        evento1.Sede.Should().BeNull();
+        evento2.Sede.Should().BeNull();
+
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion del consumidor real
         // (issue #223: acotado por SolicitudId, no "DLQ globalmente vacio" - residuales de otras
         // corridas no deben tumbar este test).
@@ -118,6 +123,71 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar el evento",
             solicitudId, SuscripcionConsumidor);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebePublicarProgramacionTurnoDiarioSolicitada_ConSedeCorrecta_CuandoSolicitudIncluyeSede()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: purgar mensajes preexistentes de ejecuciones anteriores
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        // Arrange: crear turno en catalogo
+        var turnoId = Guid.CreateVersion7();
+        var turnoPayload = new
+        {
+            turnoId,
+            nombre = "[TEST] Turno Smoke Sede",
+            ordinarias = new[]
+            {
+                new
+                {
+                    inicio = "08:00:00",
+                    fin = "16:00:00",
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
+            }
+        };
+        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Arrange: solicitud con sede -- issue #331 CA-1
+        var solicitudId = Guid.CreateVersion7();
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var sedeId = "SEDE-01";
+        var sedeNombre = "[TEST] Sede Principal";
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            empleado = new
+            {
+                empleadoId,
+                tipoIdentificacion = "CC",
+                numeroIdentificacion = "111222333",
+                nombres = "[TEST] Smoke Sede",
+                apellidos = "[TEST] Publicacion"
+            },
+            fechas = new[] { "2026-05-01" },
+            sede = new { id = sedeId, nombre = sedeNombre }
+        };
+
+        // Act: enviar solicitud via HTTP
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Assert: el evento diario publicado lleva la sede resuelta por el cliente
+        var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+
+        var sedeEsperada = new DetalleSede(sedeId, sedeNombre);
+        evento.Sede.Should().Be(sedeEsperada);
     }
 
     [Fact]
@@ -297,6 +367,60 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
                 apellidos = "[TEST] Perez"
             },
             fechas = Array.Empty<string>()
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // Issue #331 CA-3: sede presente pero con Id vacio se rechaza con 400, sin emitir eventos.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoSedeTieneIdVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new
+        {
+            id = Guid.CreateVersion7(),
+            turnoId = Guid.CreateVersion7(),
+            empleado = new
+            {
+                empleadoId = Guid.CreateVersion7().ToString(),
+                tipoIdentificacion = "CC",
+                numeroIdentificacion = "123456789",
+                nombres = "[TEST] Juan",
+                apellidos = "[TEST] Perez"
+            },
+            fechas = new[] { "2025-08-01" },
+            sede = new { id = "", nombre = "[TEST] Sede Principal" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // Issue #331 CA-3: sede presente pero con Nombre en blanco se rechaza con 400, sin emitir eventos.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoSedeTieneNombreEnBlanco()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new
+        {
+            id = Guid.CreateVersion7(),
+            turnoId = Guid.CreateVersion7(),
+            empleado = new
+            {
+                empleadoId = Guid.CreateVersion7().ToString(),
+                tipoIdentificacion = "CC",
+                numeroIdentificacion = "123456789",
+                nombres = "[TEST] Juan",
+                apellidos = "[TEST] Perez"
+            },
+            fechas = new[] { "2025-08-01" },
+            sede = new { id = "SEDE-01", nombre = "   " }
         };
 
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
