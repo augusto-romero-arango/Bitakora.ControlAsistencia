@@ -34,10 +34,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // Issue #337 (CA-2/CA-3/CA-4): sedeId es un tercer filtro opcional, combinable con empleadoId y el
 // rango -- "dias donde AL MENOS un bloque rige en esa sede" (issue #337, "Contexto"), por eso el
 // predicado es Bloques.Any(b => b.SedeId == sedeId) y no un campo a nivel de TurnoVigente (la sede
-// va por bloque, nunca por dia). Marten traduce Any() sobre la coleccion anidada a una consulta
-// JSONB (MEF-ADR-0035). Los bloques con SedeId null (CA-4/CA-5, franjas sin sede o documentos
-// proyectados antes de #336/#337) nunca igualan un sedeId no nulo, asi que quedan fuera de
-// cualquier filtro por sede sin necesitar una rama explicita.
+// va por bloque, nunca por dia). Sigue siendo la via de consulta (a') de MEF-ADR-0035 (LINQ sobre
+// session.Query<TView>()): Marten soporta Any() dentro de colecciones hijas y traduce una igualdad
+// como esta a containment JSONB -- data -> 'Bloques' @> '[{"SedeId": ...}]' --, la unica forma
+// elegible para indice GIN (martendb.io/documents/querying/linq/child-collections.html). Esa misma
+// semantica de containment resuelve CA-4/CA-5 sin rama explicita: un bloque sin la clave SedeId
+// (franja sin sede, o documento proyectado antes de #336/#337) nunca contiene un sedeId no nulo.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
