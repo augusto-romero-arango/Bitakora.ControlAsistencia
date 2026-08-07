@@ -142,6 +142,130 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             empleadoId, SuscripcionSmokeTests, TopicDiaCalculado);
     }
 
+    // Issue #336 CA-1/CA-3: el evento de bus trae la sede EFECTIVA ya resuelta por la cascada del
+    // lado de Programacion (#341) en cada franja -- el handler la propaga (DetalleSede ->
+    // SedeProgramada, mapeo mecanico) al persistir TurnoDiarioAsignado. La primera franja trae
+    // sede, la segunda no: mismo escenario "Turno Partido" que
+    // ProgramacionTurnoDiarioSolicitadaEventHandlerTests, verificado aqui contra el entorno real
+    // (persistencia en Postgres + cadena de eventos de Service Bus intacta).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeAsignarTurnoDiario_ConSedePorFranja_CuandoElEventoTraeSedesEfectivas()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        // Arrange
+        var correlationId = Guid.CreateVersion7().ToString();
+        var solicitudId = Guid.CreateVersion7();
+        var empleadoId = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 11);
+
+        var evento = new
+        {
+            SolicitudId = solicitudId,
+            Empleado = new
+            {
+                EmpleadoId = empleadoId,
+                TipoIdentificacion = "CC",
+                NumeroIdentificacion = "222333444",
+                Nombres = "[TEST] Smoke Sede",
+                Apellidos = "[TEST] Por Franja"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = "[TEST] Turno Partido Sede",
+                // Primera franja con sede efectiva resuelta; segunda sin sede (turno multi-sede
+                // parcialmente resuelto) -- distingue "una franja con sede" de "todas comparten
+                // la misma sede a nivel turno".
+                FranjasOrdinarias = new object[]
+                {
+                    new
+                    {
+                        HoraInicio = "06:00:00",
+                        HoraFin = "10:00:00",
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>(),
+                        Sede = new { Id = "SEDE-SUBA-TEST", Nombre = "[TEST] Suba" }
+                    },
+                    new
+                    {
+                        HoraInicio = "14:00:00",
+                        HoraFin = "18:00:00",
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>()
+                    }
+                }
+            }
+        };
+
+        // Arrange: purgar suscripcion smoke-tests de dia-calculado para evitar falsos positivos
+        // de ejecuciones anteriores (patron purge-before-act, ADR-0016).
+        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+
+        // Act: publicar al topic de Service Bus
+        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+
+        // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
+        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var tipoEvento = "turno_diario_asignado";
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, tipoEvento, Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+
+        existe.Should().BeTrue(
+            $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir en el stream {streamId}");
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaControlHoras, streamId, tipoEvento,
+            "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
+
+        // CA-1: la primera franja persiste con la sede efectiva mapeada a SedeProgramada; CA-3 (a
+        // nivel de bloque, cubierto por unit tests de Segmentar) parte de este mismo campo. La
+        // segunda franja (sin sede en el evento) queda null -- CA-2 de regresion, ya cubierto por
+        // el test anterior de esta clase, se reafirma aqui dentro de un mismo turno multi-sede.
+        var sedeSubaEsperada = new SedeProgramada("SEDE-SUBA-TEST", "[TEST] Suba");
+        var turnoDiarioEsperado = new TurnoDiario("[TEST] Turno Partido Sede", [
+            new FranjaProgramada(
+                new TimeOnly(6, 0), new TimeOnly(10, 0), 0,
+                Array.Empty<SubFranjaProgramada>(), Array.Empty<SubFranjaProgramada>(), "",
+                sedeSubaEsperada),
+            new FranjaProgramada(
+                new TimeOnly(14, 0), new TimeOnly(18, 0), 0,
+                Array.Empty<SubFranjaProgramada>(), Array.Empty<SubFranjaProgramada>(), "")
+        ], "");
+        var turnoDiarioPersistido = eventoPersistido
+            .GetProperty("DetalleTurno").Deserialize<TurnoDiario>();
+        turnoDiarioPersistido.Should().BeEquivalentTo(turnoDiarioEsperado,
+            opciones => opciones.ExcludingMembersNamed("Descripcion"));
+
+        // Efecto secundario (HU-131): DiaCalculado se sigue publicando con normalidad cuando las
+        // franjas traen sede -- el mapeo nuevo no interrumpe la cadena reactiva existente.
+        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
+            TopicDiaCalculado, SuscripcionSmokeTests,
+            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            Timeout);
+
+        diaCalculado.Fecha.Should().Be(fecha);
+        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+
+        // Assert: ausencia de dead letter de ESTA corrida en la suscripcion del consumidor de
+        // entrada -- confirma que el mapeo DetalleSede -> SedeProgramada no rompe el handler
+        // cuando el evento trae sedes efectivas por franja.
+        var existeDeadLetterProgramacion = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
+            TopicEntrada, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
+
+        existeDeadLetterProgramacion.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el mapeo de sede fallo al procesar el evento",
+            solicitudId, SuscripcionConsumidor);
+    }
+
     /// <summary>
     /// Regression test para el bug del issue #29.
     /// Wolverine serializa con camelCase. El endpoint consumidor usaba ToObjectFromJson
