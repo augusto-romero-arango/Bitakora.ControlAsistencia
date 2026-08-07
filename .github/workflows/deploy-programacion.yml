@@ -208,3 +208,7 @@ jobs:
       expected_sha: ${{ needs.deploy.outputs.sha }}
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+      # Issue #335: turno_creado no cruza ningun bus, asi que la unica verificacion black-box de su
+      # contenido persistido es leer mt_events del schema 'programacion' (MEF-ADR-0013, cobertura
+      # completa de efectos secundarios). El reusable ya aceptaba este secret opcional.
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}

@@ -20,6 +20,8 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Guid.Parse("018e4c1a-4f2b-7000-8000-aabbccddeeff");
     private static readonly Guid TurnoConHijasId =
         Guid.Parse("018e4c1a-4f2b-7000-8000-112233445566");
+    private static readonly Guid TurnoConSedePrearmadaId =
+        Guid.Parse("018e4c1a-4f2b-7000-8000-778899aabbcc");
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
@@ -126,6 +128,43 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         }.AsReadOnly(),
         DescripcionTurnoConHijas);
 
+    // --- Issue #335: turno del catalogo con la sede PREARMADA por franja ---
+    //
+    // No la trae la solicitud (esa es la sede de #331, que aqui va en null): la trae el turno,
+    // desde que se creo. El handler no la conoce ni la mapea -- fluye sola por el snapshot
+    // existente (CatalogoTurnos.ObtenerDetalle -> FranjaOrdinaria.ToDetalle).
+    private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
+
+    private static TurnoCreado CrearEventoTurnoConSedePrearmada() =>
+        TurnoCreado.Crear(
+            TurnoConSedePrearmadaId,
+            "Turno Con Sede",
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], SedeSuba)]);
+
+    // La sede entra al ToString() de la franja, asi que la Descripcion derivada la incluye. Es la
+    // consecuencia aceptada en el issue (los turnos ya creados no cambian) y el UNICO rastro de la
+    // sede que hoy alcanza el payload de bus: DetalleFranjaOrdinaria no tiene campo Sede (#341).
+    private static readonly string DescripcionFranjaConSede =
+        $"(06:00-14:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]";
+    private static readonly string DescripcionTurnoConSede =
+        $"Turno Con Sede {DescripcionFranjaConSede}";
+
+    private static readonly TurnoProgramado TurnoConSedePrearmadaEsperado = new(
+        "Turno Con Sede",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], DescripcionFranjaConSede, SedeSuba)
+        }.AsReadOnly(),
+        DescripcionTurnoConSede);
+
+    private static readonly DetalleTurno DetalleConSedePrearmadaEsperado = new(
+        "Turno Con Sede",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], DescripcionFranjaConSede)
+        }.AsReadOnly(),
+        DescripcionTurnoConSede);
+
     // --- Tests del camino feliz ---
 
     // CA-9, CA-10, CA-11, CA-12: emite evento de ES y publica evento publico por cada fecha
@@ -223,6 +262,27 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
             GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, sede: null));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, null);
+    }
+
+    // Issue #335: la sede PREARMADA en el catalogo llega al evento persistido sin que el flujo de
+    // solicitud la toque -- el handler no la lee ni la mapea, viaja dentro del snapshot del turno.
+    // Es el cimiento sobre el que #341 arma la cascada (sede de la franja ?? sede de la solicitud):
+    // si un refactor de ToDetalle/ObtenerDetalle dejara de copiarla, el defecto aparece aqui y no
+    // recien en #341. La solicitud va deliberadamente SIN sede propia para que el unico origen
+    // posible del dato sea el catalogo.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_PersisteLaSedePrearmadaDelCatalogo_CuandoElTurnoLaTraePorFranja()
+    {
+        Given(TurnoConSedePrearmadaId.ToString(), CrearEventoTurnoConSedePrearmada());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoConSedePrearmadaId, Empleado, [Fecha1]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoConSedePrearmadaEsperado, sede: null));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleConSedePrearmadaEsperado, sede: null));
+        And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
     }
 
     // CA-6: idempotencia - solicitud ya existe lanza excepcion que el endpoint mapea a 409

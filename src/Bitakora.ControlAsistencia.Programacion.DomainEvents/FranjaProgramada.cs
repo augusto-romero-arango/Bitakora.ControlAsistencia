@@ -13,6 +13,13 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// Equals/GetHashCode propios comparan Descansos/Extras POR VALOR (SequenceEqual, el record por
 /// defecto compararia por referencia -- ADR-0015) y EXCLUYEN Descripcion (dato derivado, no
 /// identidad de la franja) -- mismo criterio que DetalleFranjaOrdinaria (issues #129 y #288).
+///
+/// Issue #335: Sede es campo aditivo y opcional (null = sin sede prearmada). A diferencia de
+/// Descripcion, SI entra en Equals/GetHashCode -- es dato de identidad del diseno de la franja
+/// (que sede prearmo el catalogo), no un derivado. Divergencia deliberada de payload por rol
+/// (CA-ADR-0029 decision #5) frente a DetalleFranjaOrdinaria (PrivateEvents): el mapeo hacia el
+/// bus interno queda fuera de alcance de este issue (ver
+/// FranjaProgramadaParidadConDetalleFranjaOrdinariaTests).
 /// </remarks>
 public record FranjaProgramada(
     TimeOnly HoraInicio,
@@ -20,7 +27,8 @@ public record FranjaProgramada(
     int DiaOffsetFin,
     IReadOnlyList<SubFranjaProgramada> Descansos,
     IReadOnlyList<SubFranjaProgramada> Extras,
-    string Descripcion)
+    string Descripcion,
+    SedeProgramada? Sede = null)
 {
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
@@ -37,7 +45,8 @@ public record FranjaProgramada(
             && HoraFin == other.HoraFin
             && DiaOffsetFin == other.DiaOffsetFin
             && Descansos.SequenceEqual(other.Descansos)
-            && Extras.SequenceEqual(other.Extras);
+            && Extras.SequenceEqual(other.Extras)
+            && Sede == other.Sede;
     }
 
     public override int GetHashCode()
@@ -48,6 +57,7 @@ public record FranjaProgramada(
         hash.Add(DiaOffsetFin);
         foreach (var d in Descansos) hash.Add(d);
         foreach (var e in Extras) hash.Add(e);
+        hash.Add(Sede);
         return hash.ToHashCode();
     }
 }

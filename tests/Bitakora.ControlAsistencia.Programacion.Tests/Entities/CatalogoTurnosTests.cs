@@ -46,4 +46,34 @@ public class CatalogoTurnosTests
         detalle.FranjasOrdinarias.Should().HaveCount(2);
         detalle.FranjasOrdinarias[0].Descansos[0].Descripcion.Should().Be("(09:00-09:15)");
     }
+
+    // ---------- Issue #335 CA-1/CA-2: sede prearmada por franja en el catalogo ----------
+
+    // CA-1: turno partido con sede diferente en cada franja (ej. "Vigilante partido": manana ->
+    // Suba, tarde -> Chapinero) -- el detalle del catalogo expone la sede de cada franja.
+    [Fact]
+    public void ObtenerDetalle_ExponeSedePorFranja_CuandoTurnoPrearmaSedesDiferentesEnCadaFranja()
+    {
+        var sedeManana = new SedeProgramada("SEDE-SUBA", "Suba");
+        var sedeTarde = new SedeProgramada("SEDE-CHAPINERO", "Chapinero");
+        var catalogo = CrearCatalogo(
+            new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], sedeManana),
+            new DatosFranja(new TimeOnly(14, 0), new TimeOnly(22, 0), [], [], sedeTarde));
+
+        var detalle = catalogo.ObtenerDetalle();
+
+        detalle.FranjasOrdinarias[0].Sede.Should().Be(sedeManana);
+        detalle.FranjasOrdinarias[1].Sede.Should().Be(sedeTarde);
+    }
+
+    // CA-2: regresion -- un turno sin sedes prearmadas conserva el comportamiento actual.
+    [Fact]
+    public void ObtenerDetalle_DejaSedeNull_CuandoTurnoNoPrearmaNingunaSede()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+        var detalle = catalogo.ObtenerDetalle();
+
+        detalle.FranjasOrdinarias[0].Sede.Should().BeNull();
+    }
 }
