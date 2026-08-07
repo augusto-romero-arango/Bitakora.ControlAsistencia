@@ -71,8 +71,11 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     private static IReadOnlyList<Bloque> MapearBloques(TurnoDiarioAsignado evento) =>
         evento.DetalleTurno.Segmentar(evento.Fecha).Select(MapearBloque).ToList();
 
+    // Issue #337: SedeId/NombreSede se propagan tal cual desde BloqueTurno.Sede (ya estampada por
+    // TurnoDiario.Segmentar, issue #336) -- ambos quedan null cuando la franja de origen no trae
+    // sede (turno prearmado sin resolver o evento anterior a #336).
     private static Bloque MapearBloque(BloqueTurno bloque) =>
-        new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin);
+        new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin, bloque.Sede?.Id, bloque.Sede?.Nombre);
 
     private static TipoBloqueVigente MapearTipo(TipoBloqueEvento tipo) => tipo switch
     {

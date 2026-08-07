@@ -30,6 +30,14 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // rechazado con 400, empleadoId opcional filtra a un solo empleado (CA-2), recorte de rango con
 // RangoConsulta.Recortar (CA-3) y 200 con lista vacia cuando no hay datos en el rango (CA-4)
 // -- nunca 404: un rango sin turnos asignados no es un error.
+//
+// Issue #337 (CA-2/CA-3/CA-4): sedeId es un tercer filtro opcional, combinable con empleadoId y el
+// rango -- "dias donde AL MENOS un bloque rige en esa sede" (issue #337, "Contexto"), por eso el
+// predicado es Bloques.Any(b => b.SedeId == sedeId) y no un campo a nivel de TurnoVigente (la sede
+// va por bloque, nunca por dia). Marten traduce Any() sobre la coleccion anidada a una consulta
+// JSONB (MEF-ADR-0035). Los bloques con SedeId null (CA-4/CA-5, franjas sin sede o documentos
+// proyectados antes de #336/#337) nunca igualan un sedeId no nulo, asi que quedan fuera de
+// cualquier filtro por sede sin necesitar una rama explicita.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -60,6 +68,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // ausente y vacio se tratan igual -- sin filtro por empleado.
         var empleadoId = req.Query["empleadoId"].ToString();
 
+        // Issue #337, CA-2/CA-3: sedeId es opcional -- ausente = sin filtro por sede (regresion de
+        // #329 intacta, CA-3). Mismo tratamiento de StringValues.ToString() que empleadoId: ausente
+        // y vacio se comportan igual.
+        var sedeId = req.Query["sedeId"].ToString();
+
         // CA-3: recorte de la cota de 31 dias, siempre hacia adelante desde `desde`.
         var rangoAplicado = RangoConsulta.Recortar(desde, hasta);
 
@@ -77,6 +90,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 
         if (!string.IsNullOrEmpty(empleadoId))
             query = query.Where(v => v.EmpleadoId == empleadoId);
+
+        // CA-2 (issue #337): "dias donde al menos un bloque rige en esa sede" -- un dia multi-sede
+        // (turno partido Suba/Chapinero) aparece bajo cualquiera de las sedes de sus bloques.
+        if (!string.IsNullOrEmpty(sedeId))
+            query = query.Where(v => v.Bloques.Any(b => b.SedeId == sedeId));
 
         // Orden sugerido por la investigacion del planner: por EmpleadoId y luego por Fecha --
         // estable para pintar grillas multi-empleado x rango de fechas.
