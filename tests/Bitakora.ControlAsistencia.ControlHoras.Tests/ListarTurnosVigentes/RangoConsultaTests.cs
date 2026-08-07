@@ -4,12 +4,10 @@
 // oraculo se arma a mano (MEF-ADR-0002): nunca se deriva ejecutando RangoConsulta.Recortar sobre
 // si mismo.
 //
-// Agregado en la revision: la fase verde duplico RangoConsulta desde ListarTurnosDiarios (#290)
-// sin duplicar sus tests, asi que CA-3 quedaba cubierto UNICAMENTE por el smoke test contra dev
-// -- que exige deploy y no corre en el CI del PR. Espejo de
-// ListarTurnosDiarios/RangoConsultaTests.cs: mientras las dos copias de la logica convivan
-// (MEF-ADR-0018, Rule of Three), cada una necesita su propia guarda -- si no, una divergencia
-// silenciosa entre ambas cotas no la detecta nadie.
+// Agregado en la revision de #329: la fase verde escribio RangoConsulta sin sus tests, asi que
+// CA-3 quedaba cubierto UNICAMENTE por el smoke test contra dev -- que exige deploy y no corre en
+// el CI del PR. La cota y su direccion de recorte son reglas de negocio de la consulta: necesitan
+// una guarda que corra en cada PR.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;

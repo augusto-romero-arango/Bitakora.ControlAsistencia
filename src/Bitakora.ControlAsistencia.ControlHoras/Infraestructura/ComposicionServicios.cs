@@ -97,10 +97,11 @@ public static class ComposicionServicios
             // haya poblado (issue #237 seccion "Consecuencia asumida").
             options.Events.AddEventTypes(IdentidadEventosControlHoras.TiposPersistidos);
 
-            // Issue #294: declara del lado LECTURA la forma de mt_version que el worker ya impuso
-            // del lado escritura -- el reverso del principio de #268, donde el worker replicaba lo
-            // que el write-side poseia. Aqui la tabla la posee la proyeccion, y este Function App
-            // solo la consulta (ObtenerTurnoDiario, ListarTurnosDiarios).
+            // Issue #294 (aplicado a TurnoVigente por #328): declara del lado LECTURA la forma de
+            // mt_version que el worker ya impuso del lado escritura -- el reverso del principio de
+            // #268, donde el worker replicaba lo que el write-side poseia. Aqui la tabla la posee
+            // la proyeccion, y este Function App solo la consulta (ObtenerTurnoVigente,
+            // ListarTurnosVigentes).
             //
             // Marten aplica ProjectionDocumentPolicy a todo documento que sea target de una
             // proyeccion registrada en ese store: UseNumericRevisions = true, Metadata.Revision
@@ -110,25 +111,18 @@ public static class ComposicionServicios
             // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents") y el
             // codigo lo hace incondicional (Marten/Events/Projections/ProjectionDocumentPolicy.cs).
             //
-            // El worker registra TurnoDiarioProjection, asi que creo mt_version como bigint. Este
-            // store NO la registra ni puede hacerlo -- TurnoDiarioProjection vive en el ensamblado
+            // El worker registra TurnoVigenteProjection, asi que crea mt_version como bigint. Este
+            // store NO la registra ni puede hacerlo -- TurnoVigenteProjection vive en el ensamblado
             // del worker y referenciarlo violaria CA-ADR-0029 --, asi que sin esta linea esperaria
             // mt_version uuid sobre la MISMA tabla fisica. Con AutoCreate en su default
             // CreateOrUpdate el sintoma no es un 404: Marten intenta "alter column mt_version type
             // uuid" en CADA request, Postgres lo rechaza con 42804 (no hay cast automatico
-            // bigint -> uuid) y los dos GET responden 500 de forma permanente. Eso fue lo que
-            // ocurrio en dev tras el deploy de #290.
+            // bigint -> uuid) y los GET responden 500 de forma permanente. Eso fue lo que ocurrio
+            // en dev tras el deploy de #290, sobre el read model que #323 ya retiro.
             //
             // Se declara por documento y no via Policies para no alterar la forma de ningun otro
             // documento de este store. El par de config-tests (este lado y el del worker) congela
             // los mismos valores literales, que es la dimension que el par de #289 dejo abierta.
-            options.Schema.For<TurnoDiarioView>().UseNumericRevisions(true);
-
-            // Issue #328, mismo par que #294 cerro para TurnoDiarioView (comentario arriba): el
-            // worker registra TurnoVigenteProjection, asi que Marten crea mt_version de TurnoVigente
-            // como bigint alla. Este Function App no puede registrar esa proyeccion (vive en el
-            // ensamblado del worker, CA-ADR-0029) asi que declara la misma forma explicitamente
-            // para no divergir sobre la MISMA tabla fisica.
             options.Schema.For<TurnoVigente>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)

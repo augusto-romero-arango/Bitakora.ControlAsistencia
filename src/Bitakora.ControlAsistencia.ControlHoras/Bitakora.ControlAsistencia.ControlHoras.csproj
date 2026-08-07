@@ -30,10 +30,11 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ControlHoras.DomainEvents\Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
-    <!-- Issue #289: ObtenerTurnoDiario consulta TurnoDiarioView via session.LoadAsync (via
-         IDocumentStore ya registrado por AgregarMartenEventStore). El write-side resuelve el
-         mapping de esta vista sin ningun registro explicito adicional (investigacion del planner,
-         issue #289, punto 1: FindOrResolveDocumentType converge con el mapping del worker). -->
+    <!-- Issue #328/#329: ObtenerTurnoVigente y ListarTurnosVigentes consultan TurnoVigente via
+         session.LoadAsync/Query (sobre el IDocumentStore ya registrado por
+         AgregarMartenEventStore). El write-side resuelve el mapping de esta vista sin ningun
+         registro explicito adicional (investigacion del planner, issue #289, punto 1:
+         FindOrResolveDocumentType converge con el mapping del worker). -->
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
   </ItemGroup>
 

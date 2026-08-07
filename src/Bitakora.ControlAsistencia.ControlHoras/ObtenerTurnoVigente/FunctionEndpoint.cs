@@ -12,15 +12,14 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente;
 // Issue #328: Function GET del read model TurnoVigente (via (a) proyeccion materializada,
 // skills/projections/naming.md, MEF-ADR-0006 enmienda #363). Feature folder sin sufijo Function, un
 // namespace por query (skills/projections/read-apis.md): esta clase FunctionEndpoint no colisiona
-// con ObtenerTurnoDiario/ListarTurnosDiarios/RegistrarMarcacionFunction/... porque cada una vive en
-// su propio namespace.
+// con ListarTurnosVigentes/RegistrarMarcacionFunction/... porque cada una vive en su propio
+// namespace.
 //
-// Mismo patron que ObtenerTurnoDiario (issue #289): la ruta recibe empleadoId y fecha como los
-// componentes tipados de la clave natural compuesta -- la clave se reconstruye con
-// ControlDiarioAggregateRoot.ComputarStreamId, nunca con una concatenacion propia del endpoint
-// (MEF-ADR-0037). CA-4: fecha invalida -> 400 explicito; 200 con la vista completa (Id incluido --
-// la UI lo necesita como ancla de comandos, ver issue "Notas tecnicas") o 404 sin body cuando no
-// hay turno vigente.
+// La ruta recibe empleadoId y fecha como los componentes tipados de la clave natural compuesta
+// -- la clave se reconstruye con ControlDiarioAggregateRoot.ComputarStreamId, nunca con una
+// concatenacion propia del endpoint (MEF-ADR-0037). CA-4: fecha invalida -> 400 explicito; 200 con
+// la vista completa (Id incluido -- la UI lo necesita como ancla de comandos, ver issue "Notas
+// tecnicas") o 404 sin body cuando no hay turno vigente.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -35,7 +34,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
     {
         // Fecha no liga directo a DateOnly en el modelo aislado de Functions: se recibe como
         // string y se parsea con formato explicito, devolviendo 400 ante formato invalido
-        // (mismo patron de ObtenerTurnoDiario, issue #289).
+        // (borde HTTP con parseo tipado, MEF-ADR-0037).
         if (!DateOnly.TryParseExact(
                 fecha, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParseada))
             return new BadRequestObjectResult(

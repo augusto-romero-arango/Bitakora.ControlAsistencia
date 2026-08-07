@@ -6,15 +6,16 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- Issue #289 CA-1: TurnoDiarioView reusa InformacionEmpleado (PublicEvents) y DetalleTurno
-       (PrivateEvents) en vez de redeclarar equivalentes: son exactamente los DTOs planos
-       destinados a cruzar fronteras. Cosmos.EventDriven.Abstractions 2.3.1 (el unico
-       PackageReference de ambos proyectos) declara cero dependencias para net10.0, verificado
-       contra project.assets.json: ReadModels sigue sin ganar Marten ni transitivamente
-       (MEF-ADR-0034 seccion 5). -->
-  <ItemGroup>
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
-    <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
-  </ItemGroup>
+  <!-- Issue #323: este ensamblado es la CUARTA ISLA del repo, junto a las tres de eventos
+       (CA-ADR-0029 decision #2, aplicacion local de MEF-ADR-0039 decision #2): declara cero
+       <ProjectReference> y cero <PackageReference>. Sus read models son records propios y el
+       mapeo desde los eventos vive en la clase de proyeccion companion, en el worker.
+
+       Lo que la ausencia de referencias garantiza por construccion, y ninguna disciplina:
+       ReadModels no gana Marten ni transitivamente (MEF-ADR-0034 seccion 5), y el worker deja de
+       alcanzar los ensamblados de bus por la via transitiva que esta lista abria. Ese era el
+       proposito que MEF-ADR-0039 decision #2 declara y que CA-ADR-0029 registraba como deuda
+       abierta. Un read model se disena desde la necesidad del actor, no desde la forma del evento
+       disponible: reusar un tipo de bus aqui es la senal de que se diseno al reves. -->
 
 </Project>

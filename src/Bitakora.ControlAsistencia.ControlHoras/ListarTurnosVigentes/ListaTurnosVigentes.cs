@@ -6,8 +6,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 /// Envelope de respuesta de ListarTurnosVigentes (issue #329). NO es un read model -- vive en el
 /// Function App (ControlHoras), no en ReadModels: es el contrato HTTP de esta query, con el recorte
 /// de rango ya aplicado (CA-3) y el seam donde aterrizan paginacion y tope de resultados sin romper
-/// clientes existentes el dia que se agreguen (Rule of Three, MEF-ADR-0018), mismo patron que
-/// <c>ListarTurnosDiarios.ListaTurnosDiarios</c> (issue #290).
+/// clientes existentes el dia que se agreguen (Rule of Three, MEF-ADR-0018).
 ///
 /// <c>Turnos</c> reutiliza <see cref="TurnoVigente"/> tal cual la materializa la proyeccion (#328),
 /// ancla <c>Id</c> y <c>Bloques</c> incluidos -- decision de entrevista del issue #329 ("Notas

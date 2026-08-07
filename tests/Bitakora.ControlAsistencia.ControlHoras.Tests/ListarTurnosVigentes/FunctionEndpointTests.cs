@@ -1,8 +1,7 @@
 // Issue #329 CA-4: validacion del borde HTTP de ListarTurnosVigentes (desde/hasta obligatorios y
 // con formato yyyy-MM-dd, rango invertido rechazado). Estos casos son los unicos del endpoint que
 // NO dependen de Marten: cortocircuitan antes de abrir la QuerySession, asi que se prueban sobre
-// el mismo FunctionEndpoint real que activa el host. Espejo de
-// ListarTurnosDiarios/FunctionEndpointTests.cs (#290).
+// el mismo FunctionEndpoint real que activa el host.
 //
 // Agregado en la revision: sin este archivo, CA-4 (fechas invalidas o desde > hasta -> 400) queda
 // cubierto UNICAMENTE por el smoke test contra dev, que exige deploy y no corre en el CI del PR --
@@ -78,7 +77,7 @@ public class FunctionEndpointTests
     public async Task ListarTurnosVigentes_Retorna400_CuandoHastaEsAnteriorADesde()
     {
         // Rango invertido: decision documentada en FunctionEndpoint.cs (400, no lista vacia), misma
-        // eleccion que #290 congelo para ListarTurnosDiarios. Este test la fija para que un cambio
+        // eleccion que #290 congelo para el listado anterior. Este test la fija para que un cambio
         // de contrato sea deliberado y no un efecto colateral.
         var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-10&hasta=2026-05-05");
 

@@ -290,51 +290,11 @@ public class ConfiguracionMartenProjectionsTests
                 [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
     }
 
-    // Issue #289 CA-4: primera proyeccion concreta del BC. TurnoDiarioProjection (N1,
-    // SingleStreamProjection<TurnoDiarioView, string>) queda registrada con lifecycle Async, el
-    // canonico del worker (MEF-ADR-0034 seccion 3). Complementa
+    // Issue #328 CA-3: proyeccion concreta del dominio (N1, SingleStreamProjection<TurnoVigente,
+    // string> sobre el stream (EmpleadoId, Fecha)). Complementa
     // ConfigurarControlHoras_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo
-    // Inline -- una lista vacia la pasaria --, esta prueba que la proyeccion CONCRETA si se registro.
-    [Fact]
-    public void ConfigurarControlHoras_RegistraTurnoDiarioProjectionComoAsync()
-    {
-        using var provider = ProviderDeControlHoras();
-
-        provider.GetRequiredService<IControlHorasProjectionStore>()
-            .AssertProyeccionAsyncRegistrada("TurnoDiarioView");
-    }
-
-    // Issue #289 CA-5, mitad worker del punto abierto de MEF-ADR-0035 seccion 4: el daemon escribe
-    // TurnoDiarioView desde este named store y el Function App de ControlHoras la lee, en otro
-    // proceso, con session.LoadAsync y sin registrar la proyeccion. Que ambos lados converjan en la
-    // MISMA tabla fisica y la MISMA tenancy no lo garantiza ningun compilador.
-    //
-    // El oraculo es el literal de la tabla, y ComposicionServiciosTests
-    // .AgregarServiciosControlHoras_ResuelveTurnoDiarioViewSobreLaTablaQueMaterializaElWorker...
-    // congela el MISMO literal desde el write-side: juntos pinean las dos mitades sin que ningun
-    // ensamblado tenga que referenciar al otro (CA-ADR-0028/CA-ADR-0029). Si divergieran, el GET
-    // devolveria 404 para siempre con el daemon funcionando -- fallo silencioso que solo detectaria
-    // el smoke test contra dev (CA-8), fuera del CI de PR.
-    [Fact]
-    public void ConfigurarControlHoras_MaterializaTurnoDiarioViewSobreLaTablaQueConsultaElWriteSide()
-    {
-        using var provider = ProviderDeControlHoras();
-
-        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
-            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
-
-        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnodiarioview");
-        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
-        mapping.IdMember.Name.Should().Be(nameof(TurnoDiarioView.Id));
-    }
-
-    // Issue #328 CA-3: segunda proyeccion concreta del dominio (N1, SingleStreamProjection
-    // <TurnoVigente, string>, mismo stream que TurnoDiarioProjection -- (EmpleadoId, Fecha)).
-    // Complementa ConfigurarControlHoras_NoRegistraNingunaProyeccionInline (que solo prueba que
-    // NADA quedo Inline; una lista sin TurnoVigente la pasaria igual) verificando que la proyeccion
-    // CONCRETA de este issue si quedo registrada con lifecycle Async. FASE ROJA: hoy el seam
-    // (ConfiguracionMartenProjectionsControlHoras.ConfigurarControlHoras) todavia no encadena
-    // opts.Projections.Add<TurnoVigenteProjection>(...) -- eso es alcance de projection-implementer.
+    // Inline -- una lista vacia la pasaria --, esta prueba que la proyeccion CONCRETA si se
+    // registro con lifecycle Async, el canonico del worker (MEF-ADR-0034 seccion 3).
     [Fact]
     public void ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync()
     {
@@ -344,17 +304,25 @@ public class ConfiguracionMartenProjectionsTests
             .AssertProyeccionAsyncRegistrada("TurnoVigente");
     }
 
-    // Issue #328, mismo gotcha de "Numeric Revisioned Documents" que ya peno a TurnoDiarioView
-    // (issue #294): Marten aplica ProjectionDocumentPolicy SOLO a los documentos que son target de
-    // una proyeccion REGISTRADA en el store (UseNumericRevisions = true, Metadata.Revision --
-    // mt_version bigint -- habilitada, Metadata.Version -- mt_version uuid -- deshabilitada). Hasta
-    // que TurnoVigenteProjection se registre arriba, este mapping cae al default (Version
-    // habilitado, Revision deshabilitado) y este test queda en rojo.
+    // Issue #328, mismo gotcha de "Numeric Revisioned Documents" que el issue #294 ya peno sobre el
+    // read model anterior (retirado por #323): Marten aplica ProjectionDocumentPolicy SOLO a los
+    // documentos que son target de una proyeccion REGISTRADA en el store (UseNumericRevisions =
+    // true, Metadata.Revision -- mt_version bigint -- habilitada, Metadata.Version -- mt_version
+    // uuid -- deshabilitada). Si TurnoVigenteProjection dejara de registrarse arriba, este mapping
+    // caeria al default (Version habilitado, Revision deshabilitado) y este test se pondria rojo.
+    //
+    // Este lado NO declara nada para que los valores sean asi: los impone Marten al registrar la
+    // proyeccion (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents";
+    // Marten/Events/Projections/ProjectionDocumentPolicy.cs). O sea que este es el lado que DEFINE
+    // la forma fisica de la tabla y el write-side el que debe replicarla -- por eso el oraculo se
+    // congela aqui tambien: si una version futura de Marten cambiara el tipo por defecto de
+    // Metadata.Revision, ambos lados se pondrian rojos juntos en vez de dejar que la divergencia
+    // llegue a dev como un 42804 por request.
     //
     // El oraculo es literal y espejo del que ComposicionServiciosTests
     // .AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_
     // ParaTurnoVigente congela desde el write-side -- juntos cierran la misma dimension que #294
-    // tuvo que cerrar para TurnoDiarioView, antes de que un 42804 llegue a dev.
+    // tuvo que cerrar en su momento, antes de que un 42804 llegue a dev.
     [Fact]
     public void ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica()
     {
@@ -371,7 +339,7 @@ public class ConfiguracionMartenProjectionsTests
     // Issue #328, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
     // seccion 6): el daemon materializa TurnoVigente desde este named store y el Function App de
     // ControlHoras la lee, en otro proceso, con session.LoadAsync. Misma guarda que #289 dejo para
-    // TurnoDiarioView (arriba): que ambos lados converjan en la MISMA tabla fisica, la MISMA tenancy
+    // el read model anterior: que ambos lados converjan en la MISMA tabla fisica, la MISMA tenancy
     // y el MISMO IdMember no lo garantiza ningun compilador -- son dos configuraciones de Marten
     // independientes sobre el mismo schema, y una divergencia deja el GET en 404 permanente con el
     // daemon funcionando (fallo silencioso que solo veria el smoke test contra dev).
@@ -394,34 +362,6 @@ public class ConfiguracionMartenProjectionsTests
         mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
-    }
-
-    // Issue #294, mitad worker de la dimension que el par de #289 dejo abierta: la guarda de arriba
-    // pinea tabla, tenancy e Id, y las tres convergian -- el 500 en dev entro por la forma de
-    // mt_version, que nadie media.
-    //
-    // Este lado NO declara nada para que estos valores sean asi: los impone Marten al registrar
-    // TurnoDiarioProjection, via ProjectionDocumentPolicy, sobre todo documento target de una
-    // proyeccion registrada en el store (https://martendb.io/documents/concurrency, "Numeric
-    // Revisioned Documents"; Marten/Events/Projections/ProjectionDocumentPolicy.cs). O sea que este
-    // es el lado que DEFINE la forma fisica de la tabla, y el write-side es el que debe replicarla.
-    // Por eso el oraculo se congela aqui tambien: si una version futura de Marten cambiara el tipo
-    // por defecto de Metadata.Revision, este test se pondria rojo junto con su hermano
-    // ComposicionServiciosTests.AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaElWorker...
-    // en vez de dejar que la divergencia llegue a dev como un 42804 por request.
-    [Fact]
-    public void ConfigurarControlHoras_MaterializaTurnoDiarioViewConRevisionNumerica()
-    {
-        using var provider = ProviderDeControlHoras();
-
-        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
-            .Options.FindOrResolveDocumentType(typeof(TurnoDiarioView));
-
-        // Mismos literales que congela el write-side. Las dos columnas comparten el nombre fisico
-        // mt_version y solo una puede estar habilitada, de ahi que se midan ambas.
-        mapping.Metadata.Revision.Enabled.Should().BeTrue();
-        mapping.Metadata.Revision.Type.Should().Be("bigint");
-        mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
     // --- Seam de nivel BC (CA-4) ---

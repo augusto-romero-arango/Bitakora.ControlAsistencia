@@ -10,11 +10,11 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosVigente
 // obligatorios y empleadoId opcional. Tercera Function GET read-side del BC sobre la MISMA vista
 // TurnoVigente que ya materializa #328 -- se siembran datos publicando ProgramacionTurnoDiario-
 // Solicitada al bus interno, exactamente el mismo mecanismo de ObtenerTurnoVigenteSmokeTests (#328)
-// y ListarTurnosDiariosSmokeTests (#290).
+// y la suite del listado anterior (#290).
 //
 // Estos tests quedan ROJOS hasta que el deploy publique ListarTurnosVigentes en dev: mientras la
 // revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- los casos
-// 400 y 200 fallan por esa razon, no por el contrato. Mismo precedente que ListarTurnosDiarios
+// 400 y 200 fallan por esa razon, no por el contrato. Mismo precedente que el listado anterior
 // (#290) y ObtenerTurnoVigente (#328). El CI de PR no los ejecuta (solo corre *.Tests); su
 // veredicto real se lee despues del deploy.
 //
@@ -176,7 +176,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Formato DD-MM-YYYY en vez de yyyy-MM-dd, mismo precedente que ListarTurnosDiarios (#290).
+        // Formato DD-MM-YYYY en vez de yyyy-MM-dd, mismo precedente que #290.
         var response = await _client.GetAsync(
             "/api/control-horas/turnos-vigentes?desde=01-05-2026&hasta=2026-05-10", ct);
 

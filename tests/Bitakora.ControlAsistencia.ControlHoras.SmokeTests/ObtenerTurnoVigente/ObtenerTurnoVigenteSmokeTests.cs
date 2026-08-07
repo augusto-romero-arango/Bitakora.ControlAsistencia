@@ -8,15 +8,15 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ObtenerTurnoVigente
 
 // Issue #328: smoke tests de ObtenerTurnoVigente, GET control-horas/turnos-vigentes/{empleadoId}/{fecha}.
 // Function GET read-side sobre la proyeccion TurnoVigente (receta N1, MEF-ADR-0034/0035) --
-// reemplazo de TurnoDiarioView (#289) que convive con el read model viejo hasta la contraccion
-// (#323). Mismo mecanismo de siembra que ObtenerTurnoDiarioSmokeTests (#289): se publica
+// reemplazo del read model del issue #289, retirado por la contraccion del issue #323. Mismo
+// mecanismo de siembra que uso la suite de aquel read model (#289): se publica
 // ProgramacionTurnoDiarioSolicitada al bus interno; ControlHoras persiste TurnoDiarioAsignado y el
 // worker de proyecciones materializa la vista de forma asincrona.
 //
 // Estos tests quedan ROJOS hasta que el deploy publique ObtenerTurnoVigente en dev: mientras la
 // revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- el caso 400
-// falla y el caso 404 pasa por la razon equivocada. Mismo precedente que ObtenerTurnoDiarioSmokeTests
-// (#289) y ListarTurnosDiariosSmokeTests (#290). El CI de PR no los ejecuta (solo corre *.Tests); su
+// falla y el caso 404 pasa por la razon equivocada -- mismo precedente que las suites de #289 y
+// #290. El CI de PR no los ejecuta (solo corre *.Tests); su
 // veredicto real se lee despues del deploy.
 //
 // Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa TurnoVigente DESPUES de que
@@ -45,7 +45,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
     // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
     // JsonNamingPolicy.CamelCase para las respuestas HTTP), mientras que las formas locales de este
-    // archivo son PascalCase (mismo patron que ObtenerTurnoDiarioSmokeTests).
+    // archivo son PascalCase.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -181,7 +181,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         var response = await _client.GetAsync(Ruta(empleadoId, fecha), ct);
 
-        // Assert: CA-4 -- 404 SIN BODY (mismo criterio que ObtenerTurnoDiario, #289): distingue el
+        // Assert: CA-4 -- 404 SIN BODY (mismo criterio que #289): distingue el
         // NotFoundResult() del endpoint de un 404 con payload de error, y de la pagina de error del
         // host si la ruta no existiera.
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -194,7 +194,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: formato DD-MM-YYYY en vez de yyyy-MM-dd (mismo patron que ObtenerTurnoDiario, #289).
+        // Arrange: formato DD-MM-YYYY en vez de yyyy-MM-dd (mismo criterio que #289).
         var empleadoId = Guid.CreateVersion7().ToString();
 
         var response = await _client.GetAsync(
