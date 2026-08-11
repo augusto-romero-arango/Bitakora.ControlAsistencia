@@ -27,6 +27,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     private DateOnly _fechaInicioVinculacionVigente;
     private DateOnly? _fechaTerminacionVinculacionVigente;
 
+    // Issue #352: fecha efectiva de terminacion de la vinculacion ANTERIOR a la vigente (la que
+    // Apply(VinculacionIniciada) desplaza al reabrir con un reingreso). A diferencia de
+    // _fechaTerminacionVinculacionVigente (que Apply(VinculacionIniciada) resetea a null al
+    // reabrir), este campo sobrevive el reingreso: es el unico dato que permite evaluar la
+    // no-solape hacia atras (CorregirFechaInicio) despues de que la vinculacion anterior dejo de
+    // ser la vigente. null cuando nunca hubo una vinculacion anterior (colaborador en su primera
+    // vinculacion).
+    private DateOnly? _fechaTerminacionVinculacionAnterior;
+
     internal Identificacion Identificacion => _identificacion!;
     internal NombreColaborador Nombre => _nombre!;
     internal string CodigoVinculacionVigente => _codigoVinculacionVigente!;
@@ -55,8 +64,13 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #350: reabre la vinculacion al re-aplicarse -- una segunda VinculacionIniciada en el
     // mismo stream (reingreso) deja limpia la terminacion de la vinculacion anterior, sin lo cual
     // el reingreso rehidratado quedaria "ya terminado" heredando la terminacion previa.
+    // Issue #352: antes de resetear, conserva en _fechaTerminacionVinculacionAnterior la
+    // terminacion de la vinculacion que este reingreso desplaza -- es el unico rastro que
+    // CorregirFechaInicio tiene para evaluar la no-solape hacia atras una vez que
+    // _fechaTerminacionVinculacionVigente ya se reseteo a null.
     public void Apply(VinculacionIniciada e)
     {
+        _fechaTerminacionVinculacionAnterior = _fechaTerminacionVinculacionVigente;
         _codigoVinculacionVigente = e.Codigo;
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
@@ -71,8 +85,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
 
     // Issue #352: reemplaza la fecha de inicio de la ULTIMA vinculacion (tenga o no terminacion
     // registrada). Nunca lanza (MEF-ADR-0004 capa 4).
-    // STUB (fase roja, issue #352): el cuerpo completo queda para el implementer.
-    public void Apply(FechaInicioVinculacionCorregida e) => throw new NotImplementedException();
+    public void Apply(FechaInicioVinculacionCorregida e) => _fechaInicioVinculacionVigente = e.FechaInicio;
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
@@ -168,9 +181,25 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres --
     // el unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via
     // InternalsVisibleTo).
-    // STUB (fase roja, issue #352): el cuerpo completo queda para el implementer.
-    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida) =>
-        throw new NotImplementedException();
+    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida)
+    {
+        if (fechaCorregida == _fechaInicioVinculacionVigente)
+            return ResultadoCorreccionFechaInicioVinculacion.SinCambios;
+
+        if (_fechaTerminacionVinculacionVigente is not null &&
+            fechaCorregida > _fechaTerminacionVinculacionVigente.Value)
+            return ResultadoCorreccionFechaInicioVinculacion.FechaPosteriorATerminacionPropia;
+
+        if (_fechaTerminacionVinculacionAnterior is not null &&
+            fechaCorregida <= _fechaTerminacionVinculacionAnterior.Value)
+            return ResultadoCorreccionFechaInicioVinculacion.FechaSolapaVinculacionAnterior;
+
+        var evento = new FechaInicioVinculacionCorregida(fechaCorregida);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoCorreccionFechaInicioVinculacion.Exitosa;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.

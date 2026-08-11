@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction.CommandHandler;
@@ -23,7 +25,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacio
 //          FechaInicioVinculacionCorregida a _uncommittedEvents; WhenAsync/el middleware persiste
 //          via SaveChanges.
 // Sin publicacion a bus (event-sourcing puro, issue #352 "Consumidores: ninguno").
-// STUB (fase roja, issue #352): el cuerpo completo queda para el implementer.
 public partial class CorregirFechaInicioVinculacionCommandHandler
     : ICommandHandlerAsync<CorregirFechaInicioVinculacion>
 {
@@ -32,6 +33,25 @@ public partial class CorregirFechaInicioVinculacionCommandHandler
     public CorregirFechaInicioVinculacionCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(CorregirFechaInicioVinculacion command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(CorregirFechaInicioVinculacion command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // ReingresarColaboradorCommandHandler/TerminarVinculacionCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        var resultado = colaborador.CorregirFechaInicio(command.FechaCorregida);
+        switch (resultado)
+        {
+            case ResultadoCorreccionFechaInicioVinculacion.FechaPosteriorATerminacionPropia:
+                throw new InvalidOperationException(Mensajes.FechaPosteriorATerminacionPropia);
+            case ResultadoCorreccionFechaInicioVinculacion.FechaSolapaVinculacionAnterior:
+                throw new InvalidOperationException(Mensajes.FechaSolapaVinculacionAnterior);
+        }
+    }
 }
