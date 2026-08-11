@@ -5,17 +5,20 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 
 // Issue #330: aggregate root que representa a un colaborador bajo control de asistencia. Nace con
 // este issue -- primer aggregate y primeros dos eventos persistidos del dominio Colaboradores.
-// Identidad: Identificacion.ToString() ("CC:79543210"), no un Guid -- MEF-ADR-0037: punto unico de
-// conversion de la identidad de stream via ComputarStreamId.
-// Interfaz publica propuesta por el planner (issue #330): ComputarStreamId, Registrar (factory),
-// Apply (publicos, exigidos por el TestStore via reflection). El estado interno de la vinculacion
-// (codigo/fecha) NO es publico -- el issue no expone lectura; #349+ decidiran que observables
-// necesitan las invariantes de no-solape/maximo una vigente. Se expone como internal
-// (InternalsVisibleTo hacia Colaboradores.Tests, ver el .csproj) para que el harness de tests pueda
-// verificar el estado sin ampliar la superficie publica de cara a otros consumidores del ensamblado.
-// ADR-0015 (partial class): soporta clase Mensajes en archivo separado si se requiere (este aggregate
-// no tiene eventos de fallo propios en este corte -- "Identificacion ya registrada" es precondicion
-// de orquestacion del handler, MEF-ADR-0004 capa 2, no una regla de negocio del aggregate).
+//
+// Identidad: Identificacion.ToString() ("CC:79543210"), no un Guid. ComputarStreamId es el punto
+// unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la concatena.
+//
+// Estado observable: internal, no publico (InternalsVisibleTo hacia Colaboradores.Tests, ver el
+// .csproj). El issue no expone lectura de la vinculacion al exterior del ensamblado; los observables
+// existen para que el DSL de tests (And<>) verifique el estado rehidratado sin ampliar la superficie
+// publica del dominio. #349+ decidiran cuales necesitan sus invariantes (no-solape, maximo una
+// vigente).
+//
+// partial (MEF-ADR-0009): admite una clase Mensajes en archivo separado el dia que el aggregate
+// tenga eventos de fallo propios. En este corte no tiene ninguno -- "Identificacion ya registrada"
+// es precondicion de orquestacion del handler (MEF-ADR-0004 capa 2), no regla de negocio del
+// aggregate.
 public partial class ColaboradorAggregateRoot : AggregateRoot
 {
     private Identificacion? _identificacion;

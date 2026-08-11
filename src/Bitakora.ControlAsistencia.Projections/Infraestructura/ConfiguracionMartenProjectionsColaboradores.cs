@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
+using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
 
 namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
 
@@ -73,14 +75,41 @@ public static class ConfiguracionMartenProjectionsColaboradores
 
                 // Defensa en profundidad read-side: registra los tipos de evento persistidos de
                 // Colaboradores en el EventGraph de este named store, para que el daemon no dependa
-                // del fallback por mt_dotnet_type al leer streams preexistentes. Lista vacia al
-                // nacer -- se llena junto con IdentidadEventosColaboradores.TiposPersistidos.
+                // del fallback por mt_dotnet_type al leer streams preexistentes. La lista se lee del
+                // mismo artefacto que el write-side (issue #330: ColaboradorRegistrado y
+                // VinculacionIniciada), asi que ambos lados no pueden divergir.
                 opts.Events.AddEventTypes(IdentidadEventosColaboradores.TiposPersistidos);
 
-                // Cuando ColaboradorAggregateRoot aplique su primer evento y aparezca la primera
-                // proyeccion, se agrega aqui con opts.Projections.Add<TProjection>(ProjectionLifecycle.Async)
-                // -- lifecycle Async es el canonico del worker (MEF-ADR-0034 seccion 3); Inline solo
-                // seria valido con justificacion explicita en el issue correspondiente.
+                // Issue #330 (par 1 de MEF-ADR-0034 seccion 6, fila "Serializador"): el dominio
+                // estrena sus dos primeros eventos persistidos y ColaboradorRegistrado lleva payload
+                // rico -- Identificacion y NombreColaborador son sealed class con campos privados y
+                // ConfigurarSerializacion (#348). El write-side instala ese resolver dentro de su
+                // ConfigureMarten (ComposicionServicios.AgregarServiciosColaboradores); sin la MISMA
+                // fuente aqui, el daemon leeria colaborador_registrado con STJ vanilla y reventaria
+                // con NotSupportedException en runtime, no en el build.
+                //
+                // Serializador y resolver en una sola llamada, misma razon de forma que en
+                // ControlHoras/Programacion: UseSystemTextJsonForSerialization construye un
+                // serializador NUEVO y lo reemplaza, asi que invocarlo despues de un stj.Configure(...)
+                // perderia el TypeInfoResolver en silencio ("la trampa del orden", issue #268).
+                // EnumStorage.AsInteger/Casing.Default son los que fija el write-side via
+                // AgregarConfiguracionMartenComandos (Cosmos.EventSourcing.CritterStack 2.3.1,
+                // verificado por decompilacion) -- se declaran igual para no depender de un default
+                // de Marten que un upgrade futuro podria mover.
+                // Fuente unica con el write-side (MEF-ADR-0029): se invoca la misma clase, nunca
+                // una copia.
+                opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, jsonOptions =>
+                {
+                    var resolver = new DefaultJsonTypeInfoResolver();
+                    ConfiguracionSerializacionColaboradores.ConfigurarResolver(resolver);
+                    jsonOptions.TypeInfoResolver = resolver;
+                });
+
+                // El dominio ya persiste eventos (issue #330) pero todavia no tiene ninguna vista de
+                // lectura. Cuando aparezca la primera proyeccion se agrega aqui con
+                // opts.Projections.Add<TProjection>(ProjectionLifecycle.Async) -- lifecycle Async es
+                // el canonico del worker (MEF-ADR-0034 seccion 3); Inline solo seria valido con
+                // justificacion explicita en el issue correspondiente.
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

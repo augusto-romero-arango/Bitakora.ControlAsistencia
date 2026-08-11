@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador;
+namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 
 // Issue #330: comando para registrar un colaborador bajo control de asistencia.
 // Trigger: HTTP POST, Route: Colaboradores.

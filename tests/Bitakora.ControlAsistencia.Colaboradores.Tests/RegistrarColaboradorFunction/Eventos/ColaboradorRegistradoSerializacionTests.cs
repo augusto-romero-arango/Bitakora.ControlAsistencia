@@ -7,7 +7,7 @@ using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaborador.Eventos;
+namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction.Eventos;
 
 /// <summary>
 /// Verifica que ColaboradorRegistrado (payload rico: Identificacion + NombreColaborador, VOs de

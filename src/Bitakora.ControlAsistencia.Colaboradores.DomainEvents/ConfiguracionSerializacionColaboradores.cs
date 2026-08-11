@@ -5,15 +5,14 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
 // Issue #330: gemela de ConfiguracionSerializacionControlHoras/ConfiguracionSerializacionProgramacion.
 //
-// DESVIACION del plan del planner (documentada en el resumen de test-writer): el issue #330 sugiere
-// "ConfiguracionSerializacionColaboradores en Colaboradores/Infraestructura (gemela de
-// ConfiguracionSerializacionCalculoHoras)". ConfiguracionSerializacionCalculoHoras NO es el
-// precedente aplicable aqui -- esa clase registra VOs de CALCULO que nunca se persisten (viven en
-// Infraestructura/ del Function App a proposito, MEF-ADR-0039 seccion 5 solo mueve lo que persiste).
-// Identificacion y NombreColaborador SI son payload de eventos persistidos (ColaboradorRegistrado),
-// asi que el precedente real es ConfiguracionSerializacionControlHoras/ConfiguracionSerializacionProgramacion:
-// ambas viven en la raiz de su {Dominio}.DomainEvents (MEF-ADR-0039 decision 5), no en el Function
-// App -- es la unica fuente que el write-side Y el futuro worker de proyecciones pueden compartir.
+// Vive en la raiz de Colaboradores.DomainEvents, no en Infraestructura/ del Function App
+// (MEF-ADR-0039 decision 5): Identificacion y NombreColaborador son payload de un evento PERSISTIDO
+// (ColaboradorRegistrado), y esta es la unica fuente que pueden compartir los dos procesos que leen
+// ese evento -- el write-side (ComposicionServicios.AgregarServiciosColaboradores) y el worker de
+// proyecciones (ConfiguracionMartenProjectionsColaboradores). Fuente unica, nunca una copia
+// (MEF-ADR-0029); una divergencia entre ambos lados rompe la proyeccion en runtime, no en el build.
+// Contraejemplo: ConfiguracionSerializacionCalculoHoras si vive en el Function App de ControlHoras,
+// porque registra VOs de calculo que nunca se persisten y el worker no necesita.
 public static class ConfiguracionSerializacionColaboradores
 {
     public static JsonSerializerOptions CrearOpcionesMarten()

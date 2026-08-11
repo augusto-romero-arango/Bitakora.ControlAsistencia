@@ -3,18 +3,18 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
-using ComandoRegistrarColaborador = Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.RegistrarColaborador;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador;
+namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 
 // Issue #330: endpoint HTTP POST para registrar un colaborador bajo control de asistencia.
-// MEF-ADR-0006: [Function("RegistrarColaborador")] como convencion de nombrado; carpeta sin sufijo
-// "Function" (decision del planner, alineada con ObtenerTurnoVigente/ListarTurnosVigentes).
+// MEF-ADR-0006: [Function("RegistrarColaborador")] como convencion de nombrado; carpeta CON sufijo
+// "Function" porque es un comando HTTP y el record del comando es homonimo del feature folder --
+// las carpetas sin sufijo (ObtenerTurnoVigente/ListarTurnosVigentes) son queries GET, que no tienen
+// record de comando con el que colisionar. Sin el sufijo, este archivo no podria nombrar su propio
+// comando sin un alias de using.
 // Route = "Colaboradores": dominio y recurso son homonimos, un segundo segmento seria redundante.
-// Flujo esperado (precedente CrearTurnoFunction.FunctionEndpoint):
-//   validar request -> despachar comando -> InvalidOperationException -> 409 Conflict
-//                                          -> exito -> 202 Accepted.
-// STUB (fase roja, issue #330): el cuerpo completo queda para el implementer.
+// MEF-ADR-0004 (precedente CrearTurnoFunction.FunctionEndpoint): validar request (400 via
+// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict; exito -> 202.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarColaborador")]
@@ -23,7 +23,7 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         HttpRequest req,
         CancellationToken ct)
     {
-        var (comando, error) = await requestValidator.ValidarAsync<ComandoRegistrarColaborador>(req, ct);
+        var (comando, error) = await requestValidator.ValidarAsync<RegistrarColaborador>(req, ct);
         if (error is not null)
             return error;
 

@@ -3,17 +3,17 @@
 // PropertyName en resultado.Errors).
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.CommandHandler;
+using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 using FluentValidation.Results;
-using ComandoRegistrarColaborador = Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.RegistrarColaborador;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaborador;
+namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction;
 
 public class RegistrarColaboradorValidatorTests
 {
     private readonly RegistrarColaboradorValidator _validator = new();
 
-    private static ComandoRegistrarColaborador ComandoValido() => new(
+    private static RegistrarColaborador ComandoValido() => new(
         TipoIdentificacion: "CC",
         NumeroIdentificacion: "79543210",
         PrimerNombre: "Luis",
@@ -23,7 +23,7 @@ public class RegistrarColaboradorValidatorTests
         CodigoColaborador: "COL-001",
         FechaInicio: new DateOnly(2026, 1, 15));
 
-    private Task<ValidationResult> Validar(ComandoRegistrarColaborador comando) =>
+    private Task<ValidationResult> Validar(RegistrarColaborador comando) =>
         _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
 
     // Camino feliz -- todos los campos correctos
@@ -43,7 +43,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.TipoIdentificacion));
+            e.PropertyName == nameof(RegistrarColaborador.TipoIdentificacion));
     }
 
     // CA-3: TipoIdentificacion fuera de la lista cerrada (PILA: CC/CE/TI/PA/PT) produce 400, no 500
@@ -54,7 +54,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.TipoIdentificacion));
+            e.PropertyName == nameof(RegistrarColaborador.TipoIdentificacion));
     }
 
     // CA-4: TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- la normalizacion de
@@ -76,7 +76,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.NumeroIdentificacion));
+            e.PropertyName == nameof(RegistrarColaborador.NumeroIdentificacion));
     }
 
     // CA-3: PrimerNombre vacio produce 400
@@ -87,7 +87,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.PrimerNombre));
+            e.PropertyName == nameof(RegistrarColaborador.PrimerNombre));
     }
 
     // CA-3: PrimerApellido vacio produce 400
@@ -98,7 +98,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.PrimerApellido));
+            e.PropertyName == nameof(RegistrarColaborador.PrimerApellido));
     }
 
     // CA-3: CodigoColaborador vacio produce 400
@@ -109,7 +109,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.CodigoColaborador));
+            e.PropertyName == nameof(RegistrarColaborador.CodigoColaborador));
     }
 
     // CA-3: FechaInicio con el valor default de DateOnly produce 400 -- el tiempo de los hechos
@@ -121,7 +121,7 @@ public class RegistrarColaboradorValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(ComandoRegistrarColaborador.FechaInicio));
+            e.PropertyName == nameof(RegistrarColaborador.FechaInicio));
     }
 
     // SegundoNombre es opcional -- null no debe generar error

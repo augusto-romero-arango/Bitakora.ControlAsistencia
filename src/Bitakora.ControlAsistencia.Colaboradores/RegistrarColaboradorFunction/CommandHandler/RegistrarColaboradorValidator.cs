@@ -1,17 +1,15 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using FluentValidation;
-using ComandoRegistrarColaborador = Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.RegistrarColaborador;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.CommandHandler;
+namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.CommandHandler;
 
-// Issue #330: validacion de forma del comando RegistrarColaborador en el borde (MEF-ADR-0004 capa 1).
-// CA-3: TipoIdentificacion (requerido + en la lista cerrada -- normalizar trim+MAYUSCULAS antes de
-// intentar TipoIdentificacion.Desde, mismo criterio de normalizacion de entrada que el handler),
-// NumeroIdentificacion, PrimerNombre, PrimerApellido, CodigoColaborador y FechaInicio requeridos.
+// Issue #330: validacion de forma del comando RegistrarColaborador en el borde (MEF-ADR-0004 capa 1
+// -> 400 BadRequest). Requeridos: TipoIdentificacion (no vacio y en la lista cerrada),
+// NumeroIdentificacion, PrimerNombre, PrimerApellido, CodigoColaborador y FechaInicio.
 // SegundoNombre/SegundoApellido son opcionales (NombreColaborador.Crear ya los normaliza).
-// CA-6 (auto-registro): se descubre via AddValidatorsFromAssemblyContaining ya configurado en
-// ComposicionServicios (no requiere tocar el wiring de DI).
-public class RegistrarColaboradorValidator : AbstractValidator<ComandoRegistrarColaborador>
+// Se descubre solo via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura:
+// no requiere tocar el wiring de DI.
+public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColaborador>
 {
     public RegistrarColaboradorValidator()
     {
@@ -23,7 +21,7 @@ public class RegistrarColaboradorValidator : AbstractValidator<ComandoRegistrarC
             .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .Must(EsTipoIdentificacionReconocido)
-            .WithMessage("TipoIdentificacion no esta en la lista cerrada (CC, CE, TI, PA, PT)");
+            .WithMessage("El tipo de identificacion no es uno de los reconocidos");
 
         RuleFor(x => x.NumeroIdentificacion).NotEmpty();
         RuleFor(x => x.PrimerNombre).NotEmpty();

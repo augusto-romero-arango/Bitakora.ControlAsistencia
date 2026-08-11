@@ -5,7 +5,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaborador.Eventos;
+namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction.Eventos;
 
 /// <summary>
 /// Verifica que VinculacionIniciada (payload plano: string + DateOnly, sin VOs anidados)

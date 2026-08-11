@@ -3,17 +3,16 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
+using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ComandoRegistrarColaborador = Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.RegistrarColaborador;
-using FunctionEndpoint = Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.FunctionEndpoint;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaborador;
+namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction;
 
 public class FunctionEndpointTests
 {
-    private static ComandoRegistrarColaborador ComandoValido() => new(
+    private static RegistrarColaborador ComandoValido() => new(
         TipoIdentificacion: "CC",
         NumeroIdentificacion: "79543210",
         PrimerNombre: "Luis",
@@ -33,7 +32,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task RegistrarColaborador_Retorna202_CuandoComandoEsValido()
     {
-        var validator = new FakeRequestValidator<ComandoRegistrarColaborador>(ComandoValido());
+        var validator = new FakeRequestValidator<RegistrarColaborador>(ComandoValido());
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(validator, router);
 
@@ -46,7 +45,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task RegistrarColaborador_Retorna409_CuandoIdentificacionYaExiste()
     {
-        var validator = new FakeRequestValidator<ComandoRegistrarColaborador>(ComandoValido());
+        var validator = new FakeRequestValidator<RegistrarColaborador>(ComandoValido());
         var router = new FakeCommandRouter(lanzarInvalidOperationException: true);
         var function = new FunctionEndpoint(validator, router);
 
@@ -60,7 +59,7 @@ public class FunctionEndpointTests
     public async Task RegistrarColaborador_Retorna400_CuandoRequestEsInvalido()
     {
         var errorDeValidacion = new BadRequestObjectResult("El body es invalido o esta malformado");
-        var validator = new FakeRequestValidator<ComandoRegistrarColaborador>(error: errorDeValidacion);
+        var validator = new FakeRequestValidator<RegistrarColaborador>(error: errorDeValidacion);
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(validator, router);
 
