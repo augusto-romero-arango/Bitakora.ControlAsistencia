@@ -35,4 +35,12 @@ public class MensajesResxTests
         NombreColaborador.Mensajes.PrimerNombreRequerido.Should().NotBeNullOrWhiteSpace();
         NombreColaborador.Mensajes.PrimerApellidoRequerido.Should().NotBeNullOrWhiteSpace();
     }
+
+    // HU-353: extiende el mismo guardrail a las claves de Etiqueta.
+    [Fact]
+    public void Mensajes_ResuelvenTextoNoVacio_CuandoPertenecenAEtiqueta()
+    {
+        Etiqueta.Mensajes.CategoriaVacia.Should().NotBeNullOrWhiteSpace();
+        Etiqueta.Mensajes.ValorVacio.Should().NotBeNullOrWhiteSpace();
+    }
 }
