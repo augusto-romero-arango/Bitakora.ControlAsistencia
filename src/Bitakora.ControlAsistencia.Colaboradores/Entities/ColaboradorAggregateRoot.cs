@@ -66,6 +66,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // capa 4).
     public void Apply(VinculacionTerminada e) => _fechaTerminacionVinculacionVigente = e.FechaEfectiva;
 
+    // Issue #351: reemplaza el nombre de la persona. Nunca lanza (MEF-ADR-0004 capa 4).
+    public void Apply(NombresCorregidos e) => _nombre = e.Nombre;
+
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
     // stream, sin reloj (decision de refinamiento):
@@ -119,6 +122,27 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         Apply(evento);
 
         return ResultadoReingresoColaborador.Exitosa;
+    }
+
+    // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
+    // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
+    // TerminarVinculacion/Reingresar no responde razon: sin reglas de estado que violar, la unica
+    // causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
+    // La idempotencia es por igualdad de VALOR (NombreColaborador.Equals, #348), no por los
+    // primitivos crudos del comando: el handler ya construyo el VO, que normaliza trim y opcionales
+    // ausentes antes de que esta comparacion ocurra.
+    // No mira la vigencia de la vinculacion: los nombres son de la PERSONA, no de la vinculacion
+    // (decision de refinamiento 2026-08-11), asi que corregir sobre una vinculacion terminada es
+    // valido. La existencia del colaborador ya la garantizo el handler al rehidratarlo.
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar.
+    internal void CorregirNombres(NombreColaborador nombre)
+    {
+        if (nombre.Equals(_nombre))
+            return;
+
+        var evento = new NombresCorregidos(nombre);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
     }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron

@@ -63,17 +63,42 @@ public class PostgresFixture : IAsyncLifetime
         }, timeout);
     }
 
-    public async Task<T> ObtenerEventoAsync<T>(
+    /// <summary>
+    /// Obtiene el primer evento del tipo indicado en el stream, sin filtrar por contenido.
+    /// </summary>
+    /// <remarks>
+    /// Issue #351: el filtro por (campoJson, valorJson) del overload de abajo compara
+    /// <c>JsonElement.ToString()</c> contra un texto -- solo sirve para campos ESCALARES. Para un
+    /// campo objeto (un VO serializado, como el Nombre de nombres_corregidos) esa comparacion nunca
+    /// coincide: mt_events.data es jsonb, y PostgreSQL no preserva ni el whitespace ni el orden de
+    /// las claves (docs 8.14.1), mientras que <c>ToString()</c> sobre un objeto devuelve el texto
+    /// crudo tal como llego. El test que necesita verificar contenido de un campo objeto usa este
+    /// overload y compara por VALOR, deserializando con las opciones reales de Marten.
+    /// Es seguro no filtrar porque cada smoke test usa una identificacion nueva: su stream contiene
+    /// un solo evento de cada tipo.
+    /// </remarks>
+    public Task<T> ObtenerEventoAsync<T>(
+        string schema, string streamId, string tipoEvento, TimeSpan timeout) =>
+        ObtenerPrimerEventoAsync<T>(schema, streamId, tipoEvento, campoJson: null, valorJson: null, timeout);
+
+    public Task<T> ObtenerEventoAsync<T>(
         string schema, string streamId, string tipoEvento,
-        string campoJson, string valorJson, TimeSpan timeout)
+        string campoJson, string valorJson, TimeSpan timeout) =>
+        ObtenerPrimerEventoAsync<T>(schema, streamId, tipoEvento, campoJson, valorJson, timeout);
+
+    private async Task<T> ObtenerPrimerEventoAsync<T>(
+        string schema, string streamId, string tipoEvento,
+        string? campoJson, string? valorJson, TimeSpan timeout)
     {
         var json = await Polling.WaitUntilAsync(async () =>
         {
             var eventos = await ObtenerEventosInternoAsync(schema, streamId, tipoEvento);
 
-            var match = eventos.FirstOrDefault(e =>
-                e.TryGetProperty(campoJson, out var prop) &&
-                prop.ToString() == valorJson);
+            var match = campoJson is null || valorJson is null
+                ? eventos.FirstOrDefault()
+                : eventos.FirstOrDefault(e =>
+                    e.TryGetProperty(campoJson, out var prop) &&
+                    prop.ToString() == valorJson);
 
             if (match.ValueKind == JsonValueKind.Undefined)
                 return null;

@@ -58,4 +58,16 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<VinculacionTerminada>(options).Should().Be("vinculacion_terminada");
     }
+
+    // Issue #351 (gemela de las tres pruebas anteriores): congela el alias de NombresCorregidos,
+    // cuarto evento persistido de ColaboradorAggregateRoot (corregir nombres). Rojo esperado (fase
+    // roja, issue #351): IdentidadEventosColaboradores.TiposPersistidos sigue sin NombresCorregidos
+    // hasta que el implementer lo registre -- el implementer lo agrega ahi (no aqui, MEF-ADR-0002).
+    [Fact]
+    public void NombresCorregidos_TieneAliasNombresCorregidos()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<NombresCorregidos>(options).Should().Be("nombres_corregidos");
+    }
 }
