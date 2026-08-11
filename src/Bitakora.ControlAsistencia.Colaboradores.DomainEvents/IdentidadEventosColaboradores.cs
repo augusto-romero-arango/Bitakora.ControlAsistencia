@@ -17,5 +17,6 @@ public static class IdentidadEventosColaboradores
     [
         typeof(ColaboradorRegistrado),
         typeof(VinculacionIniciada),
+        typeof(VinculacionTerminada),
     ];
 }

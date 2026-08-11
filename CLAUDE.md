@@ -148,6 +148,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | **Encapsulamiento, Tell-don't-Ask, ocultación de estado interno (aplica por igual a aggregates y a value objects)** | MEF-ADR-0012 |
 | Serialización, value objects con ctor privado, records vs sealed class, `ConfigurarSerializacion`, proscripción de `[JsonConstructor]` | MEF-ADR-0012 |
 | Manejo de errores en event sourcing, eventos de fallo, no-throw en `Apply()` | MEF-ADR-0004 |
+| **Violación de regla de negocio en un comando HTTP sin consumidores downstream: el aggregate declina con resultado (no lanza, no emite evento de fallo) y el handler traduce a 409/404 con `.resx`; los eventos de fallo persistidos se reservan para flujos con un consumidor que reaccione** | CA-ADR-0030 (precisa el criterio capa 2 vs capa 3 de MEF-ADR-0004) |
 | Naming de eventos, versionado | MEF-ADR-0005 |
 | Naming de funciones Azure (HTTP y Service Bus) | MEF-ADR-0006 |
 | Topics y subscriptions de Service Bus, un topic por evento | MEF-ADR-0001 |

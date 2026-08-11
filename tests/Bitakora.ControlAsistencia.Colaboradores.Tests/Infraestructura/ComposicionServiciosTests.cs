@@ -213,7 +213,9 @@ public class ComposicionServiciosTests
     // IdentidadEventosColaboradores.TiposPersistidos acoplaria el guardrail al mismo artefacto que
     // AliasEventosColaboradoresTests ya verifica, y la asercion pasaria en verde aunque la lista
     // quedara vacia.
-    // Rojo esperado (fase roja, issue #330): TiposPersistidos sigue vacio.
+    // Issue #349: agrega VinculacionTerminada (segundo evento persistido de la vinculacion) a la
+    // lista esperada -- mismo criterio, mismo guardrail.
+    // Rojo esperado (fase roja, issue #349): TiposPersistidos todavia no incluye VinculacionTerminada.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -223,15 +225,15 @@ public class ComposicionServiciosTests
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
 
         store.AssertEventosPersistidosRegistrados(
-            [typeof(ColaboradorRegistrado), typeof(VinculacionIniciada)]);
+            [typeof(ColaboradorRegistrado), typeof(VinculacionIniciada), typeof(VinculacionTerminada)]);
     }
 
     // Issue #330: registrar el tipo solo sirve si el alias sigue siendo el que las filas ya
     // escritas llevan en su columna "type". AliasEventosColaboradoresTests lo congela sobre un
     // StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico lugar
     // donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
-    // Rojo esperado (fase roja, issue #330): TiposPersistidos sigue vacio, AllKnownEventTypes() no
-    // trae ninguna de las dos claves del diccionario esperado.
+    // Issue #349: agrega VinculacionTerminada -> "vinculacion_terminada" al diccionario esperado.
+    // Rojo esperado (fase roja, issue #349): VinculacionTerminada no aparece en AllKnownEventTypes().
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -243,7 +245,8 @@ public class ComposicionServiciosTests
         store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
         {
             [typeof(ColaboradorRegistrado)] = "colaborador_registrado",
-            [typeof(VinculacionIniciada)] = "vinculacion_iniciada"
+            [typeof(VinculacionIniciada)] = "vinculacion_iniciada",
+            [typeof(VinculacionTerminada)] = "vinculacion_terminada"
         });
     }
 
