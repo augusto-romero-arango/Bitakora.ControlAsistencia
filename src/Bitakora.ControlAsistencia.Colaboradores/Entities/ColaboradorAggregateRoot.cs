@@ -52,10 +52,14 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _nombre = e.Nombre;
     }
 
+    // Issue #350: reabre la vinculacion al re-aplicarse -- una segunda VinculacionIniciada en el
+    // mismo stream (reingreso) deja limpia la terminacion de la vinculacion anterior, sin lo cual
+    // el reingreso rehidratado quedaria "ya terminado" heredando la terminacion previa.
     public void Apply(VinculacionIniciada e)
     {
         _codigoVinculacionVigente = e.Codigo;
         _fechaInicioVinculacionVigente = e.FechaInicio;
+        _fechaTerminacionVinculacionVigente = null;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -104,9 +108,20 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // aplicacion, ajustarlo es parte natural del alcance de este issue (ver comentario de #330 en
     // Apply(VinculacionIniciada) mas arriba).
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
-    // STUB (fase roja, issue #350): el cuerpo completo queda para el implementer.
-    internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio) =>
-        throw new NotImplementedException();
+    internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio)
+    {
+        if (_fechaTerminacionVinculacionVigente is null)
+            return ResultadoReingresoColaborador.VinculacionAbierta;
+
+        if (fechaInicio <= _fechaTerminacionVinculacionVigente.Value)
+            return ResultadoReingresoColaborador.FechaSolapaVinculacionAnterior;
+
+        var evento = new VinculacionIniciada(codigo, fechaInicio);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoReingresoColaborador.Exitosa;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
