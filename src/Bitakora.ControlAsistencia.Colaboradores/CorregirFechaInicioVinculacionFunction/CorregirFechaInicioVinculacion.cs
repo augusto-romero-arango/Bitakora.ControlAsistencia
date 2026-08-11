@@ -1,0 +1,20 @@
+namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
+
+// Issue #352: comando para corregir la fecha de inicio de la ULTIMA vinculacion de un colaborador
+// (tenga o no terminacion registrada, decision de refinamiento 2026-08-11) -- quinto comando del
+// ciclo de vida de ColaboradorAggregateRoot (desglose #348-#357). La fecha de inicio es un dato
+// requerido que puede nacer errado (caso real: se registro ayer con la fecha mal) y necesita su
+// enmienda.
+// Trigger: HTTP POST, Route: Colaboradores/FechasInicio (el recurso que se reemplaza, gemelo de
+// Colaboradores/Nombres #351; la identificacion viaja en el body porque su representacion
+// "CC:79543210" contiene ":", hostil como segmento de URL).
+// Payload primitivo -- igual que los demas comandos del ciclo de vida (MEF-ADR-0039 decision 6,
+// payload por rol): NUNCA reusa un tipo de Colaboradores.DomainEvents como campo. El handler
+// construye TipoIdentificacion/Identificacion a partir de estos primitivos (parseo tipado unico en
+// el borde, MEF-ADR-0037 seccion 2).
+// FechaCorregida es REQUERIDA (DateOnly, sin default del servidor) -- doctrina bitemporal del BC:
+// el tiempo de los hechos viene del cliente, nunca del reloj del servidor.
+public record CorregirFechaInicioVinculacion(
+    string TipoIdentificacion,
+    string NumeroIdentificacion,
+    DateOnly FechaCorregida);

@@ -218,6 +218,10 @@ public class ComposicionServiciosTests
     // Issue #351: agrega NombresCorregidos (cuarto evento persistido, corregir nombres) a la lista
     // esperada.
     // Rojo esperado (fase roja, issue #351): TiposPersistidos todavia no incluye NombresCorregidos.
+    // Issue #352: agrega FechaInicioVinculacionCorregida (quinto evento persistido, corregir la
+    // fecha de inicio de la ultima vinculacion) a la lista esperada.
+    // Rojo esperado (fase roja, issue #352): TiposPersistidos todavia no incluye
+    // FechaInicioVinculacionCorregida.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -231,7 +235,8 @@ public class ComposicionServiciosTests
                 typeof(ColaboradorRegistrado),
                 typeof(VinculacionIniciada),
                 typeof(VinculacionTerminada),
-                typeof(NombresCorregidos)
+                typeof(NombresCorregidos),
+                typeof(FechaInicioVinculacionCorregida)
             ]);
     }
 
@@ -242,6 +247,10 @@ public class ComposicionServiciosTests
     // Issue #349: agrega VinculacionTerminada -> "vinculacion_terminada" al diccionario esperado.
     // Issue #351: agrega NombresCorregidos -> "nombres_corregidos" al diccionario esperado.
     // Rojo esperado (fase roja, issue #351): NombresCorregidos no aparece en AllKnownEventTypes().
+    // Issue #352: agrega FechaInicioVinculacionCorregida -> "fecha_inicio_vinculacion_corregida"
+    // al diccionario esperado.
+    // Rojo esperado (fase roja, issue #352): FechaInicioVinculacionCorregida no aparece en
+    // AllKnownEventTypes().
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -255,7 +264,8 @@ public class ComposicionServiciosTests
             [typeof(ColaboradorRegistrado)] = "colaborador_registrado",
             [typeof(VinculacionIniciada)] = "vinculacion_iniciada",
             [typeof(VinculacionTerminada)] = "vinculacion_terminada",
-            [typeof(NombresCorregidos)] = "nombres_corregidos"
+            [typeof(NombresCorregidos)] = "nombres_corregidos",
+            [typeof(FechaInicioVinculacionCorregida)] = "fecha_inicio_vinculacion_corregida"
         });
     }
 

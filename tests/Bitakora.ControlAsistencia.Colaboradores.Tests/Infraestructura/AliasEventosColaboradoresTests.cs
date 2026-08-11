@@ -70,4 +70,18 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<NombresCorregidos>(options).Should().Be("nombres_corregidos");
     }
+
+    // Issue #352 (gemela de las cuatro pruebas anteriores): congela el alias de
+    // FechaInicioVinculacionCorregida, quinto evento persistido de ColaboradorAggregateRoot
+    // (corregir la fecha de inicio de la ultima vinculacion). Rojo esperado (fase roja, issue
+    // #352): IdentidadEventosColaboradores.TiposPersistidos sigue sin
+    // FechaInicioVinculacionCorregida hasta que el implementer lo registre -- el implementer lo
+    // agrega ahi (no aqui, MEF-ADR-0002).
+    [Fact]
+    public void FechaInicioVinculacionCorregida_TieneAliasFechaInicioVinculacionCorregida()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<FechaInicioVinculacionCorregida>(options).Should().Be("fecha_inicio_vinculacion_corregida");
+    }
 }

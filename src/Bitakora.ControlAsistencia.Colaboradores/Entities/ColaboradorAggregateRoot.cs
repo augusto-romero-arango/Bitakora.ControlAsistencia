@@ -69,6 +69,11 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #351: reemplaza el nombre de la persona. Nunca lanza (MEF-ADR-0004 capa 4).
     public void Apply(NombresCorregidos e) => _nombre = e.Nombre;
 
+    // Issue #352: reemplaza la fecha de inicio de la ULTIMA vinculacion (tenga o no terminacion
+    // registrada). Nunca lanza (MEF-ADR-0004 capa 4).
+    // STUB (fase roja, issue #352): el cuerpo completo queda para el implementer.
+    public void Apply(FechaInicioVinculacionCorregida e) => throw new NotImplementedException();
+
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
     // stream, sin reloj (decision de refinamiento):
@@ -144,6 +149,28 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // Issue #352: mecanismo combinado (CA-ADR-0030) -- "declinar con resultado" para las dos
+    // reglas de estado y "declinar en silencio" (precedente CorregirNombres #351) para la
+    // idempotencia. Tres reglas evaluables solo con la historia del stream, sin reloj (decision de
+    // refinamiento 2026-08-11):
+    //   - SinCambios (idempotencia, se evalua PRIMERO): fechaCorregida == _fechaInicioVinculacionVigente
+    //     -> ningun evento, sin excepcion (patron #351: la idempotencia no consulta las demas reglas).
+    //   - FechaPosteriorATerminacionPropia: la ULTIMA vinculacion tiene terminacion registrada
+    //     (_fechaTerminacionVinculacionVigente is not null) y fechaCorregida >
+    //     _fechaTerminacionVinculacionVigente.Value (fechaCorregida == la propia terminacion es
+    //     valida: vinculacion de un solo dia, consistente con TerminarVinculacion #349).
+    //   - FechaSolapaVinculacionAnterior: no-solape hacia atras, solo ejercitable cuando existe una
+    //     vinculacion anterior (tras un reingreso, #350) -- fechaCorregida es igual o anterior a la
+    //     FechaEfectiva de esa vinculacion anterior (misma frontera que Reingresar #350: el dia de
+    //     la fecha efectiva pertenece a la vinculacion que termino).
+    // Exito: appendea FechaInicioVinculacionCorregida a _uncommittedEvents y lo aplica.
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres --
+    // el unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via
+    // InternalsVisibleTo).
+    // STUB (fase roja, issue #352): el cuerpo completo queda para el implementer.
+    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida) =>
+        throw new NotImplementedException();
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
