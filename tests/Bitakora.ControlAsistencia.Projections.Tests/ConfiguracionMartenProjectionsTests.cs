@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
@@ -44,6 +45,9 @@ public class ConfiguracionMartenProjectionsTests
 
     private static ServiceProvider ProviderDeControlHoras() =>
         CrearProvider(services => services.ConfigurarControlHoras(ConnectionStringDummy));
+
+    private static ServiceProvider ProviderDeColaboradores() =>
+        CrearProvider(services => services.ConfigurarColaboradores(ConnectionStringDummy));
 
     // --- Programacion (CA-1, CA-3, CA-6, CA-7) ---
 
@@ -364,6 +368,48 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
     }
 
+    // --- Colaboradores (issue #330: el dominio estrena sus dos primeros eventos persistidos) ---
+
+    // Issue #330 (par 1 de MEF-ADR-0034 seccion 6, fila "Tipos de evento registrados"): el read-side
+    // reconoce los tipos que el write-side acaba de empezar a persistir. Hasta este issue
+    // IdentidadEventosColaboradores.TiposPersistidos estaba vacio y no habia nada que alinear.
+    //
+    // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // TiposPersistidos acoplaria el guardrail al mismo artefacto que ya verifica el write-side.
+    [Fact]
+    public void ConfigurarColaboradores_RegistraLosTiposDeEventoPersistidos()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .AssertEventosPersistidosRegistrados(
+                [typeof(ColaboradorRegistrado), typeof(VinculacionIniciada)]);
+    }
+
+    // Issue #330 (par 1 de MEF-ADR-0034 seccion 6, fila "Serializador"): ColaboradorRegistrado lleva
+    // payload rico -- Identificacion y NombreColaborador son sealed class con campos privados y
+    // ConfigurarSerializacion (#348) --, asi que el write-side instala un TypeInfoResolver custom
+    // dentro de su ConfigureMarten. Sin la MISMA fuente instalada en este named store, el dia que
+    // este dominio registre su primera proyeccion el daemon leeria colaborador_registrado con STJ
+    // vanilla y reventaria con NotSupportedException en runtime, no en el build (el mismo canal que
+    // ColaboradorRegistradoSerializacionTests.Deserializar_LanzaNotSupportedException_... documenta).
+    // Fuente unica con el write-side (MEF-ADR-0029): se invoca la misma clase, nunca una copia.
+    [Fact]
+    public void ConfigurarColaboradores_ConservaElResolverDeSerializacionCustom()
+    {
+        using var provider = ProviderDeColaboradores();
+        var evento = new ColaboradorRegistrado(
+            Identificacion.Crear(TipoIdentificacion.CC, "79543210"),
+            NombreColaborador.Crear("Luis", "Augusto", "Barreto", "Prieto"));
+
+        var restaurado = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .DeserializarConResolverDeSerializacionCustom(evento);
+
+        restaurado.Should().NotBeNull();
+        restaurado.Identificacion.ToString().Should().Be("CC:79543210");
+        restaurado.Nombre.NombreCompleto.Should().Be("Luis Augusto Barreto Prieto");
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
@@ -377,5 +423,6 @@ public class ConfiguracionMartenProjectionsTests
 
         provider.GetService<IProgramacionProjectionStore>().Should().NotBeNull();
         provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
+        provider.GetService<IColaboradoresProjectionStore>().Should().NotBeNull();
     }
 }
