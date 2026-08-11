@@ -8,5 +8,10 @@
     "dominio": "ControlHoras",
     "base_url": "https://func-asist-dev-control-horas.azurewebsites.net",
     "test_project": "tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/"
+  },
+  {
+    "dominio": "Colaboradores",
+    "base_url": "https://func-asist-dev-colaboradores.azurewebsites.net",
+    "test_project": "tests/Bitakora.ControlAsistencia.Colaboradores.SmokeTests/"
   }
 ]

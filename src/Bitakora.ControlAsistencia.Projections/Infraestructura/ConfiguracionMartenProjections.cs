@@ -15,6 +15,7 @@ public static class ConfiguracionMartenProjections
         // remover las anteriores (MEF-ADR-0006/MEF-ADR-0034 seccion 2).
         services.ConfigurarProgramacion(martenConnectionString);
         services.ConfigurarControlHoras(martenConnectionString);
+        services.ConfigurarColaboradores(martenConnectionString);
 
         return services;
     }

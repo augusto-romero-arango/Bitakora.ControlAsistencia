@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Isla de eventos (CA-ADR-0029 decision #2, canon MEF-ADR-0039): ninguna dependencia de
+       proyecto, tampoco hacia PublicEvents/PrivateEvents, y ningun paquete. El dominio nace sin
+       ningun tipo persistido; los payloads ricos de sus eventos (si los necesita) se agregan a
+       este ensamblado cuando ColaboradorAggregateRoot los aplique (issue #360). -->
+
+</Project>

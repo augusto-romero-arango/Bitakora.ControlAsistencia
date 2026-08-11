@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Programacion.DomainEvents\Bitakora.ControlAsistencia.Programacion.DomainEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ControlHoras.DomainEvents\Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.Colaboradores.DomainEvents\Bitakora.ControlAsistencia.Colaboradores.DomainEvents.csproj" />
   </ItemGroup>
 
   <ItemGroup>
