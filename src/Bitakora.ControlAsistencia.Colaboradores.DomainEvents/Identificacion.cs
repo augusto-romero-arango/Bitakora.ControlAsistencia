@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -39,20 +40,54 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     }
 
     // CA-1, CA-2: normaliza (trim + MAYUSCULAS) y valida que el numero no sea vacio ni whitespace.
-    public static Identificacion Crear(TipoIdentificacion tipo, string numero) =>
-        throw new NotImplementedException();
+    public static Identificacion Crear(TipoIdentificacion tipo, string numero)
+    {
+        if (string.IsNullOrWhiteSpace(numero))
+            throw new ArgumentException(Mensajes.NumeroVacio, nameof(numero));
+
+        return new Identificacion(tipo, numero.Trim().ToUpperInvariant());
+    }
 
     // Contrato: clave del stream de Colaborador.
-    public override string ToString() => throw new NotImplementedException();
+    public override string ToString() => $"{_tipo}:{_numero}";
 
-    // Igualdad por valor
-    public bool Equals(Identificacion? other) => throw new NotImplementedException();
+    // Igualdad por valor. _tipo se compara por referencia (deliberado, ver remarks de
+    // TipoIdentificacion): Desde() siempre retorna la instancia canonica de la lista cerrada.
+    public bool Equals(Identificacion? other) =>
+        other is not null && _tipo == other._tipo && _numero == other._numero;
 
     public override bool Equals(object? obj) => Equals(obj as Identificacion);
 
-    public override int GetHashCode() => throw new NotImplementedException();
+    public override int GetHashCode() => HashCode.Combine(_tipo, _numero);
 
     // Mapping de serializacion -- vive aqui porque cambia con la clase (patron SubFranja).
-    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver) =>
-        throw new NotImplementedException();
+    // _tipo se persiste como su codigo literal ("CC") y se rehidrata via TipoIdentificacion.Desde --
+    // el codigo, no una sombra numerica, es el contrato de identidad (MEF-ADR-0012).
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    {
+        var ctor = typeof(Identificacion)
+            .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+        var tipoField = typeof(Identificacion)
+            .GetField("_tipo", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var numeroField = typeof(Identificacion)
+            .GetField("_numero", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        resolver.Modifiers.Add(typeInfo =>
+        {
+            if (typeInfo.Type != typeof(Identificacion)) return;
+            if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+
+            typeInfo.CreateObject = () => ctor.Invoke(null);
+
+            var tipoProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "tipo");
+            tipoProp.Get = obj => ((Identificacion)obj)._tipo.ToString();
+            tipoProp.Set = (obj, val) => tipoField.SetValue(obj, TipoIdentificacion.Desde((string)val!));
+            typeInfo.Properties.Add(tipoProp);
+
+            var numeroProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "numero");
+            numeroProp.Get = obj => numeroField.GetValue(obj);
+            numeroProp.Set = (obj, val) => numeroField.SetValue(obj, val);
+            typeInfo.Properties.Add(numeroProp);
+        });
+    }
 }

@@ -23,13 +23,28 @@ public sealed partial class TipoIdentificacion
     public static readonly TipoIdentificacion PA = new("PA");
     public static readonly TipoIdentificacion PT = new("PT");
 
+    // Lookup map por clave discreta (codigo -> instancia), no switch/if: agregar un tipo de
+    // documento nuevo es agregar una fila aqui, no una rama.
+    private static readonly IReadOnlyDictionary<string, TipoIdentificacion> PorCodigo =
+        new Dictionary<string, TipoIdentificacion>
+        {
+            [CC._codigo] = CC,
+            [CE._codigo] = CE,
+            [TI._codigo] = TI,
+            [PA._codigo] = PA,
+            [PT._codigo] = PT,
+        };
+
     private readonly string _codigo;
 
     private TipoIdentificacion(string codigo) => _codigo = codigo;
 
     // CA-2: rehidrata desde el codigo persistido; rechaza codigos fuera de la lista cerrada.
-    public static TipoIdentificacion Desde(string codigo) => throw new NotImplementedException();
+    public static TipoIdentificacion Desde(string codigo) =>
+        PorCodigo.TryGetValue(codigo, out var tipo)
+            ? tipo
+            : throw new ArgumentException(Mensajes.CodigoNoReconocido, nameof(codigo));
 
     // El codigo literal ("CC") -- contrato de persistencia y de composicion de la clave de stream.
-    public override string ToString() => throw new NotImplementedException();
+    public override string ToString() => _codigo;
 }
