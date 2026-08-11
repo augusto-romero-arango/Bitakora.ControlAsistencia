@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using ComandoRegistrarColaborador = Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador.RegistrarColaborador;
@@ -23,6 +24,25 @@ public partial class RegistrarColaboradorCommandHandler : ICommandHandlerAsync<C
     public RegistrarColaboradorCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(ComandoRegistrarColaborador command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(ComandoRegistrarColaborador command, CancellationToken ct = default)
+    {
+        // Borde HTTP: normalizar trim+MAYUSCULAS ANTES de Desde -- el VO de #348 es case-sensitive
+        // por diseno para proteger la rehidratacion desde datos ya persistidos; la normalizacion de
+        // ENTRADA es responsabilidad de este handler (MEF-ADR-0037 seccion 2, parseo tipado unico).
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var existe = await _eventStore.ExistsAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (existe)
+            throw new InvalidOperationException(Mensajes.ColaboradorYaRegistrado);
+
+        var nombre = NombreColaborador.Crear(
+            command.PrimerNombre, command.SegundoNombre, command.PrimerApellido, command.SegundoApellido);
+
+        var colaborador = ColaboradorAggregateRoot.Registrar(
+            identificacion, nombre, command.CodigoColaborador, command.FechaInicio);
+
+        _eventStore.StartStream(colaborador);
+    }
 }

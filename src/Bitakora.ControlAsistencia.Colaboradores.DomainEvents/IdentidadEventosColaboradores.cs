@@ -13,5 +13,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 // primera lectura del proceso, en vez de depender de que un append lo haya poblado.
 public static class IdentidadEventosColaboradores
 {
-    public static IReadOnlyList<Type> TiposPersistidos { get; } = [];
+    public static IReadOnlyList<Type> TiposPersistidos { get; } =
+    [
+        typeof(ColaboradorRegistrado),
+        typeof(VinculacionIniciada),
+    ];
 }

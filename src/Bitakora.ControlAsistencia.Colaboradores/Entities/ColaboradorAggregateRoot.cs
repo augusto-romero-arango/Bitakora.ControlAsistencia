@@ -33,16 +33,35 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     public static string ComputarStreamId(Identificacion identificacion) => identificacion.ToString();
 
     // Apply: publicos -- requerido para que TestStore.ApplyEvent los encuentre via GetMethods().
-    // Nunca lanzan (MEF-ADR-0004 capa 4) -- STUB (fase roja, issue #330).
-    public void Apply(ColaboradorRegistrado e) => throw new NotImplementedException();
+    // Nunca lanzan (MEF-ADR-0004 capa 4).
+    public void Apply(ColaboradorRegistrado e)
+    {
+        Id = ComputarStreamId(e.Identificacion);
+        _identificacion = e.Identificacion;
+        _nombre = e.Nombre;
+    }
 
-    public void Apply(VinculacionIniciada e) => throw new NotImplementedException();
+    public void Apply(VinculacionIniciada e)
+    {
+        _codigoVinculacionVigente = e.Codigo;
+        _fechaInicioVinculacionVigente = e.FechaInicio;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
-    // STUB (fase roja, issue #330): el implementer construye ColaboradorRegistrado(identificacion,
-    // nombre) + VinculacionIniciada(codigo, fechaInicio), los agrega en ese orden y llama Apply.
     internal static ColaboradorAggregateRoot Registrar(
-        Identificacion identificacion, NombreColaborador nombre, string codigo, DateOnly fechaInicio) =>
-        throw new NotImplementedException();
+        Identificacion identificacion, NombreColaborador nombre, string codigo, DateOnly fechaInicio)
+    {
+        var colaborador = new ColaboradorAggregateRoot();
+
+        var colaboradorRegistrado = new ColaboradorRegistrado(identificacion, nombre);
+        colaborador._uncommittedEvents.Add(colaboradorRegistrado);
+        colaborador.Apply(colaboradorRegistrado);
+
+        var vinculacionIniciada = new VinculacionIniciada(codigo, fechaInicio);
+        colaborador._uncommittedEvents.Add(vinculacionIniciada);
+        colaborador.Apply(vinculacionIniciada);
+
+        return colaborador;
+    }
 }

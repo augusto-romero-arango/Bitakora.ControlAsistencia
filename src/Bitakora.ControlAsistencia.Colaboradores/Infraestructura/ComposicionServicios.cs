@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Cosmos.EventDriven.CritterStack;
@@ -85,11 +86,23 @@ public static class ComposicionServicios
             // aplique sus primeros eventos.
             options.Events.AddEventTypes(IdentidadEventosColaboradores.TiposPersistidos);
 
-            // Cuando aparezca un value object rico que necesite ConfigurarSerializacion (ctor
-            // privado), se invoca AQUI DENTRO junto a AddEventTypes -- nunca en un ConfigureMarten
-            // separado (issue #232 CA-5: ComposicionServiciosTests lo verifica sobre el store real
-            // del contenedor, y un segundo ConfigureMarten corre el riesgo de que el resolver de
-            // serializacion custom quede sin efecto en silencio si el orden de callbacks cambia).
+            // Issue #330: registra la serializacion custom de los VOs con ctor privado que aparecen
+            // como payload de eventos persistidos (Identificacion, NombreColaborador) -- AQUI
+            // DENTRO junto a AddEventTypes -- nunca en un ConfigureMarten separado (issue #232 CA-5:
+            // ComposicionServiciosTests lo verifica sobre el store real del contenedor, y un segundo
+            // ConfigureMarten corre el riesgo de que el resolver de serializacion custom quede sin
+            // efecto en silencio si el orden de callbacks cambia). Mismo patron que
+            // ControlHoras/Programacion: reconfigura el SystemTextJsonSerializer que Marten ya
+            // registro con un resolver custom.
+            if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
+            {
+                stj.Configure(jsonOptions =>
+                {
+                    var resolver = new DefaultJsonTypeInfoResolver();
+                    ConfiguracionSerializacionColaboradores.ConfigurarResolver(resolver);
+                    jsonOptions.TypeInfoResolver = resolver;
+                });
+            }
         });
 
         // Observabilidad (issue #308, CA-ADR-0009 Capa 2): mismo wiring que ControlHoras -- el

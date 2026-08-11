@@ -18,9 +18,24 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaborador;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarColaborador")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Colaboradores")]
         HttpRequest req,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<ComandoRegistrarColaborador>(req, ct);
+        if (error is not null)
+            return error;
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }

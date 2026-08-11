@@ -27,17 +27,13 @@ public static class ConfiguracionSerializacionColaboradores
         };
     }
 
-    // STUB (fase roja, issue #330): intencionalmente vacio. El implementer debe invocar aqui
-    // Identificacion.ConfigurarSerializacion(resolver) y NombreColaborador.ConfigurarSerializacion(
-    // resolver) (VOs de #348, ya con su propio resolver implementado) -- ColaboradorRegistrado y
-    // VinculacionIniciada son records con ctor publico y no declaran ConfigurarSerializacion propio,
-    // asi que una vez que sus VOs anidados esten registrados aqui, STJ los reconstruye sin ayuda
-    // adicional (ver comentarios de ColaboradorRegistrado.cs).
-    // Ver ColaboradorRegistradoSerializacionTests: el round-trip falla mientras este metodo este
-    // vacio (Identificacion/NombreColaborador tienen ctor privado, inalcanzable para STJ sin este
-    // registro).
+    // Registra los VOs con ctor privado que aparecen como payload de eventos persistidos --
+    // ColaboradorRegistrado y VinculacionIniciada son records con ctor publico y no declaran
+    // ConfigurarSerializacion propio, asi que una vez que sus VOs anidados esten registrados aqui,
+    // STJ los reconstruye sin ayuda adicional (ver comentarios de ColaboradorRegistrado.cs).
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
-        // Intencionalmente vacio -- fase roja.
+        Identificacion.ConfigurarSerializacion(resolver);
+        NombreColaborador.ConfigurarSerializacion(resolver);
     }
 }
