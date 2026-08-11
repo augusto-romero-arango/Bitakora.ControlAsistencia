@@ -201,6 +201,19 @@ jobs:
 
   smoke-tests:
     needs: deploy
+    # Un workflow LLAMADO no puede pedir mas permisos que su invocador: "the permissions for the
+    # GITHUB_TOKEN in the called workflow cannot be greater than those in the caller workflow"
+    # (GitHub Actions, reutilizacion de workflows). El default del repo es 'read'
+    # (default_workflow_permissions), que NO incluye el scope 'actions', asi que sin esta concesion
+    # el job de smoke-tests-dominio.yml -- que declara 'actions: read' para su paso 'Esperar deploys
+    # ajenos del mismo commit' -- tumba el run ENTERO con startup_failure, antes de crear un solo
+    # job y sin dejar annotation que lo explique. Verificado en el run 31516294884.
+    #
+    # Va a nivel de JOB y no de workflow para no tocar los permisos de 'determinar-alcance'
+    # (pull-requests: read) ni de 'deploy' (id-token: write), que declaran los suyos.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
       base_url: https://func-asist-dev-control-horas.azurewebsites.net
