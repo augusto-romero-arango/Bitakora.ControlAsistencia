@@ -36,6 +36,24 @@ public class EtiquetaTests
         etiqueta.ValorNormalizado.Should().Be("recursos humanos");
     }
 
+    // La enie NO es un acento: es una letra propia del espanol. El patron de normalizacion que el
+    // issue prescribe (FormD + remover NonSpacingMark) la descompone en "n" + tilde combinante y la
+    // colapsa a "n", asi que "Diseno" y "Diseño" son la MISMA etiqueta. Es consecuencia inevitable
+    // del patron elegido, no un descuido: en etiquetas libres tecleadas por el cliente evita
+    // fragmentar el reporte cuando alguien escribe sin enie. Este test lo fija como decision
+    // observable en vez de dejarlo tacito -- si el dominio necesitara preservar la enie, este test
+    // es el que debe fallar primero (agregado en revision, issue #353).
+    [Fact]
+    public void Crear_NormalizaLaEnieComoN_CuandoValorLaContiene()
+    {
+        var conEnie = Etiqueta.Crear("Area", "Diseño");
+        var sinEnie = Etiqueta.Crear("Area", "Diseno");
+
+        conEnie.Valor.Should().Be("Diseño", "la forma original preserva la enie tal como se escribio");
+        conEnie.ValorNormalizado.Should().Be("diseno");
+        conEnie.Should().Be(sinEnie);
+    }
+
     // ---------- CA-2: categoria/valor vacios o whitespace -> rechazo con mensaje .resx ----------
 
     [Fact]
@@ -56,6 +74,19 @@ public class EtiquetaTests
             .WithMessage($"*{Etiqueta.Mensajes.CategoriaVacia}*");
     }
 
+    // Los parametros son string no anulable, pero el boundary recibe datos de fuera del dominio
+    // (deserializacion, payload HTTP) donde el null sobrevive al compilador: el rechazo debe ser el
+    // mismo ArgumentException con mensaje .resx, no una NullReferenceException opaca. Paridad con
+    // NombreColaboradorTests (issue #348), que ya cubre null! en sus campos requeridos.
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoCategoriaEsNull()
+    {
+        var act = () => Etiqueta.Crear(null!, "Tecnologia");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Etiqueta.Mensajes.CategoriaVacia}*");
+    }
+
     [Fact]
     public void Crear_LanzaArgumentException_CuandoValorEsVacio()
     {
@@ -69,6 +100,15 @@ public class EtiquetaTests
     public void Crear_LanzaArgumentException_CuandoValorEsWhitespace()
     {
         var act = () => Etiqueta.Crear("Area", "   ");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Etiqueta.Mensajes.ValorVacio}*");
+    }
+
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoValorEsNull()
+    {
+        var act = () => Etiqueta.Crear("Area", null!);
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{Etiqueta.Mensajes.ValorVacio}*");

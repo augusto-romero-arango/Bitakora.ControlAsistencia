@@ -29,7 +29,7 @@ public class EtiquetaIgualdadTests : IgualdadTestBase<Etiqueta>
     // CA-3 explicito: las tres formas de escribir la misma etiqueta son iguales entre si (no solo
     // pares) y su GetHashCode coincide en las tres.
     [Fact]
-    public void Equals_RetornaTrue_ConTresVariantesDeEscrituraDeLaMismaEtiqueta()
+    public void Equals_RetornaTrue_CuandoLasTresVariantesDeEscrituraSonDeLaMismaEtiqueta()
     {
         var conTildesYMixta = Etiqueta.Crear("Área", "Tecnología");
         var minusculas = Etiqueta.Crear("area", "tecnologia");

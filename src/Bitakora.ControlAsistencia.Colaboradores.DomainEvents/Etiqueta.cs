@@ -77,7 +77,7 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     public bool EsMismaCategoria(Etiqueta otra) =>
         _categoriaNormalizada == otra._categoriaNormalizada;
 
-    // Propuesta: "{Categoria}:{Valor}" con las formas originales (display).
+    // Display: "{Categoria}:{Valor}" con las formas originales, no las normalizadas.
     public override string ToString() => $"{_categoria}:{_valor}";
 
     // Igualdad por valor COMPLETA: categoria normalizada + valor normalizado.
@@ -91,8 +91,12 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     public override int GetHashCode() =>
         HashCode.Combine(_categoriaNormalizada, _valorNormalizado);
 
-    // Patron documentado por Microsoft para remover diacriticos: descomponer en FormD, filtrar los
+    // Patron documentado por Microsoft para remover diacriticos: descomponer en FormD, filtrar las
     // marcas de combinacion (NonSpacingMark) y recomponer en FormC, todo en minusculas invariantes.
+    // Consecuencia deliberada: la enie tambien se descompone, asi que "Diseño" y "Diseno" son la
+    // MISMA etiqueta (en etiquetas libres tecleadas por el cliente eso evita fragmentar el reporte;
+    // fijado por Crear_NormalizaLaEnieComoN_CuandoValorLaContiene). La forma original si preserva la
+    // enie -- solo la forma normalizada la colapsa.
     // Fuera de alcance (issue #353): errores de transposicion ("aera" vs "area") -- eso es fuzzy
     // matching de UI, no un invariante del dominio.
     private static string Normalizar(string texto) =>
@@ -103,17 +107,16 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
             .ToLowerInvariant();
 
     // Mapping de serializacion -- vive aqui porque cambia con la clase (patron SubFranja /
-    // Identificacion). Persiste las 4 formas (doble forma por campo, decision del planner).
+    // NombreColaborador). Persiste las 4 formas (doble forma por campo, decision del planner): el
+    // evento es autocontenido y no recalcula la normalizacion al rehidratar.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var tipoClase = typeof(Etiqueta);
         var ctor = tipoClase.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
-        var categoriaField = tipoClase.GetField("_categoria", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var categoriaNormalizadaField = tipoClase.GetField(
-            "_categoriaNormalizada", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var valorField = tipoClase.GetField("_valor", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var valorNormalizadoField = tipoClase.GetField(
-            "_valorNormalizado", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var categoriaField = Campo("_categoria");
+        var categoriaNormalizadaField = Campo("_categoriaNormalizada");
+        var valorField = Campo("_valor");
+        var valorNormalizadoField = Campo("_valorNormalizado");
 
         resolver.Modifiers.Add(typeInfo =>
         {
@@ -122,25 +125,23 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
 
             typeInfo.CreateObject = () => ctor.Invoke(null);
 
-            var categoriaProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "categoria");
-            categoriaProp.Get = obj => ((Etiqueta)obj)._categoria;
-            categoriaProp.Set = (obj, val) => categoriaField.SetValue(obj, val);
-            typeInfo.Properties.Add(categoriaProp);
-
-            var categoriaNormalizadaProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "categoriaNormalizada");
-            categoriaNormalizadaProp.Get = obj => ((Etiqueta)obj)._categoriaNormalizada;
-            categoriaNormalizadaProp.Set = (obj, val) => categoriaNormalizadaField.SetValue(obj, val);
-            typeInfo.Properties.Add(categoriaNormalizadaProp);
-
-            var valorProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "valor");
-            valorProp.Get = obj => ((Etiqueta)obj)._valor;
-            valorProp.Set = (obj, val) => valorField.SetValue(obj, val);
-            typeInfo.Properties.Add(valorProp);
-
-            var valorNormalizadoProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "valorNormalizado");
-            valorNormalizadoProp.Get = obj => ((Etiqueta)obj)._valorNormalizado;
-            valorNormalizadoProp.Set = (obj, val) => valorNormalizadoField.SetValue(obj, val);
-            typeInfo.Properties.Add(valorNormalizadoProp);
+            RegistrarCampo(typeInfo, categoriaField, "categoria");
+            RegistrarCampo(typeInfo, categoriaNormalizadaField, "categoriaNormalizada");
+            RegistrarCampo(typeInfo, valorField, "valor");
+            RegistrarCampo(typeInfo, valorNormalizadoField, "valorNormalizado");
         });
+    }
+
+    private static FieldInfo Campo(string nombre) =>
+        typeof(Etiqueta).GetField(nombre, BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+    // Los 4 campos son string, asi que el registro es identico salvo el nombre JSON. El Set necesita
+    // reflexion porque los campos son readonly y C# no permite asignarlos fuera del constructor.
+    private static void RegistrarCampo(JsonTypeInfo typeInfo, FieldInfo campo, string nombreJson)
+    {
+        var prop = typeInfo.CreateJsonPropertyInfo(typeof(string), nombreJson);
+        prop.Get = obj => campo.GetValue(obj);
+        prop.Set = (obj, val) => campo.SetValue(obj, val);
+        typeInfo.Properties.Add(prop);
     }
 }
