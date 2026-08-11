@@ -9,14 +9,15 @@
 // registra el colaborador (y, cuando aplica, termina su vinculacion) via los mismos comandos que
 // los originan (#330 y #349), nunca sembrando datos por fuera del API.
 //
-// Contenido persistido (Nombre, un VO con ctor privado): se compara con la SERIALIZACION REAL de
-// produccion -- NombreColaborador + ConfiguracionSerializacionColaboradores.CrearOpcionesMarten(),
-// referenciadas desde Colaboradores.DomainEvents (ya cableado en el .csproj por el
-// domain-scaffolder). Mismo criterio que AsignarTurnoViaSbSmokeTests (ControlHoras, issue #322):
-// "el smoke test deserializa/serializa con el tipo que realmente posee el payload persistido", no
-// con un tipo de bus -- NombreColaborador ES ese tipo (MEF-ADR-0039 decision 6). Round-trip
-// deserializando "Nombre" y comparando por igualdad de valor (NombreColaborador.Equals, #348),
-// nunca comparando texto JSON crudo a mano.
+// Contenido persistido (Nombre, un VO con ctor privado): se verifica deserializando el campo con
+// la SERIALIZACION REAL de produccion -- NombreColaborador +
+// ConfiguracionSerializacionColaboradores.CrearOpcionesMarten(), referenciadas desde
+// Colaboradores.DomainEvents (ya cableado en el .csproj por el domain-scaffolder). Mismo criterio
+// que AsignarTurnoViaSbSmokeTests (ControlHoras, issue #322): "el smoke test deserializa/serializa
+// con el tipo que realmente posee el payload persistido", no con un tipo de bus --
+// NombreColaborador ES ese tipo (MEF-ADR-0039 decision 6). La comparacion es por igualdad de valor
+// (NombreColaborador.Equals, #348), NUNCA contra el texto JSON persistido: mt_events.data es jsonb
+// y PostgreSQL no preserva whitespace ni orden de claves (docs 8.14.1).
 //
 // CA-1/CA-2 (rutas de exito): 202 + el stream recibe NombresCorregidos con el Nombre corregido --
 // ya sea con la vinculacion abierta (CA-1) o con la ultima vinculacion TERMINADA (CA-2, prueba que
@@ -58,6 +59,10 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
     // alcanza para probarla sin alargar la suite esperando los 30s estandar sin ganar senal.
     private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(3);
 
+    // Segunda lectura del mismo evento que ExisteEventoAsync ya espero: si el primer polling
+    // termino, el evento esta -- no hay nada mas que esperar.
+    private static readonly TimeSpan TimeoutLecturaConfirmada = TimeSpan.FromSeconds(5);
+
     private static readonly JsonSerializerOptions OpcionesMarten =
         ConfiguracionSerializacionColaboradores.CrearOpcionesMarten();
 
@@ -71,16 +76,6 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}:{numeroIdentificacion}";
-
-    // Serializa el VO NombreColaborador con las MISMAS opciones que Marten usa en produccion --
-    // no es un texto adivinado: es la salida real del resolver registrado en
-    // ConfiguracionSerializacionColaboradores (ver comentario de archivo).
-    private static string SerializarNombreEsperado(
-        string primerNombre, string? segundoNombre, string primerApellido, string? segundoApellido)
-    {
-        var nombre = NombreColaborador.Crear(primerNombre, segundoNombre, primerApellido, segundoApellido);
-        return JsonSerializer.Serialize(nombre, OpcionesMarten);
-    }
 
     private static object PayloadRegistro(
         string numeroIdentificacion, DateOnly fechaInicio,
@@ -143,6 +138,29 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
+    // Assert comun de CA-1/CA-2: espera el evento en mt_events y verifica su payload por VALOR,
+    // deserializando el campo Nombre con las opciones reales de Marten (el round-trip que ese VO
+    // hace en produccion). No se compara contra el texto JSON persistido: mt_events.data es jsonb y
+    // PostgreSQL no preserva ni whitespace ni orden de claves (docs 8.14.1), asi que cualquier
+    // igualdad de texto seria un falso rojo -- la igualdad de dominio (NombreColaborador.Equals,
+    // #348) es el oraculo correcto.
+    private async Task ElStreamRecibioElNombreAsync(string streamId, NombreColaborador nombreEsperado)
+    {
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaColaboradores, streamId, TipoEventoNombresCorregidos, Timeout);
+
+        existe.Should().BeTrue(
+            $"el evento {TipoEventoNombresCorregidos} deberia existir en el stream {streamId}");
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaColaboradores, streamId, TipoEventoNombresCorregidos, TimeoutLecturaConfirmada);
+
+        var nombrePersistido = eventoPersistido.GetProperty("Nombre")
+            .Deserialize<NombreColaborador>(OpcionesMarten);
+
+        nombrePersistido.Should().Be(nombreEsperado);
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DebeEstarDisponible_CuandoSeConsultaHealthCheck()
@@ -176,24 +194,9 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        var streamId = ComputarStreamId(numeroIdentificacion);
-        var nombreEsperadoJson = SerializarNombreEsperado("[TEST]", "Corregido", "Smoke", "Segundo");
-
-        var existe = await postgres.ExisteEventoAsync(
-            SchemaColaboradores, streamId, TipoEventoNombresCorregidos, Timeout,
-            campoJson: "Nombre", valorJson: nombreEsperadoJson);
-
-        existe.Should().BeTrue(
-            $"el evento {TipoEventoNombresCorregidos} deberia existir en el stream {streamId} con el nombre corregido");
-
-        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
-            SchemaColaboradores, streamId, TipoEventoNombresCorregidos,
-            campoJson: "Nombre", valorJson: nombreEsperadoJson, TimeSpan.FromSeconds(5));
-
-        var nombreEsperado = NombreColaborador.Crear("[TEST]", "Corregido", "Smoke", "Segundo");
-        var nombrePersistido = eventoPersistido.GetProperty("Nombre").Deserialize<NombreColaborador>(OpcionesMarten);
-
-        nombrePersistido.Should().Be(nombreEsperado);
+        await ElStreamRecibioElNombreAsync(
+            ComputarStreamId(numeroIdentificacion),
+            NombreColaborador.Crear("[TEST]", "Corregido", "Smoke", "Segundo"));
     }
 
     // CA-2: la ultima vinculacion esta TERMINADA -> la correccion procede igual -- solo exige
@@ -220,16 +223,11 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        var streamId = ComputarStreamId(numeroIdentificacion);
-        var nombreEsperadoJson = SerializarNombreEsperado("[TEST]", "Reingreso", "Terminada", null);
-
-        var existe = await postgres.ExisteEventoAsync(
-            SchemaColaboradores, streamId, TipoEventoNombresCorregidos, Timeout,
-            campoJson: "Nombre", valorJson: nombreEsperadoJson);
-
-        existe.Should().BeTrue(
-            "la correccion de nombres deberia proceder sobre un colaborador con vinculacion terminada " +
-            "-- solo exige existencia, nunca vigencia");
+        // La correccion procede sobre un colaborador con vinculacion terminada: solo exige
+        // existencia, nunca vigencia.
+        await ElStreamRecibioElNombreAsync(
+            ComputarStreamId(numeroIdentificacion),
+            NombreColaborador.Crear("[TEST]", "Reingreso", "Terminada", null));
     }
 
     // CA-3: nombre igual por valor al actual -> 202 sin evento nuevo en el stream (idempotencia

@@ -90,6 +90,29 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Alberto Barreto");
     }
 
+    // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
+    // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC:79543210") y emite el
+    // evento. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo
+    // de tipo ("cc" -> "CC") es responsabilidad del handler en el borde, porque
+    // TipoIdentificacion.Desde es case-sensitive por diseno (#348). Sin ella el handler computaria
+    // otra clave y responderia 404 sobre un colaborador que si existe.
+    [Fact]
+    public async Task CorregirNombres_EmiteNombresCorregidos_CuandoTipoYNumeroLleganSinNormalizar()
+    {
+        DadoUnColaboradorConVinculacionAbierta();
+        var comandoSinNormalizar = ComandoConNombreDistinto() with
+        {
+            TipoIdentificacion = "cc",
+            NumeroIdentificacion = "  79543210  "
+        };
+
+        await WhenAsync(comandoSinNormalizar);
+
+        Then(StreamIdEsperado, new NombresCorregidos(NombreColaborador.Crear("Luis", "Alberto", "Barreto", null)));
+        And<ColaboradorAggregateRoot, string>(
+            StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Alberto Barreto");
+    }
+
     // CA-2: la vinculacion vigente esta TERMINADA -> la correccion procede igual -- solo exige
     // existencia del colaborador, nunca vigencia de la vinculacion (decision de refinamiento
     // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).

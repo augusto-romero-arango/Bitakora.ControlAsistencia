@@ -11,7 +11,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction.Comma
 // (NombreColaborador.Crear ya los normaliza).
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura: no
 // requiere tocar el wiring de DI.
-// STUB (fase roja, issue #351): sin reglas -- el implementer las agrega.
 public class CorregirNombresValidator : AbstractValidator<CorregirNombres>
 {
     public CorregirNombresValidator()

@@ -124,18 +124,17 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoReingresoColaborador.Exitosa;
     }
 
-    // Issue #351: mecanismo "declinar silencioso" (decision de refinamiento 2026-08-11, precedente
-    // ControlDiarioAggregateRoot.AdicionarMarcacion) -- nunca lanza, nunca emite un evento de fallo
-    // persistido. Sin reglas de estado que violar (el comando mas simple del ciclo de vida): solo
-    // compara el nombre nuevo con el actual por igualdad de valor (NombreColaborador.Equals, #348).
-    // Igual por valor -> no hace nada (idempotencia silenciosa, evita ruido en el stream por dobles
-    // envios). Distinto por valor -> appendea NombresCorregidos a _uncommittedEvents y lo aplica.
-    // Solo exige existencia del colaborador (implicita: el handler ya lo rehidrato via
-    // GetAggregateRootAsync antes de llamar aqui), nunca vigencia de su vinculacion -- corregir
-    // sobre un colaborador con vinculacion terminada es valido (decision de refinamiento
-    // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar -- el unico
-    // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
+    // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
+    // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
+    // TerminarVinculacion/Reingresar no responde razon: sin reglas de estado que violar, la unica
+    // causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
+    // La idempotencia es por igualdad de VALOR (NombreColaborador.Equals, #348), no por los
+    // primitivos crudos del comando: el handler ya construyo el VO, que normaliza trim y opcionales
+    // ausentes antes de que esta comparacion ocurra.
+    // No mira la vigencia de la vinculacion: los nombres son de la PERSONA, no de la vinculacion
+    // (decision de refinamiento 2026-08-11), asi que corregir sobre una vinculacion terminada es
+    // valido. La existencia del colaborador ya la garantizo el handler al rehidratarlo.
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar.
     internal void CorregirNombres(NombreColaborador nombre)
     {
         if (nombre.Equals(_nombre))

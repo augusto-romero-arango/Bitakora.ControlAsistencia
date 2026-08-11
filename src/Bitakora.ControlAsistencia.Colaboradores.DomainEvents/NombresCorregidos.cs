@@ -5,19 +5,13 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 /// persiste en el stream de ColaboradorAggregateRoot.
 /// </summary>
 /// <remarks>
-/// Issue #351: cuarto comando del ciclo de vida de ColaboradorAggregateRoot (desglose #348-#357),
-/// y el mas simple -- sin reglas de estado. El nombre "NombresCorregidos" cuenta un hecho de
-/// dominio (sesion 2026-08-07/10: cedula equivocada corregida al reingresar el dueno legitimo del
-/// documento), en vez de un generico "DatosActualizados" sin semantica (descartado en el
-/// refinamiento 2026-08-11).
-/// Payload rico: Nombre (NombreColaborador, VO de #348) viaja completo -- mismo criterio que
-/// ColaboradorRegistrado. No declara ConfigurarSerializacion propio: NombreColaborador ya trae la
-/// suya (ConfiguracionSerializacionColaboradores.ConfigurarResolver la delega) y el ctor publico
-/// del record es reconstruible por STJ sin ayuda adicional una vez que ese VO este registrado --
-/// mismo patron que ColaboradorRegistrado.
-/// Solo exige EXISTENCIA del colaborador, no vigencia de su vinculacion (decision de refinamiento
-/// 2026-08-11): los nombres son de la PERSONA, no de la vinculacion -- corregirlos sobre un
-/// colaborador con vinculacion terminada es valido.
+/// Issue #351: el nombre cuenta un hecho de dominio -- la correccion de un nombre mal digitado, o
+/// la del dueno legitimo del documento tras reusar el stream (sesion 2026-08-07/10) -- en vez de un
+/// generico "DatosActualizados" sin semantica, descartado en el refinamiento.
+/// Payload rico: Nombre (NombreColaborador, VO de #348) viaja completo, mismo criterio que
+/// ColaboradorRegistrado. No declara ConfigurarSerializacion propio: la del VO, que
+/// ConfiguracionSerializacionColaboradores ya registra, basta para reconstruir el ctor publico del
+/// record.
 /// No cruza el bus (sin marker IPrivateEvent/IPublicEvent): event-sourcing puro, sin consumidores
 /// (issue #351 "Consumidores: ninguno").
 /// </remarks>

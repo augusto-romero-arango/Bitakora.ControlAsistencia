@@ -15,7 +15,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 // CA-ADR-0030 / MEF-ADR-0004 (precedente TerminarVinculacionFunction.FunctionEndpoint): validar
 // request (400 via IRequestValidator) -> despachar comando -> KeyNotFoundException -> 404 NotFound
 // (sin 409: este comando no tiene reglas de estado); exito -> 202 Accepted.
-// STUB (fase roja, issue #351): el cuerpo completo queda para el implementer.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CorregirNombres")]
