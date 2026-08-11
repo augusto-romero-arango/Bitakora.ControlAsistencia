@@ -46,4 +46,16 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<VinculacionIniciada>(options).Should().Be("vinculacion_iniciada");
     }
+
+    // Issue #349 (gemela de las dos pruebas anteriores): congela el alias de VinculacionTerminada,
+    // segundo evento persistido de la vinculacion (terminar). Rojo esperado (fase roja, issue
+    // #349): IdentidadEventosColaboradores.TiposPersistidos sigue sin VinculacionTerminada hasta
+    // que el implementer lo registre -- el implementer lo agrega ahi (no aqui, MEF-ADR-0002).
+    [Fact]
+    public void VinculacionTerminada_TieneAliasVinculacionTerminada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<VinculacionTerminada>(options).Should().Be("vinculacion_terminada");
+    }
 }
