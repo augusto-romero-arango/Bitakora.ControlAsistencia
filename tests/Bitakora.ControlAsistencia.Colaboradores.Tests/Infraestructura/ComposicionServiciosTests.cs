@@ -215,7 +215,9 @@ public class ComposicionServiciosTests
     // quedara vacia.
     // Issue #349: agrega VinculacionTerminada (segundo evento persistido de la vinculacion) a la
     // lista esperada -- mismo criterio, mismo guardrail.
-    // Rojo esperado (fase roja, issue #349): TiposPersistidos todavia no incluye VinculacionTerminada.
+    // Issue #351: agrega NombresCorregidos (cuarto evento persistido, corregir nombres) a la lista
+    // esperada.
+    // Rojo esperado (fase roja, issue #351): TiposPersistidos todavia no incluye NombresCorregidos.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -225,7 +227,12 @@ public class ComposicionServiciosTests
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
 
         store.AssertEventosPersistidosRegistrados(
-            [typeof(ColaboradorRegistrado), typeof(VinculacionIniciada), typeof(VinculacionTerminada)]);
+            [
+                typeof(ColaboradorRegistrado),
+                typeof(VinculacionIniciada),
+                typeof(VinculacionTerminada),
+                typeof(NombresCorregidos)
+            ]);
     }
 
     // Issue #330: registrar el tipo solo sirve si el alias sigue siendo el que las filas ya
@@ -233,7 +240,8 @@ public class ComposicionServiciosTests
     // StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico lugar
     // donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
     // Issue #349: agrega VinculacionTerminada -> "vinculacion_terminada" al diccionario esperado.
-    // Rojo esperado (fase roja, issue #349): VinculacionTerminada no aparece en AllKnownEventTypes().
+    // Issue #351: agrega NombresCorregidos -> "nombres_corregidos" al diccionario esperado.
+    // Rojo esperado (fase roja, issue #351): NombresCorregidos no aparece en AllKnownEventTypes().
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -246,7 +254,8 @@ public class ComposicionServiciosTests
         {
             [typeof(ColaboradorRegistrado)] = "colaborador_registrado",
             [typeof(VinculacionIniciada)] = "vinculacion_iniciada",
-            [typeof(VinculacionTerminada)] = "vinculacion_terminada"
+            [typeof(VinculacionTerminada)] = "vinculacion_terminada",
+            [typeof(NombresCorregidos)] = "nombres_corregidos"
         });
     }
 

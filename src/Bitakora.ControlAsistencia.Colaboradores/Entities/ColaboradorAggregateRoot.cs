@@ -66,6 +66,10 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // capa 4).
     public void Apply(VinculacionTerminada e) => _fechaTerminacionVinculacionVigente = e.FechaEfectiva;
 
+    // Issue #351: reemplaza el nombre de la persona. Nunca lanza (MEF-ADR-0004 capa 4).
+    // STUB (fase roja, issue #351): el cuerpo completo queda para el implementer.
+    public void Apply(NombresCorregidos e) => throw new NotImplementedException();
+
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
     // stream, sin reloj (decision de refinamiento):
@@ -120,6 +124,21 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
 
         return ResultadoReingresoColaborador.Exitosa;
     }
+
+    // Issue #351: mecanismo "declinar silencioso" (decision de refinamiento 2026-08-11, precedente
+    // ControlDiarioAggregateRoot.AdicionarMarcacion) -- nunca lanza, nunca emite un evento de fallo
+    // persistido. Sin reglas de estado que violar (el comando mas simple del ciclo de vida): solo
+    // compara el nombre nuevo con el actual por igualdad de valor (NombreColaborador.Equals, #348).
+    // Igual por valor -> no hace nada (idempotencia silenciosa, evita ruido en el stream por dobles
+    // envios). Distinto por valor -> appendea NombresCorregidos a _uncommittedEvents y lo aplica.
+    // Solo exige existencia del colaborador (implicita: el handler ya lo rehidrato via
+    // GetAggregateRootAsync antes de llamar aqui), nunca vigencia de su vinculacion -- corregir
+    // sobre un colaborador con vinculacion terminada es valido (decision de refinamiento
+    // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar -- el unico
+    // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
+    // STUB (fase roja, issue #351): el cuerpo completo queda para el implementer.
+    internal void CorregirNombres(NombreColaborador nombre) => throw new NotImplementedException();
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
