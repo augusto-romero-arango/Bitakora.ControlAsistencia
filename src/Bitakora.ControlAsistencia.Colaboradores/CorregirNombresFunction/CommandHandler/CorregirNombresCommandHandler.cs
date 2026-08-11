@@ -25,6 +25,20 @@ public partial class CorregirNombresCommandHandler : ICommandHandlerAsync<Correg
     public CorregirNombresCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(CorregirNombres command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(CorregirNombres command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // TerminarVinculacionCommandHandler/ReingresarColaboradorCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+        var nombre = NombreColaborador.Crear(
+            command.PrimerNombre, command.SegundoNombre, command.PrimerApellido, command.SegundoApellido);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        colaborador.CorregirNombres(nombre);
+    }
 }

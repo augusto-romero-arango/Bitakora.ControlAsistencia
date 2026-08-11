@@ -67,8 +67,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     public void Apply(VinculacionTerminada e) => _fechaTerminacionVinculacionVigente = e.FechaEfectiva;
 
     // Issue #351: reemplaza el nombre de la persona. Nunca lanza (MEF-ADR-0004 capa 4).
-    // STUB (fase roja, issue #351): el cuerpo completo queda para el implementer.
-    public void Apply(NombresCorregidos e) => throw new NotImplementedException();
+    public void Apply(NombresCorregidos e) => _nombre = e.Nombre;
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
@@ -137,8 +136,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).
     // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar -- el unico
     // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
-    // STUB (fase roja, issue #351): el cuerpo completo queda para el implementer.
-    internal void CorregirNombres(NombreColaborador nombre) => throw new NotImplementedException();
+    internal void CorregirNombres(NombreColaborador nombre)
+    {
+        if (nombre.Equals(_nombre))
+            return;
+
+        var evento = new NombresCorregidos(nombre);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
