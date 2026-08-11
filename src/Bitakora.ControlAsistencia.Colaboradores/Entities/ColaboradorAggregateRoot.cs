@@ -52,10 +52,14 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _nombre = e.Nombre;
     }
 
+    // Issue #350: reabre la vinculacion al re-aplicarse -- una segunda VinculacionIniciada en el
+    // mismo stream (reingreso) deja limpia la terminacion de la vinculacion anterior, sin lo cual
+    // el reingreso rehidratado quedaria "ya terminado" heredando la terminacion previa.
     public void Apply(VinculacionIniciada e)
     {
         _codigoVinculacionVigente = e.Codigo;
         _fechaInicioVinculacionVigente = e.FechaInicio;
+        _fechaTerminacionVinculacionVigente = null;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -87,6 +91,34 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         Apply(evento);
 
         return ResultadoTerminacionVinculacion.Exitosa;
+    }
+
+    // Issue #350: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
+    // evento de fallo persistido. Reutiliza VinculacionIniciada (CA-ADR-0029: un evento no conoce
+    // su comando) -- mismo hecho que Registrar, comando distinto.
+    // Dos razones de rechazo evaluables solo con la historia del stream, sin reloj (invariante de
+    // no-solape, doctrina del preaviso #349):
+    //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null (incluye un reingreso
+    //     previo sin terminar).
+    //   - FechaSolapaVinculacionAnterior: fechaInicio <= _fechaTerminacionVinculacionVigente.Value
+    //     (estrictamente posterior es la unica fecha valida -- el mismo dia se rechaza).
+    // Exito: appendea VinculacionIniciada(codigo, fechaInicio) a _uncommittedEvents y lo aplica --
+    // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
+    // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
+    // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
+    internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio)
+    {
+        if (_fechaTerminacionVinculacionVigente is null)
+            return ResultadoReingresoColaborador.VinculacionAbierta;
+
+        if (fechaInicio <= _fechaTerminacionVinculacionVigente.Value)
+            return ResultadoReingresoColaborador.FechaSolapaVinculacionAnterior;
+
+        var evento = new VinculacionIniciada(codigo, fechaInicio);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoReingresoColaborador.Exitosa;
     }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron

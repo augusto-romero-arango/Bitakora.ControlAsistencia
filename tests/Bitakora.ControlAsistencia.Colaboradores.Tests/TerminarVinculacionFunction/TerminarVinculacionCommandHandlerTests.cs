@@ -168,6 +168,52 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaInicioVinculacionVigente);
     }
 
+    // Cierre del ciclo completo (issue #350): la vinculacion vigente nacio de un reingreso, no del
+    // registro. Terminarla vuelve a ser posible porque Apply(VinculacionIniciada) reabre la
+    // vinculacion al re-aplicarse -- sin ese reset, este comando chocaria contra la terminacion
+    // heredada de la vinculacion anterior y responderia 409.
+    [Fact]
+    public async Task TerminarVinculacion_EmiteVinculacionTerminada_CuandoLaVinculacionVigenteNacioDeUnReingreso()
+    {
+        var fechaTerminacionAnterior = new DateOnly(2026, 3, 1);
+        var fechaInicioReingreso = new DateOnly(2026, 4, 1);
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new VinculacionTerminada(fechaTerminacionAnterior),
+            new VinculacionIniciada("COL-002", fechaInicioReingreso));
+
+        await WhenAsync(ComandoValido());
+
+        Then(StreamIdEsperado, new VinculacionTerminada(FechaEfectivaValida));
+        And<ColaboradorAggregateRoot, DateOnly?>(
+            StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaValida);
+    }
+
+    // Cierre del ciclo completo (issue #350), segunda direccion: la ventana de fechas validas se
+    // mueve con el reingreso. Una FechaEfectiva posterior al inicio ORIGINAL pero anterior al inicio
+    // del REINGRESO produce duracion negativa sobre la vinculacion vigente -> 409.
+    [Fact]
+    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoFechaEfectivaEsAnteriorAlInicioDelReingreso()
+    {
+        var fechaTerminacionAnterior = new DateOnly(2026, 3, 1);
+        var fechaInicioReingreso = new DateOnly(2026, 4, 1);
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new VinculacionTerminada(fechaTerminacionAnterior),
+            new VinculacionIniciada("COL-002", fechaInicioReingreso));
+
+        var act = async () => await WhenAsync(
+            ComandoValido() with { FechaEfectiva = fechaInicioReingreso.AddDays(-1) });
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.FechaAnteriorAInicio}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, DateOnly?>(
+            StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
+    }
+
     // CA-5: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Sin And<>: el aggregate no existe en el TestStore
     // (GetAggregateRoot retorna null), invocarlo lanzaria ArgumentNullException -- Then sin
