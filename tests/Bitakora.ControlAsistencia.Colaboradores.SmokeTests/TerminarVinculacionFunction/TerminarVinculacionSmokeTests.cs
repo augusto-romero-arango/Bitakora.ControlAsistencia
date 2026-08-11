@@ -62,11 +62,11 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
 
     private static object PayloadTerminacion(
         string numeroIdentificacion, DateOnly fechaEfectiva, string tipoIdentificacion = TipoIdentificacionCc) => new
-    {
-        tipoIdentificacion,
-        numeroIdentificacion,
-        fechaEfectiva
-    };
+        {
+            tipoIdentificacion,
+            numeroIdentificacion,
+            fechaEfectiva
+        };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
     // origina (#330), nunca sembrando el event store por fuera del API.

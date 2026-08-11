@@ -7,9 +7,11 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 // Compatible con Tell-don't-Ask (MEF-ADR-0012): el handler consulta el RESULTADO, nunca interroga
 // el estado interno del aggregate para decidir por si mismo.
 // Vive en el mismo ensamblado que el handler que lo consume (Entities/ y CommandHandler/ estan en
-// el mismo proyecto Function App) -- puede ser public sin ampliar la superficie del dominio hacia
-// afuera del ensamblado.
-public enum ResultadoTerminacionVinculacion
+// el mismo proyecto Function App), asi que es internal: nadie fuera del ensamblado decide sobre
+// este resultado. Misma visibilidad que los metodos de comando de los otros aggregates del repo
+// (ControlDiarioAggregateRoot.AdicionarMarcacion, CatalogoTurnos.ObtenerDetalle) -- publicos son
+// solo Apply(...) (los necesita el TestStore via GetMethods()) y ComputarStreamId.
+internal enum ResultadoTerminacionVinculacion
 {
     Exitosa,
     YaTerminada,

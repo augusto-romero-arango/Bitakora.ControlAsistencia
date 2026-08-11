@@ -72,7 +72,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     negativa). fechaEfectiva == _fechaInicioVinculacionVigente es valida (vinculacion de un
     //     solo dia).
     // Exito: appendea VinculacionTerminada a _uncommittedEvents y lo aplica.
-    public ResultadoTerminacionVinculacion TerminarVinculacion(DateOnly fechaEfectiva)
+    // internal, como Registrar y como los metodos de comando de los demas aggregates del repo: el
+    // unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
+    internal ResultadoTerminacionVinculacion TerminarVinculacion(DateOnly fechaEfectiva)
     {
         if (_fechaTerminacionVinculacionVigente is not null)
             return ResultadoTerminacionVinculacion.YaTerminada;
