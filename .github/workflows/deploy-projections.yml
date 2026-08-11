@@ -214,6 +214,19 @@ jobs:
     # deploy-control-horas.yml: aqui 'deploy' no tiene guarda 'if' propia. El push que no toca el
     # worker se filtra antes, en el 'paths' de arriba, y en ese caso no arranca el workflow entero.
     needs: deploy
+    # Un workflow LLAMADO no puede pedir mas permisos que su invocador: "the permissions for the
+    # GITHUB_TOKEN in the called workflow cannot be greater than those in the caller workflow"
+    # (GitHub Actions, reutilizacion de workflows). El default del repo es 'read'
+    # (default_workflow_permissions), que NO incluye el scope 'actions', asi que sin esta concesion
+    # el job de smoke-tests-dominio.yml -- que declara 'actions: read' para su paso 'Esperar deploys
+    # ajenos del mismo commit' -- tumba el run ENTERO con startup_failure, antes de crear un solo
+    # job y sin dejar annotation que lo explique. Verificado en el run 31516294884.
+    #
+    # Va a nivel de JOB y no de workflow para no tocar los permisos de 'determinar-alcance'
+    # (pull-requests: read) ni de 'deploy' (id-token: write), que declaran los suyos.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/smoke-tests-dominio.yml
     with:
       # ControlHoras es hoy el unico dominio con proyecciones CONCRETAS: los unicos
@@ -242,8 +255,18 @@ jobs:
       # inmediato y no le da margen a la revision nueva del worker para tomar el advisory lock de
       # HotCold que la anterior esta liberando. El margen real lo pone el presupuesto de Polling de
       # los tests que consultan turnos -- 30s, el campo 'Timeout' de ObtenerTurnoVigenteSmokeTests
-      # y ListarTurnosVigentesSmokeTests. Si este job sale intermitente, ese es el primer numero a
-      # mirar, antes de sospechar de la suite o del deploy.
+      # y ListarTurnosVigentesSmokeTests.
+      #
+      # Corregido el 2026-08-11: la intermitencia observada en 3 runs NO venia de ese advisory lock
+      # ni de ese presupuesto de Polling. Venia de que este job corria la suite de ControlHoras
+      # mientras Deploy ControlHoras desplegaba en paralelo el Function App que la suite consulta,
+      # sin compuerta de version que lo detuviera -- precisamente porque este invocador no despliega
+      # ese FA y por eso no tiene un SHA propio que poner aca. El expected_sha vacio sigue siendo
+      # correcto y deliberado; lo que faltaba era la guarda, y vive en el paso 'Esperar deploys
+      # ajenos del mismo commit' de smoke-tests-dominio.yml, que se activa justamente cuando este
+      # input llega vacio. El diagnostico completo, la evidencia y el porque la guarda vive en el
+      # reusable estan en el comentario de ese paso. Si este job vuelve a salir intermitente, revisa
+      # esa guarda antes que los 30s de Polling.
       expected_sha: ''
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}

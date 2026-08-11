@@ -80,12 +80,137 @@ concurrency:
 jobs:
   smoke-tests:
     runs-on: ubuntu-latest
+    permissions:
+      # Este workflow no declaraba 'permissions' y heredaba el default del repo. Al declararlo,
+      # todo scope no listado queda en 'none', asi que 'contents: read' es obligatorio para que
+      # actions/checkout siga clonando.
+      contents: read
+      # Lo necesita 'Esperar deploys ajenos del mismo commit': lista runs y jobs de OTROS
+      # workflows del repo, y ningun default concede ese scope.
+      actions: read
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
+
+      # Cierra la carrera diagnosticada el 2026-08-11 sobre los runs 31181921157 (sha 4eee1eb1),
+      # 31151821734 (4c4d8b38) y 31134226036 (f11a5971) de Deploy Projections. En los tres,
+      # 'build-and-test' y 'deploy' de ese workflow pasaron y lo unico que fallo fue este job; y en
+      # los tres el job 'deploy' de Deploy ControlHoras -- que despliega la Function App bajo
+      # prueba -- todavia estaba en vuelo cuando este arranco:
+      #
+      #   sha       | deploy del FA termina | este job arranca | resultado
+      #   4eee1eb1  | 13:19:51              | 13:19:20 (-31s)  | failure
+      #   4c4d8b38  | 05:51:23              | 05:51:02 (-21s)  | failure
+      #   f11a5971  | 00:22:03              | 00:21:56 (-7s)   | failure
+      #   1b6dbd69  | 16:36:36              | 16:36:18 (-18s)  | success  <- gano la carrera
+      #
+      # La MISMA suite, mismo commit y mismo entorno, paso 30-60s despues en el run de ControlHoras
+      # en los tres fallos. El cuarto caso importa igual: el solapamiento ocurre en 4 de 4, asi que
+      # la ventana es estructural y lo unico no determinista es quien la gana. Que en f11a5971 uno
+      # de los tests caidos fuera ObtenerTurnoVigente_Retorna400_CuandoLaFechaTieneFormatoInvalido
+      # -- validacion de formato, que no toca proyecciones ni read model -- descarta que el sintoma
+      # viniera del worker de proyecciones.
+      #
+      # Por que la guarda vive AQUI y no en el invocador: es el mismo argumento que ya puso el
+      # 'concurrency' de arriba en este archivo. Los invocadores se parten en dos clases, y la
+      # frontera no es el dominio sino quien despliega el Function App que se prueba:
+      #
+      #   deploy-control-horas.yml : expected_sha = SHA propio  -> despliega el FA que prueba
+      #   deploy-programacion.yml  : expected_sha = SHA propio  -> despliega el FA que prueba
+      #   deploy-colaboradores.yml : expected_sha = SHA propio  -> despliega el FA que prueba
+      #   deploy-projections.yml   : expected_sha = ''          -> prueba el FA de ControlHoras
+      #   smoke-tests.yml (matrix) : no lo pasa -> ''           -> prueba los FA de los 3 dominios
+      #
+      # Solo puede gatear por version quien despliega el FA que prueba: tiene un SHA propio que
+      # esperar en /api/version. Quien prueba un FA ajeno no lo tiene, degrada al HTTP 200 sobre
+      # /api/health que el binario VIEJO contesta al instante, y queda expuesto. Por eso la
+      # condicion de abajo es 'expected_sha == ""' y no una lista de dominios: identifica esa clase
+      # sin nombrar a nadie, cubre a los dos invocadores expuestos de hoy y a los que vengan.
+      # Un scaffold de dominio nuevo NO agranda la clase -- domain-scaffolder genera su
+      # deploy-*.yml con expected_sha propio, verificado en deploy-colaboradores.yml.
+      #
+      # Se espera el JOB 'deploy' de los runs ajenos y NO el run completo, a proposito: el run
+      # ajeno incluye su propio job de smoke, que pide el mismo grupo 'smoke-tests-dev' que este
+      # job ya tiene tomado. Esperar el run entero seria un deadlock -- el ajeno no puede terminar
+      # hasta que este libere el grupo, y este no continua hasta que el ajeno termine.
+      - name: Esperar deploys ajenos del mismo commit
+        if: inputs.expected_sha == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          # Un workflow llamado comparte el run del invocador, asi que este id ES el del run que
+          # invoca a este reusable y aparece en la consulta de abajo. Excluirlo evita esperarse a
+          # si mismo, que en deploy-projections.yml seria un deadlock inmediato: su propio job
+          # 'deploy' ya esta 'completed' cuando este corre, pero en un invocador que llamara a
+          # este reusable en paralelo con su deploy, no.
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          tmp=$(mktemp -d)
+          # 5s x 120 = 10 min. Los deploys observados tardan 1-2 min, asi que el limite deja
+          # margen de sobra; superarlo significa que algo esta mal de verdad y no que haya que
+          # seguir esperando. Se falla en vez de continuar: continuar es exactamente la carrera
+          # que este paso existe para cerrar, y un 'skip' silencioso reportaria verde una suite
+          # que nunca corrio.
+          limite=120
+
+          for intento in $(seq 1 "$limite"); do
+            if ! gh api "repos/${REPO}/actions/runs?head_sha=${SHA}&per_page=100" > "${tmp}/runs.json"; then
+              echo "::error::No se pudieron listar los runs de ${SHA}."
+              echo "Revisa que este job conserve 'actions: read' y que el endpoint acepte head_sha."
+              exit 1
+            fi
+
+            # Deploys ajenos de este commit que aun no terminaron. El prefijo 'Deploy ' es la
+            # convencion de nombre de todos los deploy-*.yml del repo (Deploy ControlHoras,
+            # Deploy Programacion, Deploy Colaboradores, Deploy Projections) y la que genera
+            # domain-scaffolder; si algun dia deja de serlo, este filtro deja de ver al ajeno y
+            # la carrera vuelve en silencio -- es el punto a revisar primero.
+            ajenos=$(jq -r --arg propio "$RUN_ID" '
+              .workflow_runs[]
+              | select((.id | tostring) != $propio)
+              | select(.name | startswith("Deploy "))
+              | select(.status != "completed")
+              | "\(.id)|\(.name)"' "${tmp}/runs.json")
+
+            bloqueantes=""
+            while IFS='|' read -r id nombre; do
+              if [ -z "$id" ]; then
+                continue
+              fi
+              # Se cuenta solo el job llamado 'deploy'. Si el run ajeno lo tiene 'skipped' -- el
+              # caso de determinar-alcance cuando el PR no toco ese dominio -- cuenta como
+              # completado y no bloquea.
+              en_vuelo=$(gh api "repos/${REPO}/actions/runs/${id}/jobs" \
+                --jq '[.jobs[] | select(.name == "deploy") | select(.status != "completed")] | length') || en_vuelo=""
+
+              if ! [[ "$en_vuelo" =~ ^[0-9]+$ ]]; then
+                echo "::error::No se pudieron leer los jobs del run ${id} (${nombre})."
+                exit 1
+              fi
+
+              if [ "$en_vuelo" -gt 0 ]; then
+                bloqueantes="${bloqueantes}${nombre} (run ${id})"$'\n'
+              fi
+            done <<< "$ajenos"
+
+            if [ -z "$bloqueantes" ]; then
+              echo "Ningun deploy ajeno de ${SHA} tiene su job 'deploy' en vuelo. Se continua."
+              exit 0
+            fi
+
+            echo "Intento ${intento}/${limite}: esperando el job 'deploy' de:"
+            printf '%s' "$bloqueantes" | sed 's/^/  - /'
+            sleep 5
+          done
+
+          echo "::error::Timeout: tras 10 min sigue habiendo un deploy ajeno de ${SHA} en vuelo."
+          printf '%s' "$bloqueantes" | sed 's/^/  - /'
+          echo "Correr la suite ahora la ejercitaria contra un Function App a medio desplegar."
+          exit 1
 
       - name: Warmup Function App
         run: |
