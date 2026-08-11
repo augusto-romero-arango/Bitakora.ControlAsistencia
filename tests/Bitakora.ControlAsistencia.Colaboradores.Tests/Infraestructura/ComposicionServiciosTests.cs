@@ -14,7 +14,9 @@
 
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Marten;
@@ -199,5 +201,73 @@ public class ComposicionServiciosTests
 
         opciones.Durability.DurabilityAgentEnabled.Should().BeTrue();
         opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
+    }
+
+    // Issue #330 (patron replicado de ControlHoras/Programacion #277 CA-2/CA-4): ColaboradorRegistrado
+    // y VinculacionIniciada nacen con este issue en Colaboradores.DomainEvents sin registrar su tipo
+    // en el EventGraph. Toda lectura quedaria dependiendo del fallback por mt_dotnet_type en vez de
+    // resolver por alias (columna "type" de mt_events). Este guardrail detecta el olvido sobre el
+    // store real que compone el contenedor, sin Postgres.
+    //
+    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosColaboradores.TiposPersistidos acoplaria el guardrail al mismo artefacto que
+    // AliasEventosColaboradoresTests ya verifica, y la asercion pasaria en verde aunque la lista
+    // quedara vacia.
+    // Rojo esperado (fase roja, issue #330): TiposPersistidos sigue vacio.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertEventosPersistidosRegistrados(
+            [typeof(ColaboradorRegistrado), typeof(VinculacionIniciada)]);
+    }
+
+    // Issue #330: registrar el tipo solo sirve si el alias sigue siendo el que las filas ya
+    // escritas llevan en su columna "type". AliasEventosColaboradoresTests lo congela sobre un
+    // StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico lugar
+    // donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
+    // Rojo esperado (fase roja, issue #330): TiposPersistidos sigue vacio, AllKnownEventTypes() no
+    // trae ninguna de las dos claves del diccionario esperado.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
+        {
+            [typeof(ColaboradorRegistrado)] = "colaborador_registrado",
+            [typeof(VinculacionIniciada)] = "vinculacion_iniciada"
+        });
+    }
+
+    // Issue #330 (patron replicado de ControlHoras #232 CA-5): las tres banderas de metadata
+    // (arriba) comparten el mismo callback ConfigureMarten que debe registrar el resolver de
+    // serializacion custom -- un edit futuro de ese bloque puede tumbar la serializacion sin que el
+    // test de metadata se ponga rojo. Los round-trip de ColaboradorRegistradoSerializacionTests NO
+    // cubren este riesgo: usan ConfiguracionSerializacionColaboradores.CrearOpcionesMarten() -- una
+    // ruta paralela que no atraviesa el contenedor. Este test ejercita el ISerializer que el store
+    // realmente compuso, usando Identificacion (VO real y completo de #348) como canario.
+    // Rojo esperado (fase roja, issue #330): ComposicionServicios.cs todavia no invoca
+    // ConfiguracionSerializacionColaboradores.ConfigurarResolver dentro de ConfigureMarten.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ConservaLaSerializacionCustom_CuandoTambienHabilitaMetadataDeEvento()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var serializador = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options.Serializer();
+        var original = Identificacion.Crear(TipoIdentificacion.CC, "79543210");
+
+        using var json = new MemoryStream(Encoding.UTF8.GetBytes(serializador.ToJson(original)));
+        var restaurado = serializador.FromJson<Identificacion>(json);
+
+        restaurado.Should().Be(original);
+        restaurado.ToString().Should().Be(original.ToString());
     }
 }

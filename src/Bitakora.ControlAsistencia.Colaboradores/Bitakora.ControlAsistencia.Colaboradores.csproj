@@ -32,4 +32,13 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Colaboradores.DomainEvents\Bitakora.ControlAsistencia.Colaboradores.DomainEvents.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Issue #330: ColaboradorAggregateRoot expone su estado interno (Identificacion, Nombre,
+         vinculacion vigente) como internal. El issue no lo declara publico (Tell-don't-Ask,
+         MEF-ADR-0012), asi que se abre via InternalsVisibleTo para que el harness de tests pueda
+         verificarlo sin ampliar la superficie publica del dominio. Mismo patron que
+         RegistrarColaboradorCommandHandler.Mensajes (internal). -->
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Colaboradores.Tests" />
+  </ItemGroup>
+
 </Project>
