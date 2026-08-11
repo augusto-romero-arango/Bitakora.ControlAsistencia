@@ -102,11 +102,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     previo sin terminar).
     //   - FechaSolapaVinculacionAnterior: fechaInicio <= _fechaTerminacionVinculacionVigente.Value
     //     (estrictamente posterior es la unica fecha valida -- el mismo dia se rechaza).
-    // Exito: appendea VinculacionIniciada(codigo, fechaInicio) a _uncommittedEvents y lo aplica.
-    // NOTA para el implementer: Apply(VinculacionIniciada) debe reabrir la vinculacion (limpiar
-    // _fechaTerminacionVinculacionVigente) al re-aplicarse -- si #330 lo dejo asumiendo una unica
-    // aplicacion, ajustarlo es parte natural del alcance de este issue (ver comentario de #330 en
-    // Apply(VinculacionIniciada) mas arriba).
+    // Exito: appendea VinculacionIniciada(codigo, fechaInicio) a _uncommittedEvents y lo aplica --
+    // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
+    // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
     internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio)
     {

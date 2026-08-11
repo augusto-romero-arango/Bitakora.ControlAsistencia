@@ -87,6 +87,29 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
+    // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
+    // colaborador ya registrado -> el reingreso alcanza el MISMO stream ("CC:79543210") y tiene
+    // exito. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo de
+    // tipo ("cc" -> "CC") es responsabilidad del handler en el borde, porque TipoIdentificacion.Desde
+    // es case-sensitive por diseno (#348). Sin ella el handler computaria otra clave y responderia
+    // 404 sobre un colaborador que si existe.
+    [Fact]
+    public async Task ReingresarColaborador_EmiteVinculacionIniciada_CuandoTipoYNumeroLleganSinNormalizar()
+    {
+        DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
+        var comandoSinNormalizar = ComandoValido() with
+        {
+            TipoIdentificacion = "cc",
+            NumeroIdentificacion = "  79543210  "
+        };
+
+        await WhenAsync(comandoSinNormalizar);
+
+        Then(StreamIdEsperado, new VinculacionIniciada(CodigoReingreso, FechaInicioReingresoValida));
+        And<ColaboradorAggregateRoot, string>(
+            StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoReingreso);
+    }
+
     // CA-2: la vinculacion vigente esta abierta (recien registrada, nunca terminada) -> 409,
     // ningun evento nuevo en el stream, el estado conserva el codigo original.
     [Fact]
