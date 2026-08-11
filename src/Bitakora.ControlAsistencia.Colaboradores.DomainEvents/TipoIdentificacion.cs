@@ -40,8 +40,15 @@ public sealed partial class TipoIdentificacion
     private TipoIdentificacion(string codigo) => _codigo = codigo;
 
     // CA-2: rehidrata desde el codigo persistido; rechaza codigos fuera de la lista cerrada.
+    // El chequeo de null NO es defensivo redundante: este es el boundary de rehidratacion desde
+    // JSON (Identificacion.ConfigurarSerializacion lo llama con el valor crudo del payload), asi
+    // que un "tipo": null persistido debe fallar con el mensaje de dominio y no con el
+    // ArgumentNullException del diccionario, que no dice nada del contrato roto.
+    // La comparacion es exacta y sensible a mayusculas: lo persistido es siempre el codigo
+    // canonico ("CC"), y aceptar "cc" en silencio abriria dos representaciones para la misma
+    // identidad -- y con ellas dos claves de stream distintas.
     public static TipoIdentificacion Desde(string codigo) =>
-        PorCodigo.TryGetValue(codigo, out var tipo)
+        codigo is not null && PorCodigo.TryGetValue(codigo, out var tipo)
             ? tipo
             : throw new ArgumentException(Mensajes.CodigoNoReconocido, nameof(codigo));
 

@@ -46,6 +46,26 @@ public class IdentificacionSerializacionTests
         restaurado.Numero.Should().Be("AB1234567");
     }
 
+    // El contrato central de TipoIdentificacion es la FORMA de lo persistido, no solo que el
+    // round-trip cierre: "lo persistido es SIEMPRE el codigo literal, jamas un numero" (issue #348,
+    // razon por la que el tipo no es un enum C#). El round-trip de arriba pasaria en verde aunque
+    // el tipo se guardara como sombra numerica o como objeto anidado -- solo esta asercion sobre el
+    // JSON lo impide, y es lo que blinda los streams ya escritos el dia que alguien "simplifique"
+    // el mapping.
+    [Fact]
+    public void Serializar_PersisteElTipoComoCodigoLiteral_CuandoIdentificacionValida()
+    {
+        var original = Identificacion.Crear(TipoIdentificacion.CC, "1098765432");
+
+        var json = JsonSerializer.Serialize(original, CrearOpciones());
+
+        using var documento = JsonDocument.Parse(json);
+        var tipo = documento.RootElement.GetProperty("tipo");
+        tipo.ValueKind.Should().Be(JsonValueKind.String, "el tipo nunca se persiste como numero");
+        tipo.GetString().Should().Be("CC");
+        documento.RootElement.GetProperty("numero").GetString().Should().Be("1098765432");
+    }
+
     // Barrera anti-regresion: sin el resolver custom (equivalente a olvidar registrar el VO), STJ
     // no puede reconstruir Identificacion -- su unico constructor es privado y no hay
     // [JsonConstructor] (proscrito por MEF-ADR-0012).

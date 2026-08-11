@@ -62,6 +62,29 @@ public class TipoIdentificacionTests
             .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
     }
 
+    // Desde() es el boundary de rehidratacion desde el payload persistido: un "tipo": null en el
+    // JSON debe fallar con el mensaje de dominio, no con el ArgumentNullException que el
+    // diccionario lanzaria por su cuenta (que no dice nada del contrato roto).
+    [Fact]
+    public void Desde_LanzaArgumentException_CuandoCodigoEsNull()
+    {
+        var act = () => TipoIdentificacion.Desde(null!);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
+    }
+
+    // El codigo canonico es el unico aceptado: tolerar "cc" abriria dos representaciones para la
+    // misma identidad y, con ellas, dos claves de stream distintas para el mismo colaborador.
+    [Fact]
+    public void Desde_LanzaArgumentException_CuandoCodigoVieneEnMinusculas()
+    {
+        var act = () => TipoIdentificacion.Desde("cc");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
+    }
+
     // ---------- ToString(): el codigo literal, contrato de persistencia y de clave de stream ----------
 
     [Fact]

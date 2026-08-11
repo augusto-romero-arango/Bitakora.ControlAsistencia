@@ -23,6 +23,11 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     private readonly TipoIdentificacion _tipo;
     private readonly string _numero;
 
+    // Observables de solo lectura (interfaz publica fijada por el issue #348). Son insumo del
+    // mapeo rico->plano de #349+, NO la via para armar la clave del stream: esa clave sale
+    // unicamente de ToString(). Recomponerla a mano -- $"{id.Tipo}:{id.Numero}" -- duplicaria el
+    // punto de conversion y dejaria el separador y el orden en manos del llamador
+    // (MEF-ADR-0037: punto unico de conversion de la identidad de stream).
     public TipoIdentificacion Tipo => _tipo;
     public string Numero => _numero;
 
@@ -65,27 +70,28 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     // el codigo, no una sombra numerica, es el contrato de identidad (MEF-ADR-0012).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
-        var ctor = typeof(Identificacion)
-            .GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
-        var tipoField = typeof(Identificacion)
-            .GetField("_tipo", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var numeroField = typeof(Identificacion)
-            .GetField("_numero", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var tipoClase = typeof(Identificacion);
+        var ctor = tipoClase.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+        var tipoField = tipoClase.GetField("_tipo", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var numeroField = tipoClase.GetField("_numero", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         resolver.Modifiers.Add(typeInfo =>
         {
-            if (typeInfo.Type != typeof(Identificacion)) return;
+            if (typeInfo.Type != tipoClase) return;
             if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
 
             typeInfo.CreateObject = () => ctor.Invoke(null);
 
+            // Los Get leen los campos directamente (este codigo vive dentro de la propia clase);
+            // solo los Set necesitan reflexion, porque los campos son readonly y C# no permite
+            // asignarlos fuera del constructor.
             var tipoProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "tipo");
             tipoProp.Get = obj => ((Identificacion)obj)._tipo.ToString();
             tipoProp.Set = (obj, val) => tipoField.SetValue(obj, TipoIdentificacion.Desde((string)val!));
             typeInfo.Properties.Add(tipoProp);
 
             var numeroProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "numero");
-            numeroProp.Get = obj => numeroField.GetValue(obj);
+            numeroProp.Get = obj => ((Identificacion)obj)._numero;
             numeroProp.Set = (obj, val) => numeroField.SetValue(obj, val);
             typeInfo.Properties.Add(numeroProp);
         });
