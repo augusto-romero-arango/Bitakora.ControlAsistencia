@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction.CommandHandler;
@@ -27,6 +29,25 @@ public partial class TerminarVinculacionCommandHandler : ICommandHandlerAsync<Te
     public TerminarVinculacionCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(TerminarVinculacion command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(TerminarVinculacion command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // RegistrarColaboradorCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        var resultado = colaborador.TerminarVinculacion(command.FechaEfectiva);
+        switch (resultado)
+        {
+            case ResultadoTerminacionVinculacion.YaTerminada:
+                throw new InvalidOperationException(Mensajes.VinculacionYaTerminada);
+            case ResultadoTerminacionVinculacion.FechaAnteriorAInicio:
+                throw new InvalidOperationException(Mensajes.FechaAnteriorAInicio);
+        }
+    }
 }

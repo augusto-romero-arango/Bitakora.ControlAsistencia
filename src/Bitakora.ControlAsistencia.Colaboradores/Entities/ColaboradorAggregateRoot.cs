@@ -59,9 +59,8 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
-    // capa 4) -- STUB (fase roja): el implementer asigna _fechaTerminacionVinculacionVigente =
-    // e.FechaEfectiva.
-    public void Apply(VinculacionTerminada e) => throw new NotImplementedException();
+    // capa 4).
+    public void Apply(VinculacionTerminada e) => _fechaTerminacionVinculacionVigente = e.FechaEfectiva;
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
@@ -73,9 +72,20 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     negativa). fechaEfectiva == _fechaInicioVinculacionVigente es valida (vinculacion de un
     //     solo dia).
     // Exito: appendea VinculacionTerminada a _uncommittedEvents y lo aplica.
-    // STUB (fase roja, issue #349): el cuerpo completo queda para el implementer.
-    public ResultadoTerminacionVinculacion TerminarVinculacion(DateOnly fechaEfectiva) =>
-        throw new NotImplementedException();
+    public ResultadoTerminacionVinculacion TerminarVinculacion(DateOnly fechaEfectiva)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoTerminacionVinculacion.YaTerminada;
+
+        if (fechaEfectiva < _fechaInicioVinculacionVigente)
+            return ResultadoTerminacionVinculacion.FechaAnteriorAInicio;
+
+        var evento = new VinculacionTerminada(fechaEfectiva);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoTerminacionVinculacion.Exitosa;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
