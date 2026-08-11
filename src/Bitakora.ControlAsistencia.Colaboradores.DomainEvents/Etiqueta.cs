@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Reflection;
+using System.Text;
 using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -19,8 +22,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 /// MEF-ADR-0012: sealed class, constructor privado real + constructor vacio para STJ/Marten,
 /// factory Crear() con validacion, ConfigurarSerializacion registrando campos privados (patron
 /// SubFranja) -- proscrito [JsonConstructor].
-/// STUB (fase roja test-writer): Crear, EsMismaCategoria, ToString, Equals, GetHashCode y
-/// ConfigurarSerializacion lanzan NotImplementedException. El implementer llena la logica real.
 /// </remarks>
 public sealed partial class Etiqueta : IEquatable<Etiqueta>
 {
@@ -58,28 +59,88 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
 
     // CA-1, CA-2, CA-5: valida no vacios/whitespace, trim en extremos (conserva espacios internos),
     // calcula formas normalizadas (Normalize(FormD) + remover NonSpacingMark + ToLowerInvariant).
-    public static Etiqueta Crear(string categoria, string valor) =>
-        throw new NotImplementedException();
+    public static Etiqueta Crear(string categoria, string valor)
+    {
+        if (string.IsNullOrWhiteSpace(categoria))
+            throw new ArgumentException(Mensajes.CategoriaVacia, nameof(categoria));
+        if (string.IsNullOrWhiteSpace(valor))
+            throw new ArgumentException(Mensajes.ValorVacio, nameof(valor));
+
+        var categoriaOriginal = categoria.Trim();
+        var valorOriginal = valor.Trim();
+
+        return new Etiqueta(categoriaOriginal, Normalizar(categoriaOriginal),
+            valorOriginal, Normalizar(valorOriginal));
+    }
 
     // CA-4: true si las categorias normalizadas coinciden, sin importar el valor.
     public bool EsMismaCategoria(Etiqueta otra) =>
-        throw new NotImplementedException();
+        _categoriaNormalizada == otra._categoriaNormalizada;
 
     // Propuesta: "{Categoria}:{Valor}" con las formas originales (display).
-    public override string ToString() =>
-        throw new NotImplementedException();
+    public override string ToString() => $"{_categoria}:{_valor}";
 
     // Igualdad por valor COMPLETA: categoria normalizada + valor normalizado.
     public bool Equals(Etiqueta? other) =>
-        throw new NotImplementedException();
+        other is not null
+        && _categoriaNormalizada == other._categoriaNormalizada
+        && _valorNormalizado == other._valorNormalizado;
 
     public override bool Equals(object? obj) => Equals(obj as Etiqueta);
 
     public override int GetHashCode() =>
-        throw new NotImplementedException();
+        HashCode.Combine(_categoriaNormalizada, _valorNormalizado);
+
+    // Patron documentado por Microsoft para remover diacriticos: descomponer en FormD, filtrar los
+    // marcas de combinacion (NonSpacingMark) y recomponer en FormC, todo en minusculas invariantes.
+    // Fuera de alcance (issue #353): errores de transposicion ("aera" vs "area") -- eso es fuzzy
+    // matching de UI, no un invariante del dominio.
+    private static string Normalizar(string texto) =>
+        new string(texto.Normalize(NormalizationForm.FormD)
+                .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                .ToArray())
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
 
     // Mapping de serializacion -- vive aqui porque cambia con la clase (patron SubFranja /
     // Identificacion). Persiste las 4 formas (doble forma por campo, decision del planner).
-    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver) =>
-        throw new NotImplementedException();
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    {
+        var tipoClase = typeof(Etiqueta);
+        var ctor = tipoClase.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+        var categoriaField = tipoClase.GetField("_categoria", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var categoriaNormalizadaField = tipoClase.GetField(
+            "_categoriaNormalizada", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var valorField = tipoClase.GetField("_valor", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var valorNormalizadoField = tipoClase.GetField(
+            "_valorNormalizado", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        resolver.Modifiers.Add(typeInfo =>
+        {
+            if (typeInfo.Type != tipoClase) return;
+            if (typeInfo.Kind != JsonTypeInfoKind.Object) return;
+
+            typeInfo.CreateObject = () => ctor.Invoke(null);
+
+            var categoriaProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "categoria");
+            categoriaProp.Get = obj => ((Etiqueta)obj)._categoria;
+            categoriaProp.Set = (obj, val) => categoriaField.SetValue(obj, val);
+            typeInfo.Properties.Add(categoriaProp);
+
+            var categoriaNormalizadaProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "categoriaNormalizada");
+            categoriaNormalizadaProp.Get = obj => ((Etiqueta)obj)._categoriaNormalizada;
+            categoriaNormalizadaProp.Set = (obj, val) => categoriaNormalizadaField.SetValue(obj, val);
+            typeInfo.Properties.Add(categoriaNormalizadaProp);
+
+            var valorProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "valor");
+            valorProp.Get = obj => ((Etiqueta)obj)._valor;
+            valorProp.Set = (obj, val) => valorField.SetValue(obj, val);
+            typeInfo.Properties.Add(valorProp);
+
+            var valorNormalizadoProp = typeInfo.CreateJsonPropertyInfo(typeof(string), "valorNormalizado");
+            valorNormalizadoProp.Get = obj => ((Etiqueta)obj)._valorNormalizado;
+            valorNormalizadoProp.Set = (obj, val) => valorNormalizadoField.SetValue(obj, val);
+            typeInfo.Properties.Add(valorNormalizadoProp);
+        });
+    }
 }
