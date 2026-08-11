@@ -89,6 +89,25 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoTerminacionVinculacion.Exitosa;
     }
 
+    // Issue #350: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
+    // evento de fallo persistido. Reutiliza VinculacionIniciada (CA-ADR-0029: un evento no conoce
+    // su comando) -- mismo hecho que Registrar, comando distinto.
+    // Dos razones de rechazo evaluables solo con la historia del stream, sin reloj (invariante de
+    // no-solape, doctrina del preaviso #349):
+    //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null (incluye un reingreso
+    //     previo sin terminar).
+    //   - FechaSolapaVinculacionAnterior: fechaInicio <= _fechaTerminacionVinculacionVigente.Value
+    //     (estrictamente posterior es la unica fecha valida -- el mismo dia se rechaza).
+    // Exito: appendea VinculacionIniciada(codigo, fechaInicio) a _uncommittedEvents y lo aplica.
+    // NOTA para el implementer: Apply(VinculacionIniciada) debe reabrir la vinculacion (limpiar
+    // _fechaTerminacionVinculacionVigente) al re-aplicarse -- si #330 lo dejo asumiendo una unica
+    // aplicacion, ajustarlo es parte natural del alcance de este issue (ver comentario de #330 en
+    // Apply(VinculacionIniciada) mas arriba).
+    // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
+    // STUB (fase roja, issue #350): el cuerpo completo queda para el implementer.
+    internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio) =>
+        throw new NotImplementedException();
+
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
     internal static ColaboradorAggregateRoot Registrar(
