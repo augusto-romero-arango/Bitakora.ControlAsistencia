@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Projections.Colaboradores;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
+using JasperFx.Events.Projections; // ProjectionLifecycle (NO Marten.Events.Projections)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
 using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
@@ -105,11 +107,11 @@ public static class ConfiguracionMartenProjectionsColaboradores
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
-                // El dominio ya persiste eventos (issue #330) pero todavia no tiene ninguna vista de
-                // lectura. Cuando aparezca la primera proyeccion se agrega aqui con
-                // opts.Projections.Add<TProjection>(ProjectionLifecycle.Async) -- lifecycle Async es
-                // el canonico del worker (MEF-ADR-0034 seccion 3); Inline solo seria valido con
-                // justificacion explicita en el issue correspondiente.
+                // Issue #356: primera proyeccion concreta del dominio -- FichaColaborador, N1
+                // (SingleStreamProjection<FichaColaborador, string>). Lifecycle Async es el canonico
+                // del worker (MEF-ADR-0034 seccion 3); Inline exigiria justificacion explicita en el
+                // issue, ausente aqui.
+                opts.Projections.Add<FichaColaboradorProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

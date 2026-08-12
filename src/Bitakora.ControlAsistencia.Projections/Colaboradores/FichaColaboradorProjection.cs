@@ -31,39 +31,85 @@ namespace Bitakora.ControlAsistencia.Projections.Colaboradores;
 /// </summary>
 public sealed partial class FichaColaboradorProjection : SingleStreamProjection<FichaColaborador, string>
 {
+    // Centinela de vigencia abierta (issue #356, "Vista a materializar"): estructura interna de
+    // filtrado/indexacion, jamas expuesta por la API (esa traduccion es responsabilidad del
+    // endpoint ObtenerFichaColaborador, CA-6).
+    private static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
+
+    // CA-1 (primera mitad): la ficha nace con Id (StreamKey del stream de ColaboradorAggregateRoot)
+    // y NombreCompleto -- el resto de los campos queda en su forma "vacia" hasta que
+    // Apply(VinculacionIniciada) los complete (mismo commit, ver abajo).
     public static FichaColaborador Create(IEvent<ColaboradorRegistrado> e) =>
-        throw new NotImplementedException();
+        new(
+            e.StreamKey!,
+            e.Data.Nombre.NombreCompleto,
+            string.Empty,
+            default,
+            CentinelaVigenciaAbierta,
+            [],
+            new Dictionary<string, string>());
 
     // CA-1 (segunda mitad) / CA-5: codigo y VigenteDesde nuevos, VigenteHasta al centinela y AMBAS
     // estructuras de etiquetas vaciadas -- "reingreso nace limpio" (espejo de Apply(VinculacionIniciada)
     // en ColaboradorAggregateRoot, #355 CA-6). En el registro inicial (mismo commit que
     // ColaboradorRegistrado) el vaciado es inocuo: la ficha todavia no tiene etiquetas.
     public static FichaColaborador Apply(VinculacionIniciada e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            CodigoColaborador = e.Codigo,
+            VigenteDesde = e.FechaInicio,
+            VigenteHasta = CentinelaVigenciaAbierta,
+            Etiquetas = [],
+            EtiquetasNormalizadas = new Dictionary<string, string>()
+        };
 
     // CA-2 (primera mitad): VigenteHasta = FechaEfectiva.
     public static FichaColaborador Apply(VinculacionTerminada e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { VigenteHasta = e.FechaEfectiva };
 
     // CA-2 (segunda mitad): reabre -- VigenteHasta vuelve al centinela.
     public static FichaColaborador Apply(TerminacionAnulada e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { VigenteHasta = CentinelaVigenciaAbierta };
 
     // CA-3 (primera mitad): reemplaza NombreCompleto.
     public static FichaColaborador Apply(NombresCorregidos e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { NombreCompleto = e.Nombre.NombreCompleto };
 
     // CA-3 (segunda mitad): reemplaza VigenteDesde.
     public static FichaColaborador Apply(FechaInicioVinculacionCorregida e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { VigenteDesde = e.FechaInicio };
 
     // CA-4 (primera mitad): upsert en AMBAS estructuras por categoria normalizada -- un valor por
     // categoria (espejo de la invariante de EtiquetaAsignada, #355 CA-2: el evento siempre
-    // representa el estado final de esa categoria).
-    public static FichaColaborador Apply(EtiquetaAsignada e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+    // representa el estado final de esa categoria). Tell-don't-Ask (MEF-ADR-0012): la normalizacion
+    // de la categoria de cada EtiquetaFicha existente se recalcula via Etiqueta.NormalizarCategoria
+    // (VO de DomainEvents) en vez de reimplementarla aqui; e.Etiqueta ya trae su propia forma
+    // normalizada, persistida por el aggregate.
+    public static FichaColaborador Apply(EtiquetaAsignada e, FichaColaborador vista)
+    {
+        var etiquetas = vista.Etiquetas
+            .Where(existente => Etiqueta.NormalizarCategoria(existente.Categoria) != e.Etiqueta.CategoriaNormalizada)
+            .Append(new EtiquetaFicha(e.Etiqueta.Categoria, e.Etiqueta.Valor))
+            .ToList();
+
+        var normalizadas = new Dictionary<string, string>(vista.EtiquetasNormalizadas)
+        {
+            [e.Etiqueta.CategoriaNormalizada] = e.Etiqueta.ValorNormalizado
+        };
+
+        return vista with { Etiquetas = etiquetas, EtiquetasNormalizadas = normalizadas };
+    }
 
     // CA-4 (segunda mitad): remueve la categoria de ambas estructuras.
-    public static FichaColaborador Apply(EtiquetaRetirada e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+    public static FichaColaborador Apply(EtiquetaRetirada e, FichaColaborador vista)
+    {
+        var etiquetas = vista.Etiquetas
+            .Where(existente => Etiqueta.NormalizarCategoria(existente.Categoria) != e.CategoriaNormalizada)
+            .ToList();
+
+        var normalizadas = new Dictionary<string, string>(vista.EtiquetasNormalizadas);
+        normalizadas.Remove(e.CategoriaNormalizada);
+
+        return vista with { Etiquetas = etiquetas, EtiquetasNormalizadas = normalizadas };
+    }
 }
