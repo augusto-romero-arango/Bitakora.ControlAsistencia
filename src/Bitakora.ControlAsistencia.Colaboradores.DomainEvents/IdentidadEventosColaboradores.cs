@@ -20,5 +20,6 @@ public static class IdentidadEventosColaboradores
         typeof(VinculacionTerminada),
         typeof(NombresCorregidos),
         typeof(FechaInicioVinculacionCorregida),
+        typeof(TerminacionAnulada),
     ];
 }

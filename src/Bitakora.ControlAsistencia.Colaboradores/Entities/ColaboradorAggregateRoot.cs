@@ -83,8 +83,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #354: anula la terminacion registrada de la ULTIMA vinculacion -- la reabre sin tocar
     // su codigo ni su fecha de inicio (ambos quedan intactos, Apply solo limpia la terminacion).
     // Nunca lanza (MEF-ADR-0004 capa 4).
-    // STUB (fase roja, issue #354): el cuerpo completo queda para el implementer.
-    public void Apply(TerminacionAnulada e) => throw new NotImplementedException();
+    public void Apply(TerminacionAnulada e) => _fechaTerminacionVinculacionVigente = null;
 
     // Issue #351: reemplaza el nombre de la persona. Nunca lanza (MEF-ADR-0004 capa 4).
     public void Apply(NombresCorregidos e) => _nombre = e.Nombre;
@@ -220,8 +219,17 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres/
     // CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado (los tests lo
     // alcanzan via InternalsVisibleTo).
-    // STUB (fase roja, issue #354): el cuerpo completo queda para el implementer.
-    internal ResultadoAnulacionTerminacion AnularTerminacion() => throw new NotImplementedException();
+    internal ResultadoAnulacionTerminacion AnularTerminacion()
+    {
+        if (_fechaTerminacionVinculacionVigente is null)
+            return ResultadoAnulacionTerminacion.VinculacionAbierta;
+
+        var evento = new TerminacionAnulada();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoAnulacionTerminacion.Exitosa;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
