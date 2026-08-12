@@ -57,9 +57,10 @@ public class RegistrarColaboradorValidatorTests
             e.PropertyName == nameof(RegistrarColaborador.TipoIdentificacion));
     }
 
-    // CA-4: TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- la normalizacion de
-    // entrada (trim+MAYUSCULAS antes de TipoIdentificacion.Desde) es responsabilidad del borde, no
-    // un rechazo. Sin esto, un POST legitimo con "cc" terminaria en 400 en vez de 409/202.
+    // CA-4: TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- el validator no
+    // juzga formato del codigo de tipo; la normalizacion (trim+MAYUSCULAS) vive dentro de
+    // TipoIdentificacion.Desde (issue #371). Sin ella, un POST legitimo con "cc" terminaria en 400
+    // en vez de 409/202.
     [Fact]
     public async Task Validar_Aprueba_CuandoTipoIdentificacionLlegaEnMinusculas()
     {

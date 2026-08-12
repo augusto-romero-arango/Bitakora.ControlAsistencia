@@ -101,9 +101,10 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
 
     // CA-4: "cc" (minusculas) + numero con espacios, tras haber registrado "CC" con el mismo numero
     // normalizado -> 409. La normalizacion del NUMERO ya la garantiza Identificacion.Crear (#348,
-    // trim+MAYUSCULAS); la normalizacion del CODIGO DE TIPO ("cc" -> "CC") es responsabilidad del
-    // handler en el borde (TipoIdentificacion.Desde es case-sensitive por diseno, #348).
-    // El Then sin eventos esperados es la asercion clave: si el borde no normalizara, el handler
+    // trim+MAYUSCULAS); la normalizacion del CODIGO DE TIPO ("cc" -> "CC") la garantiza
+    // TipoIdentificacion.Desde, que normaliza internamente (issue #371 -- supersede el racional de
+    // #348, ver TipoIdentificacionTests).
+    // El Then sin eventos esperados es la asercion clave: si Desde no normalizara, el handler
     // computaria otra clave, no encontraria el stream y nacerian dos personas -- un throw esperado
     // por si solo no distingue "no se registro nada" de "se registro en la clave equivocada".
     [Fact]

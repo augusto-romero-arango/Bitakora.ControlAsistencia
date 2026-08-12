@@ -93,9 +93,10 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
     // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
     // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC:79543210") y emite el
     // evento. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo
-    // de tipo ("cc" -> "CC") es responsabilidad del handler en el borde, porque
-    // TipoIdentificacion.Desde es case-sensitive por diseno (#348). Sin ella el handler computaria
-    // otra clave y responderia 404 sobre un colaborador que si existe.
+    // de tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza internamente
+    // (issue #371 -- supersede el racional de #348, ver TipoIdentificacionTests). Sin esa
+    // normalizacion el handler computaria otra clave y responderia 404 sobre un colaborador que si
+    // existe.
     [Fact]
     public async Task CorregirNombres_EmiteNombresCorregidos_CuandoTipoYNumeroLleganSinNormalizar()
     {

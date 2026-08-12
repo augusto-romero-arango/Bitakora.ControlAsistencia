@@ -53,9 +53,9 @@ public class AsignarEtiquetaValidatorTests
             e.PropertyName == nameof(AsignarEtiqueta.TipoIdentificacion));
     }
 
-    // TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- la normalizacion de
-    // entrada es responsabilidad del borde, no un rechazo (mismo criterio que los demas validators
-    // del dominio).
+    // TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- el validator no juzga
+    // formato del codigo de tipo; la normalizacion (trim+MAYUSCULAS) vive dentro de
+    // TipoIdentificacion.Desde (issue #371, mismo criterio que los demas validators del dominio).
     [Fact]
     public async Task Validar_Aprueba_CuandoTipoIdentificacionLlegaEnMinusculas()
     {

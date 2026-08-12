@@ -52,9 +52,9 @@ public class CorregirFechaInicioVinculacionValidatorTests
             e.PropertyName == nameof(CorregirFechaInicioVinculacion.TipoIdentificacion));
     }
 
-    // TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- la normalizacion de
-    // entrada (trim+MAYUSCULAS antes de TipoIdentificacion.Desde) es responsabilidad del borde, no
-    // un rechazo (mismo criterio que los demas validators del dominio).
+    // TipoIdentificacion en minusculas ("cc") DEBE seguir siendo valido -- el validator no juzga
+    // formato del codigo de tipo; la normalizacion (trim+MAYUSCULAS) vive ahora dentro de
+    // TipoIdentificacion.Desde (issue #371, mismo criterio que los demas validators del dominio).
     [Fact]
     public async Task Validar_Aprueba_CuandoTipoIdentificacionLlegaEnMinusculas()
     {
