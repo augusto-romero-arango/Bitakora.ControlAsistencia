@@ -4,9 +4,9 @@ using FluentValidation;
 namespace Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction.CommandHandler;
 
 // Issue #349: validacion de forma del comando TerminarVinculacion en el borde (MEF-ADR-0004
-// capa 1 -> 400 BadRequest). CA-6: TipoIdentificacion (requerido + en la lista cerrada --
-// normalizar trim+MAYUSCULAS antes de TipoIdentificacion.Desde, mismo criterio de normalizacion
-// de entrada que RegistrarColaboradorValidator), NumeroIdentificacion y FechaEfectiva requeridos.
+// capa 1 -> 400 BadRequest). CA-6: TipoIdentificacion (requerido + en la lista cerrada -- la
+// normalizacion trim+MAYUSCULAS vive dentro de TipoIdentificacion.Desde, issue #371, mismo criterio
+// que RegistrarColaboradorValidator), NumeroIdentificacion y FechaEfectiva requeridos.
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura:
 // no requiere tocar el wiring de DI.
 public class TerminarVinculacionValidator : AbstractValidator<TerminarVinculacion>
@@ -35,7 +35,7 @@ public class TerminarVinculacionValidator : AbstractValidator<TerminarVinculacio
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

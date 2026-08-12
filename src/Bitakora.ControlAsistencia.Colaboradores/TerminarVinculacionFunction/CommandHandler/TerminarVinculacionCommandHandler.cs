@@ -7,8 +7,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction.C
 // Issue #349: handler del comando TerminarVinculacion.
 // Flujo esperado (precedente SolicitarProgramacionTurnoCommandHandler, MEF-ADR-0004 capa 2 --
 // CA-ADR-0030):
-//   1. Normalizar y parsear TipoIdentificacion -> TipoIdentificacion.Desde(...) (borde HTTP:
-//      normalizar trim+MAYUSCULAS ANTES de Desde, mismo criterio que RegistrarColaboradorCommandHandler).
+//   1. Parsear TipoIdentificacion -> TipoIdentificacion.Desde(...), que normaliza trim+MAYUSCULAS
+//      internamente (issue #371, mismo criterio que RegistrarColaboradorCommandHandler).
 //   2. Identificacion.Crear(tipo, command.NumeroIdentificacion) -- normaliza el numero.
 //   3. ComputarStreamId(identificacion) -> GetAggregateRootAsync<ColaboradorAggregateRoot> -- si
 //      es null, throw KeyNotFoundException(Mensajes.ColaboradorNoEncontrado) (-> 404).
@@ -33,7 +33,7 @@ public partial class TerminarVinculacionCommandHandler : ICommandHandlerAsync<Te
     {
         // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
         // RegistrarColaboradorCommandHandler.
-        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);

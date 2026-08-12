@@ -14,8 +14,8 @@ public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColabora
     public RegistrarColaboradorValidator()
     {
         // CA-3/CA-4: requerido y en la lista cerrada -- pero "cc" (minusculas) debe seguir siendo
-        // valido, la normalizacion trim+MAYUSCULAS ocurre ANTES de consultar la lista cerrada
-        // (mismo criterio de normalizacion de entrada que el handler, MEF-ADR-0037 seccion 2).
+        // valido: la normalizacion trim+MAYUSCULAS vive dentro de TipoIdentificacion.Desde
+        // (issue #371), no en este borde.
         // Cascade(Stop) evita que Must evalue un valor vacio que NotEmpty ya rechazo.
         RuleFor(x => x.TipoIdentificacion)
             .Cascade(CascadeMode.Stop)
@@ -40,7 +40,7 @@ public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColabora
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

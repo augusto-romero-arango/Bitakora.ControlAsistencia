@@ -33,7 +33,7 @@ public class AsignarEtiquetaValidator : AbstractValidator<AsignarEtiqueta>
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

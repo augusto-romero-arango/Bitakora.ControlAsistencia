@@ -31,7 +31,7 @@ public class RetirarEtiquetaValidator : AbstractValidator<RetirarEtiqueta>
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

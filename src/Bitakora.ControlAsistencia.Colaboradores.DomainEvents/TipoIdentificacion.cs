@@ -43,12 +43,16 @@ public sealed partial class TipoIdentificacion
     // El chequeo de null NO es defensivo redundante: este es el boundary de rehidratacion desde
     // JSON (Identificacion.ConfigurarSerializacion lo llama con el valor crudo del payload), asi
     // que un "tipo": null persistido debe fallar con el mensaje de dominio y no con el
-    // ArgumentNullException del diccionario, que no dice nada del contrato roto.
-    // La comparacion es exacta y sensible a mayusculas: lo persistido es siempre el codigo
-    // canonico ("CC"), y aceptar "cc" en silencio abriria dos representaciones para la misma
-    // identidad -- y con ellas dos claves de stream distintas.
+    // ArgumentNullException del diccionario, que no dice nada del contrato roto. El null-check se
+    // evalua ANTES de normalizar -- no se puede invocar Trim() sobre null.
+    // Issue #371: normaliza (trim + MAYUSCULAS invariante) antes del lookup -- el conocimiento de
+    // como normalizar la entrada pertenece al VO (Tell-don't-Ask, MEF-ADR-0012), no a los callers.
+    // El racional de #348 (aceptar "cc" abriria dos representaciones/claves de stream distintas) no
+    // se sostiene con el diseno actual: Desde() nunca almacena el input, siempre retorna la
+    // instancia canonica de la lista cerrada, y la clave de stream se compone desde esa instancia
+    // canonica -- nunca desde el input crudo.
     public static TipoIdentificacion Desde(string codigo) =>
-        codigo is not null && PorCodigo.TryGetValue(codigo, out var tipo)
+        codigo is not null && PorCodigo.TryGetValue(codigo.Trim().ToUpperInvariant(), out var tipo)
             ? tipo
             : throw new ArgumentException(Mensajes.CodigoNoReconocido, nameof(codigo));
 

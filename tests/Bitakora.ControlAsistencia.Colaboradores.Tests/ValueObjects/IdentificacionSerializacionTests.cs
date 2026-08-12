@@ -66,6 +66,24 @@ public class IdentificacionSerializacionTests
         documento.RootElement.GetProperty("numero").GetString().Should().Be("1098765432");
     }
 
+    // Issue #371: unica consecuencia observable del refactor FUERA del borde HTTP. La rehidratacion
+    // llama TipoIdentificacion.Desde con el valor crudo del payload, y Desde ahora normaliza: un
+    // "tipo": "cc" corrupto en mt_events (que antes reventaba con ArgumentException) rehidrata a la
+    // instancia canonica CC, preservando la identidad. El issue lo declara comportamiento aceptable
+    // -- el write path nunca lo produce (solo persiste el codigo canonico, ver
+    // Serializar_PersisteElTipoComoCodigoLiteral_...); este test fija que la tolerancia es
+    // deliberada y no un descuido.
+    [Fact]
+    public void Deserializar_RehidrataAlTipoCanonico_CuandoElTipoPersistidoNoEstaNormalizado()
+    {
+        const string jsonCorrupto = """{"tipo":"cc","numero":"1098765432"}""";
+
+        var restaurado = JsonSerializer.Deserialize<Identificacion>(jsonCorrupto, CrearOpciones());
+
+        restaurado.Should().Be(Identificacion.Crear(TipoIdentificacion.CC, "1098765432"));
+        restaurado!.ToString().Should().Be("CC:1098765432", "la clave de stream siempre es la canonica");
+    }
+
     // Barrera anti-regresion: sin el resolver custom (equivalente a olvidar registrar el VO), STJ
     // no puede reconstruir Identificacion -- su unico constructor es privado y no hay
     // [JsonConstructor] (proscrito por MEF-ADR-0012).

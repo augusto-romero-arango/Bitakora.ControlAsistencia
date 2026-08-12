@@ -122,8 +122,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
     // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC:79543210") y emite
     // el evento. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del
-    // codigo de tipo ("cc" -> "CC") es responsabilidad del handler en el borde, porque
-    // TipoIdentificacion.Desde es case-sensitive por diseno (#348).
+    // codigo de tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza
+    // internamente (issue #371 -- supersede el racional de #348, ver TipoIdentificacionTests).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoTipoYNumeroLleganSinNormalizar()
     {

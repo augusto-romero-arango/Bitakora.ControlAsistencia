@@ -18,11 +18,10 @@ public partial class RegistrarColaboradorCommandHandler : ICommandHandlerAsync<R
 
     public async Task HandleAsync(RegistrarColaborador command, CancellationToken ct = default)
     {
-        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2): normalizar trim+MAYUSCULAS ANTES
-        // de Desde -- TipoIdentificacion.Desde es case-sensitive por diseno (#348) para proteger la
-        // rehidratacion de lo ya persistido; normalizar la ENTRADA del usuario es responsabilidad de
-        // este borde, no del VO. El numero lo normaliza Identificacion.Crear.
-        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2): TipoIdentificacion.Desde ya
+        // normaliza trim+MAYUSCULAS internamente (issue #371), asi que el borde no repite esa
+        // normalizacion. El numero lo normaliza Identificacion.Crear.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
