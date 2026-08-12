@@ -38,7 +38,7 @@ public class ReingresarColaboradorValidator : AbstractValidator<ReingresarColabo
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

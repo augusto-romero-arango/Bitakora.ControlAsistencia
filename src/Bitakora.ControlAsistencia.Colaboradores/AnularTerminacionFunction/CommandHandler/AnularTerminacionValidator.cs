@@ -32,7 +32,7 @@ public class AnularTerminacionValidator : AbstractValidator<AnularTerminacion>
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

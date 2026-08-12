@@ -40,7 +40,7 @@ public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColabora
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)

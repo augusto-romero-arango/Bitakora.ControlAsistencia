@@ -33,7 +33,7 @@ public partial class TerminarVinculacionCommandHandler : ICommandHandlerAsync<Te
     {
         // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
         // RegistrarColaboradorCommandHandler.
-        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);

@@ -20,9 +20,9 @@ public partial class CorregirNombresCommandHandler : ICommandHandlerAsync<Correg
     public async Task HandleAsync(CorregirNombres command, CancellationToken ct = default)
     {
         // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que los handlers
-        // hermanos: TipoIdentificacion.Desde es case-sensitive por diseno (#348), asi que el borde
-        // normaliza antes de consultar la lista cerrada.
-        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        // hermanos: TipoIdentificacion.Desde normaliza (trim + MAYUSCULAS invariante) internamente
+        // (issue #371), asi que el borde no repite esa normalizacion.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
         var nombre = NombreColaborador.Crear(
             command.PrimerNombre, command.SegundoNombre, command.PrimerApellido, command.SegundoApellido);

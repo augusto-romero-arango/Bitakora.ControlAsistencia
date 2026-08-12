@@ -36,7 +36,7 @@ public class CorregirFechaInicioVinculacionValidator : AbstractValidator<Corregi
     {
         try
         {
-            TipoIdentificacion.Desde(tipo.Trim().ToUpperInvariant());
+            TipoIdentificacion.Desde(tipo);
             return true;
         }
         catch (ArgumentException)
