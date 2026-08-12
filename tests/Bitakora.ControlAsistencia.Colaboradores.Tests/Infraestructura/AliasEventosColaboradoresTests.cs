@@ -87,9 +87,8 @@ public class AliasEventosColaboradoresTests
 
     // Issue #354 (gemela de las cinco pruebas anteriores): congela el alias de TerminacionAnulada,
     // sexto evento persistido de ColaboradorAggregateRoot (anular la terminacion de la ultima
-    // vinculacion). Rojo esperado (fase roja, issue #354): IdentidadEventosColaboradores.TiposPersistidos
-    // sigue sin TerminacionAnulada hasta que el implementer lo registre -- el implementer lo agrega
-    // ahi (no aqui, MEF-ADR-0002).
+    // vinculacion). El alias es la identidad del evento en mt_events (CA-ADR-0029 decision #6): un
+    // rename futuro de la clase lo cambiaria en silencio, y este literal es quien lo delata.
     [Fact]
     public void TerminacionAnulada_TieneAliasTerminacionAnulada()
     {

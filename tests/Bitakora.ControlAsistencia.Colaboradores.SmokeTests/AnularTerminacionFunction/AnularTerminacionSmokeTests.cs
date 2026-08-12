@@ -52,11 +52,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // CA-3: la ausencia de evento es sincrona (sin proyeccion downstream) -- un timeout corto
-    // alcanza para probar que un rechazo no dejo escritura, sin alargar la suite esperando los 30s
-    // estandar sin ganar senal (mismo precedente que CorregirNombresSmokeTests.TimeoutAusencia).
-    private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(3);
-
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
     // identidad del stream es Identificacion.ToString() ("CC:<numero>"), no un Guid nuevo por
     // llamada, asi que reusar un numero fijo haria que el arrange (RegistrarColaborador) choque con
@@ -299,10 +294,16 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         var streamId = ComputarStreamId(numeroIdentificacion);
 
         var existe = await postgres.ExisteEventoAsync(
-            SchemaColaboradores, streamId, TipoEventoTerminacionAnulada, TimeoutAusencia);
+            SchemaColaboradores, streamId, TipoEventoTerminacionAnulada, Timeout);
 
         existe.Should().BeTrue(
-            $"deberia existir exactamente el terminacion_anulada de la primera anulacion en el stream {streamId}");
+            $"el terminacion_anulada de la primera anulacion deberia estar en el stream {streamId}");
+
+        var anulaciones = await postgres.ContarEventosAsync(
+            SchemaColaboradores, streamId, TipoEventoTerminacionAnulada);
+
+        anulaciones.Should().Be(1,
+            "la segunda anulacion se rechazo con 409: no debe haber escrito un segundo terminacion_anulada");
     }
 
     // CA-4 (decision #3 del issue, aprobada explicitamente): tras un reingreso, la terminacion de la

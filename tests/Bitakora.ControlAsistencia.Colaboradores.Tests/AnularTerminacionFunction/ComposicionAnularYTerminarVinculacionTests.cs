@@ -24,7 +24,6 @@
 // del issue #354): es un archivo nuevo, en la carpeta del comando que introduce el escenario de
 // composicion, que prueba exactamente la claim de negocio de CA-2 sin tocar un archivo existente.
 
-using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction;

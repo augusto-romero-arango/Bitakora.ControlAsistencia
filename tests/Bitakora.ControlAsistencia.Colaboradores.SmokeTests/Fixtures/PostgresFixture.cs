@@ -64,6 +64,19 @@ public class PostgresFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Cuenta los eventos del tipo indicado ya presentes en el stream, sin esperar.
+    /// </summary>
+    /// <remarks>
+    /// Issue #354: <see cref="ExisteEventoAsync"/> solo responde "hay al menos uno", asi que no
+    /// distingue "quedo el evento de la primera request" de "la segunda request escribio otro".
+    /// Un test que afirme que un rechazo NO agrego un evento necesita el conteo exacto. Sin
+    /// polling a proposito: se usa despues de una respuesta sincrona de rechazo (409), cuando el
+    /// escenario ya espero con <see cref="ExisteEventoAsync"/> a que apareciera el evento legitimo.
+    /// </remarks>
+    public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento) =>
+        (await ObtenerEventosInternoAsync(schema, streamId, tipoEvento)).Count;
+
+    /// <summary>
     /// Obtiene el primer evento del tipo indicado en el stream, sin filtrar por contenido.
     /// </summary>
     /// <remarks>

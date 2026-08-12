@@ -29,6 +29,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     private const string StreamIdEsperado = "CC:79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
+    private const string CodigoVinculacionReingreso = "COL-002";
     private static readonly DateOnly FechaInicioVinculacionVigente = new(2026, 1, 15);
     private static readonly DateOnly FechaEfectivaTerminacion = new(2026, 6, 1);
 
@@ -134,6 +135,59 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
+    // CA-1 + CA-4 (cara de exito de la misma regla): la ULTIMA vinculacion nacio de un reingreso y
+    // SI tiene terminacion registrada -> se anula esa, no la anterior. Unico estado del stream
+    // donde conviven las dos terminaciones (la congelada de la vinculacion anterior, #350/#352, y
+    // la de la vigente), asi que es el que demuestra que Apply(TerminacionAnulada) reabre solo la
+    // ULTIMA y deja intacto su codigo y su fecha de inicio (los del reingreso, no los originales).
+    [Fact]
+    public async Task AnularTerminacion_EmiteTerminacionAnulada_CuandoLaUltimaVinculacionNacioDeUnReingresoYaTerminado()
+    {
+        var fechaTerminacionAnterior = new DateOnly(2026, 3, 1);
+        var fechaInicioReingreso = new DateOnly(2026, 4, 1);
+        var fechaTerminacionReingreso = new DateOnly(2026, 9, 30);
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new VinculacionTerminada(fechaTerminacionAnterior),
+            new VinculacionIniciada(CodigoVinculacionReingreso, fechaInicioReingreso),
+            new VinculacionTerminada(fechaTerminacionReingreso));
+
+        await WhenAsync(ComandoValido());
+
+        Then(StreamIdEsperado, new TerminacionAnulada());
+        And<ColaboradorAggregateRoot, DateOnly?>(
+            StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
+        And<ColaboradorAggregateRoot, string>(
+            StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionReingreso);
+        And<ColaboradorAggregateRoot, DateOnly>(
+            StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaInicioReingreso);
+    }
+
+    // MEF-ADR-0004 capa 4 (ADR aplicable declarado en el issue): rehidratar un stream con orden
+    // anomalo -- una TerminacionAnulada sin VinculacionTerminada previa -- no lanza. Si Apply
+    // lanzara, el aggregate quedaria permanentemente roto y ningun evento posterior podria
+    // repararlo; aqui simplemente vuelve a dejar la vinculacion abierta, y el comando se rechaza
+    // por la unica regla, como cualquier otra vinculacion abierta.
+    [Fact]
+    public async Task AnularTerminacion_LanzaInvalidOperationException_CuandoElStreamTraeUnaAnulacionSinTerminacionPrevia()
+    {
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new TerminacionAnulada());
+
+        var act = async () => await WhenAsync(ComandoValido());
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, string>(
+            StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionVigente);
+        And<ColaboradorAggregateRoot, DateOnly>(
+            StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioVinculacionVigente);
+    }
+
     // CA-3: la ultima vinculacion nunca ha sido terminada (recien registrada) -> 409, ningun evento
     // nuevo en el stream, el estado conserva la vinculacion abierta.
     [Fact]
@@ -180,7 +234,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new VinculacionTerminada(fechaTerminacionAnterior),
-            new VinculacionIniciada("COL-002", fechaInicioReingreso));
+            new VinculacionIniciada(CodigoVinculacionReingreso, fechaInicioReingreso));
 
         var act = async () => await WhenAsync(ComandoValido());
 
@@ -190,7 +244,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
         And<ColaboradorAggregateRoot, DateOnly?>(
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
         And<ColaboradorAggregateRoot, string>(
-            StreamIdEsperado, c => c.CodigoVinculacionVigente, "COL-002");
+            StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionReingreso);
     }
 
     // CA-5: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
