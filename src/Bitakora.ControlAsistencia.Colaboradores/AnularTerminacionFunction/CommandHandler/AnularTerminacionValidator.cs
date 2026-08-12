@@ -4,9 +4,9 @@ using FluentValidation;
 namespace Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction.CommandHandler;
 
 // Issue #354: validacion de forma del comando AnularTerminacion en el borde (MEF-ADR-0004 capa 1
-// -> 400 BadRequest). CA-6: TipoIdentificacion (requerido + en la lista cerrada -- normalizar
-// trim+MAYUSCULAS antes de TipoIdentificacion.Desde, mismo criterio de normalizacion de entrada
-// que TerminarVinculacionValidator) y NumeroIdentificacion requeridos. Sin FechaEfectiva ni otro
+// -> 400 BadRequest). CA-6: TipoIdentificacion (requerido + en la lista cerrada -- la normalizacion
+// trim+MAYUSCULAS vive dentro de TipoIdentificacion.Desde, issue #371, mismo criterio que
+// TerminarVinculacionValidator) y NumeroIdentificacion requeridos. Sin FechaEfectiva ni otro
 // campo: el comando no lleva payload propio.
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura:
 // no requiere tocar el wiring de DI.

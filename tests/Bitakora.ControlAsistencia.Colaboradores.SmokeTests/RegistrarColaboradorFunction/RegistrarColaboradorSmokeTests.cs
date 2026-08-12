@@ -166,8 +166,10 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             "el arrange de este smoke test depende de que el primer registro funcione");
 
         var streamId = ComputarStreamId(numeroIdentificacion);
-        await postgres.ExisteEventoAsync(
+        var existePrimerRegistro = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoColaboradorRegistrado, Timeout);
+        existePrimerRegistro.Should().BeTrue(
+            $"el evento {TipoEventoColaboradorRegistrado} del primer registro deberia estar en el stream {streamId} antes de reintentar");
 
         var segundoRegistro = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
@@ -203,8 +205,10 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             "el arrange de este smoke test depende de que el primer registro (con 'CC') funcione");
 
         var streamId = ComputarStreamId(numeroIdentificacion);
-        await postgres.ExisteEventoAsync(
+        var existePrimerRegistro = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoColaboradorRegistrado, Timeout);
+        existePrimerRegistro.Should().BeTrue(
+            $"el evento {TipoEventoColaboradorRegistrado} del primer registro (con 'CC') deberia estar en el stream {streamId} antes de reintentar con ' cc '");
 
         var segundoRegistro = await _client.PostAsJsonAsync(
             RutaRegistrar,
