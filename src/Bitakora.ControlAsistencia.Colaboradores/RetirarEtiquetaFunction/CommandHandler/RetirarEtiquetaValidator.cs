@@ -7,9 +7,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction.Comma
 // 400 BadRequest). CA-7: TipoIdentificacion (requerido + en la lista cerrada), NumeroIdentificacion
 // y Categoria requeridos. Sin Valor: el comando no lo lleva (retirar solo necesita la categoria).
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura: no
-// requiere tocar el wiring de DI.
-// STUB (fase roja, issue #355): sin reglas todavia -- el implementer las agrega (precedente
-// AnularTerminacionValidator, issue #354).
+// requiere tocar el wiring de DI. Precedente: AnularTerminacionValidator (issue #354).
 public class RetirarEtiquetaValidator : AbstractValidator<RetirarEtiqueta>
 {
     public RetirarEtiquetaValidator()

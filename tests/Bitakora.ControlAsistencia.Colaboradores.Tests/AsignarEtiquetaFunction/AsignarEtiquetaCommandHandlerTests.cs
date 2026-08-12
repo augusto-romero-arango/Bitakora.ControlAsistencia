@@ -169,6 +169,55 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{AsignarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
+    }
+
+    // CA-2 (un valor por CATEGORIA, no una etiqueta por vinculacion): asignar una categoria nueva
+    // cuando ya existe otra distinta las hace convivir -- la sobrescritura es por categoria, no un
+    // reemplazo del diccionario completo. Agregado en revision: ningun test ejercia dos categorias
+    // simultaneas, asi que un Apply que reemplazara el diccionario en vez de indexarlo habria
+    // pasado en verde.
+    [Fact]
+    public async Task AsignarEtiqueta_ConservaLaCategoriaPrevia_CuandoLaCategoriaNuevaEsDistinta()
+    {
+        var etiquetaPrevia = Etiqueta.Crear("Sede", "Medellín");
+        DadoUnColaboradorConEtiquetaAsignada(etiquetaPrevia);
+        var etiquetaNueva = Etiqueta.Crear("Área", "Tecnología");
+
+        await WhenAsync(ComandoValido());
+
+        Then(StreamIdEsperado, new EtiquetaAsignada(etiquetaNueva));
+        And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 2);
+        And<ColaboradorAggregateRoot, Etiqueta>(
+            StreamIdEsperado, c => c.Etiquetas["sede"], etiquetaPrevia);
+        And<ColaboradorAggregateRoot, Etiqueta>(
+            StreamIdEsperado, c => c.Etiquetas["area"], etiquetaNueva);
+    }
+
+    // CA-5 x CA-2 (cruce que ningun test cubria; agregado en revision): la vinculacion tiene
+    // terminacion registrada Y la etiqueta del comando es identica por valor a la ya asignada. CA-5
+    // es incondicional ("409 en AMBOS comandos"), asi que la regla de apertura gana sobre la
+    // idempotencia silenciosa -- orden deliberadamente INVERSO al de CorregirFechaInicio (#352),
+    // donde SinCambios se evalua primero porque alli la correccion de nombres/fechas es valida sobre
+    // una vinculacion cerrada. Aqui no: escribir etiquetas sobre una relacion laboral congelada se
+    // rechaza aunque el estado deseado coincida.
+    [Fact]
+    public async Task AsignarEtiqueta_LanzaInvalidOperationException_CuandoLaEtiquetaEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
+    {
+        var etiquetaExistente = Etiqueta.Crear("Área", "Tecnología");
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new EtiquetaAsignada(etiquetaExistente),
+            new VinculacionTerminada(FechaEfectivaTerminacion));
+
+        var act = async () => await WhenAsync(ComandoValido());
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{AsignarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, Etiqueta>(
+            StreamIdEsperado, c => c.Etiquetas["area"], etiquetaExistente);
     }
 
     // CA-6 (reingreso nace limpio): tras un reingreso, la vinculacion nueva no hereda las etiquetas

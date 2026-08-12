@@ -169,6 +169,29 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
+    }
+
+    // CA-3 (el retiro es por CATEGORIA, no un vaciado del diccionario): con dos categorias
+    // asignadas, retirar una deja la otra intacta. Agregado en revision: ningun test ejercia dos
+    // categorias simultaneas, asi que un Apply que limpiara el diccionario entero habria pasado en
+    // verde.
+    [Fact]
+    public async Task RetirarEtiqueta_ConservaLasDemasCategorias_CuandoRetiraUnaDeVarias()
+    {
+        var etiquetaConservada = Etiqueta.Crear("Sede", "Medellín");
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new EtiquetaAsignada(Etiqueta.Crear("Area", "Ventas")),
+            new EtiquetaAsignada(etiquetaConservada));
+
+        await WhenAsync(ComandoValido());
+
+        Then(StreamIdEsperado, new EtiquetaRetirada("area"));
+        And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
+        And<ColaboradorAggregateRoot, Etiqueta>(
+            StreamIdEsperado, c => c.Etiquetas["sede"], etiquetaConservada);
     }
 
     // CA-6 (reingreso nace limpio): la etiqueta pertenecia a la vinculacion ANTERIOR (congelada

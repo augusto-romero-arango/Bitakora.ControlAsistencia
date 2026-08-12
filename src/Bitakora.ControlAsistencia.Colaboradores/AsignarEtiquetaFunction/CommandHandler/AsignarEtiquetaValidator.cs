@@ -8,9 +8,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction.Comma
 // Categoria y Valor requeridos -- las invariantes de doble forma/normalizacion viven en el VO
 // Etiqueta (#353), no en este validator (el aggregate solo gobierna el diccionario).
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura: no
-// requiere tocar el wiring de DI.
-// STUB (fase roja, issue #355): sin reglas todavia -- el implementer las agrega (precedente
-// AnularTerminacionValidator, issue #354).
+// requiere tocar el wiring de DI. Precedente: AnularTerminacionValidator (issue #354).
 public class AsignarEtiquetaValidator : AbstractValidator<AsignarEtiqueta>
 {
     public AsignarEtiquetaValidator()

@@ -37,12 +37,13 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     private DateOnly? _fechaTerminacionVinculacionAnterior;
 
     // Issue #355: diccionario de etiquetas dinamicas de la vinculacion vigente, clave = categoria
-    // normalizada (Etiqueta.CategoriaNormalizada, #353) -- un valor por categoria (Crear/Apply
-    // sobrescriben, nunca duplican). No es observable publico: el issue no expone lectura de
-    // etiquetas al exterior del ensamblado (Tell-don't-Ask, MEF-ADR-0012) -- la lectura llega con
-    // las projections (#356/#357). internal solo para que el DSL de tests (And<>) verifique el
-    // estado rehidratado, mismo criterio que los demas observables internos de esta clase.
-    private Dictionary<string, Etiqueta> _etiquetas = new();
+    // normalizada (Etiqueta.CategoriaNormalizada, #353) -- un valor por categoria (AsignarEtiqueta y
+    // su Apply sobrescriben la entrada, nunca duplican). No es observable publico: el issue no
+    // expone lectura de etiquetas al exterior del ensamblado (Tell-don't-Ask, MEF-ADR-0012) -- la
+    // lectura llega con las projections (#356/#357). internal solo para que el DSL de tests (And<>)
+    // verifique el estado rehidratado, mismo criterio que los demas observables internos de esta
+    // clase.
+    private readonly Dictionary<string, Etiqueta> _etiquetas = new();
 
     internal IReadOnlyDictionary<string, Etiqueta> Etiquetas => _etiquetas;
 
@@ -78,17 +79,17 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // terminacion de la vinculacion que este reingreso desplaza -- es el unico rastro que
     // CorregirFechaInicio tiene para evaluar la no-solape hacia atras una vez que
     // _fechaTerminacionVinculacionVigente ya se reseteo a null.
-    // Issue #355 (pendiente, fase verde -- CA-6 "reingreso nace limpio"): este metodo debe ademas
-    // resetear _etiquetas a un diccionario vacio -- la vinculacion nueva no hereda las etiquetas de
-    // la anterior. NO se implementa aqui (fase roja): el cuerpo real de esa extension queda para el
-    // implementer, mismo criterio que el resto de esta clase.
+    // Issue #355 (CA-6, "reingreso nace limpio"): ademas vacia las etiquetas -- la vinculacion nueva
+    // no hereda las de la anterior (las etiquetas describen la relacion laboral vigente). Se vacia
+    // incondicionalmente, tambien en la primera vinculacion (donde ya esta vacio): Apply nunca
+    // ramifica por logica de negocio, solo asienta estado (MEF-ADR-0004 capa 4).
     public void Apply(VinculacionIniciada e)
     {
         _fechaTerminacionVinculacionAnterior = _fechaTerminacionVinculacionVigente;
         _codigoVinculacionVigente = e.Codigo;
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
-        _etiquetas = new();
+        _etiquetas.Clear();
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
