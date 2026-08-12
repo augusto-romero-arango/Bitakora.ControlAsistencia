@@ -96,4 +96,29 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<TerminacionAnulada>(options).Should().Be("terminacion_anulada");
     }
+
+    // Issue #355 (gemela de las seis pruebas anteriores): congela el alias de EtiquetaAsignada,
+    // septimo evento persistido de ColaboradorAggregateRoot (asignar una etiqueta dinamica). Rojo
+    // esperado (fase roja, issue #355): IdentidadEventosColaboradores.TiposPersistidos sigue sin
+    // EtiquetaAsignada hasta que el implementer lo registre -- el implementer lo agrega ahi (no
+    // aqui, MEF-ADR-0002).
+    [Fact]
+    public void EtiquetaAsignada_TieneAliasEtiquetaAsignada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<EtiquetaAsignada>(options).Should().Be("etiqueta_asignada");
+    }
+
+    // Issue #355: congela el alias de EtiquetaRetirada, octavo evento persistido de
+    // ColaboradorAggregateRoot (retirar una etiqueta dinamica). El alias es la identidad del evento
+    // en mt_events (CA-ADR-0029 decision #6): un rename futuro de la clase lo cambiaria en
+    // silencio, y este literal es quien lo delata.
+    [Fact]
+    public void EtiquetaRetirada_TieneAliasEtiquetaRetirada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<EtiquetaRetirada>(options).Should().Be("etiqueta_retirada");
+    }
 }

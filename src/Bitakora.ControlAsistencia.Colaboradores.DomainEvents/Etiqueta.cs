@@ -77,6 +77,17 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     public bool EsMismaCategoria(Etiqueta otra) =>
         _categoriaNormalizada == otra._categoriaNormalizada;
 
+    // Issue #355 (desviacion documentada por el test-writer, ver resumen del pipeline):
+    // RetirarEtiqueta solo lleva la Categoria en su payload (sin Valor) -- Etiqueta.Crear(categoria,
+    // valor) no es aplicable porque exige un valor no vacio. Tell-don't-Ask: la normalizacion de una
+    // categoria aislada sigue siendo decision de ESTE VO (mismo criterio que EsMismaCategoria decide
+    // que significa "misma categoria"), nunca del handler ni del aggregate comparando/transformando
+    // strings por su cuenta. Mismas reglas de rechazo que Crear (vacia/whitespace -> ArgumentException
+    // con el mismo mensaje .resx) y el mismo algoritmo de normalizacion (trim + Normalizar).
+    // STUB (fase roja, issue #355): el cuerpo completo queda para el implementer.
+    public static string NormalizarCategoria(string categoria) =>
+        throw new NotImplementedException();
+
     // Display: "{Categoria}:{Valor}" con las formas originales, no las normalizadas.
     public override string ToString() => $"{_categoria}:{_valor}";
 
