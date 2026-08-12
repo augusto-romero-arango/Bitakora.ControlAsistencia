@@ -30,10 +30,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
 
     private const string CodigoVinculacionOriginal = "COL-001";
     private const string CodigoReingreso = "COL-002";
+    private const string CodigoSegundoReingreso = "COL-003";
     private static readonly DateOnly FechaInicioOriginal = new(2026, 1, 15);
     private static readonly DateOnly FechaEfectivaTerminacionOriginal = new(2026, 6, 1);
     private static readonly DateOnly FechaInicioReingreso =
         FechaEfectivaTerminacionOriginal.AddDays(1); // 2026-06-02
+    private static readonly DateOnly FechaEfectivaTerminacionReingreso = new(2026, 9, 1);
+    private static readonly DateOnly FechaInicioSegundoReingreso =
+        FechaEfectivaTerminacionReingreso.AddDays(1); // 2026-09-02
 
     protected override ICommandHandlerAsync<CorregirFechaInicioVinculacion> Handler =>
         new CorregirFechaInicioVinculacionCommandHandler(EventStore);
@@ -77,6 +81,28 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             VinculacionIniciadaOriginal(),
             new VinculacionTerminada(FechaEfectivaTerminacionOriginal),
             new VinculacionIniciada(CodigoReingreso, FechaInicioReingreso));
+
+    // Precondicion: la ULTIMA vinculacion es un reingreso que ya tiene su propia terminacion
+    // registrada -- unico estado en que las DOS reglas de estado acotan la fecha a la vez
+    // (ventana abierta-cerrada: FechaEfectivaTerminacionOriginal < fecha <= FechaEfectivaTerminacionReingreso).
+    private void DadoUnColaboradorConReingresoYaTerminado() =>
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaOriginal(),
+            new VinculacionTerminada(FechaEfectivaTerminacionOriginal),
+            new VinculacionIniciada(CodigoReingreso, FechaInicioReingreso),
+            new VinculacionTerminada(FechaEfectivaTerminacionReingreso));
+
+    // Precondicion: dos reingresos encadenados -- la "vinculacion anterior" a la ultima es la del
+    // PRIMER reingreso (terminada en FechaEfectivaTerminacionReingreso), no la original.
+    private void DadoUnColaboradorConDosReingresos() =>
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaOriginal(),
+            new VinculacionTerminada(FechaEfectivaTerminacionOriginal),
+            new VinculacionIniciada(CodigoReingreso, FechaInicioReingreso),
+            new VinculacionTerminada(FechaEfectivaTerminacionReingreso),
+            new VinculacionIniciada(CodigoSegundoReingreso, FechaInicioSegundoReingreso));
 
     // CA-1: la ultima vinculacion esta ABIERTA + FechaCorregida distinta valida -> el stream
     // recibe FechaInicioVinculacionCorregida; el aggregate rehidratado refleja la fecha nueva.
@@ -218,6 +244,50 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly>(
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioReingreso);
+    }
+
+    // CA-2 + CA-3 combinados: la ULTIMA vinculacion es un reingreso que YA tiene terminacion
+    // propia, unico estado en que las dos reglas de estado acotan la fecha a la vez. Una fecha
+    // dentro de la ventana valida (posterior a la terminacion ANTERIOR, anterior o igual a la
+    // PROPIA) se acepta, y la terminacion propia sigue intacta -- la correccion es ortogonal a la
+    // vigencia (MEF-ADR-0012).
+    [Fact]
+    public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoLaFechaCaeEntreLaTerminacionAnteriorYLaPropia()
+    {
+        DadoUnColaboradorConReingresoYaTerminado();
+        // 2026-06-11: dentro de (2026-06-01, 2026-09-01] y distinta de la actual (2026-06-02), que
+        // seria idempotencia y no ejercitaria ninguna de las dos reglas.
+        var fechaCorregida = FechaEfectivaTerminacionOriginal.AddDays(10);
+
+        await WhenAsync(ComandoCon(fechaCorregida));
+
+        Then(StreamIdEsperado, new FechaInicioVinculacionCorregida(fechaCorregida));
+        And<ColaboradorAggregateRoot, DateOnly>(
+            StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaCorregida);
+        And<ColaboradorAggregateRoot, DateOnly?>(
+            StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaTerminacionReingreso);
+    }
+
+    // CA-3 (cadena larga): con DOS reingresos encadenados, la no-solape se evalua contra la
+    // terminacion de la vinculacion INMEDIATAMENTE anterior (la del primer reingreso,
+    // 2026-09-01), no contra la de la vinculacion original (2026-06-01). Una fecha posterior a la
+    // terminacion original pero anterior a la del primer reingreso debe rechazarse: si la
+    // terminacion anterior se congelara en la primera, este comando pasaria y dejaria dos
+    // vinculaciones solapadas en el stream.
+    [Fact]
+    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoFechaCorregidaSolapaElReingresoPrevioYNoLaVinculacionOriginal()
+    {
+        DadoUnColaboradorConDosReingresos();
+        var fechaCorregida = new DateOnly(2026, 7, 1); // > 2026-06-01 pero < 2026-09-01
+
+        var act = async () => await WhenAsync(ComandoCon(fechaCorregida));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage(
+                $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, DateOnly>(
+            StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioSegundoReingreso);
     }
 
     // CA-4: FechaCorregida IGUAL a la fecha de inicio actual (vinculacion abierta) -> idempotencia

@@ -25,7 +25,6 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
 
@@ -47,10 +46,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
     // CA-4: la ausencia de evento es sincrona (sin proyeccion downstream) -- un timeout corto
     // alcanza para probarla sin alargar la suite esperando los 30s estandar sin ganar senal.
     private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(3);
-
-    // Segunda lectura del mismo evento que ExisteEventoAsync ya espero: si el primer polling
-    // termino, el evento esta -- no hay nada mas que esperar.
-    private static readonly TimeSpan TimeoutLecturaConfirmada = TimeSpan.FromSeconds(5);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
     // identidad del stream es Identificacion.ToString() ("CC:<numero>"), no un Guid nuevo por
@@ -171,18 +166,17 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
+        // El filtro (campoJson, valorJson) de ExisteEventoAsync ya compara el valor persistido de
+        // FechaInicio contra el esperado -- releerlo con ObtenerEventoAsync usando el MISMO filtro
+        // solo repetiria la consulta para afirmar lo que el filtro ya garantizo. El overload sin
+        // filtro sigue siendo necesario en #351 (campo objeto: el Nombre exige comparar por valor
+        // deserializado), no aqui: FechaInicio es escalar.
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoFechaInicioVinculacionCorregida, Timeout,
             campoJson: "FechaInicio", valorJson: FormatearFecha(fechaCorregida));
 
         existe.Should().BeTrue(
             $"el evento {TipoEventoFechaInicioVinculacionCorregida} deberia existir en el stream {streamId} con FechaInicio {FormatearFecha(fechaCorregida)}");
-
-        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
-            SchemaColaboradores, streamId, TipoEventoFechaInicioVinculacionCorregida,
-            campoJson: "FechaInicio", valorJson: FormatearFecha(fechaCorregida), TimeoutLecturaConfirmada);
-
-        eventoPersistido.GetProperty("FechaInicio").GetString().Should().Be(FormatearFecha(fechaCorregida));
     }
 
     // CA-2 (borde valido): la ultima vinculacion esta TERMINADA y FechaCorregida == FechaEfectiva
