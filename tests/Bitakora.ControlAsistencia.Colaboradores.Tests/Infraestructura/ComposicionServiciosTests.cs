@@ -23,6 +23,7 @@ using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 using Wolverine;
+using ObtenerFichaColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -306,5 +307,34 @@ public class ComposicionServiciosTests
 
         restaurado.Should().Be(original);
         restaurado.ToString().Should().Be(original.ToString());
+    }
+
+    // Issue #356 CA-6: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma
+    // idea que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
+    // FunctionEndpoint en vez de un router de Wolverine. Precedente: ObtenerTurnoVigente/
+    // ListarTurnosVigentes en ControlHoras.Tests (issue #328/#329).
+    //
+    // Ninguna Function de este ensamblado se registra explicitamente en el contenedor -- el host
+    // de Azure Functions isolated worker las activa por tipo, resolviendo su constructor contra el
+    // mismo ServiceProvider que arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa
+    // misma activacion sin levantar el host real (Alt 1 de MEF-ADR-0029: no existe un
+    // WebApplicationFactory para Functions isolated worker).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (parseo de tipoIdentificacion/numero con 400 explicito,
+    // session.LoadAsync y el 200/404, la traduccion centinela -> vacio de CA-6), que es
+    // responsabilidad de projection-implementer y del smoke test, no de este guardrail de wiring.
+    // Por eso este test queda en verde tan pronto exista el FunctionEndpoint stub con el
+    // constructor correcto -- no es la guarda que fuerza el rojo de este issue (esa la dan los
+    // unit tests de la proyeccion en Projections.Tests y el config-test del worker).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeObtenerFichaColaborador_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerFichaColaboradorEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }

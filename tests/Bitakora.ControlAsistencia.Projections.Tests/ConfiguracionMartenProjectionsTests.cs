@@ -410,6 +410,24 @@ public class ConfiguracionMartenProjectionsTests
         restaurado.Nombre.NombreCompleto.Should().Be("Luis Augusto Barreto Prieto");
     }
 
+    // Issue #356 CA-1..CA-5: primera proyeccion concreta del dominio Colaboradores (N1,
+    // SingleStreamProjection<FichaColaborador, string> sobre el stream de ColaboradorAggregateRoot).
+    // Complementa ConfigurarColaboradores_RegistraLosTiposDeEventoPersistidos: aquella prueba que
+    // los TIPOS de evento estan registrados, esta prueba que la PROYECCION concreta que los
+    // consume esta registrada en el named store con lifecycle Async, el canonico del worker
+    // (MEF-ADR-0034 seccion 3). El seam (ConfiguracionMartenProjectionsColaboradores.
+    // ConfigurarColaboradores) ya existe desde el issue #360 sin ninguna proyeccion concreta
+    // registrada -- este test queda rojo hasta que projection-implementer agregue
+    // opts.Projections.Add<FichaColaboradorProjection>(ProjectionLifecycle.Async) ahi.
+    [Fact]
+    public void ConfigurarColaboradores_RegistraFichaColaboradorProjectionComoAsync()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("FichaColaborador");
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
