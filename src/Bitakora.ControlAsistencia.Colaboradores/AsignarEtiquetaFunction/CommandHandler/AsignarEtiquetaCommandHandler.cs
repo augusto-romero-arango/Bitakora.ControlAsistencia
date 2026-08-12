@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction.CommandHandler;
@@ -27,6 +29,22 @@ public partial class AsignarEtiquetaCommandHandler : ICommandHandlerAsync<Asigna
     public AsignarEtiquetaCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(AsignarEtiqueta command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(AsignarEtiqueta command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // CorregirFechaInicioVinculacionCommandHandler/ReingresarColaboradorCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        var etiqueta = Etiqueta.Crear(command.Categoria, command.Valor);
+
+        var resultado = colaborador.AsignarEtiqueta(etiqueta);
+        if (resultado == ResultadoAsignacionEtiqueta.VinculacionTerminada)
+            throw new InvalidOperationException(Mensajes.VinculacionTerminada);
+    }
 }

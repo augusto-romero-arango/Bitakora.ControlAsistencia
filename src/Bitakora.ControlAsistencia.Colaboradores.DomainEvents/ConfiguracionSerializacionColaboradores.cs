@@ -27,12 +27,14 @@ public static class ConfiguracionSerializacionColaboradores
     }
 
     // Registra los VOs con ctor privado que aparecen como payload de eventos persistidos --
-    // ColaboradorRegistrado y VinculacionIniciada son records con ctor publico y no declaran
-    // ConfigurarSerializacion propio, asi que una vez que sus VOs anidados esten registrados aqui,
-    // STJ los reconstruye sin ayuda adicional (ver comentarios de ColaboradorRegistrado.cs).
+    // ColaboradorRegistrado, VinculacionIniciada y EtiquetaAsignada (issue #355) son records con
+    // ctor publico y no declaran ConfigurarSerializacion propio, asi que una vez que sus VOs
+    // anidados esten registrados aqui, STJ los reconstruye sin ayuda adicional (ver comentarios de
+    // ColaboradorRegistrado.cs).
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
         Identificacion.ConfigurarSerializacion(resolver);
         NombreColaborador.ConfigurarSerializacion(resolver);
+        Etiqueta.ConfigurarSerializacion(resolver);
     }
 }

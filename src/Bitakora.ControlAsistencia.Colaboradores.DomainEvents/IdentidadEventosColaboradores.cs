@@ -21,5 +21,7 @@ public static class IdentidadEventosColaboradores
         typeof(NombresCorregidos),
         typeof(FechaInicioVinculacionCorregida),
         typeof(TerminacionAnulada),
+        typeof(EtiquetaAsignada),
+        typeof(EtiquetaRetirada),
     ];
 }

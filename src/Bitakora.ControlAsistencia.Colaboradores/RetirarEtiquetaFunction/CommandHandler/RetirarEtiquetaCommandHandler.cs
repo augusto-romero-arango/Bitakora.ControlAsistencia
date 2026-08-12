@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction.CommandHandler;
@@ -29,6 +31,29 @@ public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<Retira
     public RetirarEtiquetaCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(RetirarEtiqueta command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(RetirarEtiqueta command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // CorregirFechaInicioVinculacionCommandHandler/ReingresarColaboradorCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion.Trim().ToUpperInvariant());
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        // Tell-don't-Ask: la normalizacion de una categoria aislada (sin Valor) vive en el VO
+        // Etiqueta (#355), nunca en este handler.
+        var categoriaNormalizada = Etiqueta.NormalizarCategoria(command.Categoria);
+
+        var resultado = colaborador.RetirarEtiqueta(categoriaNormalizada);
+        switch (resultado)
+        {
+            case ResultadoRetiroEtiqueta.CategoriaInexistente:
+                throw new InvalidOperationException(Mensajes.CategoriaInexistente);
+            case ResultadoRetiroEtiqueta.VinculacionTerminada:
+                throw new InvalidOperationException(Mensajes.VinculacionTerminada);
+        }
+    }
 }

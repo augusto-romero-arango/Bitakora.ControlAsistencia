@@ -84,9 +84,13 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     // que significa "misma categoria"), nunca del handler ni del aggregate comparando/transformando
     // strings por su cuenta. Mismas reglas de rechazo que Crear (vacia/whitespace -> ArgumentException
     // con el mismo mensaje .resx) y el mismo algoritmo de normalizacion (trim + Normalizar).
-    // STUB (fase roja, issue #355): el cuerpo completo queda para el implementer.
-    public static string NormalizarCategoria(string categoria) =>
-        throw new NotImplementedException();
+    public static string NormalizarCategoria(string categoria)
+    {
+        if (string.IsNullOrWhiteSpace(categoria))
+            throw new ArgumentException(Mensajes.CategoriaVacia, nameof(categoria));
+
+        return Normalizar(categoria.Trim());
+    }
 
     // Display: "{Categoria}:{Valor}" con las formas originales, no las normalizadas.
     public override string ToString() => $"{_categoria}:{_valor}";

@@ -88,6 +88,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _codigoVinculacionVigente = e.Codigo;
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
+        _etiquetas = new();
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -109,13 +110,11 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #355: registra/sobrescribe la etiqueta bajo su categoria normalizada -- un valor por
     // categoria (CA-2: "Área" sobre "area" sobrescribe, nunca duplica). Nunca lanza (MEF-ADR-0004
     // capa 4).
-    // STUB (fase roja, issue #355): el cuerpo completo queda para el implementer.
-    public void Apply(EtiquetaAsignada e) => throw new NotImplementedException();
+    public void Apply(EtiquetaAsignada e) => _etiquetas[e.Etiqueta.CategoriaNormalizada] = e.Etiqueta;
 
     // Issue #355: retira la etiqueta de esa categoria normalizada del diccionario. Nunca lanza
     // (MEF-ADR-0004 capa 4).
-    // STUB (fase roja, issue #355): el cuerpo completo queda para el implementer.
-    public void Apply(EtiquetaRetirada e) => throw new NotImplementedException();
+    public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
@@ -268,9 +267,21 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Exito: appendea EtiquetaAsignada a _uncommittedEvents y lo aplica.
     // internal: mismo criterio de visibilidad que los metodos de comando hermanos -- el unico
     // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
-    // STUB (fase roja, issue #355): el cuerpo completo queda para el implementer.
-    internal ResultadoAsignacionEtiqueta AsignarEtiqueta(Etiqueta etiqueta) =>
-        throw new NotImplementedException();
+    internal ResultadoAsignacionEtiqueta AsignarEtiqueta(Etiqueta etiqueta)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoAsignacionEtiqueta.VinculacionTerminada;
+
+        if (_etiquetas.TryGetValue(etiqueta.CategoriaNormalizada, out var existente) &&
+            etiqueta.Equals(existente))
+            return ResultadoAsignacionEtiqueta.SinCambios;
+
+        var evento = new EtiquetaAsignada(etiqueta);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoAsignacionEtiqueta.Exitosa;
+    }
 
     // Issue #355: mecanismo "declinar con resultado" puro (CA-ADR-0030) -- retirar una categoria
     // inexistente SIEMPRE rechaza (CA-4, decision de refinamiento 2026-08-11: con categorias
@@ -281,9 +292,20 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // mismo criterio que EsMismaCategoria decide "misma categoria" dentro del VO, no en el
     // llamador).
     // internal: mismo criterio de visibilidad que los metodos de comando hermanos.
-    // STUB (fase roja, issue #355): el cuerpo completo queda para el implementer.
-    internal ResultadoRetiroEtiqueta RetirarEtiqueta(string categoriaNormalizada) =>
-        throw new NotImplementedException();
+    internal ResultadoRetiroEtiqueta RetirarEtiqueta(string categoriaNormalizada)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoRetiroEtiqueta.VinculacionTerminada;
+
+        if (!_etiquetas.ContainsKey(categoriaNormalizada))
+            return ResultadoRetiroEtiqueta.CategoriaInexistente;
+
+        var evento = new EtiquetaRetirada(categoriaNormalizada);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoRetiroEtiqueta.Exitosa;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
