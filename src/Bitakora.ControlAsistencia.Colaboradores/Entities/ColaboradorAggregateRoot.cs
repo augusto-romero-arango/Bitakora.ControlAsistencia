@@ -36,6 +36,17 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // vinculacion).
     private DateOnly? _fechaTerminacionVinculacionAnterior;
 
+    // Issue #355: diccionario de etiquetas dinamicas de la vinculacion vigente, clave = categoria
+    // normalizada (Etiqueta.CategoriaNormalizada, #353) -- un valor por categoria (AsignarEtiqueta y
+    // su Apply sobrescriben la entrada, nunca duplican). No es observable publico: el issue no
+    // expone lectura de etiquetas al exterior del ensamblado (Tell-don't-Ask, MEF-ADR-0012) -- la
+    // lectura llega con las projections (#356/#357). internal solo para que el DSL de tests (And<>)
+    // verifique el estado rehidratado, mismo criterio que los demas observables internos de esta
+    // clase.
+    private readonly Dictionary<string, Etiqueta> _etiquetas = new();
+
+    internal IReadOnlyDictionary<string, Etiqueta> Etiquetas => _etiquetas;
+
     internal Identificacion Identificacion => _identificacion!;
     internal NombreColaborador Nombre => _nombre!;
     internal string CodigoVinculacionVigente => _codigoVinculacionVigente!;
@@ -68,12 +79,17 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // terminacion de la vinculacion que este reingreso desplaza -- es el unico rastro que
     // CorregirFechaInicio tiene para evaluar la no-solape hacia atras una vez que
     // _fechaTerminacionVinculacionVigente ya se reseteo a null.
+    // Issue #355 (CA-6, "reingreso nace limpio"): ademas vacia las etiquetas -- la vinculacion nueva
+    // no hereda las de la anterior (las etiquetas describen la relacion laboral vigente). Se vacia
+    // incondicionalmente, tambien en la primera vinculacion (donde ya esta vacio): Apply nunca
+    // ramifica por logica de negocio, solo asienta estado (MEF-ADR-0004 capa 4).
     public void Apply(VinculacionIniciada e)
     {
         _fechaTerminacionVinculacionAnterior = _fechaTerminacionVinculacionVigente;
         _codigoVinculacionVigente = e.Codigo;
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
+        _etiquetas.Clear();
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -91,6 +107,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #352: reemplaza la fecha de inicio de la ULTIMA vinculacion (tenga o no terminacion
     // registrada). Nunca lanza (MEF-ADR-0004 capa 4).
     public void Apply(FechaInicioVinculacionCorregida e) => _fechaInicioVinculacionVigente = e.FechaInicio;
+
+    // Issue #355: registra/sobrescribe la etiqueta bajo su categoria normalizada -- un valor por
+    // categoria (CA-2: "Área" sobre "area" sobrescribe, nunca duplica). Nunca lanza (MEF-ADR-0004
+    // capa 4).
+    public void Apply(EtiquetaAsignada e) => _etiquetas[e.Etiqueta.CategoriaNormalizada] = e.Etiqueta;
+
+    // Issue #355: retira la etiqueta de esa categoria normalizada del diccionario. Nunca lanza
+    // (MEF-ADR-0004 capa 4).
+    public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
@@ -229,6 +254,58 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         Apply(evento);
 
         return ResultadoAnulacionTerminacion.Exitosa;
+    }
+
+    // Issue #355: mecanismo combinado (CA-ADR-0030) -- "declinar con resultado" para la regla de
+    // apertura estricta (decision #1 del issue: la ULTIMA vinculacion no puede tener terminacion
+    // registrada, incluido un preaviso sin vencer -- las etiquetas describen la relacion laboral
+    // ACTIVA) y "declinar en silencio" (precedente CorregirNombres #351 / CorregirFechaInicio #352)
+    // para la idempotencia (CA-2: la etiqueta nueva es igual por valor, Etiqueta.Equals #353, a la
+    // que ya existe para esa categoria).
+    // Un valor por categoria (CA-2, CA-4): la clave del diccionario es SIEMPRE
+    // etiqueta.CategoriaNormalizada -- asignar sobre una categoria existente sobrescribe, nunca
+    // duplica.
+    // Exito: appendea EtiquetaAsignada a _uncommittedEvents y lo aplica.
+    // internal: mismo criterio de visibilidad que los metodos de comando hermanos -- el unico
+    // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
+    internal ResultadoAsignacionEtiqueta AsignarEtiqueta(Etiqueta etiqueta)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoAsignacionEtiqueta.VinculacionTerminada;
+
+        if (_etiquetas.TryGetValue(etiqueta.CategoriaNormalizada, out var existente) &&
+            etiqueta.Equals(existente))
+            return ResultadoAsignacionEtiqueta.SinCambios;
+
+        var evento = new EtiquetaAsignada(etiqueta);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoAsignacionEtiqueta.Exitosa;
+    }
+
+    // Issue #355: mecanismo "declinar con resultado" puro (CA-ADR-0030) -- retirar una categoria
+    // inexistente SIEMPRE rechaza (CA-4, decision de refinamiento 2026-08-11: con categorias
+    // libres, un typo como "aera" por "area" debe aflorar al instante, nunca un 202 silencioso que
+    // lo esconda).
+    // Recibe la categoria YA NORMALIZADA (Tell-don't-Ask: el handler la obtiene de
+    // Etiqueta.NormalizarCategoria, #355 -- el aggregate nunca normaliza strings por su cuenta,
+    // mismo criterio que EsMismaCategoria decide "misma categoria" dentro del VO, no en el
+    // llamador).
+    // internal: mismo criterio de visibilidad que los metodos de comando hermanos.
+    internal ResultadoRetiroEtiqueta RetirarEtiqueta(string categoriaNormalizada)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoRetiroEtiqueta.VinculacionTerminada;
+
+        if (!_etiquetas.ContainsKey(categoriaNormalizada))
+            return ResultadoRetiroEtiqueta.CategoriaInexistente;
+
+        var evento = new EtiquetaRetirada(categoriaNormalizada);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoRetiroEtiqueta.Exitosa;
     }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron

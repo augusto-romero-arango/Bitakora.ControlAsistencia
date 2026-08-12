@@ -8,7 +8,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
 /// <summary>
 /// Interfaz publica: Crear(categoria, valor), Categoria, Valor, CategoriaNormalizada,
-/// ValorNormalizado, EsMismaCategoria(otra), ToString().
+/// ValorNormalizado, EsMismaCategoria(otra), ToString(), NormalizarCategoria(categoria) (issue
+/// #355, ver seccion "NormalizarCategoria" abajo).
 /// </summary>
 public class EtiquetaTests
 {
@@ -142,5 +143,45 @@ public class EtiquetaTests
         var area = Etiqueta.Crear("Area", "X");
 
         sede.EsMismaCategoria(area).Should().BeFalse();
+    }
+
+    // ---------- NormalizarCategoria (issue #355, desviacion documentada en el resumen del pipeline) ----------
+    //
+    // RetirarEtiqueta solo lleva la Categoria en su payload (sin Valor) -- Etiqueta.Crear(categoria,
+    // valor) exige un valor no vacio y por tanto no es aplicable para obtener la forma normalizada
+    // de una categoria aislada. Tell-don't-Ask: esa normalizacion sigue siendo decision de este VO
+    // (mismo criterio que EsMismaCategoria), nunca del handler ni del aggregate.
+
+    [Fact]
+    public void NormalizarCategoria_RetornaFormaNormalizada_CuandoCategoriaTieneTildesMayusculasYEspaciosExtremos()
+    {
+        Etiqueta.NormalizarCategoria(" Área ").Should().Be("area");
+    }
+
+    [Fact]
+    public void NormalizarCategoria_LanzaArgumentException_CuandoCategoriaEsVacia()
+    {
+        var act = () => Etiqueta.NormalizarCategoria(string.Empty);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Etiqueta.Mensajes.CategoriaVacia}*");
+    }
+
+    [Fact]
+    public void NormalizarCategoria_LanzaArgumentException_CuandoCategoriaEsWhitespace()
+    {
+        var act = () => Etiqueta.NormalizarCategoria("   ");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Etiqueta.Mensajes.CategoriaVacia}*");
+    }
+
+    [Fact]
+    public void NormalizarCategoria_LanzaArgumentException_CuandoCategoriaEsNull()
+    {
+        var act = () => Etiqueta.NormalizarCategoria(null!);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Etiqueta.Mensajes.CategoriaVacia}*");
     }
 }

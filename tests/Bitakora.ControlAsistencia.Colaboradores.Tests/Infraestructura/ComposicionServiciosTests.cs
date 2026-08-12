@@ -224,6 +224,10 @@ public class ComposicionServiciosTests
     // FechaInicioVinculacionCorregida.
     // Issue #354: agrega TerminacionAnulada (sexto evento persistido, anular la terminacion de la
     // ultima vinculacion) a la lista esperada.
+    // Issue #355: agrega EtiquetaAsignada y EtiquetaRetirada (septimo y octavo eventos persistidos,
+    // asignar/retirar una etiqueta dinamica) a la lista esperada.
+    // Rojo esperado (fase roja, issue #355): TiposPersistidos todavia no incluye ninguno de los
+    // dos.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -239,7 +243,9 @@ public class ComposicionServiciosTests
                 typeof(VinculacionTerminada),
                 typeof(NombresCorregidos),
                 typeof(FechaInicioVinculacionCorregida),
-                typeof(TerminacionAnulada)
+                typeof(TerminacionAnulada),
+                typeof(EtiquetaAsignada),
+                typeof(EtiquetaRetirada)
             ]);
     }
 
@@ -255,6 +261,8 @@ public class ComposicionServiciosTests
     // Rojo esperado (fase roja, issue #352): FechaInicioVinculacionCorregida no aparece en
     // AllKnownEventTypes().
     // Issue #354: agrega TerminacionAnulada -> "terminacion_anulada" al diccionario esperado.
+    // Issue #355: agrega EtiquetaAsignada -> "etiqueta_asignada" y EtiquetaRetirada ->
+    // "etiqueta_retirada" al diccionario esperado.
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -270,7 +278,9 @@ public class ComposicionServiciosTests
             [typeof(VinculacionTerminada)] = "vinculacion_terminada",
             [typeof(NombresCorregidos)] = "nombres_corregidos",
             [typeof(FechaInicioVinculacionCorregida)] = "fecha_inicio_vinculacion_corregida",
-            [typeof(TerminacionAnulada)] = "terminacion_anulada"
+            [typeof(TerminacionAnulada)] = "terminacion_anulada",
+            [typeof(EtiquetaAsignada)] = "etiqueta_asignada",
+            [typeof(EtiquetaRetirada)] = "etiqueta_retirada"
         });
     }
 
