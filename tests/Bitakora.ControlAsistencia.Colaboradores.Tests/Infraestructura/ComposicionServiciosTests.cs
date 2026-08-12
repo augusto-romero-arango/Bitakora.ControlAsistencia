@@ -222,6 +222,9 @@ public class ComposicionServiciosTests
     // fecha de inicio de la ultima vinculacion) a la lista esperada.
     // Rojo esperado (fase roja, issue #352): TiposPersistidos todavia no incluye
     // FechaInicioVinculacionCorregida.
+    // Issue #354: agrega TerminacionAnulada (sexto evento persistido, anular la terminacion de la
+    // ultima vinculacion) a la lista esperada.
+    // Rojo esperado (fase roja, issue #354): TiposPersistidos todavia no incluye TerminacionAnulada.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -236,7 +239,8 @@ public class ComposicionServiciosTests
                 typeof(VinculacionIniciada),
                 typeof(VinculacionTerminada),
                 typeof(NombresCorregidos),
-                typeof(FechaInicioVinculacionCorregida)
+                typeof(FechaInicioVinculacionCorregida),
+                typeof(TerminacionAnulada)
             ]);
     }
 
@@ -251,6 +255,8 @@ public class ComposicionServiciosTests
     // al diccionario esperado.
     // Rojo esperado (fase roja, issue #352): FechaInicioVinculacionCorregida no aparece en
     // AllKnownEventTypes().
+    // Issue #354: agrega TerminacionAnulada -> "terminacion_anulada" al diccionario esperado.
+    // Rojo esperado (fase roja, issue #354): TerminacionAnulada no aparece en AllKnownEventTypes().
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -265,7 +271,8 @@ public class ComposicionServiciosTests
             [typeof(VinculacionIniciada)] = "vinculacion_iniciada",
             [typeof(VinculacionTerminada)] = "vinculacion_terminada",
             [typeof(NombresCorregidos)] = "nombres_corregidos",
-            [typeof(FechaInicioVinculacionCorregida)] = "fecha_inicio_vinculacion_corregida"
+            [typeof(FechaInicioVinculacionCorregida)] = "fecha_inicio_vinculacion_corregida",
+            [typeof(TerminacionAnulada)] = "terminacion_anulada"
         });
     }
 

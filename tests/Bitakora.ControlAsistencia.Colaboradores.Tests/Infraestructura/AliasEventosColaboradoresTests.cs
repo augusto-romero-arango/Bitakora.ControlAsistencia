@@ -84,4 +84,17 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<FechaInicioVinculacionCorregida>(options).Should().Be("fecha_inicio_vinculacion_corregida");
     }
+
+    // Issue #354 (gemela de las cinco pruebas anteriores): congela el alias de TerminacionAnulada,
+    // sexto evento persistido de ColaboradorAggregateRoot (anular la terminacion de la ultima
+    // vinculacion). Rojo esperado (fase roja, issue #354): IdentidadEventosColaboradores.TiposPersistidos
+    // sigue sin TerminacionAnulada hasta que el implementer lo registre -- el implementer lo agrega
+    // ahi (no aqui, MEF-ADR-0002).
+    [Fact]
+    public void TerminacionAnulada_TieneAliasTerminacionAnulada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<TerminacionAnulada>(options).Should().Be("terminacion_anulada");
+    }
 }
