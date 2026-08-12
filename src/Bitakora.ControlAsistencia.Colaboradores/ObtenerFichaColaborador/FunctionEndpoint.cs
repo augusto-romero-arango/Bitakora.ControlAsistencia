@@ -76,15 +76,17 @@ public sealed record FichaColaboradorRespuesta(
     IReadOnlyList<EtiquetaFicha> Etiquetas,
     IReadOnlyDictionary<string, string> EtiquetasNormalizadas)
 {
-    private static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
-
+    // El centinela se lee de la propia vista (FichaColaborador.CentinelaVigenciaAbierta), nunca de
+    // un literal repetido aqui: quien lo escribe es el worker, en otro proceso, y ReadModels es el
+    // unico ensamblado que ambos ven (cuarta isla, MEF-ADR-0041 decision 2). Con dos literales, un
+    // cambio de un solo lado compila, pasa todos los tests unitarios y filtra 9999-12-31 por la API.
     public static FichaColaboradorRespuesta DesdeVista(FichaColaborador ficha) =>
         new(
             ficha.Id,
             ficha.NombreCompleto,
             ficha.CodigoColaborador,
             ficha.VigenteDesde,
-            ficha.VigenteHasta == CentinelaVigenciaAbierta ? null : ficha.VigenteHasta,
+            ficha.VigenteHasta == FichaColaborador.CentinelaVigenciaAbierta ? null : ficha.VigenteHasta,
             ficha.Etiquetas,
             ficha.EtiquetasNormalizadas);
 }

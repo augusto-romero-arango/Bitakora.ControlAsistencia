@@ -1,4 +1,4 @@
-// Issue #356: fase roja de la primera proyeccion concreta del dominio Colaboradores. Invocacion
+// Issue #356: primera proyeccion concreta del dominio Colaboradores. Invocacion
 // DIRECTA de los metodos estaticos de FichaColaboradorProjection (N1, MEF-ADR-0035) -- no el DSL
 // Given/When/Then de CommandHandlerTestBase (MEF-ADR-0002, testea command handlers contra el event
 // store): aqui se testean funciones puras evento -> vista, sin abrir ningun stream.

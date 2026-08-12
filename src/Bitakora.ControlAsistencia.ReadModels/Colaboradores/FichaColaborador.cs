@@ -38,12 +38,12 @@ public sealed record EtiquetaFicha(string Categoria, string Valor);
 /// estructuras de etiquetas ("reingreso nace limpio", espejo de la regla que #355 fijo en el
 /// aggregate para Apply(VinculacionIniciada)).
 ///
-/// VigenteHasta usa el CENTINELA 9999-12-31 cuando la vinculacion esta abierta -- estructura
-/// INTERNA de filtrado/indexacion (el issue hermano de listado filtra "VigenteHasta >= fecha" como
-/// una sola operacion de rango): jamas sale por la API (ObtenerFichaColaborador lo traduce a vacio,
-/// CA-6; el mecanismo de esa traduccion es decision del implementer). Sin booleano de estado
-/// materializado: el preaviso voltea de vigente a no-vigente sin evento de reloj, la vigencia se
-/// evalua en la consulta, no aqui.
+/// VigenteHasta usa el CENTINELA <see cref="CentinelaVigenciaAbierta"/> cuando la vinculacion esta
+/// abierta -- estructura INTERNA de filtrado/indexacion (el issue hermano de listado filtra
+/// "VigenteHasta >= fecha" como una sola operacion de rango): jamas sale por la API
+/// (ObtenerFichaColaborador lo traduce a vacio, CA-6). Sin booleano de estado materializado: el
+/// preaviso voltea de vigente a no-vigente sin evento de reloj, la vigencia se evalua en la
+/// consulta, no aqui.
 ///
 /// EtiquetasNormalizadas es la estructura de filtrado por containment JSONB que consumira el issue
 /// hermano de listado; Etiquetas son las formas ORIGINALES para presentacion. Ambas se mantienen en
@@ -57,4 +57,25 @@ public sealed record FichaColaborador(
     DateOnly VigenteDesde,
     DateOnly VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
-    IReadOnlyDictionary<string, string> EtiquetasNormalizadas);
+    IReadOnlyDictionary<string, string> EtiquetasNormalizadas)
+{
+    /// <summary>
+    /// Valor de <see cref="VigenteHasta"/> que significa "vinculacion abierta" (sin terminacion
+    /// registrada).
+    /// </summary>
+    /// <remarks>
+    /// Vive aqui, con la vista, porque es la codificacion de uno de SUS campos y la comparten dos
+    /// procesos que no se referencian entre si: el worker que materializa la ficha
+    /// (FichaColaboradorProjection) y el Function App que la consulta y lo traduce a vacio antes de
+    /// responder (ObtenerFichaColaborador, CA-6). ReadModels es el unico ensamblado que ambos ven
+    /// (cuarta isla, MEF-ADR-0041 decision 2), asi que declararlo dos veces -- uno por proceso --
+    /// dejaria la coherencia del contrato a la disciplina: una divergencia compila, pasa todos los
+    /// tests unitarios (cada lado con su propio literal) y solo aflora en dev como un 9999-12-31
+    /// filtrado por la API. Un solo literal la vuelve imposible por construccion.
+    ///
+    /// No es comportamiento (MEF-ADR-0035: el read model no tiene logica de proyeccion, que sigue
+    /// viviendo integra en la clase companion del worker): es una constante del propio contrato de
+    /// dato de la vista.
+    /// </remarks>
+    public static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
+}

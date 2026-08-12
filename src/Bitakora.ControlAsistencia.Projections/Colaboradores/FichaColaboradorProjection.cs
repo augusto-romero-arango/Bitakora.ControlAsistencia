@@ -18,8 +18,10 @@ namespace Bitakora.ControlAsistencia.Projections.Colaboradores;
 ///
 /// Se registra en ConfiguracionMartenProjectionsColaboradores.ConfigurarColaboradores con
 /// opts.Projections.Add&lt;FichaColaboradorProjection&gt;(ProjectionLifecycle.Async) -- lifecycle
-/// canonico del worker (MEF-ADR-0034 seccion 3). Ese seam ya existe (issue #360) y no se toca desde
-/// esta fase roja: la linea de registro es responsabilidad de projection-implementer.
+/// canonico del worker (MEF-ADR-0034 seccion 3). Ese registro es ademas lo que hace que Marten
+/// aplique ProjectionDocumentPolicy sobre FichaColaborador (mt_version bigint): el Function App que
+/// la consulta debe declarar la misma forma con Schema.For&lt;FichaColaborador&gt;()
+/// .UseNumericRevisions(true), y el par de config-tests de ambos lados congela esos literales.
 ///
 /// Create toma IEvent&lt;ColaboradorRegistrado&gt;, no ColaboradorRegistrado a secas: la identidad
 /// del documento (un string, "{Tipo}:{Numero}") es exactamente el StreamKey del stream de
@@ -31,10 +33,10 @@ namespace Bitakora.ControlAsistencia.Projections.Colaboradores;
 /// </summary>
 public sealed partial class FichaColaboradorProjection : SingleStreamProjection<FichaColaborador, string>
 {
-    // Centinela de vigencia abierta (issue #356, "Vista a materializar"): estructura interna de
-    // filtrado/indexacion, jamas expuesta por la API (esa traduccion es responsabilidad del
-    // endpoint ObtenerFichaColaborador, CA-6).
-    private static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
+    // El centinela de vigencia abierta (issue #356, "Vista a materializar") vive con la vista, no
+    // aqui: es la codificacion de uno de SUS campos y el endpoint ObtenerFichaColaborador -- en
+    // otro proceso, sin referencia a este ensamblado -- tiene que leer exactamente el mismo valor
+    // para traducirlo a vacio antes de responder (CA-6). Ver FichaColaborador.CentinelaVigenciaAbierta.
 
     // CA-1 (primera mitad): la ficha nace con Id (StreamKey del stream de ColaboradorAggregateRoot)
     // y NombreCompleto -- el resto de los campos queda en su forma "vacia" hasta que
@@ -45,7 +47,7 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
             e.Data.Nombre.NombreCompleto,
             string.Empty,
             default,
-            CentinelaVigenciaAbierta,
+            FichaColaborador.CentinelaVigenciaAbierta,
             [],
             new Dictionary<string, string>());
 
@@ -58,7 +60,7 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
         {
             CodigoColaborador = e.Codigo,
             VigenteDesde = e.FechaInicio,
-            VigenteHasta = CentinelaVigenciaAbierta,
+            VigenteHasta = FichaColaborador.CentinelaVigenciaAbierta,
             Etiquetas = [],
             EtiquetasNormalizadas = new Dictionary<string, string>()
         };
@@ -69,7 +71,7 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
 
     // CA-2 (segunda mitad): reabre -- VigenteHasta vuelve al centinela.
     public static FichaColaborador Apply(TerminacionAnulada e, FichaColaborador vista) =>
-        vista with { VigenteHasta = CentinelaVigenciaAbierta };
+        vista with { VigenteHasta = FichaColaborador.CentinelaVigenciaAbierta };
 
     // CA-3 (primera mitad): reemplaza NombreCompleto.
     public static FichaColaborador Apply(NombresCorregidos e, FichaColaborador vista) =>

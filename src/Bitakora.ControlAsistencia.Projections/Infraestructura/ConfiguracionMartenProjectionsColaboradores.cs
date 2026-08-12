@@ -20,11 +20,10 @@ public interface IColaboradoresProjectionStore : IDocumentStore;
 /// MEF-ADR-0006/MEF-ADR-0034 secciones 2 y 6) -- hermano read-side de ComposicionServicios
 /// (write-side, MEF-ADR-0029): fuente unica que comparten Program.cs del worker y el config-test.
 ///
-/// Registra el named store sobre la misma conexion y el mismo schema "colaboradores" que ya usa
-/// (o usara) el write-side (ComposicionServicios.AgregarServiciosColaboradores) -- el read-side no
-/// crea base ni schema nuevos. El dominio nace sin ninguna proyeccion concreta: se suman
-/// aditivamente dentro de este mismo AddMartenStore cuando el desglose de issues (#348, #349-#357)
-/// materialice el primer read model.
+/// Registra el named store sobre la misma conexion y el mismo schema "colaboradores" que ya usa el
+/// write-side (ComposicionServicios.AgregarServiciosColaboradores) -- el read-side no crea base ni
+/// schema nuevos. Las proyecciones concretas se suman aditivamente dentro de este mismo
+/// AddMartenStore; la primera es FichaColaboradorProjection (issue #356).
 ///
 /// El seam se declara con modificadores de acceso y sin partial: un metodo partial sin
 /// modificadores desaparece en silencio al compilar si nadie lo implementa, y ademas seria

@@ -18,7 +18,9 @@ using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
@@ -323,10 +325,7 @@ public class ComposicionServiciosTests
     // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
     // comportamiento de Run (parseo de tipoIdentificacion/numero con 400 explicito,
     // session.LoadAsync y el 200/404, la traduccion centinela -> vacio de CA-6), que es
-    // responsabilidad de projection-implementer y del smoke test, no de este guardrail de wiring.
-    // Por eso este test queda en verde tan pronto exista el FunctionEndpoint stub con el
-    // constructor correcto -- no es la guarda que fuerza el rojo de este issue (esa la dan los
-    // unit tests de la proyeccion en Projections.Tests y el config-test del worker).
+    // responsabilidad del endpoint y del smoke test, no de este guardrail de wiring.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeObtenerFichaColaborador_CuandoElContenedorEstaCompuesto()
     {
@@ -336,5 +335,61 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ObtenerFichaColaboradorEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    // Issue #356, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6). Heredada de la guarda que #328 dejo para TurnoVigente en ControlHoras.Tests, por
+    // el incidente real del issue #294: este Function App LEE FichaColaborador con
+    // session.LoadAsync (ObtenerFichaColaborador) sin registrar la proyeccion, mientras el worker
+    // la MATERIALIZA en otro proceso sobre la misma tabla fisica.
+    //
+    // Marten aplica ProjectionDocumentPolicy a todo documento que sea target de una proyeccion
+    // registrada en ese store: UseNumericRevisions = true, Metadata.Revision (mt_version bigint)
+    // habilitada y Metadata.Version (mt_version uuid) DESHABILITADA -- incondicional, sin opt-in ni
+    // dependencia de IRevisioned (https://martendb.io/documents/concurrency, "Numeric Revisioned
+    // Documents"). Sin la declaracion explicita del lado lectura, este store espera mt_version uuid
+    // sobre la tabla que el worker creo como bigint, Marten intenta "alter column" en CADA request
+    // y Postgres responde 42804: GET en 500 permanente con el daemon funcionando.
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaFichaColaboradorConRevisionNumerica congela desde el
+    // worker, sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaColaborador()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #356, segunda dimension del mismo par 2 (precedente #328 sobre TurnoVigente): tabla,
+    // tenancy e IdMember tienen que converger entre el worker que materializa y este Function App
+    // que consulta, o el GET responde 404 para siempre con el daemon funcionando. Ningun compilador
+    // lo garantiza -- son dos configuraciones de Marten independientes sobre el mismo schema.
+    //
+    // Los tres valores los resuelve Marten por convencion, pero este lado ya declara un
+    // Schema.For<FichaColaborador>() propio (la linea de UseNumericRevisions del test de arriba) --
+    // justo el tipo de declaracion por documento que puede desviar la tabla o la tenancy de un solo
+    // lado. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaFichaColaboradorSobreLaTablaQueConsultaElWriteSide congela
+    // desde el worker.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveFichaColaboradorSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_fichacolaborador");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(FichaColaborador.Id));
     }
 }
