@@ -80,6 +80,11 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // capa 4).
     public void Apply(VinculacionTerminada e) => _fechaTerminacionVinculacionVigente = e.FechaEfectiva;
 
+    // Issue #354: anula la terminacion registrada de la ULTIMA vinculacion -- la reabre sin tocar
+    // su codigo ni su fecha de inicio (ambos quedan intactos, Apply solo limpia la terminacion).
+    // Nunca lanza (MEF-ADR-0004 capa 4).
+    public void Apply(TerminacionAnulada e) => _fechaTerminacionVinculacionVigente = null;
+
     // Issue #351: reemplaza el nombre de la persona. Nunca lanza (MEF-ADR-0004 capa 4).
     public void Apply(NombresCorregidos e) => _nombre = e.Nombre;
 
@@ -199,6 +204,31 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         Apply(evento);
 
         return ResultadoCorreccionFechaInicioVinculacion.Exitosa;
+    }
+
+    // Issue #354: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
+    // evento de fallo persistido. Unica regla, evaluable solo con la historia del stream, sin
+    // reloj (decision de refinamiento 2026-08-11 -- el arrepentimiento del preaviso y la fecha de
+    // terminacion errada comparten esta misma solucion):
+    //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null -- cubre tres casos que
+    //     el handler no distingue entre si (recien registrada, reingresada, o ya anulada antes,
+    //     CA-3/CA-4): tras un reingreso la terminacion de la vinculacion ANTERIOR queda congelada
+    //     (decision aprobada explicitamente) porque solo la ULTIMA vinculacion cuenta.
+    // Exito: appendea TerminacionAnulada a _uncommittedEvents y lo aplica -- reabre la vinculacion
+    // vigente con su codigo y fecha de inicio intactos (Apply no los toca).
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres/
+    // CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado (los tests lo
+    // alcanzan via InternalsVisibleTo).
+    internal ResultadoAnulacionTerminacion AnularTerminacion()
+    {
+        if (_fechaTerminacionVinculacionVigente is null)
+            return ResultadoAnulacionTerminacion.VinculacionAbierta;
+
+        var evento = new TerminacionAnulada();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoAnulacionTerminacion.Exitosa;
     }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
