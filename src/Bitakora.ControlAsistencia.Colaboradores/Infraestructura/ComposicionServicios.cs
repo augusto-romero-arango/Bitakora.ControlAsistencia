@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -85,6 +86,33 @@ public static class ComposicionServicios
             // el EventGraph. Lista vacia al nacer -- se llena a medida que ColaboradorAggregateRoot
             // aplique sus primeros eventos.
             options.Events.AddEventTypes(IdentidadEventosColaboradores.TiposPersistidos);
+
+            // Issue #294 (aplicado a FichaColaborador por #356, mismo patron que #328 aplico a
+            // TurnoVigente en ControlHoras): declara del lado LECTURA la forma de mt_version que el
+            // worker ya impone del lado escritura -- aqui la tabla la posee la proyeccion y este
+            // Function App solo la consulta (ObtenerFichaColaborador).
+            //
+            // Marten aplica ProjectionDocumentPolicy a todo documento que sea target de una
+            // proyeccion registrada en ese store: UseNumericRevisions = true, Metadata.Revision
+            // (mt_version bigint) habilitada y Metadata.Version (mt_version uuid) DESHABILITADA. No
+            // es opt-in ni depende de IRevisioned ni del lifecycle: la doc lo declara como la
+            // excepcion a que el versionado sea opt-in
+            // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents") y el
+            // codigo lo hace incondicional (Marten/Events/Projections/ProjectionDocumentPolicy.cs).
+            //
+            // El worker registra FichaColaboradorProjection, asi que crea mt_version como bigint.
+            // Este store NO la registra ni puede hacerlo -- FichaColaboradorProjection vive en el
+            // ensamblado del worker y referenciarlo violaria CA-ADR-0029 --, asi que sin esta linea
+            // esperaria mt_version uuid sobre la MISMA tabla fisica. Con AutoCreate en su default
+            // CreateOrUpdate el sintoma no es un 404: Marten intenta "alter column mt_version type
+            // uuid" en CADA request, Postgres lo rechaza con 42804 (no hay cast automatico
+            // bigint -> uuid) y los GET responden 500 de forma permanente. Eso fue lo que ocurrio en
+            // dev tras el deploy de #290 sobre el read model que #323 ya retiro.
+            //
+            // Se declara por documento y no via Policies para no alterar la forma de ningun otro
+            // documento de este store. El par de config-tests (este lado y el del worker) congela
+            // los mismos valores literales.
+            options.Schema.For<FichaColaborador>().UseNumericRevisions(true);
 
             // Issue #330: registra la serializacion custom de los VOs con ctor privado que aparecen
             // como payload de eventos persistidos (Identificacion, NombreColaborador) -- AQUI
