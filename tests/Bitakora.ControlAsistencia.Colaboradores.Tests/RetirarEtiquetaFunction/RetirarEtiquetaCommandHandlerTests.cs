@@ -15,7 +15,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RetirarEtiquetaFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que el resto de la cadena #349-#354).
 public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<RetirarEtiqueta>
@@ -24,7 +24,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
     // derivado de ColaboradorAggregateRoot.ComputarStreamId.
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
     private const string CodigoVinculacionReingreso = "COL-002";
@@ -90,7 +90,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
     }
 
     // CA-3 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> el retiro alcanza el MISMO stream ("CC:79543210") y emite el
+    // colaborador ya registrado -> el retiro alcanza el MISMO stream ("CC-79543210") y emite el
     // evento.
     [Fact]
     public async Task RetirarEtiqueta_EmiteEtiquetaRetirada_CuandoTipoYNumeroLleganSinNormalizar()

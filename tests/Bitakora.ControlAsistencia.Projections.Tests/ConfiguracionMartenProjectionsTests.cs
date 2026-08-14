@@ -406,7 +406,8 @@ public class ConfiguracionMartenProjectionsTests
             .DeserializarConResolverDeSerializacionCustom(evento);
 
         restaurado.Should().NotBeNull();
-        restaurado.Identificacion.ToString().Should().Be("CC:79543210");
+        // Issue #381: el separador de la llave de Identificacion cambia de ":" a "-".
+        restaurado.Identificacion.ToString().Should().Be("CC-79543210");
         restaurado.Nombre.NombreCompleto.Should().Be("Luis Augusto Barreto Prieto");
     }
 

@@ -14,7 +14,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarEtiquetaFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que el resto de la cadena #349-#354).
 public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<AsignarEtiqueta>
@@ -23,7 +23,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
     // derivado de ColaboradorAggregateRoot.ComputarStreamId.
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
     private const string CodigoVinculacionReingreso = "COL-002";
@@ -89,7 +89,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
     }
 
     // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la asignacion alcanza el MISMO stream ("CC:79543210") y emite el
+    // colaborador ya registrado -> la asignacion alcanza el MISMO stream ("CC-79543210") y emite el
     // evento.
     [Fact]
     public async Task AsignarEtiqueta_EmiteEtiquetaAsignada_CuandoTipoYNumeroLleganSinNormalizar()

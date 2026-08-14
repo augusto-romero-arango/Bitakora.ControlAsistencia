@@ -41,7 +41,7 @@ public class ColaboradorRegistradoSerializacionTests
 
         deserializado.Should().NotBeNull();
         deserializado!.Identificacion.Should().Be(IdentificacionValida);
-        deserializado.Identificacion.ToString().Should().Be("CC:79543210");
+        deserializado.Identificacion.ToString().Should().Be("CC-79543210");
         deserializado.Nombre.Should().Be(NombreValido);
         deserializado.Nombre.NombreCompleto.Should().Be("Luis Augusto Barreto Prieto");
     }

@@ -4,6 +4,9 @@
 // arma localmente con Identificacion.ConfigurarSerializacion, igual que
 // Programacion.Tests/ValueObjects/SubFranjaSerializacionTests.cs hace con SubFranja antes de que
 // un evento persistido la reclame como payload.
+// Issue #381 (CA-5): el numero persistido y rehidratado es SIEMPRE el YA LIMPIO -- la limpieza es
+// invariante del VO (se aplica en Crear), asi que lo que llega a JSON nunca contiene el original
+// con caracteres invalidos.
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -46,6 +49,26 @@ public class IdentificacionSerializacionTests
         restaurado.Numero.Should().Be("AB1234567");
     }
 
+    // CA-5: el numero persistido y rehidratado es el YA LIMPIO -- Crear limpia ANTES de que el VO
+    // exista, asi que el JSON nunca ve el original con espacios/guiones/puntos.
+    [Fact]
+    public void RoundTrip_PersisteYRehidrataElNumeroYaLimpio_CuandoElOriginalTraiaCaracteresInvalidos()
+    {
+        var original = Identificacion.Crear(TipoIdentificacion.CC, " ab-12.3 ");
+        var opciones = CrearOpciones();
+
+        var json = JsonSerializer.Serialize(original, opciones);
+        var restaurado = JsonSerializer.Deserialize<Identificacion>(json, opciones);
+
+        using var documento = JsonDocument.Parse(json);
+        documento.RootElement.GetProperty("numero").GetString().Should().Be("AB123",
+            "el numero persistido debe ser el ya limpio, nunca el original con caracteres invalidos");
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Numero.Should().Be("AB123");
+        restaurado.ToString().Should().Be("CC-AB123");
+    }
+
     // El contrato central de TipoIdentificacion es la FORMA de lo persistido, no solo que el
     // round-trip cierre: "lo persistido es SIEMPRE el codigo literal, jamas un numero" (issue #348,
     // razon por la que el tipo no es un enum C#). El round-trip de arriba pasaria en verde aunque
@@ -81,7 +104,7 @@ public class IdentificacionSerializacionTests
         var restaurado = JsonSerializer.Deserialize<Identificacion>(jsonCorrupto, CrearOpciones());
 
         restaurado.Should().Be(Identificacion.Crear(TipoIdentificacion.CC, "1098765432"));
-        restaurado!.ToString().Should().Be("CC:1098765432", "la clave de stream siempre es la canonica");
+        restaurado!.ToString().Should().Be("CC-1098765432", "la clave de stream siempre es la canonica");
     }
 
     // Barrera anti-regresion: sin el resolver custom (equivalente a olvidar registrar el VO), STJ
