@@ -1,5 +1,10 @@
+using System.Text.Json;
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.MultiTenancy;
 using Marten;
+using Marten.Linq.MatchesSql; // MatchesSql: unica forma verificada de containment JSONB elegible para GIN sobre Dictionary
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -16,21 +21,157 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador;
 // Mismo segmento de recurso que ObtenerFichaColaborador ("colaboradores/fichas") -- el verbo QUERY
 // distingue, el nombre/ruta no cambian (MEF-ADR-0006 enmienda MEF-ADR-0042 seccion 5,
 // skills/projections/naming.md).
-//
-// Stub de fase roja (projection-test-writer, MEF-ADR-0033): Run() lanza NotImplementedException a
-// proposito -- 415/400/422, el filtro AND por etiquetas (Etiqueta.Crear, normalizacion simetrica),
-// la paginacion keyset (OrderBy(NombreCompleto).ThenBy(Id)) y el clamp del Take son responsabilidad
-// de projection-implementer. Los tests de FunctionEndpointTests.cs fallan contra este stub por
-// diseno.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
+    // CA-3: tope de pagina (MEF-ADR-0042 seccion 2) -- el Take del cliente jamas llega crudo a
+    // Marten.
+    private const int TakeMaximo = 200;
+
     [Function("ListarFichasColaborador")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "query", Route = "colaboradores/fichas")]
         HttpRequest req,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        // CA-4/RFC 10008 seccion 2.1: 415 ANTES de leer el body -- ReadFromJsonAsync lanza si el
+        // Content-Type no es un tipo JSON conocido, y esa excepcion NO es JsonException (se
+        // escaparia como 500 sin este guard).
+        if (!req.HasJsonContentType())
+            return new ObjectResult("La query exige Content-Type: application/json")
+            {
+                StatusCode = StatusCodes.Status415UnsupportedMediaType
+            };
+
+        FiltroListarFichasColaborador? filtro;
+        try
+        {
+            filtro = await req.ReadFromJsonAsync<FiltroListarFichasColaborador>(ct);
+        }
+        catch (JsonException)
+        {
+            return new BadRequestObjectResult("El body de la query no es un JSON valido");
+        }
+
+        if (filtro is null)
+            return new BadRequestObjectResult("El body de la query es obligatorio");
+
+        // CA-4: FechaReferencia es OBLIGATORIA -- el back jamas resuelve "hoy" (decision de
+        // refinamiento del issue). STJ no lanza por su ausencia (el campo queda en default,
+        // 0001-01-01), asi que el 422 depende de esta validacion explicita.
+        if (filtro.FechaReferencia == default)
+            return new ObjectResult("FechaReferencia es obligatoria")
+            {
+                StatusCode = StatusCodes.Status422UnprocessableEntity
+            };
+
+        // CA-4: cursor keyset con un solo campo presente (el otro ausente/null) -> 422 "incompleto".
+        // Un cursor con AMBOS campos ausentes cae en la misma rama -- un cliente que no quiere
+        // paginar debe omitir "cursor" por completo (null), no enviar un objeto vacio.
+        if (filtro.Cursor is { } cursorRecibido
+            && (cursorRecibido.NombreCompleto is null || cursorRecibido.Id is null))
+        {
+            return new ObjectResult("El cursor debe traer NombreCompleto e Id, o ninguno de los dos")
+            {
+                StatusCode = StatusCodes.Status422UnprocessableEntity
+            };
+        }
+
+        // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012). El endpoint construye
+        // Etiqueta.Crear(Categoria, Valor) con cada par recibido; es el VO quien decide como se
+        // normaliza (un solo algoritmo de normalizacion en el sistema), nunca el endpoint
+        // reimplementandolo. Etiqueta.Crear rechaza categoria/valor vacios con ArgumentException
+        // -> 422.
+        var etiquetasNormalizadas = new Dictionary<string, string>();
+        if (filtro.Etiquetas is { Count: > 0 })
+        {
+            foreach (var par in filtro.Etiquetas)
+            {
+                Etiqueta etiqueta;
+                try
+                {
+                    etiqueta = Etiqueta.Crear(par.Categoria, par.Valor);
+                }
+                catch (ArgumentException)
+                {
+                    return new ObjectResult(
+                        "Una etiqueta del filtro es invalida (categoria o valor vacios)")
+                    {
+                        StatusCode = StatusCodes.Status422UnprocessableEntity
+                    };
+                }
+
+                // Un valor por categoria (misma invariante que el aggregate/la proyeccion, #355):
+                // si el cliente repite la misma categoria dos veces, la ultima gana.
+                etiquetasNormalizadas[etiqueta.CategoriaNormalizada] = etiqueta.ValorNormalizado;
+            }
+        }
+
+        // CA-1/CA-2 (MEF-ADR-0028): la QuerySession se abre SIEMPRE acotada al tenant que resuelve
+        // ITenantResolver -- nunca a un tenant id que llegara por el body.
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+
+        // CA-1: vigente a FechaReferencia = VigenteHasta >= FechaReferencia (el dia efectivo de
+        // terminacion es el ULTIMO dia vigente, inclusive -- semantica verificada en el aggregate,
+        // #349). El centinela de vinculacion abierta siempre satisface esta condicion.
+        IQueryable<FichaColaborador> query = session.Query<FichaColaborador>()
+            .Where(f => f.VigenteHasta >= filtro.FechaReferencia);
+
+        // CA-2: filtro AND por etiquetas como UNA sola operacion de containment JSONB (precedente
+        // #337: Marten traduce una igualdad de campo a containment @>, elegible para GIN) --
+        // sin filtro de etiquetas (Etiquetas null/vacio) retorna todos los vigentes.
+        //
+        // Verificado por spike propio (Marten 9.12.0 + Postgres 16 real, EXPLAIN con
+        // enable_seqscan=off): el indexer LINQ sobre Dictionary (f.EtiquetasNormalizadas[cat] ==
+        // val, AND por cada par via multiples Where) SI traduce correctamente contra el dato real
+        // -- pero como comparaciones ->> por clave, nunca como containment, y por eso NUNCA usa un
+        // indice GIN (Seq Scan incluso forzando enable_seqscan=off). Contains(KeyValuePair) SI
+        // genera containment (@>) pero contra un shape de JSON equivocado ([{"Key":...,"Value":...}])
+        // que jamas calza con la representacion real de un Dictionary<string,string> serializado
+        // por STJ ({"area":"tecnologia"}) -- devuelve 0 resultados siempre, sea que el par exista o
+        // no. La forma verificada que SI usa el indice GIN que declara CA-5
+        // (ConfiguracionMartenProjectionsColaboradores, .Index(x => x.EtiquetasNormalizadas, gin))
+        // es MatchesSql reproduciendo el MISMO shape de expresion que Marten genera para ese
+        // indice: (data->>'EtiquetasNormalizadas')::jsonb @> ?::jsonb (confirmado con EXPLAIN:
+        // Bitmap Index Scan sobre el indice GIN, Recheck Cond identico).
+        if (etiquetasNormalizadas.Count > 0)
+        {
+            var etiquetasJson = JsonSerializer.Serialize(etiquetasNormalizadas);
+            query = query.Where(f =>
+                f.MatchesSql("(data->>'EtiquetasNormalizadas')::jsonb @> ?::jsonb", etiquetasJson));
+        }
+
+        // CA-3: paginacion keyset -- orden OrderBy(NombreCompleto).ThenBy(Id), predicado compuesto
+        // "nombre > cursor.NombreCompleto OR (nombre == cursor.NombreCompleto AND id >
+        // cursor.Id)". Verificado por spike propio: CompareTo(...) > 0 SI traduce a SQL sobre
+        // campos string (d.data ->> 'NombreCompleto' > :p0 / d.id > :p0 para el Id, que es columna
+        // dedicada del documento) -- a diferencia de string.Compare(...), que Marten no puede
+        // reducir y lanza BadLinqExpressionException. Cierra el NO VERIFICADO de
+        // skills/projections/read-apis.md para este dominio.
+        if (filtro.Cursor is { NombreCompleto: { } cursorNombre, Id: { } cursorId })
+        {
+            query = query.Where(f =>
+                f.NombreCompleto.CompareTo(cursorNombre) > 0
+                || (f.NombreCompleto == cursorNombre && f.Id.CompareTo(cursorId) > 0));
+        }
+
+        // CA-3: Take se acota en el servidor -- nunca se pasa crudo a Marten.
+        var take = Math.Clamp(filtro.Take, 1, TakeMaximo);
+
+        var fichas = await query
+            .OrderBy(f => f.NombreCompleto).ThenBy(f => f.Id)
+            .Take(take)
+            .ToListAsync(ct);
+
+        // CA-4: VigenteHasta vacio en la respuesta de vinculacion abierta -- el centinela jamas
+        // sale por la API (misma regla que #356 CA-6). Reutiliza FichaColaboradorRespuesta.DesdeVista
+        // de ObtenerFichaColaborador en vez de duplicar la misma traduccion (MEF-ADR-0018): es el
+        // mismo DTO de respuesta -- ya excepcion bajo MEF-ADR-0041 decision 4 -- para el mismo read
+        // model, ahora con un segundo consumidor.
+        //
+        // CA-4: nunca 404 -- una pagina sin resultados es 200 con lista vacia. Sin envelope
+        // (propuesta del issue, MEF-ADR-0018): el cliente deriva el cursor de NombreCompleto/Id de
+        // la ultima fila; fin de la lista = pagina con menos de Take filas.
+        return new OkObjectResult(fichas.Select(FichaColaboradorRespuesta.DesdeVista).ToList());
     }
 }
 
