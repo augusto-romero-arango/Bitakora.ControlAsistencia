@@ -29,7 +29,7 @@ public sealed record EtiquetaFicha(string Categoria, string Valor);
 /// precedente TurnoVigente #328).
 ///
 /// Id es el stream key que compone ColaboradorAggregateRoot.ComputarStreamId(Identificacion):
-/// "{Tipo}:{Numero}" (ej. "CC:123456") -- contrato de Identificacion.ToString(), nunca aplanado en
+/// "{Tipo}-{Numero}" (ej. "CC-123456") -- contrato de Identificacion.ToString(), nunca aplanado en
 /// Tipo/Numero separados (decision de refinamiento 2026-08-12: redundantes con el Id).
 ///
 /// CodigoColaborador, VigenteDesde y VigenteHasta reflejan siempre la ULTIMA vinculacion -- la
