@@ -15,7 +15,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.CorregirFechaInicioVinculacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests/
 // ReingresarColaboradorCommandHandlerTests/CorregirNombresCommandHandlerTests).
@@ -26,7 +26,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
     // derivado de ColaboradorAggregateRoot.ComputarStreamId.
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionOriginal = "COL-001";
     private const string CodigoReingreso = "COL-002";
@@ -120,7 +120,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     }
 
     // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC:79543210") y emite
+    // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC-79543210") y emite
     // el evento. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del
     // codigo de tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza
     // internamente (issue #371 -- supersede el racional de #348, ver TipoIdentificacionTests).

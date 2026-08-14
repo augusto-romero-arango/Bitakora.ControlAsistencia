@@ -11,8 +11,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction;
 // mismo criterio que los demas comandos del ciclo de vida: el record del comando es homonimo del
 // feature folder.
 // Route = "Colaboradores/Terminaciones/Anulaciones": la anulacion como sub-recurso de las
-// terminaciones (#349) -- identificacion en el body porque su representacion ("CC:79543210")
-// contiene ":", hostil como segmento de URL.
+// terminaciones (#349) -- identificacion en el body, decision vigente hasta #378 (rutas orientadas
+// a recurso): el issue #381 cambio la representacion a "CC-79543210" justamente para que la llave
+// sea apta como segmento de URI.
 // CA-ADR-0030 / MEF-ADR-0004 (precedente TerminarVinculacionFunction.FunctionEndpoint): validar
 // request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException -> 409
 // Conflict, KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.

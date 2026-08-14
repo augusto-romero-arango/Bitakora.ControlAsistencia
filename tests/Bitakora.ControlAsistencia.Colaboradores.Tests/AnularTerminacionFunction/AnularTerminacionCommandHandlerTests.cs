@@ -17,7 +17,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AnularTerminacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que el resto de la cadena #349-#352).
 public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<AnularTerminacion>
@@ -26,7 +26,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
     // derivado de ColaboradorAggregateRoot.ComputarStreamId.
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
     private const string CodigoVinculacionReingreso = "COL-002";
@@ -114,7 +114,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     }
 
     // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la anulacion alcanza el MISMO stream ("CC:79543210") y tiene
+    // colaborador ya registrado -> la anulacion alcanza el MISMO stream ("CC-79543210") y tiene
     // exito. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo de
     // tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza internamente (issue
     // #371 -- supersede el racional de #348, ver TipoIdentificacionTests).

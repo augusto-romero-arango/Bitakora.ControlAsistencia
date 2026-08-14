@@ -6,8 +6,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacio
 // requerido que puede nacer errado (caso real: se registro ayer con la fecha mal) y necesita su
 // enmienda.
 // Trigger: HTTP POST, Route: Colaboradores/FechasInicio (el recurso que se reemplaza, gemelo de
-// Colaboradores/Nombres #351; la identificacion viaja en el body porque su representacion
-// "CC:79543210" contiene ":", hostil como segmento de URL).
+// Colaboradores/Nombres #351; la identificacion viaja en el body, decision vigente hasta #378 --
+// rutas orientadas a recurso --: el issue #381 cambio la representacion a "CC-79543210" justamente
+// para que la llave sea apta como segmento de URI).
 // Payload primitivo -- igual que los demas comandos del ciclo de vida (MEF-ADR-0039 decision 6,
 // payload por rol): NUNCA reusa un tipo de Colaboradores.DomainEvents como campo. El handler
 // construye TipoIdentificacion/Identificacion a partir de estos primitivos (parseo tipado unico en

@@ -11,8 +11,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction;
 // que RegistrarColaboradorFunction (issue #330, refactor 63270fa): el record del comando es
 // homonimo del feature folder, y las carpetas sin sufijo son queries GET sin ese conflicto.
 // Route = "Colaboradores/Terminaciones": la terminacion como sub-recurso (estilo
-// programacion/solicitudes) -- la identificacion viaja en el body porque su representacion
-// ("CC:79543210") contiene ":", hostil como segmento de URL.
+// programacion/solicitudes) -- la identificacion viaja en el body, decision vigente hasta #378
+// (rutas orientadas a recurso): el issue #381 cambio la representacion a "CC-79543210" justamente
+// para que la llave sea apta como segmento de URI.
 // CA-ADR-0030 / MEF-ADR-0004 (precedente SolicitarProgramacionTurnoFunction.FunctionEndpoint):
 // validar request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException
 // -> 409 Conflict, KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.

@@ -11,7 +11,7 @@
 //
 // Evento reutilizado (CA-ADR-0029/MEF-ADR-0039: un evento no conoce su comando): el exito NO crea
 // un tipo nuevo -- persiste otra VinculacionIniciada (tipo persistido "vinculacion_iniciada") en el
-// stream existente "{Tipo}:{Numero}", con el codigo transaccional nuevo del reingreso.
+// stream existente "{Tipo}-{Numero}", con el codigo transaccional nuevo del reingreso.
 //
 // CA-1/CA-4 (rutas de exito): 202 + una segunda VinculacionIniciada persistida con el Codigo y la
 // FechaInicio exactos del request -- ya sea sobre una terminacion pasada (CA-1) o sobre un preaviso
@@ -44,15 +44,20 @@ public class ReingresarColaboradorSmokeTests(ApiFixture api, PostgresFixture pos
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC:<numero>"), no un Guid nuevo por
+    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
     // llamada, asi que reusar un numero fijo haria que el arrange (RegistrarColaborador) choque con
-    // 409 en la segunda corrida.
+    // 409 en la segunda corrida. El formato "N" en MAYUSCULAS ya es alfanumerico ASCII, asi que
+    // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
+    // la que arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
     private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
+    // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
+    // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
+    // Separador "-" desde el issue #381.
     private static string ComputarStreamId(string numeroIdentificacion) =>
-        $"{TipoIdentificacionCc}:{numeroIdentificacion}";
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
     private static string FormatearFecha(DateOnly fecha) =>
         fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

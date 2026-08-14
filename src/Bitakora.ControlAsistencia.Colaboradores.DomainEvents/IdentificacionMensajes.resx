@@ -21,6 +21,6 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
   <data name="NumeroVacio" xml:space="preserve">
-    <value>El numero de identificacion no puede estar vacio ni contener solo espacios</value>
+    <value>El numero de identificacion debe contener al menos una letra o un digito</value>
   </data>
 </root>

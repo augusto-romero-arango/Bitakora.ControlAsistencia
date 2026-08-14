@@ -6,7 +6,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 // Issue #330: aggregate root que representa a un colaborador bajo control de asistencia. Nace con
 // este issue -- primer aggregate y primeros dos eventos persistidos del dominio Colaboradores.
 //
-// Identidad: Identificacion.ToString() ("CC:79543210"), no un Guid. ComputarStreamId es el punto
+// Identidad: Identificacion.ToString() ("CC-79543210"), no un Guid. ComputarStreamId es el punto
 // unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la concatena.
 //
 // Estado observable: internal, no publico (InternalsVisibleTo hacia Colaboradores.Tests, ver el

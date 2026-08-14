@@ -1,4 +1,8 @@
 // HU-348: Value object Identificacion -- compone la clave del stream de Colaborador.
+// Issue #381: separador de la llave cambia de ":" a "-"; el numero se limpia a alfanumerico ASCII
+// (letras a MAYUSCULAS, cualquier otro caracter -- incluidas letras acentuadas/enie -- se ELIMINA
+// silenciosamente). El trim de #348 queda SUBSUMIDO por la limpieza: los espacios son caracteres
+// invalidos y se eliminan igual que un guion o un punto.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
@@ -9,36 +13,68 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 /// </summary>
 public class IdentificacionTests
 {
-    // ---------- CA-1: normalizacion trim + MAYUSCULAS garantiza el mismo stream ----------
+    // ---------- CA-1: ToString() compone la llave con guion ----------
 
     [Fact]
-    public void Crear_NormalizaNumeroATrimYMayusculas_CuandoNumeroTraeEspaciosYMinusculas()
+    public void ToString_ComponeTipoYNumeroConGuion_CuandoIdentificacionValida()
     {
-        var identificacion = Identificacion.Crear(TipoIdentificacion.CC, " ab-123 ");
+        var identificacion = Identificacion.Crear(TipoIdentificacion.CC, "79543210");
 
-        identificacion.ToString().Should().Be("CC:AB-123");
+        identificacion.ToString().Should().Be("CC-79543210");
+    }
+
+    // ---------- CA-2: limpieza del numero (letras a MAYUSCULAS, no-alfanumerico eliminado) ----------
+
+    [Fact]
+    public void Crear_LimpiaElNumero_CuandoTraeEspaciosGuionesYPuntos()
+    {
+        var identificacion = Identificacion.Crear(TipoIdentificacion.CC, " ab-12.3 ");
+
+        identificacion.Numero.Should().Be("AB123");
     }
 
     [Fact]
-    public void ToString_ComponeTipoYNumeroConDosPuntos_CuandoIdentificacionValida()
+    public void Crear_ConvierteLetrasAMayusculas_CuandoNumeroLlegaEnMinusculas()
     {
-        var identificacion = Identificacion.Crear(TipoIdentificacion.CE, "1098765432");
-
-        identificacion.ToString().Should().Be("CE:1098765432");
-    }
-
-    // ---------- CA-2: numero alfanumerico aceptado (pasaportes traen letras) ----------
-
-    [Fact]
-    public void Crear_AceptaNumeroAlfanumerico_CuandoEsPasaporte()
-    {
-        var identificacion = Identificacion.Crear(TipoIdentificacion.PA, "AB1234567");
+        var identificacion = Identificacion.Crear(TipoIdentificacion.PA, "ab1234567");
 
         identificacion.Numero.Should().Be("AB1234567");
-        identificacion.Tipo.Should().BeSameAs(TipoIdentificacion.PA);
     }
 
-    // ---------- CA-2: numero vacio o whitespace rechazado con mensaje .resx ----------
+    [Fact]
+    public void Crear_EliminaEspaciosInternos_CuandoNumeroLosTraeEntreDigitos()
+    {
+        var identificacion = Identificacion.Crear(TipoIdentificacion.CC, "795 432 10");
+
+        identificacion.Numero.Should().Be("79543210");
+    }
+
+    // Fija el alcance exacto de "letras" que el issue #381 deja explicito: alfanumerico ASCII
+    // ([A-Z0-9]) -- una letra acentuada o una enie es caracter invalido y se elimina igual que un
+    // guion, no se conserva como letra valida. No es una desviacion del plan: es la regla del
+    // issue, clavada aqui para que una implementacion con char.IsLetterOrDigit (que SI acepta
+    // no-ASCII) falle en vez de pasar en verde.
+    [Fact]
+    public void Crear_EliminaLetrasAcentuadasYEnies_CuandoNumeroTraeCaracteresNoAscii()
+    {
+        var identificacion = Identificacion.Crear(TipoIdentificacion.PA, "AÑ123É");
+
+        identificacion.Numero.Should().Be("A123");
+    }
+
+    // ---------- CA-3: la limpieza unifica la identidad (ToString / llave del stream) ----------
+
+    [Fact]
+    public void Crear_ComponeLaMismaLlave_CuandoNumerosDifierenSoloPorCaracteresInvalidos()
+    {
+        var conGuion = Identificacion.Crear(TipoIdentificacion.CC, "AB-123");
+        var sinGuion = Identificacion.Crear(TipoIdentificacion.CC, "ab123");
+
+        conGuion.ToString().Should().Be("CC-AB123");
+        sinGuion.ToString().Should().Be("CC-AB123");
+    }
+
+    // ---------- CA-4: numero que queda vacio tras la limpieza lanza ArgumentException ----------
 
     [Fact]
     public void Crear_LanzaArgumentException_CuandoNumeroEsVacio()
@@ -58,6 +94,48 @@ public class IdentificacionTests
             .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
     }
 
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoNumeroSoloTraeGuiones()
+    {
+        var act = () => Identificacion.Crear(TipoIdentificacion.CC, "---");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
+    }
+
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoNumeroSoloTraePuntos()
+    {
+        var act = () => Identificacion.Crear(TipoIdentificacion.CC, "..");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
+    }
+
+    // El parametro es non-nullable, pero STJ no honra las anotaciones de nulabilidad al deserializar
+    // el body de un comando: un "numeroIdentificacion": null llega aqui como null real. Este test
+    // fija que ese borde termina en el mismo ArgumentException del contrato (traducido a 400 por el
+    // endpoint), nunca en un NullReferenceException sin mensaje de dominio.
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoNumeroEsNull()
+    {
+        var act = () => Identificacion.Crear(TipoIdentificacion.CC, null!);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
+    }
+
+    // ---------- Numero alfanumerico sin caracteres a limpiar (pasaportes traen letras) ----------
+
+    [Fact]
+    public void Crear_AceptaNumeroAlfanumerico_CuandoEsPasaporte()
+    {
+        var identificacion = Identificacion.Crear(TipoIdentificacion.PA, "AB1234567");
+
+        identificacion.Numero.Should().Be("AB1234567");
+        identificacion.Tipo.Should().BeSameAs(TipoIdentificacion.PA);
+    }
+
     // ---------- Tipo/Numero: observables de solo lectura (identidad misma, no dato intermedio) ----------
 
     [Fact]
@@ -69,10 +147,10 @@ public class IdentificacionTests
     }
 
     [Fact]
-    public void Numero_ExponeElNumeroNormalizado_CuandoIdentificacionCreada()
+    public void Numero_ExponeElNumeroYaLimpio_CuandoIdentificacionCreada()
     {
         var identificacion = Identificacion.Crear(TipoIdentificacion.CC, " ab-123 ");
 
-        identificacion.Numero.Should().Be("AB-123");
+        identificacion.Numero.Should().Be("AB123");
     }
 }

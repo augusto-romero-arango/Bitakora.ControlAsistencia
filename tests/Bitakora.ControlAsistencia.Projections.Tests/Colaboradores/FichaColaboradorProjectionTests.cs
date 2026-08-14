@@ -40,7 +40,7 @@ public class FichaColaboradorProjectionTests
     // --- CA-1 (primera mitad): Create nace la ficha con Id y NombreCompleto ---
 
     // Create toma IEvent<ColaboradorRegistrado>, no el evento a secas: la identidad del documento
-    // es el StreamKey del stream de ColaboradorAggregateRoot ("CC:123456"), nunca recomputada a
+    // es el StreamKey del stream de ColaboradorAggregateRoot ("CC-123456"), nunca recomputada a
     // mano desde el payload (skills/projections/modelos-marten.md, ejemplo SeguimientoTurnoProjection).
     [Fact]
     public void Create_ProyectaIdYNombreCompleto_DesdeColaboradorRegistrado()
@@ -56,7 +56,7 @@ public class FichaColaboradorProjectionTests
 
         var vista = FichaColaboradorProjection.Create(evento);
 
-        vista.Id.Should().Be("CC:123456");
+        vista.Id.Should().Be("CC-123456");
         vista.NombreCompleto.Should().Be("Ana Ramirez");
     }
 
@@ -67,14 +67,14 @@ public class FichaColaboradorProjectionTests
     public void Apply_AsignaCodigoYFechaInicioYAbreLaVigencia_CuandoVinculacionIniciada()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", string.Empty, default, CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", string.Empty, default, CentinelaVigenciaAbierta,
             [], new Dictionary<string, string>());
         var fechaInicio = new DateOnly(2026, 8, 1);
         var evento = new VinculacionIniciada("EMP-001", fechaInicio);
 
         var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
 
-        vista.Id.Should().Be("CC:123456");
+        vista.Id.Should().Be("CC-123456");
         vista.NombreCompleto.Should().Be("Ana Ramirez");
         vista.CodigoColaborador.Should().Be("EMP-001");
         vista.VigenteDesde.Should().Be(fechaInicio);
@@ -89,7 +89,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_CierraLaVigencia_CuandoVinculacionTerminada()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
             [], new Dictionary<string, string>());
         var fechaEfectiva = new DateOnly(2026, 9, 30);
         var evento = new VinculacionTerminada(fechaEfectiva);
@@ -98,7 +98,7 @@ public class FichaColaboradorProjectionTests
 
         vista.VigenteHasta.Should().Be(fechaEfectiva);
         // El resto de la ficha (identidad, codigo y fecha de inicio) no cambia con la terminacion.
-        vista.Id.Should().Be("CC:123456");
+        vista.Id.Should().Be("CC-123456");
         vista.CodigoColaborador.Should().Be("EMP-001");
         vista.VigenteDesde.Should().Be(new DateOnly(2026, 8, 1));
     }
@@ -109,7 +109,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_ReabreLaVigencia_CuandoTerminacionAnulada()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), new DateOnly(2026, 9, 30),
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), new DateOnly(2026, 9, 30),
             [], new Dictionary<string, string>());
         var evento = new TerminacionAnulada();
 
@@ -126,7 +126,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_ReemplazaElNombreCompleto_CuandoNombresCorregidos()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
             [], new Dictionary<string, string>());
         var nombreCorregido = NombreColaborador.Crear("Ana Maria", null, "Ramirez", "Solano");
         var evento = new NombresCorregidos(nombreCorregido);
@@ -134,7 +134,7 @@ public class FichaColaboradorProjectionTests
         var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
 
         vista.NombreCompleto.Should().Be("Ana Maria Ramirez Solano");
-        vista.Id.Should().Be("CC:123456");
+        vista.Id.Should().Be("CC-123456");
         vista.CodigoColaborador.Should().Be("EMP-001");
     }
 
@@ -144,7 +144,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_ReemplazaVigenteDesde_CuandoFechaInicioVinculacionCorregida()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
             [], new Dictionary<string, string>());
         var fechaCorregida = new DateOnly(2026, 7, 15);
         var evento = new FechaInicioVinculacionCorregida(fechaCorregida);
@@ -164,7 +164,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_AgregaLaEtiquetaEnAmbasEstructuras_CuandoEtiquetaAsignadaEsUnaCategoriaNueva()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
             [new EtiquetaFicha("sede", "Suba")],
             new Dictionary<string, string> { ["sede"] = "suba" });
         var evento = new EtiquetaAsignada(Etiqueta.Crear("Área", "Tecnología"));
@@ -190,7 +190,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_SobrescribeElValorDeLaCategoria_CuandoEtiquetaAsignadaReutilizaLaMismaCategoriaNormalizada()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
             [new EtiquetaFicha("Área", "Tecnología")],
             new Dictionary<string, string> { ["area"] = "tecnologia" });
         var evento = new EtiquetaAsignada(Etiqueta.Crear("area", "Sistemas"));
@@ -209,7 +209,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_RemueveSoloLaCategoriaIndicada_CuandoEtiquetaRetirada()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
             [new EtiquetaFicha("area", "Sistemas"), new EtiquetaFicha("sede", "Suba")],
             new Dictionary<string, string> { ["area"] = "sistemas", ["sede"] = "suba" });
         var evento = new EtiquetaRetirada("area");
@@ -230,7 +230,7 @@ public class FichaColaboradorProjectionTests
     public void Apply_NaceLimpio_CuandoVinculacionIniciadaEsUnReingresoConEtiquetasPrevias()
     {
         var vistaPrevia = new FichaColaborador(
-            "CC:123456", "Ana Ramirez", "EMP-001", new DateOnly(2025, 1, 1), new DateOnly(2025, 12, 31),
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2025, 1, 1), new DateOnly(2025, 12, 31),
             [new EtiquetaFicha("area", "Sistemas")],
             new Dictionary<string, string> { ["area"] = "sistemas" });
         var nuevaFechaInicio = new DateOnly(2026, 3, 1);
@@ -238,7 +238,7 @@ public class FichaColaboradorProjectionTests
 
         var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
 
-        vista.Id.Should().Be("CC:123456");
+        vista.Id.Should().Be("CC-123456");
         vista.NombreCompleto.Should().Be("Ana Ramirez");
         vista.CodigoColaborador.Should().Be("EMP-002");
         vista.VigenteDesde.Should().Be(nuevaFechaInicio);

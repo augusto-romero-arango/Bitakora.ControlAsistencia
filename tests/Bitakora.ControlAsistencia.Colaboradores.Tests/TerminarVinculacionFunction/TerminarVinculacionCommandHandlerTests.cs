@@ -13,7 +13,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.TerminarVinculacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del test-writer,
 // mismo criterio que RegistrarColaboradorCommandHandlerTests).
 public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<TerminarVinculacion>
@@ -22,7 +22,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
     // derivado de ColaboradorAggregateRoot.ComputarStreamId (mismo criterio que #330).
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
     private static readonly DateOnly FechaInicioVinculacionVigente = new(2026, 1, 15);

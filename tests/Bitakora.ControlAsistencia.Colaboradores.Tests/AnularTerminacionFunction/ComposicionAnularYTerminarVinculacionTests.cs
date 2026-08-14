@@ -33,13 +33,13 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AnularTerminacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que el resto de la cadena #349-#352).
 public class ComposicionAnularYTerminarVinculacionTests : CommandHandlerAsyncTest<TerminarVinculacion>
 {
     private const string NumeroValido = "79543210";
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
     private const string CodigoVinculacionVigente = "COL-001";
     private static readonly DateOnly FechaInicioVinculacionVigente = new(2026, 1, 15);
     private static readonly DateOnly FechaEfectivaErrada = new(2026, 6, 1);

@@ -14,7 +14,7 @@
 // EXTERNO no cambia (ya normalizaba antes en el borde), pero el punto donde vive el conocimiento
 // si cambio, y eso es exactamente lo que las CA-1/CA-1-bis de abajo verifican end-to-end contra el
 // entorno real: un TipoIdentificacion con espacios y minusculas debe seguir colapsando a la MISMA
-// clave de stream canonica ("CC:<numero>"), nunca abrir una segunda clave ("cc:<numero>").
+// clave de stream canonica ("CC-<numero>"), nunca abrir una segunda clave ("cc-<numero>").
 //
 // CA-1 (ruta de exito): identificacion nueva -> 202 y el stream recibe, en un solo commit,
 // ColaboradorRegistrado + VinculacionIniciada (issue #330).
@@ -47,18 +47,22 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC:<numero>"), no un Guid nuevo por
+    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
     // llamada, asi que reusar un numero fijo haria que el segundo registro choque con 409 en la
-    // segunda corrida.
+    // segunda corrida. El formato "N" en MAYUSCULAS ya es alfanumerico ASCII, asi que sobrevive
+    // intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con la que
+    // arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
     private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
-    // Siempre canonico ("CC:<numero>"): TipoIdentificacion.Desde nunca almacena el input crudo, solo
-    // retorna la instancia canonica de la lista cerrada (issue #371) -- por eso el streamId esperado
-    // no varia sin importar el casing con el que llego el TipoIdentificacion en el payload.
+    // Siempre canonico ("CC-<numero>", separador "-" desde el issue #381): TipoIdentificacion.Desde
+    // nunca almacena el input crudo, solo retorna la instancia canonica de la lista cerrada (issue
+    // #371) -- por eso el streamId esperado no varia sin importar el casing con el que llego el
+    // TipoIdentificacion en el payload. Oraculo independiente (MEF-ADR-0002): se recompone a mano,
+    // no se deriva de Identificacion.ToString().
     private static string ComputarStreamId(string numeroIdentificacion) =>
-        $"{TipoIdentificacionCc}:{numeroIdentificacion}";
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
     private static object PayloadRegistro(
         string numeroIdentificacion, DateOnly fechaInicio,
@@ -119,7 +123,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 
     // CA-1-bis (issue #371): la normalizacion vive ahora en TipoIdentificacion.Desde -- un
     // TipoIdentificacion con espacios y minusculas debe colapsar a la misma clave de stream
-    // canonica ("CC:<numero>"), nunca abrir una segunda clave ("cc:<numero>"). Verificacion
+    // canonica ("CC-<numero>"), nunca abrir una segunda clave ("cc-<numero>"). Verificacion
     // end-to-end del refactor: el borde ya no normaliza, asi que si el VO dejara de hacerlo este
     // test dejaria de encontrar el evento en el stream canonico.
     [Fact]
@@ -185,7 +189,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 
     // CA-2-bis (issue #371, corazon del refactor): el duplicado tambien se detecta cuando el
     // segundo request llega con TipoIdentificacion sin normalizar -- "CC" y " cc " colapsan a la
-    // MISMA clave de stream ("CC:<numero>") porque Desde normaliza antes del lookup, asi que el
+    // MISMA clave de stream ("CC-<numero>") porque Desde normaliza antes del lookup, asi que el
     // aggregate ya existe y el segundo registro se rechaza igual que con el mismo casing exacto.
     [Fact]
     [Trait("Category", "Smoke")]

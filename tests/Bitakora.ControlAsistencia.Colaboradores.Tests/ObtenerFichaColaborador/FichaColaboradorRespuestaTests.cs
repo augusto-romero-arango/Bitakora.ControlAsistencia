@@ -25,7 +25,7 @@ public class FichaColaboradorRespuestaTests
 
     private static FichaColaborador FichaConVigenteHasta(DateOnly vigenteHasta) =>
         new(
-            "CC:123456",
+            "CC-123456",
             "Ana Ramirez",
             "EMP-001",
             new DateOnly(2026, 8, 1),
@@ -62,7 +62,7 @@ public class FichaColaboradorRespuestaTests
 
         var respuesta = FichaColaboradorRespuesta.DesdeVista(ficha);
 
-        respuesta.Id.Should().Be("CC:123456");
+        respuesta.Id.Should().Be("CC-123456");
         respuesta.NombreCompleto.Should().Be("Ana Ramirez");
         respuesta.CodigoColaborador.Should().Be("EMP-001");
         respuesta.VigenteDesde.Should().Be(new DateOnly(2026, 8, 1));

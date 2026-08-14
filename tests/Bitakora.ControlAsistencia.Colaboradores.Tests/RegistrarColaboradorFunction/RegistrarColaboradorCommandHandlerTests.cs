@@ -11,7 +11,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC:79543210"), no el
+// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del test-writer).
 public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<RegistrarColaborador>
 {
@@ -24,7 +24,7 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
     // ColaboradorAggregateRoot.ComputarStreamId(...): derivarlo del propio codigo bajo prueba haria
     // tautologica la clave con la que Given/Then/And direccionan el stream, y un cambio de formato
     // -- otro separador, otro orden, otro casing -- pasaria en verde partiendo streams en produccion.
-    private const string StreamIdEsperado = "CC:79543210";
+    private const string StreamIdEsperado = "CC-79543210";
 
     // Vinculacion previa del stream ya registrado (CA-2/CA-4): distinta de la del comando, para que
     // el And posterior distinga "no cambio nada" de "coincide por casualidad".
@@ -57,7 +57,7 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
             new ColaboradorRegistrado(IdentificacionValida(), NombreValido()),
             new VinculacionIniciada(CodigoVinculacionPrevia, FechaInicioVinculacionPrevia));
 
-    // CA-1: nace el stream con clave "CC:79543210" conteniendo ColaboradorRegistrado +
+    // CA-1: nace el stream con clave "CC-79543210" conteniendo ColaboradorRegistrado +
     // VinculacionIniciada persistidos en un solo commit, en ese orden.
     // CA-5: VinculacionIniciada persiste Codigo/FechaInicio tal como llegaron del request.
     [Fact]
