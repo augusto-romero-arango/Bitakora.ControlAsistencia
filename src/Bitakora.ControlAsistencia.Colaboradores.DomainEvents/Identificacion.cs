@@ -8,9 +8,12 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 /// </summary>
 /// <remarks>
 /// Issue #348: compone la clave del stream del futuro ColaboradorAggregateRoot (#349+) --
-/// ToString() -> "{Tipo}:{Numero}" es CONTRATO, no detalle de presentacion. El numero es
-/// alfanumerico (los pasaportes traen letras), se normaliza trim + MAYUSCULAS para que
-/// " ab-123 " y "AB-123" produzcan el mismo stream (CA-1).
+/// ToString() -> "{Tipo}-{Numero}" es CONTRATO, no detalle de presentacion (separador "-" desde el
+/// issue #381: ":" es hostil como segmento de URI). El numero es alfanumerico (los pasaportes
+/// traen letras); se LIMPIA (issue #381) eliminando todo caracter fuera de [A-Za-z0-9] y llevando
+/// las letras a MAYUSCULAS -- no se rechaza por caracteres invalidos, se limpian antes de
+/// registrar. Esto hace inequivoca la llave "{Tipo}-{Numero}": tras la limpieza el numero jamas
+/// contiene "-", y ademas unifica identidad (" ab-12.3 " y "AB123" producen el mismo stream, CA-1).
 /// MEF-ADR-0012: sealed class, constructor privado real + constructor vacio para STJ/Marten,
 /// factory Crear() con validacion, ConfigurarSerializacion registrando campos privados (patron
 /// SubFranja) -- proscrito [JsonConstructor].
@@ -44,17 +47,25 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
         _numero = string.Empty;
     }
 
-    // CA-1, CA-2: normaliza (trim + MAYUSCULAS) y valida que el numero no sea vacio ni whitespace.
+    // CA-2: limpia el numero (elimina todo caracter fuera de [A-Za-z0-9], letras a MAYUSCULAS) y
+    // valida que el resultado no quede vacio (CA-4). No hay rechazo por caracteres invalidos: se
+    // limpian antes de registrar, sin excepcion. El trim de #348 queda subsumido -- los espacios
+    // son caracteres invalidos y se eliminan igual que un guion o un punto.
     public static Identificacion Crear(TipoIdentificacion tipo, string numero)
     {
-        if (string.IsNullOrWhiteSpace(numero))
+        var numeroLimpio = new string((numero ?? string.Empty)
+            .Where(char.IsAsciiLetterOrDigit)
+            .Select(char.ToUpperInvariant)
+            .ToArray());
+
+        if (numeroLimpio.Length == 0)
             throw new ArgumentException(Mensajes.NumeroVacio, nameof(numero));
 
-        return new Identificacion(tipo, numero.Trim().ToUpperInvariant());
+        return new Identificacion(tipo, numeroLimpio);
     }
 
-    // Contrato: clave del stream de Colaborador.
-    public override string ToString() => $"{_tipo}:{_numero}";
+    // Contrato: clave del stream de Colaborador (separador "-" desde el issue #381).
+    public override string ToString() => $"{_tipo}-{_numero}";
 
     // Igualdad por valor. _tipo se compara por referencia (deliberado, ver remarks de
     // TipoIdentificacion): Desde() siempre retorna la instancia canonica de la lista cerrada.
