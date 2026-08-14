@@ -26,6 +26,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerFichaColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador.FunctionEndpoint;
+using ListarFichasColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -391,5 +392,27 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_fichacolaborador");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(FichaColaborador.Id));
+    }
+
+    // Issue #373 CA-4 (segunda mitad del desglose de #356): test de composicion de la SEGUNDA
+    // Function de lectura del dominio, hermano del que #356 dejo para ObtenerFichaColaborador --
+    // misma idea (MEF-ADR-0029/ActivatorUtilities.CreateInstance, sin host real), pero ahora sobre
+    // un endpoint QUERY (MEF-ADR-0042) en vez de GET. Ninguna proyeccion ni read model nuevos: este
+    // issue consulta la MISMA vista materializada FichaColaborador via (a') (session.Query, en vez
+    // de LoadAsync por id).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (415/400/422, filtro AND por etiquetas, paginacion keyset), que es
+    // responsabilidad del endpoint y cubre FunctionEndpointTests.cs (validacion) y el smoke test
+    // contra dev (CA-6, camino feliz + Marten real).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarFichasColaborador_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarFichasColaboradorEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }

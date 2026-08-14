@@ -8,6 +8,7 @@ using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Microsoft.Extensions.DependencyInjection;
+using Weasel.Postgresql.Tables; // IndexMethod/IndexDefinition (NO Marten.*: viven en Weasel.Postgresql.Tables)
 
 namespace Bitakora.ControlAsistencia.Projections.Tests;
 
@@ -481,6 +482,65 @@ public class ConfiguracionMartenProjectionsTests
         mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_fichacolaborador");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(FichaColaborador.Id));
+    }
+
+    // Issue #373 CA-5: indices declarados en el seam del worker para el listado QUERY de fichas
+    // vigentes (ListarFichasColaborador, MEF-ADR-0042) -- rango sobre VigenteHasta, GIN sobre
+    // EtiquetasNormalizadas (containment JSONB del filtro AND por etiquetas, precedente #337 sobre
+    // Bloques/SedeId sobre TurnoVigente) y btree sobre NombreCompleto (orden del keyset). Ninguna
+    // proyeccion ni read model nuevos: este issue solo suma indices sobre la MISMA
+    // FichaColaborador ya registrada (#356).
+    //
+    // Baseline verificado por spike propio (sin este issue, StoreOptions.FindOrResolveDocumentType):
+    // FichaColaborador no declara ningun indice propio hoy -- Indexes.Count == 0 --, asi que las
+    // tres guardas de abajo fallan en la fase roja.
+    //
+    // Oraculo tolerante al MECANISMO exacto de Marten que elija projection-implementer (computed
+    // Index(x => x.Campo) vs Duplicate(...).Index(...), DocumentIndex vs ComputedIndex): ambos
+    // caminos agregan una entrada a IDocumentType.Indexes cuyo IndexDefinition expone Method y
+    // Columns publicamente (Weasel.Postgresql.Tables), pero el nombre de indice y la forma exacta
+    // del locator SQL varian segun el camino elegido -- por eso el assert busca el nombre del campo
+    // C# (o su forma snake_case) como SUBCADENA de Columns, sin fijar el locator completo. Verificado
+    // por spike propio: Schema.For<FichaColaborador>().Index(x => x.VigenteHasta) produce
+    // Columns=["(public.mt_immutable_date(data ->> 'VigenteHasta'))"]; cualquier implementacion que
+    // toque ese campo, por el camino que sea, deja el nombre del campo en alguna parte del locator.
+    private static bool IndiceMencionaCampo(IndexDefinition indice, params string[] fragmentosDelCampo) =>
+        indice.Columns is { } columnas
+        && columnas.Any(columna => fragmentosDelCampo.All(
+            fragmento => columna.Contains(fragmento, StringComparison.OrdinalIgnoreCase)));
+
+    [Fact]
+    public void ConfigurarColaboradores_DeclaraIndiceGinSobreEtiquetasNormalizadasDeFichaColaborador()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.Indexes.Should().Contain(indice =>
+            indice.Method == IndexMethod.gin && IndiceMencionaCampo(indice, "etiqueta"));
+    }
+
+    [Fact]
+    public void ConfigurarColaboradores_DeclaraUnIndiceSobreVigenteHastaDeFichaColaborador()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "vigente", "hasta"));
+    }
+
+    [Fact]
+    public void ConfigurarColaboradores_DeclaraUnIndiceSobreNombreCompletoDeFichaColaborador()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "nombre", "completo"));
     }
 
     // --- Seam de nivel BC (CA-4) ---
