@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PublicEvents\Bitakora.ControlAsistencia.PublicEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Colaboradores.DomainEvents\Bitakora.ControlAsistencia.Colaboradores.DomainEvents.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
   </ItemGroup>
 
   <ItemGroup>

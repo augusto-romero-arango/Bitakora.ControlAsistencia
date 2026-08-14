@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Microsoft.Extensions.DependencyInjection;
@@ -408,6 +409,77 @@ public class ConfiguracionMartenProjectionsTests
         restaurado.Should().NotBeNull();
         restaurado.Identificacion.ToString().Should().Be("CC:79543210");
         restaurado.Nombre.NombreCompleto.Should().Be("Luis Augusto Barreto Prieto");
+    }
+
+    // Issue #356 CA-1..CA-5: primera proyeccion concreta del dominio Colaboradores (N1,
+    // SingleStreamProjection<FichaColaborador, string> sobre el stream de ColaboradorAggregateRoot).
+    // Complementa ConfigurarColaboradores_RegistraLosTiposDeEventoPersistidos: aquella prueba que
+    // los TIPOS de evento estan registrados, esta prueba que la PROYECCION concreta que los
+    // consume esta registrada en el named store con lifecycle Async, el canonico del worker
+    // (MEF-ADR-0034 seccion 3). El seam (ConfiguracionMartenProjectionsColaboradores.
+    // ConfigurarColaboradores) existe desde el issue #360; este issue le agrega la unica linea
+    // opts.Projections.Add<FichaColaboradorProjection>(ProjectionLifecycle.Async).
+    [Fact]
+    public void ConfigurarColaboradores_RegistraFichaColaboradorProjectionComoAsync()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("FichaColaborador");
+    }
+
+    // Issue #356, mismo gotcha de "Numeric Revisioned Documents" que el issue #294 peno en dev y
+    // que #328 ya cerro para TurnoVigente: Marten aplica ProjectionDocumentPolicy SOLO a los
+    // documentos que son target de una proyeccion REGISTRADA en el store (UseNumericRevisions =
+    // true, Metadata.Revision -- mt_version bigint -- habilitada, Metadata.Version -- mt_version
+    // uuid -- deshabilitada). Si FichaColaboradorProjection dejara de registrarse arriba, este
+    // mapping caeria al default y este test se pondria rojo.
+    //
+    // Este lado NO declara nada para que los valores sean asi: los impone Marten al registrar la
+    // proyeccion (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents";
+    // Marten/Events/Projections/ProjectionDocumentPolicy.cs). O sea que este es el lado que DEFINE
+    // la forma fisica de la tabla y el write-side el que debe replicarla -- por eso el oraculo se
+    // congela aqui tambien: si una version futura de Marten cambiara el tipo por defecto de
+    // Metadata.Revision, ambos lados se pondrian rojos juntos en vez de dejar que la divergencia
+    // llegue a dev como un 42804 por request.
+    //
+    // Espejo de ComposicionServiciosTests (Colaboradores.Tests)
+    // .AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaColaborador.
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaFichaColaboradorConRevisionNumerica()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #356, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6), replica de la guarda que #328 dejo para TurnoVigente: el daemon materializa
+    // FichaColaborador desde este named store y el Function App de Colaboradores la lee, en otro
+    // proceso, con session.LoadAsync. Que ambos lados converjan en la MISMA tabla fisica, la MISMA
+    // tenancy y el MISMO IdMember no lo garantiza ningun compilador -- son dos configuraciones de
+    // Marten independientes sobre el mismo schema, y una divergencia deja el GET en 404 permanente
+    // con el daemon funcionando (fallo silencioso que solo veria el smoke test contra dev).
+    //
+    // Espejo de ComposicionServiciosTests (Colaboradores.Tests)
+    // .AgregarServiciosColaboradores_ResuelveFichaColaboradorSobreLaTablaQueMaterializaElWorker_...,
+    // sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaFichaColaboradorSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaColaborador));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_fichacolaborador");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(FichaColaborador.Id));
     }
 
     // --- Seam de nivel BC (CA-4) ---
