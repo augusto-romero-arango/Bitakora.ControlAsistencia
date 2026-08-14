@@ -10,8 +10,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 // MEF-ADR-0006: [Function("CorregirNombres")]; carpeta CON sufijo "Function" -- mismo criterio que
 // RegistrarColaboradorFunction/TerminarVinculacionFunction/ReingresarColaboradorFunction: el
 // record del comando es homonimo del feature folder.
-// Route = "Colaboradores/Nombres": el recurso que se reemplaza -- identificacion en el body porque
-// su representacion ("CC:79543210") contiene ":", hostil como segmento de URL.
+// Route = "Colaboradores/Nombres": el recurso que se reemplaza -- identificacion en el body,
+// decision vigente hasta #378 (rutas orientadas a recurso): el issue #381 cambio la representacion
+// a "CC-79543210" justamente para que la llave sea apta como segmento de URI.
 // CA-ADR-0030 / MEF-ADR-0004 (precedente TerminarVinculacionFunction.FunctionEndpoint): validar
 // request (400 via IRequestValidator) -> despachar comando -> KeyNotFoundException -> 404 NotFound
 // (sin 409: este comando no tiene reglas de estado); exito -> 202 Accepted.

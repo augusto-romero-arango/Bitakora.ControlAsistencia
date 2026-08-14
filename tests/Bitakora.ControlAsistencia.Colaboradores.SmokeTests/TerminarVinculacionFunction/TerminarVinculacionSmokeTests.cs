@@ -8,7 +8,7 @@
 // comando que lo origina, #330), nunca sembrando datos por fuera del API.
 //
 // CA-1/CA-2/CA-4 (rutas de exito): 202 + el evento vinculacion_terminada queda persistido en el
-// stream "{Tipo}:{Numero}" con la FechaEfectiva exacta del request -- pasada, futura (preaviso, sin
+// stream "{Tipo}-{Numero}" con la FechaEfectiva exacta del request -- pasada, futura (preaviso, sin
 // validacion contra el reloj del servidor en ninguna direccion) o igual a la FechaInicio (vinculacion
 // de un solo dia).
 // CA-3/CA-4 (rutas de rechazo): el aggregate declina con resultado (nunca lanza, nunca emite un
@@ -37,13 +37,18 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC:<numero>"), no un Guid nuevo por
+    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
     // llamada, asi que reusar un numero fijo haria que el arrange (RegistrarColaborador) choque con
-    // 409 en la segunda corrida.
+    // 409 en la segunda corrida. El formato "N" en MAYUSCULAS ya es alfanumerico ASCII, asi que
+    // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
+    // la que arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
+    // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
+    // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
+    // Separador "-" desde el issue #381.
     private static string ComputarStreamId(string numeroIdentificacion) =>
-        $"{TipoIdentificacionCc}:{numeroIdentificacion}";
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
     private static string FormatearFecha(DateOnly fecha) =>
         fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

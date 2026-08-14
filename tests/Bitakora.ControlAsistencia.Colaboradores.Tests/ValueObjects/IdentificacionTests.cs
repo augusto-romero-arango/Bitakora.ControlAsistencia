@@ -49,9 +49,11 @@ public class IdentificacionTests
         identificacion.Numero.Should().Be("79543210");
     }
 
-    // Desviacion documentada respecto a la propuesta del planner: el issue deja explicito que el
-    // alcance de "letras" es alfanumerico ASCII ([A-Z0-9]) -- una letra acentuada o una enie es
-    // caracter invalido y se elimina igual que un guion, no se conserva como letra valida.
+    // Fija el alcance exacto de "letras" que el issue #381 deja explicito: alfanumerico ASCII
+    // ([A-Z0-9]) -- una letra acentuada o una enie es caracter invalido y se elimina igual que un
+    // guion, no se conserva como letra valida. No es una desviacion del plan: es la regla del
+    // issue, clavada aqui para que una implementacion con char.IsLetterOrDigit (que SI acepta
+    // no-ASCII) falle en vez de pasar en verde.
     [Fact]
     public void Crear_EliminaLetrasAcentuadasYEnies_CuandoNumeroTraeCaracteresNoAscii()
     {
@@ -105,6 +107,19 @@ public class IdentificacionTests
     public void Crear_LanzaArgumentException_CuandoNumeroSoloTraePuntos()
     {
         var act = () => Identificacion.Crear(TipoIdentificacion.CC, "..");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
+    }
+
+    // El parametro es non-nullable, pero STJ no honra las anotaciones de nulabilidad al deserializar
+    // el body de un comando: un "numeroIdentificacion": null llega aqui como null real. Este test
+    // fija que ese borde termina en el mismo ArgumentException del contrato (traducido a 400 por el
+    // endpoint), nunca en un NullReferenceException sin mensaje de dominio.
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoNumeroEsNull()
+    {
+        var act = () => Identificacion.Crear(TipoIdentificacion.CC, null!);
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");

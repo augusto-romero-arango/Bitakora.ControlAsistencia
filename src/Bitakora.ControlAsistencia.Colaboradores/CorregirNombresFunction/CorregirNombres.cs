@@ -5,8 +5,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 // estado -- solo exige existencia del colaborador, nunca vigencia de su vinculacion (los nombres
 // son de la PERSONA, no de la vinculacion, decision de refinamiento 2026-08-11).
 // Trigger: HTTP POST, Route: Colaboradores/Nombres (el recurso que se reemplaza; la identificacion
-// viaja en el body porque su representacion "CC:79543210" contiene ":", hostil como segmento de
-// URL, mismo criterio que TerminarVinculacion/ReingresarColaborador).
+// viaja en el body, decision vigente hasta #378 -- rutas orientadas a recurso --, mismo criterio
+// que TerminarVinculacion/ReingresarColaborador: el issue #381 cambio la representacion a
+// "CC-79543210" justamente para que la llave sea apta como segmento de URI).
 // Payload primitivo -- igual que RegistrarColaborador/TerminarVinculacion (MEF-ADR-0039 decision 6,
 // payload por rol): NUNCA reusa un tipo de Colaboradores.DomainEvents como campo. El handler
 // construye TipoIdentificacion/Identificacion/NombreColaborador a partir de estos primitivos
