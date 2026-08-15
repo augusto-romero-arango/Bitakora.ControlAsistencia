@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.MultiTenancy;
 using Marten;
@@ -26,10 +28,11 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
 // a diferencia del listado, que es responsabilidad del issue hermano). 404 sin body cuando la ficha
 // no existe.
 //
-// STUB de fase roja (test-writer): Run() solo lanza NotImplementedException. El comportamiento real
-// (parseo con Identificacion.Parsear -> 400 explicito, ComputarStreamId, session.LoadAsync, 200/404,
-// la traduccion centinela -> vacio de CA-6) es responsabilidad del implementer -- ver
-// FunctionEndpointTests.cs (CA-3) para el contrato exacto que debe cumplir.
+// CA-3 (MEF-ADR-0037 seccion 2, precedente CorregirNombresFunction.FunctionEndpoint /
+// AsignarEtiquetaFunction.FunctionEndpoint): Identificacion.Parsear es el UNICO punto de conversion
+// string->Identificacion -- nunca se parte el {id} de ruta a mano. Un ArgumentException (sin guion,
+// tipo fuera de la lista cerrada PILA, numero vacio tras la limpieza) se traduce aqui, y solo aqui,
+// a 400 explicito, antes de tocar Marten.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     [Function("ObtenerFichaColaborador")]
@@ -39,7 +42,30 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         string id,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        Identificacion identificacion;
+        try
+        {
+            identificacion = Identificacion.Parsear(id);
+        }
+        catch (ArgumentException)
+        {
+            return new BadRequestObjectResult(
+                "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
+        }
+
+        var streamKey = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+
+        // CA-6: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
+        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). El {id} de ruta es el recurso,
+        // no el tenant.
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        var ficha = await session.LoadAsync<FichaColaborador>(streamKey, ct);
+
+        if (ficha is null)
+            return new NotFoundResult();
+
+        return new OkObjectResult(FichaColaboradorRespuesta.DesdeVista(ficha));
     }
 }
 
