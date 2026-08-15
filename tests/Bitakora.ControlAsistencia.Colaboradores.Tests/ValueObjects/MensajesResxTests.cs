@@ -17,10 +17,14 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
 public class MensajesResxTests
 {
+    // FormatoInvalido (issue #376, clave que consume Identificacion.Parsear) entra al mismo
+    // guardrail: los tests que la asertan lo hacen con WithMessage($"*{...}*"), el patron que se
+    // vuelve "**" -- y por tanto pasa en FALSO -- si la clave desaparece del .resx.
     [Fact]
     public void Mensajes_ResuelvenTextoNoVacio_CuandoPertenecenAIdentificacion()
     {
         Identificacion.Mensajes.NumeroVacio.Should().NotBeNullOrWhiteSpace();
+        Identificacion.Mensajes.FormatoInvalido.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

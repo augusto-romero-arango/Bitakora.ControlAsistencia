@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -6,31 +7,59 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 
-// Issue #351: endpoint HTTP POST para corregir los nombres de un colaborador existente.
-// MEF-ADR-0006: [Function("CorregirNombres")]; carpeta CON sufijo "Function" -- mismo criterio que
-// RegistrarColaboradorFunction/TerminarVinculacionFunction/ReingresarColaboradorFunction: el
-// record del comando es homonimo del feature folder.
-// Route = "Colaboradores/Nombres": el recurso que se reemplaza -- identificacion en el body,
-// decision vigente hasta #378 (rutas orientadas a recurso): el issue #381 cambio la representacion
-// a "CC-79543210" justamente para que la llave sea apta como segmento de URI.
-// CA-ADR-0030 / MEF-ADR-0004 (precedente TerminarVinculacionFunction.FunctionEndpoint): validar
-// request (400 via IRequestValidator) -> despachar comando -> KeyNotFoundException -> 404 NotFound
-// (sin 409: este comando no tiene reglas de estado); exito -> 202 Accepted.
+// Issue #377 (MEF-ADR-0043 paso 2): endpoint HTTP PUT para corregir (reemplazar por completo) los
+// nombres de un colaborador existente -- reemplazo del VO atomico NombreColaborador, direccionable
+// por {id}. MEF-ADR-0006: [Function("CorregirNombres")]; carpeta CON sufijo "Function" -- mismo
+// criterio que los demas comandos del ciclo de vida: el record del comando es homonimo del feature
+// folder.
+// Route = "colaboradores/{id}/nombres" (kebab-case minusculo, MEF-ADR-0043 seccion 3): {id} es
+// Identificacion.ToString() ("CC-79543210", issue #381) -- se parsea UNA vez con
+// Identificacion.Parsear (unico punto de conversion string->Identificacion, MEF-ADR-0037 seccion 2)
+// y un ArgumentException se traduce a 400 explicito, mismo mecanismo que
+// AsignarEtiquetaFunction.FunctionEndpoint (issue #376) / ObtenerFichaColaborador.FunctionEndpoint.
+// El body se reduce a los 4 campos del nombre (CorregirNombresBody); el endpoint compone el comando
+// interno CorregirNombres (que conserva sus 6 campos primitivos, MEF-ADR-0039 decision 6) a partir
+// de {id} + los 4 campos del body.
+// Reemplaza el POST Colaboradores/Nombres (issue #351): la ruta vieja deja de existir (CA-5).
+// CA-ADR-0030 / MEF-ADR-0004 (precedente TerminarVinculacionFunction.FunctionEndpoint): validar id
+// de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
+// KeyNotFoundException -> 404 NotFound (sin 409: este comando no tiene reglas de estado, CA-2);
+// exito -> 202 Accepted.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CorregirNombres")]
     public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Colaboradores/Nombres")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "colaboradores/{id}/nombres")]
         HttpRequest req,
+        string id,
         CancellationToken ct)
     {
-        var (comando, error) = await requestValidator.ValidarAsync<CorregirNombres>(req, ct);
+        Identificacion identificacion;
+        try
+        {
+            identificacion = Identificacion.Parsear(id);
+        }
+        catch (ArgumentException)
+        {
+            return new BadRequestObjectResult(
+                "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
+        }
+
+        var (body, error) = await requestValidator.ValidarAsync<CorregirNombresBody>(req, ct);
         if (error is not null)
             return error;
 
+        var comando = new CorregirNombres(
+            identificacion.Tipo.ToString(),
+            identificacion.Numero,
+            body!.PrimerNombre,
+            body.SegundoNombre,
+            body.PrimerApellido,
+            body.SegundoApellido);
+
         try
         {
-            await commandRouter.InvokeAsync(comando!, ct);
+            await commandRouter.InvokeAsync(comando, ct);
         }
         catch (KeyNotFoundException ex)
         {

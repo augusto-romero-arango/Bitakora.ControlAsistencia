@@ -10,10 +10,11 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacio
 // colaborador. MEF-ADR-0006: [Function("CorregirFechaInicioVinculacion")]; carpeta CON sufijo
 // "Function" -- mismo criterio que los demas comandos del ciclo de vida: el record del comando es
 // homonimo del feature folder.
-// Route = "Colaboradores/FechasInicio": el recurso que se reemplaza, gemelo de
-// Colaboradores/Nombres (#351) -- identificacion en el body, decision vigente hasta #378 (rutas
-// orientadas a recurso): el issue #381 cambio la representacion a "CC-79543210" justamente para que
-// la llave sea apta como segmento de URI.
+// Route = "Colaboradores/FechasInicio": el recurso que se reemplaza -- identificacion en el body,
+// decision vigente hasta #378 (rutas orientadas a recurso): el issue #381 cambio la representacion
+// a "CC-79543210" justamente para que la llave sea apta como segmento de URI. Su gemelo
+// CorregirNombres ya migro en el issue #377 a PUT colaboradores/{id}/nombres (MEF-ADR-0043 paso 2);
+// este endpoint lo sigue en #378.
 // CA-ADR-0030 / MEF-ADR-0004 (precedente ReingresarColaboradorFunction.FunctionEndpoint): validar
 // request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException -> 409
 // Conflict, KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.

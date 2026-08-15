@@ -67,6 +67,30 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     // Contrato: clave del stream de Colaborador (separador "-" desde el issue #381).
     public override string ToString() => $"{_tipo}-{_numero}";
 
+    // Issue #376 (CA-3/CA-5, MEF-ADR-0037 seccion 2): inverso de ToString() -- el UNICO punto de
+    // parseo string->Identificacion, para que el borde HTTP (colaboradores/{id}/...) nunca reciba
+    // el id de ruta ya armado y lo reenvie sin tipar. Split en la PRIMERA ocurrencia de "-": el tipo
+    // (lista cerrada PILA, "CC"/"CE"/"TI"/"PA"/"PT") jamas trae guion, y el numero limpio (issue
+    // #381) tampoco -- la posicion del primer separador es inequivoca, sin importar si el numero
+    // reconstruido a partir de una entrada cruda del cliente llegara con mas guiones (Crear() los
+    // limpia igual). Rechaza con ArgumentException (mismo tipo, un unico punto de traduccion a 400
+    // en el endpoint, precedente ObtenerFichaColaborador.FunctionEndpoint) cuando: (a) no hay guion
+    // en absoluto, (b) el tipo no esta en la lista cerrada (TipoIdentificacion.Desde ya lo rechaza
+    // con su propio mensaje), o (c) el numero queda vacio tras la limpieza (Crear ya lo rechaza con
+    // su propio mensaje). Round-trip: Parsear(id.ToString()) es igual por valor a id (CA-5) porque
+    // ToString() siempre produce un numero ya limpio ([A-Z0-9]), y Crear() no lo altera de nuevo.
+    public static Identificacion Parsear(string valor)
+    {
+        var indiceSeparador = valor?.IndexOf('-') ?? -1;
+        if (indiceSeparador < 0)
+            throw new ArgumentException(Mensajes.FormatoInvalido, nameof(valor));
+
+        var tipo = TipoIdentificacion.Desde(valor![..indiceSeparador]);
+        var numero = valor[(indiceSeparador + 1)..];
+
+        return Crear(tipo, numero);
+    }
+
     // Igualdad por valor. _tipo se compara por referencia (deliberado, ver remarks de
     // TipoIdentificacion): Desde() siempre retorna la instancia canonica de la lista cerrada.
     public bool Equals(Identificacion? other) =>
