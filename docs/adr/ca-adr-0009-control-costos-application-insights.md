@@ -182,3 +182,48 @@ proceso que corre el daemon HotCold. `ControlHoras` y `Programacion` no lo neces
 ese span -- y no se generaliza el wrapper a ellos hasta que exista un segundo consumidor real.
 
 Capas 3 y 4 sin cambios.
+
+## Actualizacion (2026-08-15): la Capa 4 se acota a las excepciones con respuesta 500
+
+La alerta de spike (`<prefijo>-exception-spike`) contaba **toda** excepcion registrada en la ventana
+de 5 minutos. Se acota a las excepciones cuya request HTTP termino en **status code 500**.
+
+**Motivo.** El resto del ruido de la tabla `exceptions` no describe el fallo que la alerta existe
+para atrapar. Bajo CA-ADR-0030, una violacion de regla de negocio en un comando HTTP se declina con
+un resultado que el handler traduce a 409/404 -- no lanza y no persiste evento de fallo. Un 500 es,
+por construccion, un fallo tecnico no manejado: exactamente el patron "funcion en loop de errores"
+del incidente que motivo este ADR.
+
+**Implementacion.** `exceptions` no expone el status code -- vive en `requests`. La consulta
+correlaciona ambas tablas por `operation_Id` (el id de traza compartido entre el request y la
+excepcion que lo hizo fallar), en `infra/modules/monitoring/main.tf`:
+
+```kql
+let operacionesCon500 =
+    requests
+    | where timestamp > ago(5m)
+    | where resultCode == "500"
+    | distinct operation_Id;
+exceptions
+| where timestamp > ago(5m)
+| where operation_Id in (operacionesCon500)
+| summarize ExceptionCount = count()
+| where ExceptionCount > 50
+```
+
+Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: sin cambios.
+
+**Consecuencia asumida: se pierde cobertura sobre los triggers de Service Bus.** Un consumidor de
+eventos que falle en loop no produce un request HTTP, asi que sus excepciones ya **no** disparan
+esta alerta -- y el retry con dead-lettering de Service Bus es justamente un generador de volumen
+sostenido. Se asume a proposito: la Capa 3 (daily cap) sigue siendo el tope duro de costo, de modo
+que el escenario de $350 sigue estructuralmente imposible; lo que se degrada es el tiempo de
+deteccion en ese flujo, no el techo de gasto. Si se quiere recuperar la cobertura, la via es una
+**segunda** alerta para excepciones sin request asociada, no relajar el filtro de esta.
+
+**Alcance del filtro: 500 exacto, no 5xx.** `resultCode == "500"` deja fuera 502/503/504, que en
+Azure Functions vienen de la plataforma (timeouts, arranque en frio, saturacion del plan) y no de
+codigo en loop. Ampliar a `toint(resultCode) >= 500` es un cambio de una linea si se decide que esos
+casos tambien deben despertar a alguien.
+
+Capas 1, 2 y 3 sin cambios.

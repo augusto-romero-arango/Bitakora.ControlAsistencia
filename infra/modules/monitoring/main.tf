@@ -115,12 +115,16 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "ingestion_warning" {
   tags = var.tags
 }
 
-# Alerta 2: pico de excepciones >50 en 5 minutos (patron de funcion en loop de errores)
+# Alerta 2: pico de excepciones >50 en 5 minutos (patron de funcion en loop de errores),
+# acotada a las excepciones cuya request termino en 500. Las violaciones de regla de
+# negocio de un comando HTTP responden 409/404 sin excepcion persistida (CA-ADR-0030),
+# asi que un 500 es siempre un fallo tecnico no manejado: es la unica clase de excepcion
+# que se quiere vigilar aqui.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "exception_spike" {
   name                = "${var.name}-exception-spike"
   resource_group_name = var.resource_group_name
   location            = var.location
-  description         = "Pico de excepciones detectado - posible funcion en loop de errores generando costos"
+  description         = "Pico de excepciones con respuesta 500 detectado - posible funcion en loop de errores generando costos"
   severity            = 1
   enabled             = true
 
@@ -129,9 +133,18 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "exception_spike" {
   window_duration      = "PT5M"
 
   criteria {
+    # La tabla exceptions no expone el status code: vive en requests. Se correlacionan
+    # por operation_Id, que es el id de la traza compartida entre el request y la
+    # excepcion que lo hizo fallar.
     query = <<-QUERY
+      let operacionesCon500 =
+          requests
+          | where timestamp > ago(5m)
+          | where resultCode == "500"
+          | distinct operation_Id;
       exceptions
       | where timestamp > ago(5m)
+      | where operation_Id in (operacionesCon500)
       | summarize ExceptionCount = count()
       | where ExceptionCount > 50
     QUERY
