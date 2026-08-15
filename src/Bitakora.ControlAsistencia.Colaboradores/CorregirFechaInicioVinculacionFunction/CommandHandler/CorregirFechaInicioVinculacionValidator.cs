@@ -15,7 +15,7 @@ public class CorregirFechaInicioVinculacionValidator : AbstractValidator<Corregi
     public CorregirFechaInicioVinculacionValidator()
     {
         // Cascade(Stop) evita que Must evalue un valor vacio que NotEmpty ya rechazo -- mismo
-        // criterio que ReingresarColaboradorValidator/TerminarVinculacionValidator.
+        // criterio que TerminarVinculacionValidator/AsignarEtiquetaValidator.
         RuleFor(x => x.TipoIdentificacion)
             .Cascade(CascadeMode.Stop)
             .NotEmpty()

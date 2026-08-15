@@ -178,8 +178,8 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
 
     // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
     // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
-    // TerminarVinculacion/IniciarVinculacion no responde razon: sin reglas de estado que violar, la unica
-    // causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
+    // TerminarVinculacion/IniciarVinculacion no responde razon: sin reglas de estado que violar,
+    // la unica causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
     // La idempotencia es por igualdad de VALOR (NombreColaborador.Equals, #348), no por los
     // primitivos crudos del comando: el handler ya construyo el VO, que normaliza trim y opcionales
     // ausentes antes de que esta comparacion ocurra.
@@ -209,12 +209,12 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     valida: vinculacion de un solo dia, consistente con TerminarVinculacion #349).
     //   - FechaSolapaVinculacionAnterior: no-solape hacia atras, solo ejercitable cuando existe una
     //     vinculacion anterior (tras un reingreso, #350) -- fechaCorregida es igual o anterior a la
-    //     FechaEfectiva de esa vinculacion anterior (misma frontera que IniciarVinculacion #378: el dia de
-    //     la fecha efectiva pertenece a la vinculacion que termino).
+    //     FechaEfectiva de esa vinculacion anterior (misma frontera que IniciarVinculacion #378:
+    //     el dia de la fecha efectiva pertenece a la vinculacion que termino).
     // Exito: appendea FechaInicioVinculacionCorregida a _uncommittedEvents y lo aplica.
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/CorregirNombres --
-    // el unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via
-    // InternalsVisibleTo).
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/
+    // CorregirNombres -- el unico llamador es el handler del mismo ensamblado (los tests lo
+    // alcanzan via InternalsVisibleTo).
     internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida)
     {
         if (fechaCorregida == _fechaInicioVinculacionVigente)
@@ -245,9 +245,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     (decision aprobada explicitamente) porque solo la ULTIMA vinculacion cuenta.
     // Exito: appendea TerminacionAnulada a _uncommittedEvents y lo aplica -- reabre la vinculacion
     // vigente con su codigo y fecha de inicio intactos (Apply no los toca).
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/CorregirNombres/
-    // CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado (los tests lo
-    // alcanzan via InternalsVisibleTo).
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/
+    // CorregirNombres/CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado
+    // (los tests lo alcanzan via InternalsVisibleTo).
     internal ResultadoAnulacionTerminacion AnularTerminacion()
     {
         if (_fechaTerminacionVinculacionVigente is null)

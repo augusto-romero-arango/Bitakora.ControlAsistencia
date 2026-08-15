@@ -18,7 +18,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.CorregirFechaInicioVinc
 // El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests/
-// ReingresarColaboradorCommandHandlerTests/CorregirNombresCommandHandlerTests).
+// IniciarVinculacionCommandHandlerTests/CorregirNombresCommandHandlerTests).
 public class CorregirFechaInicioVinculacionCommandHandlerTests
     : CommandHandlerAsyncTest<CorregirFechaInicioVinculacion>
 {
@@ -212,7 +212,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
 
     // CA-3 (primera direccion, borde): tras un reingreso, FechaCorregida IGUAL a la FechaEfectiva
     // de la vinculacion anterior -> 409 por no-solape (el mismo dia se rechaza -- el dia de la
-    // fecha efectiva pertenece a la vinculacion que termino, misma frontera que Reingresar #350).
+    // fecha efectiva pertenece a la vinculacion que termino, misma frontera que IniciarVinculacion #378).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoFechaCorregidaEsIgualALaFechaEfectivaDeLaVinculacionAnterior()
     {
@@ -322,7 +322,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // CA-5: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5 /
-    // ReingresarColaboradorCommandHandlerTests CA-5 / CorregirNombresCommandHandlerTests CA-4).
+    // IniciarVinculacionCommandHandlerTests CA-5 / CorregirNombresCommandHandlerTests CA-4).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
     {

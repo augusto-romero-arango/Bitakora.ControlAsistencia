@@ -241,7 +241,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 
     // CA-3: tras un reingreso, FechaCorregida IGUAL a la FechaEfectiva de la vinculacion anterior ->
     // 409 por no-solape (el mismo dia se rechaza -- el dia de la fecha efectiva pertenece a la
-    // vinculacion que termino, misma frontera que Reingresar #350).
+    // vinculacion que termino, misma frontera que IniciarVinculacion #378).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna409_CuandoFechaCorregidaSolapaLaVinculacionAnteriorTrasUnReingreso()

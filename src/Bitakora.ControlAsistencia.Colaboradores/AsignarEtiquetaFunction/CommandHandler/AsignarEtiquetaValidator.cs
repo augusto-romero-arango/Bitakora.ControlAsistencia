@@ -14,7 +14,7 @@ public class AsignarEtiquetaValidator : AbstractValidator<AsignarEtiqueta>
     public AsignarEtiquetaValidator()
     {
         // Cascade(Stop) evita que Must evalue un valor vacio que NotEmpty ya rechazo -- mismo
-        // criterio que CorregirFechaInicioVinculacionValidator/ReingresarColaboradorValidator.
+        // criterio que CorregirFechaInicioVinculacionValidator/TerminarVinculacionValidator.
         RuleFor(x => x.TipoIdentificacion)
             .Cascade(CascadeMode.Stop)
             .NotEmpty()

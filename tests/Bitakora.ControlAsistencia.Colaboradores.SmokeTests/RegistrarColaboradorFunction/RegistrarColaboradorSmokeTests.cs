@@ -1,6 +1,6 @@
 // Issue #330: smoke tests del endpoint POST Colaboradores (registrar un colaborador bajo control
 // de asistencia -- primer comando del ciclo de vida de ColaboradorAggregateRoot, desglose
-// #348-#357). Molde: TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests -- mismo comando
+// #348-#357). Molde: TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests -- mismo comando
 // event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la unica
 // verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
 //

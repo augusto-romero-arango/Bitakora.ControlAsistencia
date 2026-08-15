@@ -427,26 +427,37 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     // CA-6 (ruta vieja eliminada): verificado AFIRMATIVAMENTE contra el entorno real -- la ruta
     // vieja (POST Colaboradores/Reingresos) debe responder 404 del host. El resto de la suite lo
     // cubre solo por ausencia de referencias, que no distingue "la ruta se elimino" de "sigue viva y
-    // nadie la llama". Mismo precedente que CorregirNombresSmokeTests CA-5.
+    // nadie la llama". Toma la forma de CorregirNombresSmokeTests CA-5, pero corrige su oraculo:
+    // ver el comentario del body de abajo (ese precedente afirma el 404 con un body VALIDO, que el
+    // endpoint viejo tambien responderia como 404 de dominio -- defecto propio de #377, no replicado
+    // aqui).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna404DelHost_CuandoSeLlamaLaRutaViejaPost()
     {
         var ct = TestContext.Current.CancellationToken;
 
+        // El body va DELIBERADAMENTE invalido (codigoColaborador vacio): es lo que vuelve
+        // discriminante al oraculo. Con un body valido sobre una identificacion nunca registrada,
+        // el endpoint viejo -- si siguiera vivo -- responderia 404 de DOMINIO ("colaborador no
+        // encontrado"), indistinguible del 404 del host que este test quiere afirmar: el test
+        // pasaria en verde con la ruta vieja intacta, justo el falso positivo que dice prevenir.
+        // Con el body invalido el endpoint viejo corta antes en su IRequestValidator y responde 400
+        // (comprobado contra dev con la revision anterior desplegada), asi que un 404 aqui solo
+        // puede significar que la ruta ya no existe.
         var response = await _client.PostAsJsonAsync(
             RutaReingresosVieja,
             new
             {
                 tipoIdentificacion = TipoIdentificacionCc,
                 numeroIdentificacion = NuevoNumeroIdentificacion(),
-                codigoColaborador = NuevoCodigoColaborador(),
+                codigoColaborador = "",
                 fechaInicio = new DateOnly(2025, 3, 1)
             },
             ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound,
-            "POST Colaboradores/Reingresos se reemplazo por POST colaboradores/{id}/vinculaciones (issue #378)");
+            "POST Colaboradores/Reingresos se reemplazo por POST colaboradores/{id}/vinculaciones (issue #378): un 400 aqui delataria que la ruta vieja sigue viva");
     }
 
     // CA-1 (#387, invariante heredada): codigo con caracteres unreserved no alfanumericos (. _ ~)

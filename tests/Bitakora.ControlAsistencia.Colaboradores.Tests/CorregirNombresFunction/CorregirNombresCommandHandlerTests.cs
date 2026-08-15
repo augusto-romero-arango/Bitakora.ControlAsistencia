@@ -17,7 +17,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.CorregirNombresFunction
 // El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests/
-// ReingresarColaboradorCommandHandlerTests).
+// IniciarVinculacionCommandHandlerTests).
 public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<CorregirNombres>
 {
     private const string NumeroValido = "79543210";
@@ -167,7 +167,7 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
     // CA-4: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5 /
-    // ReingresarColaboradorCommandHandlerTests CA-5).
+    // IniciarVinculacionCommandHandlerTests CA-5).
     [Fact]
     public async Task CorregirNombres_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
     {

@@ -16,7 +16,7 @@
 //
 // El patron idiomatico y tecnicamente correcto -- ya usado en TerminarVinculacionCommandHandlerTests
 // para probar la composicion con el reingreso de #350 (Given incluye la VinculacionIniciada que
-// ReingresarColaborador habria commiteado en una request anterior) -- es construir con Given() la
+// IniciarVinculacion habria commiteado en una request anterior) -- es construir con Given() la
 // historia YA persistida, incluyendo aqui el TerminacionAnulada que AnularTerminacion habria
 // commiteado, e invocar con WhenAsync solo el comando bajo prueba (TerminarVinculacion).
 //
