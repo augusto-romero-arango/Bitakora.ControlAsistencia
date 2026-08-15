@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using FluentValidation;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.ReingresarColaboradorFunction.CommandHandler;
@@ -10,6 +11,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ReingresarColaboradorFunction
 // FechaInicio requeridos.
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura: no
 // requiere tocar el wiring de DI.
+//
+// Issue #387: CodigoColaborador ademas debe ser URL-safe (Cascade(Stop): NotEmpty primero, la regla
+// de caracteres solo evalua un valor no vacio) -- ver ValidacionesCompartidas para el detalle del
+// set permitido.
 public class ReingresarColaboradorValidator : AbstractValidator<ReingresarColaborador>
 {
     public ReingresarColaboradorValidator()
@@ -24,7 +29,10 @@ public class ReingresarColaboradorValidator : AbstractValidator<ReingresarColabo
 
         RuleFor(x => x.NumeroIdentificacion).NotEmpty();
 
-        RuleFor(x => x.CodigoColaborador).NotEmpty();
+        RuleFor(x => x.CodigoColaborador)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty()
+            .DebeSerCodigoColaboradorUrlSafe();
 
         // FechaInicio es REQUERIDA -- el default de DateOnly (0001-01-01) equivale a "no llego"
         // (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).
