@@ -1,6 +1,11 @@
-// Issue #351: smoke tests del endpoint POST Colaboradores/Nombres (corregir los nombres de un
-// colaborador existente). Cuarto comando del ciclo de vida de ColaboradorAggregateRoot y el mas
-// simple: sin reglas de estado (CA-ADR-0030) -- por eso este archivo no tiene caso 409. Molde:
+// Issue #377 (MEF-ADR-0043 paso 2): smoke tests de PUT colaboradores/{id}/nombres (corregir --
+// reemplazar por completo -- los nombres de un colaborador existente). Reemplaza el POST
+// Colaboradores/Nombres (issue #351, identificacion en el body): {id} es Identificacion.ToString()
+// ("CC-79543210"), parseado UNA sola vez con Identificacion.Parsear (mismo mecanismo que
+// ObtenerFichaColaborador para el tipo/numero, y precedente documentado para AsignarEtiqueta
+// post-#376). El body se reduce a los 4 campos del nombre -- TipoIdentificacion/NumeroIdentificacion
+// ya no viajan alli. Cuarto comando del ciclo de vida de ColaboradorAggregateRoot y el mas simple:
+// sin reglas de estado (CA-ADR-0030) -- por eso este archivo no tiene caso 409. Molde:
 // TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests (#349/#350) -- mismo comando
 // event-sourcing puro sin consumidores downstream: sin ServiceBusFixture, la unica verificacion
 // black-box de los efectos del handler es leer mt_events via PostgresFixture.
@@ -19,20 +24,31 @@
 // (NombreColaborador.Equals, #348), NUNCA contra el texto JSON persistido: mt_events.data es jsonb
 // y PostgreSQL no preserva whitespace ni orden de claves (docs 8.14.1).
 //
-// CA-1/CA-2 (rutas de exito): 202 + el stream recibe NombresCorregidos con el Nombre corregido --
-// ya sea con la vinculacion abierta (CA-1) o con la ultima vinculacion TERMINADA (CA-2, prueba que
-// la correccion solo exige existencia del colaborador, nunca vigencia de su vinculacion).
-// CA-3: nombre igual por valor al actual -> 202 sin evento nuevo en el stream (idempotencia
-// silenciosa, mecanismo "declinar en silencio" -- precedente ControlDiarioAggregateRoot.
-// AdicionarMarcacion). La ausencia se verifica con un timeout corto (3s, no el estandar de 30s):
-// este comando es event-sourcing puro sin proyeccion asincrona downstream -- si el evento no llego
-// ya en la respuesta HTTP, nunca va a llegar; esperar el timeout estandar solo alargaria la
-// suite sin ganar senal.
-// CA-4: colaborador inexistente -> 404, sin escribir nada al event store.
-// CA-5: request invalida (sin primer nombre, sin primer apellido, sin identificacion, tipo fuera
-// de la lista) -> 400, sin tocar el event store.
+// Estos tests dependen de que el deploy publique la ruta PUT colaboradores/{id}/nombres en dev:
+// mientras la revision anterior siga corriendo, la ruta vieja (POST Colaboradores/Nombres) es la
+// unica que existe y este archivo -- que solo referencia la ruta nueva -- fallaria por completo
+// (404 del host, no el 404 de dominio de CA-2). Mismo precedente que ObtenerFichaColaboradorSmokeTests
+// (#356) y AsignarEtiquetaSmokeTests post-migracion: el CI de PR no los ejecuta (solo corre
+// *.Tests); su veredicto real se lee despues del deploy.
+//
+// CA-1 (ruta de exito): 202 + el stream recibe NombresCorregidos con el Nombre corregido -- ya sea
+// con la vinculacion abierta o con la ultima vinculacion TERMINADA (prueba que la correccion solo
+// exige existencia del colaborador, nunca vigencia de su vinculacion); nombre igual por valor al
+// actual -> 202 sin evento nuevo en el stream (idempotencia silenciosa, mecanismo "declinar en
+// silencio" -- precedente ControlDiarioAggregateRoot.AdicionarMarcacion). La ausencia se verifica
+// con un timeout corto (3s, no el estandar de 30s): este comando es event-sourcing puro sin
+// proyeccion asincrona downstream -- si el evento no llego ya en la respuesta HTTP, nunca va a
+// llegar; esperar el timeout estandar solo alargaria la suite sin ganar senal.
+// CA-2: colaborador inexistente -> 404, sin escribir nada al event store.
+// CA-3: {id} de ruta malformado (sin guion, tipo fuera de la lista PILA, o numero vacio tras el
+// guion) -> 400 via el parseo tipado unico (Identificacion.Parsear), sin invocar el comando.
+// CA-4: body invalido (primerNombre o primerApellido vacios) -> 400 via el validator del body
+// reducido (CorregirNombresBodyValidator), sin tocar el event store.
+// CA-5 (ruta vieja eliminada): este archivo solo referencia la ruta nueva (PUT
+// colaboradores/{id}/nombres) -- la ausencia de cualquier referencia a POST Colaboradores/Nombres es
+// deliberada, mismo criterio que FunctionEndpointTests (*.Tests).
 // CA-6 (NombresCorregidos registrado en TiposPersistidos + round-trip de serializacion): cubierto
-// transitivamente por CA-1/CA-2 contra el entorno real desplegado; el detalle exhaustivo del
+// transitivamente por el camino feliz contra el entorno real desplegado; el detalle exhaustivo del
 // round-trip vive en NombresCorregidosSerializacionTests.cs (*.Tests), no se duplica aqui.
 using System.Net;
 using System.Net.Http.Json;
@@ -50,13 +66,12 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     private const string RutaRegistrar = "/api/Colaboradores";
     private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
-    private const string RutaNombres = "/api/Colaboradores/Nombres";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoNombresCorregidos = "nombres_corregidos";
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // CA-3: la ausencia de evento es sincrona (sin proyeccion downstream) -- un timeout corto
+    // Ausencia de evento (idempotencia silenciosa): sin proyeccion downstream un timeout corto
     // alcanza para probarla sin alargar la suite esperando los 30s estandar sin ganar senal.
     private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(3);
 
@@ -77,7 +92,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
-    // Separador "-" desde el issue #381.
+    // Separador "-" desde el issue #381 -- coincide con el {id} de ruta que este endpoint parsea.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
@@ -102,12 +117,11 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         fechaEfectiva
     };
 
+    // Body reducido a los 4 campos del nombre (issue #377): TipoIdentificacion/NumeroIdentificacion
+    // ya no viajan aqui, se derivan de {id} en la ruta.
     private static object PayloadCorreccion(
-        string numeroIdentificacion, string primerNombre, string? segundoNombre,
-        string primerApellido, string? segundoApellido, string tipoIdentificacion = TipoIdentificacionCc) => new
+        string primerNombre, string? segundoNombre, string primerApellido, string? segundoApellido) => new
         {
-            tipoIdentificacion,
-            numeroIdentificacion,
             primerNombre,
             segundoNombre,
             primerApellido,
@@ -130,8 +144,8 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
-    // Arrange comun (CA-2): cierra la vinculacion vigente -- via el comando que la origina (#349),
-    // nunca sembrando el event store por fuera del API.
+    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349), nunca
+    // sembrando el event store por fuera del API.
     private async Task TerminarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -142,7 +156,15 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Assert comun de CA-1/CA-2: espera el evento en mt_events y verifica su payload por VALOR,
+    private Task<HttpResponseMessage> CorregirNombresAsync(
+        string id, string primerNombre, string? segundoNombre, string primerApellido, string? segundoApellido,
+        CancellationToken ct) =>
+        _client.PutAsJsonAsync(
+            $"/api/colaboradores/{id}/nombres",
+            PayloadCorreccion(primerNombre, segundoNombre, primerApellido, segundoApellido),
+            ct);
+
+    // Assert comun del camino feliz: espera el evento en mt_events y verifica su payload por VALOR,
     // deserializando el campo Nombre con las opciones reales de Marten (el round-trip que ese VO
     // hace en produccion). No se compara contra el texto JSON persistido: mt_events.data es jsonb y
     // PostgreSQL no preserva ni whitespace ni orden de claves (docs 8.14.1), asi que cualquier
@@ -191,10 +213,8 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             numeroIdentificacion, new DateOnly(2026, 1, 15),
             "[TEST]", "Original", "Smoke", null, ct);
 
-        var response = await _client.PostAsJsonAsync(
-            RutaNombres,
-            PayloadCorreccion(numeroIdentificacion, "[TEST]", "Corregido", "Smoke", "Segundo"),
-            ct);
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", "Corregido", "Smoke", "Segundo", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
@@ -203,7 +223,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             NombreColaborador.Crear("[TEST]", "Corregido", "Smoke", "Segundo"));
     }
 
-    // CA-2: la ultima vinculacion esta TERMINADA -> la correccion procede igual -- solo exige
+    // CA-1: la ultima vinculacion esta TERMINADA -> la correccion procede igual -- solo exige
     // existencia del colaborador, nunca vigencia de su vinculacion (decision de refinamiento
     // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).
     [Fact]
@@ -220,10 +240,8 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "[TEST]", null, "Terminada", null, ct);
         await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 3, 1), ct);
 
-        var response = await _client.PostAsJsonAsync(
-            RutaNombres,
-            PayloadCorreccion(numeroIdentificacion, "[TEST]", "Reingreso", "Terminada", null),
-            ct);
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", "Reingreso", "Terminada", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
@@ -234,7 +252,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             NombreColaborador.Crear("[TEST]", "Reingreso", "Terminada", null));
     }
 
-    // CA-3: nombre igual por valor al actual -> 202 sin evento nuevo en el stream (idempotencia
+    // CA-1: nombre igual por valor al actual -> 202 sin evento nuevo en el stream (idempotencia
     // silenciosa). Verificacion de ausencia con timeout corto -- ver el porque en el comentario de
     // TimeoutAusencia (arriba).
     [Fact]
@@ -250,10 +268,8 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             numeroIdentificacion, new DateOnly(2026, 1, 20),
             "[TEST]", "Igual", "Smoke", null, ct);
 
-        var response = await _client.PostAsJsonAsync(
-            RutaNombres,
-            PayloadCorreccion(numeroIdentificacion, "[TEST]", "Igual", "Smoke", null),
-            ct);
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", "Igual", "Smoke", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
@@ -265,7 +281,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "un nombre igual por valor al actual no deberia persistir un evento nuevo (idempotencia silenciosa)");
     }
 
-    // CA-4: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
+    // CA-2: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
     // consultar: la ausencia de escritura la garantiza el propio 404 -- el handler lanza antes de
     // llegar al aggregate).
     [Fact]
@@ -275,70 +291,76 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
 
-        var response = await _client.PostAsJsonAsync(
-            RutaNombres,
-            PayloadCorreccion(numeroIdentificacion, "[TEST]", null, "Smoke", null),
-            ct);
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", null, "Smoke", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-5: PrimerNombre vacio -> 400.
+    // CA-3: {id} de ruta sin guion -> 400, sin invocar el comando (parseo tipado unico,
+    // Identificacion.Parsear).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CorregirNombres_Retorna400_CuandoIdDeRutaNoTraeGuion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}{NuevoNumeroIdentificacion()}", "[TEST]", null, "Smoke", null, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3: tipo de identificacion del {id} de ruta fuera de la lista cerrada (PILA: CC, CE, TI,
+    // PA, PT) -> 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CorregirNombres_Retorna400_CuandoTipoDeLaIdentificacionDeRutaNoEsReconocido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await CorregirNombresAsync(
+            $"XX-{NuevoNumeroIdentificacion()}", "[TEST]", null, "Smoke", null, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3: numero vacio tras el guion del {id} de ruta -> 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CorregirNombres_Retorna400_CuandoElNumeroDelIdDeRutaQuedaVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await CorregirNombresAsync($"{TipoIdentificacionCc}-", "[TEST]", null, "Smoke", null, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-4: PrimerNombre vacio en el body reducido -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirNombres_Retorna400_CuandoPrimerNombreEsVacio()
     {
         var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadCorreccion(
-            NuevoNumeroIdentificacion(), primerNombre: "", segundoNombre: null,
-            primerApellido: "Smoke", segundoApellido: null);
 
-        var response = await _client.PostAsJsonAsync(RutaNombres, payload, ct);
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}-{NuevoNumeroIdentificacion()}",
+            primerNombre: "", segundoNombre: null, primerApellido: "Smoke", segundoApellido: null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-5: PrimerApellido vacio -> 400.
+    // CA-4: PrimerApellido vacio en el body reducido -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirNombres_Retorna400_CuandoPrimerApellidoEsVacio()
     {
         var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadCorreccion(
-            NuevoNumeroIdentificacion(), primerNombre: "[TEST]", segundoNombre: null,
-            primerApellido: "", segundoApellido: null);
 
-        var response = await _client.PostAsJsonAsync(RutaNombres, payload, ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    // CA-5: NumeroIdentificacion vacio -> 400.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task CorregirNombres_Retorna400_CuandoNumeroIdentificacionEsVacio()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadCorreccion(
-            numeroIdentificacion: "", primerNombre: "[TEST]", segundoNombre: null,
-            primerApellido: "Smoke", segundoApellido: null);
-
-        var response = await _client.PostAsJsonAsync(RutaNombres, payload, ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    // CA-5: TipoIdentificacion fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) -> 400.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task CorregirNombres_Retorna400_CuandoTipoIdentificacionNoEsReconocido()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadCorreccion(
-            NuevoNumeroIdentificacion(), primerNombre: "[TEST]", segundoNombre: null,
-            primerApellido: "Smoke", segundoApellido: null, tipoIdentificacion: "XX");
-
-        var response = await _client.PostAsJsonAsync(RutaNombres, payload, ct);
+        var response = await CorregirNombresAsync(
+            $"{TipoIdentificacionCc}-{NuevoNumeroIdentificacion()}",
+            primerNombre: "[TEST]", segundoNombre: null, primerApellido: "", segundoApellido: null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
