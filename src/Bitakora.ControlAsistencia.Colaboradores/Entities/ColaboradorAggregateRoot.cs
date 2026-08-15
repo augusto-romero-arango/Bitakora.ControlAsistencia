@@ -161,10 +161,20 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
     // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
-    // STUB de la fase roja del pipeline TDD (test-writer): la logica real la reimplementa el
-    // implementer en la fase verde -- este agente nunca escribe implementacion real.
-    internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio) =>
-        throw new NotImplementedException();
+    internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio)
+    {
+        if (_fechaTerminacionVinculacionVigente is null)
+            return ResultadoInicioVinculacion.VinculacionAbierta;
+
+        if (fechaInicio <= _fechaTerminacionVinculacionVigente.Value)
+            return ResultadoInicioVinculacion.FechaSolapaVinculacionAnterior;
+
+        var evento = new VinculacionIniciada(codigo, fechaInicio);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoInicioVinculacion.Exitosa;
+    }
 
     // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
     // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
