@@ -11,8 +11,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 // diferencia de Identificacion (#381), el codigo lo asigna la empresa y alterarlo cambiaria un dato
 // ajeno.
 //
-// La regla aparece en dos validators (RegistrarColaboradorValidator, ReingresarColaboradorValidator)
-// y se define en un solo lugar por exigencia del CA-4 del issue. Con dos sitios, la Rule of Three de
+// La regla aparece en dos validators (RegistrarColaboradorValidator, IniciarVinculacionBodyValidator
+// -- issue #378 renombro al segundo desde ReingresarColaboradorValidator) y se define en un solo
+// lugar por exigencia del CA-4 del issue original (#387). Con dos sitios, la Rule of Three de
 // MEF-ADR-0018 toleraria la duplicacion, pero esa heuristica regula reglas del DOMINIO que pueden
 // divergir: aqui el set de caracteres es mecanica neutral (una precondicion de la URL, identica para
 // cualquier comando que reciba el codigo), que ese mismo ADR deja fuera de su alcance.
@@ -28,7 +29,8 @@ public static partial class ValidacionesCompartidas
     // Mensaje explicito en vez del default de FluentValidation ("is not in the correct format"):
     // este texto viaja al cliente dentro del ValidationProblemDetails del 400 (RequestValidator), y
     // el default no le dice al integrador cual es el formato esperado. Mismo criterio que la regla
-    // de TipoIdentificacion en estos dos validators.
+    // de TipoIdentificacion en RegistrarColaboradorValidator (issue #378: IniciarVinculacionBody ya
+    // no valida TipoIdentificacion -- se deriva de {id} en la ruta via Identificacion.Parsear).
     public static IRuleBuilderOptions<T, string> DebeSerCodigoColaboradorUrlSafe<T>(
         this IRuleBuilder<T, string> ruleBuilder) =>
         ruleBuilder

@@ -144,11 +144,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoTerminacionVinculacion.Exitosa;
     }
 
-    // Issue #350: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
-    // evento de fallo persistido. Reutiliza VinculacionIniciada (CA-ADR-0029: un evento no conoce
-    // su comando) -- mismo hecho que Registrar, comando distinto.
-    // Dos razones de rechazo evaluables solo con la historia del stream, sin reloj (invariante de
-    // no-solape, doctrina del preaviso #349):
+    // Issue #378 (MEF-ADR-0043 paso 1, absorbe #350): inicia una vinculacion nueva sobre un
+    // colaborador EXISTENTE -- create disfrazado, verificado contra la historia del stream: emite
+    // el MISMO evento que Registrar (VinculacionIniciada, CA-ADR-0029: un evento no conoce su
+    // comando) -- mismo hecho, comando distinto. Antes se llamaba Reingresar (issue #350): el
+    // rename es puramente de nombre (CA-4) -- "reingreso" sigue nombrando el escenario de negocio,
+    // deja de nombrar la operacion.
+    // Mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un evento de
+    // fallo persistido. Dos razones de rechazo evaluables solo con la historia del stream, sin
+    // reloj (invariante de no-solape, doctrina del preaviso #349):
     //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null (incluye un reingreso
     //     previo sin terminar).
     //   - FechaSolapaVinculacionAnterior: fechaInicio <= _fechaTerminacionVinculacionVigente.Value
@@ -157,24 +161,14 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
     // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
-    internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio)
-    {
-        if (_fechaTerminacionVinculacionVigente is null)
-            return ResultadoReingresoColaborador.VinculacionAbierta;
-
-        if (fechaInicio <= _fechaTerminacionVinculacionVigente.Value)
-            return ResultadoReingresoColaborador.FechaSolapaVinculacionAnterior;
-
-        var evento = new VinculacionIniciada(codigo, fechaInicio);
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
-
-        return ResultadoReingresoColaborador.Exitosa;
-    }
+    // STUB de la fase roja del pipeline TDD (test-writer): la logica real la reimplementa el
+    // implementer en la fase verde -- este agente nunca escribe implementacion real.
+    internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio) =>
+        throw new NotImplementedException();
 
     // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
     // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
-    // TerminarVinculacion/Reingresar no responde razon: sin reglas de estado que violar, la unica
+    // TerminarVinculacion/IniciarVinculacion no responde razon: sin reglas de estado que violar, la unica
     // causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
     // La idempotencia es por igualdad de VALOR (NombreColaborador.Equals, #348), no por los
     // primitivos crudos del comando: el handler ya construyo el VO, que normaliza trim y opcionales
@@ -182,7 +176,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // No mira la vigencia de la vinculacion: los nombres son de la PERSONA, no de la vinculacion
     // (decision de refinamiento 2026-08-11), asi que corregir sobre una vinculacion terminada es
     // valido. La existencia del colaborador ya la garantizo el handler al rehidratarlo.
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar.
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion.
     internal void CorregirNombres(NombreColaborador nombre)
     {
         if (nombre.Equals(_nombre))
@@ -205,10 +199,10 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     valida: vinculacion de un solo dia, consistente con TerminarVinculacion #349).
     //   - FechaSolapaVinculacionAnterior: no-solape hacia atras, solo ejercitable cuando existe una
     //     vinculacion anterior (tras un reingreso, #350) -- fechaCorregida es igual o anterior a la
-    //     FechaEfectiva de esa vinculacion anterior (misma frontera que Reingresar #350: el dia de
+    //     FechaEfectiva de esa vinculacion anterior (misma frontera que IniciarVinculacion #378: el dia de
     //     la fecha efectiva pertenece a la vinculacion que termino).
     // Exito: appendea FechaInicioVinculacionCorregida a _uncommittedEvents y lo aplica.
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres --
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/CorregirNombres --
     // el unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via
     // InternalsVisibleTo).
     internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida)
@@ -241,7 +235,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     (decision aprobada explicitamente) porque solo la ULTIMA vinculacion cuenta.
     // Exito: appendea TerminacionAnulada a _uncommittedEvents y lo aplica -- reabre la vinculacion
     // vigente con su codigo y fecha de inicio intactos (Apply no los toca).
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres/
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/CorregirNombres/
     // CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado (los tests lo
     // alcanzan via InternalsVisibleTo).
     internal ResultadoAnulacionTerminacion AnularTerminacion()

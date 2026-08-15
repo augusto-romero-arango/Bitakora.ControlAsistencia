@@ -1,24 +1,27 @@
-// Issue #350: reingresar a un colaborador -- tercer comando del ciclo de vida de
-// ColaboradorAggregateRoot (desglose #348-#357) y primer ejercicio real de la invariante de
-// no-solape. CA-ADR-0030: el aggregate declina con resultado (nunca lanza, nunca emite evento de
-// fallo); el handler traduce la razon a InvalidOperationException (409) o KeyNotFoundException
-// (404). El evento de exito es VinculacionIniciada, EL MISMO del registro (#330) -- cero tipos
-// nuevos (CA-ADR-0029: un evento no conoce su comando).
+// Issue #378 (MEF-ADR-0043 paso 1, absorbe #350): iniciar una vinculacion nueva sobre un
+// colaborador existente -- create disfrazado, verificado contra la historia del stream: el evento
+// de exito es VinculacionIniciada, EL MISMO del registro (#330) y del reingreso original (#350) --
+// cero tipos nuevos (CA-ADR-0029: un evento no conoce su comando). CA-ADR-0030: el aggregate
+// declina con resultado (nunca lanza, nunca emite evento de fallo); el handler traduce la razon a
+// InvalidOperationException (409) o KeyNotFoundException (404). Reemplaza a
+// ReingresarColaboradorCommandHandlerTests (issue #350) -- mismos escenarios, comando/handler/
+// aggregate/enum renombrados en terminos de iniciar vinculacion (CA-4); "reingreso" sigue nombrando
+// el escenario de negocio en nombres de test y comentarios (no la operacion).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
-using Bitakora.ControlAsistencia.Colaboradores.ReingresarColaboradorFunction;
-using Bitakora.ControlAsistencia.Colaboradores.ReingresarColaboradorFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
+using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
-namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ReingresarColaboradorFunction;
+namespace Bitakora.ControlAsistencia.Colaboradores.Tests.IniciarVinculacionFunction;
 
 // El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
 // GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
 // test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests).
-public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<ReingresarColaborador>
+public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<IniciarVinculacion>
 {
     private const string NumeroValido = "79543210";
 
@@ -33,10 +36,10 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
     private static readonly DateOnly FechaInicioReingresoValida =
         FechaEfectivaTerminacionOriginal.AddDays(1);
 
-    protected override ICommandHandlerAsync<ReingresarColaborador> Handler =>
-        new ReingresarColaboradorCommandHandler(EventStore);
+    protected override ICommandHandlerAsync<IniciarVinculacion> Handler =>
+        new IniciarVinculacionCommandHandler(EventStore);
 
-    private static ReingresarColaborador ComandoValido() => new(
+    private static IniciarVinculacion ComandoValido() => new(
         TipoIdentificacion: "CC",
         NumeroIdentificacion: NumeroValido,
         CodigoColaborador: CodigoReingreso,
@@ -60,7 +63,7 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaOriginal());
 
     // Precondicion: colaborador registrado con la vinculacion original ya terminada en la fecha
-    // dada -- base de CA-1, CA-3 y CA-4 (la fecha puede ser un registro tardio o un preaviso).
+    // dada -- base de CA-1 y CA-2 (la fecha puede ser un registro tardio o un preaviso).
     private void DadoUnColaboradorConVinculacionTerminada(DateOnly fechaEfectiva) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -69,10 +72,9 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
 
     // CA-1: colaborador con la ultima vinculacion terminada + FechaInicio estrictamente posterior
     // a la FechaEfectiva -> el stream recibe VinculacionIniciada con el codigo nuevo; el aggregate
-    // rehidratado refleja vinculacion abierta (codigo nuevo, sin terminacion registrada). Este es
-    // el ajuste que #350 exige sobre Apply(VinculacionIniciada): debe reabrir la vinculacion.
+    // rehidratado refleja vinculacion abierta (codigo nuevo, sin terminacion registrada).
     [Fact]
-    public async Task ReingresarColaborador_EmiteVinculacionIniciada_CuandoFechaInicioEsPosteriorALaTerminacion()
+    public async Task IniciarVinculacion_EmiteVinculacionIniciada_CuandoFechaInicioEsPosteriorALaTerminacion()
     {
         DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
 
@@ -88,13 +90,12 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
     }
 
     // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> el reingreso alcanza el MISMO stream ("CC-79543210") y tiene
-    // exito. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo de
-    // tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza internamente (issue
-    // #371 -- supersede el racional de #348, ver TipoIdentificacionTests). Sin esa normalizacion el
-    // handler computaria otra clave y responderia 404 sobre un colaborador que si existe.
+    // colaborador ya registrado -> alcanza el MISMO stream ("CC-79543210") y tiene exito. La
+    // normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo de tipo
+    // ("cc" -> "CC") la garantiza TipoIdentificacion.Desde (#371). Sin esa normalizacion el handler
+    // computaria otra clave y responderia 404 sobre un colaborador que si existe.
     [Fact]
-    public async Task ReingresarColaborador_EmiteVinculacionIniciada_CuandoTipoYNumeroLleganSinNormalizar()
+    public async Task IniciarVinculacion_EmiteVinculacionIniciada_CuandoTipoYNumeroLleganSinNormalizar()
     {
         DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
         var comandoSinNormalizar = ComandoValido() with
@@ -113,14 +114,14 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
     // CA-2: la vinculacion vigente esta abierta (recien registrada, nunca terminada) -> 409,
     // ningun evento nuevo en el stream, el estado conserva el codigo original.
     [Fact]
-    public async Task ReingresarColaborador_LanzaInvalidOperationException_CuandoLaVinculacionVigenteEstaAbierta()
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoLaVinculacionVigenteEstaAbierta()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoValido());
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{ReingresarColaboradorCommandHandler.Mensajes.VinculacionAbierta}*");
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
@@ -130,7 +131,7 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
     // registro-terminacion-reingreso) -> 409 igual, la invariante de no-solape aplica sobre
     // CUALQUIER vinculacion vigente sin terminar, no solo la primera.
     [Fact]
-    public async Task ReingresarColaborador_LanzaInvalidOperationException_CuandoElReingresoPrevioSigueAbierto()
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoElReingresoPrevioSigueAbierto()
     {
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -142,16 +143,16 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
         var act = async () => await WhenAsync(segundoReingreso);
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{ReingresarColaboradorCommandHandler.Mensajes.VinculacionAbierta}*");
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoReingreso);
     }
 
-    // CA-3: FechaInicio igual a la FechaEfectiva de la ultima terminacion -> 409 por no-solape (el
+    // CA-2: FechaInicio igual a la FechaEfectiva de la ultima terminacion -> 409 por no-solape (el
     // mismo dia se rechaza -- el dia de la fecha efectiva pertenece a la vinculacion que termina).
     [Fact]
-    public async Task ReingresarColaborador_LanzaInvalidOperationException_CuandoFechaInicioEsIgualALaFechaEfectivaDeTerminacion()
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaInicioEsIgualALaFechaEfectivaDeTerminacion()
     {
         DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
 
@@ -159,16 +160,16 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
             ComandoValido() with { FechaInicio = FechaEfectivaTerminacionOriginal });
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{ReingresarColaboradorCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-3 (segunda direccion): FechaInicio anterior a la FechaEfectiva de terminacion -> 409
+    // CA-2 (segunda direccion): FechaInicio anterior a la FechaEfectiva de terminacion -> 409
     // igual, con mayor margen de solape.
     [Fact]
-    public async Task ReingresarColaborador_LanzaInvalidOperationException_CuandoFechaInicioEsAnteriorALaFechaEfectivaDeTerminacion()
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaInicioEsAnteriorALaFechaEfectivaDeTerminacion()
     {
         DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
         var fechaAnterior = FechaEfectivaTerminacionOriginal.AddDays(-1);
@@ -176,17 +177,17 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
         var act = async () => await WhenAsync(ComandoValido() with { FechaInicio = fechaAnterior });
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{ReingresarColaboradorCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-3 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea el reingreso
+    // CA-2 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea el reingreso
     // si su FechaInicio no supera la fecha del preaviso -- la regla de no-solape se compone sin
-    // reloj (decision de refinamiento 2026-08-11).
+    // reloj (decision de refinamiento 2026-08-11, heredada de #350).
     [Fact]
-    public async Task ReingresarColaborador_LanzaInvalidOperationException_CuandoFechaInicioNoSuperaElPreavisoRegistrado()
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaInicioNoSuperaElPreavisoRegistrado()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         DadoUnColaboradorConVinculacionTerminada(fechaPreavisoFutura);
@@ -194,17 +195,17 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
         var act = async () => await WhenAsync(ComandoValido() with { FechaInicio = fechaPreavisoFutura });
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{ReingresarColaboradorCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-4: un reingreso con FechaInicio posterior a la fecha del preaviso registrado procede sin
-    // ninguna consulta al reloj del servidor -- el preaviso se resuelve componiendo CA-2 (no
-    // abierta) + CA-3 (no-solape), sin regla nueva.
+    // CA-1 (preaviso vencido): un reingreso con FechaInicio posterior a la fecha del preaviso
+    // registrado procede sin ninguna consulta al reloj del servidor -- el preaviso se resuelve
+    // componiendo CA-2 (no abierta) + no-solape, sin regla nueva.
     [Fact]
-    public async Task ReingresarColaborador_EmiteVinculacionIniciada_CuandoFechaInicioEsPosteriorAlPreavisoRegistrado()
+    public async Task IniciarVinculacion_EmiteVinculacionIniciada_CuandoFechaInicioEsPosteriorAlPreavisoRegistrado()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         var fechaInicioReingreso = fechaPreavisoFutura.AddDays(1);
@@ -219,17 +220,17 @@ public class ReingresarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-5: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-3: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Sin And<>: el aggregate no existe en el TestStore
     // (GetAggregateRoot retorna null) -- Then sin eventos esperados ya demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5).
     [Fact]
-    public async Task ReingresarColaborador_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task IniciarVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
         await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
-            .WithMessage($"*{ReingresarColaboradorCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }
 }
