@@ -16,13 +16,16 @@
 //
 // El patron idiomatico y tecnicamente correcto -- ya usado en TerminarVinculacionCommandHandlerTests
 // para probar la composicion con el reingreso de #350 (Given incluye la VinculacionIniciada que
-// ReingresarColaborador habria commiteado en una request anterior) -- es construir con Given() la
+// IniciarVinculacion habria commiteado en una request anterior) -- es construir con Given() la
 // historia YA persistida, incluyendo aqui el TerminacionAnulada que AnularTerminacion habria
 // commiteado, e invocar con WhenAsync solo el comando bajo prueba (TerminarVinculacion).
 //
 // Este archivo NO modifica TerminarVinculacionCommandHandlerTests.cs (fuera de "Impacto/Modifica"
 // del issue #354): es un archivo nuevo, en la carpeta del comando que introduce el escenario de
 // composicion, que prueba exactamente la claim de negocio de CA-2 sin tocar un archivo existente.
+//
+// Issue #379 (MEF-ADR-0043 paso 4, CA-5): TerminarVinculacion gana el campo Codigo -- este test se
+// actualiza para pasar el codigo vigente (mismo criterio que TerminarVinculacionCommandHandlerTests).
 
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
@@ -67,7 +70,8 @@ public class ComposicionAnularYTerminarVinculacionTests : CommandHandlerAsyncTes
             new VinculacionTerminada(FechaEfectivaErrada),
             new TerminacionAnulada());
 
-        await WhenAsync(new TerminarVinculacion("CC", NumeroValido, FechaEfectivaCorregida));
+        await WhenAsync(new TerminarVinculacion(
+            "CC", NumeroValido, CodigoVinculacionVigente, FechaEfectivaCorregida));
 
         Then(StreamIdEsperado, new VinculacionTerminada(FechaEfectivaCorregida));
         And<ColaboradorAggregateRoot, DateOnly?>(

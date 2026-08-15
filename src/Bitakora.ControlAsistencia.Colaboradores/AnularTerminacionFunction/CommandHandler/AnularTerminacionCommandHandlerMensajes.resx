@@ -26,4 +26,7 @@
   <data name="VinculacionAbierta" xml:space="preserve">
     <value>La vinculacion vigente del colaborador no tiene una terminacion registrada</value>
   </data>
+  <data name="CodigoNoCorresponde" xml:space="preserve">
+    <value>El codigo de la vinculacion no corresponde con la vinculacion vigente del colaborador</value>
+  </data>
 </root>

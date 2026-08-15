@@ -1,6 +1,6 @@
 // Issue #330: smoke tests del endpoint POST Colaboradores (registrar un colaborador bajo control
 // de asistencia -- primer comando del ciclo de vida de ColaboradorAggregateRoot, desglose
-// #348-#357). Molde: TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests -- mismo comando
+// #348-#357). Molde: TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests -- mismo comando
 // event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la unica
 // verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
 //
@@ -28,10 +28,24 @@
 // casing exacto.
 // CA-3: request invalida (NumeroIdentificacion/CodigoColaborador vacios, FechaInicio vacia, tipo
 // fuera de la lista cerrada) -> 400, sin tocar el event store.
+//
+// Issue #387 (CodigoColaborador URL-safe): CA-1 con caracteres unreserved no alfanumericos (. _ ~)
+// -> 202 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
+// accion reservado, MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
+//
+// Issue #378 (CA-5): la ruta paso de "Colaboradores" (PascalCase) a "colaboradores" (kebab-case
+// minusculo, MEF-ADR-0043 seccion 3) -- sin cambio de verbo ni forma. RutaRegistrar se actualiza a
+// la ruta nueva para reflejar el contrato vigente; no se agrega un assert de "la ruta vieja
+// PascalCase da 404 del host" (a diferencia de CorregirNombresSmokeTests CA-5, que si cambio de
+// verbo Y de forma): el routing HTTP de Azure Functions/ASP.NET Core hace matching de rutas
+// case-insensitive por defecto, asi que un POST a /api/Colaboradores seguiria resolviendo al mismo
+// endpoint -- afirmar 404 alli seria un test black-box incorrecto contra el comportamiento real del
+// host, no una verificacion de este cambio.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.RegistrarColaboradorFunction;
 
@@ -39,7 +53,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoColaboradorRegistrado = "colaborador_registrado";
     private const string TipoEventoVinculacionIniciada = "vinculacion_iniciada";
@@ -53,8 +67,6 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
     // intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con la que
     // arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
     // Siempre canonico ("CC-<numero>", separador "-" desde el issue #381): TipoIdentificacion.Desde
     // nunca almacena el input crudo, solo retorna la instancia canonica de la lista cerrada (issue
@@ -279,6 +291,70 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         var ct = TestContext.Current.CancellationToken;
         var payload = PayloadRegistro(
             NuevoNumeroIdentificacion(), new DateOnly(2026, 1, 1), tipoIdentificacion: "XX");
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~) tambien produce 202 --
+    // el set permitido no se limita a alfanumerico+guion, que es lo unico que ejercita el helper
+    // compartido NuevoCodigoColaborador ("TEST-<guid>"). Verificacion end-to-end de que el regex
+    // desplegado en dev no es mas restrictivo que el unreserved de RFC 3986 seccion 2.3.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna202_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var codigoColaborador = $"a.b_{Guid.CreateVersion7()}~2";
+
+        var response = await _client.PostAsJsonAsync(
+            RutaRegistrar,
+            PayloadRegistro(numeroIdentificacion, new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador),
+            ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaColaboradores, streamId, TipoEventoColaboradorRegistrado, Timeout);
+
+        existe.Should().BeTrue(
+            $"el codigo con caracteres unreserved no alfanumericos deberia haberse aceptado y persistido en {streamId}");
+    }
+
+    // CA-2 (#387): ":" esta explicitamente fuera del set permitido -- MEF-ADR-0043 seccion 1 lo
+    // reserva como separador de accion (vinculaciones/{codigo}:terminar, #379). Un codigo con ":"
+    // haria inparseable esa ruta -- caso destacado del issue.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna400_CuandoCodigoColaboradorContieneDosPuntos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = $"COL:{Guid.CreateVersion7()}";
+        var payload = PayloadRegistro(
+            NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador);
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3 (#387): cualquier otro caracter fuera del set (espacio, aqui) -> 400. La exhaustividad
+    // del regex (acento, "/") ya la cubre RegistrarColaboradorValidatorTests; este smoke test solo
+    // confirma que la regla llega desplegada end-to-end en dev.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna400_CuandoCodigoColaboradorContieneEspacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = $"COL {Guid.CreateVersion7()}";
+        var payload = PayloadRegistro(
+            NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador);
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
 

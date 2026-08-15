@@ -19,5 +19,6 @@ public class AnularTerminacionCommandHandlerMensajesTests
     {
         AnularTerminacionCommandHandler.Mensajes.ColaboradorNoEncontrado.Should().NotBeNullOrWhiteSpace();
         AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta.Should().NotBeNullOrWhiteSpace();
+        AnularTerminacionCommandHandler.Mensajes.CodigoNoCorresponde.Should().NotBeNullOrWhiteSpace();
     }
 }

@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using FluentValidation;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.CommandHandler;
@@ -9,6 +10,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.
 // SegundoNombre/SegundoApellido son opcionales (NombreColaborador.Crear ya los normaliza).
 // Se descubre solo via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura:
 // no requiere tocar el wiring de DI.
+//
+// Issue #387: CodigoColaborador ademas debe ser URL-safe (Cascade(Stop): NotEmpty primero, la regla
+// de caracteres solo evalua un valor no vacio) -- ver ValidacionesCompartidas para el detalle del
+// set permitido.
 public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColaborador>
 {
     public RegistrarColaboradorValidator()
@@ -26,7 +31,11 @@ public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColabora
         RuleFor(x => x.NumeroIdentificacion).NotEmpty();
         RuleFor(x => x.PrimerNombre).NotEmpty();
         RuleFor(x => x.PrimerApellido).NotEmpty();
-        RuleFor(x => x.CodigoColaborador).NotEmpty();
+
+        RuleFor(x => x.CodigoColaborador)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty()
+            .DebeSerCodigoColaboradorUrlSafe();
 
         // FechaInicio es REQUERIDA -- el default de DateOnly (0001-01-01) equivale a "no llego"
         // (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).

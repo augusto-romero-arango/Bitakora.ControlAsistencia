@@ -5,15 +5,18 @@
 // Identificacion.Parsear, MEF-ADR-0037), MISMA ruta que AsignarEtiqueta (se distinguen por verbo
 // HTTP), y sin body -- RetirarEtiquetaValidator (que validaba el body viejo) se elimino, no hay
 // nada que deserializar en ese punto. Molde: TerminarVinculacionSmokeTests/
-// ReingresarColaboradorSmokeTests -- mismo comando event-sourcing puro sin consumidores downstream
+// IniciarVinculacionSmokeTests -- mismo comando event-sourcing puro sin consumidores downstream
 // (CA-ADR-0030): sin ServiceBusFixture, la unica verificacion black-box de los efectos del handler
 // es leer mt_events via PostgresFixture.
 //
 // Arrange: RetirarEtiqueta exige un ColaboradorAggregateRoot existente con la categoria YA
 // ASIGNADA -- el arrange de cada test registra el colaborador y asigna (y, cuando aplica, termina
-// su vinculacion o lo reingresa) via los mismos comandos que los originan (#330, #349, #350, y
-// AsignarEtiqueta del propio ciclo de vida, ya migrado a PUT por este issue), nunca sembrando datos
-// por fuera del API.
+// su vinculacion o inicia una vinculacion nueva, escenario de reingreso issue #378) via los mismos
+// comandos que los originan (#330, #349/#379, #378, y AsignarEtiqueta del propio ciclo de vida, ya
+// migrado a PUT por este issue), nunca sembrando datos por fuera del API. Issue #379: la
+// terminacion ahora exige el {codigo} de la vinculacion en la ruta -- RegistrarColaboradorAsync
+// devuelve el codigo (== CodigoColaborador del comando, verificado en
+// ColaboradorAggregateRoot.Registrar) para que el arrange lo use como {codigo} al terminar.
 //
 // Contenido persistido (EtiquetaRetirada, payload plano con solo CategoriaNormalizada -- un campo
 // ESCALAR top-level, a diferencia de EtiquetaAsignada): a diferencia de AsignarEtiquetaSmokeTests,
@@ -46,6 +49,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.RetirarEtiquetaFunction;
 
@@ -53,9 +57,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
-    private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
-    private const string RutaReingresos = "/api/Colaboradores/Reingresos";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoEtiquetaAsignada = "etiqueta_asignada";
     private const string TipoEventoEtiquetaRetirada = "etiqueta_retirada";
@@ -75,8 +77,6 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // la que arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
-
     // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
     // Separador "-" desde el issue #381. Es EXACTAMENTE el mismo valor que el {id} de ruta del
@@ -89,7 +89,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     private static string RutaEtiqueta(string id, string categoria) =>
         $"/api/colaboradores/{id}/etiquetas/{Uri.EscapeDataString(categoria)}";
 
-    private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio) => new
+    private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador) => new
     {
         tipoIdentificacion = TipoIdentificacionCc,
         numeroIdentificacion,
@@ -97,39 +97,38 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         segundoNombre = (string?)null,
         primerApellido = "Smoke",
         segundoApellido = (string?)null,
-        codigoColaborador = NuevoCodigoColaborador(),
+        codigoColaborador,
         fechaInicio
     };
 
-    private static object PayloadTerminacion(string numeroIdentificacion, DateOnly fechaEfectiva) => new
+    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
+    // FechaInicio.
+    private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
     {
-        tipoIdentificacion = TipoIdentificacionCc,
-        numeroIdentificacion,
-        fechaEfectiva
+        codigoColaborador,
+        fechaInicio
     };
-
-    private static object PayloadReingreso(
-        string numeroIdentificacion, string codigoColaborador, DateOnly fechaInicio) => new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            codigoColaborador,
-            fechaInicio
-        };
 
     // Body reducido de AsignarEtiqueta (issue #376, arrange de este archivo): solo Valor.
     private static object PayloadValor(string valor) => new { valor };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
-    private async Task RegistrarColaboradorAsync(
+    // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
+    // vinculacion inicial (== CodigoColaborador del comando, verificado en
+    // ColaboradorAggregateRoot.Registrar) para que el arrange lo use como {codigo} de ruta al
+    // terminar (issue #379).
+    private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
+        var codigo = NuevoCodigoColaborador();
+
         var response = await _client.PostAsJsonAsync(
-            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
+            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
+
+        return codigo;
     }
 
     // Arrange comun: asigna la etiqueta que luego se intenta retirar -- via el comando que la
@@ -144,30 +143,34 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que AsignarEtiqueta funcione");
     }
 
-    // Arrange comun (CA-5): cierra la vinculacion vigente -- via el comando que la origina (#349),
-    // nunca sembrando el event store por fuera del API.
+    // Arrange comun (CA-5): cierra la vinculacion vigente -- via el comando que la origina
+    // (#349/#379), nunca sembrando el event store por fuera del API. Issue #379: la ruta gano el
+    // {codigo} -- ya no es "/api/Colaboradores/Terminaciones" con identificacion en el body.
     private async Task TerminarVinculacionAsync(
-        string numeroIdentificacion, DateOnly fechaEfectiva, CancellationToken ct)
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaTerminaciones, PayloadTerminacion(numeroIdentificacion, fechaEfectiva), ct);
+            $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
+            new { fechaEfectiva },
+            ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-6): reingresa al colaborador tras una terminacion -- via el comando que lo
-    // origina (#350), nunca sembrando el event store por fuera del API.
-    private async Task ReingresarColaboradorAsync(
+    // Arrange comun (CA-6): inicia una vinculacion nueva sobre el colaborador tras una terminacion
+    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378, reemplaza
+    // a ReingresarColaborador #350), nunca sembrando el event store por fuera del API.
+    private async Task IniciarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaReingresos,
-            PayloadReingreso(numeroIdentificacion, NuevoCodigoColaborador(), fechaInicio),
+            $"/api/colaboradores/{ComputarStreamId(numeroIdentificacion)}/vinculaciones",
+            PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
-            "el arrange de este smoke test depende de que ReingresarColaborador funcione");
+            "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
     private Task<HttpResponseMessage> RetirarEtiquetaAsync(
@@ -273,9 +276,9 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var id = ComputarStreamId(numeroIdentificacion);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 2, 10), ct);
+        var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 2, 10), ct);
         await AsignarEtiquetaAsync(id, "Área", "Ventas", ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 6, 1), ct);
+        await TerminarVinculacionAsync(id, codigo, new DateOnly(2026, 6, 1), ct);
 
         var response = await RetirarEtiquetaAsync(id, "Área", ct);
 
@@ -293,9 +296,9 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var id = ComputarStreamId(numeroIdentificacion);
         var fechaPreavisoFutura = new DateOnly(2030, 12, 31);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
+        var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
         await AsignarEtiquetaAsync(id, "Área", "Ventas", ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaPreavisoFutura, ct);
+        await TerminarVinculacionAsync(id, codigo, fechaPreavisoFutura, ct);
 
         var response = await RetirarEtiquetaAsync(id, "Área", ct);
 
@@ -314,10 +317,10 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var id = ComputarStreamId(numeroIdentificacion);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 10), ct);
+        var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 10), ct);
         await AsignarEtiquetaAsync(id, "Área", "Ventas", ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 6, 1), ct);
-        await ReingresarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 7, 1), ct);
+        await TerminarVinculacionAsync(id, codigo, new DateOnly(2026, 6, 1), ct);
+        await IniciarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 7, 1), ct);
 
         var response = await RetirarEtiquetaAsync(id, "Área", ct);
 

@@ -1,5 +1,5 @@
-using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.MultiTenancy;
 using Marten;
@@ -9,48 +9,49 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
 
-// Issue #356: Function GET del read model FichaColaborador (via (a) proyeccion materializada,
-// skills/projections/naming.md, MEF-ADR-0006 enmienda #363). Feature folder sin sufijo Function, un
-// namespace por query (skills/projections/read-apis.md): esta clase FunctionEndpoint no colisiona
-// con ninguna otra del mismo ensamblado porque cada query vive en su propio namespace.
+// Issue #356 (creacion): Function GET del read model FichaColaborador (via (a) proyeccion
+// materializada, skills/projections/naming.md, MEF-ADR-0006 enmienda #363). Feature folder sin
+// sufijo Function, un namespace por query (skills/projections/read-apis.md): esta clase
+// FunctionEndpoint no colisiona con ninguna otra del mismo ensamblado porque cada query vive en su
+// propio namespace.
 //
-// La ruta recibe tipoIdentificacion/numero como los componentes tipados de la clave natural
-// compuesta -- la clave se reconstruye con ColaboradorAggregateRoot.ComputarStreamId, nunca con una
-// concatenacion propia del endpoint (MEF-ADR-0037). tipoIdentificacion invalido (fuera de la lista
-// cerrada PILA) o numero vacio/whitespace -> 400 explicito (TipoIdentificacion.Desde/
-// Identificacion.Crear rechazan con ArgumentException, capturada aqui como unico punto de
-// traduccion a 400).
+// Issue #386 (esta revision): alinea el GET puntual a la forma unica de identidad en la ruta que ya
+// usan los comandos del ciclo de vida del colaborador (#376/#377): {id} = Identificacion.ToString()
+// ("CC-79543210"), la misma llave que devuelve FichaColaborador.Id -- cierra el round-trip completo
+// del cliente (consulta y comando comparten forma de id, MEF-ADR-0037: punto unico de conversion de
+// la identidad de stream via Identificacion.Parsear, nunca partiendo la llave por su cuenta).
+// Reemplaza la ruta de dos segmentos {tipoIdentificacion}/{numero} (issue #356): la ruta vieja deja
+// de existir (CA-5). Rename de un endpoint desplegado discutido con el humano (MEF-ADR-0043
+// seccion 7, por analogia).
 //
-// CA-6: consulta puntual, INCLUYE no-vigentes (sin filtro de vigencia -- a diferencia del listado,
-// que es responsabilidad del issue hermano). 404 sin body cuando la ficha no existe.
+// CA-6 (issue #356, sin cambios): consulta puntual, INCLUYE no-vigentes (sin filtro de vigencia --
+// a diferencia del listado, que es responsabilidad del issue hermano). 404 sin body cuando la ficha
+// no existe.
+//
+// CA-3 (MEF-ADR-0037 seccion 2, precedente CorregirNombresFunction.FunctionEndpoint -- el unico
+// endpoint que hoy parsea un {id} de ruta; AsignarEtiquetaFunction todavia recibe la identificacion
+// en el body): Identificacion.Parsear es el UNICO punto de conversion
+// string->Identificacion -- nunca se parte el {id} de ruta a mano. Un ArgumentException (sin guion,
+// tipo fuera de la lista cerrada PILA, numero vacio tras la limpieza) se traduce aqui, y solo aqui,
+// a 400 explicito, antes de tocar Marten.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     [Function("ObtenerFichaColaborador")]
     public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "colaboradores/fichas/{tipoIdentificacion}/{numero}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "colaboradores/fichas/{id}")]
         HttpRequest req,
-        string tipoIdentificacion,
-        string numero,
+        string id,
         CancellationToken ct)
     {
-        Identificacion identificacionTipada;
-        try
-        {
-            var tipo = TipoIdentificacion.Desde(tipoIdentificacion);
-            identificacionTipada = Identificacion.Crear(tipo, numero);
-        }
-        catch (ArgumentException)
-        {
-            return new BadRequestObjectResult(
-                "El tipoIdentificacion o el numero de la ruta son invalidos");
-        }
+        if (!IdentificacionDeRuta.TryParsear(id, out var identificacion, out var errorDeId))
+            return errorDeId;
 
-        var streamKey = ColaboradorAggregateRoot.ComputarStreamId(identificacionTipada);
+        var streamKey = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
 
         // CA-6: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
         // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
-        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). tipoIdentificacion/numero SI
-        // vienen de la ruta: son el recurso, no el tenant.
+        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). El {id} de ruta es el recurso,
+        // no el tenant.
         await using var session = store.QuerySession(tenantResolver.TenantId);
         var ficha = await session.LoadAsync<FichaColaborador>(streamKey, ct);
 

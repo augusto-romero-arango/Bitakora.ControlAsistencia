@@ -7,7 +7,8 @@
 // Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
 // POST Colaboradores (#330), se etiqueta con PUT colaboradores/{id}/etiquetas/{categoria} (#355,
 // migrado de POST Colaboradores/Etiquetas a esta ruta por el issue #376) y se termina con POST
-// Colaboradores/Terminaciones (#349) -- los mismos comandos que la proyeccion consume.
+// colaboradores/{id}/vinculaciones/{codigo}:terminar (#349/#379) -- los mismos comandos que la
+// proyeccion consume.
 //
 // Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza FichaColaborador
 // DESPUES de que Colaboradores persiste sus eventos. Los casos de exito envuelven la consulta en
@@ -39,6 +40,7 @@ using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.ListarFichasColaborador;
 
@@ -48,7 +50,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
 
     private const string RutaListado = "/api/colaboradores/fichas";
     private const string RutaRegistrar = "/api/Colaboradores";
-    private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private static readonly HttpMethod MetodoQuery = new("QUERY");
@@ -76,8 +77,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         IReadOnlyDictionary<string, string> EtiquetasNormalizadas);
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
     // Apellido con un Guid embebido -- garantiza que el NombreCompleto resultante ("[TEST]
     // {apellido}") es unico frente a cualquier ficha creada en cualquier corrida, pasada o futura,
@@ -142,16 +141,16 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
-    // Arrange comun (CA-1): cierra la vinculacion vigente -- via el comando que la origina (#349).
+    // Arrange comun (CA-1): cierra la vinculacion vigente -- via el comando que la origina
+    // (#349/#379). Issue #379: la ruta gano el {codigo} -- ya no es
+    // "/api/Colaboradores/Terminaciones" con identificacion en el body.
     private async Task TerminarVinculacionAsync(
-        string numeroIdentificacion, DateOnly fechaEfectiva, CancellationToken ct)
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
-        var response = await _client.PostAsJsonAsync(RutaTerminaciones, new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            fechaEfectiva
-        }, ct);
+        var response = await _client.PostAsJsonAsync(
+            $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
+            new { fechaEfectiva },
+            ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
@@ -228,9 +227,10 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         var apellido = NuevoApellidoUnico("Vigencia373");
         var nombreCompleto = NombreCompletoDe(apellido);
 
+        var codigoColaborador = NuevoCodigoColaborador();
         await RegistrarColaboradorAsync(
-            numeroIdentificacion, fechaInicio, apellido, NuevoCodigoColaborador(), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectiva, ct);
+            numeroIdentificacion, fechaInicio, apellido, codigoColaborador, ct);
+        await TerminarVinculacionAsync(streamId, codigoColaborador, fechaEfectiva, ct);
 
         var paginaEnLaFechaEfectiva = await ConsultarHastaQueAsync(
             FiltroPorCursor(fechaEfectiva, nombreCompleto, cursorId: ""),

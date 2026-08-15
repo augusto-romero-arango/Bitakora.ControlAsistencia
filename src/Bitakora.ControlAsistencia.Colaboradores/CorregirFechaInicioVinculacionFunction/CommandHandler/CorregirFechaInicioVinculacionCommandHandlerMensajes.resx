@@ -29,4 +29,7 @@
   <data name="FechaSolapaVinculacionAnterior" xml:space="preserve">
     <value>La fecha de inicio corregida debe ser estrictamente posterior a la fecha efectiva de terminacion de la vinculacion anterior</value>
   </data>
+  <data name="CodigoNoCorresponde" xml:space="preserve">
+    <value>El codigo de la vinculacion no corresponde con la vinculacion vigente del colaborador</value>
+  </data>
 </root>

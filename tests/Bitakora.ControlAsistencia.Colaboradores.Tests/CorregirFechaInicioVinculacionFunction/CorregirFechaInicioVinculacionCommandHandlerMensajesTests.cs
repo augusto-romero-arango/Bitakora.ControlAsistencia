@@ -1,5 +1,5 @@
 // Issue #352: guardrail de resolucion del .resx del handler (MEF-ADR-0009), gemelo del que
-// ReingresarColaboradorCommandHandlerMensajesTests.cs aplica.
+// IniciarVinculacionCommandHandlerMensajesTests.cs aplica.
 //
 // Por que existe: CorregirFechaInicioVinculacionCommandHandler.Mensajes devuelve
 // ResourceManager.GetString(...)! -- el "!" es supresion del compilador, no garantia de runtime. Si
@@ -22,6 +22,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerMensajesTests
         CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaPosteriorATerminacionPropia
             .Should().NotBeNullOrWhiteSpace();
         CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior
+            .Should().NotBeNullOrWhiteSpace();
+        CorregirFechaInicioVinculacionCommandHandler.Mensajes.CodigoNoCorresponde
             .Should().NotBeNullOrWhiteSpace();
     }
 }
