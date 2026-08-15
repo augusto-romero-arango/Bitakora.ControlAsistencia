@@ -27,6 +27,7 @@ using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerFichaColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador.FunctionEndpoint;
 using ListarFichasColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador.FunctionEndpoint;
+using ListarCategoriasDeEtiquetasEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -412,6 +413,27 @@ public class ComposicionServiciosTests
         await using var scope = provider.CreateAsyncScope();
 
         var act = () => ActivatorUtilities.CreateInstance<ListarFichasColaboradorEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #357: test de composicion de la Function GET del catalogo CategoriaDeEtiquetas, mismo
+    // patron que #356 dejo para ObtenerFichaColaborador (MEF-ADR-0029: ActivatorUtilities
+    // .CreateInstance, sin host real -- no existe un WebApplicationFactory para Functions isolated
+    // worker). El endpoint recibe IDocumentStore/ITenantResolver por constructor, ya registrados por
+    // AgregarServiciosColaboradores desde el issue #360 -- no hace falta ningun registro nuevo para
+    // que este guardrail de wiring resuelva.
+    //
+    // Se prueba solo la RESOLUCION de dependencias por constructor -- no el comportamiento de Run
+    // (200 con la coleccion, incluso vacia -- CA-6), que es responsabilidad del endpoint y del smoke
+    // test contra dev.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarCategoriasDeEtiquetas_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarCategoriasDeEtiquetasEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }
