@@ -1,4 +1,3 @@
-using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -12,10 +11,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 // MEF-ADR-0006: [Function("AsignarEtiqueta")]; carpeta CON sufijo "Function" -- mismo criterio que
 // los demas comandos del ciclo de vida.
 // Route = "colaboradores/{id}/etiquetas/{categoria}" (kebab-case minusculo, MEF-ADR-0043 seccion 3):
-// {id} es Identificacion.ToString() ("CC-79543210", issue #381) -- se parsea UNA vez con
-// Identificacion.Parsear (unico punto de conversion string->Identificacion, MEF-ADR-0037 seccion 2)
-// y un ArgumentException se traduce a 400 explicito, mismo mecanismo que
-// ObtenerFichaColaborador.FunctionEndpoint. {categoria} viaja crudo (sin normalizar en el endpoint
+// {id} es Identificacion.ToString() ("CC-79543210", issue #381) -- se parsea UNA vez via
+// IdentificacionDeRuta.TryParsear (issue #395), el sitio unico que centraliza el par "parsear el
+// {id} de ruta + 400 explicito si falla" que MEF-ADR-0037 seccion 2 exige, compartido con los demas
+// endpoints del dominio que reciben {id}. {categoria} viaja crudo (sin normalizar en el endpoint
 // -- Etiqueta.Crear normaliza internamente, Tell-don't-Ask, mismo criterio que el resto del ciclo
 // de vida). El body se redujo a { "valor": "..." } (AsignarEtiquetaBody); el endpoint compone el
 // comando interno AsignarEtiqueta (que conserva sus 4 campos primitivos, MEF-ADR-0039 decision 6)
@@ -35,16 +34,8 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         string categoria,
         CancellationToken ct)
     {
-        Identificacion identificacion;
-        try
-        {
-            identificacion = Identificacion.Parsear(id);
-        }
-        catch (ArgumentException)
-        {
-            return new BadRequestObjectResult(
-                "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
-        }
+        if (!IdentificacionDeRuta.TryParsear(id, out var identificacion, out var errorDeId))
+            return errorDeId;
 
         // MEF-ADR-0004 capa 1 (forma en el borde -> 400): {categoria} llega cruda de la ruta y no la
         // cubre ningun validator -- el body reducido solo trae Valor. Un segmento en blanco ("%20")
