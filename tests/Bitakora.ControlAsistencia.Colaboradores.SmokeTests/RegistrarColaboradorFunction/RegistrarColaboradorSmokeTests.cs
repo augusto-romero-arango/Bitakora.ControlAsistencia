@@ -28,6 +28,10 @@
 // casing exacto.
 // CA-3: request invalida (NumeroIdentificacion/CodigoColaborador vacios, FechaInicio vacia, tipo
 // fuera de la lista cerrada) -> 400, sin tocar el event store.
+//
+// Issue #387 (CodigoColaborador URL-safe): CA-1 con caracteres unreserved no alfanumericos (. _ ~)
+// -> 202 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
+// accion reservado, MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
@@ -283,6 +287,70 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         var ct = TestContext.Current.CancellationToken;
         var payload = PayloadRegistro(
             NuevoNumeroIdentificacion(), new DateOnly(2026, 1, 1), tipoIdentificacion: "XX");
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~) tambien produce 202 --
+    // el set permitido no se limita a alfanumerico+guion, que es lo unico que ejercita el helper
+    // NuevoCodigoColaborador de este archivo ("TEST-<guid>"). Verificacion end-to-end de que el
+    // regex desplegado en dev no es mas restrictivo que el unreserved de RFC 3986 seccion 2.3.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna202_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var codigoColaborador = $"a.b_{Guid.CreateVersion7()}~2";
+
+        var response = await _client.PostAsJsonAsync(
+            RutaRegistrar,
+            PayloadRegistro(numeroIdentificacion, new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador),
+            ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaColaboradores, streamId, TipoEventoColaboradorRegistrado, Timeout);
+
+        existe.Should().BeTrue(
+            $"el codigo con caracteres unreserved no alfanumericos deberia haberse aceptado y persistido en {streamId}");
+    }
+
+    // CA-2 (#387): ":" esta explicitamente fuera del set permitido -- MEF-ADR-0043 seccion 1 lo
+    // reserva como separador de accion (vinculaciones/{codigo}:terminar, #379). Un codigo con ":"
+    // haria inparseable esa ruta -- caso destacado del issue.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna400_CuandoCodigoColaboradorContieneDosPuntos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = $"COL:{Guid.CreateVersion7()}";
+        var payload = PayloadRegistro(
+            NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador);
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3 (#387): cualquier otro caracter fuera del set (espacio, aqui) -> 400. La exhaustividad
+    // del regex (acento, "/") ya la cubre RegistrarColaboradorValidatorTests; este smoke test solo
+    // confirma que la regla llega desplegada end-to-end en dev.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna400_CuandoCodigoColaboradorContieneEspacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = $"COL {Guid.CreateVersion7()}";
+        var payload = PayloadRegistro(
+            NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador);
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
 
