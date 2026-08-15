@@ -79,9 +79,17 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     // con su propio mensaje), o (c) el numero queda vacio tras la limpieza (Crear ya lo rechaza con
     // su propio mensaje). Round-trip: Parsear(id.ToString()) es igual por valor a id (CA-5) porque
     // ToString() siempre produce un numero ya limpio ([A-Z0-9]), y Crear() no lo altera de nuevo.
-    // STUB (fase roja, issue #376): el cuerpo completo (split + TipoIdentificacion.Desde + Crear)
-    // queda para el implementer -- mismo criterio que Crear() en la fase roja original (hu-348).
-    public static Identificacion Parsear(string valor) => throw new NotImplementedException();
+    public static Identificacion Parsear(string valor)
+    {
+        var indiceSeparador = valor?.IndexOf('-') ?? -1;
+        if (indiceSeparador < 0)
+            throw new ArgumentException(Mensajes.FormatoInvalido, nameof(valor));
+
+        var tipo = TipoIdentificacion.Desde(valor![..indiceSeparador]);
+        var numero = valor[(indiceSeparador + 1)..];
+
+        return Crear(tipo, numero);
+    }
 
     // Igualdad por valor. _tipo se compara por referencia (deliberado, ver remarks de
     // TipoIdentificacion): Desde() siempre retorna la instancia canonica de la lista cerrada.

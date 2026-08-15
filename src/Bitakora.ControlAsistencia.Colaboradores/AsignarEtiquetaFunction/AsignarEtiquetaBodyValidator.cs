@@ -10,8 +10,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 // ObtenerFichaColaborador) -- lo unico que queda en el body es Valor.
 // Se descubre via el AddValidatorsFromAssemblyContaining que ComposicionServicios ya configura: no
 // requiere tocar el wiring de DI.
-// STUB (fase roja, issue #376): sin reglas todavia -- el implementer las agrega (precedente
-// AsignarEtiquetaValidator, issue #355: la misma clase nacio como AbstractValidator<T> vacio).
 public class AsignarEtiquetaBodyValidator : AbstractValidator<AsignarEtiquetaBody>
 {
+    public AsignarEtiquetaBodyValidator()
+    {
+        RuleFor(x => x.Valor).NotEmpty();
+    }
 }
