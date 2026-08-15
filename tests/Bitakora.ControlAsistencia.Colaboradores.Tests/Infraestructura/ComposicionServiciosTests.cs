@@ -16,10 +16,13 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
+using Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using FluentValidation;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
@@ -488,5 +491,34 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_categoriadeetiquetas");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(CategoriaDeEtiquetas.Id));
+    }
+
+    // Issue #379 (agregado en la revision): guardrail del descubrimiento de los validators de body.
+    //
+    // El modo de falla que atrapa es SILENCIOSO por construccion: RequestValidator.ValidarAsync
+    // resuelve IValidator<T> del contenedor y, si no lo encuentra, DEJA PASAR el body sin validar
+    // (retorna (comando, null)) en vez de fallar. Un validator que el escaneo
+    // AddValidatorsFromAssemblyContaining no recoja convierte todos los 400 de forma de ese comando
+    // en 202 -- compila, pasa todos los tests unitarios (que inyectan un IRequestValidator fake) y
+    // solo aflora contra dev.
+    //
+    // El issue #379 movio estos validators de CommandHandler/{Comando}Validator (sobre el comando
+    // interno completo) a {Comando}BodyValidator en la raiz del feature folder (sobre el body
+    // reducido), y elimino los tres viejos: exactamente el tipo de cambio de ubicacion/tipo generico
+    // que este guardrail vigila. Se listan los dos comandos del issue con body; AnularTerminacion no
+    // aparece porque quedo SIN body (sus tres campos viajan en la ruta), asi que no tiene validator
+    // que descubrir.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_DescubreLosValidatorsDeLosBodiesDeComando_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        scope.ServiceProvider.GetService<IValidator<TerminarVinculacionBody>>()
+            .Should().NotBeNull(
+                "sin el validator registrado, un body sin FechaEfectiva responderia 202 en vez de 400");
+        scope.ServiceProvider.GetService<IValidator<CorregirFechaInicioVinculacionBody>>()
+            .Should().NotBeNull(
+                "sin el validator registrado, un body sin FechaCorregida responderia 202 en vez de 400");
     }
 }

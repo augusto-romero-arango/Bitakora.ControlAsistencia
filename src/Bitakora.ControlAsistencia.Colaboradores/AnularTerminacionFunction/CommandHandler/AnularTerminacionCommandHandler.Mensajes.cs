@@ -17,5 +17,10 @@ public partial class AnularTerminacionCommandHandler
 
         public static string VinculacionAbierta =>
             ResourceManager.GetString(nameof(VinculacionAbierta))!;
+
+        // Issue #379 (MEF-ADR-0043 paso 4, CA-5): el {codigo} de la ruta no corresponde al codigo
+        // de la vinculacion vigente -- evaluada PRIMERA por el aggregate.
+        public static string CodigoNoCorresponde =>
+            ResourceManager.GetString(nameof(CodigoNoCorresponde))!;
     }
 }

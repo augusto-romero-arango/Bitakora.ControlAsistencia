@@ -17,8 +17,8 @@
 //
 // Arrange via API, nunca sembrando el event store por fuera de ella: el colaborador se crea con
 // POST Colaboradores (#330) y, cuando aplica, se termina su vinculacion con POST
-// Colaboradores/Terminaciones (#349) -- los mismos comandos que #356 usa como fuente de eventos
-// para la proyeccion.
+// colaboradores/{id}/vinculaciones/{codigo}:terminar (#349/#379) -- los mismos comandos que #356
+// usa como fuente de eventos para la proyeccion.
 //
 // Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa FichaColaborador DESPUES de que
 // Colaboradores persiste sus eventos. Los casos de exito envuelven la consulta en
@@ -59,7 +59,6 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     private readonly HttpClient _client = api.Client;
 
     private const string RutaRegistrar = "/api/Colaboradores";
-    private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -120,13 +119,6 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
             fechaInicio
         };
 
-    private static object PayloadTerminacion(string numeroIdentificacion, DateOnly fechaEfectiva) => new
-    {
-        tipoIdentificacion = TipoIdentificacionCc,
-        numeroIdentificacion,
-        fechaEfectiva
-    };
-
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
     // origina (#330), nunca sembrando el event store por fuera del API.
     private async Task RegistrarColaboradorAsync(
@@ -140,12 +132,16 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     }
 
     // Arrange comun (CA-6, "INCLUYE no-vigentes"): cierra la vinculacion vigente -- via el comando
-    // que la origina (#349), nunca sembrando el event store por fuera del API.
+    // que la origina (#349/#379), nunca sembrando el event store por fuera del API. Issue #379: la
+    // ruta gano el {codigo} -- ya no es "/api/Colaboradores/Terminaciones" con identificacion en el
+    // body.
     private async Task TerminarVinculacionAsync(
-        string numeroIdentificacion, DateOnly fechaEfectiva, CancellationToken ct)
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaTerminaciones, PayloadTerminacion(numeroIdentificacion, fechaEfectiva), ct);
+            $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
+            new { fechaEfectiva },
+            ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
@@ -225,7 +221,8 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         var codigoColaborador = NuevoCodigoColaborador();
 
         await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicio, codigoColaborador, ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectiva, ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoColaborador, fechaEfectiva, ct);
 
         // Act + Assert: reintentar hasta que el worker aplique TAMBIEN VinculacionTerminada -- un
         // 200 con VigenteHasta todavia nulo solo significa que la proyeccion aun no proceso el

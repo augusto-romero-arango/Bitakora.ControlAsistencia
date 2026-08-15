@@ -4,6 +4,9 @@
 // 409: coherencia interna, no-solape hacia atras) con "declinar en silencio" (idempotencia,
 // precedente CorregirNombres #351). Depende de #350 (reingresar): la no-solape hacia atras solo es
 // ejercitable cuando existe una vinculacion anterior.
+// Issue #379 (MEF-ADR-0043 paso 4, CA-5): el comando gana el campo Codigo -- el {codigo} de la ruta
+// HTTP, comparado por el aggregate contra la vinculacion vigente ANTES que cualquier otra regla,
+// INCLUYENDO la idempotencia (SinCambios). CodigoNoCorresponde -> 409 (no 404).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
@@ -42,9 +45,10 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     protected override ICommandHandlerAsync<CorregirFechaInicioVinculacion> Handler =>
         new CorregirFechaInicioVinculacionCommandHandler(EventStore);
 
-    private static CorregirFechaInicioVinculacion ComandoCon(DateOnly fechaCorregida) => new(
+    private static CorregirFechaInicioVinculacion ComandoCon(string codigo, DateOnly fechaCorregida) => new(
         TipoIdentificacion: "CC",
         NumeroIdentificacion: NumeroValido,
+        Codigo: codigo,
         FechaCorregida: fechaCorregida);
 
     private static Identificacion IdentificacionValida() =>
@@ -112,7 +116,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         DadoUnColaboradorConVinculacionAbierta();
         var fechaCorregida = FechaInicioOriginal.AddDays(-5);
 
-        await WhenAsync(ComandoCon(fechaCorregida));
+        await WhenAsync(ComandoCon(CodigoVinculacionOriginal, fechaCorregida));
 
         Then(StreamIdEsperado, new FechaInicioVinculacionCorregida(fechaCorregida));
         And<ColaboradorAggregateRoot, DateOnly>(
@@ -129,7 +133,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     {
         DadoUnColaboradorConVinculacionAbierta();
         var fechaCorregida = FechaInicioOriginal.AddDays(-5);
-        var comandoSinNormalizar = ComandoCon(fechaCorregida) with
+        var comandoSinNormalizar = ComandoCon(CodigoVinculacionOriginal, fechaCorregida) with
         {
             TipoIdentificacion = "cc",
             NumeroIdentificacion = "  79543210  "
@@ -142,6 +146,42 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaCorregida);
     }
 
+    // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
+    // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
+    [Fact]
+    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
+    {
+        DadoUnColaboradorConVinculacionAbierta();
+        var fechaCorregida = FechaInicioOriginal.AddDays(-5);
+
+        var act = async () => await WhenAsync(ComandoCon("COL-999", fechaCorregida));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage(
+                $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, DateOnly>(
+            StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
+    }
+
+    // CA-5 (orden de evaluacion, GATE mas estricto de la cadena): el codigo equivocado se rechaza
+    // AUNQUE la FechaCorregida sea IGUAL a la actual -- la idempotencia (SinCambios) NUNCA se
+    // evalua si el codigo no corresponde, ni siquiera para responder "no habia nada que corregir".
+    [Fact]
+    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaFechaEsIgualALaActual()
+    {
+        DadoUnColaboradorConVinculacionAbierta();
+
+        var act = async () => await WhenAsync(ComandoCon("COL-999", FechaInicioOriginal));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage(
+                $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, DateOnly>(
+            StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
+    }
+
     // CA-2 (primera direccion): la ultima vinculacion tiene terminacion registrada y
     // FechaCorregida es estrictamente ANTERIOR a esa FechaEfectiva -> exito. La terminacion previa
     // no se toca por esta correccion (Tell-don't-Ask: la correccion es ortogonal a la vigencia,
@@ -152,7 +192,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         DadoUnColaboradorConVinculacionTerminada();
         var fechaCorregida = FechaInicioOriginal.AddDays(-5);
 
-        await WhenAsync(ComandoCon(fechaCorregida));
+        await WhenAsync(ComandoCon(CodigoVinculacionOriginal, fechaCorregida));
 
         Then(StreamIdEsperado, new FechaInicioVinculacionCorregida(fechaCorregida));
         And<ColaboradorAggregateRoot, DateOnly>(
@@ -168,7 +208,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     {
         DadoUnColaboradorConVinculacionTerminada();
 
-        await WhenAsync(ComandoCon(FechaEfectivaTerminacionOriginal));
+        await WhenAsync(ComandoCon(CodigoVinculacionOriginal, FechaEfectivaTerminacionOriginal));
 
         Then(StreamIdEsperado, new FechaInicioVinculacionCorregida(FechaEfectivaTerminacionOriginal));
         And<ColaboradorAggregateRoot, DateOnly>(
@@ -183,7 +223,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         DadoUnColaboradorConVinculacionTerminada();
 
         var act = async () => await WhenAsync(
-            ComandoCon(FechaEfectivaTerminacionOriginal.AddDays(1)));
+            ComandoCon(CodigoVinculacionOriginal, FechaEfectivaTerminacionOriginal.AddDays(1)));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage(
@@ -196,14 +236,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // CA-1 (variante tras reingreso, dependencia #350): la ULTIMA vinculacion es la del reingreso
     // y esta abierta; FechaCorregida estrictamente posterior a la FechaEfectiva de la vinculacion
     // anterior y distinta de la actual -> exito. Ejercita el Apply(VinculacionIniciada)
-    // re-aplicado que #350 construyo.
+    // re-aplicado que #350 construyo. El codigo correcto ahora es el del REINGRESO.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoLaUltimaVinculacionEsUnReingresoAbierto()
     {
         DadoUnColaboradorConVinculacionAnteriorYReingresoAbierto();
         var fechaCorregida = FechaEfectivaTerminacionOriginal.AddDays(2); // 2026-06-03
 
-        await WhenAsync(ComandoCon(fechaCorregida));
+        await WhenAsync(ComandoCon(CodigoReingreso, fechaCorregida));
 
         Then(StreamIdEsperado, new FechaInicioVinculacionCorregida(fechaCorregida));
         And<ColaboradorAggregateRoot, DateOnly>(
@@ -218,7 +258,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     {
         DadoUnColaboradorConVinculacionAnteriorYReingresoAbierto();
 
-        var act = async () => await WhenAsync(ComandoCon(FechaEfectivaTerminacionOriginal));
+        var act = async () => await WhenAsync(
+            ComandoCon(CodigoReingreso, FechaEfectivaTerminacionOriginal));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage(
@@ -236,7 +277,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         DadoUnColaboradorConVinculacionAnteriorYReingresoAbierto();
 
         var act = async () => await WhenAsync(
-            ComandoCon(FechaEfectivaTerminacionOriginal.AddDays(-1)));
+            ComandoCon(CodigoReingreso, FechaEfectivaTerminacionOriginal.AddDays(-1)));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage(
@@ -259,7 +300,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         // seria idempotencia y no ejercitaria ninguna de las dos reglas.
         var fechaCorregida = FechaEfectivaTerminacionOriginal.AddDays(10);
 
-        await WhenAsync(ComandoCon(fechaCorregida));
+        await WhenAsync(ComandoCon(CodigoReingreso, fechaCorregida));
 
         Then(StreamIdEsperado, new FechaInicioVinculacionCorregida(fechaCorregida));
         And<ColaboradorAggregateRoot, DateOnly>(
@@ -280,7 +321,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
         DadoUnColaboradorConDosReingresos();
         var fechaCorregida = new DateOnly(2026, 7, 1); // > 2026-06-01 pero < 2026-09-01
 
-        var act = async () => await WhenAsync(ComandoCon(fechaCorregida));
+        var act = async () => await WhenAsync(ComandoCon(CodigoSegundoReingreso, fechaCorregida));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage(
@@ -297,7 +338,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     {
         DadoUnColaboradorConVinculacionAbierta();
 
-        await WhenAsync(ComandoCon(FechaInicioOriginal));
+        await WhenAsync(ComandoCon(CodigoVinculacionOriginal, FechaInicioOriginal));
 
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly>(
@@ -312,21 +353,21 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     {
         DadoUnColaboradorConVinculacionTerminada();
 
-        await WhenAsync(ComandoCon(FechaInicioOriginal));
+        await WhenAsync(ComandoCon(CodigoVinculacionOriginal, FechaInicioOriginal));
 
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly>(
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-5: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-6: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
-    // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5 /
-    // IniciarVinculacionCommandHandlerTests CA-5 / CorregirNombresCommandHandlerTests CA-4).
+    // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-6 /
+    // IniciarVinculacionCommandHandlerTests CA-3 / CorregirNombresCommandHandlerTests CA-4).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
     {
-        var act = async () => await WhenAsync(ComandoCon(FechaInicioOriginal));
+        var act = async () => await WhenAsync(ComandoCon(CodigoVinculacionOriginal, FechaInicioOriginal));
 
         await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
             .WithMessage($"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado}*");

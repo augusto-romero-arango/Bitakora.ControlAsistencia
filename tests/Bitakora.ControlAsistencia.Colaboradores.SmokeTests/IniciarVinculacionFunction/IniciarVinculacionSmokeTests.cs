@@ -12,7 +12,10 @@
 // Arrange: IniciarVinculacion exige un ColaboradorAggregateRoot existente con la ultima vinculacion
 // terminada -- el arrange de cada test registra el colaborador (via /api/colaboradores, kebab-case
 // desde este mismo issue, CA-5) y, cuando aplica, termina su vinculacion via el comando que la
-// origina (#349), nunca sembrando datos por fuera del API.
+// origina (#349/#379), nunca sembrando datos por fuera del API. Issue #379: la terminacion ahora
+// exige el {codigo} de la vinculacion en la ruta -- RegistrarColaboradorAsync devuelve el codigo
+// (== CodigoColaborador del comando, verificado en ColaboradorAggregateRoot.Registrar) para que el
+// arrange lo use como {codigo} al terminar.
 //
 // Evento reutilizado (CA-ADR-0029/MEF-ADR-0039: un evento no conoce su comando): el exito NO crea
 // un tipo nuevo -- persiste otra VinculacionIniciada (tipo persistido "vinculacion_iniciada") en el
@@ -58,7 +61,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     private readonly HttpClient _client = api.Client;
 
     private const string RutaRegistrar = "/api/colaboradores";
-    private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
     private const string RutaReingresosVieja = "/api/Colaboradores/Reingresos";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoVinculacionIniciada = "vinculacion_iniciada";
@@ -89,7 +91,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     private static string FormatearFecha(DateOnly fecha) =>
         fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio) => new
+    private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador) => new
     {
         tipoIdentificacion = TipoIdentificacionCc,
         numeroIdentificacion,
@@ -97,15 +99,8 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         segundoNombre = (string?)null,
         primerApellido = "Smoke",
         segundoApellido = (string?)null,
-        codigoColaborador = NuevoCodigoColaborador(),
+        codigoColaborador,
         fechaInicio
-    };
-
-    private static object PayloadTerminacion(string numeroIdentificacion, DateOnly fechaEfectiva) => new
-    {
-        tipoIdentificacion = TipoIdentificacionCc,
-        numeroIdentificacion,
-        fechaEfectiva
     };
 
     // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
@@ -117,24 +112,34 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
-    private async Task RegistrarColaboradorAsync(
+    // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
+    // vinculacion inicial (== CodigoColaborador del comando, verificado en
+    // ColaboradorAggregateRoot.Registrar) para que el arrange lo use como {codigo} de ruta al
+    // terminar (issue #379).
+    private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
+        var codigo = NuevoCodigoColaborador();
+
         var response = await _client.PostAsJsonAsync(
-            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
+            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
+
+        return codigo;
     }
 
-    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349), nunca
-    // sembrando el event store por fuera del API.
+    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
+    // nunca sembrando el event store por fuera del API. Issue #379: la ruta gano el {codigo} -- ya
+    // no es "/api/Colaboradores/Terminaciones" con identificacion en el body.
     private async Task TerminarVinculacionAsync(
-        string numeroIdentificacion, DateOnly fechaEfectiva, CancellationToken ct)
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaTerminaciones, PayloadTerminacion(numeroIdentificacion, fechaEfectiva), ct);
+            $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
+            new { fechaEfectiva },
+            ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
@@ -174,8 +179,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var fechaNuevaVinculacion = new DateOnly(2025, 7, 1);
         var codigoNuevo = NuevoCodigoColaborador();
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicioOriginal, ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicioOriginal, ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
@@ -216,8 +222,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var fechaNuevaVinculacion = new DateOnly(2031, 1, 1);
         var codigoNuevo = NuevoCodigoColaborador();
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicioOriginal, ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaPreaviso, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicioOriginal, ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaPreaviso, ct);
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
@@ -265,8 +272,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var fechaEfectivaTerminacion = new DateOnly(2025, 3, 1);
         var fechaPrimeraVinculacionNueva = new DateOnly(2025, 3, 15);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
 
         var primeraVinculacionNueva = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), fechaPrimeraVinculacionNueva, ct);
@@ -290,8 +298,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var fechaEfectivaTerminacion = new DateOnly(2025, 6, 1);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), fechaEfectivaTerminacion, ct);
@@ -309,8 +318,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var fechaEfectivaTerminacion = new DateOnly(2025, 6, 1);
         var fechaAnterior = new DateOnly(2025, 5, 1);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), fechaAnterior, ct);
@@ -330,8 +340,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var fechaEfectivaPreaviso = new DateOnly(2030, 12, 31);
         var fechaAnteriorAlPreaviso = new DateOnly(2026, 1, 1);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaPreaviso, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 1), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaPreaviso, ct);
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), fechaAnteriorAlPreaviso, ct);
@@ -477,8 +488,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var fechaNuevaVinculacion = new DateOnly(2025, 7, 1);
         var codigoNuevo = $"a.b_{Guid.CreateVersion7()}~2";
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 15), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 15), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
