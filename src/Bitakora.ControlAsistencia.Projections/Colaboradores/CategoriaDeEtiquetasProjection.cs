@@ -43,14 +43,27 @@ public sealed partial class CategoriaDeEtiquetasProjection : MultiStreamProjecti
         Identity<EtiquetaAsignada>(e => e.Etiqueta.CategoriaNormalizada);
     }
 
-    // Stub -- fase roja read-side (issue #357). La implementacion real (nace el documento con la
-    // categoria y su primer valor) la escribe projection-implementer.
+    // CA-1: el documento nace con la categoria NORMALIZADA como Id (misma identidad que fija el
+    // slicer de correlacion arriba), el display de esa PRIMERA asignacion y su primer valor
+    // (display + normalizado, ambos leidos del VO Etiqueta -- sin recalcular nada, MEF-ADR-0012).
     public static CategoriaDeEtiquetas Create(EtiquetaAsignada e) =>
-        throw new NotImplementedException();
+        new(
+            e.Etiqueta.CategoriaNormalizada,
+            e.Etiqueta.Categoria,
+            [new ValorCategoria(e.Etiqueta.Valor, e.Etiqueta.ValorNormalizado)]);
 
-    // Stub -- fase roja read-side (issue #357). La implementacion real (agrupar por categoria,
-    // ultima-gana en Categoria y en cada Valor, acumulacion sin duplicados por ValorNormalizado) la
-    // escribe projection-implementer.
-    public static CategoriaDeEtiquetas Apply(EtiquetaAsignada e, CategoriaDeEtiquetas vista) =>
-        throw new NotImplementedException();
+    // CA-2/CA-3/CA-4: "la ultima gana" en el display de la categoria (siempre se reemplaza,
+    // sin importar la forma original de esta asignacion) y upsert por ValorNormalizado en
+    // Valores -- se descarta el valor existente con el MISMO ValorNormalizado (si lo hay) y se
+    // agrega el nuevo, conservando el resto: acumulativo (CATALOGO ACUMULATIVO, decision de
+    // refinamiento 2026-08-13), nunca un reemplazo total de la lista.
+    public static CategoriaDeEtiquetas Apply(EtiquetaAsignada e, CategoriaDeEtiquetas vista)
+    {
+        var valores = vista.Valores
+            .Where(existente => existente.ValorNormalizado != e.Etiqueta.ValorNormalizado)
+            .Append(new ValorCategoria(e.Etiqueta.Valor, e.Etiqueta.ValorNormalizado))
+            .ToList();
+
+        return vista with { Categoria = e.Etiqueta.Categoria, Valores = valores };
+    }
 }

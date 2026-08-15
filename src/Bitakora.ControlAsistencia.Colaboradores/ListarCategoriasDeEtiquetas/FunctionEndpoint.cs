@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.MultiTenancy;
 using Marten;
 using Microsoft.AspNetCore.Http;
@@ -14,20 +15,28 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas;
 // Sin filtros ni paginacion en esta primera version (opcion B, decision de refinamiento): la UI trae
 // el catalogo entero de un tiro y autocompleta en memoria -- el volumen es de decenas, no miles.
 //
-// Stub de fase roja (projection-test-writer, MEF-ADR-0033): el constructor fija la forma que el
-// test de composicion (Colaboradores.Tests/Infraestructura/ComposicionServiciosTests.cs,
-// AgregarServiciosColaboradores_ResuelveElEndpointDeListarCategoriasDeEtiquetas_...) resuelve del
-// contenedor DI real -- IDocumentStore y ITenantResolver, ya registrados por
-// ComposicionServicios.AgregarServiciosColaboradores. La apertura de la QuerySession acotada al
-// tenant del resolver, session.Query&lt;CategoriaDeEtiquetas&gt;() y el 200 con coleccion vacia
-// cuando no hay etiquetas asignadas (CA-6) son responsabilidad de projection-implementer -- Run solo
-// lanza NotImplementedException.
+// La vista se serializa tal cual (sin DTO de respuesta): a diferencia de FichaColaborador (#356),
+// CategoriaDeEtiquetas no tiene ningun campo interno de indexacion/filtrado que ocultar (ni
+// centinela ni equivalente) -- MEF-ADR-0041 decision 4, "el DTO de respuesta es excepcion".
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     [Function("ListarCategoriasDeEtiquetas")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "colaboradores/etiquetas/categorias")]
         HttpRequest req,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        // CA-6/MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
+        // ITenantResolver -- nunca a un tenant id que llegara por ruta o query string (mitigacion
+        // estructural contra BOLA/IDOR, skills/projections/read-apis.md). Este GET no recibe ningun
+        // segmento de ruta que pudiera confundirse con un tenant.
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+
+        // Opcion B (decision de refinamiento): catalogo entero de un tiro, sin filtros ni
+        // paginacion. CA-6: sin ninguna etiqueta asignada, coleccion vacia con 200 (nunca 404 --
+        // una lista vacia es una respuesta valida, no un recurso ausente).
+        var categorias = await session.Query<CategoriaDeEtiquetas>().ToListAsync(ct);
+
+        return new OkObjectResult(categorias);
+    }
 }

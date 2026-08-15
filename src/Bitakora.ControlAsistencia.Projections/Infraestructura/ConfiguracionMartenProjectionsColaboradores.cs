@@ -114,6 +114,14 @@ public static class ConfiguracionMartenProjectionsColaboradores
                 // issue, ausente aqui.
                 opts.Projections.Add<FichaColaboradorProjection>(ProjectionLifecycle.Async);
 
+                // Issue #357: segunda proyeccion concreta del dominio -- la PRIMERA receta N2
+                // (MultiStreamProjection<CategoriaDeEtiquetas, string>) de este BC: eventos
+                // EtiquetaAsignada de MUCHOS streams de ColaboradorAggregateRoot convergen en el
+                // MISMO documento cuando comparten categoria normalizada
+                // (skills/projections/modelos-marten.md). Mismo lifecycle canonico del worker
+                // (MEF-ADR-0034 seccion 3), aditivo dentro del mismo AddMartenStore.
+                opts.Projections.Add<CategoriaDeEtiquetasProjection>(ProjectionLifecycle.Async);
+
                 // Issue #373 CA-5: indices para el listado QUERY ListarFichasColaborador
                 // (segunda mitad del desglose de #356) -- ninguna proyeccion ni read model
                 // nuevos, solo indices sobre la MISMA FichaColaborador ya registrada arriba.
