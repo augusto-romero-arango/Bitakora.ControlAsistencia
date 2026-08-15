@@ -67,6 +67,21 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     // Contrato: clave del stream de Colaborador (separador "-" desde el issue #381).
     public override string ToString() => $"{_tipo}-{_numero}";
 
+    // STUB agregado por el test-writer del issue #377 (Exponer la correccion de nombres como PUT
+    // del recurso nombres) -- NO es alcance de #377. #377 depende de #376 (Adoptar verbos canonicos
+    // en los endpoints de etiquetas, label "bloqueado"), que introduce Parsear como el UNICO punto
+    // de parseo string->Identificacion para el borde HTTP (colaboradores/{id}/...). #376 (PR #388)
+    // aun no esta mergeado a main en el momento de escribir estos tests -- este worktree parte de
+    // main sin ese cambio, asi que Parsear no existe todavia en esta rama. Se agrega este stub
+    // minimo (regla 1 del test-writer: solo NotImplementedException, sin logica real) unicamente
+    // para que CorregirNombresFunction/FunctionEndpoint.cs y sus tests (issue #377) compilen.
+    // Cuando #376 se mergee a main, este metodo entrara en conflicto con su implementacion real
+    // (ver la rama worktree-issue-376-adoptar-verbos-canonicos-en-los-endpoint, misma firma
+    // exacta) -- el conflicto se resuelve descartando ESTE stub a favor de esa implementacion real.
+    // Ver docs/adr/mef-adr-0037 seccion 2 para el contrato completo que la implementacion real debe
+    // cumplir (split en la primera ocurrencia de "-", TipoIdentificacion.Desde + Identificacion.Crear).
+    public static Identificacion Parsear(string valor) => throw new NotImplementedException();
+
     // Igualdad por valor. _tipo se compara por referencia (deliberado, ver remarks de
     // TipoIdentificacion): Desde() siempre retorna la instancia canonica de la lista cerrada.
     public bool Equals(Identificacion? other) =>
