@@ -27,6 +27,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
     // Marten.
     private const int TakeMaximo = 200;
 
+    // Containment JSONB del filtro AND por etiquetas (CA-2). Ver el comentario en Run para por que
+    // es MatchesSql y no LINQ, y por que el nombre del campo se interpola con nameof.
+    private const string SqlContenimientoEtiquetas =
+        $"(data->>'{nameof(FichaColaborador.EtiquetasNormalizadas)}')::jsonb @> ?::jsonb";
+
     [Function("ListarFichasColaborador")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "query", Route = "colaboradores/fichas")]
@@ -59,52 +64,19 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // refinamiento del issue). STJ no lanza por su ausencia (el campo queda en default,
         // 0001-01-01), asi que el 422 depende de esta validacion explicita.
         if (filtro.FechaReferencia == default)
-            return new ObjectResult("FechaReferencia es obligatoria")
-            {
-                StatusCode = StatusCodes.Status422UnprocessableEntity
-            };
+            return NoProcesable("FechaReferencia es obligatoria");
 
         // CA-4: cursor keyset con un solo campo presente (el otro ausente/null) -> 422 "incompleto".
         // Un cursor con AMBOS campos ausentes cae en la misma rama -- un cliente que no quiere
         // paginar debe omitir "cursor" por completo (null), no enviar un objeto vacio.
         if (filtro.Cursor is { } cursorRecibido
             && (cursorRecibido.NombreCompleto is null || cursorRecibido.Id is null))
-        {
-            return new ObjectResult("El cursor debe traer NombreCompleto e Id, o ninguno de los dos")
-            {
-                StatusCode = StatusCodes.Status422UnprocessableEntity
-            };
-        }
+            return NoProcesable("El cursor debe traer NombreCompleto e Id, o ninguno de los dos");
 
-        // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012). El endpoint construye
-        // Etiqueta.Crear(Categoria, Valor) con cada par recibido; es el VO quien decide como se
-        // normaliza (un solo algoritmo de normalizacion en el sistema), nunca el endpoint
-        // reimplementandolo. Etiqueta.Crear rechaza categoria/valor vacios con ArgumentException
-        // -> 422.
-        var etiquetasNormalizadas = new Dictionary<string, string>();
-        if (filtro.Etiquetas is { Count: > 0 })
-        {
-            foreach (var par in filtro.Etiquetas)
-            {
-                Etiqueta etiqueta;
-                try
-                {
-                    etiqueta = Etiqueta.Crear(par.Categoria, par.Valor);
-                }
-                catch (ArgumentException)
-                {
-                    return new ObjectResult(
-                        "Una etiqueta del filtro es invalida (categoria o valor vacios)")
-                    {
-                        StatusCode = StatusCodes.Status422UnprocessableEntity
-                    };
-                }
-
-                // Un valor por categoria (misma invariante que el aggregate/la proyeccion, #355):
-                // si el cliente repite la misma categoria dos veces, la ultima gana.
-                etiquetasNormalizadas[etiqueta.CategoriaNormalizada] = etiqueta.ValorNormalizado;
-            }
-        }
+        // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012), ver NormalizarEtiquetas.
+        var etiquetasNormalizadas = NormalizarEtiquetas(filtro.Etiquetas);
+        if (etiquetasNormalizadas is null)
+            return NoProcesable("Una etiqueta del filtro es invalida (categoria o valor vacios)");
 
         // CA-1/CA-2 (MEF-ADR-0028): la QuerySession se abre SIEMPRE acotada al tenant que resuelve
         // ITenantResolver -- nunca a un tenant id que llegara por el body.
@@ -133,11 +105,21 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // es MatchesSql reproduciendo el MISMO shape de expresion que Marten genera para ese
         // indice: (data->>'EtiquetasNormalizadas')::jsonb @> ?::jsonb (confirmado con EXPLAIN:
         // Bitmap Index Scan sobre el indice GIN, Recheck Cond identico).
+        //
+        // El nombre del campo se interpola con nameof, nunca como literal suelto: este SQL crudo es
+        // el UNICO punto del sistema donde el nombre de una propiedad de la vista viaja como texto,
+        // y un rename del read model que no lo alcanzara dejaria el filtro devolviendo 0 resultados
+        // siempre, sin error de compilacion ni de runtime (mismo modo de falla silencioso que el
+        // spike encontro en Contains(KeyValuePair)).
+        //
+        // MatchesSql NO evade el filtro de tenant (verificado en la revision inspeccionando el SQL
+        // que Marten genera para esta query, via ToCommand(FetchType.FetchMany), sin Postgres): el
+        // fragmento entra como un where mas del mismo AND que ya lleva "d.tenant_id = :p0", y el
+        // JSON viaja parametrizado (":p4::jsonb"), nunca concatenado. MEF-ADR-0028 se sostiene.
         if (etiquetasNormalizadas.Count > 0)
         {
             var etiquetasJson = JsonSerializer.Serialize(etiquetasNormalizadas);
-            query = query.Where(f =>
-                f.MatchesSql("(data->>'EtiquetasNormalizadas')::jsonb @> ?::jsonb", etiquetasJson));
+            query = query.Where(f => f.MatchesSql(SqlContenimientoEtiquetas, etiquetasJson));
         }
 
         // CA-3: paginacion keyset -- orden OrderBy(NombreCompleto).ThenBy(Id), predicado compuesto
@@ -173,6 +155,47 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // la ultima fila; fin de la lista = pagina con menos de Take filas.
         return new OkObjectResult(fichas.Select(FichaColaboradorRespuesta.DesdeVista).ToList());
     }
+
+    // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012). Construye
+    // Etiqueta.Crear(Categoria, Valor) con cada par recibido: es el VO quien decide como se
+    // normaliza (un solo algoritmo de normalizacion en el sistema), nunca el endpoint
+    // reimplementandolo. Devuelve null cuando algun par es inaceptable -- el llamador lo traduce a
+    // 422. Etiquetas null/vacio produce un diccionario vacio: sin filtro de etiquetas.
+    private static Dictionary<string, string>? NormalizarEtiquetas(IReadOnlyList<FiltroEtiqueta>? pares)
+    {
+        var normalizadas = new Dictionary<string, string>();
+
+        foreach (var par in pares ?? [])
+        {
+            // El body es entrada del cliente: STJ acepta un elemento null dentro del array
+            // ("etiquetas":[null]) pese a la anotacion no-nullable del record. Sin este guard, el
+            // acceso a par.Categoria seria una NullReferenceException que escapa del catch de
+            // ArgumentException y sale como 500 donde el RFC 10008 pide 422.
+            if (par is null)
+                return null;
+
+            Etiqueta etiqueta;
+            try
+            {
+                etiqueta = Etiqueta.Crear(par.Categoria, par.Valor);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+
+            // Un valor por categoria (misma invariante que el aggregate/la proyeccion, #355): si el
+            // cliente repite la misma categoria dos veces, la ultima gana.
+            normalizadas[etiqueta.CategoriaNormalizada] = etiqueta.ValorNormalizado;
+        }
+
+        return normalizadas;
+    }
+
+    // RFC 10008 seccion 2.1 / MEF-ADR-0042 seccion 3: el 422 se emite como ObjectResult con mensaje,
+    // nunca como codigo pelado -- misma forma que el 400 del parseo del id de ruta (MEF-ADR-0037).
+    private static ObjectResult NoProcesable(string mensaje) =>
+        new(mensaje) { StatusCode = StatusCodes.Status422UnprocessableEntity };
 }
 
 // Issue #373: DTO de filtro tipado del body QUERY (MEF-ADR-0042 seccion 3, contrato fijado por el

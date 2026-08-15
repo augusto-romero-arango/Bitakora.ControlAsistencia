@@ -50,7 +50,7 @@ public class FunctionEndpointTests
     // --- 415: Content-Type ausente o distinto de application/json (RFC 10008 seccion 2) ---
 
     [Fact]
-    public async Task Run_Retorna415_CuandoElContentTypeNoEsJson()
+    public async Task ListarFichasColaborador_Retorna415_CuandoElContentTypeNoEsJson()
     {
         var request = FakeHttpRequest(contentType: "text/plain", body: "{}");
 
@@ -62,7 +62,7 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task Run_Retorna415_CuandoElContentTypeEstaAusente()
+    public async Task ListarFichasColaborador_Retorna415_CuandoElContentTypeEstaAusente()
     {
         var request = FakeHttpRequest(contentType: null, body: "{}");
 
@@ -75,7 +75,7 @@ public class FunctionEndpointTests
     // --- 400: body ausente, JSON invalido o literal "null" (RFC 10008 seccion 2.1) ---
 
     [Fact]
-    public async Task Run_Retorna400_CuandoElBodyEstaAusente()
+    public async Task ListarFichasColaborador_Retorna400_CuandoElBodyEstaAusente()
     {
         var request = FakeHttpRequest(contentType: "application/json", body: null);
 
@@ -86,7 +86,7 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task Run_Retorna400_CuandoElBodyNoEsJsonValido()
+    public async Task ListarFichasColaborador_Retorna400_CuandoElBodyNoEsJsonValido()
     {
         var request = FakeHttpRequest(contentType: "application/json", body: "{ esto no es json");
 
@@ -96,7 +96,7 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task Run_Retorna400_CuandoElBodyEsElLiteralJsonNull()
+    public async Task ListarFichasColaborador_Retorna400_CuandoElBodyEsElLiteralJsonNull()
     {
         // JSON sintacticamente valido que deserializa a null (distinto del caso anterior, JSON
         // invalido) -- misma rama que el ejemplo canonico de skills/projections/read-apis.md:
@@ -111,7 +111,7 @@ public class FunctionEndpointTests
     // --- 422: JSON valido pero no procesable (CA-4) ---
 
     [Fact]
-    public async Task Run_Retorna422_CuandoFaltaFechaReferencia()
+    public async Task ListarFichasColaborador_Retorna422_CuandoFaltaFechaReferencia()
     {
         // FechaReferencia es obligatoria (el back jamas resuelve "hoy") -- STJ no lanza por su
         // ausencia (verificado por spike: el campo queda en 0001-01-01), asi que el 422 depende de
@@ -126,7 +126,7 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task Run_Retorna422_CuandoUnaEtiquetaDelFiltroEsInvalida()
+    public async Task ListarFichasColaborador_Retorna422_CuandoUnaEtiquetaDelFiltroEsInvalida()
     {
         // CA-2: normalizacion simetrica -- el endpoint construye Etiqueta.Crear(Categoria, Valor)
         // con cada par; un par con categoria vacia lo rechaza Etiqueta.Crear con ArgumentException
@@ -141,8 +141,26 @@ public class FunctionEndpointTests
         unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
+    // Agregado en la revision: el body es entrada del cliente y STJ acepta un elemento null dentro
+    // del array pese a la anotacion no-nullable de FiltroEtiqueta. Sin el guard del endpoint, el
+    // acceso a par.Categoria era una NullReferenceException que escapaba del catch de
+    // ArgumentException y salia como 500 donde RFC 10008 seccion 2.1 pide 422.
     [Fact]
-    public async Task Run_Retorna422_CuandoElCursorTraeUnSoloCampo()
+    public async Task ListarFichasColaborador_Retorna422_CuandoUnaEtiquetaDelFiltroEsNula()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","etiquetas":[null]}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
+        unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+        unprocessable.Value.Should().BeOfType<string>();
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_Retorna422_CuandoElCursorTraeUnSoloCampo()
     {
         // Cursor con NombreCompleto pero sin Id (el otro campo del cursor keyset, CursorFicha.Id
         // queda null -- verificado por spike: STJ no lanza por un campo string ausente).

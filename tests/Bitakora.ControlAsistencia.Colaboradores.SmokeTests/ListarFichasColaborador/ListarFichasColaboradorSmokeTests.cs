@@ -35,6 +35,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
 
@@ -54,7 +55,7 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
 
     // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
     // JsonNamingPolicy.CamelCase), mientras que las formas locales de este archivo son PascalCase.
-    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };

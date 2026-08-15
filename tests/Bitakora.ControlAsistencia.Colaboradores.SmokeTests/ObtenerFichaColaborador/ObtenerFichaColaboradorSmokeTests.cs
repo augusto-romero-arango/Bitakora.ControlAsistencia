@@ -71,15 +71,15 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
     // identidad del stream (y por lo tanto el Id de la ficha) es Identificacion.ToString()
-    // ("CC:<numero>"), no un Guid nuevo por llamada.
+    // ("CC-<numero>"), no un Guid nuevo por llamada.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
     private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
-    // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId, reconstruido localmente: el
-    // smoke test no referencia el Function App (Colaboradores.Entities).
+    // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
+    // reconstruido localmente: el smoke test no referencia el Function App (Colaboradores.Entities).
     private static string ComputarStreamId(string numeroIdentificacion) =>
-        $"{TipoIdentificacionCc}:{numeroIdentificacion}";
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
     private static string Ruta(string tipoIdentificacion, string numero) =>
         $"/api/colaboradores/fichas/{tipoIdentificacion}/{numero}";
