@@ -23,4 +23,7 @@
   <data name="NumeroVacio" xml:space="preserve">
     <value>El numero de identificacion debe contener al menos una letra o un digito</value>
   </data>
+  <data name="FormatoInvalido" xml:space="preserve">
+    <value>La identificacion debe tener la forma {Tipo}-{Numero}, con un guion que separe el tipo del numero</value>
+  </data>
 </root>
