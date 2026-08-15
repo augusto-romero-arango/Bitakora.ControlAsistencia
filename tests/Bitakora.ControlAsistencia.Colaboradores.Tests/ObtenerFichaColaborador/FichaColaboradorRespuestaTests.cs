@@ -7,7 +7,8 @@
 //
 // El test de composicion hermano (ComposicionServiciosTests
 // .AgregarServiciosColaboradores_ResuelveElEndpointDeObtenerFichaColaborador_...) cubre el wiring
-// del endpoint; el resto de Run (parseo con 400, LoadAsync, 200/404) es black-box del smoke test.
+// del endpoint; FunctionEndpointTests.cs cubre el parseo del {id} de ruta con 400 (issue #386,
+// CA-3); LoadAsync y el 200/404 (CA-1/CA-2/CA-4) siguen siendo black-box del smoke test.
 //
 // Oraculo independiente (MEF-ADR-0002, no-tautologia): el centinela se escribe como literal aqui,
 // nunca se importa de FichaColaborador.CentinelaVigenciaAbierta -- si alguien cambiara esa
