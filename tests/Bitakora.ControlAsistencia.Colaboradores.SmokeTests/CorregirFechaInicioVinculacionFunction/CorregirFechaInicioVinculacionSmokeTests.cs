@@ -1,14 +1,14 @@
 // Issue #352: smoke tests del endpoint POST Colaboradores/FechasInicio (corregir la fecha de
 // inicio de la ULTIMA vinculacion de un colaborador, tenga o no terminacion registrada). Quinto
 // comando del ciclo de vida de ColaboradorAggregateRoot (desglose #348-#357). Molde:
-// CorregirNombresSmokeTests (#351) + ReingresarColaboradorSmokeTests (#350) -- mismo comando
+// CorregirNombresSmokeTests (#351) + IniciarVinculacionSmokeTests (#378) -- mismo comando
 // event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la unica
 // verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
 //
 // Arrange: CorregirFechaInicioVinculacion exige un ColaboradorAggregateRoot existente -- el
-// arrange de cada test registra el colaborador y, cuando aplica, termina su vinculacion y/o lo
-// reingresa via los mismos comandos que los originan (#330, #349, #350), nunca sembrando datos por
-// fuera del API.
+// arrange de cada test registra el colaborador y, cuando aplica, termina su vinculacion y/o inicia
+// una vinculacion nueva (escenario de reingreso, issue #378) via los mismos comandos que los
+// originan (#330, #349, #378), nunca sembrando datos por fuera del API.
 //
 // CA-1 (camino feliz, vinculacion abierta): 202 + el stream recibe FechaInicioVinculacionCorregida
 // con la FechaInicio exacta del request.
@@ -35,9 +35,8 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
-    private const string RutaReingresos = "/api/Colaboradores/Reingresos";
     private const string RutaFechasInicio = "/api/Colaboradores/FechasInicio";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoFechaInicioVinculacionCorregida = "fecha_inicio_vinculacion_corregida";
@@ -84,10 +83,10 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         fechaEfectiva
     };
 
-    private static object PayloadReingreso(string numeroIdentificacion, DateOnly fechaInicio) => new
+    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
+    // FechaInicio.
+    private static object PayloadIniciarVinculacion(DateOnly fechaInicio) => new
     {
-        tipoIdentificacion = TipoIdentificacionCc,
-        numeroIdentificacion,
         codigoColaborador = NuevoCodigoColaborador(),
         fechaInicio
     };
@@ -124,16 +123,19 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-3): reingresa al colaborador tras una terminacion -- via el comando que lo
-    // origina (#350), nunca sembrando el event store por fuera del API.
-    private async Task ReingresarColaboradorAsync(
+    // Arrange comun (CA-3): inicia una vinculacion nueva sobre el colaborador tras una terminacion
+    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378, reemplaza
+    // a ReingresarColaborador #350), nunca sembrando el event store por fuera del API.
+    private async Task IniciarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaReingresos, PayloadReingreso(numeroIdentificacion, fechaInicio), ct);
+            $"/api/colaboradores/{ComputarStreamId(numeroIdentificacion)}/vinculaciones",
+            PayloadIniciarVinculacion(fechaInicio),
+            ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
-            "el arrange de este smoke test depende de que ReingresarColaborador funcione");
+            "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
     [Fact]
@@ -239,7 +241,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 
     // CA-3: tras un reingreso, FechaCorregida IGUAL a la FechaEfectiva de la vinculacion anterior ->
     // 409 por no-solape (el mismo dia se rechaza -- el dia de la fecha efectiva pertenece a la
-    // vinculacion que termino, misma frontera que Reingresar #350).
+    // vinculacion que termino, misma frontera que IniciarVinculacion #378).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna409_CuandoFechaCorregidaSolapaLaVinculacionAnteriorTrasUnReingreso()
@@ -252,7 +254,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 
         await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicioOriginal, ct);
         await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
-        await ReingresarColaboradorAsync(numeroIdentificacion, fechaReingreso, ct);
+        await IniciarVinculacionAsync(numeroIdentificacion, fechaReingreso, ct);
 
         var response = await _client.PostAsJsonAsync(
             RutaFechasInicio,

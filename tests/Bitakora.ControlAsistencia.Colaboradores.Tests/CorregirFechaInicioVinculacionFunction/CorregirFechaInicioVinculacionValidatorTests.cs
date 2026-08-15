@@ -1,5 +1,5 @@
 // Issue #352: validacion de forma del comando CorregirFechaInicioVinculacion en el borde (CA-6).
-// Patron de referencia: ReingresarColaboradorValidatorTests (ValidateAsync + verificacion de
+// Patron de referencia: IniciarVinculacionBodyValidatorTests (ValidateAsync + verificacion de
 // PropertyName en resultado.Errors).
 
 using AwesomeAssertions;

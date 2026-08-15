@@ -1,6 +1,6 @@
 // Issue #330: smoke tests del endpoint POST Colaboradores (registrar un colaborador bajo control
 // de asistencia -- primer comando del ciclo de vida de ColaboradorAggregateRoot, desglose
-// #348-#357). Molde: TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests -- mismo comando
+// #348-#357). Molde: TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests -- mismo comando
 // event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la unica
 // verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
 //
@@ -32,6 +32,15 @@
 // Issue #387 (CodigoColaborador URL-safe): CA-1 con caracteres unreserved no alfanumericos (. _ ~)
 // -> 202 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
 // accion reservado, MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
+//
+// Issue #378 (CA-5): la ruta paso de "Colaboradores" (PascalCase) a "colaboradores" (kebab-case
+// minusculo, MEF-ADR-0043 seccion 3) -- sin cambio de verbo ni forma. RutaRegistrar se actualiza a
+// la ruta nueva para reflejar el contrato vigente; no se agrega un assert de "la ruta vieja
+// PascalCase da 404 del host" (a diferencia de CorregirNombresSmokeTests CA-5, que si cambio de
+// verbo Y de forma): el routing HTTP de Azure Functions/ASP.NET Core hace matching de rutas
+// case-insensitive por defecto, asi que un POST a /api/Colaboradores seguiria resolviendo al mismo
+// endpoint -- afirmar 404 alli seria un test black-box incorrecto contra el comportamiento real del
+// host, no una verificacion de este cambio.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
@@ -44,7 +53,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoColaboradorRegistrado = "colaborador_registrado";
     private const string TipoEventoVinculacionIniciada = "vinculacion_iniciada";

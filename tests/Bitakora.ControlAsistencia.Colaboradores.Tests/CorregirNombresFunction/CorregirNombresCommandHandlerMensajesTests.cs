@@ -1,5 +1,5 @@
 // Issue #351: guardrail de resolucion del .resx del handler (MEF-ADR-0009), gemelo de
-// TerminarVinculacionCommandHandlerMensajesTests/ReingresarColaboradorCommandHandlerMensajesTests.
+// TerminarVinculacionCommandHandlerMensajesTests/IniciarVinculacionCommandHandlerMensajesTests.
 //
 // Por que existe: CorregirNombresCommandHandler.Mensajes devuelve ResourceManager.GetString(...)!
 // -- el "!" es supresion del compilador, no garantia de runtime. Si la CLAVE desaparece del .resx

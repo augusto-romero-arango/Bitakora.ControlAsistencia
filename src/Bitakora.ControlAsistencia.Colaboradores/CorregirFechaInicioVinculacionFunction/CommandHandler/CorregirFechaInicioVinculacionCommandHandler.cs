@@ -23,7 +23,7 @@ public partial class CorregirFechaInicioVinculacionCommandHandler
     public async Task HandleAsync(CorregirFechaInicioVinculacion command, CancellationToken ct = default)
     {
         // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
-        // ReingresarColaboradorCommandHandler/TerminarVinculacionCommandHandler.
+        // IniciarVinculacionCommandHandler/TerminarVinculacionCommandHandler.
         var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 

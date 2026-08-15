@@ -6,7 +6,7 @@
 // post-#376). El body se reduce a los 4 campos del nombre -- TipoIdentificacion/NumeroIdentificacion
 // ya no viajan alli. Cuarto comando del ciclo de vida de ColaboradorAggregateRoot y el mas simple:
 // sin reglas de estado (CA-ADR-0030) -- por eso este archivo no tiene caso 409. Molde:
-// TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests (#349/#350) -- mismo comando
+// TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests (#349/#350) -- mismo comando
 // event-sourcing puro sin consumidores downstream: sin ServiceBusFixture, la unica verificacion
 // black-box de los efectos del handler es leer mt_events via PostgresFixture.
 //

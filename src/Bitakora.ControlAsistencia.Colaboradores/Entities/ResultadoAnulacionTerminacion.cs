@@ -1,8 +1,8 @@
 namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 
 // Issue #354: resultado de ColaboradorAggregateRoot.AnularTerminacion. Gemelo de
-// ResultadoTerminacionVinculacion/ResultadoReingresoColaborador/ResultadoCorreccionFechaInicioVinculacion
-// (#349/#350/#352) -- mismo mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca
+// ResultadoTerminacionVinculacion/ResultadoInicioVinculacion/ResultadoCorreccionFechaInicioVinculacion
+// (#349/#378/#352) -- mismo mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca
 // lanza y nunca emite un evento de fallo persistido -- responde el resultado de la operacion
 // (exito o razon del rechazo) y el handler traduce la razon a InvalidOperationException con
 // mensaje .resx en el borde (MEF-ADR-0004 capa 2).

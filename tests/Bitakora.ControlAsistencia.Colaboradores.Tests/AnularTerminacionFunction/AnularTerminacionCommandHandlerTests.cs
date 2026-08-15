@@ -250,7 +250,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // CA-5: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5 /
-    // ReingresarColaboradorCommandHandlerTests CA-5).
+    // IniciarVinculacionCommandHandlerTests CA-5).
     [Fact]
     public async Task AnularTerminacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
     {

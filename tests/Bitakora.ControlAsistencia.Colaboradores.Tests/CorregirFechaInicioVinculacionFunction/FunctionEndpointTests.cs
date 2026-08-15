@@ -1,7 +1,7 @@
 // Issue #352: tests del endpoint HTTP POST Colaboradores/FechasInicio (corregir la fecha de
 // inicio de la ultima vinculacion de un colaborador). CA-ADR-0030 / MEF-ADR-0004:
 // InvalidOperationException -> 409, KeyNotFoundException -> 404, exito -> 202. Precedente:
-// ReingresarColaboradorFunction.FunctionEndpoint.
+// IniciarVinculacionFunction.FunctionEndpoint.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;

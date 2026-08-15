@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacio
 // a "CC-79543210" justamente para que la llave sea apta como segmento de URI. Su gemelo
 // CorregirNombres ya migro en el issue #377 a PUT colaboradores/{id}/nombres (MEF-ADR-0043 paso 2);
 // este endpoint lo sigue en #378.
-// CA-ADR-0030 / MEF-ADR-0004 (precedente ReingresarColaboradorFunction.FunctionEndpoint): validar
+// CA-ADR-0030 / MEF-ADR-0004 (precedente IniciarVinculacionFunction.FunctionEndpoint): validar
 // request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException -> 409
 // Conflict, KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)

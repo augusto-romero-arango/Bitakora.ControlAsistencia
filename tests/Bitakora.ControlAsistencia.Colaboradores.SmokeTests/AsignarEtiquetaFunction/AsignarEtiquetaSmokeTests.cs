@@ -2,13 +2,14 @@
 // etiqueta dinamica -- par categoria:valor libre, sin catalogo previo -- a la vinculacion vigente
 // de un colaborador). Septimo comando del ciclo de vida de ColaboradorAggregateRoot (desglose
 // #348-#357), gemelo de RetirarEtiquetaSmokeTests sobre el mismo diccionario. Molde:
-// TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests/CorregirNombresSmokeTests -- mismo
+// TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests/CorregirNombresSmokeTests -- mismo
 // comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la
 // unica verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
 //
 // Arrange: AsignarEtiqueta exige un ColaboradorAggregateRoot existente -- el arrange de cada test
-// registra el colaborador y, cuando aplica, termina su vinculacion o lo reingresa via los mismos
-// comandos que los originan (#330, #349, #350), nunca sembrando datos por fuera del API.
+// registra el colaborador y, cuando aplica, termina su vinculacion o inicia una vinculacion nueva
+// (escenario de reingreso, issue #378) via los mismos comandos que los originan (#330, #349, #378),
+// nunca sembrando datos por fuera del API.
 //
 // Contenido persistido (Etiqueta, un VO con ctor privado, #353): se verifica deserializando el
 // campo "Etiqueta" con la SERIALIZACION REAL de produccion -- Etiqueta +
@@ -50,9 +51,8 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
-    private const string RutaReingresos = "/api/Colaboradores/Reingresos";
     private const string RutaEtiquetas = "/api/Colaboradores/Etiquetas";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoEtiquetaAsignada = "etiqueta_asignada";
@@ -99,14 +99,13 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         fechaEfectiva
     };
 
-    private static object PayloadReingreso(
-        string numeroIdentificacion, string codigoColaborador, DateOnly fechaInicio) => new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            codigoColaborador,
-            fechaInicio
-        };
+    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
+    // FechaInicio.
+    private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
+    {
+        codigoColaborador,
+        fechaInicio
+    };
 
     private static object PayloadAsignacion(
         string numeroIdentificacion, string categoria, string valor,
@@ -142,18 +141,19 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-6): reingresa al colaborador tras una terminacion -- via el comando que lo
-    // origina (#350), nunca sembrando el event store por fuera del API.
-    private async Task ReingresarColaboradorAsync(
+    // Arrange comun (CA-6): inicia una vinculacion nueva sobre el colaborador tras una terminacion
+    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378, reemplaza
+    // a ReingresarColaborador #350), nunca sembrando el event store por fuera del API.
+    private async Task IniciarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaReingresos,
-            PayloadReingreso(numeroIdentificacion, NuevoCodigoColaborador(), fechaInicio),
+            $"/api/colaboradores/{ComputarStreamId(numeroIdentificacion)}/vinculaciones",
+            PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
-            "el arrange de este smoke test depende de que ReingresarColaborador funcione");
+            "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
     private Task<HttpResponseMessage> AsignarEtiquetaAsync(
@@ -338,7 +338,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que la asignacion previa al reingreso funcione");
 
         await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 6, 1), ct);
-        await ReingresarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 7, 1), ct);
+        await IniciarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 7, 1), ct);
 
         var response = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
 
