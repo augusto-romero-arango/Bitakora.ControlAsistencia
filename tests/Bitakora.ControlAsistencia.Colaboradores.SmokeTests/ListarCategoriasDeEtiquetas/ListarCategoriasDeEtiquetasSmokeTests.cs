@@ -54,6 +54,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.ListarCategoriasDeEtiquetas;
 
@@ -87,10 +88,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         string Id, string Categoria, IReadOnlyList<ValorCategoriaSmoke> Valores);
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    // Issue #387: codigo URL-safe (unreserved RFC 3986) -- corregido de "[TEST]-" (corchetes
-    // fuera del set permitido) a "TEST-" para que el arrange no falle con 400.
-    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Formato "N": hexadecimal en minusculas -- sobrevive intacto a la normalizacion del VO Etiqueta
     // (minusculas + sin tildes + trim). Lo unico que varia entre "formas" de una misma categoria

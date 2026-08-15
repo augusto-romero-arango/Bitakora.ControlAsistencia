@@ -180,4 +180,19 @@ public class ReingresarColaboradorValidatorTests
         resultado.Errors.Should().Contain(e =>
             e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
     }
+
+    // CA-3 (#387), caso borde del ancla de fin de linea: un salto de linea final tampoco es
+    // unreserved -> 400. En .NET el ancla "$" hace match tambien ANTES de un "\n" final
+    // (a diferencia de "\z"), asi que un patron anclado con "$" aceptaria "COL-002\n" en silencio
+    // -- un valor que rompe la URL igual que un espacio, y ademas habilita CRLF injection en
+    // cualquier consumidor que lo reenvie en un header o lo escriba en un log.
+    [Fact]
+    public async Task Validar_RechazaCodigoColaborador_CuandoTerminaEnSaltoDeLinea()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "COL-002\n" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
+    }
 }

@@ -35,6 +35,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.AnularTerminacionFunction;
 
@@ -59,10 +60,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
     // la que arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    // Issue #387: codigo URL-safe (unreserved RFC 3986) -- corregido de "[TEST]-" (corchetes
-    // fuera del set permitido) a "TEST-" para que el arrange no falle con 400.
-    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.

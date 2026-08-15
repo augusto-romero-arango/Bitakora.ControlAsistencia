@@ -12,13 +12,27 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 // ajeno.
 //
 // La regla aparece en dos validators (RegistrarColaboradorValidator, ReingresarColaboradorValidator)
-// -- MEF-ADR-0018 (Rule of Three): compartir la definicion unica evita que diverjan.
+// y se define en un solo lugar por exigencia del CA-4 del issue. Con dos sitios, la Rule of Three de
+// MEF-ADR-0018 toleraria la duplicacion, pero esa heuristica regula reglas del DOMINIO que pueden
+// divergir: aqui el set de caracteres es mecanica neutral (una precondicion de la URL, identica para
+// cualquier comando que reciba el codigo), que ese mismo ADR deja fuera de su alcance.
 public static partial class ValidacionesCompartidas
 {
-    [GeneratedRegex("^[A-Za-z0-9._~-]+$")]
+    // Anclas \A y \z (no ^ y $): en .NET el ancla "$" hace match tambien ANTES de un "\n" final,
+    // asi que "^...$" aceptaria "COL-001\n" -- un valor que rompe la URL igual que un espacio y que
+    // ademas habilita CRLF injection en cualquier consumidor que lo reenvie en un header o lo
+    // escriba en un log. "\z" ancla al fin real de la cadena, sin esa excepcion.
+    [GeneratedRegex(@"\A[A-Za-z0-9._~-]+\z")]
     private static partial Regex CodigoColaboradorUrlSafeRegex();
 
+    // Mensaje explicito en vez del default de FluentValidation ("is not in the correct format"):
+    // este texto viaja al cliente dentro del ValidationProblemDetails del 400 (RequestValidator), y
+    // el default no le dice al integrador cual es el formato esperado. Mismo criterio que la regla
+    // de TipoIdentificacion en estos dos validators.
     public static IRuleBuilderOptions<T, string> DebeSerCodigoColaboradorUrlSafe<T>(
         this IRuleBuilder<T, string> ruleBuilder) =>
-        ruleBuilder.Matches(CodigoColaboradorUrlSafeRegex());
+        ruleBuilder
+            .Matches(CodigoColaboradorUrlSafeRegex())
+            .WithMessage(
+                "El codigo del colaborador solo admite letras sin tilde, digitos y los caracteres - . _ ~");
 }

@@ -36,6 +36,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.RegistrarColaboradorFunction;
 
@@ -57,12 +58,6 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
     // intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con la que
     // arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    // Issue #387: el codigo debe ser URL-safe (unreserved RFC 3986: A-Z a-z 0-9 - . _ ~) -- antes
-    // de este issue el prefijo era "[TEST]-", con corchetes fuera del set permitido. Se corrige aqui
-    // (y en el resto de smoke tests del dominio que comparten este helper) para que el arrange no
-    // empiece a fallar con 400 en cuanto la nueva regla se implemente.
-    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Siempre canonico ("CC-<numero>", separador "-" desde el issue #381): TipoIdentificacion.Desde
     // nunca almacena el input crudo, solo retorna la instancia canonica de la lista cerrada (issue
@@ -295,8 +290,8 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 
     // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~) tambien produce 202 --
     // el set permitido no se limita a alfanumerico+guion, que es lo unico que ejercita el helper
-    // NuevoCodigoColaborador de este archivo ("TEST-<guid>"). Verificacion end-to-end de que el
-    // regex desplegado en dev no es mas restrictivo que el unreserved de RFC 3986 seccion 2.3.
+    // compartido NuevoCodigoColaborador ("TEST-<guid>"). Verificacion end-to-end de que el regex
+    // desplegado en dev no es mas restrictivo que el unreserved de RFC 3986 seccion 2.3.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarColaborador_Retorna202_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
