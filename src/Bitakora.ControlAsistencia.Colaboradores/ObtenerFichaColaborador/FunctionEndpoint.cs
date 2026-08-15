@@ -28,8 +28,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
 // a diferencia del listado, que es responsabilidad del issue hermano). 404 sin body cuando la ficha
 // no existe.
 //
-// CA-3 (MEF-ADR-0037 seccion 2, precedente CorregirNombresFunction.FunctionEndpoint /
-// AsignarEtiquetaFunction.FunctionEndpoint): Identificacion.Parsear es el UNICO punto de conversion
+// CA-3 (MEF-ADR-0037 seccion 2, precedente CorregirNombresFunction.FunctionEndpoint -- el unico
+// endpoint que hoy parsea un {id} de ruta; AsignarEtiquetaFunction todavia recibe la identificacion
+// en el body): Identificacion.Parsear es el UNICO punto de conversion
 // string->Identificacion -- nunca se parte el {id} de ruta a mano. Un ArgumentException (sin guion,
 // tipo fuera de la lista cerrada PILA, numero vacio tras la limpieza) se traduce aqui, y solo aqui,
 // a 400 explicito, antes de tocar Marten.

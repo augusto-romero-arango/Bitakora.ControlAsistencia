@@ -1,8 +1,19 @@
-// Issue #356: smoke tests de ObtenerFichaColaborador, GET
-// colaboradores/fichas/{tipoIdentificacion}/{numero}. Function GET read-side sobre la proyeccion
+// Issue #356 (creacion) / issue #386 (esta revision): smoke tests de ObtenerFichaColaborador, GET
+// colaboradores/fichas/{id}. Function GET read-side sobre la proyeccion
 // FichaColaborador (receta N1, MEF-ADR-0034/0035): la primera vista materializada del dominio
 // Colaboradores, consultable puntualmente por identificacion y base del flujo de reingreso (por eso
 // la consulta puntual INCLUYE no-vigentes, a diferencia de un futuro listado).
+//
+// Issue #386: {id} = Identificacion.ToString() ("CC-79543210") -- un unico segmento, la misma llave
+// que devuelve FichaColaborador.Id y la misma forma de id que ya usan los comandos del ciclo de vida
+// (#376/#377). Cierra el round-trip del cliente: el Id que la API devuelve se reusa tal cual en
+// cualquier URL, sin que el cliente lo parta jamas. El endpoint lo parsea UNA sola vez con
+// Identificacion.Parsear (punto unico de conversion, MEF-ADR-0037 seccion 2) -- de ahi el 400 de
+// CA-3 y la normalizacion de CA-4. La ruta vieja de dos segmentos
+// ({tipoIdentificacion}/{numero}) deja de existir: CA-5 lo verifica AFIRMATIVAMENTE contra el
+// entorno real (404 del host), no solo por ausencia de referencias en este archivo -- misma
+// tecnica que CorregirNombresSmokeTests (#377), porque "no la llama nadie" no distingue una ruta
+// eliminada de una que sigue viva.
 //
 // Arrange via API, nunca sembrando el event store por fuera de ella: el colaborador se crea con
 // POST Colaboradores (#330) y, cuando aplica, se termina su vinculacion con POST
@@ -15,11 +26,12 @@
 // directo en tests": si el timeout se agota es un fallo real (worker no desplegado o proyeccion sin
 // registrar en el named store), nunca un skip.
 //
-// Estos tests quedan ROJOS hasta que el deploy publique ObtenerFichaColaborador en dev: mientras la
-// revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- el caso 400
-// falla y el caso 404 pasa por la razon equivocada (mismo precedente que ObtenerTurnoVigenteSmokeTests
-// en ControlHoras). El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real se lee
-// despues del deploy.
+// Estos tests quedan ROJOS hasta que el deploy publique la ruta nueva en dev: mientras la revision
+// anterior siga corriendo, solo existe la ruta vieja de dos segmentos y el host responde 404 a todo
+// lo demas -- los casos 400 fallan y los casos 404 pasan por la razon equivocada (mismo precedente
+// que ObtenerTurnoVigenteSmokeTests en ControlHoras y que CorregirNombresSmokeTests tras el rename
+// de #377). El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real se lee despues del
+// deploy.
 //
 // Formas locales DESACOPLADAS del read model de produccion
 // (Bitakora.ControlAsistencia.ReadModels.Colaboradores.FichaColaborador/EtiquetaFicha): el smoke
@@ -75,12 +87,24 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     // ("CC-<numero>"), no un Guid nuevo por llamada.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
-    // reconstruido localmente: el smoke test no referencia el Function App (Colaboradores.Entities).
+    // Oraculo independiente de la clave de stream (MEF-ADR-0002): mismo formato que
+    // ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381), reconstruido localmente
+    // -- el smoke test no referencia el Function App (Colaboradores.Entities).
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    private static string Ruta(string tipoIdentificacion, string numero) =>
+    // El {id} que un cliente real pone en la URL (issue #386). Deliberadamente separado de
+    // ComputarStreamId, mismo criterio que CorregirNombresSmokeTests (#377): uno es la ENTRADA de la
+    // request, el otro el ORACULO del Id que la respuesta debe traer -- que hoy coincidan
+    // textualmente es justamente lo que estos tests prueban (el round-trip del cliente), no algo que
+    // puedan asumir compartiendo el mismo metodo.
+    private static string IdDeRuta(string numeroIdentificacion) =>
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
+
+    private static string Ruta(string id) => $"/api/colaboradores/fichas/{id}";
+
+    // Ruta vieja de dos segmentos (issue #356), eliminada por #386 -- solo la usa el test de CA-5.
+    private static string RutaVieja(string tipoIdentificacion, string numero) =>
         $"/api/colaboradores/fichas/{tipoIdentificacion}/{numero}";
 
     private static object PayloadRegistro(
@@ -127,6 +151,25 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
+    // Act comun de los caminos felices: reintenta el GET hasta que la proyeccion asincrona
+    // materialice la ficha (404 = el worker todavia no la aplico) y, cuando se pasa "hasta", hasta
+    // que el body ademas cumpla esa condicion (el segundo evento del stream ya aplicado). Devuelve
+    // un valor no nulo o lanza TimeoutException -- por eso ningun caller afirma NotBeNull.
+    private Task<FichaColaboradorRespuestaSmoke> EsperarFichaAsync(
+        string id, CancellationToken ct, Func<FichaColaboradorRespuestaSmoke, bool>? hasta = null) =>
+        Polling.WaitUntilAsync(async () =>
+        {
+            var response = await _client.GetAsync(Ruta(id), ct);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return null;
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var body = await response.Content.ReadFromJsonAsync<FichaColaboradorRespuestaSmoke>(
+                JsonOptions, cancellationToken: ct);
+
+            return body is not null && (hasta is null || hasta(body)) ? body : null;
+        }, Timeout);
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DebeEstarDisponible_CuandoSeConsultaHealthCheck()
@@ -153,17 +196,7 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         await RegistrarColaboradorAsync(numeroIdentificacion, fechaInicio, codigoColaborador, ct);
 
         // Act + Assert: reintentar el GET hasta que la proyeccion asincrona materialice la ficha.
-        var ruta = Ruta(TipoIdentificacionCc, numeroIdentificacion);
-        var respuesta = await Polling.WaitUntilAsync(async () =>
-        {
-            var response = await _client.GetAsync(ruta, ct);
-            if (response.StatusCode == HttpStatusCode.NotFound)
-                return null;
-
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            return await response.Content.ReadFromJsonAsync<FichaColaboradorRespuestaSmoke>(
-                JsonOptions, cancellationToken: ct);
-        }, Timeout);
+        var respuesta = await EsperarFichaAsync(IdDeRuta(numeroIdentificacion), ct);
 
         // Sin assert de NotBeNull: WaitUntilAsync devuelve un valor no nulo o lanza TimeoutException
         // ("el worker no materializo FichaColaborador dentro del timeout"), nunca null.
@@ -197,26 +230,50 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         // Act + Assert: reintentar hasta que el worker aplique TAMBIEN VinculacionTerminada -- un
         // 200 con VigenteHasta todavia nulo solo significa que la proyeccion aun no proceso el
         // segundo evento del stream.
-        var ruta = Ruta(TipoIdentificacionCc, numeroIdentificacion);
-        var respuesta = await Polling.WaitUntilAsync(async () =>
-        {
-            var response = await _client.GetAsync(ruta, ct);
-            if (response.StatusCode == HttpStatusCode.NotFound)
-                return null;
-
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var body = await response.Content.ReadFromJsonAsync<FichaColaboradorRespuestaSmoke>(
-                JsonOptions, cancellationToken: ct);
-
-            return body?.VigenteHasta is not null ? body : null;
-        }, Timeout);
+        var respuesta = await EsperarFichaAsync(
+            IdDeRuta(numeroIdentificacion), ct, hasta: ficha => ficha.VigenteHasta is not null);
 
         respuesta.Id.Should().Be(ComputarStreamId(numeroIdentificacion));
         respuesta.VigenteHasta.Should().Be(fechaEfectiva);
     }
 
-    // CA-6: ficha inexistente -> 404 sin body -- distingue el NotFoundResult() del endpoint de un
-    // 404 con payload de error, y de la pagina de error del host si la ruta no existiera.
+    // CA-4 (issue #386): el {id} en minusculas resuelve la MISMA ficha que su forma canonica --
+    // Identificacion.Parsear normaliza tipo (TipoIdentificacion.Desde: trim + MAYUSCULAS) y numero
+    // (Crear: limpieza + MAYUSCULAS) antes de componer la llave, asi que el cliente nunca tiene que
+    // preocuparse por el casing del id que la propia API le devolvio. Es la garantia que un route
+    // constraint NO daria (MEF-ADR-0037 seccion 2: los constraints no normalizan casing), y la
+    // razon por la que este endpoint parsea en vez de reenviar el segmento crudo a LoadAsync: sin
+    // el parseo, la comparacion de igualdad de texto de Postgres (collation deterministica) haria
+    // que "cc-..." simplemente no encuentre nada.
+    //
+    // Se espera primero con el id canonico (prueba que la ficha se materializo) y recien despues se
+    // consulta en minusculas con un unico GET: asi un fallo distingue "el worker no proyecto" de
+    // "la normalizacion se rompio", en vez de dar un timeout ambiguo.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_Retorna200ConLaMismaFicha_CuandoElIdDeRutaViajaEnMinusculas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var codigoColaborador = NuevoCodigoColaborador();
+
+        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 3, 10), codigoColaborador, ct);
+        await EsperarFichaAsync(IdDeRuta(numeroIdentificacion), ct);
+
+        var response = await _client.GetAsync(
+            Ruta(IdDeRuta(numeroIdentificacion).ToLowerInvariant()), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuesta = await response.Content.ReadFromJsonAsync<FichaColaboradorRespuestaSmoke>(
+            JsonOptions, cancellationToken: ct);
+
+        respuesta!.Id.Should().Be(ComputarStreamId(numeroIdentificacion),
+            "el id se normaliza al canonico antes de tocar Marten, y la respuesta siempre trae esa forma");
+        respuesta.CodigoColaborador.Should().Be(codigoColaborador);
+    }
+
+    // CA-2/CA-6: ficha inexistente -> 404 sin body -- distingue el NotFoundResult() del endpoint de
+    // un 404 con payload de error, y de la pagina de error del host si la ruta no existiera.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaColaborador_Retorna404SinBody_CuandoLaFichaNoExiste()
@@ -226,24 +283,80 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         // Numero nunca registrado por ningun test -- no puede tener ficha materializada.
         var numeroIdentificacion = NuevoNumeroIdentificacion();
 
-        var response = await _client.GetAsync(Ruta(TipoIdentificacionCc, numeroIdentificacion), ct);
+        var response = await _client.GetAsync(Ruta(IdDeRuta(numeroIdentificacion)), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
     }
 
-    // CA-6: tipoIdentificacion fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) -> 400 --
-    // TipoIdentificacion.Desde rechaza y el endpoint traduce a BadRequest (borde HTTP tipado,
-    // MEF-ADR-0037).
+    // CA-3: tipo de identificacion del {id} fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) ->
+    // 400 -- TipoIdentificacion.Desde rechaza dentro de Identificacion.Parsear y el endpoint lo
+    // traduce a BadRequest en su unico punto de traduccion (borde HTTP tipado, MEF-ADR-0037).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoTipoIdentificacionNoEsReconocido()
     {
         var ct = TestContext.Current.CancellationToken;
-        var numeroIdentificacion = NuevoNumeroIdentificacion();
 
-        var response = await _client.GetAsync(Ruta("XX", numeroIdentificacion), ct);
+        var response = await _client.GetAsync(Ruta($"XX-{NuevoNumeroIdentificacion()}"), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3: {id} sin guion -> 400. Contra el entorno real importa distinguirlo del 404 del host: el
+    // id llega a la Function (la ruta existe) y es el parseo quien lo rechaza.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_Retorna400_CuandoElIdDeRutaNoTraeGuion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.GetAsync(
+            Ruta($"{TipoIdentificacionCc}{NuevoNumeroIdentificacion()}"), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3: numero vacio tras el guion del {id} -> 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_Retorna400_CuandoElNumeroDelIdDeRutaQuedaVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.GetAsync(Ruta($"{TipoIdentificacionCc}-"), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-5: la ruta vieja de dos segmentos deja de existir. Es la unica verificacion AFIRMATIVA de
+    // ese criterio -- el resto de la suite lo cubre solo por ausencia de referencias, que no
+    // distingue "la ruta se elimino" de "sigue viva y nadie la llama". El rename esta pactado en el
+    // issue (MEF-ADR-0043 seccion 7, por analogia): si alguien reintrodujera la ruta vieja "por
+    // compatibilidad", este test lo delata contra el entorno real, que es donde el breaking change
+    // se paga.
+    //
+    // El arrange (registrar + esperar la ficha) es lo que hace la verificacion NO vacua: se llama la
+    // ruta vieja con una identificacion que SI tiene ficha materializada, asi que un 404 solo puede
+    // significar que ninguna Function enruta esos cuatro segmentos. Sin el arrange, la ruta vieja
+    // seguiria respondiendo 404 aunque estuviera viva (ficha inexistente) y el test pasaria por la
+    // razon equivocada.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_Retorna404DelHost_CuandoSeLlamaLaRutaViejaDeDosSegmentos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+
+        await RegistrarColaboradorAsync(
+            numeroIdentificacion, new DateOnly(2026, 4, 5), NuevoCodigoColaborador(), ct);
+        await EsperarFichaAsync(IdDeRuta(numeroIdentificacion), ct);
+
+        var response = await _client.GetAsync(
+            RutaVieja(TipoIdentificacionCc, numeroIdentificacion), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound,
+            "colaboradores/fichas/{tipoIdentificacion}/{numero} se reemplazo por colaboradores/fichas/{id} (issue #386), " +
+            "y esta identificacion SI tiene ficha materializada -- si la ruta vieja siguiera viva responderia 200");
     }
 }

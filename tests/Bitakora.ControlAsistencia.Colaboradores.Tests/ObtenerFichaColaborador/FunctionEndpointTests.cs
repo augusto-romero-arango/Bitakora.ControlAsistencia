@@ -20,8 +20,11 @@
 // IQuerySession de Marten no se fake-ean a mano (violaria "NUNCA NSubstitute" sin aportar cobertura
 // real) y este dominio no usa Testcontainers para unit tests (ADR de smoke tests del proyecto).
 //
-// Fase roja (test-writer): Run() hoy SOLO lanza NotImplementedException (stub minimo de
-// compilacion, ver FunctionEndpoint.cs) -- ninguno de estos tests puede pasar todavia.
+// El 400 se verifica como BadRequestObjectResult CON MENSAJE, no solo por su status: MEF-ADR-0037
+// seccion 2 (y la documentacion oficial de ASP.NET Core que ese ADR cita, "Invalid input should
+// produce a 400 Bad Request with an appropriate error message") proscribe el BadRequestResult
+// pelado -- deja al cliente sin saber que componente de la ruta se rechazo. Sin esta asercion,
+// "simplificar" el endpoint a un BadRequestResult pasaria estos tests en verde.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
@@ -36,36 +39,41 @@ public class FunctionEndpointTests
     // ANTES de que el endpoint toque Marten (ver comentario de archivo).
     private static FunctionEndpoint Endpoint() => new(store: null!, tenantResolver: null!);
 
-    private static HttpRequest FakeHttpRequest()
-    {
-        var context = new DefaultHttpContext();
-        return context.Request;
-    }
+    private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
+
+    private static Task<IActionResult> ObtenerAsync(string id) =>
+        Endpoint().Run(FakeHttpRequest(), id, CancellationToken.None);
+
+    // El 400 debe llevar mensaje (ver cabecera): se afirma el tipo Y que el cuerpo trae texto.
+    private static void DebeSer400ConMensaje(IActionResult resultado) =>
+        resultado.Should().BeOfType<BadRequestObjectResult>()
+            .Which.Value.Should().BeOfType<string>()
+            .Which.Should().NotBeNullOrWhiteSpace();
 
     // CA-3: id de ruta sin guion -> 400, sin llegar a tocar Marten.
     [Fact]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
-        var result = await Endpoint().Run(FakeHttpRequest(), "CC79543210", CancellationToken.None);
+        var resultado = await ObtenerAsync("CC79543210");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        DebeSer400ConMensaje(resultado);
     }
 
     // CA-3: tipo de identificacion fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
-        var result = await Endpoint().Run(FakeHttpRequest(), "XX-79543210", CancellationToken.None);
+        var resultado = await ObtenerAsync("XX-79543210");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        DebeSer400ConMensaje(resultado);
     }
 
     // CA-3: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoElNumeroDeLaIdentificacionQuedaVacio()
     {
-        var result = await Endpoint().Run(FakeHttpRequest(), "CC-", CancellationToken.None);
+        var resultado = await ObtenerAsync("CC-");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        DebeSer400ConMensaje(resultado);
     }
 }
