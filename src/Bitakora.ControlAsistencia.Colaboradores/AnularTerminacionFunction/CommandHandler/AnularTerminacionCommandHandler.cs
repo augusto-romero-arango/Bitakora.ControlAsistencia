@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction.CommandHandler;
@@ -13,8 +15,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction.Com
 // ResultadoAnulacionTerminacion.CodigoNoCorresponde a
 // InvalidOperationException(Mensajes.CodigoNoCorresponde) (-> 409), evaluada ANTES que
 // VinculacionAbierta.
-// STUB (fase roja, issue #379): el cuerpo completo queda para el implementer -- este agente nunca
-// escribe implementacion real.
 public partial class AnularTerminacionCommandHandler : ICommandHandlerAsync<AnularTerminacion>
 {
     private readonly IEventStore _eventStore;
@@ -22,6 +22,25 @@ public partial class AnularTerminacionCommandHandler : ICommandHandlerAsync<Anul
     public AnularTerminacionCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(AnularTerminacion command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(AnularTerminacion command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // TerminarVinculacionCommandHandler/IniciarVinculacionCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        var resultado = colaborador.AnularTerminacion(command.Codigo);
+        switch (resultado)
+        {
+            case ResultadoAnulacionTerminacion.CodigoNoCorresponde:
+                throw new InvalidOperationException(Mensajes.CodigoNoCorresponde);
+            case ResultadoAnulacionTerminacion.VinculacionAbierta:
+                throw new InvalidOperationException(Mensajes.VinculacionAbierta);
+        }
+    }
 }

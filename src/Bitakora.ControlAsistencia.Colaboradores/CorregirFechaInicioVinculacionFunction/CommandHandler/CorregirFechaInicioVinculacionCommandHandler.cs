@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
+using Bitakora.ControlAsistencia.Colaboradores.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction.CommandHandler;
@@ -15,8 +17,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacio
 // nuevo caso ResultadoCorreccionFechaInicioVinculacion.CodigoNoCorresponde a
 // InvalidOperationException(Mensajes.CodigoNoCorresponde) (-> 409), evaluada ANTES que SinCambios
 // y las demas reglas.
-// STUB (fase roja, issue #379): el cuerpo completo queda para el implementer -- este agente nunca
-// escribe implementacion real.
 public partial class CorregirFechaInicioVinculacionCommandHandler
     : ICommandHandlerAsync<CorregirFechaInicioVinculacion>
 {
@@ -25,6 +25,27 @@ public partial class CorregirFechaInicioVinculacionCommandHandler
     public CorregirFechaInicioVinculacionCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(CorregirFechaInicioVinculacion command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(CorregirFechaInicioVinculacion command, CancellationToken ct = default)
+    {
+        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
+        // TerminarVinculacionCommandHandler/IniciarVinculacionCommandHandler.
+        var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
+        var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
+
+        var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
+        var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
+        if (colaborador is null)
+            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+
+        var resultado = colaborador.CorregirFechaInicio(command.Codigo, command.FechaCorregida);
+        switch (resultado)
+        {
+            case ResultadoCorreccionFechaInicioVinculacion.CodigoNoCorresponde:
+                throw new InvalidOperationException(Mensajes.CodigoNoCorresponde);
+            case ResultadoCorreccionFechaInicioVinculacion.FechaPosteriorATerminacionPropia:
+                throw new InvalidOperationException(Mensajes.FechaPosteriorATerminacionPropia);
+            case ResultadoCorreccionFechaInicioVinculacion.FechaSolapaVinculacionAnterior:
+                throw new InvalidOperationException(Mensajes.FechaSolapaVinculacionAnterior);
+        }
+    }
 }
