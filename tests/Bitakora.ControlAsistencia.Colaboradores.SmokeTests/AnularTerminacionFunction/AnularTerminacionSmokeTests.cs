@@ -130,14 +130,27 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         return codigo;
     }
 
+    // La terminacion aparece en este archivo con DOS roles distintos, de ahi el par de metodos: como
+    // arrange (cerrar la vinculacion antes de anularla) y como ACT del CA-2 (volver a terminar tras
+    // anular, que es la claim de negocio bajo prueba). Solo el primero lleva la guardia de arrange:
+    // el segundo tiene su propio assert semantico, que se perderia si el helper cortara antes.
+    private static string RutaTerminar(string id, string codigo) =>
+        $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar";
+
+    private Task<HttpResponseMessage> PostTerminarAsync(
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct) =>
+        _client.PostAsJsonAsync(RutaTerminar(id, codigo), new { fechaEfectiva }, ct);
+
     // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
     // nunca sembrando el event store por fuera del API.
-    private Task<HttpResponseMessage> TerminarVinculacionAsync(
-        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct) =>
-        _client.PostAsJsonAsync(
-            $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
-            new { fechaEfectiva },
-            ct);
+    private async Task TerminarVinculacionAsync(
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
+    {
+        var response = await PostTerminarAsync(id, codigo, fechaEfectiva, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que TerminarVinculacion funcione");
+    }
 
     // Arrange comun (CA-4): inicia una vinculacion nueva sobre el colaborador tras una terminacion
     // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378), nunca
@@ -256,7 +269,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         anulacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que AnularTerminacion funcione");
 
-        var response = await TerminarVinculacionAsync(id, codigo, fechaEfectivaCorregida, ct);
+        var response = await PostTerminarAsync(id, codigo, fechaEfectivaCorregida, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "tras anular, la vinculacion deberia quedar abierta y aceptar una nueva terminacion con el mismo codigo");

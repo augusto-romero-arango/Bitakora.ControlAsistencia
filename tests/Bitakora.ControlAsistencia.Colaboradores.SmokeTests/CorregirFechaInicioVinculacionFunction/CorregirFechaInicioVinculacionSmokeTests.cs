@@ -127,12 +127,17 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 
     // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
     // nunca sembrando el event store por fuera del API.
-    private Task<HttpResponseMessage> TerminarVinculacionAsync(
-        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct) =>
-        _client.PostAsJsonAsync(
+    private async Task TerminarVinculacionAsync(
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
+    {
+        var response = await _client.PostAsJsonAsync(
             $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
             new { fechaEfectiva },
             ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que TerminarVinculacion funcione");
+    }
 
     // Arrange comun (CA-3): inicia una vinculacion nueva sobre el colaborador tras una terminacion
     // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378), nunca

@@ -159,12 +159,17 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
     // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
     // nunca sembrando el event store por fuera del API. Issue #379: la ruta gano el {codigo}
     // -- ya no es "/api/Colaboradores/Terminaciones" con identificacion en el body.
-    private Task<HttpResponseMessage> TerminarVinculacionAsync(
-        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct) =>
-        _client.PostAsJsonAsync(
+    private async Task TerminarVinculacionAsync(
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
+    {
+        var response = await _client.PostAsJsonAsync(
             $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
             new { fechaEfectiva },
             ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que TerminarVinculacion funcione");
+    }
 
     private Task<HttpResponseMessage> CorregirNombresAsync(
         string id, string primerNombre, string? segundoNombre, string primerApellido, string? segundoApellido,

@@ -1,5 +1,5 @@
-using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Cosmos.MultiTenancy;
 using Marten;
@@ -43,16 +43,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         string id,
         CancellationToken ct)
     {
-        Identificacion identificacion;
-        try
-        {
-            identificacion = Identificacion.Parsear(id);
-        }
-        catch (ArgumentException)
-        {
-            return new BadRequestObjectResult(
-                "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
-        }
+        if (!IdentificacionDeRuta.TryParsear(id, out var identificacion, out var errorDeId))
+            return errorDeId;
 
         var streamKey = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
 

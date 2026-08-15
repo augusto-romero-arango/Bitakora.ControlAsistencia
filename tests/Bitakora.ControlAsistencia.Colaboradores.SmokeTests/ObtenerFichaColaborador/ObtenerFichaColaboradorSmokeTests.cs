@@ -135,12 +135,17 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     // que la origina (#349/#379), nunca sembrando el event store por fuera del API. Issue #379: la
     // ruta gano el {codigo} -- ya no es "/api/Colaboradores/Terminaciones" con identificacion en el
     // body.
-    private Task<HttpResponseMessage> TerminarVinculacionAsync(
-        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct) =>
-        _client.PostAsJsonAsync(
+    private async Task TerminarVinculacionAsync(
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
+    {
+        var response = await _client.PostAsJsonAsync(
             $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
             new { fechaEfectiva },
             ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que TerminarVinculacion funcione");
+    }
 
     // Act comun de los caminos felices: reintenta el GET hasta que la proyeccion asincrona
     // materialice la ficha (404 = el worker todavia no la aplico) y, cuando se pasa "hasta", hasta
