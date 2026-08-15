@@ -118,8 +118,13 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
-    // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
-    // stream, sin reloj (decision de refinamiento):
+    // evento de fallo persistido. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro
+    // codigo -- el {codigo} de la ruta HTTP, comparado contra _codigoVinculacionVigente ANTES de
+    // evaluar las demas reglas (salvaguarda tipo concurrencia optimista: rechaza actuar sobre la
+    // vinculacion equivocada tras un reingreso no visto por el cliente). Tres razones de rechazo
+    // evaluables solo con la historia del stream, sin reloj (decision de refinamiento):
+    //   - CodigoNoCorresponde (PRIMERA, #379): codigo != _codigoVinculacionVigente (comparacion
+    //     exacta, case-sensitive: #387 preserva el case del codigo).
     //   - YaTerminada: _fechaTerminacionVinculacionVigente ya tiene valor (incluye un preaviso
     //     cuya fecha aun no llego -- "ya terminada" es "tiene terminacion registrada", no "la
     //     fecha ya paso").
@@ -129,20 +134,11 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Exito: appendea VinculacionTerminada a _uncommittedEvents y lo aplica.
     // internal, como Registrar y como los metodos de comando de los demas aggregates del repo: el
     // unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
-    internal ResultadoTerminacionVinculacion TerminarVinculacion(DateOnly fechaEfectiva)
-    {
-        if (_fechaTerminacionVinculacionVigente is not null)
-            return ResultadoTerminacionVinculacion.YaTerminada;
-
-        if (fechaEfectiva < _fechaInicioVinculacionVigente)
-            return ResultadoTerminacionVinculacion.FechaAnteriorAInicio;
-
-        var evento = new VinculacionTerminada(fechaEfectiva);
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
-
-        return ResultadoTerminacionVinculacion.Exitosa;
-    }
+    // STUB de la fase roja del pipeline TDD (test-writer): la logica real (comparacion de codigo +
+    // las dos reglas ya existentes) la reimplementa el implementer en la fase verde -- este agente
+    // nunca escribe implementacion real.
+    internal ResultadoTerminacionVinculacion TerminarVinculacion(string codigo, DateOnly fechaEfectiva) =>
+        throw new NotImplementedException();
 
     // Issue #378 (MEF-ADR-0043 paso 1, absorbe #350): inicia una vinculacion nueva sobre un
     // colaborador EXISTENTE -- create disfrazado, verificado contra la historia del stream: emite
@@ -199,9 +195,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
 
     // Issue #352: mecanismo combinado (CA-ADR-0030) -- "declinar con resultado" para las dos
     // reglas de estado y "declinar en silencio" (precedente CorregirNombres #351) para la
-    // idempotencia. Tres reglas evaluables solo con la historia del stream, sin reloj (decision de
-    // refinamiento 2026-08-11):
-    //   - SinCambios (idempotencia, se evalua PRIMERO): fechaCorregida == _fechaInicioVinculacionVigente
+    // idempotencia. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro codigo -- el
+    // {codigo} de la ruta HTTP, comparado contra _codigoVinculacionVigente ANTES de evaluar
+    // cualquier otra regla, INCLUYENDO la idempotencia (SinCambios): un comando dirigido a la
+    // vinculacion equivocada no debe filtrar informacion sobre el estado de la vigente, ni
+    // siquiera "no habia nada que corregir". Cuatro reglas evaluables solo con la historia del
+    // stream, sin reloj (decision de refinamiento 2026-08-11):
+    //   - CodigoNoCorresponde (PRIMERA, #379): codigo != _codigoVinculacionVigente (comparacion
+    //     exacta, case-sensitive: #387 preserva el case del codigo).
+    //   - SinCambios (idempotencia, segunda): fechaCorregida == _fechaInicioVinculacionVigente
     //     -> ningun evento, sin excepcion (patron #351: la idempotencia no consulta las demas reglas).
     //   - FechaPosteriorATerminacionPropia: la ULTIMA vinculacion tiene terminacion registrada
     //     (_fechaTerminacionVinculacionVigente is not null) y fechaCorregida >
@@ -215,30 +217,21 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/
     // CorregirNombres -- el unico llamador es el handler del mismo ensamblado (los tests lo
     // alcanzan via InternalsVisibleTo).
-    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida)
-    {
-        if (fechaCorregida == _fechaInicioVinculacionVigente)
-            return ResultadoCorreccionFechaInicioVinculacion.SinCambios;
-
-        if (_fechaTerminacionVinculacionVigente is not null &&
-            fechaCorregida > _fechaTerminacionVinculacionVigente.Value)
-            return ResultadoCorreccionFechaInicioVinculacion.FechaPosteriorATerminacionPropia;
-
-        if (_fechaTerminacionVinculacionAnterior is not null &&
-            fechaCorregida <= _fechaTerminacionVinculacionAnterior.Value)
-            return ResultadoCorreccionFechaInicioVinculacion.FechaSolapaVinculacionAnterior;
-
-        var evento = new FechaInicioVinculacionCorregida(fechaCorregida);
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
-
-        return ResultadoCorreccionFechaInicioVinculacion.Exitosa;
-    }
+    // STUB de la fase roja del pipeline TDD (test-writer): la logica real (comparacion de codigo +
+    // las tres reglas ya existentes) la reimplementa el implementer en la fase verde -- este
+    // agente nunca escribe implementacion real.
+    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(string codigo, DateOnly fechaCorregida) =>
+        throw new NotImplementedException();
 
     // Issue #354: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
-    // evento de fallo persistido. Unica regla, evaluable solo con la historia del stream, sin
-    // reloj (decision de refinamiento 2026-08-11 -- el arrepentimiento del preaviso y la fecha de
-    // terminacion errada comparten esta misma solucion):
+    // evento de fallo persistido. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro
+    // codigo -- el {codigo} de la ruta HTTP, comparado contra _codigoVinculacionVigente ANTES de
+    // evaluar la unica regla de estado (salvaguarda tipo concurrencia optimista). Dos razones de
+    // rechazo evaluables solo con la historia del stream, sin reloj (decision de refinamiento
+    // 2026-08-11 -- el arrepentimiento del preaviso y la fecha de terminacion errada comparten
+    // esta misma solucion):
+    //   - CodigoNoCorresponde (PRIMERA, #379): codigo != _codigoVinculacionVigente (comparacion
+    //     exacta, case-sensitive: #387 preserva el case del codigo).
     //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null -- cubre tres casos que
     //     el handler no distingue entre si (recien registrada, reingresada, o ya anulada antes,
     //     CA-3/CA-4): tras un reingreso la terminacion de la vinculacion ANTERIOR queda congelada
@@ -248,17 +241,11 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/
     // CorregirNombres/CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado
     // (los tests lo alcanzan via InternalsVisibleTo).
-    internal ResultadoAnulacionTerminacion AnularTerminacion()
-    {
-        if (_fechaTerminacionVinculacionVigente is null)
-            return ResultadoAnulacionTerminacion.VinculacionAbierta;
-
-        var evento = new TerminacionAnulada();
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
-
-        return ResultadoAnulacionTerminacion.Exitosa;
-    }
+    // STUB de la fase roja del pipeline TDD (test-writer): la logica real (comparacion de codigo +
+    // la regla ya existente) la reimplementa el implementer en la fase verde -- este agente nunca
+    // escribe implementacion real.
+    internal ResultadoAnulacionTerminacion AnularTerminacion(string codigo) =>
+        throw new NotImplementedException();
 
     // Issue #355: mecanismo combinado (CA-ADR-0030) -- "declinar con resultado" para la regla de
     // apertura estricta (decision #1 del issue: la ULTIMA vinculacion no puede tener terminacion

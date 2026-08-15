@@ -23,5 +23,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerMensajesTests
             .Should().NotBeNullOrWhiteSpace();
         CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior
             .Should().NotBeNullOrWhiteSpace();
+        CorregirFechaInicioVinculacionCommandHandler.Mensajes.CodigoNoCorresponde
+            .Should().NotBeNullOrWhiteSpace();
     }
 }

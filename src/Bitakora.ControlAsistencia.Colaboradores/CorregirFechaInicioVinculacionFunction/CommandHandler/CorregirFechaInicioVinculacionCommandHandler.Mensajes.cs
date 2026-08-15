@@ -20,5 +20,10 @@ public partial class CorregirFechaInicioVinculacionCommandHandler
 
         public static string FechaSolapaVinculacionAnterior =>
             ResourceManager.GetString(nameof(FechaSolapaVinculacionAnterior))!;
+
+        // Issue #379 (MEF-ADR-0043 paso 4, CA-5): el {codigo} de la ruta no corresponde al codigo
+        // de la vinculacion vigente -- evaluada PRIMERA por el aggregate.
+        public static string CodigoNoCorresponde =>
+            ResourceManager.GetString(nameof(CodigoNoCorresponde))!;
     }
 }
