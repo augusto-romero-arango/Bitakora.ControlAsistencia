@@ -5,8 +5,9 @@
 // materializada FichaColaborador via (a') session.Query<FichaColaborador>().
 //
 // Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
-// POST Colaboradores (#330), se etiqueta con POST Colaboradores/Etiquetas (#355) y se termina con
-// POST colaboradores/{id}/vinculaciones/{codigo}:terminar (#349/#379) -- los mismos comandos que la
+// POST Colaboradores (#330), se etiqueta con PUT colaboradores/{id}/etiquetas/{categoria} (#355,
+// migrado de POST Colaboradores/Etiquetas a esta ruta por el issue #376) y se termina con POST
+// colaboradores/{id}/vinculaciones/{codigo}:terminar (#349/#379) -- los mismos comandos que la
 // proyeccion consume.
 //
 // Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza FichaColaborador
@@ -49,7 +50,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
 
     private const string RutaListado = "/api/colaboradores/fichas";
     private const string RutaRegistrar = "/api/Colaboradores";
-    private const string RutaEtiquetas = "/api/Colaboradores/Etiquetas";
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private static readonly HttpMethod MetodoQuery = new("QUERY");
@@ -90,6 +90,11 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
     // Function App.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
+
+    // Ruta migrada por el issue #376 (mismo template que Asignar/RetirarEtiquetaSmokeTests): la
+    // categoria viaja cruda en la URL (puede traer tildes) y se URL-encodea al construir la ruta.
+    private static string RutaEtiqueta(string id, string categoria) =>
+        $"/api/colaboradores/{id}/etiquetas/{Uri.EscapeDataString(categoria)}";
 
     // Filtro con Cursor explicito y sin etiquetas -- el mecanismo de aislamiento (1) del encabezado:
     // posiciona el listado exactamente en cursorNombre (con cursorId vacio, que ordena antes que
@@ -151,17 +156,13 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-2): asigna una etiqueta dinamica -- via el comando que la origina (#355).
+    // Arrange comun (CA-2): asigna una etiqueta dinamica -- via el comando que la origina (#355),
+    // migrado a PUT colaboradores/{id}/etiquetas/{categoria} por el issue #376.
     private async Task AsignarEtiquetaAsync(
         string numeroIdentificacion, string categoria, string valor, CancellationToken ct)
     {
-        var response = await _client.PostAsJsonAsync(RutaEtiquetas, new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            categoria,
-            valor
-        }, ct);
+        var id = ComputarStreamId(numeroIdentificacion);
+        var response = await _client.PutAsJsonAsync(RutaEtiqueta(id, categoria), new { valor }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que AsignarEtiqueta funcione");

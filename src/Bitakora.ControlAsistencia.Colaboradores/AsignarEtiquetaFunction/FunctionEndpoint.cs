@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -6,31 +7,67 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 
-// Issue #355: endpoint HTTP POST para asignar (o sobrescribir) una etiqueta dinamica a la
-// vinculacion vigente de un colaborador. MEF-ADR-0006: [Function("AsignarEtiqueta")]; carpeta CON
-// sufijo "Function" -- mismo criterio que los demas comandos del ciclo de vida: el record del
-// comando es homonimo del feature folder.
-// Route = "Colaboradores/Etiquetas": identificacion en el body, decision vigente hasta #378 (rutas
-// orientadas a recurso): el issue #381 cambio la representacion a "CC-79543210" justamente para que
-// la llave sea apta como segmento de URI.
-// CA-ADR-0030 / MEF-ADR-0004 (precedente AnularTerminacionFunction.FunctionEndpoint): validar
-// request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException -> 409
-// Conflict, KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
+// Issue #376 (MEF-ADR-0043 paso 2): endpoint HTTP PUT para asignar (o sobrescribir por completo)
+// la etiqueta de una categoria -- reemplazo del VO atomico Etiqueta, direccionable por categoria.
+// MEF-ADR-0006: [Function("AsignarEtiqueta")]; carpeta CON sufijo "Function" -- mismo criterio que
+// los demas comandos del ciclo de vida.
+// Route = "colaboradores/{id}/etiquetas/{categoria}" (kebab-case minusculo, MEF-ADR-0043 seccion 3):
+// {id} es Identificacion.ToString() ("CC-79543210", issue #381) -- se parsea UNA vez con
+// Identificacion.Parsear (unico punto de conversion string->Identificacion, MEF-ADR-0037 seccion 2)
+// y un ArgumentException se traduce a 400 explicito, mismo mecanismo que
+// ObtenerFichaColaborador.FunctionEndpoint. {categoria} viaja crudo (sin normalizar en el endpoint
+// -- Etiqueta.Crear normaliza internamente, Tell-don't-Ask, mismo criterio que el resto del ciclo
+// de vida). El body se redujo a { "valor": "..." } (AsignarEtiquetaBody); el endpoint compone el
+// comando interno AsignarEtiqueta (que conserva sus 4 campos primitivos, MEF-ADR-0039 decision 6)
+// a partir de {id} + {categoria} + Valor.
+// CA-ADR-0030 / MEF-ADR-0004 (precedente AnularTerminacionFunction.FunctionEndpoint; MEF-ADR-0043
+// seccion 2 paso 2: el 409 de un PUT es una instancia mas de "declinar con resultado", RFC 9110
+// §9.3.4): validar id de ruta (400) -> validar categoria de ruta (400) -> validar body (400 via
+// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict,
+// KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarEtiqueta")]
     public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Colaboradores/Etiquetas")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "colaboradores/{id}/etiquetas/{categoria}")]
         HttpRequest req,
+        string id,
+        string categoria,
         CancellationToken ct)
     {
-        var (comando, error) = await requestValidator.ValidarAsync<AsignarEtiqueta>(req, ct);
+        Identificacion identificacion;
+        try
+        {
+            identificacion = Identificacion.Parsear(id);
+        }
+        catch (ArgumentException)
+        {
+            return new BadRequestObjectResult(
+                "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
+        }
+
+        // MEF-ADR-0004 capa 1 (forma en el borde -> 400): {categoria} llega cruda de la ruta y no la
+        // cubre ningun validator -- el body reducido solo trae Valor. Un segmento en blanco ("%20")
+        // SI hace match con la plantilla y, sin esta guarda, llegaria hasta Etiqueta.Crear, cuyo
+        // ArgumentException nadie traduce (500 en vez de 400). Es la regla NotEmpty que
+        // AsignarEtiquetaValidator tenia sobre Categoria, reubicada al unico sitio que ve la ruta;
+        // la normalizacion sigue viviendo en el VO (Tell-don't-Ask, MEF-ADR-0012).
+        if (string.IsNullOrWhiteSpace(categoria))
+            return new BadRequestObjectResult("La categoria de la ruta no puede estar en blanco");
+
+        var (body, error) = await requestValidator.ValidarAsync<AsignarEtiquetaBody>(req, ct);
         if (error is not null)
             return error;
 
+        var comando = new AsignarEtiqueta(
+            identificacion.Tipo.ToString(),
+            identificacion.Numero,
+            categoria,
+            body!.Valor);
+
         try
         {
-            await commandRouter.InvokeAsync(comando!, ct);
+            await commandRouter.InvokeAsync(comando, ct);
         }
         catch (InvalidOperationException ex)
         {

@@ -153,4 +153,88 @@ public class IdentificacionTests
 
         identificacion.Numero.Should().Be("AB123");
     }
+
+    // ---------- Issue #376 (CA-5): Parsear -- inverso de ToString() ----------
+
+    [Fact]
+    public void Parsear_ReconstruyeLaIdentificacion_CuandoElValorTieneFormatoValido()
+    {
+        var identificacion = Identificacion.Parsear("CC-79543210");
+
+        identificacion.Tipo.Should().BeSameAs(TipoIdentificacion.CC);
+        identificacion.Numero.Should().Be("79543210");
+    }
+
+    // CA-5: round-trip explicito -- Parsear(id.ToString()) es igual por valor al id original. El
+    // oraculo (Identificacion.Crear con los mismos componentes) se arma a mano, no se deriva de
+    // ToString()/Parsear (MEF-ADR-0002, oraculo independiente).
+    [Fact]
+    public void Parsear_CumpleRoundTrip_ConElToStringDeLaMismaIdentificacion()
+    {
+        var original = Identificacion.Crear(TipoIdentificacion.PA, "AB1234567");
+
+        var reconstruida = Identificacion.Parsear(original.ToString());
+
+        reconstruida.Should().Be(original);
+    }
+
+    [Fact]
+    public void Parsear_LanzaArgumentException_CuandoElValorNoTraeGuion()
+    {
+        var act = () => Identificacion.Parsear("CC79543210");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.FormatoInvalido}*");
+    }
+
+    [Fact]
+    public void Parsear_LanzaArgumentException_CuandoElValorEsVacio()
+    {
+        var act = () => Identificacion.Parsear(string.Empty);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.FormatoInvalido}*");
+    }
+
+    [Fact]
+    public void Parsear_LanzaArgumentException_CuandoElValorEsNull()
+    {
+        var act = () => Identificacion.Parsear(null!);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.FormatoInvalido}*");
+    }
+
+    // El tipo antes del primer guion no esta en la lista cerrada PILA -- TipoIdentificacion.Desde
+    // rechaza con su propio mensaje, que Parsear deja propagar sin envolver.
+    [Fact]
+    public void Parsear_LanzaArgumentException_CuandoElTipoNoEstaEnLaListaCerrada()
+    {
+        var act = () => Identificacion.Parsear("XX-79543210");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
+    }
+
+    // El numero queda vacio tras la limpieza (issue #381) -- Identificacion.Crear rechaza con su
+    // propio mensaje, que Parsear deja propagar sin envolver.
+    [Fact]
+    public void Parsear_LanzaArgumentException_CuandoElNumeroQuedaVacioTrasElGuion()
+    {
+        var act = () => Identificacion.Parsear("CC-");
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
+    }
+
+    // "cc" en minusculas antes del guion sigue resolviendo al mismo tipo (TipoIdentificacion.Desde
+    // ya normaliza, issue #371) -- Parsear no le agrega ni le quita normalizacion propia.
+    [Fact]
+    public void Parsear_ReconstruyeLaIdentificacion_CuandoElTipoLlegaEnMinusculas()
+    {
+        var identificacion = Identificacion.Parsear("cc-79543210");
+
+        identificacion.Tipo.Should().BeSameAs(TipoIdentificacion.CC);
+        identificacion.Numero.Should().Be("79543210");
+    }
 }
