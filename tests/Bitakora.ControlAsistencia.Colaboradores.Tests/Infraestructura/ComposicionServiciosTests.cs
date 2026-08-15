@@ -325,9 +325,10 @@ public class ComposicionServiciosTests
     // WebApplicationFactory para Functions isolated worker).
     //
     // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (parseo de tipoIdentificacion/numero con 400 explicito,
+    // comportamiento de Run (issue #386: parseo del {id} de ruta con 400 explicito,
     // session.LoadAsync y el 200/404, la traduccion centinela -> vacio de CA-6), que es
-    // responsabilidad del endpoint y del smoke test, no de este guardrail de wiring.
+    // responsabilidad del endpoint (parcialmente unit-testeado, ver ObtenerFichaColaborador/
+    // FunctionEndpointTests.cs) y del smoke test, no de este guardrail de wiring.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeObtenerFichaColaborador_CuandoElContenedorEstaCompuesto()
     {
