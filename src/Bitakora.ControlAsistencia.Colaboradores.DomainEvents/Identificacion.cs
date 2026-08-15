@@ -79,13 +79,6 @@ public sealed partial class Identificacion : IEquatable<Identificacion>
     // con su propio mensaje), o (c) el numero queda vacio tras la limpieza (Crear ya lo rechaza con
     // su propio mensaje). Round-trip: Parsear(id.ToString()) es igual por valor a id (CA-5) porque
     // ToString() siempre produce un numero ya limpio ([A-Z0-9]), y Crear() no lo altera de nuevo.
-    // NOTA (implementer #377): #376 (PR #388) aun no esta mergeado a main en este worktree -- esta
-    // implementacion replica exactamente el contrato ya fijado y documentado en la rama
-    // worktree-issue-376-adoptar-verbos-canonicos-en-los-endpoint (misma firma, mismo cuerpo,
-    // mismos mensajes) para satisfacer los tests de #377, que dependen de #376. Al mergear #376 a
-    // main se espera un conflicto trivial en este metodo (y en Identificacion.Mensajes.cs /
-    // IdentificacionMensajes.resx) que se resuelve tomando la version de #376 -- contenido
-    // identico, sin perdida.
     public static Identificacion Parsear(string valor)
     {
         var indiceSeparador = valor?.IndexOf('-') ?? -1;

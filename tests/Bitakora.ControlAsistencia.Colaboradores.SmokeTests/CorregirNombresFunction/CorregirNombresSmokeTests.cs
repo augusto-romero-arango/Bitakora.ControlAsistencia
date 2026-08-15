@@ -44,12 +44,14 @@
 // guion) -> 400 via el parseo tipado unico (Identificacion.Parsear), sin invocar el comando.
 // CA-4: body invalido (primerNombre o primerApellido vacios) -> 400 via el validator del body
 // reducido (CorregirNombresBodyValidator), sin tocar el event store.
-// CA-5 (ruta vieja eliminada): este archivo solo referencia la ruta nueva (PUT
-// colaboradores/{id}/nombres) -- la ausencia de cualquier referencia a POST Colaboradores/Nombres es
-// deliberada, mismo criterio que FunctionEndpointTests (*.Tests).
-// CA-6 (NombresCorregidos registrado en TiposPersistidos + round-trip de serializacion): cubierto
-// transitivamente por el camino feliz contra el entorno real desplegado; el detalle exhaustivo del
-// round-trip vive en NombresCorregidosSerializacionTests.cs (*.Tests), no se duplica aqui.
+// CA-5 (ruta vieja eliminada): verificado AFIRMATIVAMENTE contra el entorno real -- la ruta vieja
+// (POST Colaboradores/Nombres) debe responder 404 del host. El resto de la suite lo cubre solo por
+// ausencia de referencias, que no distingue "la ruta se elimino" de "sigue viva y nadie la llama".
+//
+// El alias persistido de NombresCorregidos y el round-trip de su payload (heredados del issue #351,
+// que este issue no toca) quedan cubiertos transitivamente por el camino feliz contra el entorno
+// real; su detalle exhaustivo vive en NombresCorregidosSerializacionTests.cs (*.Tests) y no se
+// duplica aqui.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -94,6 +96,13 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
     // Separador "-" desde el issue #381 -- coincide con el {id} de ruta que este endpoint parsea.
     private static string ComputarStreamId(string numeroIdentificacion) =>
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
+
+    // El {id} que un cliente real pone en la URL. Deliberadamente separado de ComputarStreamId: uno
+    // es la ENTRADA de la request, el otro el ORACULO contra el que se verifica mt_events -- que hoy
+    // coincidan textualmente es justamente lo que estos tests prueban, no algo que puedan asumir
+    // compartiendo el mismo metodo.
+    private static string IdDeRuta(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
     private static object PayloadRegistro(
@@ -214,7 +223,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "[TEST]", "Original", "Smoke", null, ct);
 
         var response = await CorregirNombresAsync(
-            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", "Corregido", "Smoke", "Segundo", ct);
+            IdDeRuta(numeroIdentificacion), "[TEST]", "Corregido", "Smoke", "Segundo", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
@@ -241,7 +250,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 3, 1), ct);
 
         var response = await CorregirNombresAsync(
-            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", "Reingreso", "Terminada", null, ct);
+            IdDeRuta(numeroIdentificacion), "[TEST]", "Reingreso", "Terminada", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
@@ -269,7 +278,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             "[TEST]", "Igual", "Smoke", null, ct);
 
         var response = await CorregirNombresAsync(
-            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", "Igual", "Smoke", null, ct);
+            IdDeRuta(numeroIdentificacion), "[TEST]", "Igual", "Smoke", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
@@ -292,9 +301,29 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
 
         var response = await CorregirNombresAsync(
-            $"{TipoIdentificacionCc}-{numeroIdentificacion}", "[TEST]", null, "Smoke", null, ct);
+            IdDeRuta(numeroIdentificacion), "[TEST]", null, "Smoke", null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // CA-5: la ruta vieja deja de existir. Es la unica verificacion AFIRMATIVA de ese criterio --
+    // el resto de la suite lo cubre solo por ausencia de referencias, que no distingue "la ruta se
+    // elimino" de "la ruta sigue viva y nadie la llama". El rename esta pactado en el issue
+    // (MEF-ADR-0043 seccion 7): si alguien reintrodujera el POST viejo "por compatibilidad", este
+    // test lo delata contra el entorno real, que es donde el breaking change se paga.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CorregirNombres_Retorna404DelHost_CuandoSeLlamaLaRutaViejaPost()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/Colaboradores/Nombres",
+            PayloadCorreccion("[TEST]", null, "Smoke", null),
+            ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound,
+            "POST Colaboradores/Nombres se reemplazo por PUT colaboradores/{id}/nombres (issue #377)");
     }
 
     // CA-3: {id} de ruta sin guion -> 400, sin invocar el comando (parseo tipado unico,
@@ -345,7 +374,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var ct = TestContext.Current.CancellationToken;
 
         var response = await CorregirNombresAsync(
-            $"{TipoIdentificacionCc}-{NuevoNumeroIdentificacion()}",
+            IdDeRuta(NuevoNumeroIdentificacion()),
             primerNombre: "", segundoNombre: null, primerApellido: "Smoke", segundoApellido: null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -359,7 +388,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var ct = TestContext.Current.CancellationToken;
 
         var response = await CorregirNombresAsync(
-            $"{TipoIdentificacionCc}-{NuevoNumeroIdentificacion()}",
+            IdDeRuta(NuevoNumeroIdentificacion()),
             primerNombre: "[TEST]", segundoNombre: null, primerApellido: "", segundoApellido: null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
