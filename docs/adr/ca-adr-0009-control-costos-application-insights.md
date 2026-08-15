@@ -213,17 +213,63 @@ exceptions
 
 Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: sin cambios.
 
-**Consecuencia asumida: se pierde cobertura sobre los triggers de Service Bus.** Un consumidor de
-eventos que falle en loop no produce un request HTTP, asi que sus excepciones ya **no** disparan
-esta alerta -- y el retry con dead-lettering de Service Bus es justamente un generador de volumen
-sostenido. Se asume a proposito: la Capa 3 (daily cap) sigue siendo el tope duro de costo, de modo
-que el escenario de $350 sigue estructuralmente imposible; lo que se degrada es el tiempo de
-deteccion en ese flujo, no el techo de gasto. Si se quiere recuperar la cobertura, la via es una
-**segunda** alerta para excepciones sin request asociada, no relajar el filtro de esta.
+**Consecuencia: la alerta deja de cubrir los triggers de Service Bus, y la cobertura se repone con
+una alerta aparte** (siguiente seccion). No es una degradacion parcial sino cobertura cero por este
+camino: los triggers no-HTTP de Azure Functions reportan `resultCode` **`0`**, no un status HTTP, asi
+que ninguna invocacion de un consumidor de eventos entra jamas por el filtro `resultCode == "500"`.
+El filtro no "pierde sensibilidad" en el bus -- simplemente no lo ve. La via correcta es una segunda
+alerta, no relajar el filtro de esta.
 
 **Alcance del filtro: 500 exacto, no 5xx.** `resultCode == "500"` deja fuera 502/503/504, que en
 Azure Functions vienen de la plataforma (timeouts, arranque en frio, saturacion del plan) y no de
 codigo en loop. Ampliar a `toint(resultCode) >= 500` es un cambio de una linea si se decide que esos
 casos tambien deben despertar a alguien.
+
+Capas 1, 2 y 3 sin cambios.
+
+## Actualizacion (2026-08-15): la Capa 4 suma una alerta para los consumidores de Service Bus
+
+La Capa 4 pasa a tener **dos** alertas de spike, una por borde:
+
+| Alerta | Cubre | Filtro |
+|---|---|---|
+| `<prefijo>-exception-spike` | Borde HTTP | excepciones correlacionadas a un request con `resultCode == "500"` |
+| `<prefijo>-servicebus-failure-spike` | Consumidores de eventos | invocaciones con `success == false` cuyo `resultCode` no es un status HTTP |
+
+Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: iguales en ambas.
+
+**Se alerta sobre invocaciones fallidas, no sobre la metrica `DeadletteredMessages`.** La razon es
+una limitacion dura de Azure Monitor, no una preferencia: esa metrica solo se desglosa por la
+dimension `EntityName`, que es la **queue o el topic** -- no existen metricas por subscription. Y en
+este proyecto la subscription `smoke-tests` vive **dentro de los mismos topics de negocio**
+(`programacion-turno-diario-solicitada`, `dia-calculado`, `registro-de-marcacion-creado`), junto a
+las subscriptions `control-horas-escucha-*`. Una alerta metrica sumaria el DLQ de los smoke tests al
+de los consumidores reales bajo el mismo `EntityName`, **sin ninguna forma de separarlos**.
+
+La consulta sobre `requests` no tiene ese problema y no necesita lista de exclusion: la subscription
+`smoke-tests` no tiene Function App consumidora -- nadie la procesa, asi que no genera invocaciones.
+Sus dead letters los produce el propio proceso de smoke tests corriendo en CI, que no reporta a
+Application Insights. Lo que si cuenta, y debe contar, es una funcion real fallando al procesar un
+mensaje publicado por un smoke test: eso es un error del sistema, no ruido del arnes.
+
+**Ventaja secundaria: detecta antes.** Un dead letter solo aparece tras agotar `max_delivery_count`
+(10 entregas); la invocacion fallida se registra en el primer intento.
+
+**Como se identifica un trigger no-HTTP.** Los triggers no-HTTP de Azure Functions reportan
+`resultCode` `"0"`. La consulta no compara contra `"0"` -- valor no contractual, sujeto a cambio del
+host -- sino que descarta lo que si es un status HTTP: `isnull(toint(resultCode)) or
+toint(resultCode) !between (100 .. 599)`. Asi la alerta cubre cualquier trigger no-HTTP que se
+agregue despues (timer, blob) sin tocar la consulta.
+
+**Limitacion conocida: el sampling head-based tambien recorta esta alerta.** Igual que la de
+excepciones, opera sobre telemetria muestreada al ratio de la Capa 2 (0.2 por defecto), asi que el
+conteo observado es una fraccion del real. Vale la misma mitigacion: el ratio no debe bajar mas sin
+recalibrar los umbrales de ambas alertas.
+
+**Alternativa considerada y descartada: alerta metrica sobre `DeadletteredMessages` del topic.**
+Descartada porque no puede excluir el ruido de `smoke-tests` (arriba). Para habilitarla haria falta
+cambiar primero la infraestructura -- mover los smoke tests a un namespace o a topics propios -- lo
+que duplicaria la topologia de eventos solo para observabilidad. Si en el futuro se quiere el DLQ
+como red de seguridad de ultimo recurso, la decision de topologia va antes que la alerta.
 
 Capas 1, 2 y 3 sin cambios.
