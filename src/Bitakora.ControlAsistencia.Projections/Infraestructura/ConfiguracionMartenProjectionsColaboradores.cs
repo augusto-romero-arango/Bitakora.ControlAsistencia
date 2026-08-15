@@ -1,12 +1,14 @@
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Colaboradores;
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using JasperFx.Events.Projections; // ProjectionLifecycle (NO Marten.Events.Projections)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
 using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
+using Weasel.Postgresql.Tables; // IndexMethod (NO Marten.*: vive en Weasel.Postgresql.Tables)
 
 namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
 
@@ -111,6 +113,30 @@ public static class ConfiguracionMartenProjectionsColaboradores
                 // del worker (MEF-ADR-0034 seccion 3); Inline exigiria justificacion explicita en el
                 // issue, ausente aqui.
                 opts.Projections.Add<FichaColaboradorProjection>(ProjectionLifecycle.Async);
+
+                // Issue #373 CA-5: indices para el listado QUERY ListarFichasColaborador
+                // (segunda mitad del desglose de #356) -- ninguna proyeccion ni read model
+                // nuevos, solo indices sobre la MISMA FichaColaborador ya registrada arriba.
+                //
+                // GIN sobre EtiquetasNormalizadas: el filtro AND por etiquetas del endpoint
+                // resuelve con UNA operacion de containment JSONB (precedente #337 sobre
+                // Bloques/SedeId). Verificado por spike propio (Marten 9.12.0 + Postgres 16,
+                // EXPLAIN con enable_seqscan=off): Schema.For<FichaColaborador>()
+                // .Index(x => x.EtiquetasNormalizadas, gin) crea el indice sobre la expresion
+                // (data->>'EtiquetasNormalizadas')::jsonb -- el endpoint reproduce ese MISMO
+                // shape de expresion via MatchesSql para que el planner efectivamente elija un
+                // Bitmap Index Scan sobre este indice (confirmado con EXPLAIN), no un Seq Scan.
+                //
+                // Btree sobre VigenteHasta: acelera "VigenteHasta >= FechaReferencia" (CA-1),
+                // el filtro de vigencia que aplica TODA consulta del listado.
+                //
+                // Btree sobre NombreCompleto: acelera el ORDER BY del keyset (CA-3,
+                // OrderBy(NombreCompleto).ThenBy(Id) -- Id ya tiene su propio indice como
+                // primary key del documento, sin necesidad de uno adicional).
+                opts.Schema.For<FichaColaborador>()
+                    .Index(x => x.EtiquetasNormalizadas, i => i.Method = IndexMethod.gin)
+                    .Index(x => x.VigenteHasta)
+                    .Index(x => x.NombreCompleto);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
