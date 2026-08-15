@@ -22,12 +22,17 @@
 // igual o anterior a la FechaEfectiva de la ultima terminacion, incluido un preaviso no vencido).
 // CA-5: colaborador inexistente -> 404.
 // CA-6: request invalida -> 400, sin tocar el event store.
+//
+// Issue #387 (CodigoColaborador URL-safe): CA-1 con caracteres unreserved no alfanumericos (. _ ~)
+// -> 202 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
+// accion reservado, MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.ReingresarColaboradorFunction;
 
@@ -50,8 +55,6 @@ public class ReingresarColaboradorSmokeTests(ApiFixture api, PostgresFixture pos
     // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
     // la que arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
@@ -394,6 +397,75 @@ public class ReingresarColaboradorSmokeTests(ApiFixture api, PostgresFixture pos
         var payload = PayloadReingreso(
             NuevoNumeroIdentificacion(), NuevoCodigoColaborador(), new DateOnly(2025, 3, 1),
             tipoIdentificacion: "XX");
+
+        var response = await _client.PostAsJsonAsync(RutaReingresos, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-1 (#387): codigo de reingreso con caracteres unreserved no alfanumericos (. _ ~) tambien
+    // produce 202 -- el set permitido no se limita a alfanumerico+guion, que es lo unico que
+    // ejercita el helper compartido NuevoCodigoColaborador ("TEST-<guid>"). Verificacion end-to-end
+    // de que el regex desplegado en dev no es mas restrictivo que el unreserved de RFC 3986
+    // seccion 2.3.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ReingresarColaborador_Retorna202_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var fechaEfectivaTerminacion = new DateOnly(2025, 6, 30);
+        var fechaReingreso = new DateOnly(2025, 7, 1);
+        var codigoReingreso = $"a.b_{Guid.CreateVersion7()}~2";
+
+        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 1, 15), ct);
+        await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacion, ct);
+
+        var response = await _client.PostAsJsonAsync(
+            RutaReingresos, PayloadReingreso(numeroIdentificacion, codigoReingreso, fechaReingreso), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaColaboradores, streamId, TipoEventoVinculacionIniciada, Timeout,
+            campoJson: "Codigo", valorJson: codigoReingreso);
+
+        existe.Should().BeTrue(
+            $"el codigo de reingreso con caracteres unreserved no alfanumericos deberia haberse aceptado y persistido en {streamId}");
+    }
+
+    // CA-2 (#387): ":" esta explicitamente fuera del set permitido -- MEF-ADR-0043 seccion 1 lo
+    // reserva como separador de accion (vinculaciones/{codigo}:terminar, #379). Un codigo con ":"
+    // haria inparseable esa ruta -- caso destacado del issue.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ReingresarColaborador_Retorna400_CuandoCodigoColaboradorContieneDosPuntos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = $"COL:{Guid.CreateVersion7()}";
+        var payload = PayloadReingreso(
+            NuevoNumeroIdentificacion(), codigoColaborador, new DateOnly(2025, 3, 1));
+
+        var response = await _client.PostAsJsonAsync(RutaReingresos, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3 (#387): cualquier otro caracter fuera del set (espacio, aqui) -> 400. La exhaustividad
+    // del regex (acento, "/") ya la cubre ReingresarColaboradorValidatorTests; este smoke test solo
+    // confirma que la regla llega desplegada end-to-end en dev.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ReingresarColaborador_Retorna400_CuandoCodigoColaboradorContieneEspacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = $"COL {Guid.CreateVersion7()}";
+        var payload = PayloadReingreso(
+            NuevoNumeroIdentificacion(), codigoColaborador, new DateOnly(2025, 3, 1));
 
         var response = await _client.PostAsJsonAsync(RutaReingresos, payload, ct);
 

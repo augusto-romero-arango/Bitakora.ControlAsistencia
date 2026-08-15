@@ -38,6 +38,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.ObtenerFichaColaborador;
 
@@ -73,8 +74,6 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     // identidad del stream (y por lo tanto el Id de la ficha) es Identificacion.ToString()
     // ("CC-<numero>"), no un Guid nuevo por llamada.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
     // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
     // reconstruido localmente: el smoke test no referencia el Function App (Colaboradores.Entities).

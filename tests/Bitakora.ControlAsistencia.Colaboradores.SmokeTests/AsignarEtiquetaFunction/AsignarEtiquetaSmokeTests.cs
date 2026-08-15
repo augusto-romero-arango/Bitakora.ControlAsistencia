@@ -42,6 +42,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.AsignarEtiquetaFunction;
 
@@ -72,8 +73,6 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
     // la que arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.

@@ -1,6 +1,13 @@
 // Issue #350: validacion de forma del comando ReingresarColaborador en el borde (CA-6).
 // Patron de referencia: TerminarVinculacionValidatorTests (ValidateAsync + verificacion de
 // PropertyName en resultado.Errors).
+//
+// Issue #387: CodigoColaborador debe ser URL-safe -- set permitido: unreserved characters de
+// RFC 3986 seccion 2.3 (A-Z a-z 0-9 - . _ ~), el mismo set que las Microsoft Azure REST API
+// Guidelines fijan para path segments (MEF-ADR-0043 seccion 1). El ":" queda explicitamente fuera
+// (reservado como separador de accion). Se RECHAZA (400), nunca se limpia ni normaliza en
+// silencio -- a diferencia de Identificacion (#381), el codigo lo asigna la empresa y alterarlo
+// cambiaria un dato ajeno.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.ReingresarColaboradorFunction;
@@ -107,5 +114,85 @@ public class ReingresarColaboradorValidatorTests
         var resultado = await Validar(ComandoValido() with { FechaInicio = new DateOnly(2030, 1, 1) });
 
         resultado.IsValid.Should().BeTrue();
+    }
+
+    // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~ -) sigue siendo valido --
+    // el set permitido no se limita a alfanumericos.
+    [Fact]
+    public async Task Validar_Aprueba_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "a.b_c~2" });
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    // CA-1 (#387): ejemplo explicito del issue -- guion es unreserved.
+    [Fact]
+    public async Task Validar_Aprueba_CuandoCodigoColaboradorEsAlfanumericoConGuion()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "EMP-001" });
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    // CA-2 (#387): ":" esta explicitamente fuera del set permitido -- MEF-ADR-0043 seccion 1 lo
+    // reserva como separador de accion (vinculaciones/{codigo}:terminar, #379). Un codigo con ":"
+    // haria inparseable esa ruta.
+    [Fact]
+    public async Task Validar_RechazaCodigoColaborador_CuandoContieneDosPuntos()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "COL:002" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
+    }
+
+    // CA-3 (#387): espacio no es unreserved -> 400.
+    [Fact]
+    public async Task Validar_RechazaCodigoColaborador_CuandoContieneEspacio()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "COL 002" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
+    }
+
+    // CA-3 (#387): caracter acentuado no es unreserved -> 400.
+    [Fact]
+    public async Task Validar_RechazaCodigoColaborador_CuandoContieneCaracterAcentuado()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "CÓDIGO2" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
+    }
+
+    // CA-3 (#387): "/" no es unreserved -> 400.
+    [Fact]
+    public async Task Validar_RechazaCodigoColaborador_CuandoContieneBarra()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "COL/002" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
+    }
+
+    // CA-3 (#387), caso borde del ancla de fin de linea: un salto de linea final tampoco es
+    // unreserved -> 400. En .NET el ancla "$" hace match tambien ANTES de un "\n" final
+    // (a diferencia de "\z"), asi que un patron anclado con "$" aceptaria "COL-002\n" en silencio
+    // -- un valor que rompe la URL igual que un espacio, y ademas habilita CRLF injection en
+    // cualquier consumidor que lo reenvie en un header o lo escriba en un log.
+    [Fact]
+    public async Task Validar_RechazaCodigoColaborador_CuandoTerminaEnSaltoDeLinea()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "COL-002\n" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(ReingresarColaborador.CodigoColaborador));
     }
 }

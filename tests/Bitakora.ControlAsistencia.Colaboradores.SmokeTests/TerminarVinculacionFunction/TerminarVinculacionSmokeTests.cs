@@ -22,6 +22,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.TerminarVinculacionFunction;
 
@@ -61,7 +62,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
         segundoNombre = (string?)null,
         primerApellido = "Smoke",
         segundoApellido = (string?)null,
-        codigoColaborador = $"[TEST]-{Guid.CreateVersion7()}",
+        codigoColaborador = NuevoCodigoColaborador(),
         fechaInicio
     };
 

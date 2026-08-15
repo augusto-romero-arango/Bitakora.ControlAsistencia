@@ -38,6 +38,7 @@ using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
+using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.ListarFichasColaborador;
 
@@ -76,8 +77,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         IReadOnlyDictionary<string, string> EtiquetasNormalizadas);
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
-
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
 
     // Apellido con un Guid embebido -- garantiza que el NombreCompleto resultante ("[TEST]
     // {apellido}") es unico frente a cualquier ficha creada en cualquier corrida, pasada o futura,
