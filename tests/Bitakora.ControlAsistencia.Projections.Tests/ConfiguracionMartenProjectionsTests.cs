@@ -504,6 +504,51 @@ public class ConfiguracionMartenProjectionsTests
             .AssertProyeccionAsyncRegistrada("CategoriaDeEtiquetas");
     }
 
+    // Issue #357, mismo gotcha de "Numeric Revisioned Documents" que #356 congelo para
+    // FichaColaborador (ver el comentario de ConfigurarColaboradores_MaterializaFichaColaboradorCon
+    // RevisionNumerica): ProjectionDocumentPolicy aplica POR DOCUMENTO target de una proyeccion
+    // registrada, asi que la vista nueva necesita su propia guarda -- la de FichaColaborador no la
+    // cubre. Este lado no declara nada: los valores los impone Marten al registrar
+    // CategoriaDeEtiquetasProjection arriba, y por eso es el lado que DEFINE la forma fisica que el
+    // Function App debe replicar.
+    //
+    // Espejo de ComposicionServiciosTests (Colaboradores.Tests)
+    // .AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCategoriaDeEtiquetas.
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasConRevisionNumerica()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(CategoriaDeEtiquetas));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #357, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6) para la vista nueva: el daemon materializa CategoriaDeEtiquetas desde este named
+    // store y el Function App de Colaboradores la lee, en otro proceso, con session.Query
+    // (ListarCategoriasDeEtiquetas). Que ambos lados converjan en la MISMA tabla fisica, la MISMA
+    // tenancy y el MISMO IdMember no lo garantiza ningun compilador.
+    //
+    // Espejo de ComposicionServiciosTests (Colaboradores.Tests)
+    // .AgregarServiciosColaboradores_ResuelveCategoriaDeEtiquetasSobreLaTablaQueMaterializaElWorker_...,
+    // sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(CategoriaDeEtiquetas));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_categoriadeetiquetas");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CategoriaDeEtiquetas.Id));
+    }
+
     // Issue #373 CA-5: indices declarados en el seam del worker para el listado QUERY de fichas
     // vigentes (ListarFichasColaborador, MEF-ADR-0042) -- rango sobre VigenteHasta, GIN sobre
     // EtiquetasNormalizadas (containment JSONB del filtro AND por etiquetas, precedente #337 sobre

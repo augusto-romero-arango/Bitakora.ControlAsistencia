@@ -35,7 +35,17 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // Opcion B (decision de refinamiento): catalogo entero de un tiro, sin filtros ni
         // paginacion. CA-6: sin ninguna etiqueta asignada, coleccion vacia con 200 (nunca 404 --
         // una lista vacia es una respuesta valida, no un recurso ausente).
-        var categorias = await session.Query<CategoriaDeEtiquetas>().ToListAsync(ct);
+        //
+        // OrderBy(Id) -- la categoria normalizada, que es la PK del documento: un SELECT sin ORDER
+        // BY devuelve las filas en el orden fisico del heap de Postgres, que cambia cuando el
+        // daemon reescribe una fila al aplicar un evento. Sin este orden dos consultas consecutivas
+        // pueden devolver el mismo catalogo permutado, y el consumidor (autocompletado que cachea
+        // el catalogo entre aperturas del control) veria un diff espurio. Mismo criterio que los
+        // otros dos listados del BC (ListarFichasColaborador, ListarTurnosVigentes), aqui sin
+        // cursor porque no hay paginacion.
+        var categorias = await session.Query<CategoriaDeEtiquetas>()
+            .OrderBy(categoria => categoria.Id)
+            .ToListAsync(ct);
 
         return new OkObjectResult(categorias);
     }

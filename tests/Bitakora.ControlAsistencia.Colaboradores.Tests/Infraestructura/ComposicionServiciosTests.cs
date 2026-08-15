@@ -437,4 +437,55 @@ public class ComposicionServiciosTests
 
         act.Should().NotThrow();
     }
+
+    // Issue #357, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6) para la SEGUNDA vista materializada del dominio -- hermano exacto del guardrail
+    // que #356 dejo para FichaColaborador, cuyo comentario documenta el gotcha completo de
+    // "Numeric Revisioned Documents" y el incidente de dev del issue #294.
+    //
+    // Ninguna de las dos guardas de FichaColaborador cubre a CategoriaDeEtiquetas: cada documento
+    // lleva su propio mapping, asi que la declaracion explicita del lado LECTURA es por vista, no
+    // por store. Sin ella, este Function App esperaria mt_version uuid sobre la tabla que el worker
+    // crea como bigint y ListarCategoriasDeEtiquetas responderia 500 permanente (42804 por
+    // request), con el daemon funcionando.
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasConRevisionNumerica congela desde el
+    // worker, sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCategoriaDeEtiquetas()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CategoriaDeEtiquetas));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #357, segunda dimension del mismo par 2 sobre CategoriaDeEtiquetas (precedente #356
+    // sobre FichaColaborador): tabla, tenancy e IdMember tienen que converger entre el worker que
+    // materializa y este Function App que consulta, o el GET devuelve coleccion vacia para siempre
+    // con el daemon funcionando. Ningun compilador lo garantiza -- son dos configuraciones de
+    // Marten independientes sobre el mismo schema.
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasSobreLaTablaQueConsultaElWriteSide
+    // congela desde el worker.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveCategoriaDeEtiquetasSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CategoriaDeEtiquetas));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_categoriadeetiquetas");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CategoriaDeEtiquetas.Id));
+    }
 }

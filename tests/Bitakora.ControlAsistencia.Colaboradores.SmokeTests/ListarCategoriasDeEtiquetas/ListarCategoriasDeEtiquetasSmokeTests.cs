@@ -185,9 +185,15 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
     // -- una lista vacia es una respuesta valida, no un recurso ausente. El catalogo COMPLETAMENTE
     // vacio (cero categorias en todo el tenant) solo es observable en un entorno recien
     // provisionado; en dev, compartido y acumulativo por diseno, este smoke test no puede forzar esa
-    // condicion sin borrar datos de otras corridas (fuera de alcance de un smoke test). Ese caso
-    // exacto ("coleccion vacia") ya lo cubre el unit test de la proyeccion
-    // (CategoriaDeEtiquetasProjectionTests, contra un store en memoria realmente vacio).
+    // condicion sin borrar datos de otras corridas (fuera de alcance de un smoke test).
+    //
+    // La otra mitad de CA-6 -- que la respuesta sea una coleccion VACIA y no un 404 cuando el
+    // tenant todavia no tiene ninguna categoria -- no tiene test propio en ningun nivel, y es
+    // deliberado: session.Query<T>() sobre una tabla sin filas devuelve lista vacia por
+    // construccion, y un unit test del endpoint solo verificaria ese comportamiento de Marten con
+    // un doble. Su guardrail real es el test de composicion del contenedor
+    // (ComposicionServiciosTests.AgregarServiciosColaboradores_ResuelveElEndpointDeListarCategorias
+    // DeEtiquetas...) mas este smoke test, que si afirma el 200 contra el entorno real.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_Retorna200ConUnaColeccion_Siempre()
