@@ -53,6 +53,8 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
     private static string FormatearFecha(DateOnly fecha) =>
         fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
+    // Issue #387: codigo URL-safe (unreserved RFC 3986) -- corregido de "[TEST]-" (corchetes fuera
+    // del set permitido) a "TEST-" para que el arrange no falle con 400.
     private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio) => new
     {
         tipoIdentificacion = TipoIdentificacionCc,
@@ -61,7 +63,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
         segundoNombre = (string?)null,
         primerApellido = "Smoke",
         segundoApellido = (string?)null,
-        codigoColaborador = $"[TEST]-{Guid.CreateVersion7()}",
+        codigoColaborador = $"TEST-{Guid.CreateVersion7()}",
         fechaInicio
     };
 

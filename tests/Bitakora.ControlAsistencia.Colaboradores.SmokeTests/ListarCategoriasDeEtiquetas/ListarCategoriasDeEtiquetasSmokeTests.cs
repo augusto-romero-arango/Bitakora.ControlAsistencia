@@ -88,7 +88,9 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
+    // Issue #387: codigo URL-safe (unreserved RFC 3986) -- corregido de "[TEST]-" (corchetes
+    // fuera del set permitido) a "TEST-" para que el arrange no falle con 400.
+    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Formato "N": hexadecimal en minusculas -- sobrevive intacto a la normalizacion del VO Etiqueta
     // (minusculas + sin tildes + trim). Lo unico que varia entre "formas" de una misma categoria

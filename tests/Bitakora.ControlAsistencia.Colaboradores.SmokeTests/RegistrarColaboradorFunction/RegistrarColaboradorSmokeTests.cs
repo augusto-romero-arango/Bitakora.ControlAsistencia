@@ -54,7 +54,11 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
     // arma el backend.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
+    // Issue #387: el codigo debe ser URL-safe (unreserved RFC 3986: A-Z a-z 0-9 - . _ ~) -- antes
+    // de este issue el prefijo era "[TEST]-", con corchetes fuera del set permitido. Se corrige aqui
+    // (y en el resto de smoke tests del dominio que comparten este helper) para que el arrange no
+    // empiece a fallar con 400 en cuanto la nueva regla se implemente.
+    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Siempre canonico ("CC-<numero>", separador "-" desde el issue #381): TipoIdentificacion.Desde
     // nunca almacena el input crudo, solo retorna la instancia canonica de la lista cerrada (issue

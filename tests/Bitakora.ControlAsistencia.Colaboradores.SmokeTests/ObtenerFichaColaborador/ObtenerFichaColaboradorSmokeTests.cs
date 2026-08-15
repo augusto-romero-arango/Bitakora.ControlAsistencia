@@ -74,7 +74,9 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     // ("CC-<numero>"), no un Guid nuevo por llamada.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
+    // Issue #387: codigo URL-safe (unreserved RFC 3986) -- corregido de "[TEST]-" (corchetes
+    // fuera del set permitido) a "TEST-" para que el arrange no falle con 400.
+    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
     // reconstruido localmente: el smoke test no referencia el Function App (Colaboradores.Entities).

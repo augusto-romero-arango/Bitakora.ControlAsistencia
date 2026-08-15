@@ -77,7 +77,9 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    private static string NuevoCodigoColaborador() => $"[TEST]-{Guid.CreateVersion7()}";
+    // Issue #387: codigo URL-safe (unreserved RFC 3986) -- corregido de "[TEST]-" (corchetes
+    // fuera del set permitido) a "TEST-" para que el arrange no falle con 400.
+    private static string NuevoCodigoColaborador() => $"TEST-{Guid.CreateVersion7()}";
 
     // Apellido con un Guid embebido -- garantiza que el NombreCompleto resultante ("[TEST]
     // {apellido}") es unico frente a cualquier ficha creada en cualquier corrida, pasada o futura,
