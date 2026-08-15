@@ -1,14 +1,15 @@
 // Issue #354: smoke tests del endpoint POST Colaboradores/Terminaciones/Anulaciones (anular la
 // terminacion registrada de la ULTIMA vinculacion de un colaborador). Sexto comando del ciclo de
 // vida de ColaboradorAggregateRoot (desglose #348-#357) y el mas simple de la cadena: una sola
-// regla, cero fechas en el payload. Molde: TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests
-// (#349/#350) -- mismo comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin
+// regla, cero fechas en el payload. Molde: TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests
+// (#349/#378) -- mismo comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin
 // ServiceBusFixture, la unica verificacion black-box de los efectos del handler es leer mt_events
 // via PostgresFixture.
 //
 // Arrange: AnularTerminacion exige un ColaboradorAggregateRoot existente -- el arrange de cada test
-// registra el colaborador y, cuando aplica, termina su vinculacion o lo reingresa via los mismos
-// comandos que los originan (#330, #349, #350), nunca sembrando datos por fuera del API.
+// registra el colaborador y, cuando aplica, termina su vinculacion o inicia una vinculacion nueva
+// (escenario de reingreso, issue #378) via los mismos comandos que los originan (#330, #349, #378),
+// nunca sembrando datos por fuera del API.
 //
 // Evento sin payload (TerminacionAnulada, tipo persistido "terminacion_anulada"): no hay campo de
 // contenido que comparar por valor -- cada smoke test usa una identificacion nueva, asi que su
@@ -43,9 +44,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
-    private const string RutaReingresos = "/api/Colaboradores/Reingresos";
     private const string RutaAnulaciones = "/api/Colaboradores/Terminaciones/Anulaciones";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoTerminacionAnulada = "terminacion_anulada";
@@ -89,14 +89,13 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         fechaEfectiva
     };
 
-    private static object PayloadReingreso(
-        string numeroIdentificacion, string codigoColaborador, DateOnly fechaInicio) => new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            codigoColaborador,
-            fechaInicio
-        };
+    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
+    // FechaInicio.
+    private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
+    {
+        codigoColaborador,
+        fechaInicio
+    };
 
     private static object PayloadAnulacion(
         string numeroIdentificacion, string tipoIdentificacion = TipoIdentificacionCc) => new
@@ -129,18 +128,19 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-4): reingresa al colaborador tras una terminacion -- via el comando que lo
-    // origina (#350), nunca sembrando el event store por fuera del API.
-    private async Task ReingresarColaboradorAsync(
+    // Arrange comun (CA-4): inicia una vinculacion nueva sobre el colaborador tras una terminacion
+    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378, reemplaza
+    // a ReingresarColaborador #350), nunca sembrando el event store por fuera del API.
+    private async Task IniciarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaReingresos,
-            PayloadReingreso(numeroIdentificacion, NuevoCodigoColaborador(), fechaInicio),
+            $"/api/colaboradores/{ComputarStreamId(numeroIdentificacion)}/vinculaciones",
+            PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
-            "el arrange de este smoke test depende de que ReingresarColaborador funcione");
+            "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
 
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
         await TerminarVinculacionAsync(numeroIdentificacion, fechaEfectivaTerminacionAnterior, ct);
-        await ReingresarColaboradorAsync(numeroIdentificacion, fechaInicioReingreso, ct);
+        await IniciarVinculacionAsync(numeroIdentificacion, fechaInicioReingreso, ct);
 
         var response = await _client.PostAsJsonAsync(
             RutaAnulaciones, PayloadAnulacion(numeroIdentificacion), ct);
