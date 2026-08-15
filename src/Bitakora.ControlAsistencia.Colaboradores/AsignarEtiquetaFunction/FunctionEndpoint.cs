@@ -22,9 +22,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 // a partir de {id} + {categoria} + Valor.
 // CA-ADR-0030 / MEF-ADR-0004 (precedente AnularTerminacionFunction.FunctionEndpoint; MEF-ADR-0043
 // seccion 2 paso 2: el 409 de un PUT es una instancia mas de "declinar con resultado", RFC 9110
-// §9.3.4): validar id de ruta (400) -> validar body (400 via IRequestValidator) -> despachar
-// comando -> InvalidOperationException -> 409 Conflict, KeyNotFoundException -> 404 NotFound;
-// exito -> 202 Accepted.
+// §9.3.4): validar id de ruta (400) -> validar categoria de ruta (400) -> validar body (400 via
+// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict,
+// KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarEtiqueta")]
@@ -45,6 +45,15 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new BadRequestObjectResult(
                 "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
         }
+
+        // MEF-ADR-0004 capa 1 (forma en el borde -> 400): {categoria} llega cruda de la ruta y no la
+        // cubre ningun validator -- el body reducido solo trae Valor. Un segmento en blanco ("%20")
+        // SI hace match con la plantilla y, sin esta guarda, llegaria hasta Etiqueta.Crear, cuyo
+        // ArgumentException nadie traduce (500 en vez de 400). Es la regla NotEmpty que
+        // AsignarEtiquetaValidator tenia sobre Categoria, reubicada al unico sitio que ve la ruta;
+        // la normalizacion sigue viviendo en el VO (Tell-don't-Ask, MEF-ADR-0012).
+        if (string.IsNullOrWhiteSpace(categoria))
+            return new BadRequestObjectResult("La categoria de la ruta no puede estar en blanco");
 
         var (body, error) = await requestValidator.ValidarAsync<AsignarEtiquetaBody>(req, ct);
         if (error is not null)

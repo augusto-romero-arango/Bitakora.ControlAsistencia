@@ -87,6 +87,25 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
+    // MEF-ADR-0004 capa 1: {categoria} llega cruda de la ruta y no pasa por ningun validator -- el
+    // body reducido de #376 solo trae Valor. Un segmento en blanco ("%20") SI hace match con la
+    // plantilla, y sin guarda de borde llegaria hasta Etiqueta.Crear, cuyo ArgumentException nadie
+    // traduce: 500 en vez de 400. Es la regla NotEmpty que AsignarEtiquetaValidator (eliminado en
+    // #376) tenia sobre Categoria, reubicada al unico sitio que hoy ve ese segmento.
+    [Fact]
+    public async Task AsignarEtiqueta_Retorna400_CuandoLaCategoriaDeRutaEstaEnBlanco()
+    {
+        var validator = new FakeAsignarEtiquetaBodyRequestValidator(BodyValido());
+        var router = new FakeAsignarEtiquetaCommandRouter();
+        var function = new FunctionEndpoint(validator, router);
+
+        var result = await function.Run(FakeHttpRequest(), IdValido, "   ", CancellationToken.None);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        router.ComandoRecibido.Should().BeNull(
+            "el router nunca deberia invocarse con una categoria en blanco");
+    }
+
     // CA-1 (body invalido): Valor vacio en el body -> 400 Bad Request
     [Fact]
     public async Task AsignarEtiqueta_Retorna400_CuandoElBodyEsInvalido()

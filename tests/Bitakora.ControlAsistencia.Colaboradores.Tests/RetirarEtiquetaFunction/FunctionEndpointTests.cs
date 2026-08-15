@@ -78,6 +78,24 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
+    // MEF-ADR-0004 capa 1: {categoria} llega cruda de la ruta y, sin body, no pasa por ningun
+    // validator. Un segmento en blanco ("%20") SI hace match con la plantilla, y sin guarda de borde
+    // llegaria hasta Etiqueta.NormalizarCategoria, cuyo ArgumentException nadie traduce: 500 en vez
+    // de 400. Es la regla NotEmpty que RetirarEtiquetaValidator (eliminado en #376) tenia sobre
+    // Categoria, reubicada al unico sitio que hoy ve ese segmento.
+    [Fact]
+    public async Task RetirarEtiqueta_Retorna400_CuandoLaCategoriaDeRutaEstaEnBlanco()
+    {
+        var router = new FakeRetirarEtiquetaCommandRouter();
+        var function = new FunctionEndpoint(router);
+
+        var result = await function.Run(FakeHttpRequest(), IdValido, "   ", CancellationToken.None);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        router.ComandoRecibido.Should().BeNull(
+            "el router nunca deberia invocarse con una categoria en blanco");
+    }
+
     // CA-2 (rutas de rechazo): categoria inexistente o vinculacion con terminacion registrada
     // retorna 409 Conflict.
     [Fact]

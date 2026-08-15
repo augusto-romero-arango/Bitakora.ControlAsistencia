@@ -20,8 +20,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction;
 // hay IRequestValidator involucrado (RetirarEtiquetaValidator, que validaba el body viejo, se
 // elimino junto con este cambio -- sin body no hay nada que deserializar ni validar en ese punto).
 // CA-ADR-0030 / MEF-ADR-0004 (precedente AnularTerminacionFunction.FunctionEndpoint): validar id de
-// ruta (400) -> despachar comando -> InvalidOperationException -> 409 Conflict, KeyNotFoundException
-// -> 404 NotFound; exito -> 202 Accepted.
+// ruta (400) -> validar categoria de ruta (400) -> despachar comando -> InvalidOperationException ->
+// 409 Conflict, KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarEtiqueta")]
@@ -42,6 +42,15 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
             return new BadRequestObjectResult(
                 "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
         }
+
+        // MEF-ADR-0004 capa 1 (forma en el borde -> 400): {categoria} llega cruda de la ruta y, sin
+        // body, no la cubre ningun validator. Un segmento en blanco ("%20") SI hace match con la
+        // plantilla y, sin esta guarda, llegaria hasta Etiqueta.NormalizarCategoria, cuyo
+        // ArgumentException nadie traduce (500 en vez de 400). Es la regla NotEmpty que
+        // RetirarEtiquetaValidator tenia sobre Categoria, reubicada al unico sitio que ve la ruta;
+        // la normalizacion sigue viviendo en el VO (Tell-don't-Ask, MEF-ADR-0012).
+        if (string.IsNullOrWhiteSpace(categoria))
+            return new BadRequestObjectResult("La categoria de la ruta no puede estar en blanco");
 
         var comando = new RetirarEtiqueta(identificacion.Tipo.ToString(), identificacion.Numero, categoria);
 

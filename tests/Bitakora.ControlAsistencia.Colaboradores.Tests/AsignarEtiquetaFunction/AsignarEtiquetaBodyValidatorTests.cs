@@ -39,4 +39,19 @@ public class AsignarEtiquetaBodyValidatorTests
         resultado.Errors.Should().Contain(e =>
             e.PropertyName == nameof(AsignarEtiquetaBody.Valor));
     }
+
+    // NotEmpty de FluentValidation rechaza tambien whitespace, no solo la cadena vacia. Se fija con
+    // un test en vez de asumirse porque tras #376 este validator es la UNICA guarda de forma que le
+    // queda a Valor (el AsignarEtiquetaValidator que lo cubria se elimino): si NotEmpty dejara pasar
+    // "   ", el whitespace llegaria hasta Etiqueta.Crear, cuyo ArgumentException nadie traduce (500
+    // en vez de 400, MEF-ADR-0004 capa 1).
+    [Fact]
+    public async Task Validar_RechazaValor_CuandoEsSoloEspacios()
+    {
+        var resultado = await Validar(BodyValido() with { Valor = "   " });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(AsignarEtiquetaBody.Valor));
+    }
 }
