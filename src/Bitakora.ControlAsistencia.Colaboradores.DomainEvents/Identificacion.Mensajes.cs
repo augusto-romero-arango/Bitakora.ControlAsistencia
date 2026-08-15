@@ -14,5 +14,11 @@ public sealed partial class Identificacion
         // "---" o ".." tambien lo disparan porque no dejan ningun caracter alfanumerico.
         public static string NumeroVacio =>
             ResourceManager.GetString(nameof(NumeroVacio))!;
+
+        // Issue #376: Parsear() lo lanza cuando el valor no trae NINGUN guion -- el tipo/numero no
+        // se pueden separar. Los otros dos rechazos de Parsear (tipo fuera de la lista, numero vacio
+        // tras limpiar) reusan los mensajes propios de TipoIdentificacion.Desde/Crear.
+        public static string FormatoInvalido =>
+            ResourceManager.GetString(nameof(FormatoInvalido))!;
     }
 }
