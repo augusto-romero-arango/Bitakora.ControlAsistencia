@@ -114,6 +114,15 @@ public static class ComposicionServicios
             // los mismos valores literales.
             options.Schema.For<FichaColaborador>().UseNumericRevisions(true);
 
+            // Issue #357: MISMA razon que la linea de arriba, para la segunda vista materializada
+            // del dominio -- el worker registra CategoriaDeEtiquetasProjection (N2) y crea
+            // mt_version como bigint; este Function App la consulta con session.Query en
+            // ListarCategoriasDeEtiquetas. Sin esta linea el GET responde 500 permanente en dev
+            // (42804 por request), no un 404: el mismo modo de falla que #294 dejo documentado
+            // arriba. Cada vista materializada que este store consulte necesita su propia
+            // declaracion -- el par de config-tests de ambos lados la congela.
+            options.Schema.For<CategoriaDeEtiquetas>().UseNumericRevisions(true);
+
             // Issue #330: registra la serializacion custom de los VOs con ctor privado que aparecen
             // como payload de eventos persistidos (Identificacion, NombreColaborador) -- AQUI
             // DENTRO junto a AddEventTypes -- nunca en un ConfigureMarten separado (issue #232 CA-5:

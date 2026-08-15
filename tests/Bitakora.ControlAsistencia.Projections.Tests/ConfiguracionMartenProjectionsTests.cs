@@ -484,6 +484,71 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaColaborador.Id));
     }
 
+    // Issue #357: segunda proyeccion concreta de Colaboradores -- la PRIMERA receta N2
+    // (MultiStreamProjection<CategoriaDeEtiquetas, string>) de este BC: eventos EtiquetaAsignada de
+    // MUCHOS streams de ColaboradorAggregateRoot convergen en el MISMO documento cuando comparten
+    // categoria normalizada (skills/projections/modelos-marten.md). Mismo patron que #356 dejo para
+    // FichaColaboradorProjection (N1): complementa ConfigurarColaboradores_NoRegistraNingunaProyeccionInline
+    // -- aquella prueba que NADA quedo Inline, esta prueba que la proyeccion CONCRETA se registro con
+    // lifecycle Async, el canonico del worker (MEF-ADR-0034 seccion 3). El seam
+    // (ConfiguracionMartenProjectionsColaboradores.ConfigurarColaboradores) ya existe desde el issue
+    // #360 y ya registra FichaColaboradorProjection (#356); este issue le agrega la unica linea
+    // opts.Projections.Add<CategoriaDeEtiquetasProjection>(ProjectionLifecycle.Async) -- ausente hoy,
+    // por eso este test queda en rojo hasta que projection-implementer la sume.
+    [Fact]
+    public void ConfigurarColaboradores_RegistraCategoriaDeEtiquetasProjectionComoAsync()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("CategoriaDeEtiquetas");
+    }
+
+    // Issue #357, mismo gotcha de "Numeric Revisioned Documents" que #356 congelo para
+    // FichaColaborador (ver el comentario de ConfigurarColaboradores_MaterializaFichaColaboradorCon
+    // RevisionNumerica): ProjectionDocumentPolicy aplica POR DOCUMENTO target de una proyeccion
+    // registrada, asi que la vista nueva necesita su propia guarda -- la de FichaColaborador no la
+    // cubre. Este lado no declara nada: los valores los impone Marten al registrar
+    // CategoriaDeEtiquetasProjection arriba, y por eso es el lado que DEFINE la forma fisica que el
+    // Function App debe replicar.
+    //
+    // Espejo de ComposicionServiciosTests (Colaboradores.Tests)
+    // .AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCategoriaDeEtiquetas.
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasConRevisionNumerica()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(CategoriaDeEtiquetas));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #357, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6) para la vista nueva: el daemon materializa CategoriaDeEtiquetas desde este named
+    // store y el Function App de Colaboradores la lee, en otro proceso, con session.Query
+    // (ListarCategoriasDeEtiquetas). Que ambos lados converjan en la MISMA tabla fisica, la MISMA
+    // tenancy y el MISMO IdMember no lo garantiza ningun compilador.
+    //
+    // Espejo de ComposicionServiciosTests (Colaboradores.Tests)
+    // .AgregarServiciosColaboradores_ResuelveCategoriaDeEtiquetasSobreLaTablaQueMaterializaElWorker_...,
+    // sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(CategoriaDeEtiquetas));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_categoriadeetiquetas");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CategoriaDeEtiquetas.Id));
+    }
+
     // Issue #373 CA-5: indices declarados en el seam del worker para el listado QUERY de fichas
     // vigentes (ListarFichasColaborador, MEF-ADR-0042) -- rango sobre VigenteHasta, GIN sobre
     // EtiquetasNormalizadas (containment JSONB del filtro AND por etiquetas, precedente #337 sobre
