@@ -30,7 +30,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly string StreamId = $"{EmpleadoId}:{Fecha:yyyy-MM-dd}";
 
     // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly Empleado Empleado = new(
+    private static readonly ColaboradorProgramado Empleado = new(
         EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000003");
 

@@ -4,7 +4,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
@@ -12,7 +12,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 {
     private readonly SolicitarProgramacionTurnoValidator _validator = new();
 
-    private static InformacionEmpleado DatosEmpleadoValidos() =>
+    private static InformacionColaborador DatosEmpleadoValidos() =>
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     private static SolicitarProgramacionTurno ComandoValido() => new(
@@ -71,7 +71,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionEmpleado.EmpleadoId)));
+            e.PropertyName.Contains(nameof(InformacionColaborador.EmpleadoId)));
     }
 
     // CA-3: TipoIdentificacion no puede estar vacio
@@ -86,7 +86,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionEmpleado.TipoIdentificacion)));
+            e.PropertyName.Contains(nameof(InformacionColaborador.TipoIdentificacion)));
     }
 
     // CA-3: NumeroIdentificacion no puede estar vacio
@@ -101,7 +101,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionEmpleado.NumeroIdentificacion)));
+            e.PropertyName.Contains(nameof(InformacionColaborador.NumeroIdentificacion)));
     }
 
     // CA-3: Nombres no puede estar vacio
@@ -116,7 +116,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionEmpleado.Nombres)));
+            e.PropertyName.Contains(nameof(InformacionColaborador.Nombres)));
     }
 
     // CA-3: Apellidos no puede estar vacio
@@ -131,7 +131,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionEmpleado.Apellidos)));
+            e.PropertyName.Contains(nameof(InformacionColaborador.Apellidos)));
     }
 
     // HU-225 / CA-1: Empleado null no debe lanzar excepcion (NullReferenceException por

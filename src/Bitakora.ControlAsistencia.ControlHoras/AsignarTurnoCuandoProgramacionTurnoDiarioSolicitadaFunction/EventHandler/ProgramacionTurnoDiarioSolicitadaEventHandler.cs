@@ -36,12 +36,13 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
             @event.Empleado.EmpleadoId, @event.Fecha);
 
-        // CA-ADR-0029 decision #5 (payload por rol): el evento llega con DetalleEmpleado/DetalleTurno
-        // (PrivateEvents) y TurnoDiarioAsignado persiste Empleado/TurnoDiario (ControlHoras.DomainEvents,
-        // propios de este ensamblado desde el issue #322), asi que el mapeo vive aqui -- la Function
-        // App es el unico proyecto que ve los tres ensamblados de eventos.
+        // CA-ADR-0029 decision #5 (payload por rol): el evento llega con DetalleColaborador/DetalleTurno
+        // (PrivateEvents) y TurnoDiarioAsignado persiste ColaboradorProgramado/TurnoDiario
+        // (ControlHoras.DomainEvents, propios de este ensamblado desde el issue #322), asi que el
+        // mapeo vive aqui -- la Function App es el unico proyecto que ve los tres ensamblados de
+        // eventos.
         var evento = new TurnoDiarioAsignado(
-            streamId, MapearEmpleado(@event.Empleado), @event.Fecha,
+            streamId, MapearColaboradorProgramado(@event.Empleado), @event.Fecha,
             MapearTurnoDiario(@event.DetalleTurno), @event.SolicitudId);
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
@@ -66,9 +67,9 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
     }
 
-    private static Empleado MapearEmpleado(DetalleEmpleado empleado) =>
-        new(empleado.EmpleadoId, empleado.TipoIdentificacion, empleado.NumeroIdentificacion,
-            empleado.Nombres, empleado.Apellidos);
+    private static ColaboradorProgramado MapearColaboradorProgramado(DetalleColaborador colaborador) =>
+        new(colaborador.EmpleadoId, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
+            colaborador.Nombres, colaborador.Apellidos);
 
     // Issue #322: mapeo mecanico DetalleTurno (PrivateEvents) -> TurnoDiario (ControlHoras.DomainEvents),
     // recursivo sobre las franjas y sub-franjas anidadas. Payload por rol (CA-ADR-0029 decision #5).

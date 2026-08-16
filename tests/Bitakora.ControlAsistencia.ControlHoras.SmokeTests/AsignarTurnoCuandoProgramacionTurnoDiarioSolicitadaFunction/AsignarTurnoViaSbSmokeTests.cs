@@ -87,10 +87,10 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             SchemaControlHoras, streamId, tipoEvento,
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        var empleadoEsperado = new Empleado(
+        var empleadoEsperado = new ColaboradorProgramado(
             empleadoId, "CC", "999888777", "[TEST] Smoke ServiceBus", "[TEST] Verificacion");
         var empleadoPersistido = eventoPersistido
-            .GetProperty("InformacionEmpleado").Deserialize<Empleado>();
+            .GetProperty("InformacionEmpleado").Deserialize<ColaboradorProgramado>();
         empleadoPersistido.Should().Be(empleadoEsperado);
 
         // Issue #288: el mensaje crudo publicado arriba (objeto anonimo) no lleva "Descripcion" -- el
@@ -355,10 +355,10 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             SchemaControlHoras, streamId, tipoEvento,
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        var empleadoEsperado = new Empleado(
+        var empleadoEsperado = new ColaboradorProgramado(
             empleadoId, "CC", "111222333", "[TEST] Smoke Wolverine", "[TEST] CamelCase Fix");
         var empleadoPersistido = eventoPersistido
-            .GetProperty("InformacionEmpleado").Deserialize<Empleado>();
+            .GetProperty("InformacionEmpleado").Deserialize<ColaboradorProgramado>();
         empleadoPersistido.Should().Be(empleadoEsperado);
 
         // Issue #288: mismo motivo que el test anterior -- el mensaje crudo en camelCase no lleva

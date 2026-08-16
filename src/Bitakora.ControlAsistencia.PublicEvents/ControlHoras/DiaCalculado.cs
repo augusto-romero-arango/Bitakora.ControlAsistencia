@@ -1,11 +1,14 @@
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 
 // HU-108: Evento publico que se publica al Service Bus via IPublicEventSender.
-// Representa el resultado del calculo del dia de trabajo de un empleado tras una
+// Representa el resultado del calculo del dia de trabajo de un colaborador tras una
 // marcacion o asignacion de turno.
+// Issue #340: el payload pasa de InformacionEmpleado a InformacionColaborador (termino proscrito
+// por #330). Solo cambia el TIPO: el nombre de la propiedad -- la clave JSON que viaja por el bus
+// -- se conserva hasta #401.
 // Issue #183: el payload es 100% primitivo (HorasDiscriminadas). Se elimino el modelo rico
 // (ControlesDeFranja: IReadOnlyList<DetalleControlFranja> y el antiguo DesgloseHoras) que dependia
 // del resolver custom de Marten y se serializaba lossy en el canal de publicacion a Service Bus.
@@ -19,12 +22,12 @@ namespace Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 public sealed class DiaCalculado : IPublicEvent
 {
     // Puede ser null cuando el ControlDiario nacio solo por marcacion sin turno previo.
-    public InformacionEmpleado? InformacionEmpleado { get; private set; }
+    public InformacionColaborador? InformacionEmpleado { get; private set; }
     public DateOnly Fecha { get; private set; }
     public HorasDiscriminadas HorasDiscriminadas { get; private set; } = null!;
 
     public DiaCalculado(
-        InformacionEmpleado? informacionEmpleado,
+        InformacionColaborador? informacionEmpleado,
         DateOnly fecha,
         HorasDiscriminadas horasDiscriminadas)
     {

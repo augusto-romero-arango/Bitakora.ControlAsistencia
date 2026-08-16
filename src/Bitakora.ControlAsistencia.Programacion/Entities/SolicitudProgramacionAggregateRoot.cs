@@ -4,11 +4,12 @@ using Cosmos.EventSourcing.Abstractions;
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 // Issue #319 (tres islas, MEF-ADR-0039 decision 2): Empleado y DetalleTurno tipan con los records
-// propios del dominio (Programacion.DomainEvents) -- ya no con InformacionEmpleado (PublicEvents)
-// ni DetalleTurno (PrivateEvents).
+// propios del dominio (Programacion.DomainEvents) -- ya no con InformacionColaborador
+// (PublicEvents) ni DetalleTurno (PrivateEvents). Issue #340: el record del colaborador se llama
+// ColaboradorProgramado; el nombre de la propiedad (clave JSON) se conserva hasta #401.
 public partial class SolicitudProgramacionAggregateRoot : AggregateRoot
 {
-    internal Empleado? Empleado { get; private set; }
+    internal ColaboradorProgramado? Empleado { get; private set; }
     internal IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
     internal TurnoProgramado? DetalleTurno { get; private set; }
 

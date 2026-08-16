@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// por el cliente (mismo precedente que EmpleadoId/DispositivoId: puede o no ser un guid). Nombre
 /// viaja para que el evento persistido quede autocontenido.
 /// Sin Equals custom: todos los campos son string, la igualdad por valor del record por defecto ya
-/// es correcta (mismo criterio que Empleado, issue #319).
+/// es correcta (mismo criterio que ColaboradorProgramado, issue #319).
 /// El nombre puro "Sede" queda RESERVADO para el concepto rico del futuro maestro de sedes (#338,
 /// direccion/ciudad/dispositivos asociados) -- este record es deliberadamente "Programada" para no
 /// hacer squatting de ese nombre.

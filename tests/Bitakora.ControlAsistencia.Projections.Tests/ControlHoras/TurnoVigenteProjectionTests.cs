@@ -33,7 +33,7 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.ControlHoras;
 
 public class TurnoVigenteProjectionTests
 {
-    private static Empleado EmpleadoDePrueba() =>
+    private static ColaboradorProgramado EmpleadoDePrueba() =>
         new("EMP-001", "CC", "1098765432", "Ana", "Ramirez");
 
     // CA-1: Create mapea stream key, EmpleadoId, NombreCompleto (concatenado Nombres+Apellidos --
@@ -149,7 +149,7 @@ public class TurnoVigenteProjectionTests
             [new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14))]);
 
         // Mismo EmpleadoId, nombre corregido aguas arriba (dos nombres y dos apellidos).
-        var empleadoCorregido = new Empleado("EMP-001", "CC", "1098765432", "Ana Maria", "Ramirez Solano");
+        var empleadoCorregido = new ColaboradorProgramado("EMP-001", "CC", "1098765432", "Ana Maria", "Ramirez Solano");
         var turnoTarde = new TurnoDiario(
             "Turno Tarde",
             [new FranjaProgramada(

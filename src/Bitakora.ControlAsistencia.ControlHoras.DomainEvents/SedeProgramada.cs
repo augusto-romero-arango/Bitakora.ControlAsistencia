@@ -13,6 +13,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// EstaCompleta() (esa regla de completitud pertenece a quien COMPONE la sede, no a quien
 /// solamente la transporta y persiste).
 /// Sin Equals custom: todos los campos son string, la igualdad por valor del record por defecto ya
-/// es correcta (mismo criterio que Empleado, issue #319, y SedeProgramada de Programacion, #331).
+/// es correcta (mismo criterio que ColaboradorProgramado, issue #319, y SedeProgramada de
+/// Programacion, #331).
 /// </remarks>
 public record SedeProgramada(string Id, string Nombre);

@@ -3,27 +3,27 @@
 // (PublicEvents) declaran el mismo dato en dos ensamblados que no se referencian entre si.
 // Sin este guardrail, agregar un campo a uno de los dos no rompe nada y el dato se pierde en
 // silencio al construir el evento persistido ProgramacionTurnoSolicitada -- mismo modo de fallo
-// que DetalleEmpleadoParidadConInformacionEmpleadoTests (issue #318) ya cubre para el payload de
+// que DetalleColaboradorParidadConInformacionColaboradorTests (issue #318) ya cubre para el payload de
 // bus.
 
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ValueObjects;
 
-public class EmpleadoParidadConInformacionEmpleadoTests
+public class ColaboradorProgramadoParidadConInformacionColaboradorTests
 {
     private static IEnumerable<(string Nombre, Type Tipo)> Campos<T>() =>
         typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Select(p => (p.Name, p.PropertyType));
 
     [Fact]
-    public void Empleado_DeclaraLosMismosCamposQueInformacionEmpleado()
+    public void ColaboradorProgramado_DeclaraLosMismosCamposQueInformacionColaborador()
     {
-        var campos = Campos<Empleado>();
+        var campos = Campos<ColaboradorProgramado>();
 
-        campos.Should().Equal(Campos<InformacionEmpleado>());
+        campos.Should().Equal(Campos<InformacionColaborador>());
     }
 }

@@ -20,8 +20,8 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000009");
 
-    // Issue #318 CA-2: Empleado ahora tipa con DetalleEmpleado (payload propio de PrivateEvents).
-    private static readonly DetalleEmpleado Empleado = new(
+    // Issue #318 CA-2: Empleado ahora tipa con DetalleColaborador (payload propio de PrivateEvents).
+    private static readonly DetalleColaborador Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
@@ -64,7 +64,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     }
 
     // Issue #331 CA-5: la sede es un DTO plano de strings (DetalleSede) -- portable por el
-    // serializador por defecto del bus, igual que DetalleTurno/DetalleEmpleado.
+    // serializador por defecto del bus, igual que DetalleTurno/DetalleColaborador.
     [Fact]
     public void RoundTrip_PreservaLaSede_ConSerializadorPorDefectoDelBus()
     {

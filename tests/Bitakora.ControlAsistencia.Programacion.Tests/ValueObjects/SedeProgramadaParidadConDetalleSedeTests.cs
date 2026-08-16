@@ -3,7 +3,7 @@
 // (PrivateEvents) declaran el mismo dato en dos ensamblados que no se referencian entre si.
 // Sin este guardrail, agregar un campo a uno de los dos no rompe nada y el dato se pierde en
 // silencio en MapearSede -- el mismo modo de fallo que ya cubren los cuatro pares de gemelos
-// anteriores (Empleado/InformacionEmpleado #319, TurnoProgramado/DetalleTurno,
+// anteriores (ColaboradorProgramado/InformacionColaborador #319, TurnoProgramado/DetalleTurno,
 // FranjaProgramada/DetalleFranjaOrdinaria, SubFranjaProgramada/DetalleSubFranja).
 
 using System.Reflection;

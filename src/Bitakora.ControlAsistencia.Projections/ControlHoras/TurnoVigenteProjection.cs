@@ -50,9 +50,9 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     // turno, horario y bloques. Id, EmpleadoId y Fecha no cambian: son la identidad del stream
     // ("{EmpleadoId}:{Fecha:yyyy-MM-dd}"), invariante para todos los eventos del mismo documento.
     //
-    // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload Empleado completo, y
-    // el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba -- dejarlo fijo
-    // congelaria para siempre el nombre de la primera asignacion.
+    // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload del colaborador
+    // completo, y el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba --
+    // dejarlo fijo congelaria para siempre el nombre de la primera asignacion.
     public static TurnoVigente Apply(TurnoDiarioAsignado evento, TurnoVigente vista) =>
         vista with
         {
@@ -65,8 +65,8 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     // Unico lugar del sistema donde se concatena Nombres + Apellidos (issue #328, "Investigacion
     // del planner"): el read model expone un solo campo de presentacion, no nombres/apellidos
     // separados.
-    private static string NombreCompleto(Empleado empleado) =>
-        $"{empleado.Nombres} {empleado.Apellidos}";
+    private static string NombreCompleto(ColaboradorProgramado colaborador) =>
+        $"{colaborador.Nombres} {colaborador.Apellidos}";
 
     private static IReadOnlyList<Bloque> MapearBloques(TurnoDiarioAsignado evento) =>
         evento.DetalleTurno.Segmentar(evento.Fecha).Select(MapearBloque).ToList();

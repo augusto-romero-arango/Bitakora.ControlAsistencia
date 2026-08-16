@@ -37,12 +37,12 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     // Datos compartidos - el stream ID es determinista a partir de EmpleadoId+Fecha.
     // private static: las nested classes acceden a los miembros privados de la clase contenedora.
     // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly Empleado Empleado = new(
+    private static readonly ColaboradorProgramado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
     // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+    private static readonly DetalleColaborador EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
