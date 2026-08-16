@@ -9,7 +9,7 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -23,16 +23,16 @@ public class DepurarAlAsignarTurnoTests
         Guid.Parse("019600c0-0000-7000-8000-000000000002");
 
     // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly Empleado Empleado = new(
+    private static readonly ColaboradorProgramado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // InformacionEmpleado (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
-    private static readonly InformacionEmpleado EmpleadoPublico = new(
+    private static readonly InformacionColaborador EmpleadoPublico = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
     // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+    private static readonly DetalleColaborador EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);

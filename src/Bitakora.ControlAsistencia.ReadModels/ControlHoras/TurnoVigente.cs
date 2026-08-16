@@ -22,8 +22,9 @@ namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 /// deliberadamente la trazabilidad interna hacia la solicitud de programacion y la identificacion
 /// completa del empleado (ambas las cargaba el read model del issue #289, que ningun cliente de
 /// calendario consumia): solo EmpleadoId (lookup/resourceId) y NombreCompleto (un solo campo,
-/// concatenado por la proyeccion desde Empleado.Nombres + Empleado.Apellidos -- unico lugar del
-/// sistema donde se hace, issue #328 "Investigacion del planner").
+/// concatenado por la proyeccion desde ColaboradorProgramado.Nombres +
+/// ColaboradorProgramado.Apellidos -- unico lugar del sistema donde se hace, issue #328
+/// "Investigacion del planner").
 /// </summary>
 public sealed record TurnoVigente(
     string Id,

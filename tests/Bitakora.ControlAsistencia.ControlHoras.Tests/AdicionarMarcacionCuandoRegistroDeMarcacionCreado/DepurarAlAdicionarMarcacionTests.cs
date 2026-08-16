@@ -11,7 +11,7 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -26,11 +26,11 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static readonly string StreamIdDiaAnterior = $"{EmpleadoId}:2026-03-14";
 
     // Issue #322: Empleado (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
-    private static readonly Empleado EmpleadoPersistido = new(
+    private static readonly ColaboradorProgramado EmpleadoPersistido = new(
         EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // InformacionEmpleado (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
-    private static readonly InformacionEmpleado EmpleadoPublico = new(
+    private static readonly InformacionColaborador EmpleadoPublico = new(
         EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000001");
 

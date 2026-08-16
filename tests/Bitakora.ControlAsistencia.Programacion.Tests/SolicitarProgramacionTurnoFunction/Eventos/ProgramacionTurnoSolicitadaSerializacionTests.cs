@@ -38,7 +38,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     private const string DescripcionDescanso = "(12:00-12:30)";
     private const string DescripcionExtra = "(13:00-14:00)";
 
-    private static readonly Empleado EmpleadoEsperado =
+    private static readonly ColaboradorProgramado EmpleadoEsperado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // Issue #331: sede efectiva del dia, campo aditivo y opcional.

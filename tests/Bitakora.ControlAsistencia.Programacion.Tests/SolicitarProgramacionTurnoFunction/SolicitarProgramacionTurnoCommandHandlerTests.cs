@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -27,17 +27,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
-    private static readonly InformacionEmpleado Empleado =
+    private static readonly InformacionColaborador Empleado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // Mismo empleado, en la forma que el handler debe producir para el evento privado
     // (CA-ADR-0029 decision #5): si el mapeo pierde o permuta un campo, estos tests lo delatan.
-    private static readonly DetalleEmpleado EmpleadoDetalle =
+    private static readonly DetalleColaborador EmpleadoDetalle =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // Issue #319 CA-2/CA-5: mismo empleado, en el record propio de Programacion.DomainEvents que
     // ahora tipa ProgramacionTurnoSolicitada.Empleado (tres islas, MEF-ADR-0039 decision 2).
-    private static readonly Empleado EmpleadoProgramado =
+    private static readonly ColaboradorProgramado EmpleadoProgramado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno(). Forma de BUS

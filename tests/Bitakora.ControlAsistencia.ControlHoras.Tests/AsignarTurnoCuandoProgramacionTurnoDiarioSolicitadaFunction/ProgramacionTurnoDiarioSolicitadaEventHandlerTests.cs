@@ -18,12 +18,12 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         Guid.Parse("019600b0-0000-7000-8000-000000000001");
 
     // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly Empleado Empleado = new(
+    private static readonly ColaboradorProgramado Empleado = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
     // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleEmpleado EmpleadoDetalle = new(
+    private static readonly DetalleColaborador EmpleadoDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
@@ -66,7 +66,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
 
         Then(StreamId, CrearTurnoDiarioAsignado());
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
-        And<ControlDiarioAggregateRoot, Empleado?>(StreamId, c => c.InformacionEmpleado, Empleado);
+        And<ControlDiarioAggregateRoot, ColaboradorProgramado?>(StreamId, c => c.InformacionEmpleado, Empleado);
         And<ControlDiarioAggregateRoot, DateOnly>(StreamId, c => c.Fecha, Fecha);
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, TurnoDiarioTest.Nombre);
     }

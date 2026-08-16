@@ -21,7 +21,7 @@ public class TurnoDiarioAsignadoSerializacionTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000001");
 
-    private static readonly Empleado EmpleadoDePrueba = new(
+    private static readonly ColaboradorProgramado EmpleadoDePrueba = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
@@ -110,7 +110,7 @@ public class TurnoDiarioAsignadoSerializacionTests
 
         var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(jsonPersistidoHoy, opciones);
 
-        var empleadoEsperado = new Empleado("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        var empleadoEsperado = new ColaboradorProgramado("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
         var turnoEsperado = new TurnoDiario(
             "Turno Manana",
             [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],

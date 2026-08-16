@@ -13,13 +13,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Empleados;
+using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.Eventos;
 
 public class DiaCalculadoSerializacionTests
 {
-    private static readonly InformacionEmpleado Empleado =
+    private static readonly InformacionColaborador Empleado =
         new("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);

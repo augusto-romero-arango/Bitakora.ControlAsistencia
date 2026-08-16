@@ -6,8 +6,10 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// </summary>
 /// <remarks>
 /// Issue #319 (tres islas, MEF-ADR-0039 decision 2 y 6): Empleado y DetalleTurno tipan con los
-/// records propios de este ensamblado (Empleado, TurnoProgramado) en vez de InformacionEmpleado
-/// (PublicEvents) y DetalleTurno (PrivateEvents). Los NOMBRES de las propiedades no cambian --
+/// records propios de este ensamblado (ColaboradorProgramado, TurnoProgramado) en vez de
+/// InformacionColaborador (PublicEvents) y DetalleTurno (PrivateEvents). Issue #340: el record
+/// paso de llamarse Empleado a ColaboradorProgramado -- solo el TIPO; el nombre de la propiedad
+/// (la clave JSON "Empleado") se conserva hasta #401. Los NOMBRES de las propiedades no cambian --
 /// son las claves JSON persistidas en mt_events (CA-2); solo cambian los TIPOS. Sin migracion de
 /// datos: STJ no persiste $type para records anidados, asi que el JSON ya escrito deserializa
 /// identico contra los tipos nuevos (ver ProgramacionTurnoSolicitadaSerializacionTests).
@@ -15,7 +17,7 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 public sealed class ProgramacionTurnoSolicitada
 {
     public Guid Id { get; private set; }
-    public Empleado Empleado { get; private set; } = null!;
+    public ColaboradorProgramado Empleado { get; private set; } = null!;
     public IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
     public TurnoProgramado DetalleTurno { get; private set; } = null!;
 
@@ -27,7 +29,7 @@ public sealed class ProgramacionTurnoSolicitada
 
     public ProgramacionTurnoSolicitada(
         Guid id,
-        Empleado empleado,
+        ColaboradorProgramado empleado,
         IReadOnlyList<DateOnly> fechas,
         TurnoProgramado detalleTurno,
         SedeProgramada? sede = null)

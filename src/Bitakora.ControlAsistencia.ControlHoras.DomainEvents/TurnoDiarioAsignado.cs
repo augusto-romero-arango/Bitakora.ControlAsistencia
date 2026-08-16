@@ -11,20 +11,22 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // HU-12: evento de event sourcing del aggregate ControlDiario
 // CA-5: contiene InformacionEmpleado, Fecha, DetalleTurno y SolicitudId (trazabilidad)
 // Issue #322: InformacionEmpleado y DetalleTurno dejan de ser tipos de PublicEvents/PrivateEvents
-// -- ahora son Empleado y TurnoDiario, propios de este ensamblado (payload por rol, CA-ADR-0029
-// decision #5). Los NOMBRES de estas propiedades NO cambian (son las claves JSON persistidas en
-// mt_events); solo cambian los TIPOS. MEF-ADR-0036: el alias del evento no se toca.
+// -- ahora son ColaboradorProgramado y TurnoDiario, propios de este ensamblado (payload por rol,
+// CA-ADR-0029 decision #5). Issue #340: ese payload paso de llamarse Empleado a
+// ColaboradorProgramado (termino proscrito por #330). Los NOMBRES de estas propiedades NO cambian
+// (son las claves JSON persistidas en mt_events); solo cambian los TIPOS. MEF-ADR-0036: el alias
+// del evento no se toca -- deriva del nombre de clase del EVENTO, que no se renombra.
 public sealed class TurnoDiarioAsignado
 {
     public string Id { get; private set; } = null!;
-    public Empleado InformacionEmpleado { get; private set; } = null!;
+    public ColaboradorProgramado InformacionEmpleado { get; private set; } = null!;
     public DateOnly Fecha { get; private set; }
     public TurnoDiario DetalleTurno { get; private set; } = null!;
     public Guid SolicitudId { get; private set; }
 
     public TurnoDiarioAsignado(
         string id,
-        Empleado informacionEmpleado,
+        ColaboradorProgramado informacionEmpleado,
         DateOnly fecha,
         TurnoDiario detalleTurno,
         Guid solicitudId)

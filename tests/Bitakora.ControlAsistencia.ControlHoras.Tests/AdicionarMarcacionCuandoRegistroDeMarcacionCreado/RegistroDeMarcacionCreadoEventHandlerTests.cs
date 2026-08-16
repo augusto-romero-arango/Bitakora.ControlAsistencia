@@ -57,7 +57,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampFueraDeVentana));
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
-        And<ControlDiarioAggregateRoot, Empleado?>(
+        And<ControlDiarioAggregateRoot, ColaboradorProgramado?>(
             StreamIdDia15, c => c.InformacionEmpleado, null);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(
             StreamIdDia15, c => c.DetalleTurno, null);

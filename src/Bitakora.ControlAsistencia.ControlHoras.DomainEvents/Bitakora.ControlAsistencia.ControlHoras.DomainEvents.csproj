@@ -10,8 +10,8 @@
        proyecto, tampoco hacia los otros ensamblados de eventos, y ningun paquete que retirar.
        Issue #322: retirado Cosmos.EventDriven.Abstractions (ya no aparecia mas que en comentarios,
        desde #270) y los ProjectReference a PublicEvents/PrivateEvents. Los payloads del evento
-       persistido (Empleado, TurnoDiario, FranjaProgramada, SubFranjaProgramada) son propios de
-       este ensamblado (payload por rol, decision #5), no tipos importados. -->
+       persistido (ColaboradorProgramado, TurnoDiario, FranjaProgramada, SubFranjaProgramada)
+       son propios de este ensamblado (payload por rol, decision #5), no tipos importados. -->
 
   <!-- Issue #275: MarcacionRegistrada.Mensajes es internal y los tests lo usan en sus asserts
        (MEF-ADR-0009, patron TurnoCreado.Mensajes). -->
