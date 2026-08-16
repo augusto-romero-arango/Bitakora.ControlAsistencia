@@ -234,7 +234,7 @@ La Capa 4 pasa a tener **dos** alertas de spike, una por borde:
 | Alerta | Cubre | Filtro |
 |---|---|---|
 | `<prefijo>-exception-spike` | Borde HTTP | excepciones correlacionadas a un request con `resultCode == "500"` |
-| `<prefijo>-servicebus-failure-spike` | Consumidores de eventos | invocaciones con `success == false` cuyo `resultCode` no es un status HTTP |
+| `<prefijo>-non-http-failure-spike` | Triggers no-HTTP | invocaciones con `success == false` cuyo `resultCode` no es un status HTTP |
 
 Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: iguales en ambas.
 
