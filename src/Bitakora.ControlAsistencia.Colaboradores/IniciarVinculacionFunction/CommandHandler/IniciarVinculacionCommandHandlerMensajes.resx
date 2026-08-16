@@ -27,6 +27,6 @@
     <value>La vinculacion vigente del colaborador no tiene una terminacion registrada</value>
   </data>
   <data name="FechaSolapaVinculacionAnterior" xml:space="preserve">
-    <value>La fecha de inicio del reingreso debe ser estrictamente posterior a la fecha efectiva de terminacion de la vinculacion anterior</value>
+    <value>La fecha de inicio de la vinculacion nueva debe ser estrictamente posterior a la fecha efectiva de terminacion de la vinculacion anterior</value>
   </data>
 </root>

@@ -35,6 +35,19 @@ variable "app_settings" {
   default     = {}
 }
 
+variable "always_on" {
+  description = <<-EOT
+    Always On del site_config (issue #400). Recomendado true en App Service
+    plans dedicados (Basic/Standard/Premium): en esos tiers la VM se factura
+    24/7 este o no la app dormida, asi que apagarlo no ahorra costo (doc
+    oficial, "Cost of App Service plans") y ademas interrumpe el poll en
+    background del agente de durabilidad de Wolverine (DurabilityMode.Solo,
+    MEF-ADR-0020) cuando el host se duerme por inactividad.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Tags comunes del proyecto"
   type        = map(string)
@@ -59,6 +72,8 @@ resource "azurerm_linux_function_app" "this" {
   functions_extension_version = "~4"
 
   site_config {
+    always_on = var.always_on
+
     application_stack {
       dotnet_version              = "10.0"
       use_dotnet_isolated_runtime = true

@@ -12,14 +12,16 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 // las carpetas sin sufijo (ObtenerTurnoVigente/ListarTurnosVigentes) son queries GET, que no tienen
 // record de comando con el que colisionar. Sin el sufijo, este archivo no podria nombrar su propio
 // comando sin un alias de using.
-// Route = "Colaboradores": dominio y recurso son homonimos, un segundo segmento seria redundante.
+// Route = "colaboradores" (kebab-case minusculo, MEF-ADR-0043 seccion 3 / issue #378 CA-5): antes
+// "Colaboradores" (PascalCase) -- dominio y recurso son homonimos, un segundo segmento seria
+// redundante; unico cambio, sin tocar el resto del endpoint.
 // MEF-ADR-0004 (precedente CrearTurnoFunction.FunctionEndpoint): validar request (400 via
 // IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict; exito -> 202.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarColaborador")]
     public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Colaboradores")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "colaboradores")]
         HttpRequest req,
         CancellationToken ct)
     {

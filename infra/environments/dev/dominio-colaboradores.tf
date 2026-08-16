@@ -14,8 +14,10 @@
 # UNICO app setting SERVICE_BUS_CONNECTION (sin la topologia interno/externo de MEF-ADR-0024 del
 # harness), y Application Insights se configura con el valor directo de
 # module.monitoring.connection_string (no una referencia de Key Vault, decision #7 de ese ADR).
-# El modulo local infra/modules/service-plan tampoco acepta os_type/worker_count/always_on --
-# solo sku_name (default B1, hardcodea os_type = "Linux").
+# El modulo local infra/modules/service-plan ya acepta los cuatro inputs del contrato de
+# MEF-ADR-0020 (sku_name, os_type, worker_count, always_on -- issue #400, cierra la deriva
+# senalada aqui anteriormente): os_type y worker_count no se pasan explicitos porque sus
+# defaults ("Linux", 1) replican el comportamiento previo sin diff.
 
 resource "random_string" "storage_suffix_colaboradores" {
   length  = 6
@@ -33,12 +35,17 @@ module "storage_colaboradores" {
 
 # Un Service Plan por dominio (ADR-0020): aisla el computo de cada dominio. Mismo patron que
 # Programacion/ControlHoras (Linux, SKU B1 -- el default del modulo).
+#
+# always_on = true (issue #400): ver el comentario extendido junto a
+# module.service_plan_programacion en main.tf -- mismo razonamiento, un plan Basic dedicado
+# factura la VM 24/7 independientemente de Always On.
 module "service_plan_colaboradores" {
   source              = "../../modules/service-plan"
   name                = "asp-${local.prefix_short}-colaboradores"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   sku_name            = "B1"
+  always_on           = true
   tags                = local.tags
 }
 
@@ -50,6 +57,7 @@ module "function_app_colaboradores" {
   service_plan_id                = module.service_plan_colaboradores.id
   storage_account_name           = module.storage_colaboradores.name
   app_insights_connection_string = module.monitoring.connection_string
+  always_on                      = module.service_plan_colaboradores.always_on
   app_settings = {
     SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "colaboradores"

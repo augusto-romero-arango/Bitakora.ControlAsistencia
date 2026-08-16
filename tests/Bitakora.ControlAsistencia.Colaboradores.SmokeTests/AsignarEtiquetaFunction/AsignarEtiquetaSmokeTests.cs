@@ -1,41 +1,55 @@
-// Issue #355: smoke tests del endpoint POST Colaboradores/Etiquetas (asignar o sobrescribir una
-// etiqueta dinamica -- par categoria:valor libre, sin catalogo previo -- a la vinculacion vigente
-// de un colaborador). Septimo comando del ciclo de vida de ColaboradorAggregateRoot (desglose
-// #348-#357), gemelo de RetirarEtiquetaSmokeTests sobre el mismo diccionario. Molde:
-// TerminarVinculacionSmokeTests/ReingresarColaboradorSmokeTests/CorregirNombresSmokeTests -- mismo
-// comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la
-// unica verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
+// Issue #376 (MEF-ADR-0043 paso 2): smoke tests del endpoint PUT
+// colaboradores/{id}/etiquetas/{categoria} (asignar o sobrescribir por completo la etiqueta de una
+// categoria -- reemplazo del VO atomico Etiqueta, direccionable por categoria). Reemplaza el POST
+// Colaboradores/Etiquetas (issue #355): la ruta vieja deja de existir (CA-6), {id} = Identificacion
+// ToString() ("CC-<numero>", round-trip con Identificacion.Parsear, MEF-ADR-0037) y el body se
+// reduce a { "valor": "..." }. Molde: TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests
+// -- mismo comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin
+// ServiceBusFixture, la unica verificacion black-box de los efectos del handler es leer mt_events
+// via PostgresFixture.
 //
 // Arrange: AsignarEtiqueta exige un ColaboradorAggregateRoot existente -- el arrange de cada test
-// registra el colaborador y, cuando aplica, termina su vinculacion o lo reingresa via los mismos
-// comandos que los originan (#330, #349, #350), nunca sembrando datos por fuera del API.
+// registra el colaborador y, cuando aplica, termina su vinculacion (issue #379, ruta con {codigo})
+// o inicia una vinculacion nueva (escenario de reingreso, issue #378) via los mismos comandos que
+// los originan (#330, #349/#379, #378), nunca sembrando datos por fuera del API. Issue #379: la
+// terminacion ahora exige el {codigo} de la vinculacion en la ruta -- RegistrarColaboradorAsync
+// devuelve el codigo (== CodigoColaborador del comando, verificado en
+// ColaboradorAggregateRoot.Registrar) para que el arrange lo use como {codigo} al terminar.
 //
 // Contenido persistido (Etiqueta, un VO con ctor privado, #353): se verifica deserializando el
 // campo "Etiqueta" con la SERIALIZACION REAL de produccion -- Etiqueta +
 // ConfiguracionSerializacionColaboradores.CrearOpcionesMarten() (referenciadas desde
-// Colaboradores.DomainEvents, ya cableado en el .csproj por el domain-scaffolder). Mismo criterio
-// que CorregirNombresSmokeTests con NombreColaborador: "el smoke test deserializa/serializa con el
-// tipo que realmente posee el payload persistido". La comparacion es por igualdad de valor
-// (Etiqueta.Equals, #353), NUNCA contra el texto JSON persistido (mt_events.data es jsonb; docs
-// 8.14.1). Solo es posible en streams que acumulan UN SOLO evento etiqueta_asignada
-// (ObtenerEventoAsync sin filtro trae el primero por seq_id -- ver el comentario de
-// PostgresFixture.ObtenerEventoAsync sobre campos objeto): cuando un escenario acumula DOS eventos
-// de este tipo en el mismo stream (CA-2 sobrescritura, CA-6 reingreso), el efecto se verifica por
+// Colaboradores.DomainEvents, ya cableado en el .csproj por el domain-scaffolder). La comparacion
+// es por igualdad de valor (Etiqueta.Equals, #353), NUNCA contra el texto JSON persistido (mt_events
+// .data es jsonb; docs 8.14.1). Solo es posible en streams que acumulan UN SOLO evento
+// etiqueta_asignada (ObtenerEventoAsync sin filtro trae el primero por seq_id -- ver el comentario
+// de PostgresFixture.ObtenerEventoAsync sobre campos objeto): cuando un escenario acumula DOS
+// eventos de este tipo en el mismo stream (sobrescritura, reingreso), el efecto se verifica por
 // CONTEO (ContarEventosAsync) en vez de contenido -- el detalle exhaustivo de "un valor por
 // categoria, nunca duplica" en el diccionario rehidratado ya lo cubre
 // AsignarEtiquetaCommandHandlerTests (*.Tests, unit), no se duplica aqui.
 //
 // CA-1 (ruta de exito): 202 + el stream recibe etiqueta_asignada con la doble forma (original y
 // normalizada) de categoria y valor.
-// CA-2 (rutas de exito): categoria existente + valor distinto -> sobrescribe (un evento nuevo se
-// agrega, conteo pasa de 1 a 2); etiqueta identica por valor -> 202 sin evento nuevo (idempotencia
-// silenciosa, conteo se mantiene en 1).
+// CA-2/CA-4 (rutas de exito): la categoria de la URL se normaliza con Etiqueta.NormalizarCategoria
+// -- PUT .../etiquetas/Área y .../etiquetas/area direccionan la MISMA etiqueta (EsMismaCategoria),
+// asi que un valor distinto sobrescribe (un evento nuevo se agrega, conteo pasa de 1 a 2); una
+// etiqueta identica por valor -> 202 sin evento nuevo (idempotencia silenciosa, conteo se mantiene
+// en 1).
 // CA-5 (rutas de rechazo): la ultima vinculacion tiene terminacion registrada -- pasada o un
 // preaviso cuya fecha no ha llegado, sin distincion -> 409, sin evento.
 // CA-6: tras un reingreso, la vinculacion nueva no hereda las etiquetas de la anterior -- asignar
 // sobre la vinculacion vigente crea la categoria desde cero -> 202.
-// CA-7: colaborador inexistente -> 404; request invalida (categoria o valor vacios, identificacion
-// incompleta, tipo fuera de la lista) -> 400, sin tocar el event store.
+// CA-7: colaborador inexistente -> 404.
+// CA-3 (issue #376): {id} de ruta invalido -- sin guion, tipo fuera de la lista PILA, o numero vacio
+// tras el guion -> 400, con Identificacion.Parsear como unico punto de traduccion (precedente
+// ObtenerFichaColaborador), sin tocar el event store.
+// Body invalido (Valor vacio) -> 400 via AsignarEtiquetaBodyValidator.
+//
+// Fuera de alcance (no forma parte de la lista cerrada de CA-3): una {categoria} de ruta vacia no es
+// una validacion de aplicacion sino un segmento de ruta ausente -- el propio host/routing de Azure
+// Functions decide que hacer con "PUT .../etiquetas/" (trailing slash), no el codigo del endpoint;
+// no hay CA que lo exija y no se testea aqui.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -50,10 +64,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string RutaRegistrar = "/api/Colaboradores";
-    private const string RutaTerminaciones = "/api/Colaboradores/Terminaciones";
-    private const string RutaReingresos = "/api/Colaboradores/Reingresos";
-    private const string RutaEtiquetas = "/api/Colaboradores/Etiquetas";
+    private const string RutaRegistrar = "/api/colaboradores";
     private const string SchemaColaboradores = "colaboradores";
     private const string TipoEventoEtiquetaAsignada = "etiqueta_asignada";
     private const string TipoIdentificacionCc = "CC";
@@ -76,11 +87,20 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
     // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
-    // Separador "-" desde el issue #381.
+    // Separador "-" desde el issue #381. Es EXACTAMENTE el mismo valor que el {id} de ruta del
+    // endpoint (round-trip con Identificacion.Parsear, issue #376): se reusa para ambos fines.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio) => new
+    // Ruta del endpoint migrado (issue #376): colaboradores/{id}/etiquetas/{categoria}. La
+    // categoria viaja cruda en la URL (puede traer tildes, ej. "Área") -- se URL-encodea al
+    // construir la ruta, mismo criterio que ListarTurnosVigentesSmokeTests (ControlHoras) con sus
+    // query params. El {id} ya es URL-safe por construccion (issue #381: separador "-", numero
+    // limpio [A-Z0-9]), asi que no requiere escape.
+    private static string RutaEtiqueta(string id, string categoria) =>
+        $"/api/colaboradores/{id}/etiquetas/{Uri.EscapeDataString(categoria)}";
+
+    private static object PayloadRegistro(string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador) => new
     {
         tipoIdentificacion = TipoIdentificacionCc,
         numeroIdentificacion,
@@ -88,78 +108,74 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         segundoNombre = (string?)null,
         primerApellido = "Smoke",
         segundoApellido = (string?)null,
-        codigoColaborador = NuevoCodigoColaborador(),
+        codigoColaborador,
         fechaInicio
     };
 
-    private static object PayloadTerminacion(string numeroIdentificacion, DateOnly fechaEfectiva) => new
+    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
+    // FechaInicio.
+    private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
     {
-        tipoIdentificacion = TipoIdentificacionCc,
-        numeroIdentificacion,
-        fechaEfectiva
+        codigoColaborador,
+        fechaInicio
     };
 
-    private static object PayloadReingreso(
-        string numeroIdentificacion, string codigoColaborador, DateOnly fechaInicio) => new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            codigoColaborador,
-            fechaInicio
-        };
-
-    private static object PayloadAsignacion(
-        string numeroIdentificacion, string categoria, string valor,
-        string tipoIdentificacion = TipoIdentificacionCc) => new
-        {
-            tipoIdentificacion,
-            numeroIdentificacion,
-            categoria,
-            valor
-        };
+    // Body reducido (issue #376): TipoIdentificacion/NumeroIdentificacion/Categoria ya no viajan
+    // aqui -- se derivan de la ruta.
+    private static object PayloadValor(string valor) => new { valor };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
-    private async Task RegistrarColaboradorAsync(
+    // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
+    // vinculacion inicial (== CodigoColaborador del comando, verificado en
+    // ColaboradorAggregateRoot.Registrar) para que el arrange lo use como {codigo} de ruta al
+    // terminar (issue #379).
+    private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
+        var codigo = NuevoCodigoColaborador();
+
         var response = await _client.PostAsJsonAsync(
-            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
+            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
+
+        return codigo;
     }
 
-    // Arrange comun (CA-5): cierra la vinculacion vigente -- via el comando que la origina (#349),
-    // nunca sembrando el event store por fuera del API.
+    // Arrange comun (CA-5): cierra la vinculacion vigente -- via el comando que la origina
+    // (#349/#379), nunca sembrando el event store por fuera del API. Issue #379: la ruta gano el
+    // {codigo} -- ya no es "/api/Colaboradores/Terminaciones" con identificacion en el body.
     private async Task TerminarVinculacionAsync(
-        string numeroIdentificacion, DateOnly fechaEfectiva, CancellationToken ct)
+        string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaTerminaciones, PayloadTerminacion(numeroIdentificacion, fechaEfectiva), ct);
+            $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
+            new { fechaEfectiva },
+            ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-6): reingresa al colaborador tras una terminacion -- via el comando que lo
-    // origina (#350), nunca sembrando el event store por fuera del API.
-    private async Task ReingresarColaboradorAsync(
+    // Arrange comun (CA-6): inicia una vinculacion nueva sobre el colaborador tras una terminacion
+    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378, reemplaza
+    // a ReingresarColaborador #350), nunca sembrando el event store por fuera del API.
+    private async Task IniciarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaReingresos,
-            PayloadReingreso(numeroIdentificacion, NuevoCodigoColaborador(), fechaInicio),
+            $"/api/colaboradores/{ComputarStreamId(numeroIdentificacion)}/vinculaciones",
+            PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
-            "el arrange de este smoke test depende de que ReingresarColaborador funcione");
+            "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
     private Task<HttpResponseMessage> AsignarEtiquetaAsync(
-        string numeroIdentificacion, string categoria, string valor, CancellationToken ct) =>
-        _client.PostAsJsonAsync(
-            RutaEtiquetas, PayloadAsignacion(numeroIdentificacion, categoria, valor), ct);
+        string id, string categoria, string valor, CancellationToken ct) =>
+        _client.PutAsJsonAsync(RutaEtiqueta(id, categoria), PayloadValor(valor), ct);
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -183,70 +199,72 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = ComputarStreamId(numeroIdentificacion);
 
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 15), ct);
 
-        var response = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        var streamId = ComputarStreamId(numeroIdentificacion);
-
         var existe = await postgres.ExisteEventoAsync(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada, Timeout);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada, Timeout);
 
         existe.Should().BeTrue(
-            $"el evento {TipoEventoEtiquetaAsignada} deberia existir en el stream {streamId}");
+            $"el evento {TipoEventoEtiquetaAsignada} deberia existir en el stream {id}");
 
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada, TimeoutLecturaConfirmada);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada, TimeoutLecturaConfirmada);
 
         var etiquetaPersistida = eventoPersistido.GetProperty("Etiqueta").Deserialize<Etiqueta>(OpcionesMarten);
 
         etiquetaPersistida.Should().Be(Etiqueta.Crear("Área", "Tecnología"));
     }
 
-    // CA-2: asignar sobre una categoria existente (via EsMismaCategoria: "Área" sobre "area") con
-    // un valor distinto sobrescribe -- un evento nuevo se agrega (conteo pasa de 1 a 2), a
+    // CA-2/CA-4: la URL direcciona por categoria NORMALIZADA (EsMismaCategoria: "Área" sobre
+    // "area") -- un valor distinto sobrescribe: un evento nuevo se agrega (conteo pasa de 1 a 2), a
     // diferencia de la idempotencia silenciosa (ver el siguiente test). El detalle de que el
     // diccionario rehidratado conserve UN SOLO valor por categoria (no dos) ya lo cubre
     // AsignarEtiquetaCommandHandlerTests a nivel unitario -- este smoke test solo verifica el
-    // efecto observable black-box: el endpoint acepta la sobrescritura y persiste otro evento.
+    // efecto observable black-box: el endpoint acepta la sobrescritura via una ruta con otra forma
+    // de la categoria y persiste otro evento.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna202YAgregaOtroEvento_CuandoCategoriaExisteConValorDistinto()
+    public async Task AsignarEtiqueta_Retorna202YAgregaOtroEvento_CuandoLaRutaLlegaConCategoriaEnOtraFormaYValorDistinto()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
-        var streamId = ComputarStreamId(numeroIdentificacion);
+        var id = ComputarStreamId(numeroIdentificacion);
 
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 20), ct);
 
-        var primeraAsignacion = await AsignarEtiquetaAsync(numeroIdentificacion, "area", "Medellín", ct);
+        var primeraAsignacion = await AsignarEtiquetaAsync(id, "area", "Medellín", ct);
         primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraEtiqueta = await postgres.ExisteEventoAsync(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada, Timeout);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada, Timeout);
         existePrimeraEtiqueta.Should().BeTrue(
-            $"el evento {TipoEventoEtiquetaAsignada} de la primera asignacion deberia estar en el stream {streamId}");
+            $"el evento {TipoEventoEtiquetaAsignada} de la primera asignacion deberia estar en el stream {id}");
 
-        var segundaAsignacion = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Bogotá", ct);
+        // Misma categoria normalizada, forma cruda distinta en la URL ("Área" vs "area").
+        var segundaAsignacion = await AsignarEtiquetaAsync(id, "Área", "Bogotá", ct);
 
         segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var asignaciones = await postgres.ContarEventosAsync(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada);
 
         asignaciones.Should().Be(2,
-            "sobrescribir con un valor distinto deberia agregar un evento nuevo (a diferencia de la idempotencia silenciosa)");
+            "PUT .../etiquetas/Área y .../etiquetas/area deberian direccionar la misma etiqueta (CA-4): sobrescribir con un valor distinto agrega un evento nuevo");
     }
 
     // CA-2: la etiqueta del comando es IGUAL por valor (Etiqueta.Equals, #353) a la ya asignada
     // para esa categoria -> idempotencia silenciosa: ningun evento nuevo, el conteo se mantiene en
-    // 1.
+    // 1. La ruta de la segunda request llega con otra forma de la categoria (mismo direccionamiento
+    // normalizado, CA-4).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarEtiqueta_Retorna202SinNuevoEvento_CuandoEtiquetaEsIdenticaPorValorALaExistente()
@@ -255,45 +273,48 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
-        var streamId = ComputarStreamId(numeroIdentificacion);
+        var id = ComputarStreamId(numeroIdentificacion);
 
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 25), ct);
 
-        var primeraAsignacion = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
+        var primeraAsignacion = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
         primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraEtiqueta = await postgres.ExisteEventoAsync(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada, Timeout);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada, Timeout);
         existePrimeraEtiqueta.Should().BeTrue(
-            $"el evento {TipoEventoEtiquetaAsignada} de la primera asignacion deberia estar en el stream {streamId}");
+            $"el evento {TipoEventoEtiquetaAsignada} de la primera asignacion deberia estar en el stream {id}");
 
-        // Misma etiqueta por valor, con otra combinacion de mayusculas/tildes en ambos campos.
-        var segundaAsignacion = await AsignarEtiquetaAsync(numeroIdentificacion, "area", "tecnologia", ct);
+        // Misma etiqueta por valor, con otra combinacion de mayusculas/tildes en la ruta y el body.
+        var segundaAsignacion = await AsignarEtiquetaAsync(id, "area", "tecnologia", ct);
 
         segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var asignaciones = await postgres.ContarEventosAsync(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada);
 
         asignaciones.Should().Be(1,
             "una etiqueta identica por valor a la existente no deberia persistir un evento nuevo (idempotencia silenciosa)");
     }
 
-    // CA-5 (decision #1, regla estricta de apertura): la ULTIMA vinculacion tiene terminacion
-    // registrada -> 409, sin evento nuevo. No requiere Postgres: el status code ya prueba que el
-    // aggregate declino con resultado y el handler lo tradujo (CA-ADR-0030).
+    // CA-5 (regla estricta de apertura): la ULTIMA vinculacion tiene terminacion registrada -> 409,
+    // sin evento nuevo. No requiere Postgres: el status code ya prueba que el aggregate declino con
+    // resultado y el handler lo tradujo (CA-ADR-0030; MEF-ADR-0043 seccion 2 paso 2: el 409 de un
+    // PUT es una instancia mas de "declinar con resultado", RFC 9110 §9.3.4).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarEtiqueta_Retorna409_CuandoUltimaVinculacionTieneTerminacionRegistrada()
     {
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = ComputarStreamId(numeroIdentificacion);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 2, 1), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 5, 1), ct);
+        var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 2, 1), ct);
+        await TerminarVinculacionAsync(
+            ComputarStreamId(numeroIdentificacion), codigo, new DateOnly(2026, 5, 1), ct);
 
-        var response = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -306,12 +327,13 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = ComputarStreamId(numeroIdentificacion);
         var fechaPreavisoFutura = new DateOnly(2030, 12, 31);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
-        await TerminarVinculacionAsync(numeroIdentificacion, fechaPreavisoFutura, ct);
+        var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
+        await TerminarVinculacionAsync(ComputarStreamId(numeroIdentificacion), codigo, fechaPreavisoFutura, ct);
 
-        var response = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -329,23 +351,24 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
-        var streamId = ComputarStreamId(numeroIdentificacion);
+        var id = ComputarStreamId(numeroIdentificacion);
 
-        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 10), ct);
+        var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 10), ct);
 
-        var asignacionPrevia = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Ventas", ct);
+        var asignacionPrevia = await AsignarEtiquetaAsync(id, "Área", "Ventas", ct);
         asignacionPrevia.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que la asignacion previa al reingreso funcione");
 
-        await TerminarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 6, 1), ct);
-        await ReingresarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 7, 1), ct);
+        await TerminarVinculacionAsync(
+            ComputarStreamId(numeroIdentificacion), codigo, new DateOnly(2026, 6, 1), ct);
+        await IniciarVinculacionAsync(numeroIdentificacion, new DateOnly(2026, 7, 1), ct);
 
-        var response = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var asignaciones = await postgres.ContarEventosAsync(
-            SchemaColaboradores, streamId, TipoEventoEtiquetaAsignada);
+            SchemaColaboradores, id, TipoEventoEtiquetaAsignada);
 
         asignaciones.Should().Be(2,
             "la vinculacion nueva del reingreso deberia aceptar la asignacion como una categoria nueva, agregando otro evento sin colisionar con la etiqueta congelada de la vinculacion anterior");
@@ -360,61 +383,64 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
+        var id = ComputarStreamId(numeroIdentificacion);
 
-        var response = await AsignarEtiquetaAsync(numeroIdentificacion, "Área", "Tecnología", ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-7: Categoria vacia -> 400.
+    // CA-3 (issue #376): {id} de ruta sin guion -> 400, Identificacion.Parsear como unico punto de
+    // traduccion (precedente ObtenerFichaColaborador.FunctionEndpoint).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna400_CuandoCategoriaEsVacia()
+    public async Task AsignarEtiqueta_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
         var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadAsignacion(NuevoNumeroIdentificacion(), categoria: "", valor: "Tecnología");
+        var idSinGuion = NuevoNumeroIdentificacion(); // p.ej. "3F2A0C..." sin "CC-" adelante
 
-        var response = await _client.PostAsJsonAsync(RutaEtiquetas, payload, ct);
+        var response = await AsignarEtiquetaAsync(idSinGuion, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-7: Valor vacio -> 400.
+    // CA-3: tipo de identificacion fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) dentro del
+    // {id} de ruta -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna400_CuandoValorEsVacio()
+    public async Task AsignarEtiqueta_Retorna400_CuandoTipoDeLaIdentificacionEnLaRutaNoEsReconocido()
     {
         var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadAsignacion(NuevoNumeroIdentificacion(), categoria: "Área", valor: "");
+        var id = $"XX-{NuevoNumeroIdentificacion()}";
 
-        var response = await _client.PostAsJsonAsync(RutaEtiquetas, payload, ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-7: NumeroIdentificacion vacio -> 400.
+    // CA-3: numero vacio tras el guion del {id} de ruta -> 400 (Identificacion.Crear rechaza un
+    // numero vacio tras la limpieza).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna400_CuandoNumeroIdentificacionEsVacio()
+    public async Task AsignarEtiqueta_Retorna400_CuandoNumeroDeLaIdentificacionEnLaRutaQuedaVacio()
     {
         var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadAsignacion(numeroIdentificacion: "", categoria: "Área", valor: "Tecnología");
+        const string idConNumeroVacio = "CC-";
 
-        var response = await _client.PostAsJsonAsync(RutaEtiquetas, payload, ct);
+        var response = await AsignarEtiquetaAsync(idConNumeroVacio, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-7: TipoIdentificacion fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) -> 400.
+    // Body invalido: Valor vacio -> 400 via AsignarEtiquetaBodyValidator.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna400_CuandoTipoIdentificacionNoEsReconocido()
+    public async Task AsignarEtiqueta_Retorna400_CuandoValorDelBodyEsVacio()
     {
         var ct = TestContext.Current.CancellationToken;
-        var payload = PayloadAsignacion(
-            NuevoNumeroIdentificacion(), categoria: "Área", valor: "Tecnología", tipoIdentificacion: "XX");
+        var id = ComputarStreamId(NuevoNumeroIdentificacion());
 
-        var response = await _client.PostAsJsonAsync(RutaEtiquetas, payload, ct);
+        var response = await AsignarEtiquetaAsync(id, "Área", valor: "", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

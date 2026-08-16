@@ -118,8 +118,13 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
-    // evento de fallo persistido. Dos razones de rechazo evaluables solo con la historia del
-    // stream, sin reloj (decision de refinamiento):
+    // evento de fallo persistido. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro
+    // codigo -- el {codigo} de la ruta HTTP, comparado contra _codigoVinculacionVigente ANTES de
+    // evaluar las demas reglas (salvaguarda tipo concurrencia optimista: rechaza actuar sobre la
+    // vinculacion equivocada tras un reingreso no visto por el cliente). Tres razones de rechazo
+    // evaluables solo con la historia del stream, sin reloj (decision de refinamiento):
+    //   - CodigoNoCorresponde (PRIMERA, #379): codigo != _codigoVinculacionVigente (comparacion
+    //     exacta, case-sensitive: #387 preserva el case del codigo).
     //   - YaTerminada: _fechaTerminacionVinculacionVigente ya tiene valor (incluye un preaviso
     //     cuya fecha aun no llego -- "ya terminada" es "tiene terminacion registrada", no "la
     //     fecha ya paso").
@@ -129,8 +134,11 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Exito: appendea VinculacionTerminada a _uncommittedEvents y lo aplica.
     // internal, como Registrar y como los metodos de comando de los demas aggregates del repo: el
     // unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
-    internal ResultadoTerminacionVinculacion TerminarVinculacion(DateOnly fechaEfectiva)
+    internal ResultadoTerminacionVinculacion TerminarVinculacion(string codigo, DateOnly fechaEfectiva)
     {
+        if (codigo != _codigoVinculacionVigente)
+            return ResultadoTerminacionVinculacion.CodigoNoCorresponde;
+
         if (_fechaTerminacionVinculacionVigente is not null)
             return ResultadoTerminacionVinculacion.YaTerminada;
 
@@ -144,11 +152,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoTerminacionVinculacion.Exitosa;
     }
 
-    // Issue #350: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
-    // evento de fallo persistido. Reutiliza VinculacionIniciada (CA-ADR-0029: un evento no conoce
-    // su comando) -- mismo hecho que Registrar, comando distinto.
-    // Dos razones de rechazo evaluables solo con la historia del stream, sin reloj (invariante de
-    // no-solape, doctrina del preaviso #349):
+    // Issue #378 (MEF-ADR-0043 paso 1, absorbe #350): inicia una vinculacion nueva sobre un
+    // colaborador EXISTENTE -- create disfrazado, verificado contra la historia del stream: emite
+    // el MISMO evento que Registrar (VinculacionIniciada, CA-ADR-0029: un evento no conoce su
+    // comando) -- mismo hecho, comando distinto. Antes se llamaba Reingresar (issue #350): el
+    // rename es puramente de nombre (CA-4) -- "reingreso" sigue nombrando el escenario de negocio,
+    // deja de nombrar la operacion.
+    // Mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un evento de
+    // fallo persistido. Dos razones de rechazo evaluables solo con la historia del stream, sin
+    // reloj (invariante de no-solape, doctrina del preaviso #349):
     //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null (incluye un reingreso
     //     previo sin terminar).
     //   - FechaSolapaVinculacionAnterior: fechaInicio <= _fechaTerminacionVinculacionVigente.Value
@@ -157,32 +169,32 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
     // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
-    internal ResultadoReingresoColaborador Reingresar(string codigo, DateOnly fechaInicio)
+    internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio)
     {
         if (_fechaTerminacionVinculacionVigente is null)
-            return ResultadoReingresoColaborador.VinculacionAbierta;
+            return ResultadoInicioVinculacion.VinculacionAbierta;
 
         if (fechaInicio <= _fechaTerminacionVinculacionVigente.Value)
-            return ResultadoReingresoColaborador.FechaSolapaVinculacionAnterior;
+            return ResultadoInicioVinculacion.FechaSolapaVinculacionAnterior;
 
         var evento = new VinculacionIniciada(codigo, fechaInicio);
         _uncommittedEvents.Add(evento);
         Apply(evento);
 
-        return ResultadoReingresoColaborador.Exitosa;
+        return ResultadoInicioVinculacion.Exitosa;
     }
 
     // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
     // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
-    // TerminarVinculacion/Reingresar no responde razon: sin reglas de estado que violar, la unica
-    // causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
+    // TerminarVinculacion/IniciarVinculacion no responde razon: sin reglas de estado que violar,
+    // la unica causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
     // La idempotencia es por igualdad de VALOR (NombreColaborador.Equals, #348), no por los
     // primitivos crudos del comando: el handler ya construyo el VO, que normaliza trim y opcionales
     // ausentes antes de que esta comparacion ocurra.
     // No mira la vigencia de la vinculacion: los nombres son de la PERSONA, no de la vinculacion
     // (decision de refinamiento 2026-08-11), asi que corregir sobre una vinculacion terminada es
     // valido. La existencia del colaborador ya la garantizo el handler al rehidratarlo.
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar.
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion.
     internal void CorregirNombres(NombreColaborador nombre)
     {
         if (nombre.Equals(_nombre))
@@ -195,9 +207,15 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
 
     // Issue #352: mecanismo combinado (CA-ADR-0030) -- "declinar con resultado" para las dos
     // reglas de estado y "declinar en silencio" (precedente CorregirNombres #351) para la
-    // idempotencia. Tres reglas evaluables solo con la historia del stream, sin reloj (decision de
-    // refinamiento 2026-08-11):
-    //   - SinCambios (idempotencia, se evalua PRIMERO): fechaCorregida == _fechaInicioVinculacionVigente
+    // idempotencia. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro codigo -- el
+    // {codigo} de la ruta HTTP, comparado contra _codigoVinculacionVigente ANTES de evaluar
+    // cualquier otra regla, INCLUYENDO la idempotencia (SinCambios): un comando dirigido a la
+    // vinculacion equivocada no debe filtrar informacion sobre el estado de la vigente, ni
+    // siquiera "no habia nada que corregir". Cuatro reglas evaluables solo con la historia del
+    // stream, sin reloj (decision de refinamiento 2026-08-11):
+    //   - CodigoNoCorresponde (PRIMERA, #379): codigo != _codigoVinculacionVigente (comparacion
+    //     exacta, case-sensitive: #387 preserva el case del codigo).
+    //   - SinCambios (idempotencia, segunda): fechaCorregida == _fechaInicioVinculacionVigente
     //     -> ningun evento, sin excepcion (patron #351: la idempotencia no consulta las demas reglas).
     //   - FechaPosteriorATerminacionPropia: la ULTIMA vinculacion tiene terminacion registrada
     //     (_fechaTerminacionVinculacionVigente is not null) y fechaCorregida >
@@ -205,14 +223,17 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     //     valida: vinculacion de un solo dia, consistente con TerminarVinculacion #349).
     //   - FechaSolapaVinculacionAnterior: no-solape hacia atras, solo ejercitable cuando existe una
     //     vinculacion anterior (tras un reingreso, #350) -- fechaCorregida es igual o anterior a la
-    //     FechaEfectiva de esa vinculacion anterior (misma frontera que Reingresar #350: el dia de
-    //     la fecha efectiva pertenece a la vinculacion que termino).
+    //     FechaEfectiva de esa vinculacion anterior (misma frontera que IniciarVinculacion #378:
+    //     el dia de la fecha efectiva pertenece a la vinculacion que termino).
     // Exito: appendea FechaInicioVinculacionCorregida a _uncommittedEvents y lo aplica.
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres --
-    // el unico llamador es el handler del mismo ensamblado (los tests lo alcanzan via
-    // InternalsVisibleTo).
-    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(DateOnly fechaCorregida)
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/
+    // CorregirNombres -- el unico llamador es el handler del mismo ensamblado (los tests lo
+    // alcanzan via InternalsVisibleTo).
+    internal ResultadoCorreccionFechaInicioVinculacion CorregirFechaInicio(string codigo, DateOnly fechaCorregida)
     {
+        if (codigo != _codigoVinculacionVigente)
+            return ResultadoCorreccionFechaInicioVinculacion.CodigoNoCorresponde;
+
         if (fechaCorregida == _fechaInicioVinculacionVigente)
             return ResultadoCorreccionFechaInicioVinculacion.SinCambios;
 
@@ -232,20 +253,28 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     }
 
     // Issue #354: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
-    // evento de fallo persistido. Unica regla, evaluable solo con la historia del stream, sin
-    // reloj (decision de refinamiento 2026-08-11 -- el arrepentimiento del preaviso y la fecha de
-    // terminacion errada comparten esta misma solucion):
+    // evento de fallo persistido. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro
+    // codigo -- el {codigo} de la ruta HTTP, comparado contra _codigoVinculacionVigente ANTES de
+    // evaluar la unica regla de estado (salvaguarda tipo concurrencia optimista). Dos razones de
+    // rechazo evaluables solo con la historia del stream, sin reloj (decision de refinamiento
+    // 2026-08-11 -- el arrepentimiento del preaviso y la fecha de terminacion errada comparten
+    // esta misma solucion):
+    //   - CodigoNoCorresponde (PRIMERA, #379): codigo != _codigoVinculacionVigente (comparacion
+    //     exacta, case-sensitive: #387 preserva el case del codigo).
     //   - VinculacionAbierta: _fechaTerminacionVinculacionVigente is null -- cubre tres casos que
     //     el handler no distingue entre si (recien registrada, reingresada, o ya anulada antes,
     //     CA-3/CA-4): tras un reingreso la terminacion de la vinculacion ANTERIOR queda congelada
     //     (decision aprobada explicitamente) porque solo la ULTIMA vinculacion cuenta.
     // Exito: appendea TerminacionAnulada a _uncommittedEvents y lo aplica -- reabre la vinculacion
     // vigente con su codigo y fecha de inicio intactos (Apply no los toca).
-    // internal: mismo criterio de visibilidad que TerminarVinculacion/Reingresar/CorregirNombres/
-    // CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado (los tests lo
-    // alcanzan via InternalsVisibleTo).
-    internal ResultadoAnulacionTerminacion AnularTerminacion()
+    // internal: mismo criterio de visibilidad que TerminarVinculacion/IniciarVinculacion/
+    // CorregirNombres/CorregirFechaInicio -- el unico llamador es el handler del mismo ensamblado
+    // (los tests lo alcanzan via InternalsVisibleTo).
+    internal ResultadoAnulacionTerminacion AnularTerminacion(string codigo)
     {
+        if (codigo != _codigoVinculacionVigente)
+            return ResultadoAnulacionTerminacion.CodigoNoCorresponde;
+
         if (_fechaTerminacionVinculacionVigente is null)
             return ResultadoAnulacionTerminacion.VinculacionAbierta;
 

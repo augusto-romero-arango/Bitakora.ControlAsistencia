@@ -42,8 +42,32 @@ provider "azurerm" {
   # explicitamente los RPs que la configuracion necesita -- como ya haciamos
   # desde el issue #246 -- deja de ser un ajuste puntual para Microsoft.App y
   # pasa a ser la forma canonica de registrar Resource Providers en v5.
+  #
+  # Lista canonica de los trece namespaces del marco (MEF-ADR-0021, issue #439).
+  # Antes solo se declaraba Microsoft.App: los otros doce venian por el
+  # auto-registro implicito del modo "legacy" de v4, que el pin "~> 5.0" de este
+  # entorno ya no provee (default "none"). Sin declararlos, el primer apply que
+  # cree un recurso de un namespace no registrado falla con
+  # 409 MissingSubscriptionRegistration.
+  #
+  # OJO con el casing: es case-sensitive (internal/resourceproviders/required.go
+  # del provider). "microsoft.insights" va en minusculas -- la validacion del
+  # argumento es best-effort y un typo degrada a un [WARN] en el plan, para
+  # reaparecer como 409 en el apply.
   resource_providers_to_register = [
     "Microsoft.App",
+    "Microsoft.Resources",
+    "Microsoft.Storage",
+    "Microsoft.ManagedIdentity",
+    "Microsoft.Authorization",
+    "Microsoft.Web",
+    "Microsoft.KeyVault",
+    "Microsoft.ServiceBus",
+    "Microsoft.DBforPostgreSQL",
+    "Microsoft.OperationalInsights",
+    "microsoft.insights",
+    "Microsoft.ContainerRegistry",
+    "Microsoft.ApiManagement",
   ]
 
   features {

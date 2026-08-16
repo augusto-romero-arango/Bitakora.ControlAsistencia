@@ -24,5 +24,6 @@ public class TerminarVinculacionCommandHandlerMensajesTests
         TerminarVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado.Should().NotBeNullOrWhiteSpace();
         TerminarVinculacionCommandHandler.Mensajes.VinculacionYaTerminada.Should().NotBeNullOrWhiteSpace();
         TerminarVinculacionCommandHandler.Mensajes.FechaAnteriorAInicio.Should().NotBeNullOrWhiteSpace();
+        TerminarVinculacionCommandHandler.Mensajes.CodigoNoCorresponde.Should().NotBeNullOrWhiteSpace();
     }
 }

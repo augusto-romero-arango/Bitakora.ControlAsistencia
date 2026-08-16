@@ -6,8 +6,9 @@
 // documento cuando comparten categoria normalizada.
 //
 // Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
-// POST Colaboradores (#330) y se etiqueta/retira con POST Colaboradores/Etiquetas y
-// Colaboradores/Etiquetas/Retiros (#355) -- los mismos comandos que la proyeccion consume.
+// POST Colaboradores (#330) y se etiqueta/retira con PUT/DELETE colaboradores/{id}/etiquetas/
+// {categoria} (#355, migrado de POST Colaboradores/Etiquetas y Colaboradores/Etiquetas/Retiros a
+// esta ruta por el issue #376) -- los mismos comandos que la proyeccion consume.
 //
 // Sin ObtenerCategoriaDeEtiquetas por id en este issue (el documento ya tiene id direccionable,
 // pero se agrega solo si un caso real lo pide -- Rule of Three, MEF-ADR-0018): por eso este archivo
@@ -64,8 +65,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
 
     private const string RutaCatalogo = "/api/colaboradores/etiquetas/categorias";
     private const string RutaRegistrar = "/api/Colaboradores";
-    private const string RutaEtiquetas = "/api/Colaboradores/Etiquetas";
-    private const string RutaRetiros = "/api/Colaboradores/Etiquetas/Retiros";
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -94,6 +93,17 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
     // discriminadora es el prefijo alrededor de este sufijo unico.
     private static string NuevoSufijoUnico() => Guid.CreateVersion7().ToString("N");
 
+    // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
+    // reconstruido localmente (oraculo independiente, MEF-ADR-0002): es el {id} de ruta del
+    // endpoint migrado por el issue #376.
+    private static string ComputarStreamId(string numeroIdentificacion) =>
+        $"{TipoIdentificacionCc}-{numeroIdentificacion}";
+
+    // Ruta migrada por el issue #376 (mismo template que Asignar/RetirarEtiquetaSmokeTests): la
+    // categoria viaja cruda en la URL (puede traer tildes) y se URL-encodea al construir la ruta.
+    private static string RutaEtiqueta(string id, string categoria) =>
+        $"/api/colaboradores/{id}/etiquetas/{Uri.EscapeDataString(categoria)}";
+
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
     // origina (#330), nunca sembrando el event store por fuera del API.
     private async Task RegistrarColaboradorAsync(
@@ -116,32 +126,25 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
     }
 
     // Arrange comun: asigna una etiqueta dinamica -- via el comando que la origina (#355), la MISMA
-    // fuente de eventos que alimenta CategoriaDeEtiquetasProjection.
+    // fuente de eventos que alimenta CategoriaDeEtiquetasProjection. Migrado a PUT
+    // colaboradores/{id}/etiquetas/{categoria} por el issue #376.
     private async Task AsignarEtiquetaAsync(
         string numeroIdentificacion, string categoria, string valor, CancellationToken ct)
     {
-        var response = await _client.PostAsJsonAsync(RutaEtiquetas, new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            categoria,
-            valor
-        }, ct);
+        var id = ComputarStreamId(numeroIdentificacion);
+        var response = await _client.PutAsJsonAsync(RutaEtiqueta(id, categoria), new { valor }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que AsignarEtiqueta funcione");
     }
 
     // Arrange comun (CA-5): retira una etiqueta dinamica -- via el comando que la origina (#355).
+    // Migrado a DELETE colaboradores/{id}/etiquetas/{categoria} por el issue #376.
     private async Task RetirarEtiquetaAsync(
         string numeroIdentificacion, string categoria, CancellationToken ct)
     {
-        var response = await _client.PostAsJsonAsync(RutaRetiros, new
-        {
-            tipoIdentificacion = TipoIdentificacionCc,
-            numeroIdentificacion,
-            categoria
-        }, ct);
+        var id = ComputarStreamId(numeroIdentificacion);
+        var response = await _client.DeleteAsync(RutaEtiqueta(id, categoria), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que RetirarEtiqueta funcione");

@@ -1,4 +1,3 @@
-using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -34,16 +33,8 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         string id,
         CancellationToken ct)
     {
-        Identificacion identificacion;
-        try
-        {
-            identificacion = Identificacion.Parsear(id);
-        }
-        catch (ArgumentException)
-        {
-            return new BadRequestObjectResult(
-                "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}");
-        }
+        if (!IdentificacionDeRuta.TryParsear(id, out var identificacion, out var errorDeId))
+            return errorDeId;
 
         var (body, error) = await requestValidator.ValidarAsync<CorregirNombresBody>(req, ct);
         if (error is not null)

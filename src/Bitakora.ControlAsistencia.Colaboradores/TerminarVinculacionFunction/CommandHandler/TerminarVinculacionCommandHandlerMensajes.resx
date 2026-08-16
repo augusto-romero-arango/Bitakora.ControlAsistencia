@@ -29,4 +29,7 @@
   <data name="FechaAnteriorAInicio" xml:space="preserve">
     <value>La fecha efectiva de terminacion no puede ser anterior a la fecha de inicio de la vinculacion</value>
   </data>
+  <data name="CodigoNoCorresponde" xml:space="preserve">
+    <value>El codigo de la vinculacion no corresponde con la vinculacion vigente del colaborador</value>
+  </data>
 </root>
