@@ -115,12 +115,12 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "ingestion_warning" {
   tags = var.tags
 }
 
-# Alerta 2: pico de excepciones >50 en 5 minutos (patron de funcion en loop de errores)
+# Alerta 2: pico de excepciones >50 en 5 minutos correlacionadas a un request con status 500
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "exception_spike" {
   name                = "${var.name}-exception-spike"
   resource_group_name = var.resource_group_name
   location            = var.location
-  description         = "Pico de excepciones detectado - posible funcion en loop de errores generando costos"
+  description         = "Pico de excepciones con respuesta 500 detectado - posible funcion en loop de errores generando costos"
   severity            = 1
   enabled             = true
 
@@ -129,11 +129,63 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "exception_spike" {
   window_duration      = "PT5M"
 
   criteria {
+    # exceptions no expone el status code: vive en requests. Se correlacionan por
+    # operation_Id, el id de traza compartido entre el request y la excepcion que lo
+    # hizo fallar. Ver CA-ADR-0009.
     query = <<-QUERY
+      let operacionesCon500 =
+          requests
+          | where timestamp > ago(5m)
+          | where resultCode == "500"
+          | distinct operation_Id;
       exceptions
       | where timestamp > ago(5m)
+      | where operation_Id in (operacionesCon500)
       | summarize ExceptionCount = count()
       | where ExceptionCount > 50
+    QUERY
+
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.cost_alerts.id]
+  }
+
+  tags = var.tags
+}
+
+# Alerta 3: pico de invocaciones fallidas >50 en 5 minutos en triggers no-HTTP
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "non_http_failure_spike" {
+  name                = "${var.name}-non-http-failure-spike"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  description         = "Pico de invocaciones fallidas en triggers no-HTTP - posible consumidor en loop de reintentos generando costos"
+  severity            = 1
+  enabled             = true
+
+  scopes               = [azurerm_application_insights.this.id]
+  evaluation_frequency = "PT5M"
+  window_duration      = "PT5M"
+
+  criteria {
+    # Los triggers no-HTTP reportan resultCode "0", valor no contractual: en vez de
+    # comparar contra el, se descarta lo que SI es un status HTTP (100..599).
+    # Ver CA-ADR-0009.
+    query = <<-QUERY
+      requests
+      | where timestamp > ago(5m)
+      | where success == false
+      | where isnull(toint(resultCode)) or toint(resultCode) !between (100 .. 599)
+      | summarize InvocacionesFallidas = count()
+      | where InvocacionesFallidas > 50
     QUERY
 
     time_aggregation_method = "Count"

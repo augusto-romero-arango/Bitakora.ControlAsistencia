@@ -182,3 +182,94 @@ proceso que corre el daemon HotCold. `ControlHoras` y `Programacion` no lo neces
 ese span -- y no se generaliza el wrapper a ellos hasta que exista un segundo consumidor real.
 
 Capas 3 y 4 sin cambios.
+
+## Actualizacion (2026-08-15): la Capa 4 se acota a las excepciones con respuesta 500
+
+La alerta de spike (`<prefijo>-exception-spike`) contaba **toda** excepcion registrada en la ventana
+de 5 minutos. Se acota a las excepciones cuya request HTTP termino en **status code 500**.
+
+**Motivo.** El resto del ruido de la tabla `exceptions` no describe el fallo que la alerta existe
+para atrapar. Bajo CA-ADR-0030, una violacion de regla de negocio en un comando HTTP se declina con
+un resultado que el handler traduce a 409/404 -- no lanza y no persiste evento de fallo. Un 500 es,
+por construccion, un fallo tecnico no manejado: exactamente el patron "funcion en loop de errores"
+del incidente que motivo este ADR.
+
+**Implementacion.** `exceptions` no expone el status code -- vive en `requests`. La consulta
+correlaciona ambas tablas por `operation_Id` (el id de traza compartido entre el request y la
+excepcion que lo hizo fallar), en `infra/modules/monitoring/main.tf`:
+
+```kql
+let operacionesCon500 =
+    requests
+    | where timestamp > ago(5m)
+    | where resultCode == "500"
+    | distinct operation_Id;
+exceptions
+| where timestamp > ago(5m)
+| where operation_Id in (operacionesCon500)
+| summarize ExceptionCount = count()
+| where ExceptionCount > 50
+```
+
+Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: sin cambios.
+
+**Consecuencia: la alerta deja de cubrir los triggers de Service Bus, y la cobertura se repone con
+una alerta aparte** (siguiente seccion). No es una degradacion parcial sino cobertura cero por este
+camino: los triggers no-HTTP de Azure Functions reportan `resultCode` **`0`**, no un status HTTP, asi
+que ninguna invocacion de un consumidor de eventos entra jamas por el filtro `resultCode == "500"`.
+El filtro no "pierde sensibilidad" en el bus -- simplemente no lo ve. La via correcta es una segunda
+alerta, no relajar el filtro de esta.
+
+**Alcance del filtro: 500 exacto, no 5xx.** `resultCode == "500"` deja fuera 502/503/504, que en
+Azure Functions vienen de la plataforma (timeouts, arranque en frio, saturacion del plan) y no de
+codigo en loop. Ampliar a `toint(resultCode) >= 500` es un cambio de una linea si se decide que esos
+casos tambien deben despertar a alguien.
+
+Capas 1, 2 y 3 sin cambios.
+
+## Actualizacion (2026-08-15): la Capa 4 suma una alerta para los consumidores de Service Bus
+
+La Capa 4 pasa a tener **dos** alertas de spike, una por borde:
+
+| Alerta | Cubre | Filtro |
+|---|---|---|
+| `<prefijo>-exception-spike` | Borde HTTP | excepciones correlacionadas a un request con `resultCode == "500"` |
+| `<prefijo>-non-http-failure-spike` | Triggers no-HTTP | invocaciones con `success == false` cuyo `resultCode` no es un status HTTP |
+
+Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: iguales en ambas.
+
+**Se alerta sobre invocaciones fallidas, no sobre la metrica `DeadletteredMessages`.** La razon es
+una limitacion dura de Azure Monitor, no una preferencia: esa metrica solo se desglosa por la
+dimension `EntityName`, que es la **queue o el topic** -- no existen metricas por subscription. Y en
+este proyecto la subscription `smoke-tests` vive **dentro de los mismos topics de negocio**
+(`programacion-turno-diario-solicitada`, `dia-calculado`, `registro-de-marcacion-creado`), junto a
+las subscriptions `control-horas-escucha-*`. Una alerta metrica sumaria el DLQ de los smoke tests al
+de los consumidores reales bajo el mismo `EntityName`, **sin ninguna forma de separarlos**.
+
+La consulta sobre `requests` no tiene ese problema y no necesita lista de exclusion: la subscription
+`smoke-tests` no tiene Function App consumidora -- nadie la procesa, asi que no genera invocaciones.
+Sus dead letters los produce el propio proceso de smoke tests corriendo en CI, que no reporta a
+Application Insights. Lo que si cuenta, y debe contar, es una funcion real fallando al procesar un
+mensaje publicado por un smoke test: eso es un error del sistema, no ruido del arnes.
+
+**Ventaja secundaria: detecta antes.** Un dead letter solo aparece tras agotar `max_delivery_count`
+(10 entregas); la invocacion fallida se registra en el primer intento.
+
+**Como se identifica un trigger no-HTTP.** Los triggers no-HTTP de Azure Functions reportan
+`resultCode` `"0"`. La consulta no compara contra `"0"` -- valor no contractual, sujeto a cambio del
+host -- sino que descarta lo que si es un status HTTP: `isnull(toint(resultCode)) or
+toint(resultCode) !between (100 .. 599)`. Asi la alerta cubre cualquier trigger no-HTTP que se
+agregue despues (timer, blob) sin tocar la consulta.
+
+**Limitacion conocida: el sampling head-based tambien recorta esta alerta.** Igual que la de
+excepciones, opera sobre telemetria muestreada al ratio de la Capa 2 (0.2 por defecto), asi que el
+conteo observado es una fraccion del real. Vale la misma mitigacion: el ratio no debe bajar mas sin
+recalibrar los umbrales de ambas alertas.
+
+**Alternativa considerada y descartada: alerta metrica sobre `DeadletteredMessages` del topic.**
+Descartada porque no puede excluir el ruido de `smoke-tests` (arriba). Para habilitarla haria falta
+cambiar primero la infraestructura -- mover los smoke tests a un namespace o a topics propios -- lo
+que duplicaria la topologia de eventos solo para observabilidad. Si en el futuro se quiere el DLQ
+como red de seguridad de ultimo recurso, la decision de topologia va antes que la alerta.
+
+Capas 1, 2 y 3 sin cambios.
