@@ -483,11 +483,14 @@ $RECYCLE.BIN/
 *.swp
 
 # Claude Code
-.claude/worktrees/
-.claude/settings.local.json
+# Con ** para cubrir los .claude/ anidados: una sesion cuyo cwd es un subdirectorio
+# (p. ej. un proyecto de tests) escribe su estado ahi, y un patron anclado a la raiz
+# lo dejaria sin ignorar.
+**/.claude/worktrees/
+**/.claude/settings.local.json
 
 # Pipeline TDD
-.claude/pipeline/
+**/.claude/pipeline/
 pipeline-state/
 
 # KQL audit log (queries ad-hoc del bug-investigator)
