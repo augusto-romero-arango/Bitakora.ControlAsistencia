@@ -17,6 +17,8 @@ permissions:
   # azure/login: Terraform lee por su cuenta ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN, que este
   # scope habilita. Va a nivel de workflow porque el archivo tiene un unico job.
   id-token: write
+  issues: write        # requerido para cerrar el issue de infra tras el apply exitoso
+  pull-requests: read  # requerido por 'gh api commits/{sha}/pulls' y 'pulls/{num}' (deriva el issue)
 
 jobs:
   terraform-apply:
@@ -61,3 +63,27 @@ jobs:
       - name: Terraform Apply
         working-directory: infra/environments/dev
         run: terraform apply -auto-approve -lock-timeout=5m
+
+      - name: Cerrar el issue de infra tras el apply exitoso
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # El PR del pipeline IaC NO lleva 'Closes #N' (MEF-ADR-0022, "Cierre del issue de
+          # infra: al aplicar en CI, no al mergear el PR"): el issue representa "infra
+          # aplicada", no "infra mergeada". El numero de issue se deriva de la rama
+          # infra-issue-<num>-<slug> (scripts/iac-pipeline.sh) del PR que se acaba de
+          # mergear, via la API de PRs asociados al commit de merge -- funciona con
+          # squash, merge o rebase, a diferencia de parsear el mensaje del commit.
+          PR_NUM=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq '.[0].number // empty')
+          if [ -z "$PR_NUM" ]; then
+            echo "No se encontro un PR asociado al commit ${{ github.sha }}; no se cierra ningun issue."
+            exit 0
+          fi
+          BRANCH=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" --jq '.head.ref // empty')
+          ISSUE_NUM=$(echo "$BRANCH" | grep -oE 'infra-issue-[0-9]+' | grep -oE '[0-9]+' || true)
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "La rama '$BRANCH' del PR #$PR_NUM no sigue el patron infra-issue-<num>-*; no se cierra ningun issue."
+            exit 0
+          fi
+          gh issue close "$ISSUE_NUM" \
+            --comment "Infraestructura aplicada por CI (workflow **Infra CD**, run ${{ github.run_id }}, commit ${{ github.sha }})."
