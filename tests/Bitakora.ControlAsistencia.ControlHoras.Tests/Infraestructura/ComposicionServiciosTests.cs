@@ -23,6 +23,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
@@ -475,5 +476,19 @@ public class ComposicionServiciosTests
 
         opciones.Durability.DurabilityAgentEnabled.Should().BeTrue();
         opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
+    }
+
+    // Issue #399: test de composicion del tercer endpoint HTTP de operacion (mismo patron que las
+    // guardas de arriba para las Functions GET de lectura) -- ReadyCheck depende de
+    // IEventStoreReadinessProbe, hoy sin registrar en AgregarServiciosControlHoras.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeReady_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ReadyCheck>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }
