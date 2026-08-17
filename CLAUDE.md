@@ -54,7 +54,8 @@ Estos valores los consumen los agentes/skills del harness cuando ven los placeho
 - `infra/environments/{env}/` — infraestructura Terraform
 - `docs/adr/` — decisiones arquitectónicas (ADRs)
 - `docs/bitacora/` — bitácora y field notes
-- `docs/eda/` — modelo de dominio (glosario, catálogo, flujos, aggregates)
+- `docs/ddd/` — glosario de lenguaje ubicuo (`ubiquitous-language.yaml`)
+- `docs/eda/` — modelo de dominio (catálogo, flujos, aggregates)
 
 ## Comandos dotnet
 
@@ -185,7 +186,8 @@ Cuando necesites entender cómo funciona algo, no asumas — lee:
 - **Detalle de un skill**: `.claude/commands/<skill>.md`
 - **Detalle de un agente**: `.claude/agents/<agente>.md`
 - **Detalle de un pipeline**: `scripts/<pipeline>.sh`
-- **Modelo de dominio**: `docs/eda/` (glosario, catálogo, flujos, aggregates)
+- **Glosario de lenguaje ubicuo**: `docs/ddd/ubiquitous-language.yaml`
+- **Modelo de dominio**: `docs/eda/` (catálogo, flujos, aggregates)
 - **Bitácora**: `docs/bitacora/`
 
 ## Arquitectura objetivo

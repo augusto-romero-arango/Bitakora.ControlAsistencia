@@ -169,7 +169,7 @@ El evento TurnoCreado se publica al topic `eventos-programacion` para que otros 
 ## Artefactos de dominio actualizados
 
 - `docs/eda/aggregates/catalogo-turnos.yaml` — aggregate completo con value objects, invariantes, comando
-- `docs/eda/ubiquitous-language.yaml` — terminos nuevos: Franja Ordinaria, Franja de Descanso, Franja de Extra, Offset de dia
+- `docs/ddd/ubiquitous-language.yaml` — terminos nuevos: Franja Ordinaria, Franja de Descanso, Franja de Extra, Offset de dia
 
 ---
 
