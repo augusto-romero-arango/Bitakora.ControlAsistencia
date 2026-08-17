@@ -16,6 +16,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Colaboradores;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
@@ -520,5 +521,19 @@ public class ComposicionServiciosTests
         scope.ServiceProvider.GetService<IValidator<CorregirFechaInicioVinculacionBody>>()
             .Should().NotBeNull(
                 "sin el validator registrado, un body sin FechaCorregida responderia 202 en vez de 400");
+    }
+
+    // Issue #399: test de composicion del tercer endpoint HTTP de operacion (mismo patron que las
+    // guardas de arriba para las Functions GET de lectura) -- ReadyCheck depende de
+    // IEventStoreReadinessProbe, hoy sin registrar en AgregarServiciosColaboradores.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeReady_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ReadyCheck>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }
