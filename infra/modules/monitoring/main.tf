@@ -205,6 +205,48 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "non_http_failure_spik
   tags = var.tags
 }
 
+# Alerta 4: pico de excepciones >50 en 5 minutos en el worker de proyecciones
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "projections_exception_spike" {
+  name                = "${var.name}-projections-exception-spike"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  description         = "Pico de excepciones en el worker de proyecciones - posible proyeccion atascada en loop de reintentos generando costos"
+  severity            = 1
+  enabled             = true
+
+  scopes               = [azurerm_application_insights.this.id]
+  evaluation_frequency = "PT5M"
+  window_duration      = "PT5M"
+
+  criteria {
+    # cloud_RoleName fijo a "Bitakora.ControlAsistencia.Projections" (constante
+    # NombreServicio, guardrail issue #263). No filtra trafico de smoke tests: ver
+    # CA-ADR-0009.
+    query = <<-QUERY
+      exceptions
+      | where timestamp > ago(5m)
+      | where cloud_RoleName == "Bitakora.ControlAsistencia.Projections"
+      | summarize ExceptionCount = count()
+      | where ExceptionCount > 50
+    QUERY
+
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.cost_alerts.id]
+  }
+
+  tags = var.tags
+}
+
 output "connection_string" {
   value     = azurerm_application_insights.this.connection_string
   sensitive = true

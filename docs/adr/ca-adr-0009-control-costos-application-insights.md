@@ -273,3 +273,56 @@ que duplicaria la topologia de eventos solo para observabilidad. Si en el futuro
 como red de seguridad de ultimo recurso, la decision de topologia va antes que la alerta.
 
 Capas 1, 2 y 3 sin cambios.
+
+## Actualizacion (2026-08-17, issue #398): la Capa 4 suma una tercera alerta para el worker de proyecciones
+
+Acotar la alerta de excepciones al borde HTTP (seccion anterior) dejo un hueco: el worker de
+proyecciones (`Bitakora.ControlAsistencia.Projections`) no atiende HTTP -- no genera `requests` con
+`resultCode == "500"` -- y sus operaciones no son un trigger no-HTTP de Azure Functions (la segunda
+alerta mira `requests` fallidos de un host de Functions; el daemon HotCold de Marten corre spans
+internos que van a `dependencies`/`exceptions`, no a `requests`). Antes de acotar la Capa 4 por
+borde, sus excepciones al menos contaban en la alerta generica de spike; despues, un worker en loop
+de errores no despertaba a nadie -- exactamente el patron que motivo este ADR.
+
+La Capa 4 pasa a tener **tres** alertas de spike, una por borde:
+
+| Alerta | Cubre | Filtro |
+|---|---|---|
+| `<prefijo>-exception-spike` | Borde HTTP | excepciones correlacionadas a un request con `resultCode == "500"` |
+| `<prefijo>-non-http-failure-spike` | Triggers no-HTTP | invocaciones con `success == false` cuyo `resultCode` no es un status HTTP |
+| `<prefijo>-projections-exception-spike` | Worker de proyecciones | excepciones con `cloud_RoleName == "Bitakora.ControlAsistencia.Projections"` |
+
+Umbral (>50), frecuencia (PT5M), ventana (PT5M), severidad (1) y action group: iguales en las tres.
+
+```kql
+exceptions
+| where timestamp > ago(5m)
+| where cloud_RoleName == "Bitakora.ControlAsistencia.Projections"
+| summarize ExceptionCount = count()
+| where ExceptionCount > 50
+```
+
+**Por que filtrar por `cloud_RoleName` y no correlacionar con `requests` (como la alerta del borde
+HTTP).** El worker no es un host de Azure Functions -- no tiene requests que correlacionar. El valor
+exacto (`"Bitakora.ControlAsistencia.Projections"`) es la constante `NombreServicio` de
+`ConfiguracionObservabilidadProjections.cs`, fijada por guardrail de test (issue #263): un cambio de
+ese string sin actualizar la alerta la deja evaluando un `cloud_RoleName` que ya no existe, silenciosa
+sin ningun error visible. No se generaliza a un filtro que cubra "cualquier worker no-HTTP" (MEF-ADR-0018,
+Rule of Three): `Projections` es hoy el unico proceso que no es ni borde HTTP ni trigger de Azure
+Functions.
+
+**Por que esta alerta no excluye trafico de smoke tests (a diferencia de nada -- nunca hubo lista de
+exclusion que quitarle).** Los smoke tests publican eventos validos: sus propias aserciones exigen
+cero dead letters, asi que no pueden inducir errores en el worker. Toda excepcion del worker es senal
+real y accionable, venga de un evento de negocio o de un evento publicado por un smoke test -- a
+diferencia de la segunda alerta (seccion anterior), que si necesita descartar la subscription
+`smoke-tests` porque esa si comparte `EntityName` con subscriptions de negocio en la metrica de DLQ.
+Aqui no aplica esa limitacion: la fuente es `exceptions` filtrada por rol de servicio, no una metrica
+por `EntityName`.
+
+**Limitacion conocida: el sampling head-based tambien recorta esta alerta.** Misma limitacion que las
+dos alertas hermanas: opera sobre telemetria muestreada al ratio de la Capa 2 (`TELEMETRY_SAMPLING_RATIO`,
+0.2 por defecto), asi que el conteo observado es una fraccion del real. No bajar el ratio sin
+recalibrar el umbral de las tres alertas.
+
+Capas 1, 2 y 3 sin cambios.
