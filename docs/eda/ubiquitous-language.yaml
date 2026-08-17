@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-04-17 (desglose de horas: conceptos legislativos, festivos, retardos)
+# Ultima actualizacion: 2026-08-15 (proscripcion operativa de "Empleado": se elimina de todos
+#   los artefactos -- tipos #340, claves #401; EmpleadoId unificado en CodigoColaborador;
+#   criterio consolidado: los payloads por rol llevan calificador de intencion, el nombre puro
+#   se reserva al concepto rico. Sesion planner 2026-08-15.)
 
 # -------------------------
 # VOCABULARIO DEL DOMINIO
@@ -20,15 +23,17 @@ terms:
   - name: Registro de Marcacion
     definition: >
       Dato destilado de una marcacion que nuestro sistema recibe de forma asincrona.
-      Contiene solo los campos minimos (EmpleadoId, Timestamp, opcionalmente TipoMarcacion y DispositivoId).
+      Contiene solo los campos minimos (CodigoColaborador, Timestamp, opcionalmente TipoMarcacion y DispositivoId).
       Es lo que persistimos y procesamos. Aggregate independiente en ControlHoras con stream ID
-      determinista "{EmpleadoId}:{TimestampCrudo}". Responsable de idempotencia por duplicado exacto
+      determinista "{CodigoColaborador}:{TimestampCrudo}". Responsable de idempotencia por duplicado exacto
       y normalizacion (truncar segundos).
     context: ControlHoras
     note: >
       Interfaz minima convergente para cualquier sistema de marcacion (propio o externo).
       Principio de conservacion total: todo registro interpretable se guarda.
       La idempotencia por minuto normalizado la resuelve ControlDiario, no este aggregate.
+      El identificador se llamaba EmpleadoId en el codigo; unificado en CodigoColaborador
+      (sesion 2026-08-15, issue #401): es el mismo codigo aplanado que exporta el maestro Colaboradores.
 
   - name: TipoMarcacion
     definition: Indica si el registro corresponde a una entrada o una salida. Enum cerrado con valores "entrada" y "salida". Opcional — si el dispositivo no lo sabe, se omite y el depurador de ControlDiario lo infiere.
@@ -108,6 +113,22 @@ terms:
   - name: Programacion de turnos
     definition: Asignacion de turnos a empleados para periodos especificos.
     context: Programacion
+
+  - name: Solicitud de Programacion
+    definition: >
+      Peticion de programar un turno a un empleado para un conjunto de fechas. Aggregate propio
+      (SolicitudProgramacionAggregateRoot, un stream por solicitud): emite
+      ProgramacionTurnoSolicitada y dispara ProgramacionTurnoDiarioSolicitada por fecha hacia
+      ControlHoras.
+    context: Programacion
+    rejected_synonyms: [solicitud de turno]
+    rejection_reason: >
+      "Solicitud de turno" sugiere pedir un turno (la plantilla del catalogo); lo que se pide es
+      PROGRAMAR un turno a un empleado. Rechazado en el refinamiento de #380 (2026-08-14): la ruta
+      POST programacion/solicitudes leida completa ya dice "solicitudes de programacion" --
+      identico al aggregate; renombrarla habria acunado un tercer nombre para el mismo concepto
+      (#380 cerrado not planned, la ruta ya cumplia MEF-ADR-0043).
+    date_added: 2026-08-14
 
   - name: Depuracion
     definition: >
@@ -239,6 +260,169 @@ terms:
     context: ControlHoras
     date_added: 2026-04-15
 
+  - name: Colaborador
+    definition: >
+      Persona bajo control de asistencia. Existir en el dominio significa "le controlamos
+      la asistencia". Independiente del tipo de vinculacion: cubre empleados y, a futuro,
+      contratistas — razon por la que se descarto "Empleado" como nombre del concepto rico.
+      Aggregate del dominio Colaboradores; stream por Identificacion. El dominio mismo
+      anuncia el conjunto ("los colaboradores vigentes") — sin sustantivo intermedio.
+    context: Colaboradores
+    rejected_synonyms: [Empleado (concepto rico), Plantilla, Planta de personal, Nomina (conjunto), Maestro de colaboradores]
+    rejection_reason: >
+      Empleado excluye contratistas. Plantilla es lexico de Espana/futbol, no laboral colombiano.
+      "Planta" en Colombia connota empleado permanente (excluiria contratistas). Nomina ya nombra
+      al sistema externo downstream. "Maestro de X" crearia un canon de maestros ("maestro de todo").
+    note: >
+      Proscripcion operativa (sesion 2026-08-15): "Empleado" no fue liberado sino proscrito --
+      se elimina de todos los artefactos del codigo: nombres de tipo (#340) y claves de
+      propiedad/contratos (#401). El identificador que fluye por Programacion y ControlHoras ES
+      el CodigoColaborador del maestro (unificado; los downstream lo reciben como string plano,
+      el invariante URL-safe vive en el VO del maestro). Criterio de nombres consolidado
+      (diverge de #319 "nombre puro del lenguaje ubicuo"; constancia aqui y en los remarks de
+      los tipos, sin ADR por decision del usuario): los payloads parciales por rol llevan
+      calificador de intencion -- ColaboradorProgramado, InformacionColaborador,
+      DetalleColaborador -- porque el nombre puro se reserva al concepto rico (mismo
+      anti-squatting que SedeProgramada, #331/#336).
+    date_added: 2026-08-10
+
+  - name: Vinculacion
+    definition: >
+      Periodo durante el cual un colaborador esta bajo control de asistencia. Vive DENTRO del
+      aggregate Colaborador (vocabulario interno write-side: no cruza la frontera del dominio;
+      lo que sale es Colaborador con el codigo de su vinculacion vigente aplanado). Maximo una
+      vigente por colaborador; las vinculaciones no se solapan (invariante). Se abre con
+      VinculacionIniciada (registro o reingreso) y se cierra con VinculacionTerminada.
+    context: Colaboradores
+    rejected_synonyms: [Contrato, PeriodoDeControl]
+    rejection_reason: >
+      Contrato miente: el promovido fuera del control conserva su contrato laboral — lo que
+      termina es la sujecion al control, no el contrato. Vinculacion ademas es lexico laboral
+      colombiano corriente (tipo de vinculacion, fecha de vinculacion) y cubre contratistas.
+    date_added: 2026-08-10
+    date_updated: 2026-08-14
+    note: >
+      Descubrimiento 2026-08-13 (sesion doctrina HTTP): el reingreso NO es un hecho distinto --
+      Reingresar emite el mismo VinculacionIniciada que el registro; el dominio ya unifico el hecho.
+      "Reingreso" nombra el ESCENARIO ("el reingreso nace limpio"), no un comando. Decidido
+      (#378 refinado 2026-08-14, doctrina MEF-ADR-0043 aceptada): rename a IniciarVinculacion con
+      simetria completa -- comando, metodo del aggregate y enum de resultado -- y ruta
+      POST colaboradores/{id}/vinculaciones (paso 1: create disfrazado); el cliente no declara
+      lo que el servidor deriva de la historia del stream.
+
+  - name: CodigoColaborador
+    definition: >
+      Id TRANSACCIONAL del colaborador: el codigo asignado por el sistema externo a la
+      vinculacion, bajo el cual ocurren las transacciones a su nombre (marcaciones, turnos).
+      Pertenece a la vinculacion — un recontratado puede estrenar codigo. Naming por posicion:
+      Codigo dentro de la Vinculacion o de un objeto colaborador anidado; CodigoColaborador
+      cuando viaja aplanado en payloads. Reemplaza a EmpleadoId en el BC (#340).
+    context: Colaboradores
+    rejected_synonyms: [EmpleadoId, VinculacionId, IdExterno, IdExternoColaborador]
+    rejection_reason: >
+      EmpleadoId embarraba dos identidades (persona y transaccion) y excluye contratistas.
+      VinculacionId fallo la prueba de voz ("nadie lo diria en la vida"). IdExterno queda mudo
+      (externo a que?). La gente dice "el codigo".
+    note: >
+      NO confundir con la Identificacion: el codigo transacciona, la identificacion identifica a
+      la persona (streamId). Invariante URL-safe (#387, 2026-08-14): se RECHAZA (400) todo codigo
+      con caracteres fuera del set unreserved de RFC 3986 (A-Z a-z 0-9 - . _ ~); ":" queda fuera
+      ademas por ser el separador de accion (MEF-ADR-0043). Nunca se limpia ni normaliza -- el
+      codigo lo asigna la empresa (dato ajeno), a diferencia del numero de la Identificacion
+      (#381), que el dominio SI normaliza para unificar identidad. Case preservado, comparaciones
+      exactas.
+    date_added: 2026-08-10
+    date_updated: 2026-08-14
+
+  - name: Identificacion
+    definition: >
+      Identidad civil de la persona: {TipoIdentificacion}-{NumeroIdentificacion} (separador
+      GUION desde #381; el ":" original era problematico como segmento de URI). Es el
+      streamId del aggregate Colaborador (por tenant). Tipo: lista cerrada estilo PILA
+      (CC, CE, TI, PA, PT) como VO sin sombra numerica — lo persistido es siempre el codigo
+      literal. Numero: string ALFANUMERICO limpiado como invariante del VO — solo [A-Z0-9]:
+      letras a MAYUSCULAS, cualquier otro caracter se ELIMINA sin error (se limpia antes de
+      registrar, no se rechaza); vacio tras la limpieza si es error. La limpieza es lo que
+      hace del guion un separador inequivoco (post-limpieza el numero jamas contiene "-").
+      Si nace errada: cerrar el stream errado y abrir el correcto (protocolo aceptado; la
+      "basura" de streams cerrados es tolerable y un stream puede reutilizarse con el dueno
+      legitimo via CorregirNombres).
+    context: Colaboradores
+    date_added: 2026-08-10
+    date_updated: 2026-08-14
+
+  - name: Etiqueta
+    definition: >
+      Par categoria:valor libre definido por el cliente para segmentar colaboradores en
+      reportes (cargo:desarrollador, area:Tecnologia). Sin catalogo previo: nace al asignarse.
+      Un valor por categoria (asignar sobrescribe). Pertenece a la VINCULACION vigente, no a
+      la persona (priman las laborales; el reingreso nace limpio: huecos visibles en vez de
+      mentiras silenciosas; se descarto la taxonomia personal/laboral por incompatible con
+      categorias dinamicas). Doble forma: original (display) + normalizada (identidad, sin
+      tildes/mayusculas) — la normalizacion es invariante del VO, no truco de base de datos.
+    context: Colaboradores
+    rejected_synonyms: [Tag, Atributo]
+    rejection_reason: "Tag es anglicismo; Atributo suena a campo estructural, no a clasificacion libre."
+    date_added: 2026-08-10
+
+  - name: CategoriaDeEtiquetas
+    definition: >
+      Vista read-side (MEF-ADR-0041): una categoria de etiquetas EN USO con sus valores distintos,
+      para el autocompletado de la UI de etiquetado/filtrado (frena la fragmentacion por la via
+      humana: el usuario elige lo existente en vez de teclear variantes). Un documento por
+      categoria: Id = categoria normalizada; display "la ultima gana" (cada EtiquetaAsignada
+      refresca la forma original mostrada, tanto de la categoria como de los valores); valores
+      con forma display + normalizada para el matcheo. Catalogo ACUMULATIVO: solo EtiquetaAsignada
+      alimenta, nada sale -- EtiquetaRetirada no descuenta (no trae el valor; la sobrescritura y
+      el reingreso-limpio son retiros implicitos que exigirian estado por colaborador, sin
+      beneficio para el proposito).
+    context: Colaboradores
+    rejected_synonyms: [Etiqueta (como nombre de vista), EtiquetasEnUso, SugerenciaDeEtiquetas]
+    rejection_reason: >
+      Etiqueta colisiona con el VO de DomainEvents (guardrail anti-homonimia). EtiquetasEnUso
+      nombra el conjunto, pero el documento individual es una categoria. SugerenciaDeEtiquetas
+      acopla la vista a un consumidor concreto.
+    date_added: 2026-08-13
+    note: "Issue #357. Receta N2 (MultiStreamProjection), la primera del BC. Sin sufijo de implementacion."
+
+  - name: Vigencia
+    definition: >
+      Estado de la vinculacion evaluado CONTRA UNA FECHA (default: el hoy de quien consulta,
+      parametrizable). No existe booleano activo/inactivo materializado — necesitaria eventos
+      de reloj (el preaviso voltea el dia 30 sin evento). El read model materializa hechos:
+      VigenteDesde/VigenteHasta con centinela 9999-12-31 para vinculacion abierta; la consulta
+      resuelve VigenteHasta >= fechaReferencia (un rango indexable). Las operaciones del
+      dominio exigen vinculacion vigente hoy; las vacantes/ausencias se valoran contra vigentes.
+    context: Colaboradores
+    date_added: 2026-08-10
+
+  - name: Tiempo del hecho / tiempo de registro
+    definition: >
+      Principio bitemporal del BC: el tiempo de los HECHOS (fechas de vinculacion, timestamps
+      de marcacion) viene SIEMPRE de afuera — del cliente/fuente, requerido, jamas del reloj
+      del servidor. El sistema solo aporta el tiempo de REGISTRO (timestamp del evento en el
+      event store, automatico): cuando se entero — auditoria, nunca semantica de negocio.
+      Consecuencias: preaviso (hecho futuro registrado hoy) y carga tardia (hecho pasado
+      registrado hoy) son el mismo fenomeno; el sistema es agnostico al timing de las fuentes
+      porque no confunde llegada con ocurrencia.
+    context: General
+    date_added: 2026-08-10
+
+  - name: Fecha de referencia
+    definition: >
+      La fecha contra la que una consulta read-side evalua la vigencia (VigenteHasta >=
+      fechaReferencia). SIEMPRE explicita del consumidor, jamas resuelta por el sistema:
+      el "hoy" lo determina quien consulta (front o adaptador) en SU zona horaria.
+      Instancia read-side del principio "Tiempo del hecho / tiempo de registro" y del
+      precedente de determinismo de RangoConsulta (misma consulta, mismo resultado, sin
+      importar cuando se ejecute). Un default UTC del servidor seria incorrecto para
+      Colombia (UTC-5) desde las ~19:00 hora local; zona horaria por tenant es un concepto
+      que no existe y no se introduce sin caso real (Rule of Three).
+    context: General
+    rejected_synonyms: [hoy del servidor, fecha actual, fecha de corte]
+    rejection_reason: "hoy/fecha actual esconden la pregunta 'hoy de quien'; fecha de corte sugiere cierre contable, que no es"
+    date_added: 2026-08-12
+
 # -------------------------
 # ACTORES DEL SISTEMA
 # Los roles son del sistema, no cargos organizacionales.
@@ -267,16 +451,15 @@ actors:
     interacts_with: [ControlHoras]
     note: "Puede ser la misma persona que el Programador de turnos. El unico lote de aprobacion es al momento de la transmision a nomina."
 
-  - name: Empleado
+  - name: Colaborador (actor)
     type: user
-    definition: La persona cuya asistencia se controla.
+    definition: La persona cuya asistencia se controla. Antes "Empleado" -- termino proscrito del lenguaje ubicuo (#330, proscripcion operativa 2026-08-15).
     responsibilities:
       - Registrar sus marcaciones de entrada y salida
-    note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo."
+    note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo. Pregunta 'como le llamamos en el dominio?': resuelta en #330 -- colaborador."
     interacts_with: []
     open_questions:
-      - "Como le llamamos en el dominio: empleado, trabajador, colaborador?"
-      - "Que datos del empleado nos importan para el control de asistencia?"
+      - "Que datos del colaborador nos importan para el control de asistencia?"
 
 # -------------------------
 # SISTEMAS EXTERNOS

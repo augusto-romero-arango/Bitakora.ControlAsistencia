@@ -20,9 +20,10 @@
 # - Un evento de EVENT SOURCING (del aggregate, sin marker) no cruza ningun bus: vive
 #   en el event store de Marten.
 #
-# Ultima actualizacion: 2026-07-18 (decision: un solo BC interno "Control de Asistencia".
-#   Programacion y ControlHoras son dominios del MISMO BC, no BCs separados. En consecuencia
-#   ProgramacionTurnoDiarioSolicitada se reclasifica de publico a privado. Ver field notes.)
+# Ultima actualizacion: 2026-08-10 (el dominio planificado "Empleados" se renombra a
+#   "Colaboradores" — el lenguaje ubicuo cambio: Colaborador es independiente del tipo de
+#   vinculacion (abre la puerta a contratistas). Identidad por Identificacion (streamId),
+#   vinculaciones internas con Codigo transaccional. Desglose: #330, #348-#357. Ver field notes.)
 #
 # Contextos / ideas descartadas:
 # - Depuracion, CalculoHoras (2026-04-04 — 2026-04-15): absorbidos por ControlHoras como
@@ -30,6 +31,9 @@
 # - "Programacion y ControlHoras como bounded contexts separados" (2026-04-15 — 2026-07-18):
 #   reconsiderado. Son dominios del mismo BC; el unico evento entre ellos es intra-BC (privado).
 #   Lo unico verdaderamente inter-BC es lo que sale hacia sistemas externos (nomina).
+# - "Empleados" como nombre del dominio maestro (2026-08-06 — 2026-08-10): renombrado a
+#   Colaboradores. "Plantilla"/"maestro" como sustantivos del conjunto: descartados —
+#   el dominio mismo anuncia el conjunto ("los colaboradores vigentes").
 
 # -------------------------
 # BOUNDED CONTEXT (uno solo, interno)
@@ -78,15 +82,27 @@ bounded_context:
         de ControlDiarioAggregateRoot (depurador y calculadora).
         Publica DiaCalculado (IPublicEvent) hacia el Sistema de nomina externo.
 
-    - name: Empleados
-      namespace: Bitakora.ControlAsistencia.Empleados
-      status: planificado
-      description: Gestiona el registro maestro de empleados dentro del BC.
-      aggregates: []
+    - name: Colaboradores
+      namespace: Bitakora.ControlAsistencia.Colaboradores
+      status: planificado  # desglose listo: #348-#357; scaffold pendiente (/scaffold)
+      description: >
+        Fuente autoritativa sobre quienes estan bajo control de asistencia. Existir en el
+        dominio significa "a esta persona le controlamos la asistencia" — no es espejo del
+        maestro de RRHH (los usuarios son autonomos; cargas iniciales sin sincronizacion).
+        Colaborador es independiente del tipo de vinculacion (empleados y, a futuro,
+        contratistas). Identidad por Identificacion ({Tipo}:{Numero} = streamId); las
+        vinculaciones (max una vigente, sin solapes) viven dentro del aggregate con su
+        Codigo transaccional; etiquetas dinamicas de la vinculacion para segmentar reportes.
+        Vigencia evaluada al consultar contra la fecha del lector (sin booleano materializado).
+      aggregates: [ColaboradorAggregateRoot]
       actors_served: [Programador de turnos, Aprobador]
+      decided:
+        - "Ingesta inicial por POST HTTP (interfaz minima convergente); webhook nomina, otros sistemas, UI y archivo llegan despues como triggers adicionales del mismo comando; los adaptadores traducen (registrar vs reingresar)."
+        - "Tiempo bitemporal: el tiempo de los hechos (fechas de vinculacion, REQUERIDAS) viene del cliente; el sistema solo registra cuando se entero."
       open_questions:
-        - "Que datos del empleado necesitamos? Solo los que importan para el control de asistencia."
-        - "Se alimenta del Sistema de empleados / RRHH externo (mecanismo por definir)."
+        - "Sede natural del colaborador: DIFERIDA hasta que exista el dominio Sedes (y decidir si es de la persona o de la vinculacion)."
+        - "Impacto de vinculaciones sobre marcaciones/dias calculados: #358 (analisis)."
+        - "AnularTerminacion (arrepentimiento del preaviso): refinamiento de #354."
 
 # -------------------------
 # SISTEMAS EXTERNOS (otros BCs / aplicaciones ajenas — integracion)
@@ -107,10 +123,12 @@ external_systems:
       - "ADR-0024: Nomina es 'backbone compartido del producto' o 'integracion verdaderamente externa' (diferida)? Hoy DiaCalculado solo tiene la subscription smoke-tests; no hay consumidor real todavia."
 
   - name: Sistema de empleados / RRHH
-    role: upstream (productor)
-    description: Fuente maestra de empleados.
-    feeds: Empleados (dominio planificado)
-    mechanism: "Por definir"
+    role: upstream (productor, sin autoridad)
+    description: >
+      Posible fuente de cargas iniciales de colaboradores. SIN sincronizacion: la fuente
+      de verdad es el dominio Colaboradores; los usuarios son autonomos (decision 2026-08-07).
+    feeds: Colaboradores
+    mechanism: "POST HTTP inicial; futuros adaptadores (webhook de nomina, archivo) traducen a los comandos RegistrarColaborador/ReingresarColaborador."
 
 # -------------------------
 # RELACIONES
@@ -140,8 +158,12 @@ relationships:
     mechanism: "Evento DiaCalculado (IPublicEvent) publicado en Service Bus"
 
   - from: Sistema de empleados / RRHH
-    to: Empleados
-    type: Upstream-Downstream
+    to: Colaboradores
+    type: AntiCorruptionLayer
     scope: external
-    description: "El dominio Empleados se alimenta del maestro externo de RRHH"
-    mechanism: "Por definir"
+    description: >
+      Fuentes automaticas (webhook de nomina, otros sistemas, archivos) alimentan al dominio
+      Colaboradores SIN sincronizacion ni autoridad: los adaptadores traducen la semantica
+      externa (upsert sucio) a las intenciones limpias del dominio (registrar vs reingresar),
+      consultando la ficha o reaccionando al fallo informativo.
+    mechanism: "POST HTTP (interfaz minima convergente, #330); adaptadores futuros por fuente."

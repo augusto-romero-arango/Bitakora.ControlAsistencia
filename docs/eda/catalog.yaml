@@ -16,9 +16,9 @@
 # - private        -> IPrivateEvent: lo consume un dominio del MISMO BC. Cruza el ASB interno.
 # - event-sourcing -> evento del aggregate, SIN marker de bus. No cruza ningun bus (event store de Marten).
 #
-# Ultima actualizacion: 2026-07-18 (decision de un solo BC "Control de Asistencia":
-#   ProgramacionTurnoDiarioSolicitada pasa de public a private; se distingue 'event-sourcing'
-#   de 'private' para los eventos que solo viven en el aggregate. Ver context-map.yaml.)
+# Ultima actualizacion: 2026-08-10 (dominio Colaboradores planificado: aggregate, 8 eventos,
+#   8 comandos y 4 VOs del desglose #330/#348-#357. Todos event-sourcing puro, sin bus.
+#   Anterior: 2026-07-18, un solo BC "Control de Asistencia". Ver context-map.yaml.)
 
 events:
   - name: TurnoCreado
@@ -174,6 +174,95 @@ events:
     consumed_by: ["Sistema de nomina (externo)"]
     used_in: ["#108"]
 
+  # --- Dominio Colaboradores (desglose #330, sesion 2026-08-07/10; scaffold pendiente) ---
+  - name: ColaboradorRegistrado
+    context: Colaboradores
+    description: Nace la persona en el dominio (bajo control de asistencia)
+    visibility: event-sourcing
+    payload:
+      - field: Identificacion
+        type: Identificacion
+        note: "VO {Tipo}:{Numero}; es la clave del stream"
+      - field: Nombre
+        type: NombreColaborador
+        note: "4 campos: PrimerNombre, SegundoNombre?, PrimerApellido, SegundoApellido?"
+    published_to: null
+    used_in: ["#330"]
+
+  - name: VinculacionIniciada
+    context: Colaboradores
+    description: Se abre una vinculacion (registro inicial O reingreso — el evento no conoce su comando, CA-ADR-0029)
+    visibility: event-sourcing
+    payload:
+      - field: Codigo
+        type: string
+        note: "Id transaccional asignado por el sistema externo (aplanado: CodigoColaborador)"
+      - field: FechaInicio
+        type: DateOnly
+        note: "REQUERIDA — tiempo del hecho, viene del cliente"
+    published_to: null
+    used_in: ["#330", "#350"]
+
+  - name: VinculacionTerminada
+    context: Colaboradores
+    description: El colaborador sale del control de asistencia. Sin motivo — el "por que" es dato autoritativo de RRHH/nomina, no de este BC (refinamiento #349, 2026-08-11)
+    visibility: event-sourcing
+    payload:
+      - field: FechaEfectiva
+        type: DateOnly
+        note: "REQUERIDA — pasada (registro tardio) o futura (preaviso). >= FechaInicio de la vinculacion abierta"
+    published_to: null
+    used_in: ["#349"]
+
+  - name: NombresCorregidos
+    context: Colaboradores
+    description: Enmienda de los nombres de la persona (typo o reutilizacion del stream por el dueno legitimo)
+    visibility: event-sourcing
+    payload:
+      - field: Nombre
+        type: NombreColaborador
+    published_to: null
+    used_in: ["#351"]
+
+  - name: FechaInicioVinculacionCorregida
+    context: Colaboradores
+    description: Enmienda de la fecha de inicio de la ULTIMA vinculacion, con o sin terminacion registrada (refinamiento #352). No-solape con la anterior; coherencia con la terminacion propia
+    visibility: event-sourcing
+    payload:
+      - field: FechaInicio
+        type: DateOnly
+    published_to: null
+    used_in: ["#352"]
+
+  - name: TerminacionAnulada
+    context: Colaboradores
+    description: Se deshace la terminacion de la ultima vinculacion — reabre con su codigo y fecha de inicio intactos (refinamiento #354, reemplaza a FechaTerminacionVinculacionCorregida - "corregir la fecha" es anular + terminar)
+    visibility: event-sourcing
+    payload: []
+    published_to: null
+    used_in: ["#354"]
+
+  - name: EtiquetaAsignada
+    context: Colaboradores
+    description: Crea o sobrescribe el valor de una categoria en la vinculacion abierta
+    visibility: event-sourcing
+    payload:
+      - field: Etiqueta
+        type: Etiqueta
+        note: "Doble forma: original (display) + normalizada (identidad)"
+    published_to: null
+    used_in: ["#355", "#356", "#357"]
+
+  - name: EtiquetaRetirada
+    context: Colaboradores
+    description: Elimina una categoria de la vinculacion vigente
+    visibility: event-sourcing
+    payload:
+      - field: CategoriaNormalizada
+        type: string
+    published_to: null
+    used_in: ["#355"]
+
 commands:
   - name: CrearTurno
     context: Programacion
@@ -237,6 +326,63 @@ commands:
     produces: [MarcacionRegistrada, RegistroDeMarcacionCreado]
     used_in: ["#105", "#270"]
 
+  # --- Dominio Colaboradores (#330, #348-#357) ---
+  - name: RegistrarColaborador
+    context: Colaboradores
+    description: Crea la persona bajo control de asistencia. Interfaz minima convergente (POST); falla SIEMPRE si el stream existe — la intencion de reingreso es de ReingresarColaborador; los adaptadores traducen.
+    trigger: HTTP POST
+    produces: [ColaboradorRegistrado, VinculacionIniciada]
+    used_in: ["#330"]
+
+  - name: ReingresarColaborador
+    context: Colaboradores
+    description: Abre una vinculacion nueva contra el stream existente (SIN nombres — corregir nombres es otra intencion). FechaInicio estrictamente posterior a la FechaEfectiva de la ultima terminacion (no-solape, refinamiento #350). Rechazos sincronos 409 (CA-ADR-0030)
+    trigger: HTTP POST
+    produces: [VinculacionIniciada]
+    used_in: ["#350"]
+
+  - name: TerminarVinculacion
+    context: Colaboradores
+    description: Cierra la vinculacion abierta con fecha efectiva (pasada o futura/preaviso). Sin motivo (refinamiento #349). Rechazos sincronos 409 — sin evento de fallo (CA-ADR-0030 propuesto)
+    trigger: HTTP
+    produces: [VinculacionTerminada]
+    used_in: ["#349"]
+
+  - name: CorregirNombres
+    context: Colaboradores
+    description: Enmienda los nombres de la persona. Solo exige existencia, no vigencia (refinamiento #351); idempotente por igualdad de valor
+    trigger: HTTP
+    produces: [NombresCorregidos]
+    used_in: ["#351"]
+
+  - name: CorregirFechaInicioVinculacion
+    context: Colaboradores
+    description: Enmienda la fecha de inicio de la ultima vinculacion (con o sin terminacion registrada, refinamiento #352). Rechazos sincronos 409 (CA-ADR-0030); idempotente por igualdad
+    trigger: HTTP
+    produces: [FechaInicioVinculacionCorregida]
+    used_in: ["#352"]
+
+  - name: AnularTerminacion
+    context: Colaboradores
+    description: Deshace la terminacion de la ULTIMA vinculacion (arrepentimiento del preaviso o fecha errada — corregir = anular + terminar). Tras un reingreso la terminacion anterior queda congelada. Rechazos sincronos 409 (CA-ADR-0030)
+    trigger: HTTP POST
+    produces: [TerminacionAnulada]
+    used_in: ["#354"]
+
+  - name: AsignarEtiqueta
+    context: Colaboradores
+    description: Crea o sobrescribe una etiqueta (un valor por categoria) en la vinculacion ABIERTA — 409 si tiene terminacion registrada, incluido preaviso (refinamiento #355). Idempotente si la etiqueta es identica por valor
+    trigger: HTTP POST
+    produces: [EtiquetaAsignada]
+    used_in: ["#355"]
+
+  - name: RetirarEtiqueta
+    context: Colaboradores
+    description: Elimina una categoria de la vinculacion ABIERTA — 409 si tiene terminacion registrada o si la categoria no existe (el typo debe aflorar, refinamiento #355)
+    trigger: HTTP POST
+    produces: [EtiquetaRetirada]
+    used_in: ["#355"]
+
 policies: []
 
 aggregates:
@@ -261,6 +407,12 @@ aggregates:
     description: "Registro individual de una marcacion. Identidad determinista: {EmpleadoId}:{TimestampCrudo}. Normaliza, persiste MarcacionRegistrada y empaqueta el contrato de bus RegistroDeMarcacionCreado (Tell-don't-Ask, espejo de ControlDiario.CrearDiaCalculado)."
     identity: "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss} — stream ID determinista para idempotencia por duplicado exacto"
     used_in: ["#105", "#270", "#275"]
+
+  - name: ColaboradorAggregateRoot
+    context: Colaboradores
+    description: "Persona bajo control de asistencia. Contiene sus vinculaciones (max una vigente, sin solapes) con Codigo transaccional, y las etiquetas de la vinculacion vigente. Status: planificado (#330, scaffold pendiente)."
+    identity: "Identificacion.ToString() — {TipoIdentificacion}:{NumeroIdentificacion}, por tenant"
+    used_in: ["#330", "#348", "#349", "#350", "#351", "#352", "#354", "#355"]
 
 value_objects:
   - name: FranjaOrdinaria
@@ -433,3 +585,23 @@ value_objects:
     description: "Pareja entrada-salida para una franja ordinaria."
     used_in: []
     note: "Legacy — nunca existio como archivo. Reemplazado por ControlFranja en sesion 2026-04-16."
+
+  - name: TipoIdentificacion
+    source: "planificado — Bitakora.ControlAsistencia.Colaboradores.DomainEvents (#348)"
+    description: "Lista cerrada estilo PILA (CC, CE, TI, PA, PT) como VO de instancias estaticas — sin sombra numerica de enum; lo persistido es SIEMPRE el codigo literal."
+    used_in: ["#348"]
+
+  - name: Identificacion
+    source: "planificado — Bitakora.ControlAsistencia.Colaboradores.DomainEvents (#348)"
+    description: "Identidad civil: tipo (lista cerrada) + numero (string ALFANUMERICO, trim+mayusculas). ToString() = {Tipo}:{Numero} = clave del stream de Colaborador."
+    used_in: ["#348", "#330"]
+
+  - name: NombreColaborador
+    source: "planificado — Bitakora.ControlAsistencia.Colaboradores.DomainEvents (#348)"
+    description: "4 campos colombianos (primeros obligatorios, segundos opcionales). Compone NombreCompleto de forma canonica UNICA (Tell-don't-Ask). La particion estricta vive SOLO en Colaboradores; lo que cruza fronteras es NombreCompleto plano (CA-ADR-0025)."
+    used_in: ["#348", "#351"]
+
+  - name: Etiqueta
+    source: "planificado — Bitakora.ControlAsistencia.Colaboradores.DomainEvents (#353)"
+    description: "Par categoria:valor con doble forma (original para display + normalizada sin tildes/mayusculas como identidad). Igualdad por categoria normalizada."
+    used_in: ["#353", "#355"]
