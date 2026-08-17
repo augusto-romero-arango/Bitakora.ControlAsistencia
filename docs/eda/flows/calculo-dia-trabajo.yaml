@@ -218,7 +218,7 @@ flow:
   # ---------------------------------------------------------------
   # PREGUNTAS ABIERTAS QUE TOCAN ESTE FLUJO
   # ---------------------------------------------------------------
-  # (Ver docs/eda/ubiquitous-language.yaml, seccion open_questions)
+  # (Ver docs/ddd/ubiquitous-language.yaml, seccion open_questions)
   preguntas_abiertas:
     - "Flujo de aprobacion antes de transmitir a nomina: hoy DiaCalculado se publica automatico, pero el dominio dice que hay aprobacion al cierre de nomina (Aprobador). priority: high"
     - "Periodo de computo: hoy se calcula por dia; las extras/recargos suelen liquidarse semanal/quincenal/mensual. priority: medium"
