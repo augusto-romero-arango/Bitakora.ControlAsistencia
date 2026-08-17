@@ -325,4 +325,96 @@ dos alertas hermanas: opera sobre telemetria muestreada al ratio de la Capa 2 (`
 0.2 por defecto), asi que el conteo observado es una fraccion del real. No bajar el ratio sin
 recalibrar el umbral de las tres alertas.
 
+> **Corregido por la actualizacion (2026-08-17, issue #412) al final de este ADR.** El experimento de
+> falla inducida midio que el ratio 0.2 **no** recorta esta alerta: las excepciones del daemon viajan
+> por la senal de logs con `SpanId == default` y pasan enteras (87 de 87, 1:1). El recorte real es
+> binario y de otro origen -- el sampler del issue #308 suprime al 100% una familia de errores del
+> daemon. El parrafo de arriba se conserva por trazabilidad; la seccion final manda.
+
 Capas 1, 2 y 3 sin cambios.
+
+## Actualizacion (2026-08-17, issue #412): verificacion empirica de la alerta del worker
+
+La alerta de la seccion anterior se desplego con ruido cero verificado (sin falsos positivos), pero
+nunca se comprobo su **capacidad de deteccion**: la tabla `exceptions` estaba vacia para el worker en
+los 30 dias de retencion, y la cadena "daemon falla -> excepcion visible en la alerta" era doctrina
+asumida. Se ejecuto una falla inducida sobre dev en sesion supervisada.
+
+**Protocolo.** `az postgres flexible-server stop` sobre `psql-asist-dev` (17:02:18Z, `Stopped` a las
+17:06:27Z) y `start` (17:12:14Z, `Ready` a las 17:20:28Z). Se eligio detener el servidor y no romper la
+connection string del Container App: el provider `azurerm` no modela el power state, asi que no hay
+drift de Terraform, y el worker no re-arranca -- el proceso vivo pierde la conexion y el daemon entra
+en reintentos, que es la cadena a verificar. `TELEMETRY_SAMPLING_RATIO` no se toco (ausente en el
+Container App, o sea el default 0.2 real).
+
+**Resultado 1 -- la alerta detecta, pero su umbral es inalcanzable.** La query exacta de la alerta
+devolvio 88 filas sobre la ventana de falla: el filtro por `cloud_RoleName` funciona y la alerta no es
+ciega. Pero evaluada en bins de 5 minutos -- que es su ventana real -- el maximo fue **30**, contra un
+umbral de `>50`:
+
+| Ventana (UTC) | Excepciones del worker | Supera >50 |
+|---|---|---|
+| 17:00 | 7 | no |
+| 17:05 | 26 | no |
+| 17:10 | 25 | no |
+| 17:15 | 30 | no |
+
+Una caida total de Postgres de ~14 minutos -- el peor caso realista para el worker -- **no dispara la
+alerta**. El ritmo del daemon esta acotado por su backoff de reintentos y por el numero de shards (hoy
+3: `FichaColaborador:All`, `CategoriaDeEtiquetas:All`, `TurnoVigente:All`), no por la gravedad del
+fallo. El umbral >50 se heredo de las alertas de borde HTTP, donde un loop de reintentos si produce
+cientos de eventos por minuto; el daemon no tiene ese perfil. Recalibrar es un issue aparte.
+
+**Resultado 2 -- la via es la senal de logs, y el ratio 0.2 no la recorta.** Evidencia por fila en
+`exceptions`: `customDimensions.CategoryName == "Marten.Events.Daemon.Coordination.ProjectionCoordinator"`
+y `customDimensions.OriginalFormat` con la plantilla del log -- ambos campos solo existen si el item
+nacio de un `LogRecord` de `ILogger`, no de un span event. Ademas `operation_Id` **vacio** en las 88
+filas: el `LogError` del daemon ocurre fuera de un span activo (`SpanId == default`). Eso es lo que
+neutraliza el recorte: `AzureMonitorExporterOptions.EnableTraceBasedLogsSampler` viene en `true` por
+defecto (exporter 1.8.1) e instala un `LogFilteringProcessor` que descarta el LogRecord solo si tiene
+`SpanId` y su span no fue muestreado; sin `SpanId` pasa siempre. Sin sampling de ingestion tampoco
+(`itemCount == 1` en las 88 filas, `samplingPercentage == 100`).
+
+Contraste consola vs `exceptions` sobre la ventana completa, por familia de mensaje:
+
+| Familia de error del daemon | Consola | `exceptions` | Ratio |
+|---|---|---|---|
+| `Error trying to attain a lock for set {Name}...` | 87 | 87 | **1:1** |
+| `Failed while trying to detect high water statistics...` | 35 | 0 | **0%** |
+
+**Resultado 3 (hallazgo no buscado) -- el sampler del issue #308 ciega una familia entera de errores.**
+El split no es fraccional, es binario, y tiene una causa exacta. `SamplerQueDescartaPollingDelDaemon`
+devuelve `SamplingDecision.Drop` para el span `marten.daemon.highwatermark`; el `HighWaterAgent` de
+JasperFx emite sus `LogError` **dentro** de ese span, con `SpanId` poblado y `TraceFlags != Recorded`.
+El `LogFilteringProcessor` los descarta. Los 35 errores de high water llevaban excepcion con stack
+trace completo -- eran candidatos legitimos a `exceptions` -- y no llegaron a ninguna tabla.
+
+El sampler se escribio para recortar **costos de trazas** (95% de los spans Postgres del worker cuelgan
+de ese polling). El efecto colateral es que suprime tambien los **logs de error** emitidos bajo ese
+span, que era justo lo que no se queria perder. Es el mismo modo de falla que el issue #308 corrigio
+--- wiring a medio terminar, silencioso --- reaparecido un nivel mas abajo. El desacople existe y no
+cuesta trazas: `.UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)`.
+
+**Correccion a la seccion anterior.** La afirmacion "el sampling head-based tambien recorta esta
+alerta" es **incorrecta** para el worker en su mecanismo y en su magnitud: no hay recorte proporcional
+al ratio 0.2 sobre las excepciones del daemon. Hay paso integro (1:1) para los errores sin contexto de
+span y supresion total (0%) para los emitidos bajo el span de polling. La consecuencia practica se
+invierte: bajar `TELEMETRY_SAMPLING_RATIO` no vuelve mas insensible esta alerta, y subirlo no la
+arregla.
+
+**Efecto colateral observado en las alertas hermanas.** Durante la ventana, `func-asist-dev-colaboradores`
+y `func-asist-dev-control-horas` generaron 810 excepciones de `Wolverine.RDBMS.DurabilityAgent` e
+`IAgentCommand` (116-120 por ventana de 5 min, holgadamente sobre 50, tambien con `operation_Id` vacio).
+Ninguna alerta disparo: hubo **cero `requests`** en toda la ventana, y las dos alertas de borde se
+condicionan a `requests` (500 HTTP / invocaciones no-HTTP fallidas). Un fallo en un agente de fondo no
+produce requests, asi que esas dos alertas son estructuralmente ciegas a este modo de falla. Total del
+incidente: ~1000 excepciones en tres roles, **cero alertas disparadas** (verificado contra
+`Microsoft.AlertsManagement/alerts`).
+
+**Reversion (verificada).** Postgres `Ready`; la replica del worker
+(`ca-asist-dev--0000033-84b48c4f4b-xwtpq`, creada 00:20:28Z) nunca re-arranco, confirmando la premisa
+del mecanismo elegido; post-recuperacion 3 dependencias Npgsql exitosas y 0 excepciones; las tres
+Function Apps `Running`.
+
+Capas 1, 2 y 3 sin cambios. La Capa 4 conserva sus tres alertas; lo que cambia es lo que se sabe de
+ellas.
