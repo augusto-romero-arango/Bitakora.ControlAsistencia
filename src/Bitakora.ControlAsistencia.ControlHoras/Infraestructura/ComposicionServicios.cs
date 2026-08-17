@@ -195,6 +195,9 @@ public static class ComposicionServicios
         services.AddScoped<IRequestValidator, RequestValidator>();
         services.AddValidatorsFromAssemblyContaining<IControlHorasAssemblyMarker>();
 
+        // Issue #399: readiness gate del event store, consumido por ReadyCheck (GET /api/ready).
+        services.AddScoped<IEventStoreReadinessProbe, EventStoreReadinessProbe>();
+
         return services;
     }
 }

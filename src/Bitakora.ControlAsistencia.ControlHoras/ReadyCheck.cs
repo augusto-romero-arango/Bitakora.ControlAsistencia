@@ -8,8 +8,23 @@ namespace Bitakora.ControlAsistencia.ControlHoras;
 public partial class ReadyCheck(IEventStoreReadinessProbe probe)
 {
     [Function("ready")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ready")]
         HttpRequest req,
-        CancellationToken ct) => throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        try
+        {
+            await probe.VerificarAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            return new ObjectResult($"{Mensajes.EventStoreNoDisponible}: {ex.Message}")
+            {
+                StatusCode = StatusCodes.Status503ServiceUnavailable
+            };
+        }
+
+        return new OkObjectResult("OK");
+    }
 }

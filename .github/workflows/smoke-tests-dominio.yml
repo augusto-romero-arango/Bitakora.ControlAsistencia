@@ -217,17 +217,49 @@ jobs:
           expected_sha="${{ inputs.expected_sha }}"
           if [ -n "$expected_sha" ]; then
             echo "Esperando que ${{ inputs.base_url }}/api/version reporte el SHA ${expected_sha}..."
+            version_ok=0
             for i in $(seq 1 60); do
               body=$(curl -s "${{ inputs.base_url }}/api/version" || echo "")
               if [[ "$body" == *"$expected_sha"* ]]; then
                 echo "Version OK tras ${i} intento(s) (~$((i*2))s): ${body}"
-                exit 0
+                version_ok=1
+                break
               fi
               echo "Intento ${i}: version desplegada '${body}' no coincide con '${expected_sha}'. Reintentando en 2s..."
               sleep 2
             done
-            echo "Timeout: /api/version no reporto el SHA esperado (${expected_sha}) en 120s"
-            exit 1
+            if [ "$version_ok" -eq 0 ]; then
+              echo "Timeout: /api/version no reporto el SHA esperado (${expected_sha}) en 120s"
+              exit 1
+            fi
+
+            # Issue #399 (incidente run 31904647437): el binario ya sirve el SHA esperado, pero el
+            # write-path del event store puede seguir frio -- el gate de /api/version no lo
+            # ejercita. /api/ready si abre una conexion contra el event store (Weasel
+            # ensureStorageExistsAsync), asi que su primer 200 es la senal real de que el write-path
+            # esta caliente. Timeout total medido por reloj (no por conteo de intentos) porque
+            # --max-time hace variable la duracion de cada intento; 120s replica el mismo criterio
+            # de MEF-ADR-0031 (el doble de la peor ventana real observada, 35.3s). --max-time por
+            # intento evita que una sola peticion colgada agote ese presupuesto.
+            echo "Esperando que ${{ inputs.base_url }}/api/ready responda 200..."
+            timeout_ready=120
+            inicio_ready=$(date +%s)
+            intento=0
+            while true; do
+              intento=$((intento + 1))
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${{ inputs.base_url }}/api/ready" || echo "000")
+              transcurrido=$(( $(date +%s) - inicio_ready ))
+              if [ "$code" = "200" ]; then
+                echo "Ready OK tras ${intento} intento(s) (~${transcurrido}s)."
+                exit 0
+              fi
+              if [ "$transcurrido" -ge "$timeout_ready" ]; then
+                echo "Timeout: /api/ready no respondio 200 en ${timeout_ready}s (ultimo HTTP ${code})."
+                exit 1
+              fi
+              echo "Intento ${intento} (~${transcurrido}s transcurridos): /api/ready respondio HTTP ${code}. Reintentando en 3s..."
+              sleep 3
+            done
           fi
 
           echo "expected_sha vacio: degradando a chequeo simple de HTTP 200."
