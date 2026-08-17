@@ -254,7 +254,7 @@ public class ComposicionServiciosTests
     // Functions isolated worker).
     //
     // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (parseo de empleadoId/fecha con 400 explicito, session.LoadAsync y el
+    // comportamiento de Run (parseo de codigoColaborador/fecha con 400 explicito, session.LoadAsync y el
     // 200/404, CA-4), que es responsabilidad de projection-implementer y del smoke test (CA-8), no
     // de este guardrail de wiring. Por eso este test queda en verde tan pronto exista el
     // FunctionEndpoint stub con el constructor correcto -- no es la guarda que fuerza el rojo de
@@ -328,7 +328,7 @@ public class ComposicionServiciosTests
     // worker, sin levantar el host real (Alt 1 de MEF-ADR-0029).
     //
     // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (parseo de desde/hasta/empleadoId, recorte de rango, session.Query y
+    // comportamiento de Run (parseo de desde/hasta/codigoColaborador, recorte de rango, session.Query y
     // mapeo al envelope de respuesta), que es responsabilidad de projection-implementer y del smoke
     // test, no de este guardrail de wiring. Este issue no crea proyeccion nueva ni toca el seam del
     // worker (issue #329, "Necesidad de lectura"): esta es la UNICA capa read-side declarada para

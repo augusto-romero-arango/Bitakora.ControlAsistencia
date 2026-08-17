@@ -10,12 +10,15 @@ namespace Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 /// vigente (Informacion*) y NO toma el nombre puro Colaborador -- ese pertenece al concepto rico
 /// del dominio Colaboradores --: mismo criterio anti-squatting que dio SedeProgramada en vez de
 /// Sede (#331, #336). Es el gemelo publico, con paridad de campos, de los ColaboradorProgramado de
-/// Programacion/ControlHoras.DomainEvents y de DetalleColaborador (PrivateEvents). El rename no
-/// toca ninguna clave JSON del bus: solo cambia el TIPO y su namespace; los nombres de propiedad
-/// se conservan hasta #401.
+/// Programacion/ControlHoras.DomainEvents y de DetalleColaborador (PrivateEvents). Ese rename de
+/// #340 solo cambio el TIPO y su namespace, sin tocar ninguna clave JSON del bus.
+///
+/// Issue #401: el campo EmpleadoId paso a CodigoColaborador -- aqui SI cambia la clave JSON que
+/// viaja por el bus. Es el identificador que emite el maestro Colaboradores (#330): el vocabulario
+/// del Published Language queda unificado con el del dominio que lo origina.
 /// </remarks>
 public record InformacionColaborador(
-    string EmpleadoId,
+    string CodigoColaborador,
     string TipoIdentificacion,
     string NumeroIdentificacion,
     string Nombres,

@@ -85,11 +85,11 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoEmpleadoIdEsValidoPeroElRangoNoLoEs()
+    public async Task ListarTurnosVigentes_Retorna400_CuandoCodigoColaboradorEsValidoPeroElRangoNoLoEs()
     {
-        // CA-2 + CA-4: la presencia del filtro opcional empleadoId no relaja la validacion del
+        // CA-2 + CA-4: la presencia del filtro opcional codigoColaborador no relaja la validacion del
         // rango -- la consulta del Trabajador pasa por el mismo borde que la del Programador.
-        var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-10&hasta=2026-05-05&empleadoId=EMP-001");
+        var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-10&hasta=2026-05-05&codigoColaborador=EMP-001");
 
         resultado.Value.Should().BeOfType<string>().Which.Should().Contain("anterior");
     }
@@ -97,13 +97,13 @@ public class FunctionEndpointTests
     [Fact]
     public async Task ListarTurnosVigentes_Retorna400_CuandoSedeIdEsValidoPeroElRangoNoLoEs()
     {
-        // Issue #337 CA-3: el tercer filtro opcional (sedeId, combinable con empleadoId) tampoco
+        // Issue #337 CA-3: el tercer filtro opcional (sedeId, combinable con codigoColaborador) tampoco
         // relaja la validacion del rango -- la consulta del jefe de sede pasa por el mismo borde.
         // Es la unica rama del filtro por sede ejercitable sin Postgres: el predicado
         // Bloques.Any(...) lo resuelve Marten contra la base real y queda cubierto por el smoke test
         // contra dev (MEF-ADR-0013), no por este archivo -- que corre con store nulo a proposito.
         var resultado = await EjecutarEsperandoBadRequest(
-            "?desde=2026-05-10&hasta=2026-05-05&empleadoId=EMP-001&sedeId=SD-SUBA");
+            "?desde=2026-05-10&hasta=2026-05-05&codigoColaborador=EMP-001&sedeId=SD-SUBA");
 
         resultado.Value.Should().BeOfType<string>().Which.Should().Contain("anterior");
     }

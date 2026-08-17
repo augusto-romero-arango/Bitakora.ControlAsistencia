@@ -22,8 +22,8 @@ public class FunctionEndpointTests
     private const string JsonFormatoWolverine = """
         {
           "solicitudId": "019600b0-0000-7000-8000-000000000001",
-          "empleado": {
-            "empleadoId": "EMP-001",
+          "colaborador": {
+            "codigoColaborador": "EMP-001",
             "tipoIdentificacion": "CC",
             "numeroIdentificacion": "1234567890",
             "nombres": "Luis Augusto",

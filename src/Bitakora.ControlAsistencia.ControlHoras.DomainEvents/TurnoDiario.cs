@@ -1,7 +1,7 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
-/// Representacion plana del turno que rige efectivamente a un empleado en una fecha concreta,
+/// Representacion plana del turno que rige efectivamente a un colaborador en una fecha concreta,
 /// propia de este ensamblado (issue #322, payload por rol -- CA-ADR-0029 decision #5 /
 /// MEF-ADR-0039 decision #6). Duplica con paridad exacta de campos a DetalleTurno
 /// (PrivateEvents.Programacion) en vez de importarlo: los tres ensamblados de eventos son tres

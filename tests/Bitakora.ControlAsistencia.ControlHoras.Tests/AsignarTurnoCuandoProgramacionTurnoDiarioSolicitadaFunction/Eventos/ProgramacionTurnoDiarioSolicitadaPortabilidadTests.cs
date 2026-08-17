@@ -20,8 +20,8 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000009");
 
-    // Issue #318 CA-2: Empleado ahora tipa con DetalleColaborador (payload propio de PrivateEvents).
-    private static readonly DetalleColaborador Empleado = new(
+    // Issue #318 CA-2: Colaborador ahora tipa con DetalleColaborador (payload propio de PrivateEvents).
+    private static readonly DetalleColaborador Colaborador = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
@@ -45,7 +45,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     public void RoundTrip_PreservaDescripcion_ConSerializadorPorDefectoDelBus()
     {
         var detalleTurno = CrearDetalleTurno();
-        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno);
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, detalleTurno);
 
         // El productor publica con sus propias opciones (sin resolver custom, DTO plano)...
         var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
@@ -70,7 +70,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     {
         var detalleTurno = CrearDetalleTurno();
         var sede = new DetalleSede("SEDE-01", "Sede Principal");
-        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno, sede);
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, detalleTurno, sede);
 
         var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
 
@@ -104,7 +104,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     private static string JsonSinLaClaveSede()
     {
         var conSede = new ProgramacionTurnoDiarioSolicitada(
-            SolicitudId, Empleado, Fecha, CrearDetalleTurno(), new DetalleSede("SEDE-01", "Sede Principal"));
+            SolicitudId, Colaborador, Fecha, CrearDetalleTurno(), new DetalleSede("SEDE-01", "Sede Principal"));
 
         var nodo = JsonNode.Parse(JsonSerializer.Serialize(conSede, CrearOpcionesProductor()))!;
         nodo.AsObject().Remove("sede").Should().BeTrue(
@@ -125,7 +125,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         var franja = new DetalleFranjaOrdinaria(
             new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)[sede:Suba]", sedeFranja);
         var detalleTurno = new DetalleTurno("Turno Manana", [franja], "Turno Manana (08:00-16:00)[sede:Suba]");
-        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno);
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, detalleTurno);
 
         var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
 
@@ -159,7 +159,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
             new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)[sede:Suba]",
             new DetalleSede("SEDE-SUBA", "Suba"));
         var detalleTurno = new DetalleTurno("Turno Manana", [franjaConSede], "Turno Manana (08:00-16:00)[sede:Suba]");
-        var conSede = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Empleado, Fecha, detalleTurno);
+        var conSede = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, detalleTurno);
 
         var nodo = JsonNode.Parse(JsonSerializer.Serialize(conSede, CrearOpcionesProductor()))!;
         var franjaNodo = nodo["detalleTurno"]!["franjasOrdinarias"]![0]!.AsObject();
@@ -179,8 +179,8 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         const string jsonPrevioAlCampo = """
             {
               "solicitudId": "019600b0-0000-7000-8000-000000000009",
-              "informacionEmpleado": {
-                "empleadoId": "EMP-001", "tipoDocumento": "CC", "numeroDocumento": "1234567890",
+              "informacionColaborador": {
+                "codigoColaborador": "EMP-001", "tipoDocumento": "CC", "numeroDocumento": "1234567890",
                 "nombres": "Luis Augusto", "apellidos": "Barreto"
               },
               "fecha": "2026-03-15",

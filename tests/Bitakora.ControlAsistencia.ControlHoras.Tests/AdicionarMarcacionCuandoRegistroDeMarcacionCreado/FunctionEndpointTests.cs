@@ -21,12 +21,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuando
 public class FunctionEndpointTests
 {
     // JSON en formato camelCase - Wolverine serializa con camelCase por defecto al publicar al Service Bus.
-    // Mismos campos que RegistroDeMarcacionCreadoDeserializacionTests (EmpleadoId, TimestampNormalizado,
+    // Mismos campos que RegistroDeMarcacionCreadoDeserializacionTests (CodigoColaborador, TimestampNormalizado,
     // TipoMarcacion, DispositivoId); RegistroDeMarcacionCreado es un record con constructor primario
     // publico, por lo que ServiceBusDeserializador (case-insensitive) lo resuelve via ese constructor.
     private const string JsonFormatoWolverine = """
         {
-          "empleadoId": "EMP-001",
+          "codigoColaborador": "EMP-001",
           "timestampNormalizado": "2026-03-15T08:09:00",
           "tipoMarcacion": "ENTRADA",
           "dispositivoId": "DEV-001"

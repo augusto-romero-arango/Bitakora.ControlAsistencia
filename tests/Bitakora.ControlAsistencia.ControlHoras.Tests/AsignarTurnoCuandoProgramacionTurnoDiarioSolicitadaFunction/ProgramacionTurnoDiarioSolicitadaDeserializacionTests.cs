@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 /// Verifica que ProgramacionTurnoDiarioSolicitada se deserializa correctamente
 /// desde el formato que produce Wolverine al publicar al Service Bus (camelCase JSON).
 /// Sin PropertyNameCaseInsensitive=true, todas las propiedades quedan null
-/// provocando NullReferenceException en el handler (linea: command.Empleado.EmpleadoId).
+/// provocando NullReferenceException en el handler (linea: command.Colaborador.CodigoColaborador).
 /// </summary>
 public class ProgramacionTurnoDiarioSolicitadaDeserializacionTests
 {
@@ -23,8 +23,8 @@ public class ProgramacionTurnoDiarioSolicitadaDeserializacionTests
     private const string JsonFormatoWolverine = """
         {
           "solicitudId": "019600b0-0000-7000-8000-000000000001",
-          "empleado": {
-            "empleadoId": "EMP-001",
+          "colaborador": {
+            "codigoColaborador": "EMP-001",
             "tipoIdentificacion": "CC",
             "numeroIdentificacion": "1234567890",
             "nombres": "Luis Augusto",
@@ -57,12 +57,12 @@ public class ProgramacionTurnoDiarioSolicitadaDeserializacionTests
 
         evento.Should().NotBeNull();
         evento.SolicitudId.Should().Be(SolicitudId);
-        evento.Empleado.Should().NotBeNull();
-        evento.Empleado.EmpleadoId.Should().Be("EMP-001");
-        evento.Empleado.TipoIdentificacion.Should().Be("CC");
-        evento.Empleado.NumeroIdentificacion.Should().Be("1234567890");
-        evento.Empleado.Nombres.Should().Be("Luis Augusto");
-        evento.Empleado.Apellidos.Should().Be("Barreto");
+        evento.Colaborador.Should().NotBeNull();
+        evento.Colaborador.CodigoColaborador.Should().Be("EMP-001");
+        evento.Colaborador.TipoIdentificacion.Should().Be("CC");
+        evento.Colaborador.NumeroIdentificacion.Should().Be("1234567890");
+        evento.Colaborador.Nombres.Should().Be("Luis Augusto");
+        evento.Colaborador.Apellidos.Should().Be("Barreto");
         evento.Fecha.Should().Be(new DateOnly(2026, 3, 15));
         evento.DetalleTurno.Should().NotBeNull();
         evento.DetalleTurno.Nombre.Should().Be("Turno Manana");

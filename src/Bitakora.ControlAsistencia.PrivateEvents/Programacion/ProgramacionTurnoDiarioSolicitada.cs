@@ -14,7 +14,7 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
 {
     public Guid SolicitudId { get; private set; }
-    public DetalleColaborador Empleado { get; private set; } = null!;
+    public DetalleColaborador Colaborador { get; private set; } = null!;
     public DateOnly Fecha { get; private set; }
     public DetalleTurno DetalleTurno { get; private set; } = null!;
 
@@ -25,13 +25,13 @@ public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
 
     public ProgramacionTurnoDiarioSolicitada(
         Guid solicitudId,
-        DetalleColaborador empleado,
+        DetalleColaborador colaborador,
         DateOnly fecha,
         DetalleTurno detalleTurno,
         DetalleSede? sede = null)
     {
         SolicitudId = solicitudId;
-        Empleado = empleado;
+        Colaborador = colaborador;
         Fecha = fecha;
         DetalleTurno = detalleTurno;
         Sede = sede;

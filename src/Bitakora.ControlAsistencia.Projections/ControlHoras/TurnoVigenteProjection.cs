@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
 /// <summary>
 /// Clase de proyeccion companion de TurnoVigente (issue #328, receta N1 -- un solo stream,
-/// (EmpleadoId, Fecha), MEF-ADR-0035). Vive en el worker (Bitakora.ControlAsistencia.Projections),
+/// (CodigoColaborador, Fecha), MEF-ADR-0035). Vive en el worker (Bitakora.ControlAsistencia.Projections),
 /// el ensamblado que si referencia Marten y el analizador JasperFx.Events.SourceGenerator.
 ///
 /// partial es obligatorio (skills/projections/modelos-marten.md): el source generator descubre
@@ -39,16 +39,16 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     public static TurnoVigente Create(TurnoDiarioAsignado evento) =>
         new(
             evento.Id,
-            evento.InformacionEmpleado.EmpleadoId,
-            NombreCompleto(evento.InformacionEmpleado),
+            evento.InformacionColaborador.CodigoColaborador,
+            NombreCompleto(evento.InformacionColaborador),
             evento.Fecha,
             evento.DetalleTurno.Nombre,
             evento.DetalleTurno.Descripcion,
             MapearBloques(evento));
 
-    // CA-2: "el ultimo gana" -- una reasignacion sobre el mismo (empleado, fecha) sobrescribe
-    // turno, horario y bloques. Id, EmpleadoId y Fecha no cambian: son la identidad del stream
-    // ("{EmpleadoId}:{Fecha:yyyy-MM-dd}"), invariante para todos los eventos del mismo documento.
+    // CA-2: "el ultimo gana" -- una reasignacion sobre el mismo (colaborador, fecha) sobrescribe
+    // turno, horario y bloques. Id, CodigoColaborador y Fecha no cambian: son la identidad del stream
+    // ("{CodigoColaborador}:{Fecha:yyyy-MM-dd}"), invariante para todos los eventos del mismo documento.
     //
     // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload del colaborador
     // completo, y el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba --
@@ -56,7 +56,7 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     public static TurnoVigente Apply(TurnoDiarioAsignado evento, TurnoVigente vista) =>
         vista with
         {
-            NombreCompleto = NombreCompleto(evento.InformacionEmpleado),
+            NombreCompleto = NombreCompleto(evento.InformacionColaborador),
             NombreTurno = evento.DetalleTurno.Nombre,
             HorarioResumido = evento.DetalleTurno.Descripcion,
             Bloques = MapearBloques(evento)

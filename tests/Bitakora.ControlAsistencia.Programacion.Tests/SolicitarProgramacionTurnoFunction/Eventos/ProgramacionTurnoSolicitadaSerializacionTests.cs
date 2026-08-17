@@ -1,14 +1,20 @@
-// Issue #319 CA-2: guardrail decisivo de seguridad de datos. ProgramacionTurnoSolicitada SE
-// PERSISTE (stream de SolicitudProgramacionAggregateRoot); sus propiedades Empleado/DetalleTurno
-// cambiaron de tipo (InformacionEmpleado/DetalleTurno, PublicEvents/PrivateEvents) a los records
-// propios del dominio (Empleado/TurnoProgramado, Programacion.DomainEvents) -- MISMOS nombres de
-// propiedad y de campo anidado, tipos nuevos.
+// Guardrail de la FORMA persistida de ProgramacionTurnoSolicitada, el evento del stream de
+// SolicitudProgramacionAggregateRoot. Fija las claves JSON crudas de mt_events para que un cambio
+// accidental de nombre de propiedad (o de campo anidado) no pase inadvertido: el JSON se construye
+// como texto/tipo anonimo, sin pasar por el tipo bajo prueba, y se deserializa con las mismas
+// opciones que Marten usa en produccion (CrearOpcionesMarten()).
 //
-// Estos tests construyen el JSON con la FORMA en la que Marten ya persistio este evento antes del
-// cambio de tipos (mismos nombres de propiedad, con los tipos viejos) y lo deserializan contra el
-// tipo NUEVO usando las mismas opciones que Marten usa en produccion (CrearOpcionesMarten()). STJ
-// no persiste $type para records/clases anidadas -- ningun dato existente se pierde. Sin este
-// guardrail, el cambio de tipo podria romper en silencio la lectura de streams ya escritos.
+// Issue #319 CA-2: cuando las propiedades Empleado/DetalleTurno cambiaron de TIPO
+// (InformacionEmpleado/DetalleTurno de PublicEvents/PrivateEvents -> records propios del dominio),
+// estos tests probaron que la forma del wire NO cambiaba -- STJ no persiste $type para
+// records/clases anidadas, asi que los streams ya escritos seguian leyendose.
+//
+// Issue #401: aqui las claves SI cambian ("Empleado" -> "Colaborador", "EmpleadoId" ->
+// "CodigoColaborador"). Por eso estas formas se reescribieron a las claves NUEVAS y ya no
+// demuestran compatibilidad hacia atras: los streams escritos con el vocabulario viejo no
+// deserializan contra este tipo, y se purgan en el mismo despliegue que integra el cambio
+// (MEF-ADR-0036 seccion 5, decision deliberada -- sin JsonPropertyName ni upcasters). Lo que
+// estos tests custodian desde ahora es la forma canonica hacia adelante.
 //
 // La forma de prueba lleva descansos y extras poblados a proposito: es el UNICO sitio donde el
 // nivel mas interno de la jerarquia persistida (SubFranjaProgramada, antes DetalleSubFranja) se
@@ -38,7 +44,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     private const string DescripcionDescanso = "(12:00-12:30)";
     private const string DescripcionExtra = "(13:00-14:00)";
 
-    private static readonly ColaboradorProgramado EmpleadoEsperado =
+    private static readonly ColaboradorProgramado ColaboradorEsperado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // Issue #331: sede efectiva del dia, campo aditivo y opcional.
@@ -55,19 +61,19 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         }.AsReadOnly(),
         DescripcionTurno);
 
-    // Forma EXACTA en la que Marten persistio este evento ANTES de este issue: mismos nombres de
-    // propiedad ("Empleado", "Fechas", "DetalleTurno" y sus anidados) que hoy tipan con
-    // InformacionEmpleado/DetalleTurno (PublicEvents/PrivateEvents). Un tipo anonimo local basta
-    // para reproducir la FORMA sin necesitar referenciar esos ensamblados: lo unico que importa
-    // para el guardrail es que las claves JSON coincidan.
-    private static string JsonConFormaPersistidaAntesDelCambioDeTipos()
+    // Forma EXACTA con la que Marten persiste este evento desde #401: claves "Colaborador",
+    // "Fechas", "DetalleTurno" y sus anidados ("CodigoColaborador" dentro de "Colaborador"). Un
+    // tipo anonimo local basta para reproducir la FORMA sin referenciar los ensamblados de los
+    // tipos reales: lo unico que importa para el guardrail es que las claves JSON coincidan --
+    // construirla desde el propio tipo bajo prueba haria el test ciego a un rename.
+    private static string JsonConLaFormaPersistidaEnMtEvents()
     {
         var forma = new
         {
             Id,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = "E001",
+                CodigoColaborador = "E001",
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "12345678",
                 Nombres = "Juan",
@@ -123,7 +129,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     // canonico expresa esa relacion mejor que reescribir la forma completa a mano.
     private static string JsonConFormaPersistidaSinDescripcion()
     {
-        var nodo = JsonNode.Parse(JsonConFormaPersistidaAntesDelCambioDeTipos())!;
+        var nodo = JsonNode.Parse(JsonConLaFormaPersistidaEnMtEvents())!;
         QuitarDescripcion(nodo);
         return nodo.ToJsonString();
     }
@@ -152,12 +158,12 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     }
 
     [Fact]
-    public void Deserializar_ReconstruyeEventoIdentico_ConLaFormaPersistidaAntesDelCambioDeTipos()
+    public void Deserializar_ReconstruyeEventoIdentico_ConLaFormaPersistidaEnMtEvents()
     {
-        var evento = Deserializar(JsonConFormaPersistidaAntesDelCambioDeTipos());
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
 
         evento.Id.Should().Be(Id);
-        evento.Empleado.Should().Be(EmpleadoEsperado);
+        evento.Colaborador.Should().Be(ColaboradorEsperado);
         evento.Fechas.Should().Equal(Fecha1, Fecha2);
         evento.DetalleTurno.Should().Be(TurnoEsperado);
     }
@@ -167,9 +173,9 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     // anterior NO la compara: sin este test, un cambio de tipos que perdiera la Descripcion ya
     // persistida pasaria en verde. Se afirma en los tres niveles de la jerarquia.
     [Fact]
-    public void Deserializar_ConservaLaDescripcionDeLosTresNiveles_ConLaFormaPersistidaAntesDelCambioDeTipos()
+    public void Deserializar_ConservaLaDescripcionDeLosTresNiveles_ConLaFormaPersistidaEnMtEvents()
     {
-        var evento = Deserializar(JsonConFormaPersistidaAntesDelCambioDeTipos());
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
         var franja = evento.DetalleTurno.FranjasOrdinarias.Single();
 
         evento.DetalleTurno.Descripcion.Should().Be(DescripcionTurno);
@@ -201,7 +207,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     {
         var evento = Deserializar(JsonConFormaPersistidaSinDescripcion());
 
-        evento.Empleado.Should().Be(EmpleadoEsperado);
+        evento.Colaborador.Should().Be(ColaboradorEsperado);
         evento.DetalleTurno.Should().Be(TurnoEsperado);
     }
 
@@ -211,7 +217,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     [Fact]
     public void Deserializar_DejaSedeEnNull_CuandoElJsonPersistidoNoLlevaEseCampo()
     {
-        var evento = Deserializar(JsonConFormaPersistidaAntesDelCambioDeTipos());
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
 
         evento.Sede.Should().BeNull();
     }
@@ -222,7 +228,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     public void RoundTrip_PreservaLaSede_CuandoLaSedeEstaPoblada()
     {
         var evento = new ProgramacionTurnoSolicitada(
-            Id, EmpleadoEsperado, [Fecha1], TurnoEsperado, SedeEsperada);
+            Id, ColaboradorEsperado, [Fecha1], TurnoEsperado, SedeEsperada);
         var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -239,7 +245,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     [Fact]
     public void Deserializar_DejaSedeDeCadaFranjaEnNull_CuandoElJsonPersistidoNoLlevaEseCampo()
     {
-        var evento = Deserializar(JsonConFormaPersistidaAntesDelCambioDeTipos());
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
 
         evento.DetalleTurno.FranjasOrdinarias.Single().Sede.Should().BeNull();
     }
@@ -261,7 +267,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
             }.AsReadOnly(),
             DescripcionTurno);
         var evento = new ProgramacionTurnoSolicitada(
-            Id, EmpleadoEsperado, [Fecha1], turnoConSedePorFranja, SedeEsperada);
+            Id, ColaboradorEsperado, [Fecha1], turnoConSedePorFranja, SedeEsperada);
         var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);

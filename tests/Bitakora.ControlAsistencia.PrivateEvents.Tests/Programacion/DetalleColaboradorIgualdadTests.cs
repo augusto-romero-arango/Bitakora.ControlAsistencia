@@ -18,7 +18,7 @@ public class DetalleColaboradorIgualdadTests : IgualdadTestBase<DetalleColaborad
 
     protected override IEnumerable<(string, DetalleColaborador)> CrearInstanciasDiferentes()
     {
-        yield return ("EmpleadoId",
+        yield return ("CodigoColaborador",
             new DetalleColaborador("EMP-002", "CC", "1234567890", "Luis Augusto", "Barreto"));
         yield return ("TipoIdentificacion",
             new DetalleColaborador("EMP-001", "CE", "1234567890", "Luis Augusto", "Barreto"));

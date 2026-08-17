@@ -27,17 +27,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
-    private static readonly InformacionColaborador Empleado =
+    private static readonly InformacionColaborador Colaborador =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
-    // Mismo empleado, en la forma que el handler debe producir para el evento privado
+    // Mismo colaborador, en la forma que el handler debe producir para el evento privado
     // (CA-ADR-0029 decision #5): si el mapeo pierde o permuta un campo, estos tests lo delatan.
-    private static readonly DetalleColaborador EmpleadoDetalle =
+    private static readonly DetalleColaborador ColaboradorDetalle =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
-    // Issue #319 CA-2/CA-5: mismo empleado, en el record propio de Programacion.DomainEvents que
-    // ahora tipa ProgramacionTurnoSolicitada.Empleado (tres islas, MEF-ADR-0039 decision 2).
-    private static readonly ColaboradorProgramado EmpleadoProgramado =
+    // Issue #319 CA-2/CA-5: mismo colaborador, en el record propio de Programacion.DomainEvents que
+    // ahora tipa ProgramacionTurnoSolicitada.Colaborador (tres islas, MEF-ADR-0039 decision 2).
+    private static readonly ColaboradorProgramado ColaboradorProgramadoEsperado =
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno(). Forma de BUS
@@ -243,12 +243,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1]));
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado));
+            GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
@@ -265,12 +265,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoConHijasId.ToString(), CrearEventoTurnoConHijas());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoConHijasId, Empleado, [Fecha1]));
+            GuidAggregateId, TurnoConHijasId, Colaborador, [Fecha1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoConHijasProgramadoEsperado));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoConHijasProgramadoEsperado));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleConHijasEsperado));
+            GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleConHijasEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Descansos.Count, 1);
         And<SolicitudProgramacionAggregateRoot, int>(
@@ -283,15 +283,15 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1, Fecha2]));
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1, Fecha2]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1, Fecha2], TurnoProgramadoEsperado));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1, Fecha2], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado),
+                GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleEsperado),
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleEsperado));
+                GuidAggregateId, ColaboradorDetalle, Fecha2, DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 
@@ -308,15 +308,15 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1, Fecha2], SedePrincipal));
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1, Fecha2], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1, Fecha2], TurnoProgramadoConSedeAplicadaEsperado, SedePrincipal));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1, Fecha2], TurnoProgramadoConSedeAplicadaEsperado, SedePrincipal));
         ThenIsPublishedPrivately(
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle),
+                GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle),
             new ProgramacionTurnoDiarioSolicitada(
-                GuidAggregateId, EmpleadoDetalle, Fecha2, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
+                GuidAggregateId, ColaboradorDetalle, Fecha2, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, SedePrincipal);
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedePrincipal);
@@ -332,12 +332,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoConFranjasMixtasId.ToString(), CrearEventoTurnoConFranjasMixtas());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoConFranjasMixtasId, Empleado, [Fecha1], SedePrincipal));
+            GuidAggregateId, TurnoConFranjasMixtasId, Colaborador, [Fecha1], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoMixtoConCascadaEsperado, SedePrincipal));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoMixtoConCascadaEsperado, SedePrincipal));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleMixtoConCascadaEsperado, SedePrincipalDetalle));
+            GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleMixtoConCascadaEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
@@ -352,12 +352,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1]));
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado, sede: null));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoProgramadoEsperado, sede: null));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleEsperado, sede: null));
+            GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleEsperado, sede: null));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, null);
     }
 
@@ -372,12 +372,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoConSedePrearmadaId.ToString(), CrearEventoTurnoConSedePrearmada());
         await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoConSedePrearmadaId, Empleado, [Fecha1]));
+            GuidAggregateId, TurnoConSedePrearmadaId, Colaborador, [Fecha1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoConSedePrearmadaEsperado, sede: null));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoConSedePrearmadaEsperado, sede: null));
         ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
-            GuidAggregateId, EmpleadoDetalle, Fecha1, DetalleConSedePrearmadaEsperado, sede: null));
+            GuidAggregateId, ColaboradorDetalle, Fecha1, DetalleConSedePrearmadaEsperado, sede: null));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
     }
@@ -388,10 +388,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, EmpleadoProgramado, [Fecha1], TurnoProgramadoEsperado));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoProgramadoEsperado));
 
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1]));
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.SolicitudYaExiste}*");
@@ -402,7 +402,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     public async Task DebeLanzarExcepcion_CuandoTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Empleado, [Fecha1]));
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
         await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");

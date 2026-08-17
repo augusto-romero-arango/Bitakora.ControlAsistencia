@@ -6,9 +6,12 @@ namespace Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 // HU-108: Evento publico que se publica al Service Bus via IPublicEventSender.
 // Representa el resultado del calculo del dia de trabajo de un colaborador tras una
 // marcacion o asignacion de turno.
-// Issue #340: el payload pasa de InformacionEmpleado a InformacionColaborador (termino proscrito
-// por #330). Solo cambia el TIPO: el nombre de la propiedad -- la clave JSON que viaja por el bus
-// -- se conserva hasta #401.
+// Issue #340: el payload paso de InformacionEmpleado a InformacionColaborador (termino proscrito
+// por #330) -- solo el TIPO, sin tocar la clave JSON.
+// Issue #401: la propiedad InformacionEmpleado paso a InformacionColaborador y su campo EmpleadoId
+// a CodigoColaborador. Aqui SI cambian las claves JSON que viajan por el bus hacia el consumidor
+// de nomina; sin mapeo, el vocabulario del contrato publico queda unificado con el del maestro
+// Colaboradores (#330).
 // Issue #183: el payload es 100% primitivo (HorasDiscriminadas). Se elimino el modelo rico
 // (ControlesDeFranja: IReadOnlyList<DetalleControlFranja> y el antiguo DesgloseHoras) que dependia
 // del resolver custom de Marten y se serializaba lossy en el canal de publicacion a Service Bus.
@@ -22,16 +25,16 @@ namespace Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 public sealed class DiaCalculado : IPublicEvent
 {
     // Puede ser null cuando el ControlDiario nacio solo por marcacion sin turno previo.
-    public InformacionColaborador? InformacionEmpleado { get; private set; }
+    public InformacionColaborador? InformacionColaborador { get; private set; }
     public DateOnly Fecha { get; private set; }
     public HorasDiscriminadas HorasDiscriminadas { get; private set; } = null!;
 
     public DiaCalculado(
-        InformacionColaborador? informacionEmpleado,
+        InformacionColaborador? informacionColaborador,
         DateOnly fecha,
         HorasDiscriminadas horasDiscriminadas)
     {
-        InformacionEmpleado = informacionEmpleado;
+        InformacionColaborador = informacionColaborador;
         Fecha = fecha;
         HorasDiscriminadas = horasDiscriminadas;
     }

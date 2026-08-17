@@ -27,7 +27,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // Issue #275: protege MarcacionRegistrada con factory y ctores privados, sin efectos nuevos
 // observables desde afuera. El truncamiento al minuto solo cambio de casa (handler -> factory) y
 // DebeRetornar202YPersistirEvento_CuandoMarcacionEsValida lo sigue verificando end-to-end; el
-// EmpleadoId vacio ya lo rechaza el validator con 400 (#279, arriba) antes de llegar al factory.
+// CodigoColaborador vacio ya lo rechaza el validator con 400 (#279, arriba) antes de llegar al factory.
 // El resto de sus CAs son invariantes internas del tipo (ctores privados, serializacion), cubiertas
 // en *.Tests por MarcacionRegistradaTests y MarcacionRegistradaSerializacionTests.
 public class RegistrarMarcacionSmokeTests(
@@ -47,22 +47,22 @@ public class RegistrarMarcacionSmokeTests(
     private const string SuscripcionSmokeTests = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Issue #279: timestamp valido y fijo para los casos donde lo invalido es el EmpleadoId, no la
+    // Issue #279: timestamp valido y fijo para los casos donde lo invalido es el CodigoColaborador, no la
     // fecha; asi el 400 esperado solo puede venir de la regla bajo prueba.
     private static readonly DateTime TimestampValido = new(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc);
 
-    // CA-5: stream ID determinista = "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
+    // CA-5: stream ID determinista = "{CodigoColaborador}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
     // El timestamp que se usa para el stream ID es el crudo (antes de normalizar al minuto).
-    private static string ComputarStreamId(string empleadoId, DateTime timestampCrudo) =>
-        $"{empleadoId}:{timestampCrudo:yyyy-MM-ddTHH:mm:ss}";
+    private static string ComputarStreamId(string codigoColaborador, DateTime timestampCrudo) =>
+        $"{codigoColaborador}:{timestampCrudo:yyyy-MM-ddTHH:mm:ss}";
 
-    // Issue #279: los casos de rechazo por forma solo varian en EmpleadoId o Timestamp; el resto del
+    // Issue #279: los casos de rechazo por forma solo varian en CodigoColaborador o Timestamp; el resto del
     // payload es identico. Se envia el timestamp con el mismo formato que el resto del archivo.
     private Task<HttpResponseMessage> PostMarcacionAsync(
-        string empleadoId, DateTime timestamp, string dispositivoId) =>
+        string codigoColaborador, DateTime timestamp, string dispositivoId) =>
         _client.PostAsJsonAsync(Ruta, new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "ENTRADA",
             dispositivoId
@@ -88,12 +88,12 @@ public class RegistrarMarcacionSmokeTests(
 
         // Arrange: timestamp fijo para que el stream ID sea determinista y el test sea reproducible.
         // CA-2: el handler trunca al minuto antes de emitir; el stream ID usa el timestamp crudo.
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var timestamp = new DateTime(2026, 4, 17, 8, 9, 43, DateTimeKind.Utc);
 
         var payload = new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "ENTRADA",
             dispositivoId = "[TEST] DEV-SMOKE-001"
@@ -106,7 +106,7 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Assert persistencia: el evento marcacion_registrada debe existir en el stream
-        var streamId = ComputarStreamId(empleadoId, timestamp);
+        var streamId = ComputarStreamId(codigoColaborador, timestamp);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEvento, Timeout);
@@ -120,10 +120,10 @@ public class RegistrarMarcacionSmokeTests(
 
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaControlHoras, streamId, TipoEvento,
-            campoJson: "EmpleadoId", valorJson: empleadoId, TimeSpan.FromSeconds(5));
+            campoJson: "CodigoColaborador", valorJson: codigoColaborador, TimeSpan.FromSeconds(5));
 
-        eventoPersistido.GetProperty("EmpleadoId").GetString()
-            .Should().Be(empleadoId);
+        eventoPersistido.GetProperty("CodigoColaborador").GetString()
+            .Should().Be(codigoColaborador);
 
         eventoPersistido.GetProperty("TipoMarcacion").GetString()
             .Should().Be("ENTRADA");
@@ -146,12 +146,12 @@ public class RegistrarMarcacionSmokeTests(
         var ct = TestContext.Current.CancellationToken;
 
         // Arrange: TipoMarcacion y DispositivoId son opcionales (CA-3), se envian como null
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var timestamp = new DateTime(2026, 4, 17, 9, 30, 15, DateTimeKind.Utc);
 
         var payload = new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = (string?)null,
             dispositivoId = (string?)null
@@ -164,7 +164,7 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Assert persistencia: el evento debe existir aunque los campos opcionales sean null
-        var streamId = ComputarStreamId(empleadoId, timestamp);
+        var streamId = ComputarStreamId(codigoColaborador, timestamp);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEvento, Timeout);
@@ -179,13 +179,13 @@ public class RegistrarMarcacionSmokeTests(
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: mismo empleadoId y mismo timestamp -> mismo stream ID -> duplicado exacto (CA-4, CA-9)
-        var empleadoId = Guid.CreateVersion7().ToString();
+        // Arrange: mismo codigoColaborador y mismo timestamp -> mismo stream ID -> duplicado exacto (CA-4, CA-9)
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var timestamp = new DateTime(2026, 4, 17, 10, 0, 0, DateTimeKind.Utc);
 
         var payload = new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "SALIDA",
             dispositivoId = "[TEST] DEV-SMOKE-DUP"
@@ -195,7 +195,7 @@ public class RegistrarMarcacionSmokeTests(
         var primeraRespuesta = await _client.PostAsJsonAsync(Ruta, payload, ct);
         primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        // Act 2: duplicado exacto (mismo empleadoId + mismo timestamp = mismo stream ID)
+        // Act 2: duplicado exacto (mismo codigoColaborador + mismo timestamp = mismo stream ID)
         var segundaRespuesta = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
         // CA-4, CA-6: duplicado silencioso -> 202 Accepted (no 409)
@@ -234,34 +234,34 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #279 CA-2: EmpleadoId vacio produce 400.
+    // Issue #279 CA-2: CodigoColaborador vacio produce 400.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarMarcacion_Retorna400_CuandoEmpleadoIdEsVacio()
+    public async Task RegistrarMarcacion_Retorna400_CuandoCodigoColaboradorEsVacio()
     {
         var response = await PostMarcacionAsync(
-            empleadoId: "", TimestampValido, "[TEST] DEV-SMOKE-CA2-VACIO");
+            codigoColaborador: "", TimestampValido, "[TEST] DEV-SMOKE-CA2-VACIO");
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #279 CA-2: EmpleadoId con solo espacios en blanco produce 400.
+    // Issue #279 CA-2: CodigoColaborador con solo espacios en blanco produce 400.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarMarcacion_Retorna400_CuandoEmpleadoIdSonSoloEspacios()
+    public async Task RegistrarMarcacion_Retorna400_CuandoCodigoColaboradorSonSoloEspacios()
     {
         var response = await PostMarcacionAsync(
-            empleadoId: "   ", TimestampValido, "[TEST] DEV-SMOKE-CA2-ESPACIOS");
+            codigoColaborador: "   ", TimestampValido, "[TEST] DEV-SMOKE-CA2-ESPACIOS");
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #279 CA-3: EmpleadoId con ':' produce 400. ComputarStreamId usa ':' como separador entre
-    // EmpleadoId y Timestamp; sin esta regla, un EmpleadoId con ':' podria fabricar el mismo stream ID
+    // Issue #279 CA-3: CodigoColaborador con ':' produce 400. ComputarStreamId usa ':' como separador entre
+    // CodigoColaborador y Timestamp; sin esta regla, un CodigoColaborador con ':' podria fabricar el mismo stream ID
     // que otra combinacion legitima (colision descrita en el Contexto del issue).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarMarcacion_Retorna400_CuandoEmpleadoIdContieneDosPuntos()
+    public async Task RegistrarMarcacion_Retorna400_CuandoCodigoColaboradorContieneDosPuntos()
     {
         var response = await PostMarcacionAsync(
             $"EMP:{Guid.CreateVersion7()}", TimestampValido, "[TEST] DEV-SMOKE-CA3");
@@ -281,10 +281,10 @@ public class RegistrarMarcacionSmokeTests(
     }
 
     // HU-108: tras el POST, el handler in-process AdicionarMarcacionCuandoRegistroDeMarcacionCreado
-    // persiste marcacion_adicionada en el stream {empleadoId}:{fecha} y publica DiaCalculado.
+    // persiste marcacion_adicionada en el stream {codigoColaborador}:{fecha} y publica DiaCalculado.
     // Setup: se publica programacion-turno-diario-solicitada para que el aggregate tenga
-    // turno previo, asegurando que DiaCalculado.InformacionEmpleado no sea null y se pueda
-    // filtrar por EmpleadoId en la suscripcion smoke-tests.
+    // turno previo, asegurando que DiaCalculado.InformacionColaborador no sea null y se pueda
+    // filtrar por CodigoColaborador en la suscripcion smoke-tests.
     // Issue #270: este es el test que cierra el circuito completo del contrato de bus
     // RegistroDeMarcacionCreado -- el POST solo puede llegar a persistir marcacion_adicionada si
     // RegistrarMarcacionCommandHandler publico RegistroDeMarcacionCreado correctamente al topic
@@ -304,9 +304,9 @@ public class RegistrarMarcacionSmokeTests(
         var ct = TestContext.Current.CancellationToken;
 
         // Arrange: identificadores unicos por ejecucion
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 27);
-        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
 
         // Setup: publicar programacion-turno-diario-solicitada y esperar a que ControlHoras
         // persista turno_diario_asignado. Asi el ControlDiario tendra TurnoDiarioAsignado previo
@@ -315,9 +315,9 @@ public class RegistrarMarcacionSmokeTests(
         var programacionPayload = new
         {
             SolicitudId = solicitudId,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = empleadoId,
+                CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "888777666",
                 Nombres = "[TEST] Smoke DiaCalculado",
@@ -359,7 +359,7 @@ public class RegistrarMarcacionSmokeTests(
         var timestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);
         var payload = new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "ENTRADA",
             dispositivoId = "[TEST] DEV-SMOKE-HU108"
@@ -374,19 +374,19 @@ public class RegistrarMarcacionSmokeTests(
         // Assert persistencia: marcacion_adicionada en el stream del ControlDiario.
         var marcacionAdicionada = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
-            campoJson: "EmpleadoId", valorJson: empleadoId);
+            campoJson: "CodigoColaborador", valorJson: codigoColaborador);
 
         marcacionAdicionada.Should().BeTrue(
             $"el evento {TipoEventoMarcacionAdicionada} deberia existir en el stream {streamId} tras el POST");
 
-        // Assert publicacion: DiaCalculado emitido al topic dia-calculado, filtrado por EmpleadoId.
+        // Assert publicacion: DiaCalculado emitido al topic dia-calculado, filtrado por CodigoColaborador.
         var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
             TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
             Timeout);
 
         diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas) y se deserializo con el
         // serializador POR DEFECTO del fixture (sin resolver custom). Esta marcacion es solo ENTRADA:
         // la franja queda anomala (sin salida) -> sin minutos calculables -> MinutosPorConcepto vacio.
@@ -396,13 +396,13 @@ public class RegistrarMarcacionSmokeTests(
             "una entrada sola deja la franja anomala, sin minutos por concepto");
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
-        // dia-calculado (issue #223: acotado por EmpleadoId, no "DLQ globalmente vacio").
+        // dia-calculado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
         var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
-            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionEmpleado?.EmpleadoId == empleadoId);
+            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionColaborador?.CodigoColaborador == codigoColaborador);
 
         existeDeadLetter.Should().BeFalse(
-            "no deberia haber un dead letter de esta corrida (EmpleadoId {0}) en '{1}' del topic '{2}'",
-            empleadoId, SuscripcionSmokeTests, TopicDiaCalculado);
+            "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaCalculado);
     }
 
     // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaCalculado publicado
@@ -426,9 +426,9 @@ public class RegistrarMarcacionSmokeTests(
         var ct = TestContext.Current.CancellationToken;
 
         // Arrange: identificadores unicos por ejecucion.
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 28);
-        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
 
         // Setup: turno 08:00-16:00 via Service Bus; esperar a que ControlHoras persista
         // turno_diario_asignado antes de registrar las marcaciones.
@@ -436,9 +436,9 @@ public class RegistrarMarcacionSmokeTests(
         var programacionPayload = new
         {
             SolicitudId = solicitudId,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = empleadoId,
+                CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "777666555",
                 Nombres = "[TEST] Smoke Desglose Real",
@@ -475,7 +475,7 @@ public class RegistrarMarcacionSmokeTests(
         var entradaTimestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);
         var entradaResponse = await _client.PostAsJsonAsync(Ruta, new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = entradaTimestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "ENTRADA",
             dispositivoId = "[TEST] DEV-SMOKE-HU181"
@@ -486,20 +486,20 @@ public class RegistrarMarcacionSmokeTests(
         // antes de purgar, de modo que el purge elimine el evento de la entrada (no el de la salida).
         var entradaPersistida = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
-            campoJson: "EmpleadoId", valorJson: empleadoId);
+            campoJson: "CodigoColaborador", valorJson: codigoColaborador);
 
         entradaPersistida.Should().BeTrue(
             $"el evento {TipoEventoMarcacionAdicionada} de la entrada deberia existir antes de purgar");
 
         // Purge-before-act: limpiar la suscripcion para que el unico DiaCalculado restante de este
-        // empleado sea el que publique la salida (descarta los del turno y la entrada).
+        // colaborador sea el que publique la salida (descarta los del turno y la entrada).
         await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
 
         // Act 2: SALIDA 16:00. Completa la franja (entrada 08:00 + salida 16:00) -> desglose real.
         var salidaTimestamp = new DateTime(fecha, new TimeOnly(16, 0, 0), DateTimeKind.Utc);
         var salidaResponse = await _client.PostAsJsonAsync(Ruta, new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = salidaTimestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "SALIDA",
             dispositivoId = "[TEST] DEV-SMOKE-HU181"
@@ -507,10 +507,10 @@ public class RegistrarMarcacionSmokeTests(
         salidaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Assert publicacion: el DiaCalculado posterior a la salida lleva el desglose real,
-        // filtrado por EmpleadoId (unico por ejecucion).
+        // filtrado por CodigoColaborador (unico por ejecucion).
         var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
             TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
             Timeout);
 
         diaCalculado.Fecha.Should().Be(fecha);
@@ -526,12 +526,12 @@ public class RegistrarMarcacionSmokeTests(
                 "el desglose real discriminado lleva horas ordinarias diurnas (no un payload vacio)");
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
-        // dia-calculado (issue #223: acotado por EmpleadoId, no "DLQ globalmente vacio").
+        // dia-calculado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
         var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
-            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionEmpleado?.EmpleadoId == empleadoId);
+            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionColaborador?.CodigoColaborador == codigoColaborador);
 
         existeDeadLetter.Should().BeFalse(
-            "no deberia haber un dead letter de esta corrida (EmpleadoId {0}) en '{1}' del topic '{2}'",
-            empleadoId, SuscripcionSmokeTests, TopicDiaCalculado);
+            "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaCalculado);
     }
 }

@@ -21,21 +21,21 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 public class DesgloseHorasTrasAsignarTurnoTests
     : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
 {
-    // Datos de prueba fijos - el stream ID es determinista a partir de EmpleadoId+Fecha
+    // Datos de prueba fijos - el stream ID es determinista a partir de CodigoColaborador+Fecha
     private static readonly Guid SolicitudId =
         Guid.Parse("019600c0-0000-7000-8000-000000000004");
 
-    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly ColaboradorProgramado Empleado = new(
+    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly ColaboradorProgramado Colaborador = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador EmpleadoDetalle = new(
+    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleColaborador ColaboradorDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"{Colaborador.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
 
     // CA-3: franja unica 06:00-14:00 para el turno asignado -- FranjaProgramada (ControlHoras.DomainEvents)
     // es lo que el ControlDiario persiste; DetalleFranjaOrdinaria (PrivateEvents) es lo que trae el
@@ -63,13 +63,13 @@ public class DesgloseHorasTrasAsignarTurnoTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-        new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
+        new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
-        new(StreamId, Empleado, Fecha, turnoDiario, SolicitudId);
+        new(StreamId, Colaborador, Fecha, turnoDiario, SolicitudId);
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
-        new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
+        new(StreamId, Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
     // CA-3: con 2 MarcacionAdicionada previas (07:00, 15:00) sin turno, al procesar
     //       ProgramacionTurnoDiarioSolicitada con franja 06:00-14:00 el Apply(TurnoDiarioAsignado)

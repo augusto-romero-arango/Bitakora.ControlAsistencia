@@ -17,7 +17,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFuncti
 /// </summary>
 public class MarcacionRegistradaSerializacionTests
 {
-    private const string EmpleadoId = "EMP-001";
+    private const string CodigoColaborador = "EMP-001";
     private static readonly DateTime TimestampConSegundos = new(2026, 3, 15, 8, 9, 59);
     private static readonly DateTime TimestampNormalizadoEsperado = new(2026, 3, 15, 8, 9, 0);
 
@@ -34,14 +34,14 @@ public class MarcacionRegistradaSerializacionTests
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoDatosCompletos()
     {
-        var evento = MarcacionRegistrada.Crear(EmpleadoId, TimestampConSegundos, "ENTRADA", "DEV-001");
+        var evento = MarcacionRegistrada.Crear(CodigoColaborador, TimestampConSegundos, "ENTRADA", "DEV-001");
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
         var deserializado = JsonSerializer.Deserialize<MarcacionRegistrada>(json, opciones);
 
         deserializado.Should().NotBeNull();
-        deserializado!.EmpleadoId.Should().Be(EmpleadoId);
+        deserializado!.CodigoColaborador.Should().Be(CodigoColaborador);
         deserializado.TimestampNormalizado.Should().Be(TimestampNormalizadoEsperado);
         deserializado.TipoMarcacion.Should().Be("ENTRADA");
         deserializado.DispositivoId.Should().Be("DEV-001");
@@ -58,7 +58,7 @@ public class MarcacionRegistradaSerializacionTests
         var deserializado = JsonSerializer.Deserialize<MarcacionRegistrada>(json, opciones);
 
         deserializado.Should().NotBeNull();
-        deserializado!.EmpleadoId.Should().Be("EMP-002");
+        deserializado!.CodigoColaborador.Should().Be("EMP-002");
         deserializado.TimestampNormalizado.Should().Be(TimestampNormalizadoEsperado);
         deserializado.TipoMarcacion.Should().BeNull();
         deserializado.DispositivoId.Should().BeNull();
@@ -72,7 +72,7 @@ public class MarcacionRegistradaSerializacionTests
     public void Deserializar_LanzaNotSupportedException_CuandoElResolverNoRegistraElTipo()
     {
         var evento = MarcacionRegistrada.Crear(
-            EmpleadoId, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
+            CodigoColaborador, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
         var opcionesSinRegistro = new JsonSerializerOptions
         {
             TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
@@ -95,7 +95,7 @@ public class MarcacionRegistradaSerializacionTests
     public void Deserializar_LanzaNotSupportedException_CuandoUsaElSerializadorDelCanalDeBus()
     {
         var evento = MarcacionRegistrada.Crear(
-            EmpleadoId, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
+            CodigoColaborador, TimestampNormalizadoEsperado, "ENTRADA", "DEV-001");
         var opcionesDelBus = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         var json = JsonSerializer.Serialize(evento, opcionesDelBus);
 

@@ -5,41 +5,41 @@ using Cosmos.EventSourcing.Abstractions;
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 // HU-105: Aggregate root que representa el registro puntual de una marcacion
-// Identidad: EmpleadoId + Timestamp crudo como stream ID determinista (CA-5)
+// Identidad: CodigoColaborador + Timestamp crudo como stream ID determinista (CA-5)
 // Unicas responsabilidades: idempotencia por duplicado exacto y normalizacion del timestamp
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
 public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
 {
     // CA-5: estado que refleja la marcacion persistida
-    public string EmpleadoId { get; private set; } = null!;
+    public string CodigoColaborador { get; private set; } = null!;
     public DateTime TimestampCrudo { get; private set; }
     public DateTime TimestampNormalizado { get; private set; }
     public string? TipoMarcacion { get; private set; }
     public string? DispositivoId { get; private set; }
 
-    // CA-5: stream ID determinista: "{EmpleadoId}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
+    // CA-5: stream ID determinista: "{CodigoColaborador}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
     // Cambiar el separador invalidaria la identidad de todos los streams ya escritos, por eso vive
     // como constante privada: nadie lo compone a mano desde afuera.
     private const char SeparadorStreamId = ':';
 
-    public static string ComputarStreamId(string empleadoId, DateTime timestamp) =>
-        $"{empleadoId}{SeparadorStreamId}{timestamp:yyyy-MM-ddTHH:mm:ss}";
+    public static string ComputarStreamId(string codigoColaborador, DateTime timestamp) =>
+        $"{codigoColaborador}{SeparadorStreamId}{timestamp:yyyy-MM-ddTHH:mm:ss}";
 
-    // Issue #279 CA-3: un EmpleadoId que contenga el separador vuelve ambigua la composicion del
-    // stream ID -- dos combinaciones distintas de empleado y timestamp pueden producir el mismo id, y
+    // Issue #279 CA-3: un CodigoColaborador que contenga el separador vuelve ambigua la composicion del
+    // stream ID -- dos combinaciones distintas de colaborador y timestamp pueden producir el mismo id, y
     // como la idempotencia se decide por existencia del stream, una marcacion legitima se descartaria
     // como "duplicado exacto". La regla vive junto al formato que la origina (MEF-ADR-0012,
     // Tell-don't-Ask): el validator del borde la invoca en vez de repetir el literal del separador.
     // ControlDiarioAggregateRoot compone su stream ID con el mismo separador, asi que rechazarlo en el
     // borde protege ambos streams; unificar el separador entre ambos aggregates queda pendiente.
-    public static bool EsComponenteValidoDeStreamId(string empleadoId) =>
-        !empleadoId.Contains(SeparadorStreamId);
+    public static bool EsComponenteValidoDeStreamId(string codigoColaborador) =>
+        !codigoColaborador.Contains(SeparadorStreamId);
 
     // Apply: reconstruye el estado del aggregate desde MarcacionRegistrada
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(MarcacionRegistrada e)
     {
-        EmpleadoId = e.EmpleadoId;
+        CodigoColaborador = e.CodigoColaborador;
         TimestampNormalizado = e.TimestampNormalizado;
         TipoMarcacion = e.TipoMarcacion;
         DispositivoId = e.DispositivoId;
@@ -66,5 +66,5 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
     // el contrato ya empaquetado al handler -- espejo exacto de
     // ControlDiarioAggregateRoot.CrearDiaCalculado(). El handler no construye el contrato campo por campo.
     public RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado() =>
-        new(EmpleadoId, TimestampNormalizado, TipoMarcacion, DispositivoId);
+        new(CodigoColaborador, TimestampNormalizado, TipoMarcacion, DispositivoId);
 }

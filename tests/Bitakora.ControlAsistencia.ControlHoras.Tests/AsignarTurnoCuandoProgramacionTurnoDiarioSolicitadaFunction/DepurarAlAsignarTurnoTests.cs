@@ -18,25 +18,25 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 public class DepurarAlAsignarTurnoTests
     : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
 {
-    // Datos de prueba fijos - el stream ID es determinista a partir de EmpleadoId+Fecha
+    // Datos de prueba fijos - el stream ID es determinista a partir de CodigoColaborador+Fecha
     private static readonly Guid SolicitudId =
         Guid.Parse("019600c0-0000-7000-8000-000000000002");
 
-    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly ColaboradorProgramado Empleado = new(
+    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly ColaboradorProgramado Colaborador = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // InformacionEmpleado (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
-    private static readonly InformacionColaborador EmpleadoPublico = new(
+    // InformacionColaborador (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
+    private static readonly InformacionColaborador ColaboradorPublico = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador EmpleadoDetalle = new(
+    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleColaborador ColaboradorDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"{Colaborador.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
 
     // CA-4: franja unica 06:00-14:00 para el turno asignado -- FranjaProgramada (ControlHoras.DomainEvents)
     // es lo que el ControlDiario persiste; DetalleFranjaOrdinaria (PrivateEvents) es lo que trae el
@@ -55,13 +55,13 @@ public class DepurarAlAsignarTurnoTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-        new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
+        new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
-        new(StreamId, Empleado, Fecha, turnoDiario, SolicitudId);
+        new(StreamId, Colaborador, Fecha, turnoDiario, SolicitudId);
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
-        new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
+        new(StreamId, Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
     // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
     // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
@@ -75,7 +75,7 @@ public class DepurarAlAsignarTurnoTests
     //        el Apply(TurnoDiarioAsignado) dispara Depurar() y ControlesDeFranja
     //        queda con ControlFranja(Franja06_14, Entrada=07:00, Salida=15:00).
     //        Verifica el caso "marcaciones llegaron antes que el turno".
-    // CA-1 (HU-131): el handler publica DiaCalculado con InformacionEmpleado, Fecha
+    // CA-1 (HU-131): el handler publica DiaCalculado con InformacionColaborador, Fecha
     //        y ControlesDeFranja actualizados (Entrada y Salida presentes, EsAnomala=false).
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_CalculaControlFranja_CuandoMarcacionesLlegaronAntesQueTurno()
@@ -106,7 +106,7 @@ public class DepurarAlAsignarTurnoTests
         // unico concepto del dia (ordinaria 07:00-14:00, DominicalFestivaDiurna) genera una sola linea,
         // construida con LineaConcepto desde el intervalo 07:00-14:00 y la etiqueta traducida del recurso.
         ThenIsPublishedPublicly(new DiaCalculado(
-            EmpleadoPublico,
+            ColaboradorPublico,
             Fecha,
             new HorasDiscriminadas(
                 new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 },
@@ -135,7 +135,7 @@ public class DepurarAlAsignarTurnoTests
         // Issue #183 CA-6: la franja anomala no aporta minutos calculables y no hay retardo, asi que
         // MinutosPorConcepto viaja vacio. El contrato plano no lleva senal de anomalia (riesgo aceptado).
         ThenIsPublishedPublicly(new DiaCalculado(
-            EmpleadoPublico,
+            ColaboradorPublico,
             Fecha,
             new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }
@@ -159,7 +159,7 @@ public class DepurarAlAsignarTurnoTests
         // HU-131 CA-2: DiaCalculado se publica aunque el turno no tenga franjas.
         // Issue #183 CA-6: sin franjas que consolidar ni retardo, MinutosPorConcepto viaja vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
-            EmpleadoPublico,
+            ColaboradorPublico,
             Fecha,
             new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }

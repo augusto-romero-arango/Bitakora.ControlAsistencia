@@ -56,7 +56,7 @@ public class RegistroDeMarcacionCreadoTests
         // (MEF-ADR-0005): el consumidor debe reconstruirlas en null, no fallar.
         var json = """
             {
-              "empleadoId": "EMP-002",
+              "codigoColaborador": "EMP-002",
               "timestampNormalizado": "2026-03-15T08:09:00"
             }
             """;

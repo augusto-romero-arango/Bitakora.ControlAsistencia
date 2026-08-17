@@ -7,14 +7,15 @@ using Cosmos.EventSourcing.Abstractions;
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 // HU-12: Aggregate root del dia de trabajo de un colaborador
-// Identidad: EmpleadoId + Fecha como stream ID determinista (CA-7)
+// Identidad: CodigoColaborador + Fecha como stream ID determinista (CA-7)
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
-// Issue #322: InformacionEmpleado y DetalleTurno cambian de tipo (ColaboradorProgramado/
-// TurnoDiario, propios de ControlHoras.DomainEvents) -- los NOMBRES de las propiedades no cambian.
+// Issue #322: InformacionEmpleado y DetalleTurno cambiaron de tipo (ColaboradorProgramado/
+// TurnoDiario, propios de ControlHoras.DomainEvents) sin tocar los nombres de las propiedades.
+// Issue #401: InformacionEmpleado paso a InformacionColaborador (termino proscrito por #330).
 public partial class ControlDiarioAggregateRoot : AggregateRoot
 {
     // CA-6: estado que actualiza al aplicar TurnoDiarioAsignado
-    public ColaboradorProgramado? InformacionEmpleado { get; private set; }
+    public ColaboradorProgramado? InformacionColaborador { get; private set; }
     public DateOnly Fecha { get; private set; }
     public TurnoDiario? DetalleTurno { get; private set; }
 
@@ -68,17 +69,17 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(desgloses, anomalas);
     }
 
-    // CA-7: stream ID determinista: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
-    // CA-8: dos mensajes con mismo EmpleadoId+Fecha comparten el mismo stream
-    public static string ComputarStreamId(string empleadoId, DateOnly fecha) =>
-        $"{empleadoId}:{fecha:yyyy-MM-dd}";
+    // CA-7: stream ID determinista: "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
+    // CA-8: dos mensajes con mismo CodigoColaborador+Fecha comparten el mismo stream
+    public static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
+        $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
 
     // CA-6: actualiza estado interno al aplicar el evento
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(TurnoDiarioAsignado e)
     {
         Id = e.Id;
-        InformacionEmpleado = e.InformacionEmpleado;
+        InformacionColaborador = e.InformacionColaborador;
         Fecha = e.Fecha;
         DetalleTurno = e.DetalleTurno;
         UltimaSolicitudId = e.SolicitudId;
@@ -105,7 +106,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // HU-106: Apply que agrega la marcacion a la lista
     // Apply solo proyecta estado; la deteccion de duplicado vive en AdicionarMarcacion (CA-4).
     // Cuando el aggregate nace desde Iniciar(MarcacionAdicionada), este Apply asigna el Id del stream.
-    // HU-108: Fecha se deriva del stream ID (CA-7 codifica EmpleadoId+Fecha) para que el
+    // HU-108: Fecha se deriva del stream ID (CA-7 codifica CodigoColaborador+Fecha) para que el
     //          DiaCalculado emitido tras el recalculo lleve la fecha correcta incluso cuando
     //          el ControlDiario nace solo por marcacion (sin TurnoDiarioAsignado previo).
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
@@ -118,7 +119,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // HU-108: stream ID tiene formato "{EmpleadoId}:{Fecha:yyyy-MM-dd}" (CA-7).
+    // HU-108: stream ID tiene formato "{CodigoColaborador}:{Fecha:yyyy-MM-dd}" (CA-7).
     // Parsea la porcion final como DateOnly para hidratar Fecha cuando no hay TurnoDiarioAsignado.
     private static DateOnly ExtraerFechaDeStreamId(string streamId)
     {
@@ -129,7 +130,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
     // CA-5: si no existe ControlDiario para la fecha, se crea con este factory
-    // CA-6: InformacionEmpleado y DetalleTurno quedan null
+    // CA-6: InformacionColaborador y DetalleTurno quedan null
     internal static ControlDiarioAggregateRoot Iniciar(MarcacionAdicionada evento)
     {
         var control = new ControlDiarioAggregateRoot();
@@ -158,19 +159,19 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     //         Discriminar(). Ya no se mapean los ControlFranja a un DTO rico: el contrato pierde la
     //         senal de anomalia a proposito (riesgo aceptado, diferido al flujo de aprobacion).
     public DiaCalculado CrearDiaCalculado() =>
-        new(MapearInformacionColaborador(InformacionEmpleado), Fecha, _desgloseHoras.Discriminar());
+        new(MapearInformacionColaborador(InformacionColaborador), Fecha, _desgloseHoras.Discriminar());
 
-    // Issue #322: InformacionEmpleado del aggregate ahora es ColaboradorProgramado
-    // (ControlHoras.DomainEvents); DiaCalculado (PublicEvents) sigue esperando
-    // InformacionColaborador (PublicEvents.Colaboradores) -- el aggregate vive en el Function App,
-    // el unico ensamblado que ve los tres ensamblados de eventos, asi que el mapeo vive aqui
-    // (CA-ADR-0029 decision #5). Issue #340: ambos tipos se renombraron; los NOMBRES de propiedad
-    // (claves JSON de mt_events y del bus) no cambian hasta #401.
+    // Issue #322: InformacionColaborador del aggregate es ColaboradorProgramado
+    // (ControlHoras.DomainEvents); DiaCalculado (PublicEvents) espera InformacionColaborador
+    // (PublicEvents.Colaboradores) -- el aggregate vive en el Function App, el unico ensamblado que
+    // ve los tres ensamblados de eventos, asi que el mapeo vive aqui (CA-ADR-0029 decision #5).
+    // Issue #340 renombro ambos TIPOS; issue #401 renombra las CLAVES (propiedad y campo) a ambos
+    // lados del mapeo, de modo que la traduccion sigue siendo campo a campo sin permutacion.
     private static InformacionColaborador? MapearInformacionColaborador(
         ColaboradorProgramado? colaborador) =>
         colaborador is null
             ? null
             : new InformacionColaborador(
-                colaborador.EmpleadoId, colaborador.TipoIdentificacion,
+                colaborador.CodigoColaborador, colaborador.TipoIdentificacion,
                 colaborador.NumeroIdentificacion, colaborador.Nombres, colaborador.Apellidos);
 }

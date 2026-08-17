@@ -15,19 +15,19 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // necesario: es la unica via de reconstruccion, y solo existe dentro del event store (CA-ADR-0025).
 public sealed partial class MarcacionRegistrada
 {
-    public string EmpleadoId { get; private set; }
+    public string CodigoColaborador { get; private set; }
     public DateTime TimestampNormalizado { get; private set; }
     public string? TipoMarcacion { get; private set; }
     public string? DispositivoId { get; private set; }
 
     // Issue #275 CA-1: constructor real privado -- solo el factory Crear lo invoca
     private MarcacionRegistrada(
-        string empleadoId,
+        string codigoColaborador,
         DateTime timestampNormalizado,
         string? tipoMarcacion,
         string? dispositivoId)
     {
-        EmpleadoId = empleadoId;
+        CodigoColaborador = codigoColaborador;
         TimestampNormalizado = timestampNormalizado;
         TipoMarcacion = tipoMarcacion;
         DispositivoId = dispositivoId;
@@ -35,7 +35,7 @@ public sealed partial class MarcacionRegistrada
 
     // Issue #275 CA-1: constructor vacio privado, solo para Marten/STJ via ConfigurarSerializacion
     // (que repuebla los backing fields por reflexion). El dominio nunca lo invoca.
-    private MarcacionRegistrada() => EmpleadoId = string.Empty;
+    private MarcacionRegistrada() => CodigoColaborador = string.Empty;
 
     // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
     // y propiedades con private set. Ver MEF-ADR-0012 y MarcacionRegistradaSerializacionTests.
@@ -64,17 +64,18 @@ public sealed partial class MarcacionRegistrada
     }
 
     // Issue #275 CA-1/CA-2/CA-3: unica via de construccion. Trunca los segundos al minuto (floor) y
-    // rechaza EmpleadoId nulo, vacio o solo espacios en blanco.
+    // rechaza CodigoColaborador nulo, vacio o solo espacios en blanco.
     public static MarcacionRegistrada Crear(
-        string empleadoId,
+        string codigoColaborador,
         DateTime timestampCrudo,
         string? tipoMarcacion,
         string? dispositivoId)
     {
-        if (string.IsNullOrWhiteSpace(empleadoId))
-            throw new ArgumentException(Mensajes.EmpleadoIdVacio, nameof(empleadoId));
+        if (string.IsNullOrWhiteSpace(codigoColaborador))
+            throw new ArgumentException(Mensajes.CodigoColaboradorVacio, nameof(codigoColaborador));
 
-        return new MarcacionRegistrada(empleadoId, TruncarAlMinuto(timestampCrudo), tipoMarcacion, dispositivoId);
+        return new MarcacionRegistrada(
+            codigoColaborador, TruncarAlMinuto(timestampCrudo), tipoMarcacion, dispositivoId);
     }
 
     // Issue #275 CA-2: trunca (floor) el timestamp al minuto, descartando segundos y fracciones

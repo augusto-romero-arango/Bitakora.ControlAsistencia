@@ -50,7 +50,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         }
     }
 
-    // Patron crear-o-actualizar con stream ID computado (EmpleadoId + Fecha).
+    // Patron crear-o-actualizar con stream ID computado (CodigoColaborador + Fecha).
     // CA-5: si el ControlDiario no existe se crea con Iniciar(MarcacionAdicionada).
     // CA-4: si existe, el aggregate se encarga de ignorar duplicados por minuto.
     // HU-108: tras procesar la marcacion publica DiaCalculado al topic dia-calculado
@@ -60,10 +60,10 @@ public partial class RegistroDeMarcacionCreadoEventHandler
     private async Task AdicionarAControlDiarioAsync(
         RegistroDeMarcacionCreado @event, DateOnly fecha, CancellationToken ct)
     {
-        var streamId = ControlDiarioAggregateRoot.ComputarStreamId(@event.EmpleadoId, fecha);
+        var streamId = ControlDiarioAggregateRoot.ComputarStreamId(@event.CodigoColaborador, fecha);
         var evento = new MarcacionAdicionada(
             streamId,
-            @event.EmpleadoId,
+            @event.CodigoColaborador,
             @event.TimestampNormalizado,
             @event.TipoMarcacion,
             @event.DispositivoId);

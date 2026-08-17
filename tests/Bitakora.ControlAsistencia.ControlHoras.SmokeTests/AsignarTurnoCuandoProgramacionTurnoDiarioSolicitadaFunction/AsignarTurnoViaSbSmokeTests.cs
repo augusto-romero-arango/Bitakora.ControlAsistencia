@@ -27,15 +27,15 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Arrange
         var correlationId = Guid.CreateVersion7().ToString();
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 9);
 
         var evento = new
         {
             SolicitudId = solicitudId,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = empleadoId,
+                CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "999888777",
                 Nombres = "[TEST] Smoke ServiceBus",
@@ -67,7 +67,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
-        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(
@@ -78,20 +78,21 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir en el stream {streamId}");
 
         // Assert detallado: obtener el evento especifico y comparar value objects.
-        // Issue #322: InformacionEmpleado/DetalleTurno son las CLAVES JSON persistidas (no cambian,
-        // MEF-ADR-0036), pero el evento persistido ya no tipa esos campos con InformacionEmpleado
-        // (PublicEvents) ni DetalleTurno (PrivateEvents) -- ahora son Empleado y TurnoDiario, propios
-        // de ControlHoras.DomainEvents (payload por rol). El smoke test deserializa con el tipo que
-        // realmente posee el payload persistido.
+        // InformacionColaborador/DetalleTurno son las CLAVES JSON persistidas. El evento no tipa
+        // esos campos con InformacionColaborador (PublicEvents) ni DetalleTurno (PrivateEvents) --
+        // son ColaboradorProgramado y TurnoDiario, propios de ControlHoras.DomainEvents (payload
+        // por rol, issue #322). El smoke test deserializa con el tipo que realmente posee el payload
+        // persistido. Issue #401: la clave era InformacionEmpleado (con EmpleadoId anidado); el
+        // alias del evento no cambia -- solo estas claves, contra un dev ya purgado.
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaControlHoras, streamId, tipoEvento,
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        var empleadoEsperado = new ColaboradorProgramado(
-            empleadoId, "CC", "999888777", "[TEST] Smoke ServiceBus", "[TEST] Verificacion");
-        var empleadoPersistido = eventoPersistido
-            .GetProperty("InformacionEmpleado").Deserialize<ColaboradorProgramado>();
-        empleadoPersistido.Should().Be(empleadoEsperado);
+        var colaboradorEsperado = new ColaboradorProgramado(
+            codigoColaborador, "CC", "999888777", "[TEST] Smoke ServiceBus", "[TEST] Verificacion");
+        var colaboradorPersistido = eventoPersistido
+            .GetProperty("InformacionColaborador").Deserialize<ColaboradorProgramado>();
+        colaboradorPersistido.Should().Be(colaboradorEsperado);
 
         // Issue #288: el mensaje crudo publicado arriba (objeto anonimo) no lleva "Descripcion" -- el
         // dato derivado solo lo asigna Programacion en produccion (CatalogoTurnos/FranjaOrdinaria/
@@ -112,11 +113,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Se emite siempre, incluso si ControlesDeFranja queda vacio tras la depuracion reactiva.
         var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
             TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
             Timeout);
 
         diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas), deserializado con el serializador
         // POR DEFECTO del fixture (sin resolver custom). El turno se asigno sin marcaciones previas: la
         // franja queda anomala -> sin minutos calculables -> MinutosPorConcepto vacio.
@@ -133,13 +134,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             solicitudId, SuscripcionConsumidor);
 
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests
-        // del topic dia-calculado (issue #223: acotado por EmpleadoId).
+        // del topic dia-calculado (issue #223: acotado por CodigoColaborador).
         var existeDeadLetterDiaCalculado = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
-            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionEmpleado?.EmpleadoId == empleadoId);
+            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionColaborador?.CodigoColaborador == codigoColaborador);
 
         existeDeadLetterDiaCalculado.Should().BeFalse(
-            "no deberia haber un dead letter de esta corrida (EmpleadoId {0}) en '{1}' del topic '{2}'",
-            empleadoId, SuscripcionSmokeTests, TopicDiaCalculado);
+            "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaCalculado);
     }
 
     // Issue #336 CA-1/CA-3: el evento de bus trae la sede EFECTIVA ya resuelta por la cascada del
@@ -166,15 +167,15 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Arrange
         var correlationId = Guid.CreateVersion7().ToString();
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 11);
 
         var evento = new
         {
             SolicitudId = solicitudId,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = empleadoId,
+                CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "222333444",
                 Nombres = "[TEST] Smoke Sede",
@@ -218,7 +219,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
-        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(
@@ -255,11 +256,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // franjas traen sede -- el mapeo nuevo no interrumpe la cadena reactiva existente.
         var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
             TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
             Timeout);
 
         diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion del consumidor de
         // entrada -- confirma que el mapeo DetalleSede -> SedeProgramada no rompe el handler
@@ -292,7 +293,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Arrange: mensaje en camelCase, exactamente como lo serializa Wolverine
         var correlationId = Guid.CreateVersion7().ToString();
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 10);
 
         // Propiedades en camelCase simulan la serializacion real de Wolverine.
@@ -301,9 +302,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var eventoEnFormatoWolverine = new
         {
             solicitudId = solicitudId,
-            empleado = new
+            colaborador = new
             {
-                empleadoId = empleadoId,
+                codigoColaborador = codigoColaborador,
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "111222333",
                 nombres = "[TEST] Smoke Wolverine",
@@ -336,7 +337,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Assert: verificar persistencia en Postgres.
         // Si la deserializacion falla (propiedades null), el handler lanza
         // NullReferenceException, el mensaje va a dead-letter y NUNCA se persiste.
-        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(
@@ -348,18 +349,18 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             $"Si falla, ServiceBusDeserializador no esta usando PropertyNameCaseInsensitive=true.");
 
         // Assert detallado: verificar que los datos se mapearon correctamente.
-        // Issue #322: el evento persistido tipa InformacionEmpleado/DetalleTurno con Empleado/
+        // Issue #322: el evento persistido tipa InformacionColaborador/DetalleTurno con Colaborador/
         // TurnoDiario (ControlHoras.DomainEvents), no con los tipos de bus -- ver comentario del
         // primer test de esta clase.
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaControlHoras, streamId, tipoEvento,
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
-        var empleadoEsperado = new ColaboradorProgramado(
-            empleadoId, "CC", "111222333", "[TEST] Smoke Wolverine", "[TEST] CamelCase Fix");
-        var empleadoPersistido = eventoPersistido
-            .GetProperty("InformacionEmpleado").Deserialize<ColaboradorProgramado>();
-        empleadoPersistido.Should().Be(empleadoEsperado);
+        var colaboradorEsperado = new ColaboradorProgramado(
+            codigoColaborador, "CC", "111222333", "[TEST] Smoke Wolverine", "[TEST] CamelCase Fix");
+        var colaboradorPersistido = eventoPersistido
+            .GetProperty("InformacionColaborador").Deserialize<ColaboradorProgramado>();
+        colaboradorPersistido.Should().Be(colaboradorEsperado);
 
         // Issue #288: mismo motivo que el test anterior -- el mensaje crudo en camelCase no lleva
         // "descripcion", asi que se excluye de la comparacion estructural.
@@ -377,11 +378,11 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Valida que la cadena completa (deserializacion case-insensitive -> handler -> publicacion) funciona.
         var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
             TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionEmpleado != null && e.InformacionEmpleado.EmpleadoId == empleadoId,
+            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
             Timeout);
 
         diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionEmpleado!.EmpleadoId.Should().Be(empleadoId);
+        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
         // Issue #183 CA-6: el payload plano (HorasDiscriminadas) se deserializa con el serializador POR
         // DEFECTO del fixture (sin resolver custom) incluso cuando el mensaje llega en camelCase. El turno
         // se asigno sin marcaciones: franja anomala -> MinutosPorConcepto vacio.

@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.Com
 // Issue #270 CA-4: tras StartStream, publica el contrato de bus RegistroDeMarcacionCreado empaquetado
 // por el traductor del aggregate (Tell-don't-Ask) via IPrivateEventSender. MarcacionRegistrada (evento
 // de dominio persistido) ya no cruza el bus.
-// Issue #275 CA-4: la normalizacion (truncar segundos) y la validacion de EmpleadoId ya no viven aqui
+// Issue #275 CA-4: la normalizacion (truncar segundos) y la validacion de CodigoColaborador ya no viven aqui
 // -- son responsabilidad del factory MarcacionRegistrada.Crear (MEF-ADR-0012: el handler construye el
 // evento antes de pasarlo al aggregate; si la construccion falla, el throw ocurre aqui, no dentro del
 // aggregate -- MEF-ADR-0004 se mantiene). La firma de Iniciar(streamId, timestampCrudo, evento) no cambia.
@@ -30,17 +30,17 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
     public async Task HandleAsync(RegistrarMarcacion command, CancellationToken ct = default)
     {
         var streamId = RegistroDeMarcacionAggregateRoot.ComputarStreamId(
-            command.EmpleadoId, command.Timestamp);
+            command.CodigoColaborador, command.Timestamp);
 
         // CA-4, CA-9: duplicado exacto -> retorno silencioso, sin persistir ni publicar
         var existe = await _eventStore.ExistsAsync<RegistroDeMarcacionAggregateRoot>(streamId, ct);
         if (existe)
             return;
 
-        // Issue #275 CA-1/CA-2/CA-3: el factory trunca el timestamp al minuto y valida EmpleadoId.
+        // Issue #275 CA-1/CA-2/CA-3: el factory trunca el timestamp al minuto y valida CodigoColaborador.
         // Si falla, el throw ocurre aqui (borde del handler), no dentro del aggregate.
         var evento = MarcacionRegistrada.Crear(
-            command.EmpleadoId,
+            command.CodigoColaborador,
             command.Timestamp,
             command.TipoMarcacion,
             command.DispositivoId);

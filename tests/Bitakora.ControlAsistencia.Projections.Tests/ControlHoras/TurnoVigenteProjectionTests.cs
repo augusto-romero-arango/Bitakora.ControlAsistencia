@@ -13,7 +13,7 @@
 //
 // using TipoBloqueVigente: alias obligatorio -- DomainEvents.TipoBloque (necesario para construir
 // el evento fundacional) y ReadModels.ControlHoras.TipoBloque (necesario para el oraculo de la
-// vista) comparten nombre a proposito, mismo criterio de "tres islas" que ya aplican Empleado/
+// vista) comparten nombre a proposito, mismo criterio de "tres islas" que ya aplican Colaborador/
 // TurnoDiario/FranjaProgramada entre los ensamblados de eventos. Con ambos "using" activos el
 // simbolo corto "TipoBloque" queda ambiguo (CS0104); el alias resuelve solo el lado ReadModels.
 //
@@ -33,17 +33,17 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.ControlHoras;
 
 public class TurnoVigenteProjectionTests
 {
-    private static ColaboradorProgramado EmpleadoDePrueba() =>
+    private static ColaboradorProgramado ColaboradorDePrueba() =>
         new("EMP-001", "CC", "1098765432", "Ana", "Ramirez");
 
-    // CA-1: Create mapea stream key, EmpleadoId, NombreCompleto (concatenado Nombres+Apellidos --
+    // CA-1: Create mapea stream key, CodigoColaborador, NombreCompleto (concatenado Nombres+Apellidos --
     // unico lugar del sistema donde se hace, issue #328 "Investigacion del planner"), NombreTurno,
     // HorarioResumido (la Descripcion textual que el evento ya trae) y los Bloques que produce
     // Segmentar, con los tres tipos posibles (Ordinaria/Descanso/Extra) representados.
     [Fact]
     public void Create_ProyectaElTurnoVigenteCompleto_DesdeTurnoDiarioAsignado()
     {
-        var empleado = EmpleadoDePrueba();
+        var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "EMP-001:2026-08-03";
 
@@ -62,7 +62,7 @@ public class TurnoVigenteProjectionTests
             [franja],
             "Turno Manana: (06:00-14:00)[Descansos:(10:00-10:15)][Extras:(05:00-06:00)]");
         var solicitudId = Guid.NewGuid();
-        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, solicitudId);
+        var evento = new TurnoDiarioAsignado(streamKey, colaborador, fecha, turnoDiario, solicitudId);
 
         var vista = TurnoVigenteProjection.Create(evento);
 
@@ -76,7 +76,7 @@ public class TurnoVigenteProjectionTests
         };
 
         vista.Id.Should().Be(streamKey);
-        vista.EmpleadoId.Should().Be("EMP-001");
+        vista.CodigoColaborador.Should().Be("EMP-001");
         vista.NombreCompleto.Should().Be("Ana Ramirez");
         vista.Fecha.Should().Be(fecha);
         vista.NombreTurno.Should().Be("Turno Manana");
@@ -86,13 +86,13 @@ public class TurnoVigenteProjectionTests
     }
 
     // CA-2: la reasignacion sobrescribe -- dos TurnoDiarioAsignado consecutivos sobre el mismo
-    // (empleado, fecha) dejan la vista con el NombreTurno, HorarioResumido y Bloques del SEGUNDO
-    // evento ("el ultimo gana"). Id, EmpleadoId y Fecha no cambian (mismo stream key). Sin
+    // (colaborador, fecha) dejan la vista con el NombreTurno, HorarioResumido y Bloques del SEGUNDO
+    // evento ("el ultimo gana"). Id, CodigoColaborador y Fecha no cambian (mismo stream key). Sin
     // ShouldDelete (el turno vigente nunca se borra, solo se reasigna) -- no hay metodo que probar.
     [Fact]
     public void Apply_SobrescribeTurnoHorarioYBloques_CuandoLlegaOtroTurnoDiarioAsignado()
     {
-        var empleado = EmpleadoDePrueba();
+        var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "EMP-001:2026-08-03";
         var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
@@ -112,12 +112,12 @@ public class TurnoVigenteProjectionTests
             Descansos: [], Extras: [], Descripcion: "(14:00-22:00)");
         var turnoTarde = new TurnoDiario("Turno Tarde", [franjaTarde], "Turno Tarde: (14:00-22:00)");
         var nuevaSolicitudId = Guid.NewGuid();
-        var segundoEvento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoTarde, nuevaSolicitudId);
+        var segundoEvento = new TurnoDiarioAsignado(streamKey, colaborador, fecha, turnoTarde, nuevaSolicitudId);
 
         var vista = TurnoVigenteProjection.Apply(segundoEvento, vistaPrevia);
 
         vista.Id.Should().Be(streamKey);
-        vista.EmpleadoId.Should().Be("EMP-001");
+        vista.CodigoColaborador.Should().Be("EMP-001");
         vista.Fecha.Should().Be(fecha);
         vista.NombreCompleto.Should().Be("Ana Ramirez");
         vista.NombreTurno.Should().Be("Turno Tarde");
@@ -127,10 +127,10 @@ public class TurnoVigenteProjectionTests
     }
 
     // CA-2 (borde que el test de arriba no discrimina, porque ahi los dos eventos traen el MISMO
-    // empleado): cada TurnoDiarioAsignado carga el payload Empleado completo, asi que una correccion
+    // colaborador): cada TurnoDiarioAsignado carga el payload Colaborador completo, asi que una correccion
     // del nombre aguas arriba llega con la reasignacion y el "ultimo gana" tambien le aplica --
     // congelar el nombre de la primera asignacion dejaria la vista mostrando un dato viejo para
-    // siempre. Id, EmpleadoId y Fecha si son invariantes (identidad del stream), y se verifican aqui
+    // siempre. Id, CodigoColaborador y Fecha si son invariantes (identidad del stream), y se verifican aqui
     // junto al refresco para que el test no pueda pasar por sobrescribir la vista entera.
     [Fact]
     public void Apply_RefrescaElNombreCompleto_CuandoLaReasignacionTraeElNombreCorregido()
@@ -148,8 +148,8 @@ public class TurnoVigenteProjectionTests
             "Turno Manana: (06:00-14:00)",
             [new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14))]);
 
-        // Mismo EmpleadoId, nombre corregido aguas arriba (dos nombres y dos apellidos).
-        var empleadoCorregido = new ColaboradorProgramado("EMP-001", "CC", "1098765432", "Ana Maria", "Ramirez Solano");
+        // Mismo CodigoColaborador, nombre corregido aguas arriba (dos nombres y dos apellidos).
+        var colaboradorCorregido = new ColaboradorProgramado("EMP-001", "CC", "1098765432", "Ana Maria", "Ramirez Solano");
         var turnoTarde = new TurnoDiario(
             "Turno Tarde",
             [new FranjaProgramada(
@@ -157,13 +157,13 @@ public class TurnoVigenteProjectionTests
                 Descansos: [], Extras: [], Descripcion: "(14:00-22:00)")],
             "Turno Tarde: (14:00-22:00)");
         var segundoEvento = new TurnoDiarioAsignado(
-            streamKey, empleadoCorregido, fecha, turnoTarde, Guid.NewGuid());
+            streamKey, colaboradorCorregido, fecha, turnoTarde, Guid.NewGuid());
 
         var vista = TurnoVigenteProjection.Apply(segundoEvento, vistaPrevia);
 
         vista.NombreCompleto.Should().Be("Ana Maria Ramirez Solano");
         vista.Id.Should().Be(streamKey);
-        vista.EmpleadoId.Should().Be("EMP-001");
+        vista.CodigoColaborador.Should().Be("EMP-001");
         vista.Fecha.Should().Be(fecha);
     }
 
@@ -176,7 +176,7 @@ public class TurnoVigenteProjectionTests
     [Fact]
     public void Create_MapeaSedeIdYNombreSede_DesdeLaSedeDeLaFranja()
     {
-        var empleado = EmpleadoDePrueba();
+        var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "EMP-001:2026-08-03";
         var sede = new SedeProgramada("SD-SUBA", "Suba");
@@ -185,7 +185,7 @@ public class TurnoVigenteProjectionTests
             new TimeOnly(6, 0), new TimeOnly(14, 0), DiaOffsetFin: 0,
             Descansos: [], Extras: [], Descripcion: "(06:00-14:00)", Sede: sede);
         var turnoDiario = new TurnoDiario("Turno Manana", [franja], "Turno Manana: (06:00-14:00)");
-        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+        var evento = new TurnoDiarioAsignado(streamKey, colaborador, fecha, turnoDiario, Guid.NewGuid());
 
         var vista = TurnoVigenteProjection.Create(evento);
 
@@ -203,7 +203,7 @@ public class TurnoVigenteProjectionTests
     [Fact]
     public void Create_HeredaLaSedeDeLaFranjaEnBloquesDeDescansoYExtra()
     {
-        var empleado = EmpleadoDePrueba();
+        var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "EMP-001:2026-08-03";
         var sede = new SedeProgramada("SD-SUBA", "Suba");
@@ -220,7 +220,7 @@ public class TurnoVigenteProjectionTests
             "Turno Manana",
             [franja],
             "Turno Manana: (06:00-14:00)[Descansos:(10:00-10:15)][Extras:(05:00-06:00)]");
-        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+        var evento = new TurnoDiarioAsignado(streamKey, colaborador, fecha, turnoDiario, Guid.NewGuid());
 
         var vista = TurnoVigenteProjection.Create(evento);
 
@@ -242,7 +242,7 @@ public class TurnoVigenteProjectionTests
     [Fact]
     public void Create_DejaSedeIdYNombreSedeNulos_CuandoLaFranjaNoTraeSede()
     {
-        var empleado = EmpleadoDePrueba();
+        var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "EMP-001:2026-08-03";
 
@@ -250,7 +250,7 @@ public class TurnoVigenteProjectionTests
             new TimeOnly(6, 0), new TimeOnly(14, 0), DiaOffsetFin: 0,
             Descansos: [], Extras: [], Descripcion: "(06:00-14:00)");
         var turnoDiario = new TurnoDiario("Turno Manana", [franja], "Turno Manana: (06:00-14:00)");
-        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+        var evento = new TurnoDiarioAsignado(streamKey, colaborador, fecha, turnoDiario, Guid.NewGuid());
 
         var vista = TurnoVigenteProjection.Create(evento);
 
@@ -266,7 +266,7 @@ public class TurnoVigenteProjectionTests
     [Fact]
     public void Create_MapeaSedesDistintasPorBloque_CuandoElTurnoTieneFranjasEnSedesDistintas()
     {
-        var empleado = EmpleadoDePrueba();
+        var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "EMP-001:2026-08-03";
         var suba = new SedeProgramada("SD-SUBA", "Suba");
@@ -280,7 +280,7 @@ public class TurnoVigenteProjectionTests
             Descansos: [], Extras: [], Descripcion: "(14:00-22:00)", Sede: chapinero);
         var turnoDiario = new TurnoDiario(
             "Turno Partido", [franjaManana, franjaTarde], "Turno Partido: (06:00-14:00)/(14:00-22:00)");
-        var evento = new TurnoDiarioAsignado(streamKey, empleado, fecha, turnoDiario, Guid.NewGuid());
+        var evento = new TurnoDiarioAsignado(streamKey, colaborador, fecha, turnoDiario, Guid.NewGuid());
 
         var vista = TurnoVigenteProjection.Create(evento);
 
@@ -322,7 +322,7 @@ public class TurnoVigenteProjectionTests
             Descansos: [], Extras: [], Descripcion: "(14:00-22:00)", Sede: chapinero);
         var turnoTarde = new TurnoDiario("Turno Tarde", [franjaTarde], "Turno Tarde: (14:00-22:00)");
         var segundoEvento = new TurnoDiarioAsignado(
-            streamKey, EmpleadoDePrueba(), fecha, turnoTarde, Guid.NewGuid());
+            streamKey, ColaboradorDePrueba(), fecha, turnoTarde, Guid.NewGuid());
 
         var vista = TurnoVigenteProjection.Apply(segundoEvento, vistaPrevia);
 

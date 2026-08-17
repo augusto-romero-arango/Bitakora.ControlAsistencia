@@ -1,7 +1,7 @@
 // Guardrail de la duplicacion deliberada de payload por rol (CA-ADR-0029 decision #5):
-// DetalleColaborador (PrivateEvents) e InformacionEmpleado (PublicEvents) declaran el mismo dato en
+// DetalleColaborador (PrivateEvents) e InformacionColaborador (PublicEvents) declaran el mismo dato en
 // dos ensamblados que no se referencian, y solo esta Function App ve ambos.
-// Sin este test, agregar un campo a uno de los dos no rompe nada: MapearEmpleado sigue
+// Sin este test, agregar un campo a uno de los dos no rompe nada: MapearColaborador sigue
 // compilando, el campo nuevo nunca cruza el bus y el consumidor lo recibe en su valor default --
 // perdida silenciosa, sin excepcion, que es el modo de fallo que ese ADR documenta.
 // El JSON del cable tampoco cambia mientras la paridad se mantenga (compatibilidad del despliegue

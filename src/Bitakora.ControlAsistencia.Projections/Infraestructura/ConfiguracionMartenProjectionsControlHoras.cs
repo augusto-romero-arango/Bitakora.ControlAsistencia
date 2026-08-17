@@ -46,7 +46,7 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 // Replica de la identidad de stream que el write-side ya declara
                 // (Cosmos.EventSourcing.CritterStack 2.1.0, AgregarConfiguracionMartenComandos:
                 // Events.StreamIdentity = AsString): el stream key de este dominio lo computa
-                // ControlDiarioAggregateRoot.ComputarStreamId como "{EmpleadoId}:{Fecha:yyyy-MM-dd}",
+                // ControlDiarioAggregateRoot.ComputarStreamId como "{CodigoColaborador}:{Fecha:yyyy-MM-dd}",
                 // un valor que ni por accidente es un Guid. Sin esta linea Marten aplica su default
                 // AsGuid ("Event Store Configuration" -> "Stream Identity" en
                 // https://martendb.io/events/configuration.html#stream-identity) y el daemon leeria
@@ -104,7 +104,7 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 });
 
                 // Issue #328 CA-3: proyeccion del turno vigente. N1 -- un solo stream
-                // (EmpleadoId, Fecha) -- lifecycle Async es el canonico del worker (MEF-ADR-0034
+                // (CodigoColaborador, Fecha) -- lifecycle Async es el canonico del worker (MEF-ADR-0034
                 // seccion 3); Inline solo seria valido con justificacion explicita del issue, que
                 // este no la da. Aqui mismo, y por esta via, el issue #323 retiro la proyeccion
                 // del read model anterior (#289).

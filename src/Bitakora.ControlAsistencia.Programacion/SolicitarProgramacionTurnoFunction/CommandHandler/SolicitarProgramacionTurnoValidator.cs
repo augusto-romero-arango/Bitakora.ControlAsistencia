@@ -10,14 +10,14 @@ public class SolicitarProgramacionTurnoValidator
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.TurnoId).NotEmpty();
 
-        RuleFor(x => x.Empleado).NotNull();
-        When(x => x.Empleado is not null, () =>
+        RuleFor(x => x.Colaborador).NotNull();
+        When(x => x.Colaborador is not null, () =>
         {
-            RuleFor(x => x.Empleado.EmpleadoId).NotEmpty();
-            RuleFor(x => x.Empleado.TipoIdentificacion).NotEmpty();
-            RuleFor(x => x.Empleado.NumeroIdentificacion).NotEmpty();
-            RuleFor(x => x.Empleado.Nombres).NotEmpty();
-            RuleFor(x => x.Empleado.Apellidos).NotEmpty();
+            RuleFor(x => x.Colaborador.CodigoColaborador).NotEmpty();
+            RuleFor(x => x.Colaborador.TipoIdentificacion).NotEmpty();
+            RuleFor(x => x.Colaborador.NumeroIdentificacion).NotEmpty();
+            RuleFor(x => x.Colaborador.Nombres).NotEmpty();
+            RuleFor(x => x.Colaborador.Apellidos).NotEmpty();
         });
 
         RuleFor(x => x.Fechas).NotEmpty();

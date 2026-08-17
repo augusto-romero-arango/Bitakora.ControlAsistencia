@@ -8,11 +8,13 @@ namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunc
 // maestro de sedes (#330). Reutiliza SedeProgramada (Programacion.DomainEvents), mismo precedente
 // que el colaborador reutilizando InformacionColaborador (PublicEvents).
 // Issue #340: el tipo paso de InformacionEmpleado a InformacionColaborador (termino proscrito por
-// #330). El nombre del parametro posicional -- la clave del body HTTP -- no cambia: el contrato
-// HTTP queda intacto (lo renombra #401).
+// #330), sin tocar el contrato HTTP.
+// Issue #401: el parametro posicional paso de Empleado a Colaborador -- aqui SI cambia la clave del
+// body HTTP (POST programacion/solicitudes). Verbo y ruta quedan intactos: ya son conformes y el
+// test de precedencia de MEF-ADR-0043 no se re-ejecuta por un cambio de claves del body.
 public record SolicitarProgramacionTurno(
     Guid Id,
     Guid TurnoId,
-    InformacionColaborador Empleado,
+    InformacionColaborador Colaborador,
     List<DateOnly> Fechas,
     SedeProgramada? Sede = null);

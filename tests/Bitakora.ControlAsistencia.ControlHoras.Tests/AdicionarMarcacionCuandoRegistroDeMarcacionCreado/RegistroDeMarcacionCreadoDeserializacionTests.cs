@@ -24,7 +24,7 @@ public class RegistroDeMarcacionCreadoDeserializacionTests
     // JSON en formato camelCase - exactamente como Wolverine lo serializa al publicar al Service Bus.
     private const string JsonFormatoWolverine = """
         {
-          "empleadoId": "EMP-001",
+          "codigoColaborador": "EMP-001",
           "timestampNormalizado": "2026-03-15T08:09:00",
           "tipoMarcacion": "ENTRADA",
           "dispositivoId": "DEV-001"
@@ -40,7 +40,7 @@ public class RegistroDeMarcacionCreadoDeserializacionTests
         var evento = ServiceBusDeserializador.Deserializar<RegistroDeMarcacionCreado>(body);
 
         evento.Should().NotBeNull();
-        evento.EmpleadoId.Should().Be("EMP-001");
+        evento.CodigoColaborador.Should().Be("EMP-001");
         evento.TimestampNormalizado.Should().Be(new DateTime(2026, 3, 15, 8, 9, 0));
         evento.TipoMarcacion.Should().Be("ENTRADA");
         evento.DispositivoId.Should().Be("DEV-001");
@@ -52,7 +52,7 @@ public class RegistroDeMarcacionCreadoDeserializacionTests
     {
         var body = BinaryData.FromString("""
             {
-              "empleadoId": "EMP-002",
+              "codigoColaborador": "EMP-002",
               "timestampNormalizado": "2026-03-15T08:09:00"
             }
             """);
@@ -60,7 +60,7 @@ public class RegistroDeMarcacionCreadoDeserializacionTests
         var evento = ServiceBusDeserializador.Deserializar<RegistroDeMarcacionCreado>(body);
 
         evento.Should().NotBeNull();
-        evento.EmpleadoId.Should().Be("EMP-002");
+        evento.CodigoColaborador.Should().Be("EMP-002");
         evento.TimestampNormalizado.Should().Be(new DateTime(2026, 3, 15, 8, 9, 0));
         evento.TipoMarcacion.Should().BeNull();
         evento.DispositivoId.Should().BeNull();
