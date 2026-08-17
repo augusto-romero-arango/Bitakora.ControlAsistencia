@@ -5,19 +5,21 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// No se publica al Service Bus.
 /// </summary>
 /// <remarks>
-/// Issue #319 (tres islas, MEF-ADR-0039 decision 2 y 6): Empleado y DetalleTurno tipan con los
+/// Issue #319 (tres islas, MEF-ADR-0039 decision 2 y 6): Colaborador y DetalleTurno tipan con los
 /// records propios de este ensamblado (ColaboradorProgramado, TurnoProgramado) en vez de
-/// InformacionColaborador (PublicEvents) y DetalleTurno (PrivateEvents). Issue #340: el record
-/// paso de llamarse Empleado a ColaboradorProgramado -- solo el TIPO; el nombre de la propiedad
-/// (la clave JSON "Empleado") se conserva hasta #401. Los NOMBRES de las propiedades no cambian --
-/// son las claves JSON persistidas en mt_events (CA-2); solo cambian los TIPOS. Sin migracion de
-/// datos: STJ no persiste $type para records anidados, asi que el JSON ya escrito deserializa
-/// identico contra los tipos nuevos (ver ProgramacionTurnoSolicitadaSerializacionTests).
+/// InformacionColaborador (PublicEvents) y DetalleTurno (PrivateEvents). Issue #340 renombro el
+/// TIPO del payload (de Empleado a ColaboradorProgramado) conservando las claves JSON.
+///
+/// Issue #401: la propiedad paso de Empleado a Colaborador -- este si cambia la clave JSON
+/// persistida en mt_events, a diferencia de #319/#322/#340. Sin mapeo (nada de JsonPropertyName ni
+/// upcasters): los streams de dev se purgan en el mismo despliegue que integra el cambio
+/// (MEF-ADR-0036 seccion 5) y los smoke tests los repueblan con el vocabulario nuevo. El alias del
+/// evento NO se toca: deriva del nombre simple de la clase, que no se renombra.
 /// </remarks>
 public sealed class ProgramacionTurnoSolicitada
 {
     public Guid Id { get; private set; }
-    public ColaboradorProgramado Empleado { get; private set; } = null!;
+    public ColaboradorProgramado Colaborador { get; private set; } = null!;
     public IReadOnlyList<DateOnly> Fechas { get; private set; } = [];
     public TurnoProgramado DetalleTurno { get; private set; } = null!;
 
@@ -29,13 +31,13 @@ public sealed class ProgramacionTurnoSolicitada
 
     public ProgramacionTurnoSolicitada(
         Guid id,
-        ColaboradorProgramado empleado,
+        ColaboradorProgramado colaborador,
         IReadOnlyList<DateOnly> fechas,
         TurnoProgramado detalleTurno,
         SedeProgramada? sede = null)
     {
         Id = id;
-        Empleado = empleado;
+        Colaborador = colaborador;
         Fechas = fechas;
         DetalleTurno = detalleTurno;
         Sede = sede;

@@ -8,9 +8,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
 public sealed class MarcacionAdicionada
 {
-    // CA-7: Id es el stream ID del ControlDiario: "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
+    // CA-7: Id es el stream ID del ControlDiario: "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
     public string Id { get; private set; } = null!;
-    public string EmpleadoId { get; private set; } = null!;
+    public string CodigoColaborador { get; private set; } = null!;
 
     // TimestampNormalizado viene ya truncado al minuto desde RegistrarMarcacion (#105)
     public DateTime TimestampNormalizado { get; private set; }
@@ -21,13 +21,13 @@ public sealed class MarcacionAdicionada
 
     public MarcacionAdicionada(
         string id,
-        string empleadoId,
+        string codigoColaborador,
         DateTime timestampNormalizado,
         string? tipoMarcacion,
         string? dispositivoId)
     {
         Id = id;
-        EmpleadoId = empleadoId;
+        CodigoColaborador = codigoColaborador;
         TimestampNormalizado = timestampNormalizado;
         TipoMarcacion = tipoMarcacion;
         DispositivoId = dispositivoId;

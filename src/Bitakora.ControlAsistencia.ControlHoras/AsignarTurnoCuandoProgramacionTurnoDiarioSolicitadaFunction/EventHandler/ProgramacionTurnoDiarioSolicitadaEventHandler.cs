@@ -12,7 +12,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacion
 //   equivalente seria un espejo del evento (mismos campos, sin semantica propia), asi que se consume
 //   directo con IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> - sin comando espejo.
 // Patron crear-o-actualizar:
-//   - CA-3: si NO existe el stream para EmpleadoId+Fecha -> StartStream
+//   - CA-3: si NO existe el stream para CodigoColaborador+Fecha -> StartStream
 //   - CA-4: si YA existe -> GetAggregateRootAsync + AsignarTurno (SaveChanges automatico)
 // HU-131 / CA-4: publica DiaCalculado via IPublicEventSender tras el Apply(TurnoDiarioAsignado)
 //   que dispara el recalculo reactivo de ControlesDeFranja.
@@ -34,7 +34,7 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
     public async Task HandleAsync(ProgramacionTurnoDiarioSolicitada @event, CancellationToken ct = default)
     {
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
-            @event.Empleado.EmpleadoId, @event.Fecha);
+            @event.Colaborador.CodigoColaborador, @event.Fecha);
 
         // CA-ADR-0029 decision #5 (payload por rol): el evento llega con DetalleColaborador/DetalleTurno
         // (PrivateEvents) y TurnoDiarioAsignado persiste ColaboradorProgramado/TurnoDiario
@@ -42,7 +42,7 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         // mapeo vive aqui -- la Function App es el unico proyecto que ve los tres ensamblados de
         // eventos.
         var evento = new TurnoDiarioAsignado(
-            streamId, MapearColaboradorProgramado(@event.Empleado), @event.Fecha,
+            streamId, MapearColaboradorProgramado(@event.Colaborador), @event.Fecha,
             MapearTurnoDiario(@event.DetalleTurno), @event.SolicitudId);
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
@@ -68,7 +68,7 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
     }
 
     private static ColaboradorProgramado MapearColaboradorProgramado(DetalleColaborador colaborador) =>
-        new(colaborador.EmpleadoId, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
+        new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
             colaborador.Nombres, colaborador.Apellidos);
 
     // Issue #322: mapeo mecanico DetalleTurno (PrivateEvents) -> TurnoDiario (ControlHoras.DomainEvents),

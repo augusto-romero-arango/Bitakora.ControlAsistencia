@@ -12,16 +12,20 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 /// y el evento tiene constructor privado y propiedades con private set.
 /// Ver ADR-0013 y feedback de memoria: ConfigurarSerializacion es obligatorio.
 ///
-/// Issue #322: InformacionEmpleado y DetalleTurno cambian de tipo (Empleado/TurnoDiario, propios
-/// de ControlHoras.DomainEvents) pero NO de nombre de propiedad -- son las claves JSON que ya
-/// estan persistidas en mt_events.
+/// Issue #322: InformacionEmpleado y DetalleTurno cambiaron de TIPO (ColaboradorProgramado/
+/// TurnoDiario, propios de ControlHoras.DomainEvents) sin cambiar el nombre de propiedad.
+///
+/// Issue #401: la propiedad paso a InformacionColaborador y su campo anidado a CodigoColaborador --
+/// aqui SI cambian las claves JSON de mt_events. El JSON literal de estos tests se reescribio a las
+/// claves nuevas y por eso ya no acredita compatibilidad con los streams viejos: esos se purgan en
+/// el mismo despliegue (MEF-ADR-0036 seccion 5). Lo que fija desde ahora es la forma canonica.
 /// </summary>
 public class TurnoDiarioAsignadoSerializacionTests
 {
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000001");
 
-    private static readonly ColaboradorProgramado EmpleadoDePrueba = new(
+    private static readonly ColaboradorProgramado ColaboradorDePrueba = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
@@ -33,14 +37,14 @@ public class TurnoDiarioAsignadoSerializacionTests
         [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],
         "Turno Manana (08:00-16:00)");
 
-    private static readonly string StreamId = $"{EmpleadoDePrueba.EmpleadoId}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"{ColaboradorDePrueba.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
 
     // Regla 16: todo evento persistido en Marten debe tener test de serializacion roundtrip
     // Verifica con datos reales y completos (no listas vacias para VOs anidados)
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
     {
-        var evento = new TurnoDiarioAsignado(StreamId, EmpleadoDePrueba, Fecha, TurnoDiarioDePrueba, SolicitudId);
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, TurnoDiarioDePrueba, SolicitudId);
         var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -50,8 +54,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado!.Id.Should().Be(StreamId);
         deserializado.SolicitudId.Should().Be(SolicitudId);
         deserializado.Fecha.Should().Be(Fecha);
-        deserializado.InformacionEmpleado.EmpleadoId.Should().Be(EmpleadoDePrueba.EmpleadoId);
-        deserializado.InformacionEmpleado.Nombres.Should().Be(EmpleadoDePrueba.Nombres);
+        deserializado.InformacionColaborador.CodigoColaborador.Should().Be(ColaboradorDePrueba.CodigoColaborador);
+        deserializado.InformacionColaborador.Nombres.Should().Be(ColaboradorDePrueba.Nombres);
         deserializado.DetalleTurno.Nombre.Should().Be(TurnoDiarioDePrueba.Nombre);
         deserializado.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         deserializado.DetalleTurno.FranjasOrdinarias[0].HoraInicio
@@ -64,12 +68,13 @@ public class TurnoDiarioAsignadoSerializacionTests
             .Should().Be(TurnoDiarioDePrueba.FranjasOrdinarias[0].Descripcion);
     }
 
-    // Issue #322 CA-2 / Nota de seguridad de datos (critica): JSON con la FORMA EXACTA que Marten
-    // ya escribio en mt_events ANTES de este issue (PascalCase, PropertyNamingPolicy=null). Los
-    // nombres de propiedad (InformacionEmpleado, Fecha, DetalleTurno, SolicitudId) no cambian --
-    // solo los tipos anidados (Empleado/TurnoDiario en vez de InformacionEmpleado/DetalleTurno de
-    // PublicEvents/PrivateEvents). Este round-trip demuestra que un evento ya persistido se relee
-    // identico, sin ninguna migracion de datos (MEF-ADR-0036: el alias del evento no se toca).
+    // Nota de seguridad de datos (critica): JSON con la FORMA EXACTA que Marten escribe en
+    // mt_events desde #401 (PascalCase, PropertyNamingPolicy=null) -- claves InformacionColaborador
+    // (con CodigoColaborador anidado), Fecha, DetalleTurno y SolicitudId. En #322 este mismo test
+    // acreditaba que un cambio de TIPO no alteraba la forma del wire; en #401 las claves si cambian,
+    // asi que el literal se reescribio y lo que custodia ahora es la forma canonica hacia adelante.
+    // La compatibilidad hacia atras se resuelve con la purga del mismo despliegue, no con mapeo
+    // (MEF-ADR-0036 seccion 5). El alias del evento sigue intacto: la CLASE no se renombra.
     //
     // La comparacion es por igualdad estructural completa (.Should().Be() sobre el objeto
     // compuesto, no solo sus campos escalares): asi el test tambien exige que TurnoDiario/
@@ -81,8 +86,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         const string jsonPersistidoHoy = """
             {
               "Id": "EMP-001:2026-03-15",
-              "InformacionEmpleado": {
-                "EmpleadoId": "EMP-001",
+              "InformacionColaborador": {
+                "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
                 "NumeroIdentificacion": "1234567890",
                 "Nombres": "Luis Augusto",
@@ -110,7 +115,7 @@ public class TurnoDiarioAsignadoSerializacionTests
 
         var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(jsonPersistidoHoy, opciones);
 
-        var empleadoEsperado = new ColaboradorProgramado("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        var colaboradorEsperado = new ColaboradorProgramado("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
         var turnoEsperado = new TurnoDiario(
             "Turno Manana",
             [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],
@@ -120,7 +125,7 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado!.Id.Should().Be("EMP-001:2026-03-15");
         deserializado.SolicitudId.Should().Be(Guid.Parse("019600b0-0000-7000-8000-000000000001"));
         deserializado.Fecha.Should().Be(new DateOnly(2026, 3, 15));
-        deserializado.InformacionEmpleado.Should().Be(empleadoEsperado);
+        deserializado.InformacionColaborador.Should().Be(colaboradorEsperado);
         deserializado.DetalleTurno.Should().Be(turnoEsperado);
     }
 
@@ -135,8 +140,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         const string jsonPersistidoConSubFranjas = """
             {
               "Id": "EMP-001:2026-03-15",
-              "InformacionEmpleado": {
-                "EmpleadoId": "EMP-001",
+              "InformacionColaborador": {
+                "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
                 "NumeroIdentificacion": "1234567890",
                 "Nombres": "Luis Augusto",
@@ -209,8 +214,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         const string jsonPersistidoAntesDeDescripcion = """
             {
               "Id": "EMP-001:2026-03-15",
-              "InformacionEmpleado": {
-                "EmpleadoId": "EMP-001",
+              "InformacionColaborador": {
+                "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
                 "NumeroIdentificacion": "1234567890",
                 "Nombres": "Luis Augusto",
@@ -274,8 +279,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         const string jsonPersistidoSinSede = """
             {
               "Id": "EMP-001:2026-03-15",
-              "InformacionEmpleado": {
-                "EmpleadoId": "EMP-001",
+              "InformacionColaborador": {
+                "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
                 "NumeroIdentificacion": "1234567890",
                 "Nombres": "Luis Augusto",
@@ -324,7 +329,7 @@ public class TurnoDiarioAsignadoSerializacionTests
                     new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "(14:00-18:00)", sedeChapinero)
             ],
             "Turno Partido");
-        var evento = new TurnoDiarioAsignado(StreamId, EmpleadoDePrueba, Fecha, turnoConSedes, SolicitudId);
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, turnoConSedes, SolicitudId);
         var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);

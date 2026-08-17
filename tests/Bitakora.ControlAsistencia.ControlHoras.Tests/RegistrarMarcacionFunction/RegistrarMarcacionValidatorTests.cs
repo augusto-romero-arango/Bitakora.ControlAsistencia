@@ -36,52 +36,52 @@ public class RegistrarMarcacionValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-2: EmpleadoId nulo produce 400
+    // CA-2: CodigoColaborador nulo produce 400
     [Fact]
-    public async Task Validar_RechazaEmpleadoId_CuandoEsNull()
+    public async Task Validar_RechazaCodigoColaborador_CuandoEsNull()
     {
-        var resultado = await Validar(ComandoValido() with { EmpleadoId = null! });
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = null! });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(RegistrarMarcacion.EmpleadoId));
+            e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-2: EmpleadoId vacio produce 400
+    // CA-2: CodigoColaborador vacio produce 400
     [Fact]
-    public async Task Validar_RechazaEmpleadoId_CuandoEstaVacio()
+    public async Task Validar_RechazaCodigoColaborador_CuandoEstaVacio()
     {
-        var resultado = await Validar(ComandoValido() with { EmpleadoId = "" });
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "" });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(RegistrarMarcacion.EmpleadoId));
+            e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-2: EmpleadoId con solo espacios en blanco produce 400
+    // CA-2: CodigoColaborador con solo espacios en blanco produce 400
     [Fact]
-    public async Task Validar_RechazaEmpleadoId_CuandoSonSoloEspacios()
+    public async Task Validar_RechazaCodigoColaborador_CuandoSonSoloEspacios()
     {
-        var resultado = await Validar(ComandoValido() with { EmpleadoId = "   " });
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "   " });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(RegistrarMarcacion.EmpleadoId));
+            e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-3: EmpleadoId que contiene ':' produce 400 - cierra la colision de stream ID descrita
-    // en el Contexto del issue (ComputarStreamId usa ':' como separador entre EmpleadoId y
-    // Timestamp; un EmpleadoId con ':' puede fabricar el mismo stream ID que otra combinacion
+    // CA-3: CodigoColaborador que contiene ':' produce 400 - cierra la colision de stream ID descrita
+    // en el Contexto del issue (ComputarStreamId usa ':' como separador entre CodigoColaborador y
+    // Timestamp; un CodigoColaborador con ':' puede fabricar el mismo stream ID que otra combinacion
     // legitima). El valor no esta vacio, asi que el unico error posible proviene de la regla del
     // separador y no de NotEmpty.
     [Fact]
-    public async Task Validar_RechazaEmpleadoId_CuandoContieneDosPuntos()
+    public async Task Validar_RechazaCodigoColaborador_CuandoContieneDosPuntos()
     {
-        var resultado = await Validar(ComandoValido() with { EmpleadoId = "EMP:001" });
+        var resultado = await Validar(ComandoValido() with { CodigoColaborador = "EMP:001" });
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(RegistrarMarcacion.EmpleadoId));
+            e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
     // CA-4: Timestamp con el valor default de DateTime produce 400

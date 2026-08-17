@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ObtenerTurnoVigente;
 
-// Issue #328: smoke tests de ObtenerTurnoVigente, GET control-horas/turnos-vigentes/{empleadoId}/{fecha}.
+// Issue #328: smoke tests de ObtenerTurnoVigente, GET control-horas/turnos-vigentes/{codigoColaborador}/{fecha}.
 // Function GET read-side sobre la proyeccion TurnoVigente (receta N1, MEF-ADR-0034/0035) --
 // reemplazo del read model del issue #289, retirado por la contraccion del issue #323. Mismo
 // mecanismo de siembra que uso la suite de aquel read model (#289): se publica
@@ -62,20 +62,20 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
     private sealed record TurnoVigenteRespuestaSmoke(
         string Id,
-        string EmpleadoId,
+        string CodigoColaborador,
         string NombreCompleto,
         DateOnly Fecha,
         string NombreTurno,
         string HorarioResumido,
         IReadOnlyList<BloqueSmoke> Bloques);
 
-    private static string Ruta(string empleadoId, DateOnly fecha) =>
-        $"/api/control-horas/turnos-vigentes/{empleadoId}/{fecha:yyyy-MM-dd}";
+    private static string Ruta(string codigoColaborador, DateOnly fecha) =>
+        $"/api/control-horas/turnos-vigentes/{codigoColaborador}/{fecha:yyyy-MM-dd}";
 
     // Mismo formato que ControlDiarioAggregateRoot.ComputarStreamId, reconstruido localmente:
     // el smoke test no referencia el Function App (ControlHoras.Entities).
-    private static string ComputarStreamId(string empleadoId, DateOnly fecha) =>
-        $"{empleadoId}:{fecha:yyyy-MM-dd}";
+    private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
+        $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -97,15 +97,15 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         // Arrange: identificadores unicos por ejecucion y fecha fija (nunca DateTime.UtcNow).
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 9);
 
         var evento = new
         {
             SolicitudId = solicitudId,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = empleadoId,
+                CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "111222333",
                 Nombres = "[TEST] Smoke",
@@ -136,7 +136,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
         await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
 
         // Act + Assert: reintentar el GET hasta que la proyeccion asincrona materialice la vista.
-        var ruta = Ruta(empleadoId, fecha);
+        var ruta = Ruta(codigoColaborador, fecha);
         var respuesta = await Polling.WaitUntilAsync(async () =>
         {
             var response = await _client.GetAsync(ruta, ct);
@@ -153,8 +153,8 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         // Assert: Id como stream key -- ancla para comandos/lookups de la UI, no se pinta pero SI
         // viaja en la respuesta (decision de entrevista, "Notas tecnicas" del issue #328).
-        respuesta.Id.Should().Be(ComputarStreamId(empleadoId, fecha));
-        respuesta.EmpleadoId.Should().Be(empleadoId);
+        respuesta.Id.Should().Be(ComputarStreamId(codigoColaborador, fecha));
+        respuesta.CodigoColaborador.Should().Be(codigoColaborador);
         respuesta.NombreCompleto.Should().Be("[TEST] Smoke [TEST] TurnoVigente");
         respuesta.Fecha.Should().Be(fecha);
         respuesta.NombreTurno.Should().Be("[TEST] Turno Vigente Query");
@@ -171,15 +171,15 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ObtenerTurnoVigente_Retorna404_CuandoNoHayTurnoVigenteParaEseEmpleadoYFecha()
+    public async Task ObtenerTurnoVigente_Retorna404_CuandoNoHayTurnoVigenteParaEseColaboradorYFecha()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: empleadoId nuevo, nunca creado por ningun test -- no puede tener turno vigente.
-        var empleadoId = Guid.CreateVersion7().ToString();
+        // Arrange: codigoColaborador nuevo, nunca creado por ningun test -- no puede tener turno vigente.
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 10);
 
-        var response = await _client.GetAsync(Ruta(empleadoId, fecha), ct);
+        var response = await _client.GetAsync(Ruta(codigoColaborador, fecha), ct);
 
         // Assert: CA-4 -- 404 SIN BODY (mismo criterio que #289): distingue el
         // NotFoundResult() del endpoint de un 404 con payload de error, y de la pagina de error del
@@ -195,10 +195,10 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
         var ct = TestContext.Current.CancellationToken;
 
         // Arrange: formato DD-MM-YYYY en vez de yyyy-MM-dd (mismo criterio que #289).
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
 
         var response = await _client.GetAsync(
-            $"/api/control-horas/turnos-vigentes/{empleadoId}/09-04-2026", ct);
+            $"/api/control-horas/turnos-vigentes/{codigoColaborador}/09-04-2026", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

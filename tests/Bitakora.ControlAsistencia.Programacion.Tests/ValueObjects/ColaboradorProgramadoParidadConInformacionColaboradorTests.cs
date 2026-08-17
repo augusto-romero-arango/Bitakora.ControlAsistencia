@@ -1,5 +1,5 @@
 // Issue #319 CA-1: guardrail de la duplicacion deliberada de payload por rol (tres islas,
-// MEF-ADR-0039 decision 2 y 6): Empleado (Programacion.DomainEvents) e InformacionEmpleado
+// MEF-ADR-0039 decision 2 y 6): Colaborador (Programacion.DomainEvents) e InformacionColaborador
 // (PublicEvents) declaran el mismo dato en dos ensamblados que no se referencian entre si.
 // Sin este guardrail, agregar un campo a uno de los dos no rompe nada y el dato se pierde en
 // silencio al construir el evento persistido ProgramacionTurnoSolicitada -- mismo modo de fallo

@@ -16,22 +16,22 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // (ObtenerTurnoVigente/RegistrarMarcacionFunction/...) porque cada una vive en su propio
 // namespace.
 //
-// Ruta sin {empleadoId}/{fecha}: reutiliza el mismo segmento de recurso
+// Ruta sin {codigoColaborador}/{fecha}: reutiliza el mismo segmento de recurso
 // "control-horas/turnos-vigentes" que ObtenerTurnoVigente (#328) -- naming.md: "una query reutiliza
 // el mismo segmento de recurso que ya usa el comando/query de ese recurso". Sin colision de
-// plantilla: la de ObtenerTurnoVigente lleva dos segmentos adicionales ({empleadoId}/{fecha}).
+// plantilla: la de ObtenerTurnoVigente lleva dos segmentos adicionales ({codigoColaborador}/{fecha}).
 //
 // CA-1/CA-2: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
 // nunca a un tenant id que llegue por query string (MEF-ADR-0028/skills/projections/read-apis.md,
-// mitigacion estructural contra BOLA/IDOR). desde/hasta/empleadoId SI vienen del query string: son
+// mitigacion estructural contra BOLA/IDOR). desde/hasta/codigoColaborador SI vienen del query string: son
 // el filtro del recurso, no el tenant.
 //
 // Contrato de la consulta: desde/hasta obligatorios con formato yyyy-MM-dd (CA-4), rango invertido
-// rechazado con 400, empleadoId opcional filtra a un solo empleado (CA-2), recorte de rango con
+// rechazado con 400, codigoColaborador opcional filtra a un solo colaborador (CA-2), recorte de rango con
 // RangoConsulta.Recortar (CA-3) y 200 con lista vacia cuando no hay datos en el rango (CA-4)
 // -- nunca 404: un rango sin turnos asignados no es un error.
 //
-// Issue #337 (CA-2/CA-3/CA-4): sedeId es un tercer filtro opcional, combinable con empleadoId y el
+// Issue #337 (CA-2/CA-3/CA-4): sedeId es un tercer filtro opcional, combinable con codigoColaborador y el
 // rango -- "dias donde AL MENOS un bloque rige en esa sede" (issue #337, "Contexto"), por eso el
 // predicado es Bloques.Any(b => b.SedeId == sedeId) y no un campo a nivel de TurnoVigente (la sede
 // va por bloque, nunca por dia). Sigue siendo la via de consulta (a') de MEF-ADR-0035 (LINQ sobre
@@ -64,14 +64,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         if (hasta < desde)
             return new BadRequestObjectResult("El parametro 'hasta' no puede ser anterior a 'desde'");
 
-        // CA-2: empleadoId es opcional -- ausente = panorama de todos los empleados (consulta del
-        // Programador); presente = filtrado a un solo empleado (consulta del Trabajador).
+        // CA-2: codigoColaborador es opcional -- ausente = panorama de todos los colaboradores (consulta del
+        // Programador); presente = filtrado a un solo colaborador (consulta del Trabajador).
         // StringValues.ToString() devuelve cadena vacia cuando el parametro no viene, asi que
-        // ausente y vacio se tratan igual -- sin filtro por empleado.
-        var empleadoId = req.Query["empleadoId"].ToString();
+        // ausente y vacio se tratan igual -- sin filtro por colaborador.
+        var codigoColaborador = req.Query["codigoColaborador"].ToString();
 
         // Issue #337, CA-2/CA-3: sedeId es opcional -- ausente = sin filtro por sede (regresion de
-        // #329 intacta, CA-3). Mismo tratamiento de StringValues.ToString() que empleadoId: ausente
+        // #329 intacta, CA-3). Mismo tratamiento de StringValues.ToString() que codigoColaborador: ausente
         // y vacio se comportan igual.
         var sedeId = req.Query["sedeId"].ToString();
 
@@ -81,27 +81,27 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // CA-1/CA-2: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
         // ITenantResolver -- nunca a un tenant id que llegara por query string (mitigacion
         // estructural contra BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md).
-        // empleadoId/desde/hasta SI vienen del query string: son el filtro del recurso, no el
+        // codigoColaborador/desde/hasta SI vienen del query string: son el filtro del recurso, no el
         // tenant.
         await using var session = store.QuerySession(tenantResolver.TenantId);
 
-        // Composicion en pasos (no un unico Where con el filtro de empleadoId embebido
+        // Composicion en pasos (no un unico Where con el filtro de codigoColaborador embebido
         // condicionalmente): mas legible que anidar el ternario dentro de la expresion LINQ.
         IQueryable<TurnoVigente> query = session.Query<TurnoVigente>()
             .Where(v => v.Fecha >= desde && v.Fecha <= rangoAplicado.HastaAplicado);
 
-        if (!string.IsNullOrEmpty(empleadoId))
-            query = query.Where(v => v.EmpleadoId == empleadoId);
+        if (!string.IsNullOrEmpty(codigoColaborador))
+            query = query.Where(v => v.CodigoColaborador == codigoColaborador);
 
         // CA-2 (issue #337): "dias donde al menos un bloque rige en esa sede" -- un dia multi-sede
         // (turno partido Suba/Chapinero) aparece bajo cualquiera de las sedes de sus bloques.
         if (!string.IsNullOrEmpty(sedeId))
             query = query.Where(v => v.Bloques.Any(b => b.SedeId == sedeId));
 
-        // Orden sugerido por la investigacion del planner: por EmpleadoId y luego por Fecha --
-        // estable para pintar grillas multi-empleado x rango de fechas.
+        // Orden sugerido por la investigacion del planner: por CodigoColaborador y luego por Fecha --
+        // estable para pintar grillas multi-colaborador x rango de fechas.
         var turnos = await query
-            .OrderBy(v => v.EmpleadoId)
+            .OrderBy(v => v.CodigoColaborador)
             .ThenBy(v => v.Fecha)
             .ToListAsync(ct);
 

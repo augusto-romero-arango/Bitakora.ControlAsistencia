@@ -20,7 +20,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="EmpleadoIdVacio" xml:space="preserve">
-    <value>El EmpleadoId de la marcacion no puede estar vacio</value>
+  <data name="CodigoColaboradorVacio" xml:space="preserve">
+    <value>El CodigoColaborador de la marcacion no puede estar vacio</value>
   </data>
 </root>

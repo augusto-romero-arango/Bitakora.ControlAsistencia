@@ -84,15 +84,15 @@ public class WarmupFixture : IAsyncLifetime
     {
         var stopwatch = Stopwatch.StartNew();
 
-        // CA-4: identificadores descartables y unicos. El stream {empleadoId}:{fecha} queda aislado;
+        // CA-4: identificadores descartables y unicos. El stream {codigoColaborador}:{fecha} queda aislado;
         // no toca los streams ni las suscripciones que verifican los tests reales. No leemos ni
         // purgamos la suscripcion smoke-tests de dia-calculado: el DiaCalculado que emite este
-        // cebado lleva un EmpleadoId distinto (los tests filtran por el suyo) y, ademas, el test
+        // cebado lleva un CodigoColaborador distinto (los tests filtran por el suyo) y, ademas, el test
         // real purga esa suscripcion antes de su Act. Confirmamos el cebado solo via Postgres,
         // que ya prueba que ambos listeners procesaron.
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 1, 1);
-        var streamId = $"{empleadoId}:{fecha:yyyy-MM-dd}";
+        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
 
         // Salto 1: publicar programacion-turno-diario-solicitada -> calienta el listener AsignarTurno,
         // que persiste turno_diario_asignado en el stream.
@@ -100,9 +100,9 @@ public class WarmupFixture : IAsyncLifetime
         var programacionPayload = new
         {
             SolicitudId = solicitudId,
-            Empleado = new
+            Colaborador = new
             {
-                EmpleadoId = empleadoId,
+                CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "000000000",
                 Nombres = "[WARMUP] Cebado cadena SB",
@@ -143,7 +143,7 @@ public class WarmupFixture : IAsyncLifetime
         var timestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);
         var marcacionPayload = new
         {
-            empleadoId,
+            codigoColaborador,
             timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             tipoMarcacion = "ENTRADA",
             dispositivoId = "[WARMUP] DEV-SMOKE-166"
@@ -154,7 +154,7 @@ public class WarmupFixture : IAsyncLifetime
 
         var marcacionAdicionada = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, WarmupTimeout,
-            campoJson: "EmpleadoId", valorJson: empleadoId);
+            campoJson: "CodigoColaborador", valorJson: codigoColaborador);
 
         if (!marcacionAdicionada)
             throw new TimeoutException(

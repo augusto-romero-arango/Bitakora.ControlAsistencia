@@ -13,7 +13,7 @@ public sealed partial class MarcacionRegistrada
 
     internal static class Mensajes
     {
-        public static string EmpleadoIdVacio =>
-            ResourceManager.GetString(nameof(EmpleadoIdVacio))!;
+        public static string CodigoColaboradorVacio =>
+            ResourceManager.GetString(nameof(CodigoColaboradorVacio))!;
     }
 }

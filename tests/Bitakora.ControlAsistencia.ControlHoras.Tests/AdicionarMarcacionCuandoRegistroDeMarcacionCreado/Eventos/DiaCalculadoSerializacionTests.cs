@@ -19,7 +19,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuando
 
 public class DiaCalculadoSerializacionTests
 {
-    private static readonly InformacionColaborador Empleado =
+    private static readonly InformacionColaborador Colaborador =
         new("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
@@ -43,23 +43,23 @@ public class DiaCalculadoSerializacionTests
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelPublisher()
     {
-        var original = new DiaCalculado(Empleado, Fecha, HorasConDatos());
+        var original = new DiaCalculado(Colaborador, Fecha, HorasConDatos());
         var opciones = OpcionesPorDefectoDelPublisher();
 
         var json = JsonSerializer.Serialize(original, opciones);
         var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.InformacionEmpleado.Should().Be(Empleado);
+        restaurado!.InformacionColaborador.Should().Be(Colaborador);
         restaurado.Fecha.Should().Be(Fecha);
         restaurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEquivalentTo(
             original.HorasDiscriminadas.MinutosPorConcepto);
         restaurado.HorasDiscriminadas.Trazabilidad.Should().BeEmpty();
     }
 
-    // CA-6: roundtrip con InformacionEmpleado null (caso "marcacion sin turno previo").
+    // CA-6: roundtrip con InformacionColaborador null (caso "marcacion sin turno previo").
     [Fact]
-    public void RoundTrip_PreservaCampos_CuandoInformacionEmpleadoEsNula()
+    public void RoundTrip_PreservaCampos_CuandoInformacionColaboradorEsNula()
     {
         var original = new DiaCalculado(
             null, Fecha, new HorasDiscriminadas(new Dictionary<string, int>(), []));
@@ -69,7 +69,7 @@ public class DiaCalculadoSerializacionTests
         var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.InformacionEmpleado.Should().BeNull();
+        restaurado!.InformacionColaborador.Should().BeNull();
         restaurado.Fecha.Should().Be(Fecha);
         restaurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty();
     }
@@ -81,7 +81,7 @@ public class DiaCalculadoSerializacionTests
     [Fact]
     public void Deserializar_TieneExito_ConResolverPorDefectoSinRegistros()
     {
-        var original = new DiaCalculado(Empleado, Fecha, HorasConDatos());
+        var original = new DiaCalculado(Colaborador, Fecha, HorasConDatos());
         var json = JsonSerializer.Serialize(original);
 
         var opcionesSinRegistros = new JsonSerializerOptions

@@ -13,23 +13,23 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
 {
-    // Datos de prueba fijos - el stream ID es determinista a partir de EmpleadoId+Fecha
+    // Datos de prueba fijos - el stream ID es determinista a partir de CodigoColaborador+Fecha
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000001");
 
-    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly ColaboradorProgramado Empleado = new(
+    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly ColaboradorProgramado Colaborador = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador EmpleadoDetalle = new(
+    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleColaborador ColaboradorDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
     // CA-7: stream ID determinista que el handler debe computar internamente
-    private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"{Colaborador.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
 
     // El evento privado sigue trayendo DetalleTurno (PrivateEvents) sin cambios.
     // Issue #288: Descripcion (dato derivado) es irrelevante para este test -> placeholder "".
@@ -49,36 +49,36 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento() =>
-        new(SolicitudId, EmpleadoDetalle, Fecha, DetalleTurnoTest);
+        new(SolicitudId, ColaboradorDetalle, Fecha, DetalleTurnoTest);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado() =>
-        new(StreamId, Empleado, Fecha, TurnoDiarioTest, SolicitudId);
+        new(StreamId, Colaborador, Fecha, TurnoDiarioTest, SolicitudId);
 
-    // CA-3: NO existe ControlDiario para EmpleadoId+Fecha - el handler inicia el stream
-    // CA-5: el evento incluye InformacionEmpleado, Fecha, DetalleTurno y SolicitudId
-    // CA-6: el aggregate actualiza InformacionEmpleado, Fecha y DetalleTurno
-    // CA-7: el stream ID resultante es "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
+    // CA-3: NO existe ControlDiario para CodigoColaborador+Fecha - el handler inicia el stream
+    // CA-5: el evento incluye InformacionColaborador, Fecha, DetalleTurno y SolicitudId
+    // CA-6: el aggregate actualiza InformacionColaborador, Fecha y DetalleTurno
+    // CA-7: el stream ID resultante es "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_EmiteTurnoDiarioAsignado_CuandoNoExisteControlDiario()
     {
-        // Sin Given - el stream no existe para este EmpleadoId+Fecha
+        // Sin Given - el stream no existe para este CodigoColaborador+Fecha
         await WhenAsync(CrearEvento());
 
         Then(StreamId, CrearTurnoDiarioAsignado());
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
-        And<ControlDiarioAggregateRoot, ColaboradorProgramado?>(StreamId, c => c.InformacionEmpleado, Empleado);
+        And<ControlDiarioAggregateRoot, ColaboradorProgramado?>(StreamId, c => c.InformacionColaborador, Colaborador);
         And<ControlDiarioAggregateRoot, DateOnly>(StreamId, c => c.Fecha, Fecha);
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, TurnoDiarioTest.Nombre);
     }
 
-    // CA-4: YA existe ControlDiario para EmpleadoId+Fecha - el handler agrega al stream existente
+    // CA-4: YA existe ControlDiario para CodigoColaborador+Fecha - el handler agrega al stream existente
     // CA-5: el nuevo evento contiene todos los campos actualizados
-    // CA-8: el segundo mensaje opera sobre el mismo stream (mismo EmpleadoId+Fecha = mismo StreamId)
+    // CA-8: el segundo mensaje opera sobre el mismo stream (mismo CodigoColaborador+Fecha = mismo StreamId)
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_EmiteTurnoDiarioAsignado_CuandoYaExisteControlDiario()
     {
         var solicitudAnteriorId = Guid.Parse("019600b0-0000-7000-8000-000000000002");
-        var turnoAnterior = new TurnoDiarioAsignado(StreamId, Empleado, Fecha, TurnoDiarioTest, solicitudAnteriorId);
+        var turnoAnterior = new TurnoDiarioAsignado(StreamId, Colaborador, Fecha, TurnoDiarioTest, solicitudAnteriorId);
 
         // Pre-carga el stream con el mismo StreamId que usara el handler (CA-8)
         Given(StreamId, turnoAnterior);
@@ -110,7 +110,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             "Turno Nocturno (22:00-06:00+1)");
 
         await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
-            SolicitudId, EmpleadoDetalle, Fecha, turnoEntrante));
+            SolicitudId, ColaboradorDetalle, Fecha, turnoEntrante));
 
         // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
         var turnoPersistidoEsperado = new TurnoDiario(
@@ -125,7 +125,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             "Turno Nocturno (22:00-06:00+1)");
 
         Then(StreamId, new TurnoDiarioAsignado(
-            StreamId, Empleado, Fecha, turnoPersistidoEsperado, SolicitudId));
+            StreamId, Colaborador, Fecha, turnoPersistidoEsperado, SolicitudId));
         And<ControlDiarioAggregateRoot, TurnoDiario?>(
             StreamId, c => c.DetalleTurno, turnoPersistidoEsperado);
     }
@@ -149,7 +149,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             "Turno Partido");
 
         await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
-            SolicitudId, EmpleadoDetalle, Fecha, turnoEntrante));
+            SolicitudId, ColaboradorDetalle, Fecha, turnoEntrante));
 
         // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
         var sedeSubaEsperada = new SedeProgramada("SEDE-SUBA", "Suba");
@@ -164,7 +164,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             "Turno Partido");
 
         Then(StreamId, new TurnoDiarioAsignado(
-            StreamId, Empleado, Fecha, turnoPersistidoEsperado, SolicitudId));
+            StreamId, Colaborador, Fecha, turnoPersistidoEsperado, SolicitudId));
         And<ControlDiarioAggregateRoot, SedeProgramada?>(
             StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, sedeSubaEsperada);
         And<ControlDiarioAggregateRoot, SedeProgramada?>(

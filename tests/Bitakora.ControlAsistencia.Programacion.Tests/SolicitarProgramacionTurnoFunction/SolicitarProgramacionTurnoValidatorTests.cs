@@ -12,13 +12,13 @@ public class SolicitarProgramacionTurnoValidatorTests
 {
     private readonly SolicitarProgramacionTurnoValidator _validator = new();
 
-    private static InformacionColaborador DatosEmpleadoValidos() =>
+    private static InformacionColaborador DatosColaboradorValidos() =>
         new("E001", "CC", "12345678", "Juan", "Perez");
 
     private static SolicitarProgramacionTurno ComandoValido() => new(
         Guid.NewGuid(),
         Guid.NewGuid(),
-        DatosEmpleadoValidos(),
+        DatosColaboradorValidos(),
         [new DateOnly(2026, 4, 7)]);
 
     // Camino feliz - todos los campos correctos
@@ -59,27 +59,27 @@ public class SolicitarProgramacionTurnoValidatorTests
             e.PropertyName == nameof(SolicitarProgramacionTurno.TurnoId));
     }
 
-    // CA-3: EmpleadoId no puede estar vacio
+    // CA-3: CodigoColaborador no puede estar vacio
     [Fact]
-    public async Task DebeTenerError_CuandoEmpleadoIdEstaVacio()
+    public async Task DebeTenerError_CuandoCodigoColaboradorEstaVacio()
     {
-        var datosInvalidos = DatosEmpleadoValidos() with { EmpleadoId = "" };
-        var comando = ComandoValido() with { Empleado = datosInvalidos };
+        var datosInvalidos = DatosColaboradorValidos() with { CodigoColaborador = "" };
+        var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionColaborador.EmpleadoId)));
+            e.PropertyName.Contains(nameof(InformacionColaborador.CodigoColaborador)));
     }
 
     // CA-3: TipoIdentificacion no puede estar vacio
     [Fact]
     public async Task DebeTenerError_CuandoTipoIdentificacionEstaVacio()
     {
-        var datosInvalidos = DatosEmpleadoValidos() with { TipoIdentificacion = "" };
-        var comando = ComandoValido() with { Empleado = datosInvalidos };
+        var datosInvalidos = DatosColaboradorValidos() with { TipoIdentificacion = "" };
+        var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
@@ -93,8 +93,8 @@ public class SolicitarProgramacionTurnoValidatorTests
     [Fact]
     public async Task DebeTenerError_CuandoNumeroIdentificacionEstaVacio()
     {
-        var datosInvalidos = DatosEmpleadoValidos() with { NumeroIdentificacion = " " };
-        var comando = ComandoValido() with { Empleado = datosInvalidos };
+        var datosInvalidos = DatosColaboradorValidos() with { NumeroIdentificacion = " " };
+        var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
@@ -108,8 +108,8 @@ public class SolicitarProgramacionTurnoValidatorTests
     [Fact]
     public async Task DebeTenerError_CuandoNombresEstanVacios()
     {
-        var datosInvalidos = DatosEmpleadoValidos() with { Nombres = "" };
-        var comando = ComandoValido() with { Empleado = datosInvalidos };
+        var datosInvalidos = DatosColaboradorValidos() with { Nombres = "" };
+        var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
@@ -123,8 +123,8 @@ public class SolicitarProgramacionTurnoValidatorTests
     [Fact]
     public async Task DebeTenerError_CuandoApellidosEstanVacios()
     {
-        var datosInvalidos = DatosEmpleadoValidos() with { Apellidos = "   " };
-        var comando = ComandoValido() with { Empleado = datosInvalidos };
+        var datosInvalidos = DatosColaboradorValidos() with { Apellidos = "   " };
+        var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
@@ -134,20 +134,20 @@ public class SolicitarProgramacionTurnoValidatorTests
             e.PropertyName.Contains(nameof(InformacionColaborador.Apellidos)));
     }
 
-    // HU-225 / CA-1: Empleado null no debe lanzar excepcion (NullReferenceException por
+    // HU-225 / CA-1: Colaborador null no debe lanzar excepcion (NullReferenceException por
     // desreferencia encadenada); debe reportar IsValid == false con un error asociado a
-    // la propiedad Empleado.
+    // la propiedad Colaborador.
     [Fact]
-    public async Task Validar_TieneErrorEnEmpleado_CuandoEmpleadoEsNull()
+    public async Task Validar_TieneErrorEnColaborador_CuandoColaboradorEsNull()
     {
-        var comando = ComandoValido() with { Empleado = null! };
+        var comando = ComandoValido() with { Colaborador = null! };
 
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName == nameof(SolicitarProgramacionTurno.Empleado));
+            e.PropertyName == nameof(SolicitarProgramacionTurno.Colaborador));
     }
 
     // CA-4: Fechas debe tener al menos un elemento

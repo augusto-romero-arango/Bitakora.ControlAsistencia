@@ -1,5 +1,5 @@
-// Issue #322: paridad de campos e igualdad de Empleado (ControlHoras.DomainEvents) con
-// InformacionEmpleado (PublicEvents.Colaboradores) y DetalleColaborador (PrivateEvents.Programacion)
+// Issue #322: paridad de campos e igualdad de Colaborador (ControlHoras.DomainEvents) con
+// InformacionColaborador (PublicEvents.Colaboradores) y DetalleColaborador (PrivateEvents.Programacion)
 // -- payload por rol, CA-ADR-0029 decision #5.
 // CA-1: todos los campos son string, asi que la igualdad por valor del record por defecto ya es
 // correcta y no lleva Equals/GetHashCode custom. Este test congela ese contrato: el dia que alguien
@@ -21,7 +21,7 @@ public class ColaboradorProgramadoIgualdadTests : IgualdadTestBase<ColaboradorPr
 
     protected override IEnumerable<(string, ColaboradorProgramado)> CrearInstanciasDiferentes()
     {
-        yield return ("EmpleadoId",
+        yield return ("CodigoColaborador",
             new ColaboradorProgramado("EMP-002", "CC", "1234567890", "Luis Augusto", "Barreto"));
         yield return ("TipoIdentificacion",
             new ColaboradorProgramado("EMP-001", "CE", "1234567890", "Luis Augusto", "Barreto"));

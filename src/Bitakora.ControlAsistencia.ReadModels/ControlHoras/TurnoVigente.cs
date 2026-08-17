@@ -1,7 +1,7 @@
 namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 
 /// <summary>
-/// Read model del turno que rige a un empleado en una fecha (issue #328), disenado desde la
+/// Read model del turno que rige a un colaborador en una fecha (issue #328), disenado desde la
 /// necesidad de lectura (panorama del programador, consulta del trabajador, consulta puntual del
 /// aprobador) y no desde el evento disponible. Reemplazo del read model anterior del issue #289,
 /// que la contraccion del issue #323 ya retiro.
@@ -18,17 +18,17 @@ namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 /// de infraestructura del issue #317 CA-2 al read-side (ver issue #328, "ADRs aplicables").
 ///
 /// Id es el stream key que compone ControlDiarioAggregateRoot.ComputarStreamId:
-/// "{EmpleadoId}:{Fecha:yyyy-MM-dd}" -- nunca un Guid (Events.StreamIdentity = AsString). Excluye
+/// "{CodigoColaborador}:{Fecha:yyyy-MM-dd}" -- nunca un Guid (Events.StreamIdentity = AsString). Excluye
 /// deliberadamente la trazabilidad interna hacia la solicitud de programacion y la identificacion
-/// completa del empleado (ambas las cargaba el read model del issue #289, que ningun cliente de
-/// calendario consumia): solo EmpleadoId (lookup/resourceId) y NombreCompleto (un solo campo,
+/// completa del colaborador (ambas las cargaba el read model del issue #289, que ningun cliente de
+/// calendario consumia): solo CodigoColaborador (lookup/resourceId) y NombreCompleto (un solo campo,
 /// concatenado por la proyeccion desde ColaboradorProgramado.Nombres +
 /// ColaboradorProgramado.Apellidos -- unico lugar del sistema donde se hace, issue #328
 /// "Investigacion del planner").
 /// </summary>
 public sealed record TurnoVigente(
     string Id,
-    string EmpleadoId,
+    string CodigoColaborador,
     string NombreCompleto,
     DateOnly Fecha,
     string NombreTurno,

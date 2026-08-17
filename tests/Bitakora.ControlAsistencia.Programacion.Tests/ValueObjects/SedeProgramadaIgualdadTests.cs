@@ -1,6 +1,6 @@
 // Issue #331: Tests de contrato IEquatable para SedeProgramada (record propio de
 // Programacion.DomainEvents). Todos los campos son string: la igualdad por valor del record por
-// defecto ya es correcta, sin Equals/GetHashCode custom -- mismo criterio que Empleado (issue #319).
+// defecto ya es correcta, sin Equals/GetHashCode custom -- mismo criterio que Colaborador (issue #319).
 
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 

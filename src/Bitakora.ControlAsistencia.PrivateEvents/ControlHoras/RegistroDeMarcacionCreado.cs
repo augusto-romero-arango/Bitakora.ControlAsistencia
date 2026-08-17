@@ -20,7 +20,7 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 // Nunca se persiste: no entra en ConfiguracionSerializacionControlHoras ni en
 // IdentidadEventosControlHoras.TiposPersistidos. Vive solo en el canal.
 public record RegistroDeMarcacionCreado(
-    string EmpleadoId,
+    string CodigoColaborador,
     DateTime TimestampNormalizado,
     string? TipoMarcacion,
     string? DispositivoId) : IPrivateEvent;

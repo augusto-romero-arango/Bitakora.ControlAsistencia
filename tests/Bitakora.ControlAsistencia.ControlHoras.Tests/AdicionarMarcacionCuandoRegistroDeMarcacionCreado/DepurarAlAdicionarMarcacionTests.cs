@@ -20,18 +20,18 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuando
 public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
 {
     // Datos de prueba fijos - misma ancla de fecha que los tests del handler
-    private const string EmpleadoId = "EMP-001";
+    private const string CodigoColaborador = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{EmpleadoId}:{Fecha:yyyy-MM-dd}";
-    private static readonly string StreamIdDiaAnterior = $"{EmpleadoId}:2026-03-14";
+    private static readonly string StreamId = $"{CodigoColaborador}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamIdDiaAnterior = $"{CodigoColaborador}:2026-03-14";
 
-    // Issue #322: Empleado (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
-    private static readonly ColaboradorProgramado EmpleadoPersistido = new(
-        EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
+    // Issue #322: Colaborador (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
+    private static readonly ColaboradorProgramado ColaboradorPersistido = new(
+        CodigoColaborador, "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // InformacionEmpleado (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
-    private static readonly InformacionColaborador EmpleadoPublico = new(
-        EmpleadoId, "CC", "1234567890", "Luis Augusto", "Barreto");
+    // InformacionColaborador (PublicEvents) -- lo que espera DiaCalculado, evento publico sin cambios.
+    private static readonly InformacionColaborador ColaboradorPublico = new(
+        CodigoColaborador, "CC", "1234567890", "Luis Augusto", "Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000001");
 
     // CA-1: franja unica 06:00-14:00
@@ -56,13 +56,13 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
 
     private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
-        new(EmpleadoId, timestamp, "ENTRADA", "DEV-001");
+        new(CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
-        new(StreamId, EmpleadoId, timestamp, "ENTRADA", "DEV-001");
+        new(StreamId, CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario detalleTurno) =>
-        new(StreamId, EmpleadoPersistido, Fecha, detalleTurno, SolicitudId);
+        new(StreamId, ColaboradorPersistido, Fecha, detalleTurno, SolicitudId);
 
     // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
     // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
@@ -74,7 +74,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     // CA-1 (HU-123): con TurnoDiarioAsignado (franja unica 06:00-14:00) previo y RegistroDeMarcacionCreado a las 07:00,
     //        ControlesDeFranja debe quedar con un ControlFranja(Franja06_14, Entrada=07:00, Salida=null).
     //        Verifica que el hook reactivo se dispara desde Apply(MarcacionAdicionada).
-    // CA-1 (HU-108): el handler publica DiaCalculado con InformacionEmpleado, Fecha y ControlesDeFranja correctos.
+    // CA-1 (HU-108): el handler publica DiaCalculado con InformacionColaborador, Fecha y ControlesDeFranja correctos.
     [Fact]
     public async Task RegistroDeMarcacionCreado_CalculaControlFranja_CuandoHayTurnoYLlegaMarcacion()
     {
@@ -95,7 +95,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // que MinutosPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano ya no
         // distingue "franja anomala" de "dia sin horas"; ambos publican el mismo diccionario vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
-            EmpleadoPublico,
+            ColaboradorPublico,
             Fecha,
             new HorasDiscriminadas(new Dictionary<string, int>(), [])));
     }
@@ -116,7 +116,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             StreamId, c => c.ControlesDeFranja.Count, 0);
 
         // HU-108 CA-4: se publica DiaCalculado aunque no haya turno.
-        // InformacionEmpleado es null porque el ControlDiario nacio solo por marcacion.
+        // InformacionColaborador es null porque el ControlDiario nacio solo por marcacion.
         // Issue #183 CA-6: sin turno no hay nada que consolidar -> MinutosPorConcepto viaja vacio.
         ThenIsPublishedPublicly(new DiaCalculado(
             null,
@@ -164,7 +164,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // con LineaConcepto desde su intervalo y la etiqueta traducida. F2 es anomala (Salida null): no
         // aporta intervalos ni lineas.
         ThenIsPublishedPublicly(new DiaCalculado(
-            EmpleadoPublico,
+            ColaboradorPublico,
             Fecha,
             new HorasDiscriminadas(
                 new Dictionary<string, int>
@@ -194,12 +194,12 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
 
         // Verificar que cada stream tiene exactamente un MarcacionAdicionada
         Then(StreamId,
-            new MarcacionAdicionada(StreamId, EmpleadoId, timestampNocturno, "ENTRADA", "DEV-001"));
+            new MarcacionAdicionada(StreamId, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
         Then(StreamIdDiaAnterior,
-            new MarcacionAdicionada(StreamIdDiaAnterior, EmpleadoId, timestampNocturno, "ENTRADA", "DEV-001"));
+            new MarcacionAdicionada(StreamIdDiaAnterior, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
 
         // CA-5: dos DiaCalculado publicados, en orden: dia calendario primero, dia anterior segundo.
-        // Ambos sin turno previo (InformacionEmpleado=null).
+        // Ambos sin turno previo (InformacionColaborador=null).
         // Issue #183 CA-6: sin turno en ninguno de los dos streams, MinutosPorConcepto viaja vacio en ambos.
         ThenIsPublishedPublicly(
             new DiaCalculado(null, fechaDiaCal, new HorasDiscriminadas(new Dictionary<string, int>(), [])),

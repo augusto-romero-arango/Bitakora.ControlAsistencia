@@ -34,19 +34,19 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
 public class CrearDiaCalculadoConHorasDiscriminadasTests
 {
-    // Datos compartidos - el stream ID es determinista a partir de EmpleadoId+Fecha.
+    // Datos compartidos - el stream ID es determinista a partir de CodigoColaborador+Fecha.
     // private static: las nested classes acceden a los miembros privados de la clase contenedora.
-    // Issue #322: Empleado (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
-    private static readonly ColaboradorProgramado Empleado = new(
+    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    private static readonly ColaboradorProgramado Colaborador = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // Mismo empleado, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Empleado para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador EmpleadoDetalle = new(
+    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
+    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
+    private static readonly DetalleColaborador ColaboradorDetalle = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{Empleado.EmpleadoId}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"{Colaborador.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
     private static readonly Guid SolicitudId = Guid.Parse("019600d0-0000-7000-8000-000000000001");
 
     // Franja unica 06:00-14:00 usada por los escenarios de turno. FranjaProgramada
@@ -63,10 +63,10 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     private static readonly DateTime Timestamp15_00 = new(2026, 3, 15, 15, 0, 0);
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestamp) =>
-        new(StreamId, Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
+        new(StreamId, Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
-        new(StreamId, Empleado, Fecha, turnoDiario, SolicitudId);
+        new(StreamId, Colaborador, Fecha, turnoDiario, SolicitudId);
 
     // Oraculo independiente: dia con franja 06:00-14:00 trabajada 07:00-15:00 (domingo 2026-03-15,
     // no anomala). El retardo 60min (06:00-07:00) se compensa con el excedente 60min (14:00-15:00) ->
@@ -83,7 +83,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
                 EventStore, PublicEventSender);
 
         private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-            new(SolicitudId, EmpleadoDetalle, Fecha, detalleTurno);
+            new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);
 
         // CA-4: con turno (franja 06:00-14:00) y marcaciones previas que la completan (07:00, 15:00),
         //       la franja queda NO anomala. CrearDiaCalculado() debe empaquetar el payload plano
@@ -146,7 +146,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
                 EventStore, PublicEventSender);
 
         private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
-            new(Empleado.EmpleadoId, timestamp, "ENTRADA", "DEV-001");
+            new(Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
         // CA-4 (sin turno): la marcacion crea el aggregate sin DetalleTurno -> Depurar() retorna lista
         //       vacia -> no hay ControlesDeFranja que consolidar. CrearDiaCalculado() empaqueta el

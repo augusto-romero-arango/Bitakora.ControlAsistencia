@@ -17,16 +17,20 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// SedeProgramada en vez de Sede (#331, #336). Esto diverge deliberadamente de #319, que habia
 /// elegido "nombre puro del lenguaje ubicuo" para los payloads. Es un gemelo deliberado del
 /// ColaboradorProgramado de ControlHoras.DomainEvents: mismo nombre en otra isla, con paridad de
-/// campos y sin referencia entre ambos (patron SedeProgramada, #336). El rename no toca ninguna
-/// clave JSON: los NOMBRES de las propiedades siguen siendo los de #401, y este record no esta en
-/// IdentidadEventosProgramacion.TiposPersistidos -- no tiene alias, y STJ no persiste $type para
-/// payload anidado (MEF-ADR-0036 no aplica; precedente #319 CA-2, #322).
+/// campos y sin referencia entre ambos (patron SedeProgramada, #336). Ese rename de #340 no toco
+/// ninguna clave JSON.
+///
+/// Issue #401: el campo EmpleadoId paso a CodigoColaborador -- aqui SI cambia la clave JSON del
+/// payload anidado. Sin mapeo: los streams de dev se purgan en el mismo despliegue (MEF-ADR-0036
+/// seccion 5). Este record no esta en IdentidadEventosProgramacion.TiposPersistidos -- no tiene
+/// alias propio, y STJ no persiste $type para payload anidado (MEF-ADR-0036 no aplica al TIPO;
+/// precedente #319 CA-2, #322).
 ///
 /// Sin comportamiento, sin Equals custom: todos los campos son string, la igualdad por valor
 /// del record por defecto ya es correcta (mismo criterio que DetalleColaborador, issue #318).
 /// </remarks>
 public record ColaboradorProgramado(
-    string EmpleadoId,
+    string CodigoColaborador,
     string TipoIdentificacion,
     string NumeroIdentificacion,
     string Nombres,

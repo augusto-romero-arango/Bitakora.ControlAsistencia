@@ -45,7 +45,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         // Issue #319 CA-2/CA-5: el comando HTTP conserva el tipo de PublicEvents (fuera de alcance);
         // el evento persistido tipa con ColaboradorProgramado (dominio) -- el mapeo vive aqui.
-        var colaboradorDominio = MapearColaboradorProgramado(command.Empleado);
+        var colaboradorDominio = MapearColaboradorProgramado(command.Colaborador);
         var evento = new ProgramacionTurnoSolicitada(
             command.Id, colaboradorDominio, fechas, turnoProgramado, command.Sede);
         var solicitud = SolicitudProgramacionAggregateRoot.Iniciar(evento);
@@ -57,7 +57,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // CA-ADR-0029 decision #5 (payload por rol): el comando HTTP trae InformacionColaborador
         // (PublicEvents) y el evento privado lleva DetalleColaborador, asi que el mapeo vive aqui --
         // la Function App es el unico proyecto que ve ambos ensamblados.
-        var colaborador = MapearDetalleColaborador(command.Empleado);
+        var colaborador = MapearDetalleColaborador(command.Colaborador);
         // Issue #319 CA-5: DetalleTurno (PrivateEvents) se deriva de TurnoProgramado (dominio),
         // no directamente del catalogo -- unico punto de mapeo hacia el payload de bus.
         var detalleTurno = MapearTurno(turnoProgramado);
@@ -73,14 +73,14 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     }
 
     private static DetalleColaborador MapearDetalleColaborador(InformacionColaborador colaborador) =>
-        new(colaborador.EmpleadoId, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
+        new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
             colaborador.Nombres, colaborador.Apellidos);
 
     // Issue #319 CA-5: mapeo campo a campo hacia el record propio del dominio
     // (Programacion.DomainEvents.ColaboradorProgramado), tipo del evento persistido
     // ProgramacionTurnoSolicitada.
     private static ColaboradorProgramado MapearColaboradorProgramado(InformacionColaborador colaborador) =>
-        new(colaborador.EmpleadoId, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
+        new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
             colaborador.Nombres, colaborador.Apellidos);
 
     // Issue #319 CA-5: unico punto de traduccion desde TurnoProgramado (dominio) hacia el payload

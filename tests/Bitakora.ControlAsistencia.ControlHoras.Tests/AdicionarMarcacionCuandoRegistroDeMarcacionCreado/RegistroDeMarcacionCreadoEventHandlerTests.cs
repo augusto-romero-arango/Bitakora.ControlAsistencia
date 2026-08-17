@@ -15,7 +15,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
 {
     // Datos de prueba fijos
-    private const string EmpleadoId = "EMP-001";
+    private const string CodigoColaborador = "EMP-001";
 
     // CA-1: hora fuera de ventana nocturna (>= 04:00) - solo dia calendario
     private static readonly DateTime TimestampFueraDeVentana = new DateTime(2026, 3, 15, 8, 15, 0);
@@ -24,8 +24,8 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     private static readonly DateTime TimestampDentroDeVentana = new DateTime(2026, 3, 15, 2, 30, 0);
 
     // CA-7, CA-8: stream IDs computados desde TimestampNormalizado
-    private static readonly string StreamIdDia15 = $"{EmpleadoId}:2026-03-15";
-    private static readonly string StreamIdDia14 = $"{EmpleadoId}:2026-03-14";
+    private static readonly string StreamIdDia15 = $"{CodigoColaborador}:2026-03-15";
+    private static readonly string StreamIdDia14 = $"{CodigoColaborador}:2026-03-14";
 
     protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
         new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
@@ -35,7 +35,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         DateTime timestampNormalizado,
         string? tipoMarcacion = "ENTRADA",
         string? dispositivoId = "DEV-001") =>
-        new(EmpleadoId, timestampNormalizado, tipoMarcacion, dispositivoId);
+        new(CodigoColaborador, timestampNormalizado, tipoMarcacion, dispositivoId);
 
     // Factory para MarcacionAdicionada (evento emitido al stream del ControlDiario)
     private static MarcacionAdicionada CrearMarcacionAdicionada(
@@ -43,12 +43,12 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         DateTime timestampNormalizado,
         string? tipoMarcacion = "ENTRADA",
         string? dispositivoId = "DEV-001") =>
-        new(streamId, EmpleadoId, timestampNormalizado, tipoMarcacion, dispositivoId);
+        new(streamId, CodigoColaborador, timestampNormalizado, tipoMarcacion, dispositivoId);
 
     // CA-1: hora fuera de ventana nocturna (08:15) -> un solo ControlDiario para dia calendario
     // CA-5: si no existe ControlDiario, se crea con Iniciar(MarcacionAdicionada)
-    // CA-6: ControlDiario creado solo por marcacion tiene InformacionEmpleado y DetalleTurno nulos
-    // CA-7: stream ID es "{EmpleadoId}:{Fecha:yyyy-MM-dd}"
+    // CA-6: ControlDiario creado solo por marcacion tiene InformacionColaborador y DetalleTurno nulos
+    // CA-7: stream ID es "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
     // CA-8: la fecha se extrae del TimestampNormalizado del evento
     [Fact]
     public async Task RegistroDeMarcacionCreado_CreaControlDiarioConMarcacion_CuandoNoExisteYHoraFueraDeVentanaNocturna()
@@ -58,7 +58,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
         And<ControlDiarioAggregateRoot, ColaboradorProgramado?>(
-            StreamIdDia15, c => c.InformacionEmpleado, null);
+            StreamIdDia15, c => c.InformacionColaborador, null);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(
             StreamIdDia15, c => c.DetalleTurno, null);
         And<ControlDiarioAggregateRoot, int>(

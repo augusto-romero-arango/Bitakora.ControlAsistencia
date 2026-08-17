@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente;
 // con ListarTurnosVigentes/RegistrarMarcacionFunction/... porque cada una vive en su propio
 // namespace.
 //
-// La ruta recibe empleadoId y fecha como los componentes tipados de la clave natural compuesta
+// La ruta recibe codigoColaborador y fecha como los componentes tipados de la clave natural compuesta
 // -- la clave se reconstruye con ControlDiarioAggregateRoot.ComputarStreamId, nunca con una
 // concatenacion propia del endpoint (MEF-ADR-0037). CA-4: fecha invalida -> 400 explicito; 200 con
 // la vista completa (Id incluido -- la UI lo necesita como ancla de comandos, ver issue "Notas
@@ -26,9 +26,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 
     [Function("ObtenerTurnoVigente")]
     public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "control-horas/turnos-vigentes/{empleadoId}/{fecha}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "control-horas/turnos-vigentes/{codigoColaborador}/{fecha}")]
         HttpRequest req,
-        string empleadoId,
+        string codigoColaborador,
         string fecha,
         CancellationToken ct)
     {
@@ -40,16 +40,16 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
             return new BadRequestObjectResult(
                 $"El parametro 'fecha' debe tener el formato {FormatoFecha}");
 
-        var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(empleadoId, fechaParseada);
+        var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(codigoColaborador, fechaParseada);
 
         // CA-4: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
         // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
-        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). empleadoId y fecha SI vienen de
+        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). codigoColaborador y fecha SI vienen de
         // la ruta: son el recurso, no el tenant.
         await using var session = store.QuerySession(tenantResolver.TenantId);
         var vista = await session.LoadAsync<TurnoVigente>(streamKey, ct);
 
-        // CA-4: 404 sin body cuando no hay turno vigente para ese (empleado, fecha) -- no es un
+        // CA-4: 404 sin body cuando no hay turno vigente para ese (colaborador, fecha) -- no es un
         // error, significa que ese dia no tiene turno asignado.
         if (vista is null)
             return new NotFoundResult();

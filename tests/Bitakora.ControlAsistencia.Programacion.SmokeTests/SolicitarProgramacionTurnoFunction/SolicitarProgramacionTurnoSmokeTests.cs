@@ -65,9 +65,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
     {
         id = id ?? Guid.CreateVersion7(),
         turnoId = turnoId ?? Guid.CreateVersion7(),
-        empleado = new
+        colaborador = new
         {
-            empleadoId = Guid.CreateVersion7().ToString(),
+            codigoColaborador = Guid.CreateVersion7().ToString(),
             tipoIdentificacion = "CC",
             numeroIdentificacion = "123456789",
             nombres = "[TEST] Juan Carlos",
@@ -110,16 +110,16 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Arrange: preparar solicitud con dos fechas para verificar emision de un evento por fecha
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha1 = "2026-04-15";
         var fecha2 = "2026-04-16";
         var payload = new
         {
             id = solicitudId,
             turnoId,
-            empleado = new
+            colaborador = new
             {
-                empleadoId,
+                codigoColaborador,
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "555666777",
                 nombres = "[TEST] Smoke ServiceBus",
@@ -142,12 +142,12 @@ public class SolicitarProgramacionTurnoSmokeTests(
         new[] { evento1.Fecha, evento2.Fecha }.Should()
             .BeEquivalentTo(new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
 
-        // Verificar datos del empleado y turno en uno de los eventos. El payload del empleado es
+        // Verificar datos del colaborador y turno en uno de los eventos. El payload del colaborador es
         // DetalleColaborador (PrivateEvents): con la paridad de campos el JSON del cable no cambia,
         // asi que este smoke test tambien evidencia la compatibilidad del despliegue rolling.
-        var empleadoEsperado = new DetalleColaborador(
-            empleadoId, "CC", "555666777", "[TEST] Smoke ServiceBus", "[TEST] Publicacion");
-        evento1.Empleado.Should().Be(empleadoEsperado);
+        var colaboradorEsperado = new DetalleColaborador(
+            codigoColaborador, "CC", "555666777", "[TEST] Smoke ServiceBus", "[TEST] Publicacion");
+        evento1.Colaborador.Should().Be(colaboradorEsperado);
 
         evento1.DetalleTurno.Should().NotBeNull();
         evento1.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
@@ -205,16 +205,16 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Arrange: solicitud con sede -- issue #331 CA-1
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var sedeId = "SEDE-01";
         var sedeNombre = "[TEST] Sede Principal";
         var payload = new
         {
             id = solicitudId,
             turnoId,
-            empleado = new
+            colaborador = new
             {
-                empleadoId,
+                codigoColaborador,
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "111222333",
                 nombres = "[TEST] Smoke Sede",
@@ -277,14 +277,14 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Arrange: solicitud CON sede -- issue #341 CA-1
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var payload = new
         {
             id = solicitudId,
             turnoId,
-            empleado = new
+            colaborador = new
             {
-                empleadoId,
+                codigoColaborador,
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "444555666",
                 nombres = "[TEST] Smoke Cascada",
@@ -349,9 +349,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         {
             id = solicitudId,
             turnoId,
-            empleado = new
+            colaborador = new
             {
-                empleadoId = Guid.CreateVersion7().ToString(),
+                codigoColaborador = Guid.CreateVersion7().ToString(),
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "888999000",
                 nombres = "[TEST] Smoke Persistencia",
@@ -422,14 +422,14 @@ public class SolicitarProgramacionTurnoSmokeTests(
         // Arrange: solicitud SIN sede -- issue #341 CA-2: la franja con sede del catalogo la
         // conserva (el catalogo le gana al "sin sede" de la solicitud tambien).
         var solicitudId = Guid.CreateVersion7();
-        var empleadoId = Guid.CreateVersion7().ToString();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
         var payload = new
         {
             id = solicitudId,
             turnoId,
-            empleado = new
+            colaborador = new
             {
-                empleadoId,
+                codigoColaborador,
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "777888999",
                 nombres = "[TEST] Smoke Prearmada",
@@ -527,9 +527,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         {
             id = Guid.Empty,
             turnoId = Guid.CreateVersion7(),
-            empleado = new
+            colaborador = new
             {
-                empleadoId = Guid.CreateVersion7().ToString(),
+                codigoColaborador = Guid.CreateVersion7().ToString(),
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "123456789",
                 nombres = "[TEST] Juan",
@@ -552,9 +552,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         {
             id = Guid.CreateVersion7(),
             turnoId = Guid.Empty,
-            empleado = new
+            colaborador = new
             {
-                empleadoId = Guid.CreateVersion7().ToString(),
+                codigoColaborador = Guid.CreateVersion7().ToString(),
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "123456789",
                 nombres = "[TEST] Juan",
@@ -570,16 +570,16 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoEmpleadoTieneCamposVacios()
+    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoColaboradorTieneCamposVacios()
     {
         var ct = TestContext.Current.CancellationToken;
         var payload = new
         {
             id = Guid.CreateVersion7(),
             turnoId = Guid.CreateVersion7(),
-            empleado = new
+            colaborador = new
             {
-                empleadoId = "",
+                codigoColaborador = "",
                 tipoIdentificacion = "",
                 numeroIdentificacion = "",
                 nombres = "",
@@ -595,14 +595,14 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoEmpleadoEsNull()
+    public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoColaboradorEsNull()
     {
         var ct = TestContext.Current.CancellationToken;
         var payload = new
         {
             id = Guid.CreateVersion7(),
             turnoId = Guid.CreateVersion7(),
-            empleado = (object?)null,
+            colaborador = (object?)null,
             fechas = new[] { "2025-08-01" }
         };
 
@@ -620,9 +620,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         {
             id = Guid.CreateVersion7(),
             turnoId = Guid.CreateVersion7(),
-            empleado = new
+            colaborador = new
             {
-                empleadoId = Guid.CreateVersion7().ToString(),
+                codigoColaborador = Guid.CreateVersion7().ToString(),
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "123456789",
                 nombres = "[TEST] Juan",
@@ -646,9 +646,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         {
             id = Guid.CreateVersion7(),
             turnoId = Guid.CreateVersion7(),
-            empleado = new
+            colaborador = new
             {
-                empleadoId = Guid.CreateVersion7().ToString(),
+                codigoColaborador = Guid.CreateVersion7().ToString(),
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "123456789",
                 nombres = "[TEST] Juan",
@@ -673,9 +673,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         {
             id = Guid.CreateVersion7(),
             turnoId = Guid.CreateVersion7(),
-            empleado = new
+            colaborador = new
             {
-                empleadoId = Guid.CreateVersion7().ToString(),
+                codigoColaborador = Guid.CreateVersion7().ToString(),
                 tipoIdentificacion = "CC",
                 numeroIdentificacion = "123456789",
                 nombres = "[TEST] Juan",

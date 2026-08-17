@@ -4,10 +4,10 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// Sede efectiva donde rige la programacion del turno para el dia solicitado.
 /// </summary>
 /// <remarks>
-/// Issue #331: snapshot de la sede resuelta por el cliente (sede natural del empleado como
+/// Issue #331: snapshot de la sede resuelta por el cliente (sede natural del colaborador como
 /// default silencioso, o la que el Programador indique) -- el servidor NUNCA consulta el maestro
 /// de sedes (#330), la verdad queda grabada en el evento. Id es un identificador opaco provisto
-/// por el cliente (mismo precedente que EmpleadoId/DispositivoId: puede o no ser un guid). Nombre
+/// por el cliente (mismo precedente que CodigoColaborador/DispositivoId: puede o no ser un guid). Nombre
 /// viaja para que el evento persistido quede autocontenido.
 /// Sin Equals custom: todos los campos son string, la igualdad por valor del record por defecto ya
 /// es correcta (mismo criterio que ColaboradorProgramado, issue #319).

@@ -28,7 +28,7 @@ public class ConfiguracionMartenProjectionsTests
     private const string ConnectionStringDummy = "Host=localhost;Database=dummy";
 
     // Issue #268 CA-2: identidad del canario de round-trip de Programacion (el de ControlHoras,
-    // MarcacionRegistrada, se identifica por EmpleadoId string y no necesita ninguna). El valor en
+    // MarcacionRegistrada, se identifica por CodigoColaborador string y no necesita ninguna). El valor en
     // si es irrelevante: solo debe ser estable para que el test sea reproducible.
     private static readonly Guid TurnoIdCanario = Guid.Parse("019600a0-0000-7000-8000-000000000099");
 
@@ -273,7 +273,7 @@ public class ConfiguracionMartenProjectionsTests
             .DeserializarConResolverDeSerializacionCustom(evento);
 
         restaurado.Should().NotBeNull();
-        restaurado.EmpleadoId.Should().Be("1098765432");
+        restaurado.CodigoColaborador.Should().Be("1098765432");
         restaurado.TimestampNormalizado.Should().Be(new DateTime(2026, 7, 31, 8, 0, 0));
         restaurado.TipoMarcacion.Should().Be("Entrada");
         restaurado.DispositivoId.Should().Be("disp-01");
@@ -297,7 +297,7 @@ public class ConfiguracionMartenProjectionsTests
     }
 
     // Issue #328 CA-3: proyeccion concreta del dominio (N1, SingleStreamProjection<TurnoVigente,
-    // string> sobre el stream (EmpleadoId, Fecha)). Complementa
+    // string> sobre el stream (CodigoColaborador, Fecha)). Complementa
     // ConfigurarControlHoras_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo
     // Inline -- una lista vacia la pasaria --, esta prueba que la proyeccion CONCRETA si se
     // registro con lifecycle Async, el canonico del worker (MEF-ADR-0034 seccion 3).
