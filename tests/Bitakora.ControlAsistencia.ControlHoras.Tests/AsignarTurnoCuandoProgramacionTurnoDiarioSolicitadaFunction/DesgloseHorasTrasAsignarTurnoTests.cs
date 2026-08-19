@@ -35,7 +35,6 @@ public class DesgloseHorasTrasAsignarTurnoTests
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    // Issue #420: stream ID renotado con prefijo "cd" y fecha en ISO 8601 basico (CA-ADR-0031).
     private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     // CA-3: franja unica 06:00-14:00 para el turno asignado -- FranjaProgramada (ControlHoras.DomainEvents)

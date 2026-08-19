@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
@@ -69,14 +70,22 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(desgloses, anomalas);
     }
 
-    // CA-ADR-0031: prefijo por iniciales para evitar colision con el futuro DiaCalculado ("dc:"),
-    // que comparte la identidad logica colaborador+fecha en el mismo store.
-    private const string PrefijoStream = "cd";
+    // CA-ADR-0031: prefijo por iniciales -- disjunta este stream del futuro DiaCalculado ("dc:"), que
+    // comparte la identidad logica colaborador+fecha en el mismo store. La fecha va en ISO 8601 basico
+    // porque no aporta ':' propios: asi Split(SeparadorStreamId) devuelve siempre los 3 componentes.
+    // Los tres valores son el contrato de identidad de todo stream ya escrito -- cambiar cualquiera
+    // exige migracion. InvariantCulture: una culture con calendario no gregoriano (ar-SA) rendiria
+    // otro ano en la clave.
+    private const string PrefijoStreamId = "cd";
+    private const char SeparadorStreamId = ':';
+    private const string FormatoFechaStreamId = "yyyyMMdd";
 
-    // CA-7: stream ID determinista: "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (issue #420)
     // CA-8: dos mensajes con mismo CodigoColaborador+Fecha comparten el mismo stream
-    public static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
-        $"{PrefijoStream}:{codigoColaborador}:{fecha:yyyyMMdd}";
+    public static string ComputarStreamId(string codigoColaborador, DateOnly fecha)
+    {
+        var fechaBasica = fecha.ToString(FormatoFechaStreamId, CultureInfo.InvariantCulture);
+        return $"{PrefijoStreamId}{SeparadorStreamId}{codigoColaborador}{SeparadorStreamId}{fechaBasica}";
+    }
 
     // CA-6: actualiza estado interno al aplicar el evento
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
@@ -123,13 +132,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // HU-108: stream ID tiene formato "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (CA-7, issue #420).
-    // CA-ADR-0031: la anatomia garantiza exactamente 3 componentes separados por ':'; la fecha es
-    // siempre el ultimo para hidratar Fecha cuando no hay TurnoDiarioAsignado.
+    // HU-108: hidrata Fecha cuando el ControlDiario nace solo por marcacion, sin TurnoDiarioAsignado
+    // que la traiga. La anatomia de CA-ADR-0031 garantiza 3 componentes y la fecha es siempre el ultimo.
     private static DateOnly ExtraerFechaDeStreamId(string streamId)
     {
-        var partes = streamId.Split(':');
-        return DateOnly.ParseExact(partes[^1], "yyyyMMdd");
+        var partes = streamId.Split(SeparadorStreamId);
+        return DateOnly.ParseExact(partes[^1], FormatoFechaStreamId, CultureInfo.InvariantCulture);
     }
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado

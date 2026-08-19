@@ -22,7 +22,6 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     // Datos de prueba fijos - misma ancla de fecha que los tests del handler
     private const string CodigoColaborador = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    // Issue #420: stream ID renotado con prefijo "cd" y fecha en ISO 8601 basico (CA-ADR-0031).
     private static readonly string StreamId = $"cd:{CodigoColaborador}:{Fecha:yyyyMMdd}";
     private static readonly string StreamIdDiaAnterior = $"cd:{CodigoColaborador}:20260314";
 

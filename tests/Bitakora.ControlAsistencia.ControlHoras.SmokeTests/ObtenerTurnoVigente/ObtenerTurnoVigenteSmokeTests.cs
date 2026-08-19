@@ -73,8 +73,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
         $"/api/control-horas/turnos-vigentes/{codigoColaborador}/{fecha:yyyy-MM-dd}";
 
     // Mismo formato que ControlDiarioAggregateRoot.ComputarStreamId, reconstruido localmente:
-    // el smoke test no referencia el Function App (ControlHoras.Entities). Issue #420: prefijo "cd"
-    // y fecha en ISO 8601 basico (yyyyMMdd), CA-ADR-0031.
+    // el smoke test no referencia el Function App (ControlHoras.Entities).
     private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
         $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 

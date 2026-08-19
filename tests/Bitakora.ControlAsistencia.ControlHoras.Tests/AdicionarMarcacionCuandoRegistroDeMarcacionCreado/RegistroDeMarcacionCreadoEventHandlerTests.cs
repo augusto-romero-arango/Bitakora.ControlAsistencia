@@ -23,7 +23,6 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     // CA-2: hora dentro de ventana nocturna (< 04:00) - dia calendario + dia anterior
     private static readonly DateTime TimestampDentroDeVentana = new DateTime(2026, 3, 15, 2, 30, 0);
 
-    // Issue #420: stream ID renotado con prefijo "cd" y fecha en ISO 8601 basico (CA-ADR-0031).
     // CA-7, CA-8: stream IDs computados desde TimestampNormalizado
     private static readonly string StreamIdDia15 = $"cd:{CodigoColaborador}:20260315";
     private static readonly string StreamIdDia14 = $"cd:{CodigoColaborador}:20260314";
@@ -49,9 +48,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     // CA-1: hora fuera de ventana nocturna (08:15) -> un solo ControlDiario para dia calendario
     // CA-5: si no existe ControlDiario, se crea con Iniciar(MarcacionAdicionada)
     // CA-6: ControlDiario creado solo por marcacion tiene InformacionColaborador y DetalleTurno nulos
-    // CA-7: stream ID es "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (issue #420)
     // CA-8: la fecha se extrae del TimestampNormalizado del evento
-    // Issue #420 CA-3: ExtraerFechaDeStreamId hidrata Fecha desde la notacion nueva del Id
     [Fact]
     public async Task RegistroDeMarcacionCreado_CreaControlDiarioConMarcacion_CuandoNoExisteYHoraFueraDeVentanaNocturna()
     {
@@ -86,7 +83,6 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
             StreamIdDia15, c => c.Fecha, new DateOnly(2026, 3, 15));
 
         // Dia anterior: 2026-03-14 (traslape nocturno)
-        // Issue #420 CA-3: dos fechas distintas hidratadas desde dos Ids con la notacion nueva.
         Then(StreamIdDia14, CrearMarcacionAdicionada(StreamIdDia14, TimestampDentroDeVentana));
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia14, c => c.Marcaciones.Count, 1);

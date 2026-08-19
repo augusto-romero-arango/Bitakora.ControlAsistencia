@@ -29,7 +29,6 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
     // CA-7: stream ID determinista que el handler debe computar internamente
-    // Issue #420: stream ID renotado con prefijo "cd" y fecha en ISO 8601 basico (CA-ADR-0031).
     private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     // El evento privado sigue trayendo DetalleTurno (PrivateEvents) sin cambios.

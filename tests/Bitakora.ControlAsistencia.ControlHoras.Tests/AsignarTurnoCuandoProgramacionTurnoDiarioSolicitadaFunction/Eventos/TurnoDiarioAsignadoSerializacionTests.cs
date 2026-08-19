@@ -19,10 +19,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 /// aqui SI cambian las claves JSON de mt_events. El JSON literal de estos tests se reescribio a las
 /// claves nuevas y por eso ya no acredita compatibilidad con los streams viejos: esos se purgan en
 /// el mismo despliegue (MEF-ADR-0036 seccion 5). Lo que fija desde ahora es la forma canonica.
-///
-/// Issue #420: el campo "Id" (stream key) se renoto de "{codigo}:{fecha:yyyy-MM-dd}" a
-/// "cd:{codigo}:{fecha:yyyyMMdd}" (CA-ADR-0031). Los literales JSON de este archivo reflejan la
-/// notacion nueva porque la ventana operativa purga los streams viejos en el mismo despliegue.
+/// Mismo criterio para el campo "Id" (stream key): sus literales llevan la notacion vigente
+/// "cd:{codigo}:{fecha:yyyyMMdd}", no la de los streams que esa purga se lleva.
 /// </summary>
 public class TurnoDiarioAsignadoSerializacionTests
 {

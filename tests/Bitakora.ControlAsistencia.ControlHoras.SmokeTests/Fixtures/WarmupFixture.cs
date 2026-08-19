@@ -85,8 +85,8 @@ public class WarmupFixture : IAsyncLifetime
         var stopwatch = Stopwatch.StartNew();
 
         // CA-4: identificadores descartables y unicos. El stream cd:{codigoColaborador}:{fecha} queda
-        // aislado (issue #420, CA-ADR-0031); no toca los streams ni las suscripciones que verifican los
-        // tests reales. No leemos ni purgamos la suscripcion smoke-tests de dia-calculado: el
+        // aislado; no toca los streams ni las suscripciones que verifican los tests reales. No leemos
+        // ni purgamos la suscripcion smoke-tests de dia-calculado: el
         // DiaCalculado que emite este cebado lleva un CodigoColaborador distinto (los tests filtran por
         // el suyo) y, ademas, el test real purga esa suscripcion antes de su Act. Confirmamos el cebado
         // solo via Postgres, que ya prueba que ambos listeners procesaron.
