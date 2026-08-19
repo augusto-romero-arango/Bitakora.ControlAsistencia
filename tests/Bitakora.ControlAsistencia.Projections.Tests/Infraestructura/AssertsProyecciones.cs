@@ -94,8 +94,8 @@ public static class AssertsProyecciones
     /// El named store lee el event store con la misma identidad de stream que el write-side ya
     /// declara (Cosmos.EventSourcing.CritterStack 2.1.0: Events.StreamIdentity = AsString): los
     /// stream keys de este BC son siempre strings -- e.Id.ToString() en la raiz de solicitud,
-    /// ComputarStreamId -> "{CodigoColaborador}:{Fecha:yyyy-MM-dd}" en control diario --, nunca el Guid
-    /// crudo. Con el default de Marten (AsGuid cuando nadie lo configura, docs "Event Store
+    /// ComputarStreamId -> "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" en control diario (issue #420,
+    /// CA-ADR-0031) --, nunca el Guid crudo. Con el default de Marten (AsGuid cuando nadie lo configura, docs "Event Store
     /// Configuration" -> "Stream Identity": https://martendb.io/events/configuration.html#stream-identity)
     /// el daemon leeria stream_id varchar como si fuera uuid y no encontraria ningun stream.
     ///
