@@ -307,7 +307,7 @@ public class RegistrarMarcacionSmokeTests(
         // Arrange: identificadores unicos por ejecucion
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 27);
-        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
         // Setup: publicar programacion-turno-diario-solicitada y esperar a que ControlHoras
         // persista turno_diario_asignado. Asi el ControlDiario tendra TurnoDiarioAsignado previo
@@ -429,7 +429,7 @@ public class RegistrarMarcacionSmokeTests(
         // Arrange: identificadores unicos por ejecucion.
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 28);
-        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
         // Setup: turno 08:00-16:00 via Service Bus; esperar a que ControlHoras persista
         // turno_diario_asignado antes de registrar las marcaciones.

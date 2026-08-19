@@ -69,10 +69,14 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(desgloses, anomalas);
     }
 
-    // CA-7: stream ID determinista: "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
+    // CA-ADR-0031: prefijo por iniciales para evitar colision con el futuro DiaCalculado ("dc:"),
+    // que comparte la identidad logica colaborador+fecha en el mismo store.
+    private const string PrefijoStream = "cd";
+
+    // CA-7: stream ID determinista: "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (issue #420)
     // CA-8: dos mensajes con mismo CodigoColaborador+Fecha comparten el mismo stream
     public static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
-        $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        $"{PrefijoStream}:{codigoColaborador}:{fecha:yyyyMMdd}";
 
     // CA-6: actualiza estado interno al aplicar el evento
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
@@ -119,13 +123,13 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // HU-108: stream ID tiene formato "{CodigoColaborador}:{Fecha:yyyy-MM-dd}" (CA-7).
-    // Parsea la porcion final como DateOnly para hidratar Fecha cuando no hay TurnoDiarioAsignado.
+    // HU-108: stream ID tiene formato "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (CA-7, issue #420).
+    // CA-ADR-0031: la anatomia garantiza exactamente 3 componentes separados por ':'; la fecha es
+    // siempre el ultimo para hidratar Fecha cuando no hay TurnoDiarioAsignado.
     private static DateOnly ExtraerFechaDeStreamId(string streamId)
     {
-        var separador = streamId.LastIndexOf(':');
-        var fechaTexto = streamId[(separador + 1)..];
-        return DateOnly.ParseExact(fechaTexto, "yyyy-MM-dd");
+        var partes = streamId.Split(':');
+        return DateOnly.ParseExact(partes[^1], "yyyyMMdd");
     }
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado

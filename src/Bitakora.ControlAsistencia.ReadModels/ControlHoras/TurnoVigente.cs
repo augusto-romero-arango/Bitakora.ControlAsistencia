@@ -18,7 +18,8 @@ namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 /// de infraestructura del issue #317 CA-2 al read-side (ver issue #328, "ADRs aplicables").
 ///
 /// Id es el stream key que compone ControlDiarioAggregateRoot.ComputarStreamId:
-/// "{CodigoColaborador}:{Fecha:yyyy-MM-dd}" -- nunca un Guid (Events.StreamIdentity = AsString). Excluye
+/// "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (issue #420, CA-ADR-0031) -- nunca un Guid
+/// (Events.StreamIdentity = AsString). Excluye
 /// deliberadamente la trazabilidad interna hacia la solicitud de programacion y la identificacion
 /// completa del colaborador (ambas las cargaba el read model del issue #289, que ningun cliente de
 /// calendario consumia): solo CodigoColaborador (lookup/resourceId) y NombreCompleto (un solo campo,
