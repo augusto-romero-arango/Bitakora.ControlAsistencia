@@ -37,6 +37,12 @@ lectura de fuente propia contra Marten 9.12.0, la version que pinea MEF-ADR-0003
   unicidad sobre `mt_streams` (`SqlState: PostgresErrorCodes.UniqueViolation`) en
   `ExistingStreamIdCollisionException` -- el mismo camino de error tanto si el string colisiona
   contra un stream del mismo tipo de aggregate como si colisiona contra uno de un tipo distinto.
+- **Ni siquiera el modo estricto de Marten cambia esto**, que es la salida que uno buscaria primero
+  antes de escribir doctrina: `EnableStrictStreamIdentityEnforcement` crea la tabla hermana
+  `mt_streams_identity` (`StreamIdentityEnforcementTable.cs`), cuya PK es tambien `tenant_id` + `id`
+  y **tampoco** incluye el tipo de aggregate -- su proposito es cerrar el hueco del particionado por
+  archivado, no discriminar aggregates. No existe opcion de configuracion que haga la identidad del
+  stream unica *por tipo*; la disjuncion tiene que venir de la forma de la clave.
 
 Es decir: la PK de `mt_streams` es `(tenant_id, id)`, nunca `(tenant_id, id, type)`. Dos aggregates
 del mismo store que computen el mismo string para casos distintos no generan una excepcion nueva y
@@ -95,10 +101,17 @@ aplica, porque la clave completa nunca es el valor de un segmento de ruta.
 2. **Prefijo obligatorio**: iniciales del `AggregateRoot` en minusculas. Precedente industrial:
    Stripe prefija sus object ids con las iniciales del tipo de recurso (`cus_` para `Customer`,
    `ch_` para `Charge` -- verificado contra la documentacion oficial, que muestra ids con la forma
-   `cus_...` en el objeto `Customer` [1]; la convencion completa de prefijos por tipo esta
-   documentada de forma independiente [2]). El prefijo disjunta por construccion los aggregates
-   dentro de un mismo store: dos aggregates con prefijos distintos no pueden colisionar aunque el
-   resto de sus componentes coincida.
+   `cus_...` en el objeto `Customer` [1] y que se refiere explicitamente a *"fixed prefixes (such as
+   `ch_` on charge IDs)"* al enumerar sus cambios backward-compatible [2]). El prefijo disjunta por
+   construccion los aggregates dentro de un mismo store: dos aggregates con prefijos distintos no
+   pueden colisionar aunque el resto de sus componentes coincida.
+
+   **Se toma la forma, no el regimen de estabilidad.** Esa misma cita de [2] muestra que Stripe
+   clasifica agregar o quitar un prefijo como cambio *backward-compatible*: para Stripe el id es una
+   cadena opaca que el cliente no debe interpretar. Aqui es al reves -- el prefijo forma parte de una
+   clave **persistida** que resuelve un stream, asi que cambiarlo es exactamente lo que la seccion 3
+   proscribe sin un issue de migracion propio. Stripe justifica que un prefijo por tipo es una
+   convencion sensata y probada a escala; no justifica que sea barato cambiarlo en este BC.
 3. **Componentes del dominio (fechas/timestamps) siempre en ISO 8601 basico**: `yyyyMMdd` /
    `yyyyMMddTHHmmss` -- normalizacion BC-wide decidida el 2026-08-18, solo `[0-9]` y `T`, limpios
    para cualquier separador no alfanumerico del formato de entrada, parseables con `ParseExact` en
@@ -113,7 +126,14 @@ aplica, porque la clave completa nunca es el valor de un segmento de ruta.
    `RegistroDeMarcacionAggregateRoot.EsComponenteValidoDeStreamId` (`RegistroDeMarcacionAggregateRoot.cs:35-36`).
 5. **Test de split simple**: `clave.Split(separador)` debe devolver exactamente los componentes,
    siempre. Si no, la anatomia esta mal disenada -- este test es mecanico y verificable en un test
-   unitario por aggregate, sin Postgres.
+   unitario por aggregate, sin Postgres. El paso 3 no es cosmetico precisamente por este test: la
+   clave **vigente** de `RegistroDeMarcacionAggregateRoot` lo falla hoy. Con el timestamp en ISO
+   extendido, `"EMP001:2026-08-19T08:00:00".Split(':')` devuelve **4** partes
+   (`EMP001`, `2026-08-19T08`, `00`, `00`) en vez de las 2 esperadas, porque la hora aporta sus
+   propios `:` -- verificado empiricamente en .NET 10. En notacion objetivo
+   (`rdm:EMP001:20260819T080000`) el split devuelve exactamente los 3 componentes. Ese es el modo de
+   falla concreto que el paso 3 (ISO basico, solo `[0-9]` y `T`) elimina por construccion, y la razon
+   de fondo por la que #419 no es una renotacion meramente estetica.
 6. **Registrar la anatomia en el registro del store** (seccion 3) -- este ADR se enmienda cada vez
    que un issue crea un aggregate nuevo o migra uno existente.
 
@@ -133,8 +153,8 @@ evento.
 
 | Store (schema) | Aggregate | Anatomia vigente | Anatomia objetivo | Notas |
 |---|---|---|---|---|
-| `control_horas` | `RegistroDeMarcacionAggregateRoot` | `{codigo}:{yyyyMMddTHHmmss}` extendido, sin prefijo (legado) | `rdm:{codigo}:{yyyyMMddTHHmmss}` | Objetivo del issue #419. La forma legada queda registrada como legado hasta que #419 ejecute su migracion (protocolo MEF-ADR-0036 seccion 5). |
-| `control_horas` | `ControlDiarioAggregateRoot` | `{codigo}:{yyyyMMdd}`, sin prefijo (legado) | `cd:{codigo}:{yyyyMMdd}` | Objetivo del issue #420. Misma disciplina de migracion que la fila anterior. |
+| `control_horas` | `RegistroDeMarcacionAggregateRoot` | `{codigo}:{yyyy-MM-ddTHH:mm:ss}` -- ISO **extendido**, sin prefijo (legado, `RegistroDeMarcacionAggregateRoot.cs:25-26`) | `rdm:{codigo}:{yyyyMMddTHHmmss}` | Objetivo del issue #419. Cambian **dos** cosas, no solo el prefijo: tambien la notacion del timestamp (extendido -> basico). Es la unica fila del registro cuya forma vigente **falla el paso 5**: la hora extendida aporta dos `:` propios, asi que `Split(':')` devuelve 4 partes en vez de 2 (verificado en .NET 10). La forma legada queda registrada como legado hasta que #419 ejecute su migracion (protocolo MEF-ADR-0036 seccion 5). |
+| `control_horas` | `ControlDiarioAggregateRoot` | `{codigo}:{yyyy-MM-dd}` -- ISO **extendido**, sin prefijo (legado, `ControlDiarioAggregateRoot.cs:74-75`) | `cd:{codigo}:{yyyyMMdd}` | Objetivo del issue #420. Igual que la fila anterior, #420 cambia prefijo **y** notacion de fecha. A diferencia de aquella, la forma vigente si pasa el paso 5 (una fecha extendida no aporta `:`), asi que aqui la renotacion la motiva unicamente el prefijo. Misma disciplina de migracion. |
 | `control_horas` | `DiaCalculado` (nace en #425) | -- (no existe todavia como aggregate persistido) | `dc:{codigo}:{yyyyMMdd}` | Nace directamente en notacion objetivo -- ningun issue de migracion necesario. El prefijo `dc:` es lo que evita la colision con `ControlDiario` que motiva este ADR (misma identidad logica colaborador+fecha, mismo store). |
 | `colaboradores` | `ColaboradorAggregateRoot` | `{Tipo}-{Numero}` (contrato de `Identificacion.ToString()`, ej. `CC-79543210`) | Sin cambio | Vigente sin prefijo: decision del experto de dominio, 2026-08-19. Es identidad de UN componente que ya viaja en URL (ya URL-safe, `ObtenerFichaColaborador`), el store de Colaboradores tiene un solo aggregate (nada que prevenir todavia), y renotar exigiria migracion + rebuild de `FichaColaborador` (worker de proyecciones) sin comprar ninguna disjuncion real. |
 | `programacion` | `CatalogoTurnos`, `SolicitudProgramacionAggregateRoot` | Guid canonico "D" | Sin cambio | Paso 1 de la heuristica: ninguno de los dos necesita identidad natural. Sin registro adicional -- un Guid nunca colisiona con otro Guid de otro aggregate por construccion (espacio de valores, no de forma). |
@@ -223,17 +243,25 @@ adaptarse.
 
 - **[1]** "The Customer object" -- Stripe API Reference: los ejemplos de objeto `Customer` muestran
   ids con la forma `cus_...`. https://docs.stripe.com/api/customers/object
-- **[2]** "Stripe keys and IDs" -- catalogo de prefijos de Stripe por tipo de objeto (`cus_`
-  Customer, `ch_` Charge, `sub_` Subscription, `in_` Invoice, `acct_` Account, entre otros), citado
-  como precedente industrial de prefijo legible por tipo de recurso, no como fuente normativa de
-  este ADR. https://gist.github.com/fnky/76f533366f75cf75802c8052b577e2a5
+- **[2]** "API upgrades" -- Stripe Documentation (fuente oficial). Confirma que los prefijos por tipo
+  son una practica deliberada de Stripe y no una coincidencia de los ejemplos: al enumerar sus
+  cambios backward-compatible incluye *"Changing the length or format of opaque strings, such as
+  object IDs... This includes adding or removing fixed prefixes (such as `ch_` on charge IDs)"*.
+  Citado como precedente industrial de prefijo legible por tipo de recurso, **no** como fuente
+  normativa de este ADR -- y con el deslinde de la seccion 2 paso 2 sobre la estabilidad del
+  prefijo, donde el criterio de Stripe y el de este ADR difieren de forma deliberada.
+  https://docs.stripe.com/upgrades
 - Marten 9.12.0 (version pinneada por MEF-ADR-0003), lectura de fuente propia:
   `Marten.Events.Schema.StreamsTable` (`StreamsTable.cs:29-39`, PK de `mt_streams` = `tenant_id` +
   `id`; la columna `type`/`AggregateTypeName` es nullable y no integra la PK) y
   `Marten.Events.Operations.InsertStreamBase` (`InsertStreamBase.cs:47-79`, una violacion de
   unicidad sobre `mt_streams` se traduce siempre a `ExistingStreamIdCollisionException`,
-  independientemente del tipo de aggregate involucrado) -- verificacion propia que sostiene "Marten
-  no discrimina tipos en `mt_streams`" en el Contexto de este ADR.
+  independientemente del tipo de aggregate involucrado) y
+  `Marten.Events.Schema.StreamIdentityEnforcementTable` (`StreamIdentityEnforcementTable.cs`, la
+  tabla `mt_streams_identity` del modo `EnableStrictStreamIdentityEnforcement`: PK `tenant_id` +
+  `id`, sin el tipo de aggregate) -- verificacion propia, contra el tag `V9.12.0` del repositorio de
+  Marten, que sostiene "Marten no discrimina tipos en `mt_streams`" en el Contexto de este ADR y
+  descarta que exista una opcion de configuracion que lo cambie.
 - MEF-ADR-0037 (identidad de stream y su representacion string canonica): este ADR construye
   encima -- honra su seccion 2 con la lectura "la unidad es el componente tipado" (seccion 1 de este
   ADR) y no toca su punto unico de conversion (seccion 1 de ese ADR) ni su formato canonico Guid
@@ -272,3 +300,15 @@ adaptarse.
   discriminar por tipo de aggregate, la causa raiz de la colision que este ADR previene. Deja fuera
   de alcance, por correccion de rumbo del 2026-08-18/19, el charset URL-safe de las claves (dominio
   de MEF-ADR-0043, no de este ADR).
+- 2026-08-19: correcciones de revision (mismo issue #417). (a) La tabla de la seccion 4 declaraba las
+  anatomias **vigentes** de `RegistroDeMarcacionAggregateRoot` y `ControlDiarioAggregateRoot` en ISO
+  basico, cuando el codigo desplegado las produce en ISO **extendido**
+  (`yyyy-MM-ddTHH:mm:ss` y `yyyy-MM-dd`); corregidas contra el fuente, lo que ademas hace visible que
+  #419/#420 cambian prefijo **y** notacion de fecha, no solo el prefijo. (b) El paso 5 gana el caso
+  real que lo motiva: la clave vigente de `RegistroDeMarcacion` falla hoy el test de split (4 partes
+  en vez de 2, porque la hora extendida aporta sus propios `:`), verificado empiricamente en .NET 10.
+  (c) El Contexto documenta que `EnableStrictStreamIdentityEnforcement` tampoco discrimina por tipo
+  (`mt_streams_identity`, PK `tenant_id` + `id`), cerrando la salida "configurar Marten en vez de
+  escribir doctrina". (d) La referencia [2] pasa de un gist de terceros a la documentacion oficial de
+  Stripe, y el paso 2 declara que se adopta la forma del prefijo pero **no** su regimen de
+  estabilidad (Stripe trata sus ids como opacos; aqui la clave es persistida).
