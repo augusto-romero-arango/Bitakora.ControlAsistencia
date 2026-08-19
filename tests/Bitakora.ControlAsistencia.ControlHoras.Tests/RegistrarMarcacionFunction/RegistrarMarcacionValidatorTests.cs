@@ -70,10 +70,10 @@ public class RegistrarMarcacionValidatorTests
     }
 
     // CA-3: CodigoColaborador que contiene ':' produce 400 - cierra la colision de stream ID descrita
-    // en el Contexto del issue (ComputarStreamId usa ':' como separador entre CodigoColaborador y
-    // Timestamp; un CodigoColaborador con ':' puede fabricar el mismo stream ID que otra combinacion
-    // legitima). El valor no esta vacio, asi que el unico error posible proviene de la regla del
-    // separador y no de NotEmpty.
+    // en el Contexto del issue (ComputarStreamId usa ':' como separador entre el prefijo "rdm", el
+    // CodigoColaborador y el Timestamp, issue #419; un CodigoColaborador con ':' puede fabricar el
+    // mismo stream ID que otra combinacion legitima). El valor no esta vacio, asi que el unico error
+    // posible proviene de la regla del separador y no de NotEmpty.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoContieneDosPuntos()
     {

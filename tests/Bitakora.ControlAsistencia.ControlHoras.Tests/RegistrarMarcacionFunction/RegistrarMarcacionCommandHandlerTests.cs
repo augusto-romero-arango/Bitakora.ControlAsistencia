@@ -30,12 +30,14 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
     // CA-2: 08:09:59 truncado al minuto -> 08:09:00
     private static readonly DateTime TimestampNormalizado = new DateTime(2026, 3, 15, 8, 9, 0);
 
-    // CA-5: stream ID determinista {CodigoColaborador}:{Timestamp:yyyy-MM-ddTHH:mm:ss}
-    private static readonly string StreamId = $"{CodigoColaborador}:{Timestamp:yyyy-MM-ddTHH:mm:ss}";
+    // Issue #419 CA-1/CA-2: stream ID determinista "rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}"
+    // -- armado a mano (no via ComputarStreamId) para que el test siga siendo un oraculo independiente
+    // de la logica bajo prueba (regla 20).
+    private static readonly string StreamId = $"rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}";
 
     // Issue #275: el stream que el handler habria abierto si el factory no hubiera rechazado el
     // CodigoColaborador vacio -- se afirma vacio para probar que el throw precede a cualquier escritura.
-    private static readonly string StreamIdSinColaborador = $":{Timestamp:yyyy-MM-ddTHH:mm:ss}";
+    private static readonly string StreamIdSinColaborador = $"rdm::{Timestamp:yyyyMMddTHHmmss}";
 
     protected override ICommandHandlerAsync<RegistrarMarcacion> Handler =>
         new RegistrarMarcacionCommandHandler(EventStore, PrivateEventSender);
