@@ -36,7 +36,7 @@ public class DepurarAlAsignarTurnoTests
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{Colaborador.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     // CA-4: franja unica 06:00-14:00 para el turno asignado -- FranjaProgramada (ControlHoras.DomainEvents)
     // es lo que el ControlDiario persiste; DetalleFranjaOrdinaria (PrivateEvents) es lo que trae el

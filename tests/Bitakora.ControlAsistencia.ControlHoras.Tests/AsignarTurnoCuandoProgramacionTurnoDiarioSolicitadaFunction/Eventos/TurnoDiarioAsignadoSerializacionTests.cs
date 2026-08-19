@@ -19,6 +19,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 /// aqui SI cambian las claves JSON de mt_events. El JSON literal de estos tests se reescribio a las
 /// claves nuevas y por eso ya no acredita compatibilidad con los streams viejos: esos se purgan en
 /// el mismo despliegue (MEF-ADR-0036 seccion 5). Lo que fija desde ahora es la forma canonica.
+/// Mismo criterio para el campo "Id" (stream key): sus literales llevan la notacion vigente
+/// "cd:{codigo}:{fecha:yyyyMMdd}", no la de los streams que esa purga se lleva.
 /// </summary>
 public class TurnoDiarioAsignadoSerializacionTests
 {
@@ -37,7 +39,7 @@ public class TurnoDiarioAsignadoSerializacionTests
         [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],
         "Turno Manana (08:00-16:00)");
 
-    private static readonly string StreamId = $"{ColaboradorDePrueba.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"cd:{ColaboradorDePrueba.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     // Regla 16: todo evento persistido en Marten debe tener test de serializacion roundtrip
     // Verifica con datos reales y completos (no listas vacias para VOs anidados)
@@ -85,7 +87,7 @@ public class TurnoDiarioAsignadoSerializacionTests
     {
         const string jsonPersistidoHoy = """
             {
-              "Id": "EMP-001:2026-03-15",
+              "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
                 "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
@@ -122,7 +124,7 @@ public class TurnoDiarioAsignadoSerializacionTests
             "Turno Manana (08:00-16:00)");
 
         deserializado.Should().NotBeNull();
-        deserializado!.Id.Should().Be("EMP-001:2026-03-15");
+        deserializado!.Id.Should().Be("cd:EMP-001:20260315");
         deserializado.SolicitudId.Should().Be(Guid.Parse("019600b0-0000-7000-8000-000000000001"));
         deserializado.Fecha.Should().Be(new DateOnly(2026, 3, 15));
         deserializado.InformacionColaborador.Should().Be(colaboradorEsperado);
@@ -139,7 +141,7 @@ public class TurnoDiarioAsignadoSerializacionTests
     {
         const string jsonPersistidoConSubFranjas = """
             {
-              "Id": "EMP-001:2026-03-15",
+              "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
                 "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
@@ -213,7 +215,7 @@ public class TurnoDiarioAsignadoSerializacionTests
     {
         const string jsonPersistidoAntesDeDescripcion = """
             {
-              "Id": "EMP-001:2026-03-15",
+              "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
                 "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",
@@ -278,7 +280,7 @@ public class TurnoDiarioAsignadoSerializacionTests
     {
         const string jsonPersistidoSinSede = """
             {
-              "Id": "EMP-001:2026-03-15",
+              "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
                 "CodigoColaborador": "EMP-001",
                 "TipoIdentificacion": "CC",

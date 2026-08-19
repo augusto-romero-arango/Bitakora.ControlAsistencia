@@ -350,7 +350,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         // decision de entrevista del issue #329, "Notas tecnicas": una sola proyeccion sirve grilla
         // y calendario).
         var turno = respuesta.Turnos[0];
-        turno.Id.Should().Be($"{codigoColaborador}:{fechaTurno:yyyy-MM-dd}");
+        turno.Id.Should().Be($"cd:{codigoColaborador}:{fechaTurno:yyyyMMdd}");
         turno.CodigoColaborador.Should().Be(codigoColaborador);
         turno.NombreCompleto.Should().Be("[TEST] Smoke Listar [TEST] TurnosVigentes");
         turno.Fecha.Should().Be(fechaTurno);

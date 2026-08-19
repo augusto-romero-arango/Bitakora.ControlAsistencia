@@ -8,7 +8,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
 public sealed class MarcacionAdicionada
 {
-    // CA-7: Id es el stream ID del ControlDiario: "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
+    // Id es el stream key del ControlDiario, tal como lo computa ControlDiarioAggregateRoot.ComputarStreamId.
     public string Id { get; private set; } = null!;
     public string CodigoColaborador { get; private set; } = null!;
 

@@ -46,7 +46,7 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 // Replica de la identidad de stream que el write-side ya declara
                 // (Cosmos.EventSourcing.CritterStack 2.1.0, AgregarConfiguracionMartenComandos:
                 // Events.StreamIdentity = AsString): el stream key de este dominio lo computa
-                // ControlDiarioAggregateRoot.ComputarStreamId como "{CodigoColaborador}:{Fecha:yyyy-MM-dd}",
+                // ControlDiarioAggregateRoot.ComputarStreamId como "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}",
                 // un valor que ni por accidente es un Guid. Sin esta linea Marten aplica su default
                 // AsGuid ("Event Store Configuration" -> "Stream Identity" en
                 // https://martendb.io/events/configuration.html#stream-identity) y el daemon leeria

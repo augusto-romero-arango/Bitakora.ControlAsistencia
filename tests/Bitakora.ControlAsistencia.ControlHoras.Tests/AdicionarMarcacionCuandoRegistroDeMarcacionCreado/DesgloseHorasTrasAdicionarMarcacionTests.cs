@@ -27,7 +27,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     // Datos de prueba fijos - mismo ancla de fecha y stream ID compuesto que los tests del handler
     private const string CodigoColaborador = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{CodigoColaborador}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"cd:{CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(

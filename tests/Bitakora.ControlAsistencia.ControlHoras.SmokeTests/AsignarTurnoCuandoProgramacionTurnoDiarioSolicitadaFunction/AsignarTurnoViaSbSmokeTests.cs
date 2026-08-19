@@ -67,7 +67,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
-        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(
@@ -219,7 +219,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
-        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(
@@ -337,7 +337,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         // Assert: verificar persistencia en Postgres.
         // Si la deserializacion falla (propiedades null), el handler lanza
         // NullReferenceException, el mensaje va a dead-letter y NUNCA se persiste.
-        var streamId = $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
         var tipoEvento = "turno_diario_asignado";
 
         var existe = await postgres.ExisteEventoAsync(

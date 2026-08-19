@@ -29,7 +29,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
     // CA-7: stream ID determinista que el handler debe computar internamente
-    private static readonly string StreamId = $"{Colaborador.CodigoColaborador}:{Fecha:yyyy-MM-dd}";
+    private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     // El evento privado sigue trayendo DetalleTurno (PrivateEvents) sin cambios.
     // Issue #288: Descripcion (dato derivado) es irrelevante para este test -> placeholder "".
@@ -57,7 +57,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     // CA-3: NO existe ControlDiario para CodigoColaborador+Fecha - el handler inicia el stream
     // CA-5: el evento incluye InformacionColaborador, Fecha, DetalleTurno y SolicitudId
     // CA-6: el aggregate actualiza InformacionColaborador, Fecha y DetalleTurno
-    // CA-7: el stream ID resultante es "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
+    // CA-7: el stream ID resultante es "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" (issue #420)
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_EmiteTurnoDiarioAsignado_CuandoNoExisteControlDiario()
     {

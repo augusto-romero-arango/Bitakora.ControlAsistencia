@@ -48,7 +48,7 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
 
     // CA-2: "el ultimo gana" -- una reasignacion sobre el mismo (colaborador, fecha) sobrescribe
     // turno, horario y bloques. Id, CodigoColaborador y Fecha no cambian: son la identidad del stream
-    // ("{CodigoColaborador}:{Fecha:yyyy-MM-dd}"), invariante para todos los eventos del mismo documento.
+    // ("cd:{CodigoColaborador}:{Fecha:yyyyMMdd}"), invariante para todos los eventos del mismo documento.
     //
     // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload del colaborador
     // completo, y el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba --

@@ -24,8 +24,8 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     private static readonly DateTime TimestampDentroDeVentana = new DateTime(2026, 3, 15, 2, 30, 0);
 
     // CA-7, CA-8: stream IDs computados desde TimestampNormalizado
-    private static readonly string StreamIdDia15 = $"{CodigoColaborador}:2026-03-15";
-    private static readonly string StreamIdDia14 = $"{CodigoColaborador}:2026-03-14";
+    private static readonly string StreamIdDia15 = $"cd:{CodigoColaborador}:20260315";
+    private static readonly string StreamIdDia14 = $"cd:{CodigoColaborador}:20260314";
 
     protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
         new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
@@ -48,12 +48,11 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     // CA-1: hora fuera de ventana nocturna (08:15) -> un solo ControlDiario para dia calendario
     // CA-5: si no existe ControlDiario, se crea con Iniciar(MarcacionAdicionada)
     // CA-6: ControlDiario creado solo por marcacion tiene InformacionColaborador y DetalleTurno nulos
-    // CA-7: stream ID es "{CodigoColaborador}:{Fecha:yyyy-MM-dd}"
     // CA-8: la fecha se extrae del TimestampNormalizado del evento
     [Fact]
     public async Task RegistroDeMarcacionCreado_CreaControlDiarioConMarcacion_CuandoNoExisteYHoraFueraDeVentanaNocturna()
     {
-        // Sin Given - el stream no existe para EMP-001:2026-03-15
+        // Sin Given - el stream no existe para cd:EMP-001:20260315
         await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampFueraDeVentana));
 
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
@@ -63,6 +62,8 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
             StreamIdDia15, c => c.DetalleTurno, null);
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia15, c => c.Marcaciones.Count, 1);
+        And<ControlDiarioAggregateRoot, DateOnly>(
+            StreamIdDia15, c => c.Fecha, new DateOnly(2026, 3, 15));
     }
 
     // CA-2: hora dentro de ventana nocturna (02:30) -> dos ControlDiarios
@@ -78,11 +79,15 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampDentroDeVentana));
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia15, c => c.Marcaciones.Count, 1);
+        And<ControlDiarioAggregateRoot, DateOnly>(
+            StreamIdDia15, c => c.Fecha, new DateOnly(2026, 3, 15));
 
         // Dia anterior: 2026-03-14 (traslape nocturno)
         Then(StreamIdDia14, CrearMarcacionAdicionada(StreamIdDia14, TimestampDentroDeVentana));
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia14, c => c.Marcaciones.Count, 1);
+        And<ControlDiarioAggregateRoot, DateOnly>(
+            StreamIdDia14, c => c.Fecha, new DateOnly(2026, 3, 14));
     }
 
     // CA-3: lista de marcaciones crece al adicionar una marcacion nueva

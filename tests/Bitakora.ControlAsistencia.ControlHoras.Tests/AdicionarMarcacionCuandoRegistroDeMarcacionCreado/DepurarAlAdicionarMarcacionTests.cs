@@ -22,8 +22,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     // Datos de prueba fijos - misma ancla de fecha que los tests del handler
     private const string CodigoColaborador = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 3, 15);
-    private static readonly string StreamId = $"{CodigoColaborador}:{Fecha:yyyy-MM-dd}";
-    private static readonly string StreamIdDiaAnterior = $"{CodigoColaborador}:2026-03-14";
+    private static readonly string StreamId = $"cd:{CodigoColaborador}:{Fecha:yyyyMMdd}";
+    private static readonly string StreamIdDiaAnterior = $"cd:{CodigoColaborador}:20260314";
 
     // Issue #322: Colaborador (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
     private static readonly ColaboradorProgramado ColaboradorPersistido = new(

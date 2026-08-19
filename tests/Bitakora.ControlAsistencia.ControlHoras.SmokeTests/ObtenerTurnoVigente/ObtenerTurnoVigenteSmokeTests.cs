@@ -75,7 +75,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
     // Mismo formato que ControlDiarioAggregateRoot.ComputarStreamId, reconstruido localmente:
     // el smoke test no referencia el Function App (ControlHoras.Entities).
     private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
-        $"{codigoColaborador}:{fecha:yyyy-MM-dd}";
+        $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
     [Fact]
     [Trait("Category", "Smoke")]

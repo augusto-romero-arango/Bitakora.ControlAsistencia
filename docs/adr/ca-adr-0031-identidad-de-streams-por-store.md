@@ -153,8 +153,8 @@ evento.
 
 | Store (schema) | Aggregate | Anatomia vigente | Anatomia objetivo | Notas |
 |---|---|---|---|---|
-| `control_horas` | `RegistroDeMarcacionAggregateRoot` | `{codigo}:{yyyy-MM-ddTHH:mm:ss}` -- ISO **extendido**, sin prefijo (legado, `RegistroDeMarcacionAggregateRoot.cs:25-26`) | `rdm:{codigo}:{yyyyMMddTHHmmss}` | Objetivo del issue #419. Cambian **dos** cosas, no solo el prefijo: tambien la notacion del timestamp (extendido -> basico). Es la unica fila del registro cuya forma vigente **falla el paso 5**: la hora extendida aporta dos `:` propios, asi que `Split(':')` devuelve 4 partes en vez de 2 (verificado en .NET 10). La forma legada queda registrada como legado hasta que #419 ejecute su migracion (protocolo MEF-ADR-0036 seccion 5). |
-| `control_horas` | `ControlDiarioAggregateRoot` | `{codigo}:{yyyy-MM-dd}` -- ISO **extendido**, sin prefijo (legado, `ControlDiarioAggregateRoot.cs:74-75`) | `cd:{codigo}:{yyyyMMdd}` | Objetivo del issue #420. Igual que la fila anterior, #420 cambia prefijo **y** notacion de fecha. A diferencia de aquella, la forma vigente si pasa el paso 5 (una fecha extendida no aporta `:`), asi que aqui la renotacion la motiva unicamente el prefijo. Misma disciplina de migracion. |
+| `control_horas` | `RegistroDeMarcacionAggregateRoot` | `rdm:{codigo}:{yyyyMMddTHHmmss}` -- migrada por el issue #419 (`RegistroDeMarcacionAggregateRoot.cs`, `ComputarStreamId`) | -- (ya en notacion objetivo) | Su forma legada (`{codigo}:{yyyy-MM-ddTHH:mm:ss}`, sin prefijo) era la unica del registro que **fallaba el paso 5**: la hora extendida aporta dos `:` propios, asi que `Split(':')` devolvia 4 partes en vez de 2 (verificado en .NET 10). Por eso #419 cambio **dos** cosas, no solo el prefijo: tambien la notacion del timestamp (extendido -> basico). |
+| `control_horas` | `ControlDiarioAggregateRoot` | `cd:{codigo}:{yyyyMMdd}` -- migrada por el issue #420 (`ControlDiarioAggregateRoot.cs`, `ComputarStreamId`) | -- (ya en notacion objetivo) | Su forma legada (`{codigo}:{yyyy-MM-dd}`, sin prefijo) si pasaba el paso 5 -- una fecha extendida no aporta `:` --, asi que aqui la renotacion la motivo unicamente el prefijo, frente al `dc:` que nace en #425. La fecha paso igual a ISO basico por la normalizacion BC-wide del paso 3. |
 | `control_horas` | `DiaCalculado` (nace en #425) | -- (no existe todavia como aggregate persistido) | `dc:{codigo}:{yyyyMMdd}` | Nace directamente en notacion objetivo -- ningun issue de migracion necesario. El prefijo `dc:` es lo que evita la colision con `ControlDiario` que motiva este ADR (misma identidad logica colaborador+fecha, mismo store). |
 | `colaboradores` | `ColaboradorAggregateRoot` | `{Tipo}-{Numero}` (contrato de `Identificacion.ToString()`, ej. `CC-79543210`) | Sin cambio | Vigente sin prefijo: decision del experto de dominio, 2026-08-19. Es identidad de UN componente que ya viaja en URL (ya URL-safe, `ObtenerFichaColaborador`), el store de Colaboradores tiene un solo aggregate (nada que prevenir todavia), y renotar exigiria migracion + rebuild de `FichaColaborador` (worker de proyecciones) sin comprar ninguna disjuncion real. |
 | `programacion` | `CatalogoTurnos`, `SolicitudProgramacionAggregateRoot` | Guid canonico "D" | Sin cambio | Paso 1 de la heuristica: ninguno de los dos necesita identidad natural. Sin registro adicional -- un Guid nunca colisiona con otro Guid de otro aggregate por construccion (espacio de valores, no de forma). |
@@ -222,12 +222,13 @@ adaptarse.
   test). Un aggregate nuevo que ignore el registro y elija una anatomia colisionante no lo detecta
   el compilador ni la suite; lo detecta `reviewer` o, en el peor caso, `ExistingStreamIdCollisionException`
   en produccion.
-- **Las claves legadas de `RegistroDeMarcacionAggregateRoot` y `ControlDiarioAggregateRoot` (sin
-  prefijo, timestamp/fecha extendidos) conviven con la notacion objetivo hasta que #419/#420
-  ejecuten.** Este ADR fija el destino y el registro; no ejecuta la migracion. La migracion sigue el
-  protocolo de dos despliegues (o purga en el mismo despliegue si el entorno no tiene streams reales
-  que preservar) que MEF-ADR-0036 seccion 5 ya fija para el caso analogo de mover la identidad de un
-  evento persistido.
+- **Migrar una clave ya desplegada cuesta un issue propio con ventana operativa.** Las claves
+  legadas de `RegistroDeMarcacionAggregateRoot` y `ControlDiarioAggregateRoot` (sin prefijo,
+  timestamp/fecha extendidos) se migraron en #419 y #420 purgando el store de dev en la misma
+  ventana de despliegue -- viable solo porque dev no tenia streams que preservar. En un entorno con
+  datos reales, la misma migracion exige el protocolo de dos despliegues que MEF-ADR-0036 seccion 5
+  fija para el caso analogo de mover la identidad de un evento persistido. Nada de eso lo detecta la
+  suite: un despliegue sin su purga parte la biografia del dia en dos streams, sin error visible.
 - **La tension textual entre MEF-ADR-0043 seccion 1.1/1.2 y MEF-ADR-0037 seccion 1 sigue sin resolver
   en el marco** (reportada como harness#681). Este ADR sostiene localmente la lectura "la unidad es
   el componente tipado" (seccion 1) mientras el marco no la incorpore; la propuesta de llevar esa
@@ -300,6 +301,11 @@ adaptarse.
   discriminar por tipo de aggregate, la causa raiz de la colision que este ADR previene. Deja fuera
   de alcance, por correccion de rumbo del 2026-08-18/19, el charset URL-safe de las claves (dominio
   de MEF-ADR-0043, no de este ADR).
+- 2026-08-19: enmienda del registro (paso 6 de la heuristica) tras ejecutar las dos migraciones del
+  store `control_horas`: `RegistroDeMarcacionAggregateRoot` (#419, `rdm:`) y `ControlDiarioAggregateRoot`
+  (#420, `cd:`) pasan de "anatomia objetivo" a **vigente**, y la deuda de "claves legadas conviviendo"
+  se reemplaza por el costo permanente de migrar una clave ya desplegada. El registro queda con una
+  sola fila pendiente de nacer: `DiaCalculado` (#425).
 - 2026-08-19: correcciones de revision (mismo issue #417). (a) La tabla de la seccion 4 declaraba las
   anatomias **vigentes** de `RegistroDeMarcacionAggregateRoot` y `ControlDiarioAggregateRoot` en ISO
   basico, cuando el codigo desplegado las produce en ISO **extendido**

@@ -45,7 +45,7 @@ public class TurnoVigenteProjectionTests
     {
         var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
 
         // Franja 06:00-14:00 con un descanso (10:00-10:15) y un extra ANTES del inicio nominal
         // (05:00-06:00): cubre los tres TipoBloque sin que ningun tramo cruce medianoche, para
@@ -94,7 +94,7 @@ public class TurnoVigenteProjectionTests
     {
         var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
         var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
 
         var vistaPrevia = new TurnoVigente(
@@ -136,7 +136,7 @@ public class TurnoVigenteProjectionTests
     public void Apply_RefrescaElNombreCompleto_CuandoLaReasignacionTraeElNombreCorregido()
     {
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
         var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
 
         var vistaPrevia = new TurnoVigente(
@@ -178,7 +178,7 @@ public class TurnoVigenteProjectionTests
     {
         var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
         var sede = new SedeProgramada("SD-SUBA", "Suba");
 
         var franja = new FranjaProgramada(
@@ -205,7 +205,7 @@ public class TurnoVigenteProjectionTests
     {
         var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
         var sede = new SedeProgramada("SD-SUBA", "Suba");
 
         var franja = new FranjaProgramada(
@@ -244,7 +244,7 @@ public class TurnoVigenteProjectionTests
     {
         var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
 
         var franja = new FranjaProgramada(
             new TimeOnly(6, 0), new TimeOnly(14, 0), DiaOffsetFin: 0,
@@ -268,7 +268,7 @@ public class TurnoVigenteProjectionTests
     {
         var colaborador = ColaboradorDePrueba();
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
         var suba = new SedeProgramada("SD-SUBA", "Suba");
         var chapinero = new SedeProgramada("SD-CHAPINERO", "Chapinero");
 
@@ -302,7 +302,7 @@ public class TurnoVigenteProjectionTests
     public void Apply_SobrescribeLaSedeDeLosBloques_CuandoLaReasignacionCambiaDeSede()
     {
         var fecha = new DateOnly(2026, 8, 3);
-        var streamKey = "EMP-001:2026-08-03";
+        var streamKey = "cd:EMP-001:20260803";
         var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
 
         var vistaPrevia = new TurnoVigente(
