@@ -51,10 +51,11 @@ public class RegistrarMarcacionSmokeTests(
     // fecha; asi el 400 esperado solo puede venir de la regla bajo prueba.
     private static readonly DateTime TimestampValido = new(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc);
 
-    // CA-5: stream ID determinista = "{CodigoColaborador}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
-    // El timestamp que se usa para el stream ID es el crudo (antes de normalizar al minuto).
+    // Issue #419 CA-6: stream ID determinista = "rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}",
+    // en sync con RegistroDeMarcacionAggregateRoot.ComputarStreamId. El timestamp que se usa para el
+    // stream ID es el crudo (antes de normalizar al minuto).
     private static string ComputarStreamId(string codigoColaborador, DateTime timestampCrudo) =>
-        $"{codigoColaborador}:{timestampCrudo:yyyy-MM-ddTHH:mm:ss}";
+        $"rdm:{codigoColaborador}:{timestampCrudo:yyyyMMddTHHmmss}";
 
     // Issue #279: los casos de rechazo por forma solo varian en CodigoColaborador o Timestamp; el resto del
     // payload es identico. Se envia el timestamp con el mismo formato que el resto del archivo.
