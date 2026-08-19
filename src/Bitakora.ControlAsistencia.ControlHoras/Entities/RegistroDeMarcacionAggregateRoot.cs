@@ -17,21 +17,28 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
     public string? TipoMarcacion { get; private set; }
     public string? DispositivoId { get; private set; }
 
-    // CA-5: stream ID determinista: "{CodigoColaborador}:{Timestamp:yyyy-MM-ddTHH:mm:ss}"
-    // Cambiar el separador invalidaria la identidad de todos los streams ya escritos, por eso vive
-    // como constante privada: nadie lo compone a mano desde afuera.
+    // Issue #419 / CA-ADR-0031 seccion 2: stream ID determinista con prefijo de tipo, notacion
+    // "rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}" -- prefijo (iniciales del aggregate) y
+    // timestamp en ISO 8601 basico (solo [0-9] y 'T', sin ':' propios) para que el separador quede
+    // libre exclusivamente entre los tres componentes: clave.Split(':') siempre devuelve 3 partes
+    // (paso 5 de la heuristica). Cambiar el prefijo o el separador invalidaria la identidad de todos
+    // los streams ya escritos, por eso viven como constantes privadas: nadie los compone a mano
+    // desde afuera.
+    // El Timestamp llega sin offset y se interpreta como hora local de Colombia (UTC-5, sin DST).
+    private const string PrefijoStreamId = "rdm";
     private const char SeparadorStreamId = ':';
 
     public static string ComputarStreamId(string codigoColaborador, DateTime timestamp) =>
-        $"{codigoColaborador}{SeparadorStreamId}{timestamp:yyyy-MM-ddTHH:mm:ss}";
+        $"{PrefijoStreamId}{SeparadorStreamId}{codigoColaborador}{SeparadorStreamId}{timestamp:yyyyMMddTHHmmss}";
 
     // Issue #279 CA-3: un CodigoColaborador que contenga el separador vuelve ambigua la composicion del
     // stream ID -- dos combinaciones distintas de colaborador y timestamp pueden producir el mismo id, y
     // como la idempotencia se decide por existencia del stream, una marcacion legitima se descartaria
     // como "duplicado exacto". La regla vive junto al formato que la origina (MEF-ADR-0012,
     // Tell-don't-Ask): el validator del borde la invoca en vez de repetir el literal del separador.
-    // ControlDiarioAggregateRoot compone su stream ID con el mismo separador, asi que rechazarlo en el
-    // borde protege ambos streams; unificar el separador entre ambos aggregates queda pendiente.
+    // ControlDiarioAggregateRoot compone su stream ID con el mismo separador; el prefijo de cada
+    // aggregate (distinto por CA-ADR-0031) es lo que disjunta ambos streams dentro del mismo store,
+    // asi que rechazar ':' en el borde sigue protegiendo la composicion de ambos.
     public static bool EsComponenteValidoDeStreamId(string codigoColaborador) =>
         !codigoColaborador.Contains(SeparadorStreamId);
 
