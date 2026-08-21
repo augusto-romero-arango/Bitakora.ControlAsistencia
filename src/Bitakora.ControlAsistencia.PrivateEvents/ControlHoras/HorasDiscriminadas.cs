@@ -1,21 +1,18 @@
 namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-// Payload plano del dia que viaja en DiaDepurado. Debe permanecer 100% primitivo: el modelo rico
-// anterior (DesgloseHoras + DetalleControlFranja) dependia del resolver custom de Marten, que NO se
-// aplica al canal de publicacion a Service Bus, y llegaba lossy al consumidor (field notes
-// 2026-06-23). Con solo primitivos STJ lo (de)serializa nativo, sin ConfigurarSerializacion.
+// Payload plano del dia que viaja en DiaDepurado. Debe permanecer 100% primitivo: el resolver custom
+// de Marten NO se aplica al canal de publicacion a Service Bus, asi que un campo rico llegaria lossy
+// al consumidor (MEF-ADR-0012, frontera event store vs bus).
 //
-// Issue #424: HorasPorConcepto (ex MinutosPorConcepto) habla horas liquidables, no minutos -- la
-// frontera de idiomas del BC pasa por aqui. Clave = Concepto.ToString() ("OrdinariaDiurna", ...) o la
-// clave literal "Retardo"; valor = horas liquidables agregadas del dia para esa clave, producidas via
-// HorasLiquidables (unico punto de conversion del BC). Todo el diccionario habla el mismo idioma,
-// incluida la clave "Retardo".
-// Trazabilidad: textos de auditoria del calculo -- sigue narrando en minutos/intervalos (memoria del
-// calculo, no dato operable del mundo humano; decision explicita, no omision).
+// HorasPorConcepto: clave = Concepto.ToString() ("OrdinariaDiurna", ...) o la clave literal "Retardo";
+// valor = horas liquidables del dia, producidas via HorasLiquidables (unico punto de conversion del
+// BC). Todo el diccionario habla el mismo idioma, incluida la clave "Retardo".
+// Trazabilidad narra en minutos e intervalos a proposito: es memoria de auditoria del calculo, no
+// dato operable del mundo humano.
 //
-// Igualdad por valor de las colecciones via override manual de Equals/GetHashCode (precedente
-// DetalleFranjaOrdinaria, #129): el record por defecto compara HorasPorConcepto/Trazabilidad por
-// referencia. El override preserva la forma de record (constructor primario publico) y corrige el bug.
+// El record por defecto compara HorasPorConcepto/Trazabilidad por referencia; los overrides de
+// Equals/GetHashCode las comparan por valor sin perder la forma de record (MEF-ADR-0012, nota sobre
+// equality).
 public record HorasDiscriminadas(
     IReadOnlyDictionary<string, decimal> HorasPorConcepto,
     IReadOnlyList<string> Trazabilidad)

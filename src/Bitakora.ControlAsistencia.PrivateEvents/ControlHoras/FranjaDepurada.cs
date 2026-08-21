@@ -1,13 +1,11 @@
 namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-// Issue #424: payload plano de una franja ordinaria depurada, espejo de ControlFranja
-// (ControlHoras.Entities) para el mundo humano -- plan (HoraInicioProgramada, HoraFinProgramada,
-// DiaOffsetFin) + realidad (Entrada, Salida, EsAnomala). SIN sede, SIN descripcion, SIN
-// descansos/extras internos (ya digeridos en HorasDiscriminadas). La sede quedo explicitamente fuera
-// de la conversacion por ahora.
+// Payload plano de una franja ordinaria depurada, espejo de ControlFranja (ControlHoras.Entities):
+// plan + realidad. Deliberadamente sin sede, sin descripcion y sin descansos/extras internos: esos
+// ultimos ya vienen digeridos en HorasDiscriminadas y duplicarlos aqui daria dos fuentes de verdad.
 //
-// Todos los campos son primitivos -> la igualdad por valor del record por defecto ya es correcta, sin
-// Equals/GetHashCode propios (MEF-ADR-0012).
+// Solo primitivos: sumar un campo con coleccion obligaria a escribir Equals/GetHashCode a mano
+// (MEF-ADR-0012, nota sobre equality).
 public record FranjaDepurada(
     TimeOnly HoraInicioProgramada,
     TimeOnly HoraFinProgramada,

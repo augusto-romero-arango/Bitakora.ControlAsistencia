@@ -4,8 +4,6 @@
 // RegistroDeMarcacionCreado (CA-3, CA-5); el comportamiento verificado aqui no cambia.
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaDepurado via IPrivateEventSender tras cada recalculo.
-// Issue #424: el payload enriquecido lleva NombreTurno, Franjas (espejo de ControlesDeFranja),
-// Marcaciones (todas, cronologicas) y HorasDiscriminadas en horas liquidables (decimal).
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;

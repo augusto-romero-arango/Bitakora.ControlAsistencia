@@ -30,20 +30,16 @@ public record DesgloseHoras(
     // diccionario plano.
     private const string ClaveRetardo = "Retardo";
 
-    // Traduce el desglose rico al payload plano que viaja en DiaDepurado.
-    // Tell-don't-Ask: el desglose se discrimina a si mismo (no se exponen sus internos para que un
-    // colaborador externo arme el diccionario). Vuelca TotalMinutosPorConcepto con clave Concepto.ToString()
-    // y agrega la clave literal "Retardo" con RetardoTotal.RetardoNeto solo cuando es > 0.
-    //
-    // Ademas puebla Trazabilidad, la memoria de calculo legible del dia. Una linea por
-    // item con minutos > 0: por concepto, derivada de los ToString() ricos (IntervaloTemporal + etiqueta
-    // .resx); por retardo, RetardoTotal.ToString() cuando el neto es > 0. Solo viajan los strings ya
-    // traducidos: el modelo de dominio rico no cruza el bus, pero su ToString() si.
-    //
+    // Tell-don't-Ask: el desglose se discrimina a si mismo, sin exponer sus internos para que un
+    // colaborador externo arme el diccionario. El diccionario solo lleva claves con valor (minutos > 0):
+    // publicar un concepto en cero le daria al consumidor una clave sin significado.
+    // Del modelo rico solo viajan los strings ya traducidos de Trazabilidad (ToString() de
+    // IntervaloTemporal y Retardo): el modelo de dominio rico no cruza el bus (MEF-ADR-0012).
     public HorasDiscriminadas Discriminar()
     {
         var horasPorConcepto = TotalMinutosPorConcepto
-            .ToDictionary(kv => kv.Key.ToString(), kv => HorasLiquidables.DesdeMinutos(kv.Value));
+            .Where(par => par.Value > 0)
+            .ToDictionary(par => par.Key.ToString(), par => HorasLiquidables.DesdeMinutos(par.Value));
 
         var trazabilidad = ConstruirTrazabilidadPorConcepto();
 
@@ -56,10 +52,10 @@ public record DesgloseHoras(
         return new HorasDiscriminadas(horasPorConcepto, trazabilidad);
     }
 
-    // Una linea por concepto presente en el dia: sus intervalos (de todas las franjas, en orden
-    // cronologico) renderizados via ToString() y la etiqueta humana traducida una sola vez. Como cada
-    // intervalo dura > 0min, hay exactamente un concepto por clave de MinutosPorConcepto (sin contar
-    // "Retardo"). Para un concepto con un unico intervalo coincide con IntervaloClasificado.ToString().
+    // Una linea por concepto presente en el dia, con sus intervalos en orden cronologico y la etiqueta
+    // humana traducida una sola vez. Como IntervaloTemporal garantiza Inicio < Fin, cada concepto
+    // presente aporta minutos > 0: por eso hay tantas lineas como claves de HorasPorConcepto (sin
+    // contar "Retardo").
     private List<string> ConstruirTrazabilidadPorConcepto() =>
         DesglosePorFranja
             .SelectMany(franja => franja.Intervalos)

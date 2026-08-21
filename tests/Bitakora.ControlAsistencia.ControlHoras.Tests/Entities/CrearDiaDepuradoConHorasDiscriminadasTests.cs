@@ -1,7 +1,5 @@
 // CrearDiaDepurado() empaqueta el payload plano via DesgloseHoras.Discriminar() sobre el desglose
-// real del aggregate (la propiedad DesgloseHoras que RecalcularDesgloseHoras() refresca en cada Apply),
-// enriquecido con NombreTurno (DetalleTurno?.Nombre), Franjas (espejo de ControlesDeFranja) y
-// Marcaciones (todas, en orden cronologico ascendente) -- issue #424.
+// real del aggregate (la propiedad DesgloseHoras que RecalcularDesgloseHoras() refresca en cada Apply).
 //
 // Test directo sobre CrearDiaDepurado() (metodo publico del aggregate). Como ControlHoras NO expone
 // InternalsVisibleTo, los factory internal (Iniciar/AsignarTurno/AdicionarMarcacion) no son accesibles
@@ -135,6 +133,31 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 StreamId,
                 c => c.CrearDiaDepurado().Marcaciones,
                 [new MarcacionDelDia(Timestamp07_00, "ENTRADA"), new MarcacionDelDia(Timestamp15_00, "ENTRADA")]);
+        }
+
+        // CA-4: el orden cronologico ascendente de Marcaciones es contrato del evento, no reflejo del
+        //       orden de llegada. Las marcaciones se aplican al aggregate en orden inverso (15:00 antes
+        //       que 07:00) y el payload igual las entrega ascendentes.
+        //       El esperado se proyecta a un string porque And<>() compara con BeEquivalentTo, que
+        //       ignora el orden de una coleccion: comparar IReadOnlyList<MarcacionDelDia> pasaria
+        //       igual con el orden invertido y el test no cubriria nada.
+        [Fact]
+        public async Task CrearDiaDepurado_OrdenaMarcacionesCronologicamente_CuandoLlegaronDesordenadas()
+        {
+            Given(StreamId,
+                CrearMarcacionAdicionada(Timestamp15_00),
+                CrearMarcacionAdicionada(Timestamp07_00));
+
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14Detalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")));
+
+            And<ControlDiarioAggregateRoot, string>(
+                StreamId,
+                c => string.Join(
+                    "|",
+                    c.CrearDiaDepurado().Marcaciones.Select(m => m.Timestamp.ToString("HH:mm"))),
+                "07:00|15:00");
         }
 
         // CA-4 (todas las franjas anomalas)/CA-6: turno con franja 06:00-14:00 SIN marcaciones -> la

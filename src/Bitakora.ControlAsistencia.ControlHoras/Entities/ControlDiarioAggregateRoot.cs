@@ -171,10 +171,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
     // refresca al final de cada uno.
-    //
-    // Issue #424: NombreTurno es la senal estructural del plan (DetalleTurno?.Nombre); Franjas espeja
-    // ControlesDeFranja (plan + realidad); Marcaciones viaja completa y ordenada cronologicamente --
-    // CONTRATO del evento, no garantia incidental del orden de llegada al aggregate.
     public DiaDepurado CrearDiaDepurado() =>
         new(
             ExtraerCodigoColaboradorDeStreamId(Id),
@@ -182,11 +178,16 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             CrearResumenColaborador(),
             DetalleTurno?.Nombre,
             _controlesDeFranja.Select(CrearFranjaDepurada).ToList(),
-            _marcaciones
-                .OrderBy(m => m.TimestampNormalizado)
-                .Select(m => new MarcacionDelDia(m.TimestampNormalizado, m.TipoMarcacion))
-                .ToList(),
+            CrearMarcacionesCronologicas(),
             DesgloseHoras.Discriminar());
+
+    // El orden ascendente es contrato del evento, no un reflejo de _marcaciones: el aggregate las
+    // guarda por orden de llegada, que puede no ser cronologico.
+    private List<MarcacionDelDia> CrearMarcacionesCronologicas() =>
+        _marcaciones
+            .OrderBy(m => m.TimestampNormalizado)
+            .Select(m => new MarcacionDelDia(m.TimestampNormalizado, m.TipoMarcacion))
+            .ToList();
 
     private static FranjaDepurada CrearFranjaDepurada(ControlFranja controlFranja) =>
         new(

@@ -2,10 +2,9 @@
 // HU-131: Emitir DiaDepurado tras asignar turno (CA-1, CA-2)
 // Familia 2: verifica que Apply(TurnoDiarioAsignado) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaDepurado via IPrivateEventSender tras el recalculo.
-// Issue #424: el payload enriquecido lleva NombreTurno, Franjas (espejo de ControlesDeFranja),
-// Marcaciones (todas, cronologicas) y HorasDiscriminadas en horas liquidables (decimal). El tercer
-// test (turno sin franjas) construye en unit el caso "dia sin jornada valida" de cero franjas que
-// #423 hara ocurrir en runtime (biunivocidad nombre+cero franjas = descanso programado).
+// El tercer test (turno con cero franjas) construye en unit un caso que hoy no ocurre en runtime:
+// el catalogo todavia no produce turnos sin franjas. No borrarlo por "imposible" -- congela el
+// contrato del descanso programado (nombre de turno presente + cero franjas).
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
