@@ -2,6 +2,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
@@ -122,6 +123,12 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaDepurado.Fecha.Should().Be(fecha);
         diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
+        // Issue #421 CA-1/CA-2: con turno asignado, Colaborador lleva la terna reducida mapeada por
+        // CrearResumenColaborador() -- Identificacion compuesta ("{Tipo}-{Numero}") y NombreCompleto
+        // ("{Nombres} {Apellidos}"), efecto directo del mapeo introducido por este issue.
+        var resumenColaboradorEsperado = new ResumenColaborador(
+            "CC-999888777", codigoColaborador, "[TEST] Smoke ServiceBus [TEST] Verificacion");
+        diaDepurado.Colaborador.Should().Be(resumenColaboradorEsperado);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas), deserializado con el serializador
         // POR DEFECTO del fixture (sin resolver custom). El turno se asigno sin marcaciones previas: la
         // franja queda anomala -> sin minutos calculables -> MinutosPorConcepto vacio.
