@@ -172,10 +172,30 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
     // refresca al final de cada uno.
     //
-    // Issue #424: el payload se enriquece con NombreTurno (DetalleTurno?.Nombre), Franjas (espejo de
-    // ControlesDeFranja) y Marcaciones (todas, ordenadas cronologicamente) -- pendiente de
-    // implementacion (fase roja).
-    public DiaDepurado CrearDiaDepurado() => throw new NotImplementedException();
+    // Issue #424: NombreTurno es la senal estructural del plan (DetalleTurno?.Nombre); Franjas espeja
+    // ControlesDeFranja (plan + realidad); Marcaciones viaja completa y ordenada cronologicamente --
+    // CONTRATO del evento, no garantia incidental del orden de llegada al aggregate.
+    public DiaDepurado CrearDiaDepurado() =>
+        new(
+            ExtraerCodigoColaboradorDeStreamId(Id),
+            Fecha,
+            CrearResumenColaborador(),
+            DetalleTurno?.Nombre,
+            _controlesDeFranja.Select(CrearFranjaDepurada).ToList(),
+            _marcaciones
+                .OrderBy(m => m.TimestampNormalizado)
+                .Select(m => new MarcacionDelDia(m.TimestampNormalizado, m.TipoMarcacion))
+                .ToList(),
+            DesgloseHoras.Discriminar());
+
+    private static FranjaDepurada CrearFranjaDepurada(ControlFranja controlFranja) =>
+        new(
+            controlFranja.Programada.HoraInicio,
+            controlFranja.Programada.HoraFin,
+            controlFranja.Programada.DiaOffsetFin,
+            controlFranja.Entrada,
+            controlFranja.Salida,
+            controlFranja.EsAnomala);
 
     // El aggregate vive en el Function App, el unico proyecto que ve las tres islas de eventos, asi
     // que el mapeo entre ellas vive aqui (CA-ADR-0029 decision #5). Composicion transitoria:

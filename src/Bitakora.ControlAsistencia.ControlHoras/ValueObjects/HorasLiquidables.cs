@@ -11,5 +11,8 @@ public static class HorasLiquidables
     // precision de negocio es cambiar este unico valor.
     private const int PosicionesDecimales = 2;
 
-    public static decimal DesdeMinutos(int minutos) => throw new NotImplementedException();
+    // AwayFromZero: sin midpoints exactos alcanzables con /60 a 2 decimales (nota del issue), el
+    // criterio de desempate es irrelevante en la practica; se deja explicito por si esa premisa cambia.
+    public static decimal DesdeMinutos(int minutos) =>
+        Math.Round(minutos / 60m, PosicionesDecimales, MidpointRounding.AwayFromZero);
 }
