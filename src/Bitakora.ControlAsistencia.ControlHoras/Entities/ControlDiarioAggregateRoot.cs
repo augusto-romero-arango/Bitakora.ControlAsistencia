@@ -40,7 +40,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // HU-139: desglose de horas del dia, estado derivado recalculado reactivamente al final
     // de cada Apply (despues de Depurar). Sin snapshots (ADR-0021): se reconstruye aplicando
     // eventos en cada rehidratacion. Solo lectura para que los tests lo verifiquen y para que
-    // el handler que publica DiaCalculado (#108) pueda leerlo.
+    // el handler que publica DiaDepurado (#108) pueda leerlo.
     private DesgloseHoras _desgloseHoras = DesgloseHoras.Vacio;
     public DesgloseHoras DesgloseHoras => _desgloseHoras;
 
@@ -120,7 +120,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Apply solo proyecta estado; la deteccion de duplicado vive en AdicionarMarcacion (CA-4).
     // Cuando el aggregate nace desde Iniciar(MarcacionAdicionada), este Apply asigna el Id del stream.
     // HU-108: Fecha se deriva del stream ID (CA-7 codifica CodigoColaborador+Fecha) para que el
-    //          DiaCalculado emitido tras el recalculo lleve la fecha correcta incluso cuando
+    //          DiaDepurado emitido tras el recalculo lleve la fecha correcta incluso cuando
     //          el ControlDiario nace solo por marcacion (sin TurnoDiarioAsignado previo).
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(MarcacionAdicionada e)
@@ -139,6 +139,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         var partes = streamId.Split(SeparadorStreamId);
         return DateOnly.ParseExact(partes[^1], FormatoFechaStreamId, CultureInfo.InvariantCulture);
     }
+
+    // Issue #421: CodigoColaborador top-level de DiaDepurado se lee siempre del stream ID (Id ya lo
+    // trae desde cualquiera de los dos Apply), en vez de depender de InformacionColaborador -- que
+    // puede quedar null cuando el dia nace solo por marcacion. Misma anatomia de CA-ADR-0031 que
+    // ExtraerFechaDeStreamId: el segundo componente, entre los dos separadores.
+    private static string ExtraerCodigoColaboradorDeStreamId(string streamId) => streamId.Split(SeparadorStreamId)[1];
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
     // CA-5: si no existe ControlDiario para la fecha, se crea con este factory
@@ -167,8 +173,22 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // (DiaDepurado, familia lexica de la maquina) y agrega CodigoColaborador top-level, siempre
     // presente aunque InformacionColaborador sea null (corrige el defecto latente que impedia al
     // consumidor de #425 construir "dc:{codigo}:{yyyyMMdd}" cuando el dia nace solo por marcacion).
-    // El mapeo a ResumenColaborador (con Identificacion compuesta "{Tipo}-{Numero}" y
-    // NombreCompleto = Nombres + " " + Apellidos) es la logica de negocio nueva de este issue --
-    // stub a proposito para la fase roja del pipeline (test-writer nunca implementa produccion real).
-    public DiaDepurado CrearDiaDepurado() => throw new NotImplementedException();
+    public DiaDepurado CrearDiaDepurado() =>
+        new(
+            ExtraerCodigoColaboradorDeStreamId(Id),
+            Fecha,
+            CrearResumenColaborador(),
+            DesgloseHoras.Discriminar());
+
+    // Composicion transitoria (nota tecnica del issue #421): ColaboradorProgramado no trae
+    // Identificacion ni NombreCompleto ya compuestos -- se ensamblan aqui con el mismo contrato del
+    // maestro (Identificacion.ToString() = "{Tipo}-{Numero}"). Muere cuando #433 haga viajar la terna
+    // ya compuesta desde el origen.
+    private ResumenColaborador? CrearResumenColaborador() =>
+        InformacionColaborador is null
+            ? null
+            : new ResumenColaborador(
+                $"{InformacionColaborador.TipoIdentificacion}-{InformacionColaborador.NumeroIdentificacion}",
+                InformacionColaborador.CodigoColaborador,
+                $"{InformacionColaborador.Nombres} {InformacionColaborador.Apellidos}");
 }

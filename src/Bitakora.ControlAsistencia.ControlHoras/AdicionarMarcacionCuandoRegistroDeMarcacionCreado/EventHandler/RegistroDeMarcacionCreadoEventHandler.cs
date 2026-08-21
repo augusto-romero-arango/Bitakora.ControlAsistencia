@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegist
 // ASB interno del BC ahora es RegistroDeMarcacionCreado (PrivateEvents.ControlHoras), no
 // MarcacionRegistrada (que dejo de implementar IPrivateEvent - CA-3). Paridad de campos identica,
 // asi que el comportamiento (patron crear-o-actualizar sobre ControlDiario, ventana de traslape
-// nocturno, publicacion de DiaCalculado) se preserva sobre el tipo nuevo (CA-5).
+// nocturno, publicacion de DiaDepurado) se preserva sobre el tipo nuevo (CA-5).
 // MEF-ADR-0024 (decision #8): se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
 // MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
 public partial class RegistroDeMarcacionCreadoEventHandler
