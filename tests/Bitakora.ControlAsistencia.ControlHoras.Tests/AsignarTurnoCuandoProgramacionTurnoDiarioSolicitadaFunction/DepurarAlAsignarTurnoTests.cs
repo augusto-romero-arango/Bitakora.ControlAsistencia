@@ -2,6 +2,9 @@
 // HU-131: Emitir DiaDepurado tras asignar turno (CA-1, CA-2)
 // Familia 2: verifica que Apply(TurnoDiarioAsignado) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaDepurado via IPrivateEventSender tras el recalculo.
+// El tercer test (turno con cero franjas) construye en unit un caso que hoy no ocurre en runtime:
+// el catalogo todavia no produce turnos sin franjas. No borrarlo por "imposible" -- congela el
+// contrato del descanso programado (nombre de turno presente + cero franjas).
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
@@ -78,6 +81,8 @@ public class DepurarAlAsignarTurnoTests
     //        Verifica el caso "marcaciones llegaron antes que el turno".
     // CA-1 (HU-131): el handler publica DiaDepurado con CodigoColaborador, Colaborador, Fecha
     //        y ControlesDeFranja actualizados (Entrada y Salida presentes, EsAnomala=false).
+    // Issue #424 (CA-3/CA-4/CA-5): el payload ademas lleva NombreTurno, la FranjaDepurada no anomala
+    //        y las dos marcaciones crudas en orden cronologico.
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_CalculaControlFranja_CuandoMarcacionesLlegaronAntesQueTurno()
     {
@@ -96,13 +101,12 @@ public class DepurarAlAsignarTurnoTests
             new ControlFranja[] { new(Franja06_14, Timestamp07_00, Timestamp15_00) });
 
         // HU-131 CA-1: publica DiaDepurado tras la depuracion. La franja 06:00-14:00 trabajada
-        // 07:00-15:00 no es anomala. Issue #183 CA-4/CA-6: el payload viaja plano (MinutosPorConcepto),
-        // sin ControlesDeFranja.
-        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Discriminar ni
-        // Consolidar, la logica bajo prueba): en domingo 2026-03-15 el retardo 60min (06:00-07:00) se
-        // compensa con el excedente 60min (14:00-15:00) -> retardo neto 0 (no hay clave "Retardo") y
-        // queda visible la ordinaria 07:00-14:00 DominicalFestivaDiurna = 420min. Asi un bug en esa
-        // logica no se filtra al esperado y el test lo detecta.
+        // 07:00-15:00 no es anomala. Issue #183 CA-4/CA-6: el payload viaja plano (HorasPorConcepto).
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Discriminar,
+        // Consolidar ni HorasLiquidables.DesdeMinutos, la logica bajo prueba): en domingo 2026-03-15 el
+        // retardo 60min (06:00-07:00) se compensa con el excedente 60min (14:00-15:00) -> retardo neto
+        // 0 (no hay clave "Retardo") y queda visible la ordinaria 07:00-14:00 DominicalFestivaDiurna =
+        // 420min = 7.00h. Asi un bug en esa logica no se filtra al esperado y el test lo detecta.
         // Issue #184: el DiaDepurado ahora viaja con la Trazabilidad (memoria de calculo) poblada. El
         // unico concepto del dia (ordinaria 07:00-14:00, DominicalFestivaDiurna) genera una sola linea,
         // construida con LineaConcepto desde el intervalo 07:00-14:00 y la etiqueta traducida del recurso.
@@ -110,14 +114,19 @@ public class DepurarAlAsignarTurnoTests
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
+            "Turno Manana",
+            [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, Timestamp15_00, false)],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA"), new MarcacionDelDia(Timestamp15_00, "ENTRADA")],
             new HorasDiscriminadas(
-                new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 },
+                new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 7.00m },
                 [LineaConcepto(new TimeOnly(7, 0), new TimeOnly(14, 0), Concepto.DominicalFestivaDiurna)])));
     }
 
     // CA-2 (HU-131): sin marcaciones previas, el Apply(TurnoDiarioAsignado) dispara Depurar()
     //        pero sin marcaciones el depurador retorna una franja con Entrada=null, Salida=null.
     //        DiaDepurado se emite aunque todos los ControlesDeFranja sean anomalos.
+    // Issue #424 (CA-3/CA-5/CA-6): NombreTurno presente, Franjas con la franja anomala, Marcaciones
+    //        vacia (sin marcaciones previas).
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_PublicaDiaDepurado_CuandoNoHayMarcacionesPrevias()
     {
@@ -134,17 +143,23 @@ public class DepurarAlAsignarTurnoTests
             new ControlFranja[] { new(Franja06_14, null, null) }); // EsAnomala=true
 
         // HU-131 CA-2: DiaDepurado se publica aunque la franja sea anomala (Entrada y Salida null).
-        // Issue #183 CA-6: la franja anomala no aporta minutos calculables y no hay retardo, asi que
-        // MinutosPorConcepto viaja vacio. El contrato plano no lleva senal de anomalia (riesgo aceptado).
+        // Issue #183 CA-6: la franja anomala no aporta horas calculables y no hay retardo, asi que
+        // HorasPorConcepto viaja vacio. El contrato plano no lleva senal de anomalia (riesgo aceptado).
         ThenIsPublishedPrivately(new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
-            new HorasDiscriminadas(new Dictionary<string, int>(), [])));
+            "Turno Manana",
+            [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, null, null, true)],
+            [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
     // CA-2 (HU-131): turno sin franjas ordinarias genera ControlesDeFranja vacio.
     //        DiaDepurado se emite igual con lista vacia de controles.
+    // Issue #424 (CA-6): este es el caso "dia sin jornada valida" de cero franjas -- NombreTurno
+    //        presente pero Franjas vacia (biunivocidad con el descanso programado de #423): el
+    //        contrato plano ya se comporta como sin depuracion (Franjas y HorasPorConcepto vacios).
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_PublicaDiaDepurado_CuandoTurnoNoTieneFranjas()
     {
@@ -160,11 +175,16 @@ public class DepurarAlAsignarTurnoTests
             c => c.ControlesDeFranja.Count, 0);
 
         // HU-131 CA-2: DiaDepurado se publica aunque el turno no tenga franjas.
-        // Issue #183 CA-6: sin franjas que consolidar ni retardo, MinutosPorConcepto viaja vacio.
+        // Issue #183 CA-6: sin franjas que consolidar ni retardo, HorasPorConcepto viaja vacio.
+        // Issue #424 CA-6: NombreTurno = "Turno Sin Franjas" (presente) con Franjas vacia -- la senal
+        // estructural del plan (nombre + cero franjas) que #423 hara ocurrir en runtime.
         ThenIsPublishedPrivately(new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
-            new HorasDiscriminadas(new Dictionary<string, int>(), [])));
+            "Turno Sin Franjas",
+            [],
+            [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 }

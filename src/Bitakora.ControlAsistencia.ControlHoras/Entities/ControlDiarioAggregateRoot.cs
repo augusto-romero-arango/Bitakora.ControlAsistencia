@@ -176,7 +176,27 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             ExtraerCodigoColaboradorDeStreamId(Id),
             Fecha,
             CrearResumenColaborador(),
+            DetalleTurno?.Nombre,
+            _controlesDeFranja.Select(CrearFranjaDepurada).ToList(),
+            CrearMarcacionesCronologicas(),
             DesgloseHoras.Discriminar());
+
+    // El orden ascendente es contrato del evento, no un reflejo de _marcaciones: el aggregate las
+    // guarda por orden de llegada, que puede no ser cronologico.
+    private List<MarcacionDelDia> CrearMarcacionesCronologicas() =>
+        _marcaciones
+            .OrderBy(m => m.TimestampNormalizado)
+            .Select(m => new MarcacionDelDia(m.TimestampNormalizado, m.TipoMarcacion))
+            .ToList();
+
+    private static FranjaDepurada CrearFranjaDepurada(ControlFranja controlFranja) =>
+        new(
+            controlFranja.Programada.HoraInicio,
+            controlFranja.Programada.HoraFin,
+            controlFranja.Programada.DiaOffsetFin,
+            controlFranja.Entrada,
+            controlFranja.Salida,
+            controlFranja.EsAnomala);
 
     // El aggregate vive en el Function App, el unico proyecto que ve las tres islas de eventos, asi
     // que el mapeo entre ellas vive aqui (CA-ADR-0029 decision #5). Composicion transitoria:

@@ -14,9 +14,10 @@
 // RegistroDeMarcacionCreado (issue #270: reemplaza a MarcacionRegistrada, que dejo de implementar
 // IPrivateEvent -- CA-3).
 //
-// El valor esperado se registra A MANO como oraculo independiente: el diccionario de minutos por
-// concepto se calcula de la geometria del dia, sin ejecutar Discriminar ni Consolidar (la logica bajo
-// prueba). Asi un bug en esa logica no se filtra al esperado y el test si detecta regresiones (regla 20).
+// El valor esperado se registra A MANO como oraculo independiente: el diccionario de horas por
+// concepto se calcula de la geometria del dia, sin ejecutar Discriminar ni Consolidar ni
+// HorasLiquidables.DesdeMinutos (la logica bajo prueba). Asi un bug en esa logica no se filtra al
+// esperado y el test si detecta regresiones (regla 20).
 
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
@@ -68,9 +69,10 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
     // Oraculo independiente: dia con franja 06:00-14:00 trabajada 07:00-15:00 (domingo 2026-03-15,
     // no anomala). El retardo 60min (06:00-07:00) se compensa con el excedente 60min (14:00-15:00) ->
     // retardo neto 0 (no hay clave "Retardo"); queda visible la ordinaria 07:00-14:00 = 420min
-    // DominicalFestivaDiurna. Registrado a mano: ni Discriminar ni Consolidar se ejecutan para armarlo.
-    private static IReadOnlyDictionary<string, int> MinutosFranjaCompleta() =>
-        new Dictionary<string, int> { ["DominicalFestivaDiurna"] = 420 };
+    // DominicalFestivaDiurna = 7.00 horas liquidables (420/60). Registrado a mano: ni Discriminar, ni
+    // Consolidar, ni HorasLiquidables.DesdeMinutos se ejecutan para armarlo.
+    private static IReadOnlyDictionary<string, decimal> HorasFranjaCompleta() =>
+        new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 7.00m };
 
     public class ViaAsignarTurnoTests
         : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
@@ -84,14 +86,16 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
 
         // CA-4: con turno (franja 06:00-14:00) y marcaciones previas que la completan (07:00, 15:00),
         //       la franja queda NO anomala. CrearDiaDepurado() debe empaquetar el payload plano
-        //       discriminado del desglose real: MinutosPorConcepto = {DominicalFestivaDiurna: 420}.
-        // Issue #184: CrearDiaDepurado() ahora ademas puebla la Trazabilidad via Discriminar(). Un solo
+        //       discriminado del desglose real: HorasPorConcepto = {DominicalFestivaDiurna: 7.00}.
+        // Issue #184: CrearDiaDepurado() ademas puebla la Trazabilidad via Discriminar(). Un solo
         //       concepto (DominicalFestivaDiurna) y retardo neto 0 -> exactamente una linea. Se verifica
         //       solo el conteo (robusto ante como el desglose descomponga los intervalos del concepto);
         //       el contenido exacto de las lineas se prueba en DesgloseHorasDiscriminarTests, con geometria
         //       controlada. Aqui basta probar que el aggregate enruta la trazabilidad hacia el payload.
+        // Issue #424 (CA-3/CA-5): Franjas lleva el espejo del ControlFranja real y NombreTurno la senal
+        //       estructural del plan (nombre presente + Franjas >= 1 -> jornada valida).
         [Fact]
-        public async Task CrearDiaDepurado_LlevaMinutosYTrazabilidadReales_CuandoFranjaNoEsAnomala()
+        public async Task CrearDiaDepurado_LlevaHorasYTrazabilidadReales_CuandoFranjaNoEsAnomala()
         {
             Given(StreamId,
                 CrearMarcacionAdicionada(Timestamp07_00),
@@ -103,23 +107,65 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
             var turnoFranjaUnica = new TurnoDiario("Turno Manana", [Franja06_14], "");
             Then(StreamId, CrearTurnoDiarioAsignado(turnoFranjaUnica));
 
-            And<ControlDiarioAggregateRoot, IReadOnlyDictionary<string, int>>(
+            And<ControlDiarioAggregateRoot, IReadOnlyDictionary<string, decimal>>(
                 StreamId,
-                c => c.CrearDiaDepurado().HorasDiscriminadas.MinutosPorConcepto,
-                MinutosFranjaCompleta());
+                c => c.CrearDiaDepurado().HorasDiscriminadas.HorasPorConcepto,
+                HorasFranjaCompleta());
 
             And<ControlDiarioAggregateRoot, int>(
                 StreamId,
                 c => c.CrearDiaDepurado().HorasDiscriminadas.Trazabilidad.Count,
                 1);
+
+            And<ControlDiarioAggregateRoot, string?>(
+                StreamId,
+                c => c.CrearDiaDepurado().NombreTurno,
+                "Turno Manana");
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(
+                    new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                    Timestamp07_00, Timestamp15_00, false)]);
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Marcaciones,
+                [new MarcacionDelDia(Timestamp07_00, "ENTRADA"), new MarcacionDelDia(Timestamp15_00, "ENTRADA")]);
         }
 
-        // CA-4 (todas las franjas anomalas): turno con franja 06:00-14:00 SIN marcaciones -> la franja
-        //       queda anomala (sin entrada ni salida). El desglose real no aporta minutos calculables
-        //       y no hay retardo, asi que el payload plano lleva MinutosPorConcepto vacio. El contrato
-        //       plano ya no distingue "anomala" de "dia vacio" (riesgo aceptado del issue).
+        // CA-4: el orden cronologico ascendente de Marcaciones es contrato del evento, no reflejo del
+        //       orden de llegada. Las marcaciones se aplican al aggregate en orden inverso (15:00 antes
+        //       que 07:00) y el payload igual las entrega ascendentes.
+        //       El esperado se proyecta a un string porque And<>() compara con BeEquivalentTo, que
+        //       ignora el orden de una coleccion: comparar IReadOnlyList<MarcacionDelDia> pasaria
+        //       igual con el orden invertido y el test no cubriria nada.
         [Fact]
-        public async Task CrearDiaDepurado_LlevaMinutosPorConceptoVacio_CuandoTurnoSinMarcaciones()
+        public async Task CrearDiaDepurado_OrdenaMarcacionesCronologicamente_CuandoLlegaronDesordenadas()
+        {
+            Given(StreamId,
+                CrearMarcacionAdicionada(Timestamp15_00),
+                CrearMarcacionAdicionada(Timestamp07_00));
+
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14Detalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")));
+
+            And<ControlDiarioAggregateRoot, string>(
+                StreamId,
+                c => string.Join(
+                    "|",
+                    c.CrearDiaDepurado().Marcaciones.Select(m => m.Timestamp.ToString("HH:mm"))),
+                "07:00|15:00");
+        }
+
+        // CA-4 (todas las franjas anomalas)/CA-6: turno con franja 06:00-14:00 SIN marcaciones -> la
+        //       franja queda anomala (sin entrada ni salida). El desglose real no aporta horas
+        //       calculables y no hay retardo, asi que HorasPorConcepto viaja vacio. Franjas SI lleva la
+        //       franja anomala (espejo de ControlesDeFranja); Marcaciones queda vacia.
+        [Fact]
+        public async Task CrearDiaDepurado_LlevaHorasPorConceptoVacio_CuandoTurnoSinMarcaciones()
         {
             // Sin Given - stream nuevo, turno sin marcaciones previas.
             var turnoFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
@@ -131,7 +177,17 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
             And<ControlDiarioAggregateRoot, HorasDiscriminadas>(
                 StreamId,
                 c => c.CrearDiaDepurado().HorasDiscriminadas,
-                new HorasDiscriminadas(new Dictionary<string, int>(), []));
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, null, null, true)]);
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Marcaciones,
+                []);
         }
     }
 
@@ -145,11 +201,12 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
         private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
             new(Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
-        // CA-4 (sin turno): la marcacion crea el aggregate sin DetalleTurno -> Depurar() retorna lista
-        //       vacia -> no hay ControlesDeFranja que consolidar. CrearDiaDepurado() empaqueta el
-        //       payload plano con MinutosPorConcepto vacio.
+        // CA-4/CA-6 (sin turno): la marcacion crea el aggregate sin DetalleTurno -> Depurar() retorna
+        //       lista vacia -> no hay ControlesDeFranja que consolidar. CrearDiaDepurado() empaqueta el
+        //       payload plano con HorasPorConcepto vacio, NombreTurno null y Franjas vacia (dia sin
+        //       jornada valida); Marcaciones lleva la marcacion cruda.
         [Fact]
-        public async Task CrearDiaDepurado_LlevaMinutosPorConceptoVacio_CuandoNoHayTurno()
+        public async Task CrearDiaDepurado_LlevaHorasPorConceptoVacio_CuandoNoHayTurno()
         {
             // Sin Given - el aggregate nace solo con la marcacion (DetalleTurno queda null).
             await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
@@ -159,7 +216,17 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
             And<ControlDiarioAggregateRoot, HorasDiscriminadas>(
                 StreamId,
                 c => c.CrearDiaDepurado().HorasDiscriminadas,
-                new HorasDiscriminadas(new Dictionary<string, int>(), []));
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+
+            And<ControlDiarioAggregateRoot, string?>(
+                StreamId,
+                c => c.CrearDiaDepurado().NombreTurno,
+                null);
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Marcaciones,
+                [new MarcacionDelDia(Timestamp07_00, "ENTRADA")]);
         }
 
         // CA-4: sin turno, Colaborador queda null y CodigoColaborador solo puede salir del stream ID.

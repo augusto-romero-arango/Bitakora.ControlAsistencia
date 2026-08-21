@@ -126,9 +126,14 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         diaDepurado.Colaborador.Should().Be(resumenColaboradorEsperado);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas), deserializado con el serializador
         // POR DEFECTO del fixture (sin resolver custom). El turno se asigno sin marcaciones previas: la
-        // franja queda anomala -> sin minutos calculables -> MinutosPorConcepto vacio.
-        diaDepurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
-            "el turno sin marcaciones deja la franja anomala, sin minutos por concepto");
+        // franja queda anomala -> sin horas calculables -> HorasPorConcepto vacio.
+        diaDepurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty(
+            "el turno sin marcaciones deja la franja anomala, sin horas por concepto");
+        // Issue #424 CA-3/CA-4/CA-5: NombreTurno presente, la franja anomala (sin marcaciones) y
+        // Marcaciones vacia (nada se registro antes del turno).
+        diaDepurado.NombreTurno.Should().Be("[TEST] Turno Smoke SB");
+        diaDepurado.Franjas.Should().ContainSingle(f => f.EsAnomala);
+        diaDepurado.Marcaciones.Should().BeEmpty();
 
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion del consumidor
         // de entrada (issue #223: acotado por SolicitudId, no "DLQ globalmente vacio").
@@ -267,6 +272,10 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaDepurado.Fecha.Should().Be(fecha);
         diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
+        // Issue #424 CA-3/CA-5: el turno multi-sede sigue enriqueciendo el payload con NombreTurno y
+        // las dos FranjaDepurada (espejo de las franjas ordinarias asignadas).
+        diaDepurado.NombreTurno.Should().Be("[TEST] Turno Partido Sede");
+        diaDepurado.Franjas.Should().HaveCount(2);
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion del consumidor de
         // entrada -- confirma que el mapeo DetalleSede -> SedeProgramada no rompe el handler
@@ -391,8 +400,8 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
         // Issue #183 CA-6: el payload plano (HorasDiscriminadas) se deserializa con el serializador POR
         // DEFECTO del fixture (sin resolver custom) incluso cuando el mensaje llega en camelCase. El turno
-        // se asigno sin marcaciones: franja anomala -> MinutosPorConcepto vacio.
-        diaDepurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
-            "el turno sin marcaciones deja la franja anomala, sin minutos por concepto");
+        // se asigno sin marcaciones: franja anomala -> HorasPorConcepto vacio.
+        diaDepurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty(
+            "el turno sin marcaciones deja la franja anomala, sin horas por concepto");
     }
 }
