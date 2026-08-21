@@ -396,11 +396,16 @@ public class RegistrarMarcacionSmokeTests(
         diaDepurado.Colaborador.Should().Be(colaboradorEsperado);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas) y se deserializo con el
         // serializador POR DEFECTO del fixture (sin resolver custom). Esta marcacion es solo ENTRADA:
-        // la franja queda anomala (sin salida) -> sin minutos calculables -> MinutosPorConcepto vacio.
+        // la franja queda anomala (sin salida) -> sin horas calculables -> HorasPorConcepto vacio.
         diaDepurado.HorasDiscriminadas.Should().NotBeNull(
             "DiaDepurado siempre se emite con HorasDiscriminadas");
-        diaDepurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
-            "una entrada sola deja la franja anomala, sin minutos por concepto");
+        diaDepurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty(
+            "una entrada sola deja la franja anomala, sin horas por concepto");
+        // Issue #424 CA-3/CA-4/CA-5: el payload enriquecido lleva NombreTurno, la franja anomala
+        // (espejo del ControlFranja real) y la marcacion cruda de la entrada.
+        diaDepurado.NombreTurno.Should().Be("[TEST] Turno HU108");
+        diaDepurado.Franjas.Should().ContainSingle(f => f.EsAnomala);
+        diaDepurado.Marcaciones.Should().ContainSingle(m => m.Timestamp == timestamp);
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
         // dia-depurado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
@@ -522,15 +527,19 @@ public class RegistrarMarcacionSmokeTests(
 
         diaDepurado.Fecha.Should().Be(fecha);
 
-        // Issue #183 CA-6: el smoke verifica MinutosPorConcepto del payload plano, deserializado con el
+        // Issue #183 CA-6: el smoke verifica HorasPorConcepto del payload plano, deserializado con el
         // serializador POR DEFECTO del fixture (sin resolver custom). La franja quedo completa (entrada
         // 08:00 + salida 16:00), asi que una jornada 08:00-16:00 acumula horas ordinarias diurnas reales.
         // Clave = Concepto.ToString() ("OrdinariaDiurna").
-        diaDepurado.HorasDiscriminadas.MinutosPorConcepto
+        diaDepurado.HorasDiscriminadas.HorasPorConcepto
             .Should().ContainKey("OrdinariaDiurna");
-        diaDepurado.HorasDiscriminadas.MinutosPorConcepto["OrdinariaDiurna"]
-            .Should().BeGreaterThan(0,
+        diaDepurado.HorasDiscriminadas.HorasPorConcepto["OrdinariaDiurna"]
+            .Should().BeGreaterThan(0m,
                 "el desglose real discriminado lleva horas ordinarias diurnas (no un payload vacio)");
+        // Issue #424 CA-3/CA-4: la franja completa (entrada + salida) queda NO anomala y ambas
+        // marcaciones viajan crudas.
+        diaDepurado.Franjas.Should().ContainSingle(f => !f.EsAnomala);
+        diaDepurado.Marcaciones.Should().HaveCount(2);
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
         // dia-depurado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
@@ -598,6 +607,11 @@ public class RegistrarMarcacionSmokeTests(
         diaDepurado.Fecha.Should().Be(fecha);
         diaDepurado.Colaborador.Should().BeNull(
             "el dia nacio solo por marcacion, sin turno asignado que aporte la foto del colaborador");
+        // Issue #424 CA-5/CA-6: sin turno, NombreTurno viaja null y Franjas vacia (dia sin jornada
+        // valida); la marcacion cruda sigue viajando en Marcaciones.
+        diaDepurado.NombreTurno.Should().BeNull();
+        diaDepurado.Franjas.Should().BeEmpty();
+        diaDepurado.Marcaciones.Should().ContainSingle(m => m.Timestamp == timestamp);
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
         // dia-depurado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").

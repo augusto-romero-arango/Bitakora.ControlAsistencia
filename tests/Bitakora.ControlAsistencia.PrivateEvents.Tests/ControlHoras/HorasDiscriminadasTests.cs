@@ -1,6 +1,8 @@
 // HorasDiscriminadas - payload plano (100% primitivo) que viaja en DiaDepurado por el bus interno
 // del BC: serializa y deserializa con STJ POR DEFECTO, sin el resolver custom de Marten. Esa es la
 // cura del payload lossy -- ningun consumidor depende de nuestra serializacion interna.
+//
+// Issue #424: HorasPorConcepto (ex MinutosPorConcepto) habla horas liquidables (decimal), no minutos.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -12,18 +14,18 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 public class HorasDiscriminadasTests
 {
     private static HorasDiscriminadas CrearConDatos() => new(
-        new Dictionary<string, int>
+        new Dictionary<string, decimal>
         {
-            ["OrdinariaDiurna"] = 420,
-            ["ExtraDiurna"] = 30,
-            ["Retardo"] = 15
+            ["OrdinariaDiurna"] = 7.00m,
+            ["ExtraDiurna"] = 0.50m,
+            ["Retardo"] = 0.25m
         },
         ["entro 06:15, retardo 15min"]);
 
-    // CA-1: round-trip con el serializador POR DEFECTO (sin TypeInfoResolver custom). No lanza
-    // NotSupportedException y preserva MinutosPorConcepto y Trazabilidad sin perdida.
+    // CA-1/CA-2: round-trip con el serializador POR DEFECTO (sin TypeInfoResolver custom). No lanza
+    // NotSupportedException y preserva HorasPorConcepto (decimal) y Trazabilidad sin perdida.
     [Fact]
-    public void RoundTrip_PreservaMinutosPorConceptoYTrazabilidad_ConSerializadorPorDefecto()
+    public void RoundTrip_PreservaHorasPorConceptoYTrazabilidad_ConSerializadorPorDefecto()
     {
         var original = CrearConDatos();
         var opciones = new JsonSerializerOptions();
@@ -32,7 +34,7 @@ public class HorasDiscriminadasTests
         var restaurado = JsonSerializer.Deserialize<HorasDiscriminadas>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.MinutosPorConcepto.Should().BeEquivalentTo(original.MinutosPorConcepto);
+        restaurado!.HorasPorConcepto.Should().BeEquivalentTo(original.HorasPorConcepto);
         restaurado.Trazabilidad.Should().BeEquivalentTo(original.Trazabilidad);
     }
 
@@ -51,22 +53,22 @@ public class HorasDiscriminadasTests
         var act = () => JsonSerializer.Deserialize<HorasDiscriminadas>(json, opciones);
 
         act.Should().NotThrow();
-        act()!.MinutosPorConcepto["OrdinariaDiurna"].Should().Be(420);
+        act()!.HorasPorConcepto["OrdinariaDiurna"].Should().Be(7.00m);
     }
 
-    // CA-1: el diccionario vacio (dia sin horas calculables) round-trip a un diccionario vacio,
+    // CA-2: el diccionario vacio (dia sin horas calculables) round-trip a un diccionario vacio,
     // no a null. La trazabilidad vacia se preserva igual.
     [Fact]
     public void RoundTrip_PreservaColeccionesVacias_CuandoDiaSinHorasCalculables()
     {
-        var original = new HorasDiscriminadas(new Dictionary<string, int>(), []);
+        var original = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
         var opciones = new JsonSerializerOptions();
 
         var json = JsonSerializer.Serialize(original, opciones);
         var restaurado = JsonSerializer.Deserialize<HorasDiscriminadas>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.MinutosPorConcepto.Should().BeEmpty();
+        restaurado!.HorasPorConcepto.Should().BeEmpty();
         restaurado.Trazabilidad.Should().BeEmpty();
     }
 }

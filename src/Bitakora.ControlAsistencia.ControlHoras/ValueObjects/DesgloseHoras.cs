@@ -39,22 +39,10 @@ public record DesgloseHoras(
     // item con minutos > 0: por concepto, derivada de los ToString() ricos (IntervaloTemporal + etiqueta
     // .resx); por retardo, RetardoTotal.ToString() cuando el neto es > 0. Solo viajan los strings ya
     // traducidos: el modelo de dominio rico no cruza el bus, pero su ToString() si.
-    public HorasDiscriminadas Discriminar()
-    {
-        var minutosPorConcepto = TotalMinutosPorConcepto
-            .Where(par => par.Value > 0)
-            .ToDictionary(par => par.Key.ToString(), par => par.Value);
-
-        var trazabilidad = ConstruirTrazabilidadPorConcepto();
-
-        if (RetardoTotal.RetardoNeto > 0)
-        {
-            minutosPorConcepto[ClaveRetardo] = RetardoTotal.RetardoNeto;
-            trazabilidad.Add(RetardoTotal.ToString());
-        }
-
-        return new HorasDiscriminadas(minutosPorConcepto, trazabilidad);
-    }
+    //
+    // Issue #424: el diccionario resultante habla horas liquidables (HorasLiquidables.DesdeMinutos),
+    // no minutos -- pendiente de implementacion (fase roja).
+    public HorasDiscriminadas Discriminar() => throw new NotImplementedException();
 
     // Una linea por concepto presente en el dia: sus intervalos (de todas las franjas, en orden
     // cronologico) renderizados via ToString() y la etiqueta humana traducida una sola vez. Como cada

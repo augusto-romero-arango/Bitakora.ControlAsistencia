@@ -171,12 +171,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
     // refresca al final de cada uno.
-    public DiaDepurado CrearDiaDepurado() =>
-        new(
-            ExtraerCodigoColaboradorDeStreamId(Id),
-            Fecha,
-            CrearResumenColaborador(),
-            DesgloseHoras.Discriminar());
+    //
+    // Issue #424: el payload se enriquece con NombreTurno (DetalleTurno?.Nombre), Franjas (espejo de
+    // ControlesDeFranja) y Marcaciones (todas, ordenadas cronologicamente) -- pendiente de
+    // implementacion (fase roja).
+    public DiaDepurado CrearDiaDepurado() => throw new NotImplementedException();
 
     // El aggregate vive en el Function App, el unico proyecto que ve las tres islas de eventos, asi
     // que el mapeo entre ellas vive aqui (CA-ADR-0029 decision #5). Composicion transitoria:

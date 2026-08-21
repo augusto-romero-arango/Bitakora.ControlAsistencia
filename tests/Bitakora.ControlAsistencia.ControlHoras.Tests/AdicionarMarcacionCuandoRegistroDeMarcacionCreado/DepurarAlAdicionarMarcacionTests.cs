@@ -4,6 +4,8 @@
 // RegistroDeMarcacionCreado (CA-3, CA-5); el comportamiento verificado aqui no cambia.
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaDepurado via IPrivateEventSender tras cada recalculo.
+// Issue #424: el payload enriquecido lleva NombreTurno, Franjas (espejo de ControlesDeFranja),
+// Marcaciones (todas, cronologicas) y HorasDiscriminadas en horas liquidables (decimal).
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
@@ -76,6 +78,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     //        Verifica que el hook reactivo se dispara desde Apply(MarcacionAdicionada).
     // CA-1 (HU-108): el handler publica DiaDepurado con CodigoColaborador, Colaborador, Fecha y las
     //        horas discriminadas correctas.
+    // Issue #424 (CA-3/CA-4/CA-5): el payload ademas lleva NombreTurno, la FranjaDepurada anomala
+    //        (Salida null) y la marcacion cruda de las 07:00.
     [Fact]
     public async Task RegistroDeMarcacionCreado_CalculaControlFranja_CuandoHayTurnoYLlegaMarcacion()
     {
@@ -91,15 +95,17 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             new ControlFranja[] { new(Franja06_14, Timestamp07_00, null) });
 
         // HU-108 CA-1: el handler publica un DiaDepurado con el estado tras el recalculo.
-        // Issue #183 CA-4/CA-6: el payload viaja plano (HorasDiscriminadas), sin ControlesDeFranja.
-        // La franja quedo anomala (Salida null): no aporta minutos calculables y no hay retardo, asi
-        // que MinutosPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano ya no
+        // La franja quedo anomala (Salida null): no aporta horas calculables y no hay retardo, asi
+        // que HorasPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano no
         // distingue "franja anomala" de "dia sin horas"; ambos publican el mismo diccionario vacio.
         ThenIsPublishedPrivately(new DiaDepurado(
             CodigoColaborador,
             Fecha,
             ColaboradorResumen,
-            new HorasDiscriminadas(new Dictionary<string, int>(), [])));
+            "Turno Manana",
+            [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, null, true)],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA")],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
     // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin TurnoDiario.
@@ -108,6 +114,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     //        se inicia solo con marcacion y no hay nada que depurar.
     // CA-2/CA-4 (HU-108): el handler publica DiaDepurado incluso cuando ControlesDeFranja esta vacio,
     //        con Colaborador null pero CodigoColaborador top-level presente.
+    // Issue #424 (CA-5/CA-6): sin turno, NombreTurno viaja null y Franjas vacia (dia sin jornada
+    //        valida); la marcacion cruda sigue viajando en Marcaciones.
     [Fact]
     public async Task RegistroDeMarcacionCreado_DejaControlesDeFranjaVacios_CuandoNoHayTurnoPrevio()
     {
@@ -120,12 +128,15 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
 
         // HU-108 CA-4: se publica DiaDepurado aunque no haya turno. Colaborador es null porque el
         // ControlDiario nacio solo por marcacion; CodigoColaborador top-level sigue presente.
-        // Issue #183 CA-6: sin turno no hay nada que consolidar -> MinutosPorConcepto viaja vacio.
+        // Issue #183 CA-6: sin turno no hay nada que consolidar -> HorasPorConcepto viaja vacio.
         ThenIsPublishedPrivately(new DiaDepurado(
             CodigoColaborador,
             Fecha,
             null,
-            new HorasDiscriminadas(new Dictionary<string, int>(), [])));
+            null,
+            [],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA")],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
     // CA-3 (HU-123): con turno partido (06:00-12:00 y 14:00-18:00) y 2 MarcacionAdicionada previas
@@ -133,6 +144,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     //        completo: F1(Entrada=05:50, Salida=12:05) + F2(Entrada=14:10, Salida=null).
     //        Verifica comportamiento idem-potente: no acumula sobre resultado anterior.
     // CA-3 (HU-108): el handler publica DiaDepurado; Issue #183: con el payload plano (HorasDiscriminadas).
+    // Issue #424 (CA-3/CA-4): Franjas lleva ambas FranjaDepurada (una no anomala, otra anomala) y
+    //        Marcaciones las tres marcaciones en orden cronologico.
     [Fact]
     public async Task RegistroDeMarcacionCreado_RecalculaControlesDeFranjaCompletos_CuandoHayTurnoPartidoYMarcacionesAcumuladas()
     {
@@ -155,14 +168,15 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             });
 
         // HU-108 CA-3: las dos franjas se recalculan. F1: no anomala (Entrada y Salida). F2: anomala
-        // (Salida null). Issue #183 CA-4/CA-6: el payload viaja plano (MinutosPorConcepto). Solo F1
-        // (no anomala) aporta minutos; F2 anomala no aporta. El contrato plano no lleva senal de la
+        // (Salida null). Issue #183 CA-4/CA-6: el payload viaja plano (HorasPorConcepto). Solo F1
+        // (no anomala) aporta horas; F2 anomala no aporta. El contrato plano no lleva senal de la
         // franja anomala (riesgo aceptado del issue).
-        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Discriminar ni
-        // Consolidar, la logica bajo prueba). F1 06:00-12:00 trabajada 05:50-12:05 en domingo
-        // 2026-03-15: entro 05:50 -> recortado a 06:00 (sin retardo); ordinaria 06:00-12:00
-        // DominicalFestivaDiurna = 360min y excedente 12:00-12:05 ExtraDiurnaDominicalFestiva = 5min
-        // (sin retardo que lo compense). Sin retardo neto -> no hay clave "Retardo".
+        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Discriminar,
+        // Consolidar ni HorasLiquidables.DesdeMinutos, la logica bajo prueba). F1 06:00-12:00
+        // trabajada 05:50-12:05 en domingo 2026-03-15: entro 05:50 -> recortado a 06:00 (sin retardo);
+        // ordinaria 06:00-12:00 DominicalFestivaDiurna = 360min = 6.00h y excedente 12:00-12:05
+        // ExtraDiurnaDominicalFestiva = 5min = 0.08h (5/60=0.0833..., sin retardo que lo compense). Sin
+        // retardo neto -> no hay clave "Retardo".
         // Issue #184: el DiaDepurado ahora viaja con la Trazabilidad (memoria de calculo) poblada. Dos
         // conceptos -> dos lineas, en orden cronologico (ordinaria antes que excedente), cada una armada
         // con LineaConcepto desde su intervalo y la etiqueta traducida. F2 es anomala (Salida null): no
@@ -171,11 +185,21 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             CodigoColaborador,
             Fecha,
             ColaboradorResumen,
+            "Turno Partido",
+            [
+                new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, Timestamp05_50, Timestamp12_05, false),
+                new FranjaDepurada(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, Timestamp14_10, null, true)
+            ],
+            [
+                new MarcacionDelDia(Timestamp05_50, "ENTRADA"),
+                new MarcacionDelDia(Timestamp12_05, "ENTRADA"),
+                new MarcacionDelDia(Timestamp14_10, "ENTRADA")
+            ],
             new HorasDiscriminadas(
-                new Dictionary<string, int>
+                new Dictionary<string, decimal>
                 {
-                    ["DominicalFestivaDiurna"] = 360,
-                    ["ExtraDiurnaDominicalFestiva"] = 5
+                    ["DominicalFestivaDiurna"] = 6.00m,
+                    ["ExtraDiurnaDominicalFestiva"] = 0.08m
                 },
                 [
                     LineaConcepto(new TimeOnly(6, 0), new TimeOnly(12, 0), Concepto.DominicalFestivaDiurna),
@@ -204,11 +228,17 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             new MarcacionAdicionada(StreamIdDiaAnterior, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
 
         // CA-5: dos DiaDepurado publicados, en orden: dia calendario primero, dia anterior segundo.
-        // Ambos sin turno previo (Colaborador=null), pero con CodigoColaborador top-level.
-        // Issue #183 CA-6: sin turno en ninguno de los dos streams, MinutosPorConcepto viaja vacio en ambos.
+        // Ambos sin turno previo (Colaborador=null, NombreTurno=null, Franjas vacia), pero con
+        // CodigoColaborador top-level y la marcacion cruda en Marcaciones.
+        // Issue #183 CA-6: sin turno en ninguno de los dos streams, HorasPorConcepto viaja vacio en ambos.
+        var marcacionNocturna = new MarcacionDelDia(timestampNocturno, "ENTRADA");
         ThenIsPublishedPrivately(
-            new DiaDepurado(CodigoColaborador, fechaDiaCal, null, new HorasDiscriminadas(new Dictionary<string, int>(), [])),
-            new DiaDepurado(CodigoColaborador, fechaDiaAnt, null, new HorasDiscriminadas(new Dictionary<string, int>(), [])));
+            new DiaDepurado(
+                CodigoColaborador, fechaDiaCal, null, null, [], [marcacionNocturna],
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])),
+            new DiaDepurado(
+                CodigoColaborador, fechaDiaAnt, null, null, [], [marcacionNocturna],
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
 
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
