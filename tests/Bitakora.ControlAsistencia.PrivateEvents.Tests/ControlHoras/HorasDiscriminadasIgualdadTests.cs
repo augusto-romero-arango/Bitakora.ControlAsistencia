@@ -5,9 +5,9 @@
 // colecciones que prometen igualdad por valor que no cumplen).
 
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-namespace Bitakora.ControlAsistencia.PublicEvents.Tests.ControlHoras;
+namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 
 public class HorasDiscriminadasIgualdadTests : IgualdadTestBase<HorasDiscriminadas>
 {

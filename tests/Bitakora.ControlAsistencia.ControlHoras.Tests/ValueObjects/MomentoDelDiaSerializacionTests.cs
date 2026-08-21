@@ -1,5 +1,5 @@
 // Issue #112: Tests de serializacion round-trip para MomentoDelDia.
-// Viaja en el evento publico DiaCalculado => contrato critico.
+// Viaja en el evento privado DiaDepurado => contrato critico.
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;

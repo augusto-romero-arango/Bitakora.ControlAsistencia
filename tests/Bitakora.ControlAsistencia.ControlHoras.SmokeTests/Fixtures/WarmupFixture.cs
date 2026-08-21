@@ -9,7 +9,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 // Functions se duerme (B1 sin always_on, descartado por costo - ver ADR-0009). Un health-ping
 // HTTP solo confirma "host HTTP arriba", no "listeners SB consumiendo": la inicializacion del
 // listener (link AMQP + lease de la subscription) es asincrona y posterior al 200. El test
-// DebePublicarDiaCalculadoYPersistirMarcacionAdicionada... ya ceba implicitamente AsignarTurno
+// RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada... ya ceba implicitamente AsignarTurno
 // en su setup, pero AdicionarMarcacion arranca frio justo en el Act y los 30s no alcanzan.
 //
 // Solucion: ejecutar la cadena SB completa UNA sola vez, con identificadores descartables,
@@ -86,8 +86,8 @@ public class WarmupFixture : IAsyncLifetime
 
         // CA-4: identificadores descartables y unicos. El stream cd:{codigoColaborador}:{fecha} queda
         // aislado; no toca los streams ni las suscripciones que verifican los tests reales. No leemos
-        // ni purgamos la suscripcion smoke-tests de dia-calculado: el
-        // DiaCalculado que emite este cebado lleva un CodigoColaborador distinto (los tests filtran por
+        // ni purgamos la suscripcion smoke-tests de dia-depurado: el
+        // DiaDepurado que emite este cebado lleva un CodigoColaborador distinto (los tests filtran por
         // el suyo) y, ademas, el test real purga esa suscripcion antes de su Act. Confirmamos el cebado
         // solo via Postgres, que ya prueba que ambos listeners procesaron.
         var codigoColaborador = Guid.CreateVersion7().ToString();

@@ -46,7 +46,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         "");
 
     protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
+        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PrivateEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento() =>
         new(SolicitudId, ColaboradorDetalle, Fecha, DetalleTurnoTest);

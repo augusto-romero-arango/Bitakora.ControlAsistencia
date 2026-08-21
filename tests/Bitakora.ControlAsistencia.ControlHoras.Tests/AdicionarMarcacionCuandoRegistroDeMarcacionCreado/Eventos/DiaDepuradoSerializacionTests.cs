@@ -1,26 +1,24 @@
-// Issue #183: Reemplazar el payload de DiaCalculado por HorasDiscriminadas plano.
-// CA-6: el payload completo de DiaCalculado round-trip serializa/deserializa con el serializador POR
-//       DEFECTO del publisher (sin el resolver custom de Marten) y sin perdida. Esa es la cura del bug
-//       (field notes 2026-06-23): el payload ya no contiene tipos de dominio ricos con campos privados
-//       que solo serializaban con ConfigurarSerializacion -- resolver que NO se aplica al canal de
-//       publicacion a Service Bus. Con solo primitivos, ningun consumidor depende de esa serializacion.
+// CA-6: el payload completo de DiaDepurado, con datos realistas del dominio, round-trip
+// serializa/deserializa con el serializador POR DEFECTO del publisher (sin el resolver custom de
+// Marten) y sin perdida. Complementa el guardrail minimo de portabilidad de
+// PrivateEvents.Tests/ControlHoras/DiaDepuradoTests, que compila contra la isla sola.
 //
-// Inversion de la barrera anterior: el test legado afirmaba que la deserializacion FALLABA sin el
-// resolver custom (Retardo tenia ctor privado). Ahora se afirma lo OPUESTO: tiene EXITO con el
-// resolver por defecto. Si alguien reintroduce un tipo rico al payload, este test fallaria.
+// La asercion es deliberadamente la OPUESTA a la del test legado, que afirmaba que la
+// deserializacion FALLABA sin resolver custom (Retardo tenia ctor privado): si alguien reintroduce
+// un tipo rico al payload, este test se pone rojo.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.Eventos;
 
-public class DiaCalculadoSerializacionTests
+public class DiaDepuradoSerializacionTests
 {
-    private static readonly InformacionColaborador Colaborador =
-        new("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+    private static readonly ResumenColaborador Colaborador =
+        new("CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
 
@@ -43,33 +41,36 @@ public class DiaCalculadoSerializacionTests
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelPublisher()
     {
-        var original = new DiaCalculado(Colaborador, Fecha, HorasConDatos());
+        var original = new DiaDepurado("EMP-001", Fecha, Colaborador, HorasConDatos());
         var opciones = OpcionesPorDefectoDelPublisher();
 
         var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.InformacionColaborador.Should().Be(Colaborador);
+        restaurado!.CodigoColaborador.Should().Be("EMP-001");
+        restaurado.Colaborador.Should().Be(Colaborador);
         restaurado.Fecha.Should().Be(Fecha);
         restaurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEquivalentTo(
             original.HorasDiscriminadas.MinutosPorConcepto);
         restaurado.HorasDiscriminadas.Trazabilidad.Should().BeEmpty();
     }
 
-    // CA-6: roundtrip con InformacionColaborador null (caso "marcacion sin turno previo").
+    // CA-4/CA-6: roundtrip con Colaborador null (caso "marcacion sin turno previo"), pero
+    // CodigoColaborador top-level SIEMPRE presente -- el defecto latente que este issue corrige.
     [Fact]
-    public void RoundTrip_PreservaCampos_CuandoInformacionColaboradorEsNula()
+    public void RoundTrip_PreservaCampos_CuandoColaboradorEsNulo()
     {
-        var original = new DiaCalculado(
-            null, Fecha, new HorasDiscriminadas(new Dictionary<string, int>(), []));
+        var original = new DiaDepurado(
+            "EMP-002", Fecha, null, new HorasDiscriminadas(new Dictionary<string, int>(), []));
         var opciones = OpcionesPorDefectoDelPublisher();
 
         var json = JsonSerializer.Serialize(original, opciones);
-        var restaurado = JsonSerializer.Deserialize<DiaCalculado>(json, opciones);
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.InformacionColaborador.Should().BeNull();
+        restaurado!.CodigoColaborador.Should().Be("EMP-002");
+        restaurado.Colaborador.Should().BeNull();
         restaurado.Fecha.Should().Be(Fecha);
         restaurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty();
     }
@@ -81,7 +82,7 @@ public class DiaCalculadoSerializacionTests
     [Fact]
     public void Deserializar_TieneExito_ConResolverPorDefectoSinRegistros()
     {
-        var original = new DiaCalculado(Colaborador, Fecha, HorasConDatos());
+        var original = new DiaDepurado("EMP-001", Fecha, Colaborador, HorasConDatos());
         var json = JsonSerializer.Serialize(original);
 
         var opcionesSinRegistros = new JsonSerializerOptions
@@ -89,7 +90,7 @@ public class DiaCalculadoSerializacionTests
             TypeInfoResolver = new DefaultJsonTypeInfoResolver()
         };
 
-        var act = () => JsonSerializer.Deserialize<DiaCalculado>(json, opcionesSinRegistros);
+        var act = () => JsonSerializer.Deserialize<DiaDepurado>(json, opcionesSinRegistros);
 
         act.Should().NotThrow();
         act()!.HorasDiscriminadas.MinutosPorConcepto["DominicalFestivaDiurna"].Should().Be(420);

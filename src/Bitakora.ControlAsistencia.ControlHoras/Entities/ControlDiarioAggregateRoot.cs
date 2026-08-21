@@ -1,8 +1,8 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -39,8 +39,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // HU-139: desglose de horas del dia, estado derivado recalculado reactivamente al final
     // de cada Apply (despues de Depurar). Sin snapshots (ADR-0021): se reconstruye aplicando
-    // eventos en cada rehidratacion. Solo lectura para que los tests lo verifiquen y para que
-    // el handler que publica DiaCalculado (#108) pueda leerlo.
+    // eventos en cada rehidratacion. Solo lectura: la unica escritura es RecalcularDesgloseHoras().
     private DesgloseHoras _desgloseHoras = DesgloseHoras.Vacio;
     public DesgloseHoras DesgloseHoras => _desgloseHoras;
 
@@ -120,7 +119,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Apply solo proyecta estado; la deteccion de duplicado vive en AdicionarMarcacion (CA-4).
     // Cuando el aggregate nace desde Iniciar(MarcacionAdicionada), este Apply asigna el Id del stream.
     // HU-108: Fecha se deriva del stream ID (CA-7 codifica CodigoColaborador+Fecha) para que el
-    //          DiaCalculado emitido tras el recalculo lleve la fecha correcta incluso cuando
+    //          DiaDepurado emitido tras el recalculo lleve la fecha correcta incluso cuando
     //          el ControlDiario nace solo por marcacion (sin TurnoDiarioAsignado previo).
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(MarcacionAdicionada e)
@@ -139,6 +138,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         var partes = streamId.Split(SeparadorStreamId);
         return DateOnly.ParseExact(partes[^1], FormatoFechaStreamId, CultureInfo.InvariantCulture);
     }
+
+    // Fuente unica del CodigoColaborador del aggregate: el stream ID, que ambos Apply asignan a Id.
+    // InformacionColaborador NO sirve -- queda null cuando el dia nace solo por marcacion. La anatomia
+    // de CA-ADR-0031 garantiza 3 componentes y el codigo es siempre el del medio.
+    private static string ExtraerCodigoColaboradorDeStreamId(string streamId) =>
+        streamId.Split(SeparadorStreamId)[1];
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
     // CA-5: si no existe ControlDiario para la fecha, se crea con este factory
@@ -163,27 +168,25 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // HU-108: construye el evento DiaCalculado desde el estado actual del aggregate.
-    // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
-    // Issue #183: el payload viaja plano (HorasDiscriminadas). El desglose rico consolidado por
-    //         RecalcularDesgloseHoras() al final de cada Apply (_desgloseHoras, fresco aqui porque los
-    //         handlers invocan CrearDiaCalculado() despues del Apply) se discrimina a si mismo via
-    //         Discriminar(). Ya no se mapean los ControlFranja a un DTO rico: el contrato pierde la
-    //         senal de anomalia a proposito (riesgo aceptado, diferido al flujo de aprobacion).
-    public DiaCalculado CrearDiaCalculado() =>
-        new(MapearInformacionColaborador(InformacionColaborador), Fecha, _desgloseHoras.Discriminar());
+    // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
+    // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
+    // refresca al final de cada uno.
+    public DiaDepurado CrearDiaDepurado() =>
+        new(
+            ExtraerCodigoColaboradorDeStreamId(Id),
+            Fecha,
+            CrearResumenColaborador(),
+            DesgloseHoras.Discriminar());
 
-    // Issue #322: InformacionColaborador del aggregate es ColaboradorProgramado
-    // (ControlHoras.DomainEvents); DiaCalculado (PublicEvents) espera InformacionColaborador
-    // (PublicEvents.Colaboradores) -- el aggregate vive en el Function App, el unico ensamblado que
-    // ve los tres ensamblados de eventos, asi que el mapeo vive aqui (CA-ADR-0029 decision #5).
-    // Issue #340 renombro ambos TIPOS; issue #401 renombra las CLAVES (propiedad y campo) a ambos
-    // lados del mapeo, de modo que la traduccion sigue siendo campo a campo sin permutacion.
-    private static InformacionColaborador? MapearInformacionColaborador(
-        ColaboradorProgramado? colaborador) =>
-        colaborador is null
+    // El aggregate vive en el Function App, el unico proyecto que ve las tres islas de eventos, asi
+    // que el mapeo entre ellas vive aqui (CA-ADR-0029 decision #5). Composicion transitoria:
+    // ColaboradorProgramado no trae Identificacion ni NombreCompleto ya compuestos y se ensamblan con
+    // el contrato del maestro ("{Tipo}-{Numero}"); muere cuando #433 los haga viajar desde el origen.
+    private ResumenColaborador? CrearResumenColaborador() =>
+        InformacionColaborador is null
             ? null
-            : new InformacionColaborador(
-                colaborador.CodigoColaborador, colaborador.TipoIdentificacion,
-                colaborador.NumeroIdentificacion, colaborador.Nombres, colaborador.Apellidos);
+            : new ResumenColaborador(
+                $"{InformacionColaborador.TipoIdentificacion}-{InformacionColaborador.NumeroIdentificacion}",
+                InformacionColaborador.CodigoColaborador,
+                $"{InformacionColaborador.Nombres} {InformacionColaborador.Apellidos}");
 }

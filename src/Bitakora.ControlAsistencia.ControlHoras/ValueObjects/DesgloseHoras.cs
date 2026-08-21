@@ -1,7 +1,7 @@
-// Issue #185: el modelo rico vive en el dominio; HorasDiscriminadas (payload plano) se queda en
-// Contracts y se referencia explicitamente porque Discriminar() lo produce.
+// El modelo rico vive en el dominio; HorasDiscriminadas (payload plano del bus) se referencia
+// explicitamente porque Discriminar() lo produce.
 
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
@@ -26,16 +26,16 @@ public record DesgloseHoras(
     public static readonly DesgloseHoras Vacio = new([], Retardo.Vacio, 0);
 
     // Clave literal del retardo en MinutosPorConcepto. No es un Concepto del calculo de horas (el enum
-    // Concepto no lo incluye, CA-3): el retardo es un castigo, no tiempo trabajado, pero viaja en el
-    // mismo diccionario plano hacia nomina.
+    // Concepto no lo incluye): el retardo es un castigo, no tiempo trabajado, pero viaja en el mismo
+    // diccionario plano.
     private const string ClaveRetardo = "Retardo";
 
-    // Issue #183: traduce el desglose rico al payload plano que viaja en DiaCalculado hacia nomina.
+    // Traduce el desglose rico al payload plano que viaja en DiaDepurado.
     // Tell-don't-Ask: el desglose se discrimina a si mismo (no se exponen sus internos para que un
     // colaborador externo arme el diccionario). Vuelca TotalMinutosPorConcepto con clave Concepto.ToString()
     // y agrega la clave literal "Retardo" con RetardoTotal.RetardoNeto solo cuando es > 0.
     //
-    // Issue #184: ademas puebla Trazabilidad, la memoria de calculo legible para nomina. Una linea por
+    // Ademas puebla Trazabilidad, la memoria de calculo legible del dia. Una linea por
     // item con minutos > 0: por concepto, derivada de los ToString() ricos (IntervaloTemporal + etiqueta
     // .resx); por retardo, RetardoTotal.ToString() cuando el neto es > 0. Solo viajan los strings ya
     // traducidos: el modelo de dominio rico no cruza el bus, pero su ToString() si.

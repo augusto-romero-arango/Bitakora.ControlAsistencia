@@ -28,7 +28,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     private static readonly string StreamIdDia14 = $"cd:{CodigoColaborador}:20260314";
 
     protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
-        new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
+        new RegistroDeMarcacionCreadoEventHandler(EventStore, PrivateEventSender);
 
     // Factory para RegistroDeMarcacionCreado; el timestamp decide si cae en la ventana nocturna.
     private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(

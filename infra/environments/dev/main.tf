@@ -77,7 +77,7 @@ module "service_bus" {
         }
       ]
     }
-    "dia-calculado" = {
+    "dia-depurado" = {
       subscriptions = [
         {
           name                = "smoke-tests"

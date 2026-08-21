@@ -14,21 +14,21 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacion
 // Patron crear-o-actualizar:
 //   - CA-3: si NO existe el stream para CodigoColaborador+Fecha -> StartStream
 //   - CA-4: si YA existe -> GetAggregateRootAsync + AsignarTurno (SaveChanges automatico)
-// HU-131 / CA-4: publica DiaCalculado via IPublicEventSender tras el Apply(TurnoDiarioAsignado)
+// HU-131 / CA-4: publica DiaDepurado via IPrivateEventSender tras el Apply(TurnoDiarioAsignado)
 //   que dispara el recalculo reactivo de ControlesDeFranja.
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
 public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
     : IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada>
 {
     private readonly IEventStore _eventStore;
-    private readonly IPublicEventSender _publicEventSender;
+    private readonly IPrivateEventSender _privateEventSender;
 
     public ProgramacionTurnoDiarioSolicitadaEventHandler(
         IEventStore eventStore,
-        IPublicEventSender publicEventSender)
+        IPrivateEventSender privateEventSender)
     {
         _eventStore = eventStore;
-        _publicEventSender = publicEventSender;
+        _privateEventSender = privateEventSender;
     }
 
     public async Task HandleAsync(ProgramacionTurnoDiarioSolicitada @event, CancellationToken ct = default)
@@ -60,11 +60,11 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         }
 
         // HU-131 CA-1/CA-2: tras el Apply(TurnoDiarioAsignado) que dispara el recalculo
-        // reactivo de ControlesDeFranja, publica DiaCalculado con la informacion consolidada.
-        // Tell-don't-Ask: el aggregate empaqueta el evento via CrearDiaCalculado() (mismo
+        // reactivo de ControlesDeFranja, publica DiaDepurado con la informacion consolidada.
+        // Tell-don't-Ask: el aggregate empaqueta el evento via CrearDiaDepurado() (mismo
         // patron que #108). Se emite siempre, incluso si ControlesDeFranja queda vacio o
         // todos son anomalos (CA-2): AsignarTurno/Iniciar siempre agregan el evento al stream.
-        await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
+        await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
     }
 
     private static ColaboradorProgramado MapearColaboradorProgramado(DetalleColaborador colaborador) =>

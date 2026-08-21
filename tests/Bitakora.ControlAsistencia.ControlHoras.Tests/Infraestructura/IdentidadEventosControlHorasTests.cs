@@ -1,6 +1,6 @@
 // Issue #277 CA-1: IdentidadEventosControlHoras.TiposPersistidos debe listar exactamente los
 // tipos que se persisten en el event store de ControlHoras -- ni de mas (ningun evento que solo
-// cruce el bus, p.ej. DiaCalculado o ProgramacionTurnoDiarioSolicitada), ni de menos (el olvido
+// cruce el bus, p.ej. DiaDepurado o ProgramacionTurnoDiarioSolicitada), ni de menos (el olvido
 // que este issue corrige). MarcacionRegistrada SI entra: ademas de IPrivateEvent, se persiste en
 // el stream de RegistroDeMarcacionAggregateRoot, que la aplica. No usa el harness Given/When/Then:
 // se verifica un dato estatico de configuracion, no el comportamiento de un command handler.

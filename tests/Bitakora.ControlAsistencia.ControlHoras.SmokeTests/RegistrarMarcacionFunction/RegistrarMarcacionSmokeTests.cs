@@ -3,7 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionFunction;
 
@@ -13,11 +14,11 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // CA-6: tanto creacion exitosa como duplicado retornan 202 Accepted.
 // HU-108: cobertura adicional de los efectos del handler in-process
 // AdicionarMarcacionCuandoRegistroDeMarcacionCreado, que tras el POST persiste marcacion_adicionada
-// y publica DiaCalculado al topic dia-calculado.
+// y publica DiaDepurado al topic dia-depurado.
 // Issue #270: RegistrarMarcacionCommandHandler ya no publica MarcacionRegistrada (evento de dominio)
 // al bus; publica el contrato RegistroDeMarcacionCreado al topic registro-de-marcacion-creado (#274).
 // Ningun test consume la suscripcion smoke-tests de ese topic privado: la cobertura de esa
-// publicacion/consumo vive en DebePublicarDiaCalculadoYPersistirMarcacionAdicionada... (mas abajo),
+// publicacion/consumo vive en RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada...,
 // que la verifica de forma mas fuerte por transitividad -- ver el porque en su propio comentario.
 // Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
 // RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
@@ -43,7 +44,7 @@ public class RegistrarMarcacionSmokeTests(
     private const string TipoEventoMarcacionAdicionada = "marcacion_adicionada";
     private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
     private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
-    private const string TopicDiaCalculado = "dia-calculado";
+    private const string TopicDiaDepurado = "dia-depurado";
     private const string SuscripcionSmokeTests = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -282,10 +283,10 @@ public class RegistrarMarcacionSmokeTests(
     }
 
     // HU-108: tras el POST, el handler in-process AdicionarMarcacionCuandoRegistroDeMarcacionCreado
-    // persiste marcacion_adicionada en el stream {codigoColaborador}:{fecha} y publica DiaCalculado.
+    // persiste marcacion_adicionada en el stream {codigoColaborador}:{fecha} y publica DiaDepurado.
     // Setup: se publica programacion-turno-diario-solicitada para que el aggregate tenga
-    // turno previo, asegurando que DiaCalculado.InformacionColaborador no sea null y se pueda
-    // filtrar por CodigoColaborador en la suscripcion smoke-tests.
+    // turno previo, asegurando que DiaDepurado.Colaborador no sea null y se pueda filtrar por
+    // CodigoColaborador en la suscripcion smoke-tests.
     // Issue #270: este es el test que cierra el circuito completo del contrato de bus
     // RegistroDeMarcacionCreado -- el POST solo puede llegar a persistir marcacion_adicionada si
     // RegistrarMarcacionCommandHandler publico RegistroDeMarcacionCreado correctamente al topic
@@ -295,7 +296,7 @@ public class RegistrarMarcacionSmokeTests(
     // PRODUCCION (no un consumidor competidor) proceso el mensaje.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebePublicarDiaCalculadoYPersistirMarcacionAdicionada_CuandoMarcacionGeneraNuevoEvento()
+    public async Task RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada_CuandoGeneraNuevoEvento()
     {
         Assert.SkipWhen(!postgres.IsConfigured,
             postgres.SkipReason ?? "Postgres no disponible.");
@@ -321,7 +322,7 @@ public class RegistrarMarcacionSmokeTests(
                 CodigoColaborador = codigoColaborador,
                 TipoIdentificacion = "CC",
                 NumeroIdentificacion = "888777666",
-                Nombres = "[TEST] Smoke DiaCalculado",
+                Nombres = "[TEST] Smoke DiaDepurado",
                 Apellidos = "[TEST] HU108"
             },
             Fecha = fecha.ToString("yyyy-MM-dd"),
@@ -351,9 +352,9 @@ public class RegistrarMarcacionSmokeTests(
         turnoAsignado.Should().BeTrue(
             $"el evento {TipoEventoTurnoDiarioAsignado} deberia existir antes de registrar la marcacion");
 
-        // Arrange: purgar la suscripcion smoke-tests del topic dia-calculado para que cualquier
+        // Arrange: purgar la suscripcion smoke-tests del topic dia-depurado para que cualquier
         // mensaje recibido tras el Act sea de este test (patron purge-before-act, ADR-0016).
-        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+        await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Arrange: marcacion dentro de la franja programada (entrada 08:00-16:00).
         // Timestamp fuera de ventana nocturna -> el handler procesa una sola fecha.
@@ -380,44 +381,49 @@ public class RegistrarMarcacionSmokeTests(
         marcacionAdicionada.Should().BeTrue(
             $"el evento {TipoEventoMarcacionAdicionada} deberia existir en el stream {streamId} tras el POST");
 
-        // Assert publicacion: DiaCalculado emitido al topic dia-calculado, filtrado por CodigoColaborador.
-        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
-            TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
+        // Assert publicacion: DiaDepurado emitido al topic dia-depurado, filtrado por CodigoColaborador.
+        var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
+            TopicDiaDepurado, SuscripcionSmokeTests,
+            e => e.CodigoColaborador == codigoColaborador,
             Timeout);
 
-        diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
+        diaDepurado.Fecha.Should().Be(fecha);
+        diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
+        // CA-1/CA-2: el turno ya estaba asignado antes de la marcacion, asi que Colaborador lleva la
+        // terna compuesta -- flujo de marcacion, complementario al de AsignarTurnoViaSbSmokeTests.
+        var colaboradorEsperado = new ResumenColaborador(
+            "CC-888777666", codigoColaborador, "[TEST] Smoke DiaDepurado [TEST] HU108");
+        diaDepurado.Colaborador.Should().Be(colaboradorEsperado);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas) y se deserializo con el
         // serializador POR DEFECTO del fixture (sin resolver custom). Esta marcacion es solo ENTRADA:
         // la franja queda anomala (sin salida) -> sin minutos calculables -> MinutosPorConcepto vacio.
-        diaCalculado.HorasDiscriminadas.Should().NotBeNull(
-            "DiaCalculado siempre se emite con HorasDiscriminadas");
-        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
+        diaDepurado.HorasDiscriminadas.Should().NotBeNull(
+            "DiaDepurado siempre se emite con HorasDiscriminadas");
+        diaDepurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
             "una entrada sola deja la franja anomala, sin minutos por concepto");
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
-        // dia-calculado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
-        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
-            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionColaborador?.CodigoColaborador == codigoColaborador);
+        // dia-depurado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
+            TopicDiaDepurado, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador);
 
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
-            codigoColaborador, SuscripcionSmokeTests, TopicDiaCalculado);
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
     }
 
-    // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaCalculado publicado
+    // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaDepurado publicado
     // tras la salida lleva el DesgloseHoras REAL consolidado del dia, no DesgloseHoras.Vacio.
-    // Cada marcacion publica su propio DiaCalculado: la entrada deja la franja anomala (sin salida)
+    // Cada marcacion publica su propio DiaDepurado: la entrada deja la franja anomala (sin salida)
     // y la salida la completa. Para capturar el evento posterior a la salida se purga la suscripcion
-    // smoke-tests DESPUES de confirmar que la entrada quedo persistida (su DiaCalculado ya se publico)
+    // smoke-tests DESPUES de confirmar que la entrada quedo persistida (su DiaDepurado ya se publico)
     // y ANTES de registrar la salida (patron purge-before-act, ADR-0016).
     // Asercion minima: el desglose real fluye end-to-end (OrdinariaDiurna > 0, FranjasAnomalas == 0);
     // la matematica detallada del calculo esta cubierta en unit (#116/#136/#139).
     // No modifica el smoke de franja incompleta (entrada-only) de arriba: ambos coexisten.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarMarcacion_PublicaDiaCalculadoConDesgloseReal_CuandoMarcacionesCompletanLaFranja()
+    public async Task RegistrarMarcacion_PublicaDiaDepuradoConDesgloseReal_CuandoMarcacionesCompletanLaFranja()
     {
         Assert.SkipWhen(!postgres.IsConfigured,
             postgres.SkipReason ?? "Postgres no disponible.");
@@ -483,7 +489,7 @@ public class RegistrarMarcacionSmokeTests(
         }, ct);
         entradaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        // Esperar a que la entrada quede persistida: garantiza que su DiaCalculado ya fue publicado
+        // Esperar a que la entrada quede persistida: garantiza que su DiaDepurado ya fue publicado
         // antes de purgar, de modo que el purge elimine el evento de la entrada (no el de la salida).
         var entradaPersistida = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
@@ -492,9 +498,9 @@ public class RegistrarMarcacionSmokeTests(
         entradaPersistida.Should().BeTrue(
             $"el evento {TipoEventoMarcacionAdicionada} de la entrada deberia existir antes de purgar");
 
-        // Purge-before-act: limpiar la suscripcion para que el unico DiaCalculado restante de este
+        // Purge-before-act: limpiar la suscripcion para que el unico DiaDepurado restante de este
         // colaborador sea el que publique la salida (descarta los del turno y la entrada).
-        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+        await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act 2: SALIDA 16:00. Completa la franja (entrada 08:00 + salida 16:00) -> desglose real.
         var salidaTimestamp = new DateTime(fecha, new TimeOnly(16, 0, 0), DateTimeKind.Utc);
@@ -507,32 +513,99 @@ public class RegistrarMarcacionSmokeTests(
         }, ct);
         salidaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        // Assert publicacion: el DiaCalculado posterior a la salida lleva el desglose real,
+        // Assert publicacion: el DiaDepurado posterior a la salida lleva el desglose real,
         // filtrado por CodigoColaborador (unico por ejecucion).
-        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
-            TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
+        var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
+            TopicDiaDepurado, SuscripcionSmokeTests,
+            e => e.CodigoColaborador == codigoColaborador,
             Timeout);
 
-        diaCalculado.Fecha.Should().Be(fecha);
+        diaDepurado.Fecha.Should().Be(fecha);
 
         // Issue #183 CA-6: el smoke verifica MinutosPorConcepto del payload plano, deserializado con el
         // serializador POR DEFECTO del fixture (sin resolver custom). La franja quedo completa (entrada
         // 08:00 + salida 16:00), asi que una jornada 08:00-16:00 acumula horas ordinarias diurnas reales.
         // Clave = Concepto.ToString() ("OrdinariaDiurna").
-        diaCalculado.HorasDiscriminadas.MinutosPorConcepto
+        diaDepurado.HorasDiscriminadas.MinutosPorConcepto
             .Should().ContainKey("OrdinariaDiurna");
-        diaCalculado.HorasDiscriminadas.MinutosPorConcepto["OrdinariaDiurna"]
+        diaDepurado.HorasDiscriminadas.MinutosPorConcepto["OrdinariaDiurna"]
             .Should().BeGreaterThan(0,
                 "el desglose real discriminado lleva horas ordinarias diurnas (no un payload vacio)");
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
-        // dia-calculado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
-        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
-            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionColaborador?.CodigoColaborador == codigoColaborador);
+        // dia-depurado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
+            TopicDiaDepurado, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador);
 
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
-            codigoColaborador, SuscripcionSmokeTests, TopicDiaCalculado);
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
+    }
+
+    // CA-1/CA-4: sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo
+    // desde la marcacion y CrearDiaDepurado() no tiene InformacionColaborador que mapear. Prueba
+    // contra el entorno real que la cadena completa (handler -> IPrivateEventSender ->
+    // deserializacion) preserva CodigoColaborador top-level y Colaborador null, tal como lo predice
+    // el unit test CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarMarcacion_PublicaDiaDepuradoConColaboradorNulo_CuandoNoHayTurnoPrevio()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        // Arrange: colaborador y fecha unicos por ejecucion; sin turno previo asignado.
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 29);
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
+
+        await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
+
+        var timestamp = new DateTime(fecha, new TimeOnly(7, 0, 0), DateTimeKind.Utc);
+        var payload = new
+        {
+            codigoColaborador,
+            timestamp = timestamp.ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            tipoMarcacion = "ENTRADA",
+            dispositivoId = "[TEST] DEV-SMOKE-SIN-TURNO"
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        // Assert HTTP: 202 Accepted
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        // Assert persistencia: marcacion_adicionada en el stream del ControlDiario, nacido solo por
+        // marcacion (sin turno_diario_asignado previo).
+        var marcacionAdicionada = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
+            campoJson: "CodigoColaborador", valorJson: codigoColaborador);
+
+        marcacionAdicionada.Should().BeTrue(
+            $"el evento {TipoEventoMarcacionAdicionada} deberia existir en el stream {streamId} tras el POST");
+
+        // Assert publicacion: DiaDepurado con CodigoColaborador top-level presente y Colaborador null.
+        var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
+            TopicDiaDepurado, SuscripcionSmokeTests,
+            e => e.CodigoColaborador == codigoColaborador,
+            Timeout);
+
+        diaDepurado.Fecha.Should().Be(fecha);
+        diaDepurado.Colaborador.Should().BeNull(
+            "el dia nacio solo por marcacion, sin turno asignado que aporte la foto del colaborador");
+
+        // Assert: ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests del topic
+        // dia-depurado (issue #223: acotado por CodigoColaborador, no "DLQ globalmente vacio").
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
+            TopicDiaDepurado, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador);
+
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
     }
 }
