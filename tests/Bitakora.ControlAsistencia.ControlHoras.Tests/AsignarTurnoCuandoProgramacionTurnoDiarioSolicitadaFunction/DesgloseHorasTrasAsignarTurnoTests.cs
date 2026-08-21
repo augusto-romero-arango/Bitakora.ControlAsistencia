@@ -60,7 +60,7 @@ public class DesgloseHorasTrasAsignarTurnoTests
     private static readonly DateTime Timestamp15_00 = new(2026, 3, 15, 15, 0, 0);
 
     protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PublicEventSender);
+        new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PrivateEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
         new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);

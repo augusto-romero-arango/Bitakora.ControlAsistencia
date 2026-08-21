@@ -1,7 +1,9 @@
-// Issue #185: el modelo rico vive en el dominio; HorasDiscriminadas (payload plano) se queda en
-// Contracts y se referencia explicitamente porque Discriminar() lo produce.
+// Issue #185: el modelo rico vive en el dominio; HorasDiscriminadas (payload plano) se referencia
+// explicitamente porque Discriminar() lo produce.
+// Issue #421: HorasDiscriminadas se mudo de PublicEvents a PrivateEvents junto con DiaCalculado ->
+// DiaDepurado (evento intra-BC), sin cambios de forma.
 
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 

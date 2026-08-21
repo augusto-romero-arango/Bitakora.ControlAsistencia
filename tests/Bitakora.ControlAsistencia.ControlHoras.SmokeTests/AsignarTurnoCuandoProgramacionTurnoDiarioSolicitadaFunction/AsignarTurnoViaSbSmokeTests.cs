@@ -2,15 +2,18 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
+// Issue #421: DiaCalculado (IPublicEvent) se reclasifica como DiaDepurado (IPrivateEvent) -- el
+// consumidor real (#425) vive dentro del mismo bounded context. CodigoColaborador ahora es
+// top-level (siempre presente) en vez de anidado en InformacionColaborador.
 public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
     private const string SuscripcionConsumidor = "control-horas-escucha-programacion";
-    private const string TopicDiaCalculado = "dia-calculado";
+    private const string TopicDiaDepurado = "dia-depurado";
     private const string SuscripcionSmokeTests = "smoke-tests";
     private const string SchemaControlHoras = "control_horas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -59,9 +62,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
-        // Arrange: purgar suscripcion smoke-tests de dia-calculado para evitar falsos positivos
+        // Arrange: purgar suscripcion smoke-tests de dia-depurado para evitar falsos positivos
         // de ejecuciones anteriores (patron purge-before-act, ADR-0016).
-        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+        await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic de Service Bus
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
@@ -109,19 +112,20 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         turnoDiarioPersistido.Should().BeEquivalentTo(turnoDiarioEsperado,
             opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
-        // Assert HU-131 CA-1/CA-2: DiaCalculado publicado al topic dia-calculado.
+        // Assert HU-131 CA-1/CA-2: DiaDepurado publicado al topic dia-depurado.
         // Se emite siempre, incluso si ControlesDeFranja queda vacio tras la depuracion reactiva.
-        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
-            TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
+        // Issue #421 CA-4: filtrado por CodigoColaborador top-level (ya no anidado en Colaborador).
+        var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
+            TopicDiaDepurado, SuscripcionSmokeTests,
+            e => e.CodigoColaborador == codigoColaborador,
             Timeout);
 
-        diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
+        diaDepurado.Fecha.Should().Be(fecha);
+        diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
         // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas), deserializado con el serializador
         // POR DEFECTO del fixture (sin resolver custom). El turno se asigno sin marcaciones previas: la
         // franja queda anomala -> sin minutos calculables -> MinutosPorConcepto vacio.
-        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
+        diaDepurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
             "el turno sin marcaciones deja la franja anomala, sin minutos por concepto");
 
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion del consumidor
@@ -134,13 +138,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             solicitudId, SuscripcionConsumidor);
 
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests
-        // del topic dia-calculado (issue #223: acotado por CodigoColaborador).
-        var existeDeadLetterDiaCalculado = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaCalculadoMinimo>(
-            TopicDiaCalculado, SuscripcionSmokeTests, e => e.InformacionColaborador?.CodigoColaborador == codigoColaborador);
+        // del topic dia-depurado (issue #223: acotado por CodigoColaborador).
+        var existeDeadLetterDiaDepurado = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
+            TopicDiaDepurado, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador);
 
-        existeDeadLetterDiaCalculado.Should().BeFalse(
+        existeDeadLetterDiaDepurado.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
-            codigoColaborador, SuscripcionSmokeTests, TopicDiaCalculado);
+            codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
     }
 
     // Issue #336 CA-1/CA-3: el evento de bus trae la sede EFECTIVA ya resuelta por la cascada del
@@ -211,9 +215,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
-        // Arrange: purgar suscripcion smoke-tests de dia-calculado para evitar falsos positivos
+        // Arrange: purgar suscripcion smoke-tests de dia-depurado para evitar falsos positivos
         // de ejecuciones anteriores (patron purge-before-act, ADR-0016).
-        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+        await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic de Service Bus
         await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
@@ -252,15 +256,15 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         turnoDiarioPersistido.Should().BeEquivalentTo(turnoDiarioEsperado,
             opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
-        // Efecto secundario (HU-131): DiaCalculado se sigue publicando con normalidad cuando las
+        // Efecto secundario (HU-131): DiaDepurado se sigue publicando con normalidad cuando las
         // franjas traen sede -- el mapeo nuevo no interrumpe la cadena reactiva existente.
-        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
-            TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
+        var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
+            TopicDiaDepurado, SuscripcionSmokeTests,
+            e => e.CodigoColaborador == codigoColaborador,
             Timeout);
 
-        diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
+        diaDepurado.Fecha.Should().Be(fecha);
+        diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
 
         // Assert: ausencia de dead letter de ESTA corrida en la suscripcion del consumidor de
         // entrada -- confirma que el mapeo DetalleSede -> SedeProgramada no rompe el handler
@@ -328,8 +332,8 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
-        // Arrange: purgar suscripcion smoke-tests de dia-calculado para evitar falsos positivos
-        await serviceBus.PurgeAsync(TopicDiaCalculado, SuscripcionSmokeTests);
+        // Arrange: purgar suscripcion smoke-tests de dia-depurado para evitar falsos positivos
+        await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic en formato camelCase
         await serviceBus.PublishAsync(TopicEntrada, eventoEnFormatoWolverine, correlationId);
@@ -374,19 +378,19 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         turnoDiarioPersistido.Should().BeEquivalentTo(turnoDiarioEsperado,
             opciones => opciones.ExcludingMembersNamed("Descripcion"));
 
-        // Assert HU-131: DiaCalculado publicado incluso cuando el mensaje llega en camelCase.
+        // Assert HU-131: DiaDepurado publicado incluso cuando el mensaje llega en camelCase.
         // Valida que la cadena completa (deserializacion case-insensitive -> handler -> publicacion) funciona.
-        var diaCalculado = await serviceBus.WaitForMessageAsync<DiaCalculado>(
-            TopicDiaCalculado, SuscripcionSmokeTests,
-            e => e.InformacionColaborador != null && e.InformacionColaborador.CodigoColaborador == codigoColaborador,
+        var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
+            TopicDiaDepurado, SuscripcionSmokeTests,
+            e => e.CodigoColaborador == codigoColaborador,
             Timeout);
 
-        diaCalculado.Fecha.Should().Be(fecha);
-        diaCalculado.InformacionColaborador!.CodigoColaborador.Should().Be(codigoColaborador);
+        diaDepurado.Fecha.Should().Be(fecha);
+        diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
         // Issue #183 CA-6: el payload plano (HorasDiscriminadas) se deserializa con el serializador POR
         // DEFECTO del fixture (sin resolver custom) incluso cuando el mensaje llega en camelCase. El turno
         // se asigno sin marcaciones: franja anomala -> MinutosPorConcepto vacio.
-        diaCalculado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
+        diaDepurado.HorasDiscriminadas.MinutosPorConcepto.Should().BeEmpty(
             "el turno sin marcaciones deja la franja anomala, sin minutos por concepto");
     }
 }

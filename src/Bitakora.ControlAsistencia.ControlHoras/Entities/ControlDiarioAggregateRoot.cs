@@ -1,8 +1,8 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -163,27 +163,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // HU-108: construye el evento DiaCalculado desde el estado actual del aggregate.
-    // Tell-don't-Ask: el aggregate es duenio del estado y entrega el evento ya empaquetado al handler.
-    // Issue #183: el payload viaja plano (HorasDiscriminadas). El desglose rico consolidado por
-    //         RecalcularDesgloseHoras() al final de cada Apply (_desgloseHoras, fresco aqui porque los
-    //         handlers invocan CrearDiaCalculado() despues del Apply) se discrimina a si mismo via
-    //         Discriminar(). Ya no se mapean los ControlFranja a un DTO rico: el contrato pierde la
-    //         senal de anomalia a proposito (riesgo aceptado, diferido al flujo de aprobacion).
-    public DiaCalculado CrearDiaCalculado() =>
-        new(MapearInformacionColaborador(InformacionColaborador), Fecha, _desgloseHoras.Discriminar());
-
-    // Issue #322: InformacionColaborador del aggregate es ColaboradorProgramado
-    // (ControlHoras.DomainEvents); DiaCalculado (PublicEvents) espera InformacionColaborador
-    // (PublicEvents.Colaboradores) -- el aggregate vive en el Function App, el unico ensamblado que
-    // ve los tres ensamblados de eventos, asi que el mapeo vive aqui (CA-ADR-0029 decision #5).
-    // Issue #340 renombro ambos TIPOS; issue #401 renombra las CLAVES (propiedad y campo) a ambos
-    // lados del mapeo, de modo que la traduccion sigue siendo campo a campo sin permutacion.
-    private static InformacionColaborador? MapearInformacionColaborador(
-        ColaboradorProgramado? colaborador) =>
-        colaborador is null
-            ? null
-            : new InformacionColaborador(
-                colaborador.CodigoColaborador, colaborador.TipoIdentificacion,
-                colaborador.NumeroIdentificacion, colaborador.Nombres, colaborador.Apellidos);
+    // Issue #421: renombra CrearDiaCalculado() -- reclasifica el evento como IPrivateEvent
+    // (DiaDepurado, familia lexica de la maquina) y agrega CodigoColaborador top-level, siempre
+    // presente aunque InformacionColaborador sea null (corrige el defecto latente que impedia al
+    // consumidor de #425 construir "dc:{codigo}:{yyyyMMdd}" cuando el dia nace solo por marcacion).
+    // El mapeo a ResumenColaborador (con Identificacion compuesta "{Tipo}-{Numero}" y
+    // NombreCompleto = Nombres + " " + Apellidos) es la logica de negocio nueva de este issue --
+    // stub a proposito para la fase roja del pipeline (test-writer nunca implementa produccion real).
+    public DiaDepurado CrearDiaDepurado() => throw new NotImplementedException();
 }

@@ -18,7 +18,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
     : IPrivateEventHandlerAsync<RegistroDeMarcacionCreado>
 {
     private readonly IEventStore _eventStore;
-    private readonly IPublicEventSender _publicEventSender;
+    private readonly IPrivateEventSender _privateEventSender;
 
     // CA-9: constante del handler - no del aggregate. Cuando sea configurable por empresa
     // vendra de un servicio externo, no de aqui.
@@ -26,10 +26,10 @@ public partial class RegistroDeMarcacionCreadoEventHandler
 
     public RegistroDeMarcacionCreadoEventHandler(
         IEventStore eventStore,
-        IPublicEventSender publicEventSender)
+        IPrivateEventSender privateEventSender)
     {
         _eventStore = eventStore;
-        _publicEventSender = publicEventSender;
+        _privateEventSender = privateEventSender;
     }
 
     public async Task HandleAsync(RegistroDeMarcacionCreado @event, CancellationToken ct = default)
@@ -53,10 +53,12 @@ public partial class RegistroDeMarcacionCreadoEventHandler
     // Patron crear-o-actualizar con stream ID computado (CodigoColaborador + Fecha).
     // CA-5: si el ControlDiario no existe se crea con Iniciar(MarcacionAdicionada).
     // CA-4: si existe, el aggregate se encarga de ignorar duplicados por minuto.
-    // HU-108: tras procesar la marcacion publica DiaCalculado al topic dia-calculado
-    //         via IPublicEventSender, una vez por cada fecha-destino procesada (CA-5).
+    // HU-108: tras procesar la marcacion publica DiaDepurado al topic dia-depurado
+    //         via IPrivateEventSender, una vez por cada fecha-destino procesada (CA-5).
     //         Idempotencia (#106): si AdicionarMarcacion ignora el duplicado, no se
-    //         agrega evento al stream y por tanto no se publica DiaCalculado redundante.
+    //         agrega evento al stream y por tanto no se publica DiaDepurado redundante.
+    // Issue #421: DiaCalculado (IPublicEvent) se reclasifico como DiaDepurado (IPrivateEvent) -- el
+    //         consumidor real (#425) vive dentro del mismo bounded context.
     private async Task AdicionarAControlDiarioAsync(
         RegistroDeMarcacionCreado @event, DateOnly fecha, CancellationToken ct)
     {
@@ -88,6 +90,6 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         }
 
         if (huboCambios)
-            await _publicEventSender.PublishAsync(control.CrearDiaCalculado());
+            await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
     }
 }

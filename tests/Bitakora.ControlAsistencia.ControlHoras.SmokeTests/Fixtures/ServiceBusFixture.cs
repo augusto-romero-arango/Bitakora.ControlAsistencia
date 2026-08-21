@@ -13,7 +13,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
     public ValueTask InitializeAsync()
     {
-        // Issue #183: el payload de DiaCalculado es ahora 100% primitivo (HorasDiscriminadas), asi que
+        // Issue #183: el payload de DiaDepurado es ahora 100% primitivo (HorasDiscriminadas), asi que
         // se deserializa con el serializador POR DEFECTO -- SIN registrar ConfigurarSerializacion de
         // ningun VO rico. Esto demuestra la cura: el consumidor (incluido otro stack) ya no depende de
         // nuestra serializacion interna de Marten. Si alguien reintroduce un tipo rico al payload, este

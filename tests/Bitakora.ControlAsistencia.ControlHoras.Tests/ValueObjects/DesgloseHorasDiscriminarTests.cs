@@ -1,5 +1,5 @@
 // Issue #183: DesgloseHoras.Discriminar() - traduce el desglose rico al payload plano que viaja en
-// DiaCalculado (Tell-don't-Ask: el desglose se discrimina a si mismo).
+// DiaDepurado (Tell-don't-Ask: el desglose se discrimina a si mismo).
 // CA-2 (#183): produce MinutosPorConcepto con una entrada por cada Concepto con minutos > 0 del dia,
 //       clave = Concepto.ToString(), valor = minutos agregados (reusa TotalMinutosPorConcepto).
 // CA-3 (#183): incluye la clave literal "Retardo" con RetardoTotal.RetardoNeto cuando es > 0; no la incluye

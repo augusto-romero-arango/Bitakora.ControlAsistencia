@@ -2,7 +2,6 @@ using System.Text.Json;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -57,9 +56,11 @@ public static class ComposicionServicios
                 options.Durability.DurabilityMetricsEnabled = false;
 
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
-                // HU-108: registra el topic destino para DiaCalculado.
+                // HU-108 / issue #421: registra el topic destino para DiaDepurado (antes DiaCalculado,
+                // reclasificado de IPublicEvent a IPrivateEvent -- el consumidor real, #425, vive
+                // dentro del mismo bounded context).
                 // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.
-                options.PublicarEventoServerless<DiaCalculado>("dia-calculado");
+                options.PublicarEventoServerless<DiaDepurado>("dia-depurado");
                 // issue #270 (ADR-0024 marco decision #3): RegistroDeMarcacionCreado (contrato de
                 // bus, PrivateEvents.ControlHoras) es el IPrivateEvent que debe cruzar fisicamente el
                 // ASB interno del BC, aun siendo consumido dentro del mismo Function App

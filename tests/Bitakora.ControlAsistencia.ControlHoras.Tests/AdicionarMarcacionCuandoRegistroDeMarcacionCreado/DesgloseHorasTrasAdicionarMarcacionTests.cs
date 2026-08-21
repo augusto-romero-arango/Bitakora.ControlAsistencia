@@ -49,7 +49,7 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly DateTime Timestamp18_30 = new(2026, 3, 15, 18, 30, 0);
 
     protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
-        new RegistroDeMarcacionCreadoEventHandler(EventStore, PublicEventSender);
+        new RegistroDeMarcacionCreadoEventHandler(EventStore, PrivateEventSender);
 
     private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
         new(CodigoColaborador, timestamp, "ENTRADA", "DEV-001");

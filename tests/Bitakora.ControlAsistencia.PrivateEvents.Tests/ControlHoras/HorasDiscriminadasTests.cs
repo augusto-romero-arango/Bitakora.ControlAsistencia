@@ -1,15 +1,17 @@
-// Issue #183: HorasDiscriminadas - payload plano (100% primitivo) que viaja en DiaCalculado hacia nomina.
+// Issue #183: HorasDiscriminadas - payload plano (100% primitivo) que viaja en DiaDepurado hacia el
+// bus interno del BC.
 // CA-1: existe HorasDiscriminadas (record) con MinutosPorConcepto: IReadOnlyDictionary<string,int> y
 //       Trazabilidad: IReadOnlyList<string>; serializa y deserializa con STJ POR DEFECTO (sin resolver
 //       custom de Marten). Esa es la cura: ningun consumidor (incluido otro stack) depende de nuestra
 //       serializacion interna, y el bug de payload lossy se vuelve estructuralmente imposible.
+// Issue #421: mudado de PublicEvents.Tests a PrivateEvents.Tests junto con DiaCalculado -> DiaDepurado.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-namespace Bitakora.ControlAsistencia.PublicEvents.Tests.ControlHoras;
+namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 
 public class HorasDiscriminadasTests
 {

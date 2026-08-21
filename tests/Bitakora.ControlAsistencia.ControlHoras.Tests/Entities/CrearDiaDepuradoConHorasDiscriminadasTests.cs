@@ -1,15 +1,16 @@
 // Issue #183: Reemplazar el payload de DiaCalculado por HorasDiscriminadas plano
-// CA-4: DiaCalculado expone HorasDiscriminadas y ya NO ControlesDeFranja ni el antiguo DesgloseHoras;
-//       CrearDiaCalculado() lo construye via DesgloseHoras.Discriminar() sobre el desglose real del
-//       aggregate (la propiedad DesgloseHoras recalculada por RecalcularDesgloseHoras()).
+// Issue #421: CrearDiaCalculado() se renombra a CrearDiaDepurado() (evento reclasificado a
+//       IPrivateEvent). CrearDiaDepurado() lo construye via DesgloseHoras.Discriminar() sobre el
+//       desglose real del aggregate (la propiedad DesgloseHoras recalculada por
+//       RecalcularDesgloseHoras()).
 //
-// Test directo sobre CrearDiaCalculado() (metodo publico del aggregate). Como ControlHoras NO expone
+// Test directo sobre CrearDiaDepurado() (metodo publico del aggregate). Como ControlHoras NO expone
 // InternalsVisibleTo, los factory internal (Iniciar/AsignarTurno/AdicionarMarcacion) no son accesibles
 // desde el proyecto de tests: el aggregate se conduce al EventStore con los handlers reales (mismo
 // patron que DesgloseHorasTras*Tests) y se verifica via el selector de And<>() sobre el aggregate
 // rehidratado. And<>() compara estructuralmente (BeEquivalentTo).
 //
-// Nested classes: CrearDiaCalculado() lo conducen ambos EventHandlers sobre el mismo aggregate, por lo
+// Nested classes: CrearDiaDepurado() lo conducen ambos EventHandlers sobre el mismo aggregate, por lo
 // que comparten datos pero reaccionan a eventos privados distintos. Tras issue #209 y #210 ambos
 // consumen su evento privado directo con PrivateEventHandlerAsyncTest<TEvent> (ADR-0024 #8):
 // AsignarTurno reacciona a ProgramacionTurnoDiarioSolicitada; AdicionarMarcacion a
@@ -26,13 +27,12 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.PublicEvents.ControlHoras;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
-public class CrearDiaCalculadoConHorasDiscriminadasTests
+public class CrearDiaDepuradoConHorasDiscriminadasTests
 {
     // Datos compartidos - el stream ID es determinista a partir de CodigoColaborador+Fecha.
     // private static: las nested classes acceden a los miembros privados de la clase contenedora.
@@ -80,21 +80,21 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     {
         protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
             new ProgramacionTurnoDiarioSolicitadaEventHandler(
-                EventStore, PublicEventSender);
+                EventStore, PrivateEventSender);
 
         private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
             new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);
 
         // CA-4: con turno (franja 06:00-14:00) y marcaciones previas que la completan (07:00, 15:00),
-        //       la franja queda NO anomala. CrearDiaCalculado() debe empaquetar el payload plano
+        //       la franja queda NO anomala. CrearDiaDepurado() debe empaquetar el payload plano
         //       discriminado del desglose real: MinutosPorConcepto = {DominicalFestivaDiurna: 420}.
-        // Issue #184: CrearDiaCalculado() ahora ademas puebla la Trazabilidad via Discriminar(). Un solo
+        // Issue #184: CrearDiaDepurado() ahora ademas puebla la Trazabilidad via Discriminar(). Un solo
         //       concepto (DominicalFestivaDiurna) y retardo neto 0 -> exactamente una linea. Se verifica
         //       solo el conteo (robusto ante como el desglose descomponga los intervalos del concepto);
         //       el contenido exacto de las lineas se prueba en DesgloseHorasDiscriminarTests, con geometria
         //       controlada. Aqui basta probar que el aggregate enruta la trazabilidad hacia el payload.
         [Fact]
-        public async Task CrearDiaCalculado_LlevaMinutosYTrazabilidadReales_CuandoFranjaNoEsAnomala()
+        public async Task CrearDiaDepurado_LlevaMinutosYTrazabilidadReales_CuandoFranjaNoEsAnomala()
         {
             Given(StreamId,
                 CrearMarcacionAdicionada(Timestamp07_00),
@@ -108,12 +108,12 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
 
             And<ControlDiarioAggregateRoot, IReadOnlyDictionary<string, int>>(
                 StreamId,
-                c => c.CrearDiaCalculado().HorasDiscriminadas.MinutosPorConcepto,
+                c => c.CrearDiaDepurado().HorasDiscriminadas.MinutosPorConcepto,
                 MinutosFranjaCompleta());
 
             And<ControlDiarioAggregateRoot, int>(
                 StreamId,
-                c => c.CrearDiaCalculado().HorasDiscriminadas.Trazabilidad.Count,
+                c => c.CrearDiaDepurado().HorasDiscriminadas.Trazabilidad.Count,
                 1);
         }
 
@@ -122,7 +122,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
         //       y no hay retardo, asi que el payload plano lleva MinutosPorConcepto vacio. El contrato
         //       plano ya no distingue "anomala" de "dia vacio" (riesgo aceptado del issue).
         [Fact]
-        public async Task CrearDiaCalculado_LlevaMinutosPorConceptoVacio_CuandoTurnoSinMarcaciones()
+        public async Task CrearDiaDepurado_LlevaMinutosPorConceptoVacio_CuandoTurnoSinMarcaciones()
         {
             // Sin Given - stream nuevo, turno sin marcaciones previas.
             var turnoFranjaUnicaDetalle = new DetalleTurno("Turno Manana", [Franja06_14Detalle], "");
@@ -133,7 +133,7 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
 
             And<ControlDiarioAggregateRoot, HorasDiscriminadas>(
                 StreamId,
-                c => c.CrearDiaCalculado().HorasDiscriminadas,
+                c => c.CrearDiaDepurado().HorasDiscriminadas,
                 new HorasDiscriminadas(new Dictionary<string, int>(), []));
         }
     }
@@ -143,16 +143,16 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
     {
         protected override IPrivateEventHandlerAsync<RegistroDeMarcacionCreado> Handler =>
             new RegistroDeMarcacionCreadoEventHandler(
-                EventStore, PublicEventSender);
+                EventStore, PrivateEventSender);
 
         private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
             new(Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
         // CA-4 (sin turno): la marcacion crea el aggregate sin DetalleTurno -> Depurar() retorna lista
-        //       vacia -> no hay ControlesDeFranja que consolidar. CrearDiaCalculado() empaqueta el
+        //       vacia -> no hay ControlesDeFranja que consolidar. CrearDiaDepurado() empaqueta el
         //       payload plano con MinutosPorConcepto vacio.
         [Fact]
-        public async Task CrearDiaCalculado_LlevaMinutosPorConceptoVacio_CuandoNoHayTurno()
+        public async Task CrearDiaDepurado_LlevaMinutosPorConceptoVacio_CuandoNoHayTurno()
         {
             // Sin Given - el aggregate nace solo con la marcacion (DetalleTurno queda null).
             await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
@@ -161,8 +161,25 @@ public class CrearDiaCalculadoConHorasDiscriminadasTests
 
             And<ControlDiarioAggregateRoot, HorasDiscriminadas>(
                 StreamId,
-                c => c.CrearDiaCalculado().HorasDiscriminadas,
+                c => c.CrearDiaDepurado().HorasDiscriminadas,
                 new HorasDiscriminadas(new Dictionary<string, int>(), []));
+        }
+
+        // CA-4: incluso cuando el dia nace solo por marcacion (sin turno, Colaborador queda null en
+        //       CrearDiaDepurado()), CodigoColaborador top-level debe estar presente -- el defecto
+        //       latente que este issue corrige (el consumidor de #425 necesita construir
+        //       "dc:{codigo}:{yyyyMMdd}" siempre).
+        [Fact]
+        public async Task CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno()
+        {
+            await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
+
+            Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
+
+            And<ControlDiarioAggregateRoot, string>(
+                StreamId,
+                c => c.CrearDiaDepurado().CodigoColaborador,
+                Colaborador.CodigoColaborador);
         }
     }
 }

@@ -6,6 +6,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 // serializador por defecto basta para deserializar solo el identificador.
 public sealed record ProgramacionTurnoDiarioSolicitadaMinimo(Guid SolicitudId);
 
-public sealed record DiaCalculadoMinimo(InformacionColaboradorMinimo? InformacionColaborador);
-
-public sealed record InformacionColaboradorMinimo(string CodigoColaborador);
+// Issue #421: DiaCalculado (IPublicEvent) se reclasifica como DiaDepurado (IPrivateEvent).
+// CodigoColaborador ahora es top-level y SIEMPRE presente (antes solo viajaba anidado en
+// InformacionColaborador, que podia ser null) -- ya no hace falta la forma anidada minima.
+public sealed record DiaDepuradoMinimo(string CodigoColaborador);

@@ -71,7 +71,7 @@ public partial class RegistroDeMarcacionAggregateRoot : AggregateRoot
     // Issue #270 CA-4: traductor del evento de dominio persistido (MarcacionRegistrada) al contrato
     // de bus (RegistroDeMarcacionCreado). Tell-don't-Ask: el aggregate es duenio del estado y entrega
     // el contrato ya empaquetado al handler -- espejo exacto de
-    // ControlDiarioAggregateRoot.CrearDiaCalculado(). El handler no construye el contrato campo por campo.
+    // ControlDiarioAggregateRoot.CrearDiaDepurado(). El handler no construye el contrato campo por campo.
     public RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado() =>
         new(CodigoColaborador, TimestampNormalizado, TipoMarcacion, DispositivoId);
 }
