@@ -39,8 +39,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // HU-139: desglose de horas del dia, estado derivado recalculado reactivamente al final
     // de cada Apply (despues de Depurar). Sin snapshots (ADR-0021): se reconstruye aplicando
-    // eventos en cada rehidratacion. Solo lectura para que los tests lo verifiquen y para que
-    // el handler que publica DiaDepurado (#108) pueda leerlo.
+    // eventos en cada rehidratacion. Solo lectura: la unica escritura es RecalcularDesgloseHoras().
     private DesgloseHoras _desgloseHoras = DesgloseHoras.Vacio;
     public DesgloseHoras DesgloseHoras => _desgloseHoras;
 
@@ -140,11 +139,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return DateOnly.ParseExact(partes[^1], FormatoFechaStreamId, CultureInfo.InvariantCulture);
     }
 
-    // Issue #421: CodigoColaborador top-level de DiaDepurado se lee siempre del stream ID (Id ya lo
-    // trae desde cualquiera de los dos Apply), en vez de depender de InformacionColaborador -- que
-    // puede quedar null cuando el dia nace solo por marcacion. Misma anatomia de CA-ADR-0031 que
-    // ExtraerFechaDeStreamId: el segundo componente, entre los dos separadores.
-    private static string ExtraerCodigoColaboradorDeStreamId(string streamId) => streamId.Split(SeparadorStreamId)[1];
+    // Fuente unica del CodigoColaborador del aggregate: el stream ID, que ambos Apply asignan a Id.
+    // InformacionColaborador NO sirve -- queda null cuando el dia nace solo por marcacion. La anatomia
+    // de CA-ADR-0031 garantiza 3 componentes y el codigo es siempre el del medio.
+    private static string ExtraerCodigoColaboradorDeStreamId(string streamId) =>
+        streamId.Split(SeparadorStreamId)[1];
 
     // HU-106: segundo camino de creacion del ControlDiario, sin turno asignado
     // CA-5: si no existe ControlDiario para la fecha, se crea con este factory
@@ -169,10 +168,9 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Issue #421: renombra CrearDiaCalculado() -- reclasifica el evento como IPrivateEvent
-    // (DiaDepurado, familia lexica de la maquina) y agrega CodigoColaborador top-level, siempre
-    // presente aunque InformacionColaborador sea null (corrige el defecto latente que impedia al
-    // consumidor de #425 construir "dc:{codigo}:{yyyyMMdd}" cuando el dia nace solo por marcacion).
+    // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
+    // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
+    // refresca al final de cada uno.
     public DiaDepurado CrearDiaDepurado() =>
         new(
             ExtraerCodigoColaboradorDeStreamId(Id),
@@ -180,10 +178,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             CrearResumenColaborador(),
             DesgloseHoras.Discriminar());
 
-    // Composicion transitoria (nota tecnica del issue #421): ColaboradorProgramado no trae
-    // Identificacion ni NombreCompleto ya compuestos -- se ensamblan aqui con el mismo contrato del
-    // maestro (Identificacion.ToString() = "{Tipo}-{Numero}"). Muere cuando #433 haga viajar la terna
-    // ya compuesta desde el origen.
+    // El aggregate vive en el Function App, el unico proyecto que ve las tres islas de eventos, asi
+    // que el mapeo entre ellas vive aqui (CA-ADR-0029 decision #5). Composicion transitoria:
+    // ColaboradorProgramado no trae Identificacion ni NombreCompleto ya compuestos y se ensamblan con
+    // el contrato del maestro ("{Tipo}-{Numero}"); muere cuando #433 los haga viajar desde el origen.
     private ResumenColaborador? CrearResumenColaborador() =>
         InformacionColaborador is null
             ? null

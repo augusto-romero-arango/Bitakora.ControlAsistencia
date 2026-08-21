@@ -9,7 +9,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 // Functions se duerme (B1 sin always_on, descartado por costo - ver ADR-0009). Un health-ping
 // HTTP solo confirma "host HTTP arriba", no "listeners SB consumiendo": la inicializacion del
 // listener (link AMQP + lease de la subscription) es asincrona y posterior al 200. El test
-// DebePublicarDiaDepuradoYPersistirMarcacionAdicionada... ya ceba implicitamente AsignarTurno
+// RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada... ya ceba implicitamente AsignarTurno
 // en su setup, pero AdicionarMarcacion arranca frio justo en el Act y los 30s no alcanzan.
 //
 // Solucion: ejecutar la cadena SB completa UNA sola vez, con identificadores descartables,

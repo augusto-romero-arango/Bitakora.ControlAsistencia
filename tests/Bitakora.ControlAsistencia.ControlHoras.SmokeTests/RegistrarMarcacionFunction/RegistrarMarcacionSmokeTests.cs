@@ -15,12 +15,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionF
 // HU-108: cobertura adicional de los efectos del handler in-process
 // AdicionarMarcacionCuandoRegistroDeMarcacionCreado, que tras el POST persiste marcacion_adicionada
 // y publica DiaDepurado al topic dia-depurado.
-// Issue #421: DiaCalculado (IPublicEvent) se reclasifica como DiaDepurado (IPrivateEvent) -- el
-// consumidor real (#425) vive dentro del mismo bounded context.
 // Issue #270: RegistrarMarcacionCommandHandler ya no publica MarcacionRegistrada (evento de dominio)
 // al bus; publica el contrato RegistroDeMarcacionCreado al topic registro-de-marcacion-creado (#274).
 // Ningun test consume la suscripcion smoke-tests de ese topic privado: la cobertura de esa
-// publicacion/consumo vive en DebePublicarDiaDepuradoYPersistirMarcacionAdicionada... (mas abajo),
+// publicacion/consumo vive en RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada...,
 // que la verifica de forma mas fuerte por transitividad -- ver el porque en su propio comentario.
 // Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
 // RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
@@ -298,7 +296,7 @@ public class RegistrarMarcacionSmokeTests(
     // PRODUCCION (no un consumidor competidor) proceso el mensaje.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebePublicarDiaDepuradoYPersistirMarcacionAdicionada_CuandoMarcacionGeneraNuevoEvento()
+    public async Task RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada_CuandoGeneraNuevoEvento()
     {
         Assert.SkipWhen(!postgres.IsConfigured,
             postgres.SkipReason ?? "Postgres no disponible.");
@@ -383,8 +381,7 @@ public class RegistrarMarcacionSmokeTests(
         marcacionAdicionada.Should().BeTrue(
             $"el evento {TipoEventoMarcacionAdicionada} deberia existir en el stream {streamId} tras el POST");
 
-        // Assert publicacion: DiaDepurado emitido al topic dia-depurado, filtrado por CodigoColaborador
-        // (issue #421 CA-4: top-level, ya no requiere InformacionColaborador != null).
+        // Assert publicacion: DiaDepurado emitido al topic dia-depurado, filtrado por CodigoColaborador.
         var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
             TopicDiaDepurado, SuscripcionSmokeTests,
             e => e.CodigoColaborador == codigoColaborador,
@@ -392,9 +389,8 @@ public class RegistrarMarcacionSmokeTests(
 
         diaDepurado.Fecha.Should().Be(fecha);
         diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
-        // Issue #421 CA-1/CA-2: el turno ya estaba asignado antes de la marcacion, asi que Colaborador
-        // lleva la terna reducida mapeada por CrearResumenColaborador() (flujo de marcacion, no de
-        // asignacion de turno -- complementa la verificacion de AsignarTurnoViaSbSmokeTests).
+        // CA-1/CA-2: el turno ya estaba asignado antes de la marcacion, asi que Colaborador lleva la
+        // terna compuesta -- flujo de marcacion, complementario al de AsignarTurnoViaSbSmokeTests.
         var colaboradorEsperado = new ResumenColaborador(
             "CC-888777666", codigoColaborador, "[TEST] Smoke DiaDepurado [TEST] HU108");
         diaDepurado.Colaborador.Should().Be(colaboradorEsperado);
@@ -518,7 +514,7 @@ public class RegistrarMarcacionSmokeTests(
         salidaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         // Assert publicacion: el DiaDepurado posterior a la salida lleva el desglose real,
-        // filtrado por CodigoColaborador (unico por ejecucion, top-level -- issue #421 CA-4).
+        // filtrado por CodigoColaborador (unico por ejecucion).
         var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
             TopicDiaDepurado, SuscripcionSmokeTests,
             e => e.CodigoColaborador == codigoColaborador,
@@ -546,15 +542,11 @@ public class RegistrarMarcacionSmokeTests(
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
     }
 
-    // Issue #421 CA-1/CA-4: verifica end-to-end (contra el entorno real) el defecto latente que
-    // corrige este issue -- sin publicar programacion-turno-diario-solicitada, el ControlDiario nace
-    // directamente desde la marcacion (Iniciar(MarcacionAdicionada)) y CrearDiaDepurado() no tiene
-    // InformacionColaborador que mapear. Antes de este issue, CodigoColaborador solo viajaba anidado
-    // en un Colaborador que aqui hubiera quedado null; el consumidor de #425 no habria podido
-    // construir "dc:{codigo}:{yyyyMMdd}". Complementa
-    // CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno (unit test sobre el aggregate)
-    // probando que la cadena real de Service Bus (handler -> IPrivateEventSender -> deserializacion)
-    // preserva CodigoColaborador top-level y Colaborador null tal como lo predice ese unit test.
+    // CA-1/CA-4: sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo
+    // desde la marcacion y CrearDiaDepurado() no tiene InformacionColaborador que mapear. Prueba
+    // contra el entorno real que la cadena completa (handler -> IPrivateEventSender ->
+    // deserializacion) preserva CodigoColaborador top-level y Colaborador null, tal como lo predice
+    // el unit test CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarMarcacion_PublicaDiaDepuradoConColaboradorNulo_CuandoNoHayTurnoPrevio()

@@ -16,8 +16,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacion
 //   - CA-4: si YA existe -> GetAggregateRootAsync + AsignarTurno (SaveChanges automatico)
 // HU-131 / CA-4: publica DiaDepurado via IPrivateEventSender tras el Apply(TurnoDiarioAsignado)
 //   que dispara el recalculo reactivo de ControlesDeFranja.
-// Issue #421: DiaCalculado (IPublicEvent) se reclasifico como DiaDepurado (IPrivateEvent) -- el
-//   consumidor real (#425) vive dentro del mismo bounded context.
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
 public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
     : IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada>

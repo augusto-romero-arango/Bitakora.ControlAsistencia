@@ -2,9 +2,6 @@
 // HU-108: Emitir DiaDepurado tras adicionar marcacion (CA-1, CA-2, CA-3, CA-4, CA-5)
 // Issue #270: el evento privado que dispara el flujo cambia de MarcacionRegistrada a
 // RegistroDeMarcacionCreado (CA-3, CA-5); el comportamiento verificado aqui no cambia.
-// Issue #421: DiaCalculado (IPublicEvent) se reclasifica como DiaDepurado (IPrivateEvent). El
-// payload gana CodigoColaborador top-level (siempre presente, incluso sin turno) y Colaborador
-// pasa de InformacionColaborador a ResumenColaborador (terna reducida, PrivateEvents.Colaboradores).
 // Familia 1: verifica que Apply(MarcacionAdicionada) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaDepurado via IPrivateEventSender tras cada recalculo.
 
@@ -31,8 +28,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static readonly ColaboradorProgramado ColaboradorPersistido = new(
         CodigoColaborador, "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // ResumenColaborador (PrivateEvents.Colaboradores) -- lo que espera DiaDepurado, terna reducida
-    // de identidad (Identificacion compuesta "{Tipo}-{Numero}", CodigoColaborador, NombreCompleto).
+    // Oraculo a mano de la composicion que hace CrearResumenColaborador(): Identificacion
+    // "{Tipo}-{Numero}" y NombreCompleto "{Nombres} {Apellidos}" de ColaboradorPersistido.
     private static readonly ResumenColaborador ColaboradorResumen = new(
         "CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000001");
@@ -109,9 +106,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     //        Depurar() retorna lista vacia porque DepuradorDeMarcaciones.Depurar(null,...) -> [].
     //        Verifica el caso "marcacion llega antes del turno" donde el aggregate
     //        se inicia solo con marcacion y no hay nada que depurar.
-    // CA-2/CA-4 (HU-108): el handler publica DiaDepurado incluso cuando ControlesDeFranja esta vacio.
-    // CA-4 (issue #421): Colaborador viaja null pero CodigoColaborador top-level SIGUE presente -- el
-    //        defecto latente que este issue corrige.
+    // CA-2/CA-4 (HU-108): el handler publica DiaDepurado incluso cuando ControlesDeFranja esta vacio,
+    //        con Colaborador null pero CodigoColaborador top-level presente.
     [Fact]
     public async Task RegistroDeMarcacionCreado_DejaControlesDeFranjaVacios_CuandoNoHayTurnoPrevio()
     {
@@ -122,9 +118,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
 
-        // HU-108 CA-4: se publica DiaDepurado aunque no haya turno.
-        // Colaborador es null porque el ControlDiario nacio solo por marcacion, pero
-        // CodigoColaborador top-level esta presente (issue #421 CA-4).
+        // HU-108 CA-4: se publica DiaDepurado aunque no haya turno. Colaborador es null porque el
+        // ControlDiario nacio solo por marcacion; CodigoColaborador top-level sigue presente.
         // Issue #183 CA-6: sin turno no hay nada que consolidar -> MinutosPorConcepto viaja vacio.
         ThenIsPublishedPrivately(new DiaDepurado(
             CodigoColaborador,
@@ -209,7 +204,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             new MarcacionAdicionada(StreamIdDiaAnterior, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
 
         // CA-5: dos DiaDepurado publicados, en orden: dia calendario primero, dia anterior segundo.
-        // Ambos sin turno previo (Colaborador=null), pero con CodigoColaborador top-level (issue #421).
+        // Ambos sin turno previo (Colaborador=null), pero con CodigoColaborador top-level.
         // Issue #183 CA-6: sin turno en ninguno de los dos streams, MinutosPorConcepto viaja vacio en ambos.
         ThenIsPublishedPrivately(
             new DiaDepurado(CodigoColaborador, fechaDiaCal, null, new HorasDiscriminadas(new Dictionary<string, int>(), [])),

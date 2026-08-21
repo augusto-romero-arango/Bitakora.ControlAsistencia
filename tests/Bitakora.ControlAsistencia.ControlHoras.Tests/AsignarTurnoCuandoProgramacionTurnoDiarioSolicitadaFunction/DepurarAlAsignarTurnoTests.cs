@@ -1,8 +1,5 @@
 // HU-123: Integrar depurador al ControlDiario de forma reactiva
 // HU-131: Emitir DiaDepurado tras asignar turno (CA-1, CA-2)
-// Issue #421: DiaCalculado (IPublicEvent) se reclasifica como DiaDepurado (IPrivateEvent). El
-// payload gana CodigoColaborador top-level (siempre presente) y Colaborador pasa de
-// InformacionColaborador a ResumenColaborador (terna reducida, PrivateEvents.Colaboradores).
 // Familia 2: verifica que Apply(TurnoDiarioAsignado) dispara el recalculo de ControlesDeFranja
 // y que el handler publica DiaDepurado via IPrivateEventSender tras el recalculo.
 
@@ -29,8 +26,8 @@ public class DepurarAlAsignarTurnoTests
     private static readonly ColaboradorProgramado Colaborador = new(
         "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
 
-    // ResumenColaborador (PrivateEvents.Colaboradores) -- lo que espera DiaDepurado, terna reducida
-    // de identidad (Identificacion compuesta "{Tipo}-{Numero}", CodigoColaborador, NombreCompleto).
+    // Oraculo a mano de la composicion que hace CrearResumenColaborador(): Identificacion
+    // "{Tipo}-{Numero}" y NombreCompleto "{Nombres} {Apellidos}" de Colaborador.
     private static readonly ResumenColaborador ColaboradorResumen = new(
         "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 

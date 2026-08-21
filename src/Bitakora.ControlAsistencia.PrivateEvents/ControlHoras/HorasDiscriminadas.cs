@@ -1,14 +1,9 @@
 namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-// Issue #183: payload plano (100% primitivo) del dia, lo que el consumidor del bus interno consume
-// realmente. Reemplazo el modelo rico que viajaba en DiaCalculado (DesgloseHoras + DetalleControlFranja),
-// el cual dependia del resolver custom de Marten y se serializaba lossy en el canal de
-// publicacion a Service Bus (field notes 2026-06-23). Con solo primitivos, ningun consumidor
-// depende de nuestra serializacion interna y ese bug se vuelve estructuralmente imposible.
-//
-// Issue #421: mudado de PublicEvents a PrivateEvents junto con DiaCalculado -> DiaDepurado (evento
-// intra-BC, sin cambios de forma). CA-ADR-0029: cada isla de eventos posee sus propios tipos.
-// Serializacion: record con primitivos; STJ lo serializa/deserializa nativo SIN ConfigurarSerializacion.
+// Payload plano del dia que viaja en DiaDepurado. Debe permanecer 100% primitivo: el modelo rico
+// anterior (DesgloseHoras + DetalleControlFranja) dependia del resolver custom de Marten, que NO se
+// aplica al canal de publicacion a Service Bus, y llegaba lossy al consumidor (field notes
+// 2026-06-23). Con solo primitivos STJ lo (de)serializa nativo, sin ConfigurarSerializacion.
 //
 // MinutosPorConcepto: clave = Concepto.ToString() ("OrdinariaDiurna", ...) o la clave literal
 //   "Retardo"; valor = minutos agregados del dia para esa clave.

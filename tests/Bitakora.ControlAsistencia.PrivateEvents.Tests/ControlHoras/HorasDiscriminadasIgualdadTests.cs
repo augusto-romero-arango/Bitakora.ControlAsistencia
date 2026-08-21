@@ -3,7 +3,6 @@
 // MinutosPorConcepto y Trazabilidad por valor (en lugar de la igualdad por referencia que el record
 // genera por defecto - precedente DetalleFranjaOrdinaria, #129; ADR-0015 advierte sobre records con
 // colecciones que prometen igualdad por valor que no cumplen).
-// Issue #421: mudado de PublicEvents.Tests a PrivateEvents.Tests junto con DiaCalculado -> DiaDepurado.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;

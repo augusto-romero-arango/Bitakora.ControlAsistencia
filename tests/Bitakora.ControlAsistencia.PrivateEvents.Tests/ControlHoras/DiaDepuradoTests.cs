@@ -1,6 +1,3 @@
-// Issue #421: guardrail de portabilidad por el bus para DiaDepurado (reclasificado de DiaCalculado,
-// IPublicEvent -> IPrivateEvent).
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
@@ -34,8 +31,7 @@ public class DiaDepuradoTests
         },
         ["06:00-14:00: Dominical festiva diurna"]);
 
-    // CA-1/CA-4: round-trip con el serializador POR DEFECTO del bus preserva CodigoColaborador
-    // (top-level, siempre presente), Fecha, Colaborador y HorasDiscriminadas.
+    // CA-1: round-trip con el serializador POR DEFECTO del bus preserva todo el payload.
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelBus()
     {
@@ -50,8 +46,7 @@ public class DiaDepuradoTests
         restaurado.Should().Be(evento);
     }
 
-    // CA-4: cuando el dia nace solo por marcacion (sin turno previo), Colaborador viaja null pero
-    // CodigoColaborador top-level sigue presente -- el defecto latente que este issue corrige.
+    // CA-4: sin turno previo Colaborador viaja null, pero CodigoColaborador top-level sigue presente.
     [Fact]
     public void RoundTrip_PreservaCodigoColaboradorTopLevel_CuandoColaboradorEsNulo()
     {

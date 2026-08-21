@@ -7,9 +7,6 @@ using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 
-// Issue #421: DiaCalculado (IPublicEvent) se reclasifica como DiaDepurado (IPrivateEvent) -- el
-// consumidor real (#425) vive dentro del mismo bounded context. CodigoColaborador ahora es
-// top-level (siempre presente) en vez de anidado en InformacionColaborador.
 public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
@@ -115,7 +112,6 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         // Assert HU-131 CA-1/CA-2: DiaDepurado publicado al topic dia-depurado.
         // Se emite siempre, incluso si ControlesDeFranja queda vacio tras la depuracion reactiva.
-        // Issue #421 CA-4: filtrado por CodigoColaborador top-level (ya no anidado en Colaborador).
         var diaDepurado = await serviceBus.WaitForMessageAsync<DiaDepurado>(
             TopicDiaDepurado, SuscripcionSmokeTests,
             e => e.CodigoColaborador == codigoColaborador,
@@ -123,9 +119,8 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
 
         diaDepurado.Fecha.Should().Be(fecha);
         diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
-        // Issue #421 CA-1/CA-2: con turno asignado, Colaborador lleva la terna reducida mapeada por
-        // CrearResumenColaborador() -- Identificacion compuesta ("{Tipo}-{Numero}") y NombreCompleto
-        // ("{Nombres} {Apellidos}"), efecto directo del mapeo introducido por este issue.
+        // CA-1/CA-2: con turno asignado, Colaborador lleva la terna que compone CrearResumenColaborador()
+        // a partir del colaborador del evento de entrada, ya cruzada por el bus real.
         var resumenColaboradorEsperado = new ResumenColaborador(
             "CC-999888777", codigoColaborador, "[TEST] Smoke ServiceBus [TEST] Verificacion");
         diaDepurado.Colaborador.Should().Be(resumenColaboradorEsperado);

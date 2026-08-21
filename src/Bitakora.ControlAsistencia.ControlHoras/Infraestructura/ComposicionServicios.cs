@@ -56,9 +56,6 @@ public static class ComposicionServicios
                 options.Durability.DurabilityMetricsEnabled = false;
 
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
-                // HU-108 / issue #421: registra el topic destino para DiaDepurado (antes DiaCalculado,
-                // reclasificado de IPublicEvent a IPrivateEvent -- el consumidor real, #425, vive
-                // dentro del mismo bounded context).
                 // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.
                 options.PublicarEventoServerless<DiaDepurado>("dia-depurado");
                 // issue #270 (ADR-0024 marco decision #3): RegistroDeMarcacionCreado (contrato de

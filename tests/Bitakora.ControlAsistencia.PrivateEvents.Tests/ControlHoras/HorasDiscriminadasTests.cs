@@ -1,10 +1,6 @@
-// Issue #183: HorasDiscriminadas - payload plano (100% primitivo) que viaja en DiaDepurado hacia el
-// bus interno del BC.
-// CA-1: existe HorasDiscriminadas (record) con MinutosPorConcepto: IReadOnlyDictionary<string,int> y
-//       Trazabilidad: IReadOnlyList<string>; serializa y deserializa con STJ POR DEFECTO (sin resolver
-//       custom de Marten). Esa es la cura: ningun consumidor (incluido otro stack) depende de nuestra
-//       serializacion interna, y el bug de payload lossy se vuelve estructuralmente imposible.
-// Issue #421: mudado de PublicEvents.Tests a PrivateEvents.Tests junto con DiaCalculado -> DiaDepurado.
+// HorasDiscriminadas - payload plano (100% primitivo) que viaja en DiaDepurado por el bus interno
+// del BC: serializa y deserializa con STJ POR DEFECTO, sin el resolver custom de Marten. Esa es la
+// cura del payload lossy -- ningun consumidor depende de nuestra serializacion interna.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;

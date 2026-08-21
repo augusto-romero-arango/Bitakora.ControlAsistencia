@@ -1,8 +1,5 @@
-// Issue #183: Reemplazar el payload de DiaCalculado por HorasDiscriminadas plano
-// Issue #421: CrearDiaCalculado() se renombra a CrearDiaDepurado() (evento reclasificado a
-//       IPrivateEvent). CrearDiaDepurado() lo construye via DesgloseHoras.Discriminar() sobre el
-//       desglose real del aggregate (la propiedad DesgloseHoras recalculada por
-//       RecalcularDesgloseHoras()).
+// CrearDiaDepurado() empaqueta el payload plano via DesgloseHoras.Discriminar() sobre el desglose
+// real del aggregate (la propiedad DesgloseHoras que RecalcularDesgloseHoras() refresca en cada Apply).
 //
 // Test directo sobre CrearDiaDepurado() (metodo publico del aggregate). Como ControlHoras NO expone
 // InternalsVisibleTo, los factory internal (Iniciar/AsignarTurno/AdicionarMarcacion) no son accesibles
@@ -165,10 +162,8 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 new HorasDiscriminadas(new Dictionary<string, int>(), []));
         }
 
-        // CA-4: incluso cuando el dia nace solo por marcacion (sin turno, Colaborador queda null en
-        //       CrearDiaDepurado()), CodigoColaborador top-level debe estar presente -- el defecto
-        //       latente que este issue corrige (el consumidor de #425 necesita construir
-        //       "dc:{codigo}:{yyyyMMdd}" siempre).
+        // CA-4: sin turno, Colaborador queda null y CodigoColaborador solo puede salir del stream ID.
+        //       El consumidor (#425) arma "dc:{codigo}:{yyyyMMdd}" con el, asi que nunca puede faltar.
         [Fact]
         public async Task CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno()
         {

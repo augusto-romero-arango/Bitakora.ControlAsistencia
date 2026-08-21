@@ -57,8 +57,6 @@ public partial class RegistroDeMarcacionCreadoEventHandler
     //         via IPrivateEventSender, una vez por cada fecha-destino procesada (CA-5).
     //         Idempotencia (#106): si AdicionarMarcacion ignora el duplicado, no se
     //         agrega evento al stream y por tanto no se publica DiaDepurado redundante.
-    // Issue #421: DiaCalculado (IPublicEvent) se reclasifico como DiaDepurado (IPrivateEvent) -- el
-    //         consumidor real (#425) vive dentro del mismo bounded context.
     private async Task AdicionarAControlDiarioAsync(
         RegistroDeMarcacionCreado @event, DateOnly fecha, CancellationToken ct)
     {

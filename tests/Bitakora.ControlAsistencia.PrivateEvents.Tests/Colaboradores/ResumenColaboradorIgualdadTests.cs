@@ -1,8 +1,7 @@
-// Issue #421: contrato de igualdad de ResumenColaborador, por simetria con la familia
-// Detalle*IgualdadTests. Todos sus campos son string: la igualdad por valor del record por defecto
-// ya es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012), mismo criterio que
-// DetalleColaborador. Estos tests congelan esa premisa: si el record gana una coleccion, el record
-// la compararia por referencia y el test rojo lo delata.
+// Todos los campos de ResumenColaborador son string: la igualdad por valor del record por defecto ya
+// es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012), mismo criterio que
+// DetalleColaborador. Estos tests congelan esa premisa: si el record gana una coleccion, la
+// compararia por referencia y el test rojo lo delata.
 
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 

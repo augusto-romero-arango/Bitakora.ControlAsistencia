@@ -3,14 +3,12 @@ using Cosmos.EventDriven.Abstractions;
 
 namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-// Issue #421: reclasifica el antiguo DiaCalculado (IPublicEvent) como evento privado intra-BC. El
-// consumidor real (flujo de aprobacion, #425) vive dentro del mismo bounded context; DiaCalculado
-// queda liberado para el aggregate de #425 (familia lexica: Depuracion automatica vs Conciliacion
-// humana). Nunca se persiste -- ver IdentidadEventosControlHoras, que lo excluye explicitamente.
+// Nunca se persiste: IdentidadEventosControlHoras lo excluye a proposito. El nombre DiaCalculado
+// queda reservado al aggregate del flujo de aprobacion (#425), que consume este evento.
 //
-// CodigoColaborador sube a top-level (antes solo viajaba anidado en InformacionColaborador, que
-// podia ser null): corrige un defecto latente -- el consumidor necesita construir
-// "dc:{codigo}:{yyyyMMdd}" siempre, incluso cuando el dia nace solo por marcacion sin turno.
+// CodigoColaborador viaja top-level y siempre presente, tambien cuando Colaborador es null (dia
+// nacido solo por marcacion, sin turno): el consumidor arma "dc:{codigo}:{yyyyMMdd}" con el. Moverlo
+// dentro de Colaborador reintroduce el defecto que este campo corrige.
 public record DiaDepurado(
     string CodigoColaborador,
     DateOnly Fecha,

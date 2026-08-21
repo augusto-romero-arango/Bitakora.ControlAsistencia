@@ -1,14 +1,11 @@
-// Issue #183: Reemplazar el payload de DiaCalculado por HorasDiscriminadas plano.
-// Issue #421: DiaCalculado se reclasifica como DiaDepurado (IPrivateEvent); el payload gana
-// CodigoColaborador top-level (siempre presente) y Colaborador pasa de InformacionColaborador
-// (PublicEvents.Colaboradores) a ResumenColaborador (PrivateEvents.Colaboradores, terna reducida).
-// CA-6: el payload completo de DiaDepurado round-trip serializa/deserializa con el serializador POR
-//       DEFECTO del publisher (sin el resolver custom de Marten) y sin perdida -- el evento nunca
-//       cruza el canal de Marten (no se persiste, ver IdentidadEventosControlHoras).
+// CA-6: el payload completo de DiaDepurado, con datos realistas del dominio, round-trip
+// serializa/deserializa con el serializador POR DEFECTO del publisher (sin el resolver custom de
+// Marten) y sin perdida. Complementa el guardrail minimo de portabilidad de
+// PrivateEvents.Tests/ControlHoras/DiaDepuradoTests, que compila contra la isla sola.
 //
-// Inversion de la barrera anterior: el test legado afirmaba que la deserializacion FALLABA sin el
-// resolver custom (Retardo tenia ctor privado). Ahora se afirma lo OPUESTO: tiene EXITO con el
-// resolver por defecto. Si alguien reintroduce un tipo rico al payload, este test fallaria.
+// La asercion es deliberadamente la OPUESTA a la del test legado, que afirmaba que la
+// deserializacion FALLABA sin resolver custom (Retardo tenia ctor privado): si alguien reintroduce
+// un tipo rico al payload, este test se pone rojo.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
