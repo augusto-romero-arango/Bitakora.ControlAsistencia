@@ -10,9 +10,9 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// vive en el namespace Colaboradores de este mismo ensamblado (CA-ADR-0029 decisiones #2 y #5,
 /// MEF-ADR-0039 decision 2).
 ///
-/// Colaborador es la terna de identidad, no el quinteto de InformacionColaborador (PublicEvents):
-/// la asimetria es deliberada y no se "corrige" restaurando la paridad de campos -- la terna se
-/// COMPONE desde el quinteto en el productor, no lo espeja.
+/// Colaborador es la terna de identidad. Desde #436 (fase B del corte) el body del comando que la
+/// origina tambien la lleva, asi que el productor la pasa TAL CUAL: ya no compone "{Tipo}-{Numero}"
+/// ni concatena nombres -- eso lo resuelve el cliente contra el maestro Colaboradores (#330).
 /// </summary>
 public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
 {

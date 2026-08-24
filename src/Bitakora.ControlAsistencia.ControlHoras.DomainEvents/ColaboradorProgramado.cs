@@ -8,8 +8,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 ///
 /// Identificacion llega con el contrato del maestro Colaboradores ("{Tipo}-{Numero}", nunca
 /// aplanada) y NombreCompleto ya concatenado: ni el aggregate ni el worker de proyecciones componen
-/// nada a partir de este payload. NO tiene paridad de campos con InformacionColaborador
-/// (PublicEvents), que sigue siendo el quinteto hasta la fase B del corte.
+/// nada a partir de este payload. Desde #436 (fase B del corte) toda la cadena -- body HTTP,
+/// evento persistido de Programacion y evento de bus -- lleva esta misma terna.
 ///
 /// Comparte forma con ResumenColaborador de esta misma isla (terna de DepuracionDiaRecibida): son
 /// dos eventos persistidos distintos, cada uno dueno de su payload, y se mantienen separados por

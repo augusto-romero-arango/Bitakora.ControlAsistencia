@@ -4,7 +4,6 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
@@ -12,8 +11,8 @@ public class SolicitarProgramacionTurnoValidatorTests
 {
     private readonly SolicitarProgramacionTurnoValidator _validator = new();
 
-    private static InformacionColaborador DatosColaboradorValidos() =>
-        new("E001", "CC", "12345678", "Juan", "Perez");
+    private static ColaboradorSolicitado DatosColaboradorValidos() =>
+        new("CC-12345678", "E001", "Juan Perez");
 
     private static SolicitarProgramacionTurno ComandoValido() => new(
         Guid.NewGuid(),
@@ -71,14 +70,16 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionColaborador.CodigoColaborador)));
+            e.PropertyName.Contains(nameof(ColaboradorSolicitado.CodigoColaborador)));
     }
 
-    // CA-3: TipoIdentificacion no puede estar vacio
+    // CA-3: Identificacion no puede estar vacia. Issue #436: llega ya compuesta como
+    // "{Tipo}-{Numero}" desde el cliente, asi que el validator ve un solo campo donde antes veia
+    // TipoIdentificacion y NumeroIdentificacion por separado.
     [Fact]
-    public async Task DebeTenerError_CuandoTipoIdentificacionEstaVacio()
+    public async Task DebeTenerError_CuandoIdentificacionEstaVacia()
     {
-        var datosInvalidos = DatosColaboradorValidos() with { TipoIdentificacion = "" };
+        var datosInvalidos = DatosColaboradorValidos() with { Identificacion = "" };
         var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
@@ -86,14 +87,15 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionColaborador.TipoIdentificacion)));
+            e.PropertyName.Contains(nameof(ColaboradorSolicitado.Identificacion)));
     }
 
-    // CA-3: NumeroIdentificacion no puede estar vacio
+    // CA-3: NombreCompleto no puede estar vacio. Issue #436: llega ya concatenado, asi que
+    // reemplaza a los ejes Nombres y Apellidos del quinteto.
     [Fact]
-    public async Task DebeTenerError_CuandoNumeroIdentificacionEstaVacio()
+    public async Task DebeTenerError_CuandoNombreCompletoEstaVacio()
     {
-        var datosInvalidos = DatosColaboradorValidos() with { NumeroIdentificacion = " " };
+        var datosInvalidos = DatosColaboradorValidos() with { NombreCompleto = "   " };
         var comando = ComandoValido() with { Colaborador = datosInvalidos };
 
         var resultado = await _validator.ValidateAsync(
@@ -101,37 +103,7 @@ public class SolicitarProgramacionTurnoValidatorTests
 
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionColaborador.NumeroIdentificacion)));
-    }
-
-    // CA-3: Nombres no puede estar vacio
-    [Fact]
-    public async Task DebeTenerError_CuandoNombresEstanVacios()
-    {
-        var datosInvalidos = DatosColaboradorValidos() with { Nombres = "" };
-        var comando = ComandoValido() with { Colaborador = datosInvalidos };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
-
-        resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionColaborador.Nombres)));
-    }
-
-    // CA-3: Apellidos no puede estar vacio
-    [Fact]
-    public async Task DebeTenerError_CuandoApellidosEstanVacios()
-    {
-        var datosInvalidos = DatosColaboradorValidos() with { Apellidos = "   " };
-        var comando = ComandoValido() with { Colaborador = datosInvalidos };
-
-        var resultado = await _validator.ValidateAsync(
-            comando, TestContext.Current.CancellationToken);
-
-        resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should().Contain(e =>
-            e.PropertyName.Contains(nameof(InformacionColaborador.Apellidos)));
+            e.PropertyName.Contains(nameof(ColaboradorSolicitado.NombreCompleto)));
     }
 
     // HU-225 / CA-1: Colaborador null no debe lanzar excepcion (NullReferenceException por
