@@ -40,6 +40,7 @@ using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerTurnoVigenteEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente.FunctionEndpoint;
 using ListarTurnosVigentesEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.FunctionEndpoint;
+using ListarAsistenciasDiariasEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -350,6 +351,30 @@ public class ComposicionServiciosTests
         await using var scope = provider.CreateAsyncScope();
 
         var act = () => ActivatorUtilities.CreateInstance<ListarTurnosVigentesEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #427: test de composicion de la Function QUERY sobre AsistenciaDiaria (#426), hermano
+    // del de ListarTurnosVigentes (arriba) y de MEF-ADR-0029. ActivatorUtilities.CreateInstance
+    // reproduce la activacion por tipo que hace el host de Azure Functions isolated worker, sin
+    // levantar el host real (Alt 1 de MEF-ADR-0029).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (guard 415/422, parseo del filtro, recorte de rango, session.Query y
+    // la sintesis del calendario completo), que es responsabilidad de projection-implementer y del
+    // smoke test, no de este guardrail de wiring. Este issue no crea proyeccion nueva ni toca el
+    // seam del worker (issue #427, "Necesidad de lectura") -- por eso este test queda en verde tan
+    // pronto exista el FunctionEndpoint stub con el constructor correcto; el rojo de este issue lo
+    // dan los unit tests puros de RangoConsulta y SintesisCalendarioAsistencia
+    // (ListarAsistenciasDiarias/), no este guardrail.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarAsistenciasDiarias_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarAsistenciasDiariasEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }
