@@ -230,4 +230,66 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    // Issue #423 CA-4: EsDescanso=true con Ordinarias vacia es el camino feliz del factory
+    // TurnoCreado.CrearDescanso -- verifica el 202 y el unico efecto secundario del handler
+    // (IEventStore.StartStream), leyendo mt_events porque turno_creado no cruza ningun bus.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_DebeRetornar202YPersistirCeroFranjas_CuandoEsDescanso()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        const string nombreTurno = "[TEST] Descanso Dominical";
+        var payload = new
+        {
+            turnoId,
+            nombre = nombreTurno,
+            ordinarias = Array.Empty<object>(),
+            esDescanso = true
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = turnoId.ToString();
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoTurnoCreado,
+            campoJson: "Nombre", valorJson: nombreTurno, Timeout);
+
+        eventoPersistido.GetProperty("FranjasOrdinarias").EnumerateArray().Should().BeEmpty(
+            "TurnoCreado.CrearDescanso construye el evento con FranjasOrdinarias vacia");
+    }
+
+    // Issue #423 CA-5: la marca EsDescanso y una lista de franjas no vacia son mutuamente
+    // excluyentes -- CrearTurnoValidator rechaza la contradiccion antes de llegar al factory.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_Retorna400_CuandoEsDescansoConFranjas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new
+        {
+            turnoId = Guid.CreateVersion7(),
+            nombre = "[TEST] Descanso Contradictorio",
+            ordinarias = new[]
+            {
+                new
+                {
+                    inicio = "08:00:00",
+                    fin = "16:00:00",
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
+            },
+            esDescanso = true
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
