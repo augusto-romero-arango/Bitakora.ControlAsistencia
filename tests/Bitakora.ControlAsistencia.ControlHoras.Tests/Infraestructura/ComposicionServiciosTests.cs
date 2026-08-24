@@ -200,7 +200,12 @@ public class ComposicionServiciosTests
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
 
         store.AssertEventosPersistidosRegistrados(
-            [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
+        [
+            typeof(MarcacionRegistrada),
+            typeof(MarcacionAdicionada),
+            typeof(TurnoDiarioAsignado),
+            typeof(DepuracionDiaRecibida)
+        ]);
     }
 
     // Issue #279 CA-1: el validator del comando no se registra a mano -- lo descubre
@@ -237,7 +242,8 @@ public class ComposicionServiciosTests
         {
             [typeof(MarcacionRegistrada)] = "marcacion_registrada",
             [typeof(MarcacionAdicionada)] = "marcacion_adicionada",
-            [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado"
+            [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado",
+            [typeof(DepuracionDiaRecibida)] = "depuracion_dia_recibida"
         });
     }
 

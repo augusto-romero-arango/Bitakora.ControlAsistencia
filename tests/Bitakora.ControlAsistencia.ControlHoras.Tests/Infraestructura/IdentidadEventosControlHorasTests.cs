@@ -4,6 +4,8 @@
 // que este issue corrige). MarcacionRegistrada SI entra: ademas de IPrivateEvent, se persiste en
 // el stream de RegistroDeMarcacionAggregateRoot, que la aplica. No usa el harness Given/When/Then:
 // se verifica un dato estatico de configuracion, no el comportamiento de un command handler.
+// Issue #425: DepuracionDiaRecibida se persiste en el stream de DiaCalculadoAggregateRoot (CA-5)
+// y se suma a la lista literal.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -15,13 +17,14 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class IdentidadEventosControlHorasTests
 {
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosTresEventosPersistidosDeControlHoras()
+    public void TiposPersistidos_ContieneExactamenteLosCuatroEventosPersistidosDeControlHoras()
     {
         IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
         [
             typeof(MarcacionRegistrada),
             typeof(MarcacionAdicionada),
-            typeof(TurnoDiarioAsignado)
+            typeof(TurnoDiarioAsignado),
+            typeof(DepuracionDiaRecibida)
         ]);
     }
 

@@ -1,9 +1,16 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
-using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions;
+// Issue #425: DiaDepurado (bus) y ControlHoras.DomainEvents ahora comparten nombres simples
+// homonimos (FranjaDepurada, MarcacionDelDia, ResumenColaborador -- payload por rol, MEF-ADR-0039
+// decision #6). Alias de tipo explicitos (tienen precedencia sobre un using de namespace) para que
+// este archivo -- que produce el evento de BUS DiaDepurado -- siga resolviendo sin calificar y sin
+// renombrar ningun metodo, evitando CS0104.
+using DiaDepurado = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.DiaDepurado;
+using FranjaDepurada = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.FranjaDepurada;
+using MarcacionDelDia = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.MarcacionDelDia;
+using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
