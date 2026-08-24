@@ -1,7 +1,6 @@
-// Duplicado a proposito de RangoConsultaTests de ListarTurnosVigentes/ListarAsistenciasDiarias --
-// ver el comentario de clase de RangoConsulta.cs en este feature folder (issue #428, tercera
-// aparicion de la politica, Rule of Three). Cada oraculo se arma a mano (MEF-ADR-0002): nunca se
-// deriva ejecutando Recortar sobre si mismo.
+// Duplicado a proposito de los RangoConsultaTests de ListarTurnosVigentes/ListarAsistenciasDiarias
+// -- ver el comentario de clase de RangoConsulta.cs en este feature folder. Cada oraculo se arma a
+// mano (MEF-ADR-0002): nunca se deriva ejecutando Recortar sobre si mismo.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;

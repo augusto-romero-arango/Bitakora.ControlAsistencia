@@ -369,19 +369,9 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #428: test de composicion de la Function QUERY ListarResumenesAsistencia, hermano de
-    // los de ListarTurnosVigentes/ListarAsistenciasDiarias (arriba) y de MEF-ADR-0029. Este issue no
-    // crea proyeccion ni read model (agregacion query-time sobre AsistenciaDiaria, #426): esta es la
-    // UNICA capa de composicion/wiring declarada para el, junto con las guardas HTTP puras de
-    // FunctionEndpointTests.cs y los unit tests de AgregadorResumenAsistencia/RangoConsulta (CA-1,
-    // CA-2, CA-3, CA-5), sin config-test del worker (carve-out de MEF-ADR-0035/issue #371, mismo que
-    // sus hermanos).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (guards 415/422, agregacion, keyset, recorte), que cubren los unit tests
-    // puros del feature folder y el smoke test. Por eso este test queda en verde tan pronto exista
-    // el FunctionEndpoint stub con el constructor correcto -- no es la guarda que fuerza el rojo de
-    // este issue (esa la dan AgregadorResumenAsistenciaTests/RangoConsultaTests/FunctionEndpointTests).
+    // Hermano de los de ListarTurnosVigentes/ListarAsistenciasDiarias (MEF-ADR-0029). Prueba solo la
+    // RESOLUCION de IDocumentStore/ITenantResolver por constructor; el comportamiento de Run
+    // (guards, agregacion, keyset, recorte) lo cubren los unit tests puros del feature folder.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarResumenesAsistencia_CuandoElContenedorEstaCompuesto()
     {

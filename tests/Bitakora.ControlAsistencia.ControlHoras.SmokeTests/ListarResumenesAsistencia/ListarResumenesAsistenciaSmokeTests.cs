@@ -1,23 +1,17 @@
-// Smoke tests de ListarResumenesAsistencia -- QUERY control-horas/resumenes-asistencia: una fila
-// ResumenAsistencia por colaborador con los tres ejes del Aprobador (programacion, aprobacion,
-// anomalias) mas totales de horas, agregados en query-time sobre AsistenciaDiaria (#426).
+// Smoke tests de ListarResumenesAsistencia -- QUERY control-horas/resumenes-asistencia.
 //
 // Quedan ROJOS hasta que el deploy publique la Function en dev: mientras tanto la ruta no existe y
-// el host responde 404 a todo. El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real
-// se lee despues del deploy.
+// el host responde 404 a todo. El CI de PR no los ejecuta (solo corre *.Tests).
 //
 // Arrange via el bus interno, nunca sembrando el event store por fuera de el: cada dia real se
-// publica como DiaDepurado al topic "dia-depurado" (mismo mecanismo que
-// ListarAsistenciasDiariasSmokeTests, #427). La proyeccion AsistenciaDiaria tiene lifecycle Async
-// (MEF-ADR-0034 seccion 3), asi que los casos que dependen del arrange envuelven la consulta en
-// Polling.WaitUntilAsync -- agotar el timeout es un fallo real, nunca un skip.
+// publica como DiaDepurado al topic "dia-depurado". La proyeccion AsistenciaDiaria tiene lifecycle
+// Async (MEF-ADR-0034 seccion 3), asi que los casos que dependen del arrange envuelven la consulta
+// en Polling.WaitUntilAsync -- agotar el timeout es un fallo real, nunca un skip.
 //
-// La mayoria de los casos con datos reales fijan CodigosColaborador explicito en el filtro: ese modo
-// pagina sobre la lista pedida sin descubrir el universo con un Distinct() sobre Marten, asi que el
-// resultado no se mezcla con colaboradores de otras corridas de este mismo smoke test que compartan
-// el mismo rango de fechas fijo en ejecuciones futuras. Solo el caso dedicado a la rama "sin filtro"
-// (universo descubierto) corre ese riesgo, y lo hace a proposito -- es lo unico que ejercita esa
-// rama sin sembrar por fuera del API.
+// Casi todos los casos con datos reales fijan CodigosColaborador explicito: ese modo pagina sobre la
+// lista pedida sin descubrir el universo, asi que el resultado no se mezcla con colaboradores de
+// otras corridas que compartan el mismo rango de fechas fijo. El caso dedicado a la rama "sin
+// filtro" corre ese riesgo a proposito -- es lo unico que la ejercita sin sembrar por fuera del API.
 //
 // Formas locales DESACOPLADAS del read model y del DTO de respuesta de produccion (isla,
 // MEF-ADR-0034 seccion 5): el smoke test no referencia ReadModels ni el Function App.
@@ -280,9 +274,14 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Codigos nunca sembrados por ningun test: no pueden tener documento en dev.
-        var codigoUno = Guid.CreateVersion7().ToString();
-        var codigoDos = Guid.CreateVersion7().ToString();
+        // Codigos nunca sembrados por ningun test: no pueden tener documento en dev. Se ordenan a
+        // mano porque Guid.CreateVersion7() no garantiza orden entre dos llamadas del mismo
+        // milisegundo, y la asercion de abajo es posicional.
+        var codigos = new[] { Guid.CreateVersion7().ToString(), Guid.CreateVersion7().ToString() }
+            .OrderBy(codigo => codigo, StringComparer.Ordinal)
+            .ToArray();
+        var codigoUno = codigos[0];
+        var codigoDos = codigos[1];
         var desde = new DateOnly(2025, 9, 10);
         var hasta = new DateOnly(2025, 9, 12);
 
@@ -311,9 +310,8 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
             && f.TotalHorasPorConcepto.Count == 0);
     }
 
-    // Cubre CA-1 y CA-2: los tres dias reales (jornada, vino en descanso, trabajo sin programacion)
-    // mas los tres dias vacios del rango deben cerrar los tres ejes exactamente contra los 6 dias.
-    // CodigosColaborador explicito evita que el resultado dependa de descubrir el universo.
+    // Los tres dias reales (jornada, vino en descanso, trabajo sin programacion) mas los tres dias
+    // vacios del rango deben cerrar los tres ejes exactamente contra los 6 dias.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarResumenesAsistencia_CalculaTresEjesAnomaliasYTotales_CuandoElColaboradorTieneDiasRealesYVaciosEnElRango()
@@ -369,8 +367,8 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         fila.TotalHorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(8.00m);
     }
 
-    // CA-3: con CodigosColaborador explicito hay una fila por codigo pedido, EN EL ORDEN pedido,
-    // incluida la sintetica del codigo sin datos -- nunca solo la del codigo que si tiene filas.
+    // Con CodigosColaborador explicito hay una fila por codigo pedido, incluida la sintetica del
+    // codigo sin datos -- nunca solo la del codigo que si tiene filas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarResumenesAsistencia_DevuelveSoloLosCodigosPedidosEnOrden_CuandoUnoTieneDatosYOtroNo()
@@ -380,8 +378,15 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
 
         var ct = TestContext.Current.CancellationToken;
 
-        var codigoConDatos = Guid.CreateVersion7().ToString();
-        var codigoSinDatos = Guid.CreateVersion7().ToString();
+        // El endpoint devuelve la pagina ordenada ascendente, no en el orden pedido: el codigo con
+        // datos tiene que ser el menor para que las aserciones posicionales de abajo (y el
+        // predicado de polling sobre First()) sean deterministas. Guid.CreateVersion7() no lo
+        // garantiza por si solo entre dos llamadas del mismo milisegundo.
+        var codigos = new[] { Guid.CreateVersion7().ToString(), Guid.CreateVersion7().ToString() }
+            .OrderBy(codigo => codigo, StringComparer.Ordinal)
+            .ToArray();
+        var codigoConDatos = codigos[0];
+        var codigoSinDatos = codigos[1];
         var desde = new DateOnly(2026, 7, 30);
         var hasta = new DateOnly(2026, 8, 2);
         var fechaJornada = new DateOnly(2026, 7, 31);
@@ -415,10 +420,9 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         filaSinDatos.TotalHorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-3, rama sin filtro: el universo se descubre entre los documentos del rango. Take=200 (el
-    // maximo) reduce el riesgo de que el colaborador sembrado quede fuera de la pagina si el rango
-    // acumula colaboradores de otras corridas futuras de este mismo test -- si eso llegara a pasar,
-    // el timeout de Polling lo delata como fallo real, no como skip.
+    // Rama sin filtro: el universo se descubre entre los documentos del rango. Take=200 (el maximo)
+    // reduce el riesgo de que el colaborador sembrado quede fuera de la pagina si el rango acumula
+    // colaboradores de otras corridas futuras de este mismo test.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarResumenesAsistencia_ApareceEnElUniversoDescubierto_CuandoNoSeEnviaCodigosColaboradorYElColaboradorTieneDatos()
@@ -444,8 +448,8 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         fila.Pendientes.Should().Be(1);
     }
 
-    // CA-4: keyset por CodigoColaborador ascendente sobre la lista pedida -- cursor ">" y fin de
-    // lista = pagina con menos filas que Take. No siembra ningun documento real: el modo con
+    // Keyset por CodigoColaborador ascendente sobre la lista pedida -- cursor ">" y fin de lista =
+    // pagina con menos filas que Take. No siembra ningun documento real: el modo con
     // CodigosColaborador explicito pagina sobre la lista dada sin descubrir nada en Marten, asi que
     // el mecanismo de paginacion es verificable sin depender de la consistencia eventual del worker.
     [Fact]

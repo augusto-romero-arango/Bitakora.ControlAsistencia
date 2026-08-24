@@ -1,21 +1,13 @@
-// Guards del borde HTTP (415/400/422, CA-6) de la Function QUERY ListarResumenesAsistencia (issue
-// #428, MEF-ADR-0042, RFC 10008) -- la unica capa de CA-6 que corre en CI: el smoke test que lo
-// cubre end-to-end depende del deploy y el test de composicion (ComposicionServiciosTests) solo
-// verifica wiring de IDocumentStore/ITenantResolver.
+// Guards del borde HTTP (415/400/422) de la Function QUERY ListarResumenesAsistencia -- la unica
+// capa que los cubre en CI: el smoke test depende del deploy y el test de composicion solo verifica
+// el wiring por constructor.
 //
-// El IDocumentStore y el ITenantResolver se pasan null! a proposito: los guards deben retornar
-// ANTES de abrir la QuerySession, asi que mover la apertura de sesion por encima de ellos rompe
-// estos tests con NullReferenceException en vez de pasar inadvertido -- mismo patron que
-// ListarAsistenciasDiarias/FunctionEndpointTests.cs (#427) y ListarFichasColaborador/
-// FunctionEndpointTests.cs (#373).
+// El IDocumentStore se pasa null! a proposito: los guards deben retornar ANTES de abrir la
+// QuerySession, asi que mover la apertura de sesion por encima de ellos rompe estos tests con
+// NullReferenceException en vez de pasar inadvertido.
 //
-// Fase roja (projection-test-writer): FunctionEndpoint.Run() hoy SOLO lanza NotImplementedException
-// (MEF-ADR-0033, stub minimo de compilacion) -- ninguno de estos tests puede pasar todavia. El
-// COMPORTAMIENTO (que status code y que rama dispara cada uno, la agregacion, el keyset y el
-// recorte) es responsabilidad de projection-implementer.
-//
-// No hay guard de "CodigoColaborador obligatorio" (a diferencia de ListarAsistenciasDiarias):
-// CodigosColaborador es opcional en este filtro (issue #428, "Universo (ratificado, opcion a)").
+// No hay guard de "CodigoColaborador obligatorio" como en ListarAsistenciasDiarias:
+// CodigosColaborador es opcional en este filtro.
 
 using System.Text;
 using AwesomeAssertions;

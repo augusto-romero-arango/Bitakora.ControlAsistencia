@@ -3,21 +3,15 @@ using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 
 /// <summary>
-/// Agregacion en query-time (issue #428, "Necesidad de lectura", via a'): dado el rango aplicado,
-/// los codigos pedidos (o descubiertos) y las filas AsistenciaDiaria del rango, produce una fila
-/// ResumenAsistencia por colaborador. Funcion pura, sin Marten -- mismo patron que
-/// SintesisCalendarioAsistencia.Completar (#427).
+/// Agregacion en query-time: dado el rango aplicado, los codigos pedidos (o descubiertos) y las
+/// filas AsistenciaDiaria del rango, produce una fila <see cref="ResumenAsistencia"/> por
+/// colaborador. Funcion pura, sin Marten.
 ///
-/// Contrato fijado por este test-writer (interfaz publica delegable del issue):
-/// - CodigosColaborador presente (no null): una fila por CADA codigo de esa lista, en el mismo
-///   orden -- incluida la fila sintetica (todo SinDatos/ceros) para un codigo sin documentos en el
-///   rango.
-/// - CodigosColaborador ausente (null): el universo es "colaboradores con &gt;= 1 fila en el
-///   rango" -- se descubre de <paramref name="documentos"/> tras re-filtrar por rango (mismo
-///   contrato defensivo que Completar frente a un llamador que traiga documentos de mas), en orden
-///   ascendente de CodigoColaborador (mismo orden que exige la paginacion keyset del endpoint).
-/// - HorasPorConcepto se suma sparse (union de claves) sobre los documentos del colaborador en el
-///   rango.
+/// El universo de filas lo decide <c>codigosPedidos</c>, y las dos ramas NO son intercambiables:
+/// - Presente: una fila por CADA codigo de la lista, en el mismo orden -- incluida la sintetica
+///   (todo SinDatos/ceros) de un codigo sin documentos en el rango.
+/// - Null: el universo son los colaboradores con al menos una fila en el rango, ascendente por
+///   CodigoColaborador. Sin lista no hay a quien sintetizar: esta funcion no conoce la poblacion.
 /// </summary>
 public static class AgregadorResumenAsistencia
 {
@@ -27,18 +21,14 @@ public static class AgregadorResumenAsistencia
         IReadOnlyList<string>? codigosPedidos,
         IReadOnlyList<AsistenciaDiaria> documentos)
     {
-        // Re-filtrar por rango no es redundante con el llamador: es el contrato defensivo de esta
-        // funcion frente a un llamador que traiga documentos de mas (mismo patron que
-        // SintesisCalendarioAsistencia.Completar, #427).
+        // Re-filtrar por rango NO es redundante con el llamador: es el contrato defensivo de esta
+        // funcion frente a uno que traiga documentos de mas. Sin el, esos documentos descuadrarian
+        // los tres ejes contra los dias del rango.
         var documentosPorCodigo = documentos
             .Where(d => d.Fecha >= desde && d.Fecha <= hastaAplicado)
             .GroupBy(d => d.CodigoColaborador)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<AsistenciaDiaria>)g.ToList());
 
-        // CodigosColaborador presente: una fila por cada codigo pedido, EN EL MISMO ORDEN de la
-        // lista (incluida la sintetica de un codigo sin documentos). Ausente: universo descubierto
-        // de los documentos, ordenado ascendente por CodigoColaborador -- mismo orden que exige la
-        // paginacion keyset del endpoint.
         var codigos = codigosPedidos
             ?? documentosPorCodigo.Keys.OrderBy(codigo => codigo, StringComparer.Ordinal).ToList();
 
@@ -57,9 +47,9 @@ public static class AgregadorResumenAsistencia
     private static ResumenAsistencia MapearFila(
         string codigo, int diasDelRango, IReadOnlyList<AsistenciaDiaria> documentos)
     {
-        // Un dia sin fila (sin documento) es sin programacion Y SinDatos -- se avala, no se
-        // aprueba (issue #428, "Necesidad de lectura"). Un documento con Plan.SinProgramar tambien
-        // cuenta como "sin programar" en el eje programacion.
+        // Un dia sin documento es a la vez "sin programar" y SinDatos: se avala, no se aprueba. Un
+        // documento con Plan.SinProgramar suma al primero pero no al segundo -- si existe, hubo
+        // marcaciones que mirar.
         var diasSinFila = diasDelRango - documentos.Count;
 
         var totalHorasPorConcepto = new Dictionary<string, decimal>();

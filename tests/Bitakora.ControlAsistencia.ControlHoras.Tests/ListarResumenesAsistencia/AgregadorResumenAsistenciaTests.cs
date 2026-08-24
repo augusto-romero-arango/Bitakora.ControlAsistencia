@@ -1,14 +1,10 @@
-// Funcion pura documentos+rango+codigos pedidos -> filas del resumen (issue #428): se invoca
-// directamente, sin QuerySession/Marten y sin el DSL Given/When/Then de CommandHandlerTestBase,
-// reservado a command handlers contra el event store (MEF-ADR-0002). Cada oraculo se arma a mano,
-// campo por campo: nunca se reusa el mapeo bajo prueba para construir el esperado.
+// Funcion pura, invocada directamente: sin QuerySession/Marten y sin el DSL Given/When/Then, que
+// MEF-ADR-0002 reserva a command handlers contra el event store. Cada oraculo se arma a mano, campo
+// por campo -- nunca reusando el mapeo bajo prueba para construir el esperado.
 //
 // TotalHorasPorConcepto se verifica con BeEquivalentTo y nunca comparando la fila entera con
 // Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
-// compilador de records (mismo gotcha que SintesisCalendarioAsistenciaTests, #427).
-//
-// CA-1/CA-2/CA-3 del issue #428 -- el recorte de rango (CA-5) vive en RangoConsultaTests.cs, hermano
-// de este archivo.
+// compilador de records, asi que esa comparacion pasaria a ser por referencia.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -41,8 +37,6 @@ public class AgregadorResumenAsistenciaTests
             vinoEnDescanso,
             trabajoSinProgramacion,
             horasPorConcepto ?? new Dictionary<string, decimal>());
-
-    // --- CA-1: los tres ejes cierran contra los dias del rango aplicado ---
 
     [Fact]
     public void Agregar_ProduceUnaFilaConLosTresEjesCerrandoContraLosDiasDelRango_CuandoTodosLosDiasTienenDocumento()
@@ -79,8 +73,6 @@ public class AgregadorResumenAsistenciaTests
         fila.TotalHorasPorConcepto.Should().BeEquivalentTo(
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
     }
-
-    // --- CA-2: los dias sin fila cuentan como SinDatos/sin programar y no aportan anomalias ---
 
     [Fact]
     public void Agregar_CuentaLosDiasSinFilaComoSinDatosYSinProgramar_SinAportarAnomalias()
@@ -128,8 +120,6 @@ public class AgregadorResumenAsistenciaTests
         fila.TrabajoSinProgramacion.Should().Be(0);
         fila.TotalHorasPorConcepto.Should().BeEmpty();
     }
-
-    // --- CA-3: universo con CodigosColaborador explicito (fila sintetica incluida) vs descubierto ---
 
     [Fact]
     public void Agregar_ProduceUnaFilaSinteticaConTodoSinDatosYCeros_ParaElCodigoPedidoSinDocumentos()
@@ -199,8 +189,6 @@ public class AgregadorResumenAsistenciaTests
 
         filas.Should().BeEmpty();
     }
-
-    // --- Totales de horas por concepto: suma sparse, union de claves ---
 
     [Fact]
     public void Agregar_SumaHorasPorConceptoConUnionDeClaves_CuandoLosDocumentosTraenConceptosDistintos()
