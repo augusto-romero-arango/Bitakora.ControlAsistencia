@@ -96,7 +96,7 @@ public sealed partial class TurnoCreado
         return new TurnoCreado(turnoId, nombre, franjasOrdinarias);
     }
 
-    // Issue #423: factory del descanso programado -- unica puerta a cero franjas ordinarias.
+    // Unica puerta a cero franjas ordinarias: Crear() las exige >= 1 deliberadamente.
     public static TurnoCreado CrearDescanso(Guid turnoId, string nombre)
     {
         if (string.IsNullOrWhiteSpace(nombre))

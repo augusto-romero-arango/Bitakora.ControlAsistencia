@@ -231,9 +231,8 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #423 CA-4: EsDescanso=true con Ordinarias vacia es el camino feliz del factory
-    // TurnoCreado.CrearDescanso -- verifica el 202 y el unico efecto secundario del handler
-    // (IEventStore.StartStream), leyendo mt_events porque turno_creado no cruza ningun bus.
+    // turno_creado no cruza ningun bus: la persistencia en mt_events es el unico efecto
+    // secundario verificable de este handler.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_DebeRetornar202YPersistirCeroFranjas_CuandoEsDescanso()
@@ -264,8 +263,6 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
             "TurnoCreado.CrearDescanso construye el evento con FranjasOrdinarias vacia");
     }
 
-    // Issue #423 CA-5: la marca EsDescanso y una lista de franjas no vacia son mutuamente
-    // excluyentes -- CrearTurnoValidator rechaza la contradiccion antes de llegar al factory.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_Retorna400_CuandoEsDescansoConFranjas()

@@ -2,8 +2,7 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-// MEF-ADR-0009: labels de presentacion de CatalogoTurnos en .resx separado
-// internal: accesible desde tests via InternalsVisibleTo en el .csproj
+// MEF-ADR-0009: el nombre logico del recurso debe coincidir con el .resx co-localizado.
 public partial class CatalogoTurnos
 {
     private static readonly ResourceManager ResourceManager = new(

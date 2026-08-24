@@ -283,9 +283,6 @@ public class TurnoCreadoTests
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaOrdinaria.Mensajes.SedeIncompleta));
     }
 
-    // ---------- Issue #423: factory CrearDescanso -- unica puerta a cero franjas ordinarias ----------
-
-    // CA-1: construye el evento con FranjasOrdinarias vacia, nombre y TurnoId correctos.
     [Fact]
     public void CrearDescanso_RetornaTurnoCreadoConFranjasVacias_CuandoNombreValido()
     {
@@ -296,7 +293,6 @@ public class TurnoCreadoTests
         evento.FranjasOrdinarias.Should().BeEmpty();
     }
 
-    // CA-2: nombre vacio reusa el mismo mensaje NombreVacio del factory Crear existente.
     [Fact]
     public void CrearDescanso_LanzaAggregateException_CuandoNombreEstaVacio()
     {
@@ -307,7 +303,6 @@ public class TurnoCreadoTests
             .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
     }
 
-    // CA-2: nombre solo espacios en blanco tambien se rechaza con el mismo mensaje.
     [Fact]
     public void CrearDescanso_LanzaAggregateException_CuandoNombreEsSoloEspaciosEnBlanco()
     {

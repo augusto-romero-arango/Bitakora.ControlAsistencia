@@ -23,10 +23,7 @@ public partial class CatalogoTurnos : AggregateRoot
         _estaActivo = true;
     }
 
-    // CA-2: formato "{nombre} (06:00-12:00)(14:00-16:00)"
-    // Nombre seguido de las ordinarias usando su ToString()
-    // Issue #423 CA-6: sin franjas ordinarias, el catalogo se autodescribe como descanso -- la
-    // estructura cero-franjas ES el descanso, sin discriminador en el estado del aggregate.
+    // La estructura cero-franjas ES el descanso: sin discriminador en el estado del aggregate.
     public override string ToString() => _franjasOrdinarias.Count == 0
         ? $"{_nombre} {Mensajes.LabelDescanso}"
         : $"{_nombre} {string.Join("", _franjasOrdinarias)}";

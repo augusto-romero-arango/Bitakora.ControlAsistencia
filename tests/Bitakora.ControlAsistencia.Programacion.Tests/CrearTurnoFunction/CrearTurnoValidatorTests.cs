@@ -66,9 +66,6 @@ public class CrearTurnoValidatorTests
             .Contain(e => e.PropertyName == nameof(CrearTurno.Ordinarias));
     }
 
-    // ---------- Issue #423: coherencia de EsDescanso vs Ordinarias ----------
-
-    // CA-5: EsDescanso=true con Ordinarias vacia es el camino feliz del descanso programado.
     [Fact]
     public async Task CrearTurno_EsValido_CuandoEsDescansoYOrdinariasVacia()
     {
@@ -78,7 +75,6 @@ public class CrearTurnoValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-5: EsDescanso=true con franjas ordinarias es una contradiccion -> invalido con mensaje .resx
     [Fact]
     public async Task CrearTurno_EsInvalido_CuandoEsDescansoTraeFranjasOrdinarias()
     {

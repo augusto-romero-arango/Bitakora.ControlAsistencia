@@ -91,7 +91,6 @@ public class TurnoCreadoSerializacionTests
         deserializado!.FranjasOrdinarias[0].ToDetalle().Sede.Should().BeNull();
     }
 
-    // Issue #423 CA-1: round-trip del descanso programado -- cero franjas ordinarias.
     [Fact]
     public void Deserializar_ReconstruyeEventoConFranjasVacias_CuandoEsDescanso()
     {

@@ -3,18 +3,19 @@ using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunc
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
-// HU-4: Validacion de estructura del request antes del command handler
-// CA-5: TurnoId no vacio, Nombre no vacio, Ordinarias no vacia
-// CA-6: se auto-registra via AddValidatorsFromAssemblyContaining (configurado en Program.cs)
-// Issue #423: partial para soportar la clase Mensajes anidada en archivo separado (MEF-ADR-0009)
+// Se auto-registra via AddValidatorsFromAssemblyContaining (Program.cs).
 public partial class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
 {
     public CrearTurnoValidator()
     {
         RuleFor(x => x.TurnoId).NotEmpty();
         RuleFor(x => x.Nombre).NotEmpty();
-        RuleFor(x => x.Ordinarias).NotEmpty().When(x => !x.EsDescanso);
-        RuleFor(x => x.Ordinarias).Empty().WithMessage(Mensajes.EsDescansoConFranjas)
-            .When(x => x.EsDescanso);
+
+        // La marca de descanso y las franjas ordinarias se excluyen mutuamente.
+        When(x => x.EsDescanso,
+                () => RuleFor(x => x.Ordinarias).Empty()
+                    .WithMessage(Mensajes.EsDescansoConFranjas))
+            .Otherwise(
+                () => RuleFor(x => x.Ordinarias).NotEmpty());
     }
 }
