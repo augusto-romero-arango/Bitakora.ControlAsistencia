@@ -3,7 +3,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +22,7 @@ public class FunctionEndpointTests
     private static SolicitarProgramacionTurno ComandoValido() => new(
         Guid.NewGuid(),
         Guid.NewGuid(),
-        new InformacionColaborador("E001", "CC", "12345678", "Juan", "Perez"),
+        new ColaboradorSolicitado("CC-12345678", "E001", "Juan Perez"),
         [new DateOnly(2026, 4, 7)]);
 
     private static HttpRequest FakeHttpRequest()

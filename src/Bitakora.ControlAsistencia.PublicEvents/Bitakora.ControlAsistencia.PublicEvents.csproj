@@ -8,7 +8,12 @@
 
   <!-- Sin ProjectReference a proposito: es la condicion para empaquetar este
        ensamblado como NuGet y que un consumidor externo no reciba eventos
-       internos del bounded context. -->
+       internos del bounded context. Lo custodia PublicEventsAislamientoTests.
+
+       Issue #436: el ensamblado quedo SIN TIPOS. InformacionColaborador, su ultimo
+       habitante, murio al reducirse el body del comando a la terna de identidad. Sigue
+       vivo como la isla donde nace el primer evento que salga del bounded context
+       (MEF-ADR-0039 decision 2), con el paquete que expone IPublicEvent ya en su sitio. -->
   <ItemGroup>
     <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
   </ItemGroup>

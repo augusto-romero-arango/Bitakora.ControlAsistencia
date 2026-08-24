@@ -1,8 +1,9 @@
 namespace Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 // Unica forma en que el colaborador cruza el bus interno del BC: la llevan DiaDepurado y
-// ProgramacionTurnoDiarioSolicitada. Su nombre simple debe diferir de InformacionColaborador
-// (PublicEvents) y de ColaboradorProgramado (ControlHoras.DomainEvents) para que un using
+// ProgramacionTurnoDiarioSolicitada. Su nombre simple debe diferir del de sus gemelos de forma en
+// las otras islas -- ColaboradorProgramado (ControlHoras.DomainEvents y Programacion.DomainEvents)
+// y ColaboradorSolicitado (DTO del body de SolicitarProgramacionTurno) -- para que un using
 // equivocado no compile (CA-ADR-0029: tres islas sin referencias entre si); el nombre puro
 // Colaborador pertenece al concepto rico del dominio Colaboradores (anti-squatting).
 //

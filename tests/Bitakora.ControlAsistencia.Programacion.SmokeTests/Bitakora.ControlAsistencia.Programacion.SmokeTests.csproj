@@ -19,7 +19,8 @@
 
   <!-- Programacion no publica eventos publicos: sus smoke tests solo consumen el bus interno.
        Sin referencia a PublicEvents, un smoke test no puede volver a tipar el payload del evento
-       privado con InformacionColaborador sin que el compilador lo delate (CA-ADR-0029 decision #5). -->
+       privado con un tipo del Published Language sin que el compilador lo delate (CA-ADR-0029
+       decision #5). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
   </ItemGroup>

@@ -68,11 +68,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         turnoId = turnoId ?? Guid.CreateVersion7(),
         colaborador = new
         {
+            identificacion = "CC-123456789",
             codigoColaborador = Guid.CreateVersion7().ToString(),
-            tipoIdentificacion = "CC",
-            numeroIdentificacion = "123456789",
-            nombres = "[TEST] Juan Carlos",
-            apellidos = "[TEST] Perez Lopez"
+            nombreCompleto = "[TEST] Juan Carlos Perez Lopez"
         },
         fechas = new[] { "2025-08-01", "2025-08-02" }
     };
@@ -112,6 +110,8 @@ public class SolicitarProgramacionTurnoSmokeTests(
         // Arrange: preparar solicitud con dos fechas para verificar emision de un evento por fecha
         var solicitudId = Guid.CreateVersion7();
         var codigoColaborador = Guid.CreateVersion7().ToString();
+        var identificacion = "CC-555666777";
+        var nombreCompleto = "[TEST] Smoke ServiceBus Publicacion";
         var fecha1 = "2026-04-15";
         var fecha2 = "2026-04-16";
         var payload = new
@@ -120,11 +120,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId,
             colaborador = new
             {
+                identificacion,
                 codigoColaborador,
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "555666777",
-                nombres = "[TEST] Smoke ServiceBus",
-                apellidos = "[TEST] Publicacion"
+                nombreCompleto
             },
             fechas = new[] { fecha1, fecha2 }
         };
@@ -143,10 +141,12 @@ public class SolicitarProgramacionTurnoSmokeTests(
         new[] { evento1.Fecha, evento2.Fecha }.Should()
             .BeEquivalentTo(new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
 
-        // Este oraculo acredita end-to-end la composicion que hace MapearResumenColaborador: el
-        // body HTTP envia el quinteto y lo que sale al bus es la terna ya compuesta.
+        // Issue #436: el body ya envia la terna y el handler la pasa TAL CUAL al bus. Este oraculo
+        // acredita end-to-end ese pass-through: los tres valores que salen al bus son, literalmente,
+        // los tres que entraron por HTTP. Si un mapeo permutara dos campos de la terna (todos
+        // string, ninguna diferencia de tipo que delate la permutacion), el defecto aparece aqui.
         var colaboradorEsperado = new ResumenColaborador(
-            "CC-555666777", codigoColaborador, "[TEST] Smoke ServiceBus [TEST] Publicacion");
+            identificacion, codigoColaborador, nombreCompleto);
         evento1.Colaborador.Should().Be(colaboradorEsperado);
 
         evento1.DetalleTurno.Should().NotBeNull();
@@ -214,11 +214,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId,
             colaborador = new
             {
+                identificacion = "CC-111222333",
                 codigoColaborador,
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "111222333",
-                nombres = "[TEST] Smoke Sede",
-                apellidos = "[TEST] Publicacion"
+                nombreCompleto = "[TEST] Smoke Sede Publicacion"
             },
             fechas = new[] { "2026-05-01" },
             sede = new { id = sedeId, nombre = sedeNombre }
@@ -284,11 +282,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId,
             colaborador = new
             {
+                identificacion = "CC-444555666",
                 codigoColaborador,
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "444555666",
-                nombres = "[TEST] Smoke Cascada",
-                apellidos = "[TEST] Publicacion"
+                nombreCompleto = "[TEST] Smoke Cascada Publicacion"
             },
             fechas = new[] { "2026-06-01" },
             sede = new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre }
@@ -351,11 +347,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId,
             colaborador = new
             {
+                identificacion = "CC-888999000",
                 codigoColaborador = Guid.CreateVersion7().ToString(),
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "888999000",
-                nombres = "[TEST] Smoke Persistencia",
-                apellidos = "[TEST] Cascada"
+                nombreCompleto = "[TEST] Smoke Persistencia Cascada"
             },
             fechas = new[] { "2026-06-03" },
             sede = new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre }
@@ -429,11 +423,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId,
             colaborador = new
             {
+                identificacion = "CC-777888999",
                 codigoColaborador,
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "777888999",
-                nombres = "[TEST] Smoke Prearmada",
-                apellidos = "[TEST] Publicacion"
+                nombreCompleto = "[TEST] Smoke Prearmada Publicacion"
             },
             fechas = new[] { "2026-06-02" }
         };
@@ -529,11 +521,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId = Guid.CreateVersion7(),
             colaborador = new
             {
+                identificacion = "CC-123456789",
                 codigoColaborador = Guid.CreateVersion7().ToString(),
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "123456789",
-                nombres = "[TEST] Juan",
-                apellidos = "[TEST] Perez"
+                nombreCompleto = "[TEST] Juan Perez"
             },
             fechas = new[] { "2025-08-01" }
         };
@@ -554,11 +544,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId = Guid.Empty,
             colaborador = new
             {
+                identificacion = "CC-123456789",
                 codigoColaborador = Guid.CreateVersion7().ToString(),
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "123456789",
-                nombres = "[TEST] Juan",
-                apellidos = "[TEST] Perez"
+                nombreCompleto = "[TEST] Juan Perez"
             },
             fechas = new[] { "2025-08-01" }
         };
@@ -579,11 +567,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId = Guid.CreateVersion7(),
             colaborador = new
             {
+                identificacion = "",
                 codigoColaborador = "",
-                tipoIdentificacion = "",
-                numeroIdentificacion = "",
-                nombres = "",
-                apellidos = ""
+                nombreCompleto = ""
             },
             fechas = new[] { "2025-08-01" }
         };
@@ -622,11 +608,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId = Guid.CreateVersion7(),
             colaborador = new
             {
+                identificacion = "CC-123456789",
                 codigoColaborador = Guid.CreateVersion7().ToString(),
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "123456789",
-                nombres = "[TEST] Juan",
-                apellidos = "[TEST] Perez"
+                nombreCompleto = "[TEST] Juan Perez"
             },
             fechas = Array.Empty<string>()
         };
@@ -648,11 +632,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId = Guid.CreateVersion7(),
             colaborador = new
             {
+                identificacion = "CC-123456789",
                 codigoColaborador = Guid.CreateVersion7().ToString(),
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "123456789",
-                nombres = "[TEST] Juan",
-                apellidos = "[TEST] Perez"
+                nombreCompleto = "[TEST] Juan Perez"
             },
             fechas = new[] { "2025-08-01" },
             sede = new { id = "", nombre = "[TEST] Sede Principal" }
@@ -675,11 +657,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
             turnoId = Guid.CreateVersion7(),
             colaborador = new
             {
+                identificacion = "CC-123456789",
                 codigoColaborador = Guid.CreateVersion7().ToString(),
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "123456789",
-                nombres = "[TEST] Juan",
-                apellidos = "[TEST] Perez"
+                nombreCompleto = "[TEST] Juan Perez"
             },
             fechas = new[] { "2025-08-01" },
             sede = new { id = "SEDE-01", nombre = "   " }
