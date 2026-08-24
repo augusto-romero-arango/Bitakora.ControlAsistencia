@@ -1,35 +1,26 @@
-// Issue #427: smoke tests de ListarAsistenciasDiarias, verbo QUERY (RFC 10008, MEF-ADR-0042) sobre
-// control-horas/asistencias-diarias -- pantalla 2 del Aprobador: los dias de UN colaborador en un
-// rango, con el calendario COMPLETO (dias sin documento sintetizados, decision A: "no vino y no
-// debia venir" se avala, no se aprueba). No hay proyeccion ni read model nuevos: esta clase consulta
-// la MISMA vista materializada AsistenciaDiaria (#426) via (a') session.Query<AsistenciaDiaria>().
+// Smoke tests de ListarAsistenciasDiarias -- QUERY control-horas/asistencias-diarias: el calendario
+// completo de UN colaborador en un rango, con los dias sin documento sintetizados.
 //
-// Arrange via el bus interno, nunca sembrando el event store por fuera de el: cada dia real se crea
-// publicando DiaDepurado al topic "dia-depurado" (mismo mecanismo que RecibirDepuracionViaSbSmokeTests,
-// issue #425) -- ControlHoras persiste depuracion_dia_recibida en el stream "dc:{codigo}:{yyyyMMdd}" y
-// el worker de proyecciones materializa AsistenciaDiaria de forma asincrona.
+// Quedan ROJOS hasta que el deploy publique la Function en dev: mientras tanto la ruta no existe y
+// el host responde 404 a todo. El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real
+// se lee despues del deploy. Ese mismo 404 es ademas el gate NO VERIFICADO de MEF-ADR-0042 seccion
+// 6 -- si persiste tras un deploy exitoso, el sospechoso es el borde filtrando un verbo no
+// estandar, no el endpoint.
 //
-// Lifecycle Async (MEF-ADR-0034 seccion 3): los casos que dependen de datos sembrados envuelven la
-// consulta en Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar
-// Polling directo en tests". Si el timeout se agota es un fallo real (worker no desplegado, o la
-// proyeccion nunca materializo el efecto del arrange), nunca un caso para Assert.Skip.
+// Arrange via el bus interno, nunca sembrando el event store por fuera de el: cada dia real se
+// publica como DiaDepurado al topic "dia-depurado" (mismo mecanismo que
+// RecibirDepuracionViaSbSmokeTests). La proyeccion tiene lifecycle Async (MEF-ADR-0034 seccion 3),
+// asi que los casos que dependen del arrange envuelven la consulta en Polling.WaitUntilAsync --
+// agotar el timeout es un fallo real (worker no desplegado, proyeccion sin materializar), nunca un
+// skip.
 //
-// Formas locales DESACOPLADAS del read model de produccion (ReadModels.ControlHoras.AsistenciaDiaria)
-// y del DTO de respuesta de produccion (ControlHoras.ListarAsistenciasDiarias.*): el smoke test no
+// Formas locales DESACOPLADAS del read model y del DTO de respuesta de produccion: el smoke test no
 // referencia ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5). Los enums locales
-// (EstadoAsistenciaPresentadoSmoke/PlanDelDiaSmoke) replican el orden de valores de produccion porque
-// STJ los serializa como el entero subyacente (ComposicionServicios no registra JsonStringEnumConverter
-// para las respuestas HTTP) -- si produccion reordenara alguno de los dos enums, este test detectaria
-// el cambio de contrato al fallar la comparacion.
-//
-// No se repite aqui el detalle de "el ultimo gana" ni el mapeo fino de las cuatro anomalias: esas
-// reglas de negocio de la proyeccion companion ya las cubre el unit test de AsistenciaDiariaProjection
-// (projection-test-writer). Este smoke test es black-box: solo verifica que el endpoint desplegado
-// combina filas reales y sinteticas, recorta el rango, y responde los codigos correctos.
+// replican el ORDEN de valores de produccion porque STJ los serializa como el entero subyacente --
+// si produccion reordenara alguno, la comparacion falla y delata el cambio de contrato.
 //
 // CA-6 (tenant scoping de la QuerySession) no tiene superficie observable via HTTP negro-caja en un
-// entorno de un solo tenant (CA-ADR-0027): lo cubre el test de composicion de la Function
-// (test-writer/projection-implementer), no este archivo.
+// entorno de un solo tenant (CA-ADR-0027): lo cubre el test de composicion de la Function.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -48,8 +39,8 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private static readonly HttpMethod MetodoQuery = new("QUERY");
 
-    // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
-    // JsonNamingPolicy.CamelCase), mientras que las formas locales de este archivo son PascalCase.
+    // La respuesta viaja en camelCase (ComposicionServicios fija JsonNamingPolicy.CamelCase) y las
+    // formas locales de este archivo son PascalCase.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -86,23 +77,20 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         bool RangoRecortado,
         IReadOnlyList<FilaAsistenciaDiariaSmoke> Filas);
 
-    private Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
+    private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
         {
             Content = JsonContent.Create(filtro)
         };
-        return _client.SendAsync(request, ct);
+        return await _client.SendAsync(request, ct);
     }
 
-    // Reintenta la consulta hasta que la proyeccion asincrona satisfaga la condicion -- unica
-    // excepcion documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034
-    // seccion 3). Si el timeout se agota, Polling.WaitUntilAsync lanza TimeoutException (fallo real).
     private Task<ListaAsistenciasDiariasSmoke> ConsultarHastaQueAsync(
         object filtro, Func<ListaAsistenciasDiariasSmoke, bool> condicion, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>
         {
-            var response = await ConsultarAsync(filtro, ct);
+            using var response = await ConsultarAsync(filtro, ct);
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
             var body = await response.Content.ReadFromJsonAsync<ListaAsistenciasDiariasSmoke>(
@@ -110,9 +98,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
             return body is not null && condicion(body) ? body : null;
         }, Timeout);
 
-    // Arrange comun: publica DiaDepurado al bus interno -- mismo mecanismo de
-    // RecibirDepuracionViaSbSmokeTests (issue #425). ControlHoras persiste depuracion_dia_recibida y
-    // el worker de proyecciones materializa AsistenciaDiaria de forma asincrona.
     private async Task PublicarDiaDepuradoAsync(
         string codigoColaborador, DateOnly fecha, string? nombreTurno,
         object[] franjas, object[] marcaciones, IReadOnlyDictionary<string, decimal> horasPorConcepto)
@@ -140,7 +125,7 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         await serviceBus.PublishAsync(TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
     }
 
-    // Dia con jornada valida: nombreTurno + al menos una franja -- ClasificarPlan produce ConJornada.
+    // ClasificarPlan produce ConJornada solo con nombreTurno Y al menos una franja.
     private Task PublicarDiaConJornadaAsync(
         string codigoColaborador, DateOnly fecha, string nombreTurno) =>
         PublicarDiaDepuradoAsync(
@@ -164,8 +149,8 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
             ],
             horasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
 
-    // Descanso programado: nombreTurno presente, sin franjas ni marcaciones -- ClasificarPlan produce
-    // Descanso (issue #427, "Necesidad de lectura": el descanso programado tambien crea el stream).
+    // ClasificarPlan produce Descanso con nombreTurno presente y sin franjas ni marcaciones -- ese
+    // dia tambien crea el stream, por eso no es un dia sintetico.
     private Task PublicarDiaDeDescansoAsync(
         string codigoColaborador, DateOnly fecha, string nombreTurno) =>
         PublicarDiaDepuradoAsync(
@@ -184,7 +169,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-4: sin Content-Type: application/json -> 415, verificado ANTES de leer el body.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna415_CuandoContentTypeNoEsJson()
@@ -201,7 +185,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
     }
 
-    // CA-4: body con Content-Type json pero sintacticamente invalido -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna400_CuandoElBodyNoEsJsonValido()
@@ -218,7 +201,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4: body ausente (Content-Type json, cero bytes) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna400_CuandoElBodyEstaVacio()
@@ -235,7 +217,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4: JSON valido sin CodigoColaborador -> 422 (obligatorio; pantalla de UN colaborador).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna422_CuandoCodigoColaboradorEstaAusente()
@@ -253,7 +234,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-4: JSON valido sin DesdeFecha/HastaFecha -> 422 (ambas obligatorias).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna422_CuandoLasFechasEstanAusentes()
@@ -267,7 +247,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-4: DesdeFecha posterior a HastaFecha -> 422 (rango invertido).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna422_CuandoElRangoEstaInvertido()
@@ -286,15 +265,13 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-2/CA-5: un colaborador sin ningun documento en el rango recibe 200 con el calendario
-    // COMPLETO sintetizado -- nunca 404 (un rango sin documentos son N filas sinteticas, no un error).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_Retorna200ConTodasLasFilasSinteticas_CuandoElColaboradorNoTieneNingunDocumentoEnElRango()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: codigoColaborador nuevo, nunca sembrado por ningun test -- no puede tener documento.
+        // Codigo nunca sembrado por ningun test: no puede tener documento en dev.
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var desde = new DateOnly(2026, 7, 1);
         var hasta = new DateOnly(2026, 7, 5);
@@ -311,7 +288,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         respuesta.HastaAplicado.Should().Be(hasta);
         respuesta.RangoRecortado.Should().BeFalse();
 
-        // CA-2/CA-5: 5 filas, una por dia del rango, orden Fecha ascendente.
         respuesta.Filas.Should().HaveCount(5);
         respuesta.Filas.Select(f => f.Fecha).Should().Equal(
             desde, desde.AddDays(1), desde.AddDays(2), desde.AddDays(3), desde.AddDays(4));
@@ -327,10 +303,8 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
             && f.HorasPorConcepto.Count == 0);
     }
 
-    // CA-1/CA-2: un rango con SOLO algunos dias con documento combina, en la misma respuesta, filas
-    // reales (mapeadas de AsistenciaDiaria) y filas sinteticas para el resto del rango -- el nucleo de
-    // "Que devuelve" del issue #427. Se siembran DOS dias reales de forma distinta (jornada y
-    // descanso), no uno solo, para distinguir "mapea el documento real" de "siempre sintetiza".
+    // Se siembran DOS dias reales de forma distinta (jornada y descanso), no uno solo, para
+    // distinguir "mapea el documento real" de "siempre sintetiza".
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_CombinaFilasRealesYSinteticasEnElMismoRango_CuandoSoloAlgunosDiasTienenDocumento()
@@ -342,7 +316,7 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
 
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var desde = new DateOnly(2026, 7, 10);
-        var hasta = new DateOnly(2026, 7, 14); // 5 dias: 10, 11, 12, 13, 14
+        var hasta = new DateOnly(2026, 7, 14);
         var fechaConJornada = new DateOnly(2026, 7, 11);
         var fechaDescanso = new DateOnly(2026, 7, 13);
 
@@ -351,18 +325,15 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
 
         var filtro = new { codigoColaborador, desdeFecha = desde, hastaFecha = hasta };
 
-        // Act + Assert: reintentar hasta que AMBOS dias reales esten materializados por el worker.
         var respuesta = await ConsultarHastaQueAsync(filtro, lista =>
             lista.Filas.Any(f => f.Fecha == fechaConJornada && f.Estado != EstadoAsistenciaPresentadoSmoke.SinDatos)
             && lista.Filas.Any(f => f.Fecha == fechaDescanso && f.Estado != EstadoAsistenciaPresentadoSmoke.SinDatos),
             ct);
 
-        // Assert: CA-1 -- exactamente una fila por dia del rango, orden Fecha ascendente.
         respuesta.Filas.Should().HaveCount(5);
         respuesta.Filas.Select(f => f.Fecha).Should().Equal(
             desde, desde.AddDays(1), desde.AddDays(2), desde.AddDays(3), desde.AddDays(4));
 
-        // Assert: el dia con jornada mapea los campos reales de AsistenciaDiaria.
         var filaConJornada = respuesta.Filas.Single(f => f.Fecha == fechaConJornada);
         filaConJornada.Estado.Should().Be(EstadoAsistenciaPresentadoSmoke.Provisional);
         filaConJornada.Plan.Should().Be(PlanDelDiaSmoke.ConJornada);
@@ -371,14 +342,12 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         filaConJornada.FranjasIncompletas.Should().BeFalse();
         filaConJornada.HorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(8.00m);
 
-        // Assert: el dia de descanso programado tambien mapea como fila real, sin horas.
         var filaDescanso = respuesta.Filas.Single(f => f.Fecha == fechaDescanso);
         filaDescanso.Estado.Should().Be(EstadoAsistenciaPresentadoSmoke.Provisional);
         filaDescanso.Plan.Should().Be(PlanDelDiaSmoke.Descanso);
         filaDescanso.NombreTurno.Should().Be("[TEST] Turno Descanso Dos");
         filaDescanso.HorasPorConcepto.Should().BeEmpty();
 
-        // Assert: CA-2 -- el resto del rango (sin documento) son filas sinteticas.
         DateOnly[] fechasSinteticas = [desde, desde.AddDays(2), desde.AddDays(4)];
         foreach (var fecha in fechasSinteticas)
         {
@@ -389,8 +358,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         }
     }
 
-    // CA-3: rango que excede 31 dias se recorta hacia adelante desde DesdeFecha, la respuesta lo
-    // declara, y la sintesis del calendario cubre SOLO el rango aplicado (no lo pedido).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAsistenciasDiarias_RecortaHaciaAdelanteYSintetizaSoloElRangoAplicado_CuandoElRangoExcedeLaCotaDe31Dias()
@@ -399,8 +366,9 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
 
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var desde = new DateOnly(2026, 8, 1);
-        var hastaSolicitado = new DateOnly(2026, 12, 31); // ~152 dias, muy por encima de la cota
-        var hastaAplicadaEsperada = desde.AddDays(30); // cota de 31 dias, inclusive
+        var hastaSolicitado = new DateOnly(2026, 12, 31);
+        // La cota son 31 dias INCLUSIVE; el literal se afirma a mano, nunca leyendo CotaDias.
+        var hastaAplicadaEsperada = desde.AddDays(30);
 
         var filtro = new { codigoColaborador, desdeFecha = desde, hastaFecha = hastaSolicitado };
         var response = await ConsultarAsync(filtro, ct);
@@ -414,7 +382,6 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         respuesta.HastaAplicado.Should().Be(hastaAplicadaEsperada);
         respuesta.RangoRecortado.Should().BeTrue();
 
-        // Assert: la sintesis del calendario cubre EXACTAMENTE el rango aplicado (31 dias).
         respuesta.Filas.Should().HaveCount(31);
         respuesta.Filas.First().Fecha.Should().Be(desde);
         respuesta.Filas.Last().Fecha.Should().Be(hastaAplicadaEsperada);

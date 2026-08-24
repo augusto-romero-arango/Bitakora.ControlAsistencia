@@ -23,7 +23,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.ControlHoras;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
@@ -355,19 +354,9 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #427: test de composicion de la Function QUERY sobre AsistenciaDiaria (#426), hermano
-    // del de ListarTurnosVigentes (arriba) y de MEF-ADR-0029. ActivatorUtilities.CreateInstance
-    // reproduce la activacion por tipo que hace el host de Azure Functions isolated worker, sin
-    // levantar el host real (Alt 1 de MEF-ADR-0029).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (guard 415/422, parseo del filtro, recorte de rango, session.Query y
-    // la sintesis del calendario completo), que es responsabilidad de projection-implementer y del
-    // smoke test, no de este guardrail de wiring. Este issue no crea proyeccion nueva ni toca el
-    // seam del worker (issue #427, "Necesidad de lectura") -- por eso este test queda en verde tan
-    // pronto exista el FunctionEndpoint stub con el constructor correcto; el rojo de este issue lo
-    // dan los unit tests puros de RangoConsulta y SintesisCalendarioAsistencia
-    // (ListarAsistenciasDiarias/), no este guardrail.
+    // Hermano del de ListarTurnosVigentes (arriba) y de MEF-ADR-0029: verifica la RESOLUCION por
+    // constructor de IDocumentStore/ITenantResolver, no el comportamiento de Run (guards 415/422,
+    // recorte, sintesis), que cubren los unit tests puros del feature folder y el smoke test.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarAsistenciasDiarias_CuandoElContenedorEstaCompuesto()
     {

@@ -1,15 +1,14 @@
-// Issue #427 CA-1/CA-2/CA-3/CA-5: sintesis pura del calendario completo de
-// ListarAsistenciasDiarias. Funcion pura documentos+rango -> filas: se invoca directamente, sin
-// QuerySession/Marten (skills/projections/read-apis.md) y sin el DSL Given/When/Then de
-// CommandHandlerTestBase (reservado a command handlers contra el event store, MEF-ADR-0002).
+// Funcion pura documentos+rango -> filas: se invoca directamente, sin QuerySession/Marten y sin el
+// DSL Given/When/Then de CommandHandlerTestBase, reservado a command handlers contra el event store
+// (MEF-ADR-0002). Cada oraculo se arma a mano, campo por campo: nunca se reusa el mapeo bajo prueba
+// para construir el esperado.
 //
-// Cada oraculo se arma a mano, campo por campo (MEF-ADR-0002, no-tautologia): nunca se reusa el
-// mapeo de Estado ni la sintesis de la fila sintetica bajo prueba para construir el esperado.
-// HorasPorConcepto se verifica con BeEquivalentTo, nunca comparando la fila entera con
+// HorasPorConcepto se verifica con BeEquivalentTo y nunca comparando la fila entera con
 // Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
-// compilador de records (mismo motivo documentado en AsistenciaDiariaProjectionTests, #426).
+// compilador de records.
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 
@@ -30,7 +29,7 @@ public class SintesisCalendarioAsistenciaTests
         bool trabajoSinProgramacion = false,
         IReadOnlyDictionary<string, decimal>? horasPorConcepto = null) =>
         new(
-            $"dc:{CodigoColaborador}:{fecha:yyyyMMdd}",
+            DiaCalculadoAggregateRoot.ComputarStreamId(CodigoColaborador, fecha),
             CodigoColaborador,
             fecha,
             estado,

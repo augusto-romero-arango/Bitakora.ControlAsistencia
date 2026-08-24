@@ -3,23 +3,9 @@ using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 
 /// <summary>
-/// Sintesis pura del calendario completo de ListarAsistenciasDiarias (issue #427, CA-1/CA-2/CA-3/
-/// CA-5). Dado el rango aplicado [desde, hastaAplicado] (ya recortado por
-/// <see cref="RangoConsulta.Recortar"/>) y los documentos AsistenciaDiaria que la consulta LINQ del
-/// endpoint trajo para ese colaborador y ese rango, produce EXACTAMENTE una fila por dia, orden
-/// Fecha ascendente:
-///
-/// - Dia con documento: mapea sus campos (Plan, NombreTurno, las cuatro anomalias,
-///   HorasPorConcepto) 1:1, con Estado presentado segun EstadoAsistencia -> EstadoAsistenciaPresentado
-///   (Provisional/Aprobado).
-/// - Dia sin documento: fila sintetica -- Estado = SinDatos, Plan = SinProgramar, NombreTurno =
-///   null, las cuatro anomalias en false, HorasPorConcepto vacio (decision A: el vacio se avala, no
-///   se aprueba).
-///
-/// Funcion pura sin QuerySession/Marten (skills/projections/read-apis.md): el filtrado por
-/// CodigoColaborador y por rango ya ocurrio en la consulta LINQ del endpoint -- esta funcion solo
-/// decide, para cada fecha del rango [desde, hastaAplicado], si existe un documento con esa Fecha;
-/// un documento cuya Fecha caiga fuera del rango se ignora.
+/// Produce exactamente una fila por cada dia del rango [desde, hastaAplicado], en orden ascendente
+/// de fecha: el documento mapeado cuando ese dia lo tiene, o una fila sintetica cuando no. Funcion
+/// pura -- el filtrado por colaborador ya ocurrio en la consulta del endpoint.
 /// </summary>
 public static class SintesisCalendarioAsistencia
 {
@@ -28,9 +14,8 @@ public static class SintesisCalendarioAsistencia
         DateOnly hastaAplicado,
         IReadOnlyList<AsistenciaDiaria> documentos)
     {
-        // Un documento fuera de [desde, hastaAplicado] se ignora (contrato de la clase): el
-        // filtrado por rango ya deberia haber ocurrido en la consulta LINQ del endpoint, esto es
-        // solo una salvaguarda de la funcion pura.
+        // Re-filtrar por rango no es redundante con el endpoint: es el contrato de esta funcion
+        // frente a un llamador que traiga documentos de mas.
         var documentoPorFecha = documentos
             .Where(d => d.Fecha >= desde && d.Fecha <= hastaAplicado)
             .ToDictionary(d => d.Fecha);
@@ -58,8 +43,8 @@ public static class SintesisCalendarioAsistencia
             documento.TrabajoSinProgramacion,
             documento.HorasPorConcepto);
 
-    // CA-2: dia sin documento -- decision A del Aprobador, "no vino y no debia venir" se avala, no
-    // se aprueba.
+    // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
+    // cuatro banderas van en false -- el vacio se avala, no se aprueba.
     private static FilaAsistenciaDiaria FilaSintetica(DateOnly fecha) =>
         new(
             fecha,
