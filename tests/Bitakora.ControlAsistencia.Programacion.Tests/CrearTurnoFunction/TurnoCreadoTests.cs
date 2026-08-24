@@ -282,4 +282,39 @@ public class TurnoCreadoTests
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaOrdinaria.Mensajes.SedeIncompleta));
     }
+
+    // ---------- Issue #423: factory CrearDescanso -- unica puerta a cero franjas ordinarias ----------
+
+    // CA-1: construye el evento con FranjasOrdinarias vacia, nombre y TurnoId correctos.
+    [Fact]
+    public void CrearDescanso_RetornaTurnoCreadoConFranjasVacias_CuandoNombreValido()
+    {
+        var evento = TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+        evento.TurnoId.Should().Be(TurnoId);
+        evento.Nombre.Should().Be("Descanso Compensatorio");
+        evento.FranjasOrdinarias.Should().BeEmpty();
+    }
+
+    // CA-2: nombre vacio reusa el mismo mensaje NombreVacio del factory Crear existente.
+    [Fact]
+    public void CrearDescanso_LanzaAggregateException_CuandoNombreEstaVacio()
+    {
+        var act = () => TurnoCreado.CrearDescanso(TurnoId, "");
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+    }
+
+    // CA-2: nombre solo espacios en blanco tambien se rechaza con el mismo mensaje.
+    [Fact]
+    public void CrearDescanso_LanzaAggregateException_CuandoNombreEsSoloEspaciosEnBlanco()
+    {
+        var act = () => TurnoCreado.CrearDescanso(TurnoId, "   ");
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+    }
 }

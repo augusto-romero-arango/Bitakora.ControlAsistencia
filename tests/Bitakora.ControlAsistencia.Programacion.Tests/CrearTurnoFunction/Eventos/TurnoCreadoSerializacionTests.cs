@@ -90,4 +90,20 @@ public class TurnoCreadoSerializacionTests
         deserializado.Should().NotBeNull();
         deserializado!.FranjasOrdinarias[0].ToDetalle().Sede.Should().BeNull();
     }
+
+    // Issue #423 CA-1: round-trip del descanso programado -- cero franjas ordinarias.
+    [Fact]
+    public void Deserializar_ReconstruyeEventoConFranjasVacias_CuandoEsDescanso()
+    {
+        var evento = TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+        var opciones = CrearOpcionesMarten();
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.TurnoId.Should().Be(TurnoId);
+        deserializado.Nombre.Should().Be("Descanso Compensatorio");
+        deserializado.FranjasOrdinarias.Should().BeEmpty();
+    }
 }

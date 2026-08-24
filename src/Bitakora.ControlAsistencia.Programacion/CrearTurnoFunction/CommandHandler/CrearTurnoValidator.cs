@@ -6,7 +6,8 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHand
 // HU-4: Validacion de estructura del request antes del command handler
 // CA-5: TurnoId no vacio, Nombre no vacio, Ordinarias no vacia
 // CA-6: se auto-registra via AddValidatorsFromAssemblyContaining (configurado en Program.cs)
-public class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
+// Issue #423: partial para soportar la clase Mensajes anidada en archivo separado (MEF-ADR-0009)
+public partial class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
 {
     public CrearTurnoValidator()
     {

@@ -78,4 +78,28 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, SedeProgramada?>(
             c => c.ObtenerDetalle().FranjasOrdinarias[1].Sede, null);
     }
+
+    // ---------- Issue #423: descanso programado (EsDescanso=true) ----------
+
+    // CA-4: handler despacha a TurnoCreado.CrearDescanso cuando EsDescanso=true y persiste con
+    // cero franjas ordinarias.
+    // CA-6: el catalogo se autodescribe distinto para el descanso, sin ifs sobre el conteo de
+    // franjas fuera del aggregate; TurnoProgramado.Descripcion (vista via ObtenerDetalle) hereda
+    // esa misma descripcion.
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreadoConFranjasVacias_CuandoEsDescansoEsTrue()
+    {
+        var comando = new CrearTurno(GuidAggregateId, "Descanso Compensatorio", [], EsDescanso: true);
+        var eventoEsperado = TurnoCreado.CrearDescanso(comando.TurnoId, comando.Nombre);
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
+        And<CatalogoTurnos, int>(c => c.ObtenerDetalle().FranjasOrdinarias.Count, 0);
+        And<CatalogoTurnos, string>(c => c.ToString(), "Descanso Compensatorio (descanso)");
+        And<CatalogoTurnos, string>(
+            c => c.ObtenerDetalle().Descripcion, "Descanso Compensatorio (descanso)");
+    }
 }
