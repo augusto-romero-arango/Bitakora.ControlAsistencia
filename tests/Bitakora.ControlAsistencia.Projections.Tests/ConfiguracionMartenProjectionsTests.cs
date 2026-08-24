@@ -370,6 +370,43 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
     }
 
+    // Issue #426 CA-7: segunda proyeccion concreta de ControlHoras (N1,
+    // SingleStreamProjection<AsistenciaDiaria, string> sobre el stream "dc:{CodigoColaborador}:
+    // {yyyyMMdd}" de DiaCalculadoAggregateRoot). Complementa
+    // ConfigurarControlHoras_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo
+    // Inline, esta prueba que la proyeccion CONCRETA se registro con lifecycle Async, el canonico
+    // del worker (MEF-ADR-0034 seccion 3). El seam (ConfiguracionMartenProjectionsControlHoras.
+    // ConfigurarControlHoras) ya existe desde el issue #268 y ya registra TurnoVigenteProjection
+    // (#328); este issue le agrega la unica linea
+    // opts.Projections.Add<AsistenciaDiariaProjection>(ProjectionLifecycle.Async) -- ausente hoy,
+    // por eso este test queda en rojo hasta que projection-implementer la sume.
+    [Fact]
+    public void ConfigurarControlHoras_RegistraAsistenciaDiariaProjectionComoAsync()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("AsistenciaDiaria");
+    }
+
+    // Issue #426, mismo gotcha de "Numeric Revisioned Documents" que #328 ya ceno para TurnoVigente
+    // (ver el comentario de ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica):
+    // ProjectionDocumentPolicy aplica POR DOCUMENTO target de una proyeccion registrada, asi que la
+    // vista nueva necesita su propia guarda -- la de TurnoVigente no la cubre. Este lado no declara
+    // nada: los valores los impone Marten al registrar AsistenciaDiariaProjection arriba.
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(AsistenciaDiaria));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
     // --- Colaboradores (issue #330: el dominio estrena sus dos primeros eventos persistidos) ---
 
     // Issue #330 (par 1 de MEF-ADR-0034 seccion 6, fila "Tipos de evento registrados"): el read-side
