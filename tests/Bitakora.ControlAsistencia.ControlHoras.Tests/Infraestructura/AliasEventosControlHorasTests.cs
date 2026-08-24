@@ -54,4 +54,13 @@ public class AliasEventosControlHorasTests
 
         AliasDe<TurnoDiarioAsignado>(options).Should().Be("turno_diario_asignado");
     }
+
+    // Issue #425 CA-5: congela el alias de DepuracionDiaRecibida antes de desplegarlo.
+    [Fact]
+    public void DepuracionDiaRecibida_TieneAliasDepuracionDiaRecibida()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<DepuracionDiaRecibida>(options).Should().Be("depuracion_dia_recibida");
+    }
 }

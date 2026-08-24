@@ -1,9 +1,13 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
-using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions;
+// Alias de tipo: estos nombres existen homonimos en ControlHoras.DomainEvents (payload por rol,
+// MEF-ADR-0039 decision #6); este archivo produce DiaDepurado, asi que usa los del bus.
+using DiaDepurado = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.DiaDepurado;
+using FranjaDepurada = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.FranjaDepurada;
+using MarcacionDelDia = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.MarcacionDelDia;
+using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 

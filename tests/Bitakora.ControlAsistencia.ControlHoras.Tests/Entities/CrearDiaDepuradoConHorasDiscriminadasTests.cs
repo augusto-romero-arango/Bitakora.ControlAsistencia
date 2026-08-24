@@ -23,10 +23,15 @@ using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDe
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
-using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
+// Alias de tipo: estos nombres existen homonimos en ControlHoras.DomainEvents (payload por rol,
+// MEF-ADR-0039 decision #6); este archivo usa los del bus.
+using FranjaDepurada = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.FranjaDepurada;
+using MarcacionDelDia = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.MarcacionDelDia;
+using HorasDiscriminadas = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.HorasDiscriminadas;
+using RegistroDeMarcacionCreado = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.RegistroDeMarcacionCreado;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 

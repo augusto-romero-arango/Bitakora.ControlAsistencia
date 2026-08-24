@@ -2,8 +2,10 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
-using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
+// Alias de tipo: ResumenColaborador existe homonimo en ControlHoras.DomainEvents (payload por
+// rol, MEF-ADR-0039 decision #6); este archivo usa el del bus.
+using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;
 

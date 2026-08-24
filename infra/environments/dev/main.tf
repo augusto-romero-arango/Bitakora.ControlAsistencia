@@ -80,6 +80,10 @@ module "service_bus" {
     "dia-depurado" = {
       subscriptions = [
         {
+          name               = "control-horas-escucha-dia-depurado"
+          correlation_filter = null
+        },
+        {
           name                = "smoke-tests"
           correlation_filter  = null
           default_message_ttl = "PT5M"
