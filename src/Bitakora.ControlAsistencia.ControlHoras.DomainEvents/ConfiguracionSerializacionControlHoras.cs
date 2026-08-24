@@ -26,5 +26,6 @@ public static class ConfiguracionSerializacionControlHoras
         TurnoDiarioAsignado.ConfigurarSerializacion(resolver);
         MarcacionRegistrada.ConfigurarSerializacion(resolver);
         MarcacionAdicionada.ConfigurarSerializacion(resolver);
+        DepuracionDiaRecibida.ConfigurarSerializacion(resolver);
     }
 }
