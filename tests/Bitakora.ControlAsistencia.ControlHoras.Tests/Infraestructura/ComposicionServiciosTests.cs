@@ -23,7 +23,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.ControlHoras;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
@@ -40,6 +39,7 @@ using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerTurnoVigenteEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente.FunctionEndpoint;
 using ListarTurnosVigentesEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.FunctionEndpoint;
+using ListarAsistenciasDiariasEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -350,6 +350,20 @@ public class ComposicionServiciosTests
         await using var scope = provider.CreateAsyncScope();
 
         var act = () => ActivatorUtilities.CreateInstance<ListarTurnosVigentesEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Hermano del de ListarTurnosVigentes (arriba) y de MEF-ADR-0029: verifica la RESOLUCION por
+    // constructor de IDocumentStore/ITenantResolver, no el comportamiento de Run (guards 415/422,
+    // recorte, sintesis), que cubren los unit tests puros del feature folder y el smoke test.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarAsistenciasDiarias_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarAsistenciasDiariasEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }
