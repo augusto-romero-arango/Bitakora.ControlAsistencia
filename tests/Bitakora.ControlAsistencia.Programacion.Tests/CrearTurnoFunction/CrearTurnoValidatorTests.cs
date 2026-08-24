@@ -65,4 +65,25 @@ public class CrearTurnoValidatorTests
         resultado.Errors.Should()
             .Contain(e => e.PropertyName == nameof(CrearTurno.Ordinarias));
     }
+
+    [Fact]
+    public async Task CrearTurno_EsValido_CuandoEsDescansoYOrdinariasVacia()
+    {
+        var comando = new CrearTurno(Guid.NewGuid(), NombreTurno, [], EsDescanso: true);
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CrearTurno_EsInvalido_CuandoEsDescansoTraeFranjasOrdinarias()
+    {
+        var comando = new CrearTurno(
+            Guid.NewGuid(), NombreTurno, [FranjaDiurnaSimple()], EsDescanso: true);
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should()
+            .Contain(e => e.ErrorMessage.Contains(CrearTurnoValidator.Mensajes.EsDescansoConFranjas));
+    }
 }

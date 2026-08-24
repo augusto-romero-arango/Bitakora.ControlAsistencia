@@ -78,4 +78,22 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, SedeProgramada?>(
             c => c.ObtenerDetalle().FranjasOrdinarias[1].Sede, null);
     }
+
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreadoConFranjasVacias_CuandoEsDescansoEsTrue()
+    {
+        const string nombreDescanso = "Descanso Compensatorio";
+        var descripcionEsperada = $"{nombreDescanso} {CatalogoTurnos.Mensajes.LabelDescanso}";
+        var comando = new CrearTurno(GuidAggregateId, nombreDescanso, [], EsDescanso: true);
+        var eventoEsperado = TurnoCreado.CrearDescanso(comando.TurnoId, comando.Nombre);
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
+        And<CatalogoTurnos, int>(c => c.ObtenerDetalle().FranjasOrdinarias.Count, 0);
+        And<CatalogoTurnos, string>(c => c.ToString(), descripcionEsperada);
+        And<CatalogoTurnos, string>(c => c.ObtenerDetalle().Descripcion, descripcionEsperada);
+    }
 }

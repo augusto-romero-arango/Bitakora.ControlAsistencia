@@ -96,6 +96,15 @@ public sealed partial class TurnoCreado
         return new TurnoCreado(turnoId, nombre, franjasOrdinarias);
     }
 
+    // Unica puerta a cero franjas ordinarias: Crear() las exige >= 1 deliberadamente.
+    public static TurnoCreado CrearDescanso(Guid turnoId, string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new AggregateException(new ArgumentException(Mensajes.NombreVacio));
+
+        return new TurnoCreado(turnoId, nombre, []);
+    }
+
     // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
     // Duplicacion deliberada respecto de FranjaTemporal.SeSolapaCon -- decidida en #272 y #285,
     // no es deuda pendiente. Dos razones:

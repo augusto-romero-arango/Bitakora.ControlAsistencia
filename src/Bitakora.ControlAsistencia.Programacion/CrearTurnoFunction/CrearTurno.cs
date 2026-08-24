@@ -7,7 +7,8 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 public record CrearTurno(
     Guid TurnoId,
     string Nombre,
-    List<CrearTurno.Franja> Ordinarias)
+    List<CrearTurno.Franja> Ordinarias,
+    bool EsDescanso = false)
 {
     // CA-1: record anidado con las sub-franjas del turno
     // Issue #335: Sede es opcional -- prearma la sede de esta franja en el catalogo (ver

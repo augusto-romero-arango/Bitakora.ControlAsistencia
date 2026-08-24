@@ -282,4 +282,34 @@ public class TurnoCreadoTests
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaOrdinaria.Mensajes.SedeIncompleta));
     }
+
+    [Fact]
+    public void CrearDescanso_RetornaTurnoCreadoConFranjasVacias_CuandoNombreValido()
+    {
+        var evento = TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+        evento.TurnoId.Should().Be(TurnoId);
+        evento.Nombre.Should().Be("Descanso Compensatorio");
+        evento.FranjasOrdinarias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CrearDescanso_LanzaAggregateException_CuandoNombreEstaVacio()
+    {
+        var act = () => TurnoCreado.CrearDescanso(TurnoId, "");
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+    }
+
+    [Fact]
+    public void CrearDescanso_LanzaAggregateException_CuandoNombreEsSoloEspaciosEnBlanco()
+    {
+        var act = () => TurnoCreado.CrearDescanso(TurnoId, "   ");
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+    }
 }
