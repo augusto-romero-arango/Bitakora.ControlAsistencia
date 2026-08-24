@@ -28,6 +28,55 @@ public static class SintesisCalendarioAsistencia
         DateOnly hastaAplicado,
         IReadOnlyList<AsistenciaDiaria> documentos)
     {
-        throw new NotImplementedException();
+        // Un documento fuera de [desde, hastaAplicado] se ignora (contrato de la clase): el
+        // filtrado por rango ya deberia haber ocurrido en la consulta LINQ del endpoint, esto es
+        // solo una salvaguarda de la funcion pura.
+        var documentoPorFecha = documentos
+            .Where(d => d.Fecha >= desde && d.Fecha <= hastaAplicado)
+            .ToDictionary(d => d.Fecha);
+
+        var filas = new List<FilaAsistenciaDiaria>();
+        for (var fecha = desde; fecha <= hastaAplicado; fecha = fecha.AddDays(1))
+        {
+            filas.Add(documentoPorFecha.TryGetValue(fecha, out var documento)
+                ? MapearConDocumento(documento)
+                : FilaSintetica(fecha));
+        }
+
+        return filas;
     }
+
+    private static FilaAsistenciaDiaria MapearConDocumento(AsistenciaDiaria documento) =>
+        new(
+            documento.Fecha,
+            MapearEstado(documento.Estado),
+            documento.Plan,
+            documento.NombreTurno,
+            documento.NoSePresento,
+            documento.FranjasIncompletas,
+            documento.VinoEnDescanso,
+            documento.TrabajoSinProgramacion,
+            documento.HorasPorConcepto);
+
+    // CA-2: dia sin documento -- decision A del Aprobador, "no vino y no debia venir" se avala, no
+    // se aprueba.
+    private static FilaAsistenciaDiaria FilaSintetica(DateOnly fecha) =>
+        new(
+            fecha,
+            EstadoAsistenciaPresentado.SinDatos,
+            PlanDelDia.SinProgramar,
+            null,
+            false,
+            false,
+            false,
+            false,
+            new Dictionary<string, decimal>());
+
+    private static EstadoAsistenciaPresentado MapearEstado(EstadoAsistencia estado) => estado switch
+    {
+        EstadoAsistencia.Provisional => EstadoAsistenciaPresentado.Provisional,
+        EstadoAsistencia.Aprobado => EstadoAsistenciaPresentado.Aprobado,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(estado), estado, "EstadoAsistencia no reconocido por el mapeo de estado presentado")
+    };
 }

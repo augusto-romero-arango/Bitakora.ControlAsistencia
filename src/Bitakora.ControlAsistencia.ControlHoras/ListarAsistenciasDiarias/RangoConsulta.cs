@@ -28,6 +28,14 @@ public static class RangoConsulta
 
     public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)
     {
-        throw new NotImplementedException();
+        // CotaDias es INCLUSIVE: desde + (CotaDias - 1) dias es el limite exacto que todavia no
+        // excede la cota (31 dias inclusive = desde + 30 dias). Misma formula exacta que
+        // ListarTurnosVigentes.RangoConsulta.Recortar (issue #329) -- duplicacion deliberada, ver
+        // el comentario de clase.
+        var hastaMaxima = desde.AddDays(CotaDias - 1);
+
+        return hasta > hastaMaxima
+            ? new RangoAplicado(hastaMaxima, true)
+            : new RangoAplicado(hasta, false);
     }
 }
