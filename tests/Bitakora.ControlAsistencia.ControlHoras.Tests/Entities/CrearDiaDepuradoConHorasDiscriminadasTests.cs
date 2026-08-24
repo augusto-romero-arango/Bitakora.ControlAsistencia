@@ -24,6 +24,9 @@ using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurn
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+// Esta isla declara su propio ResumenColaborador: el alias fija cual de los dos homonimos
+// es el que trae el evento privado (CS0104).
+using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 // Alias de tipo: estos nombres existen homonimos en ControlHoras.DomainEvents (payload por rol,
@@ -39,14 +42,15 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
 {
     // Datos compartidos - el stream ID es determinista a partir de CodigoColaborador+Fecha.
     // private static: las nested classes acceden a los miembros privados de la clase contenedora.
-    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    // ColaboradorProgramado (ControlHoras.DomainEvents) es el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
-    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador ColaboradorDetalle = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+    // Mismo colaborador en la forma de bus; el handler lo mapea campo a campo al que persiste
+    // TurnoDiarioAsignado. Los dos literales se mantienen separados para que una permutacion de
+    // campos en ese mapeo entre islas se delate aqui.
+    private static readonly ResumenColaborador ColaboradorResumen = new(
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
@@ -87,7 +91,7 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 EventStore, PrivateEventSender);
 
         private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-            new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);
+            new(SolicitudId, ColaboradorResumen, Fecha, detalleTurno);
 
         // CA-4: con turno (franja 06:00-14:00) y marcaciones previas que la completan (07:00, 15:00),
         //       la franja queda NO anomala. CrearDiaDepurado() debe empaquetar el payload plano

@@ -202,15 +202,14 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             controlFranja.Salida,
             controlFranja.EsAnomala);
 
-    // El aggregate vive en el Function App, el unico proyecto que ve las tres islas de eventos, asi
-    // que el mapeo entre ellas vive aqui (CA-ADR-0029 decision #5). Composicion transitoria:
-    // ColaboradorProgramado no trae Identificacion ni NombreCompleto ya compuestos y se ensamblan con
-    // el contrato del maestro ("{Tipo}-{Numero}"); muere cuando #433 los haga viajar desde el origen.
+    // Mapeo campo a campo entre dos islas: vive aqui porque el aggregate esta en el Function App, el
+    // unico proyecto que ve las tres (CA-ADR-0029 decision #5). ColaboradorProgramado ya trae la
+    // terna compuesta desde el origen de la cadena -- aqui no se compone nada.
     private ResumenColaborador? CrearResumenColaborador() =>
         InformacionColaborador is null
             ? null
             : new ResumenColaborador(
-                $"{InformacionColaborador.TipoIdentificacion}-{InformacionColaborador.NumeroIdentificacion}",
+                InformacionColaborador.Identificacion,
                 InformacionColaborador.CodigoColaborador,
-                $"{InformacionColaborador.Nombres} {InformacionColaborador.Apellidos}");
+                InformacionColaborador.NombreCompleto);
 }

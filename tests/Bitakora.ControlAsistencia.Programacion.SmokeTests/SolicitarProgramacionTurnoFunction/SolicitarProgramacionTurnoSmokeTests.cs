@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
@@ -142,11 +143,10 @@ public class SolicitarProgramacionTurnoSmokeTests(
         new[] { evento1.Fecha, evento2.Fecha }.Should()
             .BeEquivalentTo(new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
 
-        // Verificar datos del colaborador y turno en uno de los eventos. El payload del colaborador es
-        // DetalleColaborador (PrivateEvents): con la paridad de campos el JSON del cable no cambia,
-        // asi que este smoke test tambien evidencia la compatibilidad del despliegue rolling.
-        var colaboradorEsperado = new DetalleColaborador(
-            codigoColaborador, "CC", "555666777", "[TEST] Smoke ServiceBus", "[TEST] Publicacion");
+        // Este oraculo acredita end-to-end la composicion que hace MapearResumenColaborador: el
+        // body HTTP envia el quinteto y lo que sale al bus es la terna ya compuesta.
+        var colaboradorEsperado = new ResumenColaborador(
+            "CC-555666777", codigoColaborador, "[TEST] Smoke ServiceBus [TEST] Publicacion");
         evento1.Colaborador.Should().Be(colaboradorEsperado);
 
         evento1.DetalleTurno.Should().NotBeNull();

@@ -38,11 +38,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             SolicitudId = solicitudId,
             Colaborador = new
             {
+                Identificacion = "CC-999888777",
                 CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "999888777",
-                Nombres = "[TEST] Smoke ServiceBus",
-                Apellidos = "[TEST] Verificacion"
+                NombreCompleto = "[TEST] Smoke ServiceBus [TEST] Verificacion"
             },
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
@@ -92,7 +90,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
         var colaboradorEsperado = new ColaboradorProgramado(
-            codigoColaborador, "CC", "999888777", "[TEST] Smoke ServiceBus", "[TEST] Verificacion");
+            "CC-999888777", codigoColaborador, "[TEST] Smoke ServiceBus [TEST] Verificacion");
         var colaboradorPersistido = eventoPersistido
             .GetProperty("InformacionColaborador").Deserialize<ColaboradorProgramado>();
         colaboradorPersistido.Should().Be(colaboradorEsperado);
@@ -188,11 +186,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             SolicitudId = solicitudId,
             Colaborador = new
             {
+                Identificacion = "CC-222333444",
                 CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "222333444",
-                Nombres = "[TEST] Smoke Sede",
-                Apellidos = "[TEST] Por Franja"
+                NombreCompleto = "[TEST] Smoke Sede [TEST] Por Franja"
             },
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
@@ -321,11 +317,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             solicitudId = solicitudId,
             colaborador = new
             {
+                identificacion = "CC-111222333",
                 codigoColaborador = codigoColaborador,
-                tipoIdentificacion = "CC",
-                numeroIdentificacion = "111222333",
-                nombres = "[TEST] Smoke Wolverine",
-                apellidos = "[TEST] CamelCase Fix"
+                nombreCompleto = "[TEST] Smoke Wolverine [TEST] CamelCase Fix"
             },
             fecha = fecha.ToString("yyyy-MM-dd"),
             detalleTurno = new
@@ -374,7 +368,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
 
         var colaboradorEsperado = new ColaboradorProgramado(
-            codigoColaborador, "CC", "111222333", "[TEST] Smoke Wolverine", "[TEST] CamelCase Fix");
+            "CC-111222333", codigoColaborador, "[TEST] Smoke Wolverine [TEST] CamelCase Fix");
         var colaboradorPersistido = eventoPersistido
             .GetProperty("InformacionColaborador").Deserialize<ColaboradorProgramado>();
         colaboradorPersistido.Should().Be(colaboradorEsperado);

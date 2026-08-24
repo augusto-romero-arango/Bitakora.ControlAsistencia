@@ -6,9 +6,10 @@
 // lado de Programacion (SedeProgramadaParidadConDetalleSedeTests, Programacion.Tests, issue #331).
 //
 // Su par contenedor lo cubre FranjaProgramadaParidadConDetalleFranjaOrdinariaTests (agregado en la
-// revision de este issue). Los otros gemelos de esta isla -- ColaboradorProgramado/DetalleColaborador,
-// TurnoDiario/DetalleTurno, SubFranjaProgramada/DetalleSubFranja (issue #322) -- todavia NO tienen
-// guardrail de paridad de este lado, a diferencia de Programacion.Tests, que los tiene los cuatro.
+// revision de este issue), y el del colaborador lo cubre
+// ColaboradorProgramadoParidadConResumenColaboradorTests (issue #433). Los gemelos restantes de esta
+// isla -- TurnoDiario/DetalleTurno y SubFranjaProgramada/DetalleSubFranja (issue #322) -- todavia NO
+// tienen guardrail de paridad de este lado, a diferencia de Programacion.Tests.
 
 using System.Reflection;
 using AwesomeAssertions;

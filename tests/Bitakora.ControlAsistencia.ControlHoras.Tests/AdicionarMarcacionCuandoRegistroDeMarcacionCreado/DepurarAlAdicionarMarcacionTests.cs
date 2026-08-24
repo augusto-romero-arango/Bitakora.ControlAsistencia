@@ -30,12 +30,13 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static readonly string StreamId = $"cd:{CodigoColaborador}:{Fecha:yyyyMMdd}";
     private static readonly string StreamIdDiaAnterior = $"cd:{CodigoColaborador}:20260314";
 
-    // Issue #322: Colaborador (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
+    // ColaboradorProgramado (ControlHoras.DomainEvents) para construir TurnoDiarioAsignado en Given.
     private static readonly ColaboradorProgramado ColaboradorPersistido = new(
-        CodigoColaborador, "CC", "1234567890", "Luis Augusto", "Barreto");
+        "CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
 
-    // Oraculo a mano de la composicion que hace CrearResumenColaborador(): Identificacion
-    // "{Tipo}-{Numero}" y NombreCompleto "{Nombres} {Apellidos}" de ColaboradorPersistido.
+    // CrearResumenColaborador() copia campo a campo la terna que ColaboradorPersistido trae del
+    // event store. Los dos literales se mantienen separados para que una permutacion de campos en
+    // ese mapeo entre islas se delate aqui.
     private static readonly ResumenColaborador ColaboradorResumen = new(
         "CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000001");

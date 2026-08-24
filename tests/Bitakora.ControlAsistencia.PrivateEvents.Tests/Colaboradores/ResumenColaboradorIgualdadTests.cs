@@ -1,6 +1,6 @@
 // Todos los campos de ResumenColaborador son string: la igualdad por valor del record por defecto ya
-// es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012), mismo criterio que
-// DetalleColaborador. Estos tests congelan esa premisa: si el record gana una coleccion, la
+// es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012), mismo criterio que el resto
+// de los payloads planos del bus. Estos tests congelan esa premisa: si el record gana una coleccion, la
 // compararia por referencia y el test rojo lo delata.
 
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;

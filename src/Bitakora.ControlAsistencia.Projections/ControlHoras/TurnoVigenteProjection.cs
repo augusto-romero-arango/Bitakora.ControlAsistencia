@@ -9,30 +9,20 @@ using TipoBloqueEvento = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.Ti
 namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
 /// <summary>
-/// Clase de proyeccion companion de TurnoVigente (issue #328, receta N1 -- un solo stream,
-/// (CodigoColaborador, Fecha), MEF-ADR-0035). Vive en el worker (Bitakora.ControlAsistencia.Projections),
-/// el ensamblado que si referencia Marten y el analizador JasperFx.Events.SourceGenerator.
+/// Clase de proyeccion companion de TurnoVigente (receta N1 de MEF-ADR-0035: un solo stream por
+/// (CodigoColaborador, Fecha)). Vive en el worker, el unico ensamblado que referencia Marten y el
+/// analizador JasperFx.Events.SourceGenerator.
 ///
-/// partial es obligatorio (skills/projections/modelos-marten.md): el source generator descubre
-/// Create/Apply por convencion y emite el dispatcher [GeneratedEvolver]. Sin partial el build
-/// queda limpio pero falla en RUNTIME al registrar la proyeccion (InvalidProjectionException) --
-/// error que el config-test detecta al resolver el named store
-/// (ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync).
+/// partial es OBLIGATORIO (skills/projections/modelos-marten.md): el source generator descubre
+/// Create/Apply por convencion y emite el dispatcher [GeneratedEvolver]. Sin partial el build queda
+/// limpio y falla en RUNTIME al registrar la proyeccion (InvalidProjectionException); el config-test
+/// ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync es lo que lo detecta.
 ///
-/// Se registra en ConfiguracionMartenProjectionsControlHoras.ConfigurarControlHoras con
-/// opts.Projections.Add&lt;TurnoVigenteProjection&gt;(ProjectionLifecycle.Async) -- lifecycle
-/// canonico del worker (MEF-ADR-0034 seccion 3).
+/// La aritmetica de segmentacion NO se reimplementa aqui: Create/Apply delegan en
+/// evento.DetalleTurno.Segmentar(evento.Fecha) (Tell-don't-Ask, MEF-ADR-0012).
 ///
-/// Create/Apply invocan evento.DetalleTurno.Segmentar(evento.Fecha) (issue #327, Tell-don't-Ask
-/// MEF-ADR-0012: la aritmetica de segmentacion vive en TurnoDiario, no se reimplementa aqui) y
-/// mapean cada BloqueTurno resultante al record Bloque propio de la vista (ReadModels, sin
-/// relacion de tipo con DomainEvents -- alias TipoBloqueVigente/TipoBloqueEvento para desambiguar
-/// el unico nombre homonimo entre ambos ensamblados, TipoBloque, CS0104).
-///
-/// Solo TurnoDiarioAsignado alimenta esta vista: MarcacionAdicionada tambien vive en el mismo
-/// stream de ControlDiarioAggregateRoot pero esta proyeccion la ignora a proposito (issue #328,
-/// "Eventos que la alimentan"). Sin ShouldDelete: el turno vigente nunca se borra, solo se
-/// reasigna ("el ultimo gana", CA-2).
+/// MarcacionAdicionada vive en el mismo stream y esta proyeccion la ignora a proposito. Sin
+/// ShouldDelete: el turno vigente nunca se borra, solo se reasigna ("el ultimo gana").
 /// </summary>
 public sealed partial class TurnoVigenteProjection : SingleStreamProjection<TurnoVigente, string>
 {
@@ -40,40 +30,32 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
         new(
             evento.Id,
             evento.InformacionColaborador.CodigoColaborador,
-            NombreCompleto(evento.InformacionColaborador),
+            evento.InformacionColaborador.NombreCompleto,
             evento.Fecha,
             evento.DetalleTurno.Nombre,
             evento.DetalleTurno.Descripcion,
             MapearBloques(evento));
 
-    // CA-2: "el ultimo gana" -- una reasignacion sobre el mismo (colaborador, fecha) sobrescribe
-    // turno, horario y bloques. Id, CodigoColaborador y Fecha no cambian: son la identidad del stream
-    // ("cd:{CodigoColaborador}:{Fecha:yyyyMMdd}"), invariante para todos los eventos del mismo documento.
+    // "El ultimo gana": una reasignacion sobre el mismo (colaborador, fecha) sobrescribe turno,
+    // horario y bloques. Id, CodigoColaborador y Fecha se omiten a proposito -- son la identidad del
+    // stream, invariante para todos los eventos del documento.
     //
-    // NombreCompleto SI se refresca: cada TurnoDiarioAsignado trae el payload del colaborador
-    // completo, y el criterio del "ultimo gana" aplica igual a un nombre corregido aguas arriba --
-    // dejarlo fijo congelaria para siempre el nombre de la primera asignacion.
+    // NombreCompleto SI se refresca: cada evento trae la terna de identidad, y dejarlo fijo
+    // congelaria para siempre el nombre de la primera asignacion pese a una correccion aguas arriba.
     public static TurnoVigente Apply(TurnoDiarioAsignado evento, TurnoVigente vista) =>
         vista with
         {
-            NombreCompleto = NombreCompleto(evento.InformacionColaborador),
+            NombreCompleto = evento.InformacionColaborador.NombreCompleto,
             NombreTurno = evento.DetalleTurno.Nombre,
             HorarioResumido = evento.DetalleTurno.Descripcion,
             Bloques = MapearBloques(evento)
         };
 
-    // Unico lugar del sistema donde se concatena Nombres + Apellidos (issue #328, "Investigacion
-    // del planner"): el read model expone un solo campo de presentacion, no nombres/apellidos
-    // separados.
-    private static string NombreCompleto(ColaboradorProgramado colaborador) =>
-        $"{colaborador.Nombres} {colaborador.Apellidos}";
-
     private static IReadOnlyList<Bloque> MapearBloques(TurnoDiarioAsignado evento) =>
         evento.DetalleTurno.Segmentar(evento.Fecha).Select(MapearBloque).ToList();
 
-    // Issue #337: SedeId/NombreSede se propagan tal cual desde BloqueTurno.Sede (ya estampada por
-    // TurnoDiario.Segmentar, issue #336) -- ambos quedan null cuando la franja de origen no trae
-    // sede (turno prearmado sin resolver o evento anterior a #336).
+    // SedeId/NombreSede quedan null cuando la franja de origen no trae sede (turno prearmado sin
+    // resolver, o evento anterior a que Segmentar estampara la sede) -- null es un valor valido.
     private static Bloque MapearBloque(BloqueTurno bloque) =>
         new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin, bloque.Sede?.Id, bloque.Sede?.Nombre);
 

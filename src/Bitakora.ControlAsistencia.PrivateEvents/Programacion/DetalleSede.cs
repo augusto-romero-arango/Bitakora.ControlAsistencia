@@ -8,6 +8,6 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// (Programacion.DomainEvents) con paridad exacta de campos, sin referenciarlo: los ensamblados de
 /// eventos son tres islas sin referencias entre si. Todos los campos son string: portable por el
 /// serializador por defecto del bus (MEF-ADR-0023/0024). Sin Equals custom: la igualdad por valor
-/// del record por defecto ya es correcta (mismo criterio que DetalleColaborador, issue #318).
+/// del record por defecto ya es correcta (mismo criterio que ResumenColaborador, issue #421).
 /// </remarks>
 public record DetalleSede(string Id, string Nombre);

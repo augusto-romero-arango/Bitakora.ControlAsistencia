@@ -1,10 +1,6 @@
-// Issue #322: paridad de campos e igualdad de Colaborador (ControlHoras.DomainEvents) con
-// InformacionColaborador (PublicEvents.Colaboradores) y DetalleColaborador (PrivateEvents.Programacion)
-// -- payload por rol, CA-ADR-0029 decision #5.
-// CA-1: todos los campos son string, asi que la igualdad por valor del record por defecto ya es
-// correcta y no lleva Equals/GetHashCode custom. Este test congela ese contrato: el dia que alguien
-// agregue una coleccion al record (o un Equals custom incompleto), la igualdad deja de cumplirse
-// aqui. Espejo de ColaboradorProgramadoIgualdadTests (Programacion.Tests, issue #319).
+// Todos los campos de ColaboradorProgramado son string, asi que la igualdad por valor del record ya
+// es correcta sin Equals/GetHashCode custom. Este test congela esa premisa: el dia que el record gane
+// una coleccion (o un Equals custom incompleto), la compararia por referencia y el rojo lo delata.
 
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
@@ -14,22 +10,18 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 public class ColaboradorProgramadoIgualdadTests : IgualdadTestBase<ColaboradorProgramado>
 {
     protected override ColaboradorProgramado CrearInstancia() =>
-        new("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        new("CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     protected override ColaboradorProgramado CrearInstanciaCopia() =>
-        new("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        new("CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     protected override IEnumerable<(string, ColaboradorProgramado)> CrearInstanciasDiferentes()
     {
+        yield return ("Identificacion",
+            new ColaboradorProgramado("CE-1234567890", "EMP-001", "Luis Augusto Barreto"));
         yield return ("CodigoColaborador",
-            new ColaboradorProgramado("EMP-002", "CC", "1234567890", "Luis Augusto", "Barreto"));
-        yield return ("TipoIdentificacion",
-            new ColaboradorProgramado("EMP-001", "CE", "1234567890", "Luis Augusto", "Barreto"));
-        yield return ("NumeroIdentificacion",
-            new ColaboradorProgramado("EMP-001", "CC", "9999999999", "Luis Augusto", "Barreto"));
-        yield return ("Nombres",
-            new ColaboradorProgramado("EMP-001", "CC", "1234567890", "Otro Nombre", "Barreto"));
-        yield return ("Apellidos",
-            new ColaboradorProgramado("EMP-001", "CC", "1234567890", "Luis Augusto", "Otro Apellido"));
+            new ColaboradorProgramado("CC-1234567890", "EMP-002", "Luis Augusto Barreto"));
+        yield return ("NombreCompleto",
+            new ColaboradorProgramado("CC-1234567890", "EMP-001", "Otro Nombre Barreto"));
     }
 }
