@@ -109,6 +109,7 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 // este no la da. Aqui mismo, y por esta via, el issue #323 retiro la proyeccion
                 // del read model anterior (#289).
                 opts.Projections.Add<TurnoVigenteProjection>(ProjectionLifecycle.Async);
+                opts.Projections.Add<AsistenciaDiariaProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

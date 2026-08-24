@@ -279,13 +279,15 @@ public class ConfiguracionMartenProjectionsTests
         restaurado.DispositivoId.Should().Be("disp-01");
     }
 
-    // Issue #277 CA-3/CA-4: defensa en profundidad read-side. El worker no esta expuesto hoy (sin
-    // proyecciones concretas), pero lo estara en cuanto las tenga -- este guardrail evita que ese
-    // dia el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
+    // Issue #277 CA-3/CA-4: defensa en profundidad read-side -- evita que el daemon lea streams
+    // preexistentes sin el tipo registrado en su propio EventGraph.
     //
     // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
     // IdentidadEventosControlHoras.TiposPersistidos acoplaria este guardrail al mismo artefacto que
-    // IdentidadEventosControlHorasTests ya verifica en el write-side.
+    // IdentidadEventosControlHorasTests ya verifica en el write-side. Debe seguir siendo espejo del
+    // oraculo del write-side (ComposicionServiciosTests
+    // .AgregarServiciosControlHoras_RegistraLosTiposDeEventoPersistidos_...): un tipo listado alli y
+    // no aqui es exactamente la divergencia que este guardrail existe para cazar.
     [Fact]
     public void ConfigurarControlHoras_RegistraLosTiposDeEventoPersistidos()
     {
@@ -293,7 +295,12 @@ public class ConfiguracionMartenProjectionsTests
 
         provider.GetRequiredService<IControlHorasProjectionStore>()
             .AssertEventosPersistidosRegistrados(
-                [typeof(MarcacionRegistrada), typeof(MarcacionAdicionada), typeof(TurnoDiarioAsignado)]);
+            [
+                typeof(MarcacionRegistrada),
+                typeof(MarcacionAdicionada),
+                typeof(TurnoDiarioAsignado),
+                typeof(DepuracionDiaRecibida)
+            ]);
     }
 
     // Issue #328 CA-3: proyeccion concreta del dominio (N1, SingleStreamProjection<TurnoVigente,
@@ -368,6 +375,36 @@ public class ConfiguracionMartenProjectionsTests
         mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
+    }
+
+    // Complementa ConfigurarControlHoras_NoRegistraNingunaProyeccionInline: aquella prueba que NADA
+    // quedo Inline -- una lista vacia la pasaria --, esta que la proyeccion CONCRETA se registro con
+    // lifecycle Async, el canonico del worker (MEF-ADR-0034 seccion 3).
+    [Fact]
+    public void ConfigurarControlHoras_RegistraAsistenciaDiariaProjectionComoAsync()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("AsistenciaDiaria");
+    }
+
+    // Mismo gotcha de "Numeric Revisioned Documents" que documenta
+    // ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica: ProjectionDocumentPolicy
+    // aplica POR DOCUMENTO target de una proyeccion registrada, asi que cada vista nueva necesita su
+    // propia guarda -- la de TurnoVigente no la cubre. Este lado no declara nada: los valores los
+    // impone Marten al registrar AsistenciaDiariaProjection arriba.
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(AsistenciaDiaria));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
     // --- Colaboradores (issue #330: el dominio estrena sus dos primeros eventos persistidos) ---
