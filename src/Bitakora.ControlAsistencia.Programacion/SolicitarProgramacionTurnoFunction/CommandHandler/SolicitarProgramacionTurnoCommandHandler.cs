@@ -2,7 +2,6 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -47,7 +46,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         _eventStore.StartStream(solicitud);
 
-        // El comando HTTP trae los tipos de PublicEvents y el evento privado lleva los de
+        // El comando HTTP trae sus propios DTOs y el evento privado lleva los tipos de
         // PrivateEvents: los mapeos viven aqui porque esta Function App es el unico proyecto que ve
         // ambos ensamblados (CA-ADR-0029 decision #5, payload por rol).
         var colaborador = MapearResumenColaborador(command.Colaborador);
@@ -61,18 +60,15 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         await _privateEventSender.PublishAsync(eventosPrivados);
     }
 
-    // Unico punto donde el quinteto del body HTTP se comprime a la terna que cruza el bus, con el
-    // contrato del maestro Colaboradores ("{Tipo}-{Numero}" y el nombre ya concatenado). Cualquier
-    // otro consumidor de la terna debe pedirla aqui, no recomponerla. TRANSITORIO: muere cuando la
-    // fase A del corte (issue #433) tenga su fase B y el body HTTP tambien lleve la terna.
-    private static ResumenColaborador MapearResumenColaborador(InformacionColaborador colaborador) =>
-        new($"{colaborador.TipoIdentificacion}-{colaborador.NumeroIdentificacion}",
-            colaborador.CodigoColaborador,
-            $"{colaborador.Nombres} {colaborador.Apellidos}");
+    // Issue #436 (fase B): la terna llega ya resuelta desde el body y fluye TAL CUAL a los dos
+    // payloads -- aqui solo cambia el tipo, uno por isla. Murio la composicion transitoria que
+    // armaba "{Tipo}-{Numero}" y concatenaba los nombres: eso lo hace el cliente contra el maestro
+    // Colaboradores (#330), no el servidor.
+    private static ResumenColaborador MapearResumenColaborador(ColaboradorSolicitado colaborador) =>
+        new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 
-    private static ColaboradorProgramado MapearColaboradorProgramado(InformacionColaborador colaborador) =>
-        new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
-            colaborador.Nombres, colaborador.Apellidos);
+    private static ColaboradorProgramado MapearColaboradorProgramado(ColaboradorSolicitado colaborador) =>
+        new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 
     // Unico punto de traduccion desde TurnoProgramado (dominio) hacia el payload de bus, incluidas
     // las listas anidadas de franjas y sub-franjas.

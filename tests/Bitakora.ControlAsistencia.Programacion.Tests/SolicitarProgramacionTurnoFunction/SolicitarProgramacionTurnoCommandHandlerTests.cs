@@ -7,7 +7,6 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.PublicEvents.Colaboradores;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -28,19 +27,20 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
-    private static readonly InformacionColaborador Colaborador =
-        new("E001", "CC", "12345678", "Juan", "Perez");
+    // La terna de identidad tal como llega en el body (#436): Identificacion ya compuesta como
+    // "{Tipo}-{Numero}" y NombreCompleto ya concatenado por el cliente.
+    private static readonly ColaboradorSolicitado Colaborador =
+        new("CC-12345678", "E001", "Juan Perez");
 
-    // Oraculo a mano de MapearResumenColaborador: Identificacion como "{Tipo}-{Numero}" y
-    // NombreCompleto como "{Nombres} {Apellidos}" del quinteto que trae el body HTTP. Si esa
-    // composicion pierde o permuta un campo, estos tests lo delatan.
+    // Los mismos tres valores en los otros dos roles de payload (tres islas, MEF-ADR-0039 decision
+    // 2): el del bus (PrivateEvents) y el del evento persistido (Programacion.DomainEvents). Desde
+    // #436 el handler los pasa TAL CUAL -- valores identicos a los del body, no compuestos --, asi
+    // que lo que estos oraculos delatan es que un mapeo pierda o permute un campo de la terna.
     private static readonly ResumenColaborador ColaboradorResumen =
         new("CC-12345678", "E001", "Juan Perez");
 
-    // Issue #319 CA-2/CA-5: mismo colaborador, en el record propio de Programacion.DomainEvents que
-    // ahora tipa ProgramacionTurnoSolicitada.Colaborador (tres islas, MEF-ADR-0039 decision 2).
     private static readonly ColaboradorProgramado ColaboradorProgramadoEsperado =
-        new("E001", "CC", "12345678", "Juan", "Perez");
+        new("CC-12345678", "E001", "Juan Perez");
 
     // El DetalleTurno esperado corresponde al catalogo creado en CrearEventoTurno(). Forma de BUS
     // (PrivateEvents) -- solo se usa en ThenIsPublishedPrivately (CA-5: unico punto de mapeo).

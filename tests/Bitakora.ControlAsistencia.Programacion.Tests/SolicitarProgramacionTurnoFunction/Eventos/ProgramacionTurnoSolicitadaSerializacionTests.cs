@@ -10,7 +10,9 @@
 // records/clases anidadas, asi que los streams ya escritos seguian leyendose.
 //
 // Issue #401: aqui las claves SI cambian ("Empleado" -> "Colaborador", "EmpleadoId" ->
-// "CodigoColaborador"). Por eso estas formas se reescribieron a las claves NUEVAS y ya no
+// "CodigoColaborador"); issue #436 las reduce de nuevo, del quinteto del colaborador a la terna de
+// identidad ("Identificacion", "CodigoColaborador", "NombreCompleto"). Por eso estas formas se
+// reescribieron a las claves NUEVAS y ya no
 // demuestran compatibilidad hacia atras: los streams escritos con el vocabulario viejo no
 // deserializan contra este tipo, y se purgan en el mismo despliegue que integra el cambio
 // (MEF-ADR-0036 seccion 5, decision deliberada -- sin JsonPropertyName ni upcasters). Lo que
@@ -45,7 +47,7 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     private const string DescripcionExtra = "(13:00-14:00)";
 
     private static readonly ColaboradorProgramado ColaboradorEsperado =
-        new("E001", "CC", "12345678", "Juan", "Perez");
+        new("CC-12345678", "E001", "Juan Perez");
 
     // Issue #331: sede efectiva del dia, campo aditivo y opcional.
     private static readonly SedeProgramada SedeEsperada = new("SEDE-01", "Sede Principal");
@@ -73,11 +75,9 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
             Id,
             Colaborador = new
             {
+                Identificacion = "CC-12345678",
                 CodigoColaborador = "E001",
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "12345678",
-                Nombres = "Juan",
-                Apellidos = "Perez"
+                NombreCompleto = "Juan Perez"
             },
             Fechas = new[] { Fecha1, Fecha2 },
             DetalleTurno = new
