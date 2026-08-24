@@ -5,23 +5,15 @@ using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en M
 namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
 /// <summary>
-/// Clase de proyeccion companion de AsistenciaDiaria (issue #426, receta N1 de MEF-ADR-0035: un solo
-/// stream "dc:{CodigoColaborador}:{yyyyMMdd}" por fila -- mismo corte que TurnoVigenteProjection).
-/// Vive en el worker, el unico ensamblado que referencia Marten y el analizador
-/// JasperFx.Events.SourceGenerator.
+/// Clase de proyeccion companion de AsistenciaDiaria (N1: un solo stream
+/// "dc:{CodigoColaborador}:{yyyyMMdd}" por fila).
 ///
-/// partial es OBLIGATORIO (skills/projections/modelos-marten.md): el source generator descubre
-/// Create/Apply por convencion y emite el dispatcher [GeneratedEvolver]. Sin partial el build queda
-/// limpio y falla en RUNTIME al registrar la proyeccion (InvalidProjectionException); el config-test
-/// ConfigurarControlHoras_RegistraAsistenciaDiariaProjectionComoAsync es lo que lo detecta.
+/// partial es OBLIGATORIO: el source generator descubre Create/Apply por convencion y emite el
+/// dispatcher [GeneratedEvolver]. Sin partial el build queda limpio y la proyeccion falla en
+/// RUNTIME al registrarse (InvalidProjectionException); lo caza el config-test
+/// ConfigurarControlHoras_RegistraAsistenciaDiariaProjectionComoAsync.
 ///
-/// Sin ShouldDelete: la fila nunca se borra (issue #426, notas tecnicas).
-///
-/// Create/Apply derivan Plan (eje 1) y las cuatro banderas de anomalia ya juzgadas (eje 2) a
-/// partir de la senal estructural del evento -- DepuracionDiaRecibida no expone un metodo propio
-/// de clasificacion (Tell-don't-Ask no aplica aqui: no hay comportamiento de dominio que delegar),
-/// asi que la derivacion vive en el helper privado ClasificarPlan de esta clase, mapping de vista
-/// segun las notas tecnicas del issue #426.
+/// Sin ShouldDelete: la fila nunca se borra.
 /// </summary>
 public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<AsistenciaDiaria, string>
 {
@@ -43,9 +35,9 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             evento.HorasDiscriminadas.HorasPorConcepto);
     }
 
-    // "El ultimo gana" (CA-6): cada foto reemplaza Plan, NombreTurno, las cuatro banderas y
-    // HorasPorConcepto. Id/CodigoColaborador/Fecha invariantes (identidad del stream). Estado no
-    // cambia en este issue.
+    // "El ultimo gana": cada foto reemplaza plan, banderas y horas. Id/CodigoColaborador/Fecha se
+    // omiten a proposito -- son la identidad del stream, invariante para todo evento del documento.
+    // Estado tampoco se toca: ningun evento produce todavia un valor distinto de Provisional.
     public static AsistenciaDiaria Apply(DepuracionDiaRecibida evento, AsistenciaDiaria vista)
     {
         var plan = ClasificarPlan(evento.NombreTurno, evento.Franjas);
@@ -62,8 +54,6 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
         };
     }
 
-    // NombreTurno null = SinProgramar; NombreTurno + franjas vacias = Descanso; NombreTurno +
-    // franjas >= 1 = ConJornada (issue #426, Eje 1 -- Plan).
     private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas) =>
         nombreTurno switch
         {

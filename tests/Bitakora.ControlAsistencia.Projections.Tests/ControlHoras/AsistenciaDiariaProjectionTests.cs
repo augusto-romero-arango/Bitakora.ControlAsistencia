@@ -1,21 +1,14 @@
-// Issue #426: fase roja de la proyeccion AsistenciaDiaria (N1, SingleStreamProjection sobre el
-// stream "dc:{CodigoColaborador}:{yyyyMMdd}" de DiaCalculadoAggregateRoot). Invocacion DIRECTA de
-// los metodos estaticos de AsistenciaDiariaProjection -- no el DSL Given/When/Then de
-// CommandHandlerTestBase (MEF-ADR-0002, testea command handlers contra el event store): aqui se
-// testean funciones puras evento -> vista, sin abrir ningun stream.
+// Los metodos de AsistenciaDiariaProjection son funciones puras evento -> vista: se invocan
+// directamente, sin el DSL Given/When/Then de CommandHandlerTestBase (MEF-ADR-0002 lo reserva para
+// command handlers contra el event store) y sin abrir ningun stream.
 //
-// Cada assert compara contra un oraculo armado a mano (MEF-ADR-0002, no-tautologia): nunca se
-// reusa la clasificacion de Plan ni la derivacion de banderas bajo prueba para construir el valor
-// esperado -- cada test declara el valor esperado como literal.
+// Cada valor esperado se declara como literal (MEF-ADR-0002, no-tautologia): nunca se reusa la
+// clasificacion de Plan ni la derivacion de banderas bajo prueba para construir el oraculo.
 //
-// HorasPorConcepto se verifica con BeEquivalentTo (no con el equality de record por defecto sobre
-// AsistenciaDiaria completo): IReadOnlyDictionary<string, decimal> no tiene equality estructural
-// generada por el compilador de records -- comparar la vista entera con Should().Be(...) compararia
-// el diccionario por referencia y podria pasar o fallar por casualidad. Ver el mismo criterio ya
-// documentado en HorasDiscriminadas.Equals (ControlHoras.DomainEvents).
-//
-// CA-1..CA-6 son variaciones del mismo eje (derivacion de Plan y del eje 2 de anomalias en
-// Create/Apply); CA-7 (registro Async en el named store) vive en ConfiguracionMartenProjectionsTests.
+// HorasPorConcepto se verifica con BeEquivalentTo, nunca comparando la vista entera con
+// Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
+// compilador de records, asi que esa comparacion caeria en igualdad por referencia y pasaria o
+// fallaria por casualidad (mismo motivo por el que HorasDiscriminadas escribe su Equals a mano).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -30,20 +23,18 @@ public class AsistenciaDiariaProjectionTests
     private static readonly DateOnly Fecha = new(2026, 8, 24);
     private const string StreamKey = "dc:EMP-001:20260824";
 
-    private static ResumenColaborador ColaboradorDePrueba() =>
-        new("CC-1098765432", CodigoColaborador, "Ana Ramirez");
-
     private static HorasDiscriminadas HorasDePrueba(IReadOnlyDictionary<string, decimal> horasPorConcepto) =>
         new(horasPorConcepto, []);
+
+    private static HorasDiscriminadas SinHoras() => HorasDePrueba(new Dictionary<string, decimal>());
 
     private static DepuracionDiaRecibida CrearEvento(
         string? nombreTurno,
         IReadOnlyList<FranjaDepurada> franjas,
         IReadOnlyList<MarcacionDelDia> marcaciones,
-        HorasDiscriminadas horas,
-        ResumenColaborador? colaborador = null) =>
-        new(StreamKey, CodigoColaborador, Fecha, colaborador ?? ColaboradorDePrueba(), nombreTurno, franjas,
-            marcaciones, horas);
+        HorasDiscriminadas horas) =>
+        new(StreamKey, CodigoColaborador, Fecha, new ResumenColaborador("CC-1098765432", CodigoColaborador,
+            "Ana Ramirez"), nombreTurno, franjas, marcaciones, horas);
 
     private static FranjaDepurada FranjaValida() => new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
@@ -56,8 +47,6 @@ public class AsistenciaDiariaProjectionTests
     private static MarcacionDelDia MarcacionDePrueba() =>
         new(new DateTime(2026, 8, 24, 6, 0, 0), "ENTRADA");
 
-    // CA-1: jornada valida (NombreTurno + franjas >= 1) con marcaciones completas -> Create produce
-    // la fila Provisional/ConJornada, HorasPorConcepto copiada tal cual, las cuatro banderas false.
     [Fact]
     public void Create_ProyectaJornadaValidaSinAnomalias_DesdeDepuracionDiaRecibida()
     {
@@ -80,12 +69,10 @@ public class AsistenciaDiariaProjectionTests
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
     }
 
-    // CA-2: jornada valida sin marcaciones -> NoSePresento true, el resto de banderas false.
     [Fact]
     public void Create_MarcaNoSePresento_CuandoJornadaValidaSinMarcaciones()
     {
-        var horas = HorasDePrueba(new Dictionary<string, decimal>());
-        var evento = CrearEvento("Turno Manana", [FranjaValida()], [], horas);
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [], SinHoras());
 
         var vista = AsistenciaDiariaProjection.Create(evento);
 
@@ -96,7 +83,6 @@ public class AsistenciaDiariaProjectionTests
         vista.TrabajoSinProgramacion.Should().BeFalse();
     }
 
-    // CA-3: jornada valida con alguna franja EsAnomala -> FranjasIncompletas true.
     [Fact]
     public void Create_MarcaFranjasIncompletas_CuandoJornadaValidaConAlgunaFranjaAnomala()
     {
@@ -113,12 +99,10 @@ public class AsistenciaDiariaProjectionTests
         vista.TrabajoSinProgramacion.Should().BeFalse();
     }
 
-    // CA-4 (primera mitad): descanso (NombreTurno + franjas vacias) con marcaciones -> VinoEnDescanso true.
     [Fact]
     public void Create_MarcaVinoEnDescanso_CuandoDescansoConMarcaciones()
     {
-        var horas = HorasDePrueba(new Dictionary<string, decimal>());
-        var evento = CrearEvento("Descanso", [], [MarcacionDePrueba()], horas);
+        var evento = CrearEvento("Descanso", [], [MarcacionDePrueba()], SinHoras());
 
         var vista = AsistenciaDiariaProjection.Create(evento);
 
@@ -130,12 +114,10 @@ public class AsistenciaDiariaProjectionTests
         vista.TrabajoSinProgramacion.Should().BeFalse();
     }
 
-    // CA-4 (segunda mitad): descanso sin marcaciones no es anomalia -- las cuatro banderas quedan false.
     [Fact]
     public void Create_DejaLasCuatroBanderasFalse_CuandoDescansoSinMarcaciones()
     {
-        var horas = HorasDePrueba(new Dictionary<string, decimal>());
-        var evento = CrearEvento("Descanso", [], [], horas);
+        var evento = CrearEvento("Descanso", [], [], SinHoras());
 
         var vista = AsistenciaDiariaProjection.Create(evento);
 
@@ -146,13 +128,10 @@ public class AsistenciaDiariaProjectionTests
         vista.TrabajoSinProgramacion.Should().BeFalse();
     }
 
-    // CA-5: sin programacion (NombreTurno null, franjas y horas vacias, marcaciones crudas) ->
-    // Plan SinProgramar, TrabajoSinProgramacion true, HorasPorConcepto vacio.
     [Fact]
     public void Create_MarcaTrabajoSinProgramacion_CuandoSinProgramacionConMarcaciones()
     {
-        var horas = HorasDePrueba(new Dictionary<string, decimal>());
-        var evento = CrearEvento(null, [], [MarcacionDePrueba()], horas, colaborador: null);
+        var evento = CrearEvento(null, [], [MarcacionDePrueba()], SinHoras());
 
         var vista = AsistenciaDiariaProjection.Create(evento);
 
@@ -165,9 +144,6 @@ public class AsistenciaDiariaProjectionTests
         vista.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-6: una segunda foto sobre el mismo stream reemplaza Plan, NombreTurno, las cuatro banderas
-    // y HorasPorConcepto ("el ultimo gana"); Estado sigue Provisional; Id/CodigoColaborador/Fecha
-    // invariantes (identidad del stream, no viajan en el evento de Apply hacia otro valor).
     [Fact]
     public void Apply_ReemplazaPlanBanderasYHoras_CuandoLlegaUnaSegundaFoto()
     {
