@@ -5,6 +5,9 @@ using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurn
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+// Esta isla declara su propio ResumenColaborador: el alias fija cual de los dos homonimos
+// es el que trae el evento privado (CS0104).
+using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -17,14 +20,15 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000001");
 
-    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    // ColaboradorProgramado (ControlHoras.DomainEvents) es el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
-    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador ColaboradorDetalle = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+    // Mismo colaborador en la forma de bus; el handler lo mapea campo a campo al que persiste
+    // TurnoDiarioAsignado. Los dos literales se mantienen separados para que una permutacion de
+    // campos en ese mapeo entre islas se delate aqui.
+    private static readonly ResumenColaborador ColaboradorResumen = new(
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
@@ -49,7 +53,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PrivateEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento() =>
-        new(SolicitudId, ColaboradorDetalle, Fecha, DetalleTurnoTest);
+        new(SolicitudId, ColaboradorResumen, Fecha, DetalleTurnoTest);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado() =>
         new(StreamId, Colaborador, Fecha, TurnoDiarioTest, SolicitudId);
@@ -110,7 +114,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             "Turno Nocturno (22:00-06:00+1)");
 
         await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
-            SolicitudId, ColaboradorDetalle, Fecha, turnoEntrante));
+            SolicitudId, ColaboradorResumen, Fecha, turnoEntrante));
 
         // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
         var turnoPersistidoEsperado = new TurnoDiario(
@@ -149,7 +153,7 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             "Turno Partido");
 
         await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
-            SolicitudId, ColaboradorDetalle, Fecha, turnoEntrante));
+            SolicitudId, ColaboradorResumen, Fecha, turnoEntrante));
 
         // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
         var sedeSubaEsperada = new SedeProgramada("SEDE-SUBA", "Suba");

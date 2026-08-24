@@ -30,19 +30,15 @@ public class DepurarAlAsignarTurnoTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600c0-0000-7000-8000-000000000002");
 
-    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    // ColaboradorProgramado (ControlHoras.DomainEvents) es el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
-
-    // Oraculo a mano de la composicion que hace CrearResumenColaborador(): Identificacion
-    // "{Tipo}-{Numero}" y NombreCompleto "{Nombres} {Apellidos}" de Colaborador.
-    private static readonly ResumenColaborador ColaboradorResumen = new(
         "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
-    // Mismo colaborador, en la forma con que llega dentro del evento privado; el handler lo mapea
-    // a Colaborador para TurnoDiarioAsignado (CA-ADR-0029 decision #5).
-    private static readonly DetalleColaborador ColaboradorDetalle = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+    // Un solo literal para las dos puntas: es lo que ENTRA en el evento privado y lo que SALE en
+    // DiaDepurado. El aggregate no compone nada en el medio, asi que cualquier divergencia entre
+    // ambas puntas es un defecto del mapeo, no una diferencia esperada.
+    private static readonly ResumenColaborador ColaboradorResumen = new(
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
@@ -64,7 +60,7 @@ public class DepurarAlAsignarTurnoTests
         new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PrivateEventSender);
 
     private static ProgramacionTurnoDiarioSolicitada CrearEvento(DetalleTurno detalleTurno) =>
-        new(SolicitudId, ColaboradorDetalle, Fecha, detalleTurno);
+        new(SolicitudId, ColaboradorResumen, Fecha, detalleTurno);
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario turnoDiario) =>
         new(StreamId, Colaborador, Fecha, turnoDiario, SolicitudId);

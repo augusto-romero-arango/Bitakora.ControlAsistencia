@@ -3,20 +3,15 @@ using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
+// Esta isla declara su propio ResumenColaborador (payload de DepuracionDiaRecibida), homonimo del
+// que trae el bus: el alias fija cual de los dos entra por el evento privado (CS0104).
+using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 
-// HU-12 / issue #210: EventHandler que asigna el turno diario al ControlDiario cuando llega
-//   ProgramacionTurnoDiarioSolicitada desde el ASB interno del BC.
-// ADR-0024 (decision #8): ProgramacionTurnoDiarioSolicitada es un IPrivateEvent intra-BC y el comando
-//   equivalente seria un espejo del evento (mismos campos, sin semantica propia), asi que se consume
-//   directo con IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> - sin comando espejo.
-// Patron crear-o-actualizar:
-//   - CA-3: si NO existe el stream para CodigoColaborador+Fecha -> StartStream
-//   - CA-4: si YA existe -> GetAggregateRootAsync + AsignarTurno (SaveChanges automatico)
-// HU-131 / CA-4: publica DiaDepurado via IPrivateEventSender tras el Apply(TurnoDiarioAsignado)
-//   que dispara el recalculo reactivo de ControlesDeFranja.
-// ADR-0015: partial class para soportar clase Mensajes en archivo separado si se requiere
+// ADR-0024 decision #8: el comando equivalente seria un espejo del evento (mismos campos, sin
+// semantica propia), asi que se consume directo con IPrivateEventHandlerAsync -- no se introduce un
+// comando espejo. partial para admitir una clase Mensajes en archivo separado (ADR-0015).
 public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
     : IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada>
 {
@@ -36,11 +31,9 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
             @event.Colaborador.CodigoColaborador, @event.Fecha);
 
-        // CA-ADR-0029 decision #5 (payload por rol): el evento llega con DetalleColaborador/DetalleTurno
-        // (PrivateEvents) y TurnoDiarioAsignado persiste ColaboradorProgramado/TurnoDiario
-        // (ControlHoras.DomainEvents, propios de este ensamblado desde el issue #322), asi que el
-        // mapeo vive aqui -- la Function App es el unico proyecto que ve los tres ensamblados de
-        // eventos.
+        // El evento llega con los tipos de PrivateEvents y TurnoDiarioAsignado persiste los de
+        // ControlHoras.DomainEvents. El mapeo vive aqui porque esta Function App es el unico proyecto
+        // que ve las tres islas de eventos (CA-ADR-0029 decision #5, payload por rol).
         var evento = new TurnoDiarioAsignado(
             streamId, MapearColaboradorProgramado(@event.Colaborador), @event.Fecha,
             MapearTurnoDiario(@event.DetalleTurno), @event.SolicitudId);
@@ -59,26 +52,21 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
             _eventStore.StartStream(control);
         }
 
-        // HU-131 CA-1/CA-2: tras el Apply(TurnoDiarioAsignado) que dispara el recalculo
-        // reactivo de ControlesDeFranja, publica DiaDepurado con la informacion consolidada.
-        // Tell-don't-Ask: el aggregate empaqueta el evento via CrearDiaDepurado() (mismo
-        // patron que #108). Se emite siempre, incluso si ControlesDeFranja queda vacio o
-        // todos son anomalos (CA-2): AsignarTurno/Iniciar siempre agregan el evento al stream.
+        // CrearDiaDepurado() debe invocarse DESPUES del Apply: lee el desglose que el Apply
+        // recalcula. Se emite siempre, incluso con ControlesDeFranja vacio o todo anomalo.
         await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
     }
 
-    private static ColaboradorProgramado MapearColaboradorProgramado(DetalleColaborador colaborador) =>
-        new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
-            colaborador.Nombres, colaborador.Apellidos);
+    // Mapeo campo a campo entre las dos ternas: Identificacion y NombreCompleto ya llegan
+    // compuestos desde Programacion y aqui no se ensambla nada.
+    private static ColaboradorProgramado MapearColaboradorProgramado(ResumenColaborador colaborador) =>
+        new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 
-    // Issue #322: mapeo mecanico DetalleTurno (PrivateEvents) -> TurnoDiario (ControlHoras.DomainEvents),
-    // recursivo sobre las franjas y sub-franjas anidadas. Payload por rol (CA-ADR-0029 decision #5).
     private static TurnoDiario MapearTurnoDiario(DetalleTurno turno) =>
         new(turno.Nombre, turno.FranjasOrdinarias.Select(MapearFranja).ToList(), turno.Descripcion);
 
-    // Issue #336: propaga la sede EFECTIVA ya resuelta por la cascada del lado de Programacion
-    // (#341) -- mapeo mecanico DetalleSede -> SedeProgramada, tolerante a null (no toda franja de
-    // un turno multi-sede trae sede resuelta).
+    // La sede que llega ya es la EFECTIVA (la cascada la resolvio en Programacion), y es tolerante
+    // a null: no toda franja de un turno multi-sede trae sede resuelta.
     private static FranjaProgramada MapearFranja(DetalleFranjaOrdinaria franja) =>
         new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,
             franja.Descansos.Select(MapearSubFranja).ToList(),

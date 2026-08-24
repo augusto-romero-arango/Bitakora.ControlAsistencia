@@ -12,15 +12,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgra
 /// y el evento tiene constructor privado y propiedades con private set.
 /// Ver ADR-0013 y feedback de memoria: ConfigurarSerializacion es obligatorio.
 ///
-/// Issue #322: InformacionEmpleado y DetalleTurno cambiaron de TIPO (ColaboradorProgramado/
-/// TurnoDiario, propios de ControlHoras.DomainEvents) sin cambiar el nombre de propiedad.
-///
-/// Issue #401: la propiedad paso a InformacionColaborador y su campo anidado a CodigoColaborador --
-/// aqui SI cambian las claves JSON de mt_events. El JSON literal de estos tests se reescribio a las
-/// claves nuevas y por eso ya no acredita compatibilidad con los streams viejos: esos se purgan en
-/// el mismo despliegue (MEF-ADR-0036 seccion 5). Lo que fija desde ahora es la forma canonica.
-/// Mismo criterio para el campo "Id" (stream key): sus literales llevan la notacion vigente
-/// "cd:{codigo}:{fecha:yyyyMMdd}", no la de los streams que esa purga se lleva.
+/// Los literales JSON de estos tests fijan la forma canonica HACIA ADELANTE, no compatibilidad con
+/// streams anteriores: cada vez que una clave persistida cambia, se reescriben y los streams viejos
+/// se purgan en el mismo despliegue (MEF-ADR-0036 seccion 5). Sin esa purga, el payload reducido se
+/// relee dejando campos en null SIN excepcion.
 /// </summary>
 public class TurnoDiarioAsignadoSerializacionTests
 {
@@ -28,7 +23,7 @@ public class TurnoDiarioAsignadoSerializacionTests
         Guid.Parse("019600b0-0000-7000-8000-000000000001");
 
     private static readonly ColaboradorProgramado ColaboradorDePrueba = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
@@ -56,8 +51,7 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado!.Id.Should().Be(StreamId);
         deserializado.SolicitudId.Should().Be(SolicitudId);
         deserializado.Fecha.Should().Be(Fecha);
-        deserializado.InformacionColaborador.CodigoColaborador.Should().Be(ColaboradorDePrueba.CodigoColaborador);
-        deserializado.InformacionColaborador.Nombres.Should().Be(ColaboradorDePrueba.Nombres);
+        deserializado.InformacionColaborador.Should().Be(ColaboradorDePrueba);
         deserializado.DetalleTurno.Nombre.Should().Be(TurnoDiarioDePrueba.Nombre);
         deserializado.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         deserializado.DetalleTurno.FranjasOrdinarias[0].HoraInicio
@@ -89,11 +83,9 @@ public class TurnoDiarioAsignadoSerializacionTests
             {
               "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
+                "Identificacion": "CC-1234567890",
                 "CodigoColaborador": "EMP-001",
-                "TipoIdentificacion": "CC",
-                "NumeroIdentificacion": "1234567890",
-                "Nombres": "Luis Augusto",
-                "Apellidos": "Barreto"
+                "NombreCompleto": "Luis Augusto Barreto"
               },
               "Fecha": "2026-03-15",
               "DetalleTurno": {
@@ -117,7 +109,7 @@ public class TurnoDiarioAsignadoSerializacionTests
 
         var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(jsonPersistidoHoy, opciones);
 
-        var colaboradorEsperado = new ColaboradorProgramado("EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+        var colaboradorEsperado = new ColaboradorProgramado("CC-1234567890", "EMP-001", "Luis Augusto Barreto");
         var turnoEsperado = new TurnoDiario(
             "Turno Manana",
             [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],
@@ -143,11 +135,9 @@ public class TurnoDiarioAsignadoSerializacionTests
             {
               "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
+                "Identificacion": "CC-1234567890",
                 "CodigoColaborador": "EMP-001",
-                "TipoIdentificacion": "CC",
-                "NumeroIdentificacion": "1234567890",
-                "Nombres": "Luis Augusto",
-                "Apellidos": "Barreto"
+                "NombreCompleto": "Luis Augusto Barreto"
               },
               "Fecha": "2026-03-15",
               "DetalleTurno": {
@@ -217,11 +207,9 @@ public class TurnoDiarioAsignadoSerializacionTests
             {
               "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
+                "Identificacion": "CC-1234567890",
                 "CodigoColaborador": "EMP-001",
-                "TipoIdentificacion": "CC",
-                "NumeroIdentificacion": "1234567890",
-                "Nombres": "Luis Augusto",
-                "Apellidos": "Barreto"
+                "NombreCompleto": "Luis Augusto Barreto"
               },
               "Fecha": "2026-03-15",
               "DetalleTurno": {
@@ -282,11 +270,9 @@ public class TurnoDiarioAsignadoSerializacionTests
             {
               "Id": "cd:EMP-001:20260315",
               "InformacionColaborador": {
+                "Identificacion": "CC-1234567890",
                 "CodigoColaborador": "EMP-001",
-                "TipoIdentificacion": "CC",
-                "NumeroIdentificacion": "1234567890",
-                "Nombres": "Luis Augusto",
-                "Apellidos": "Barreto"
+                "NombreCompleto": "Luis Augusto Barreto"
               },
               "Fecha": "2026-03-15",
               "DetalleTurno": {

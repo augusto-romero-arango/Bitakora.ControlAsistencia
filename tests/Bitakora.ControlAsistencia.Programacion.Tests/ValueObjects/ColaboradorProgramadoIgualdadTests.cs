@@ -1,6 +1,6 @@
 // Issue #319: Tests de contrato IEquatable para Colaborador (record propio de Programacion.DomainEvents,
 // tres islas). Todos los campos son string: la igualdad por valor del record por defecto ya es
-// correcta, sin Equals/GetHashCode custom -- mismo criterio que DetalleColaborador (issue #318).
+// correcta, sin Equals/GetHashCode custom -- mismo criterio que InformacionColaborador (issue #318).
 
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 

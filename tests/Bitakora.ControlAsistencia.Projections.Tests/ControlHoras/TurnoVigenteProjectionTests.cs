@@ -34,10 +34,10 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.ControlHoras;
 public class TurnoVigenteProjectionTests
 {
     private static ColaboradorProgramado ColaboradorDePrueba() =>
-        new("EMP-001", "CC", "1098765432", "Ana", "Ramirez");
+        new("CC-1098765432", "EMP-001", "Ana Ramirez");
 
-    // CA-1: Create mapea stream key, CodigoColaborador, NombreCompleto (concatenado Nombres+Apellidos --
-    // unico lugar del sistema donde se hace, issue #328 "Investigacion del planner"), NombreTurno,
+    // CA-1: Create mapea stream key, CodigoColaborador, NombreCompleto (llega ya concatenado en la
+    // terna de identidad -- el worker no lo compone), NombreTurno,
     // HorarioResumido (la Descripcion textual que el evento ya trae) y los Bloques que produce
     // Segmentar, con los tres tipos posibles (Ordinaria/Descanso/Extra) representados.
     [Fact]
@@ -126,8 +126,8 @@ public class TurnoVigenteProjectionTests
             new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(14), medianoche.AddHours(22)));
     }
 
-    // CA-2 (borde que el test de arriba no discrimina, porque ahi los dos eventos traen el MISMO
-    // colaborador): cada TurnoDiarioAsignado carga el payload Colaborador completo, asi que una correccion
+    // Borde que el test de arriba no discrimina, porque ahi los dos eventos traen el MISMO
+    // colaborador: cada TurnoDiarioAsignado carga la terna de identidad, asi que una correccion
     // del nombre aguas arriba llega con la reasignacion y el "ultimo gana" tambien le aplica --
     // congelar el nombre de la primera asignacion dejaria la vista mostrando un dato viejo para
     // siempre. Id, CodigoColaborador y Fecha si son invariantes (identidad del stream), y se verifican aqui
@@ -149,7 +149,7 @@ public class TurnoVigenteProjectionTests
             [new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14))]);
 
         // Mismo CodigoColaborador, nombre corregido aguas arriba (dos nombres y dos apellidos).
-        var colaboradorCorregido = new ColaboradorProgramado("EMP-001", "CC", "1098765432", "Ana Maria", "Ramirez Solano");
+        var colaboradorCorregido = new ColaboradorProgramado("CC-1098765432", "EMP-001", "Ana Maria Ramirez Solano");
         var turnoTarde = new TurnoDiario(
             "Turno Tarde",
             [new FranjaProgramada(

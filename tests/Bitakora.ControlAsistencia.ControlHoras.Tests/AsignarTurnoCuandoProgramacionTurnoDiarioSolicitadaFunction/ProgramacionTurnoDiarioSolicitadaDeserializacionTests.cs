@@ -24,11 +24,9 @@ public class ProgramacionTurnoDiarioSolicitadaDeserializacionTests
         {
           "solicitudId": "019600b0-0000-7000-8000-000000000001",
           "colaborador": {
+            "identificacion": "CC-1234567890",
             "codigoColaborador": "EMP-001",
-            "tipoIdentificacion": "CC",
-            "numeroIdentificacion": "1234567890",
-            "nombres": "Luis Augusto",
-            "apellidos": "Barreto"
+            "nombreCompleto": "Luis Augusto Barreto"
           },
           "fecha": "2026-03-15",
           "detalleTurno": {
@@ -58,11 +56,9 @@ public class ProgramacionTurnoDiarioSolicitadaDeserializacionTests
         evento.Should().NotBeNull();
         evento.SolicitudId.Should().Be(SolicitudId);
         evento.Colaborador.Should().NotBeNull();
+        evento.Colaborador.Identificacion.Should().Be("CC-1234567890");
         evento.Colaborador.CodigoColaborador.Should().Be("EMP-001");
-        evento.Colaborador.TipoIdentificacion.Should().Be("CC");
-        evento.Colaborador.NumeroIdentificacion.Should().Be("1234567890");
-        evento.Colaborador.Nombres.Should().Be("Luis Augusto");
-        evento.Colaborador.Apellidos.Should().Be("Barreto");
+        evento.Colaborador.NombreCompleto.Should().Be("Luis Augusto Barreto");
         evento.Fecha.Should().Be(new DateOnly(2026, 3, 15));
         evento.DetalleTurno.Should().NotBeNull();
         evento.DetalleTurno.Nombre.Should().Be("Turno Manana");

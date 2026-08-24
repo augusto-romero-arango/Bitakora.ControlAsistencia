@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
@@ -32,19 +33,13 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
-        // Issue #319 (tres islas, MEF-ADR-0039 decision 2): ObtenerDetalle() ya no produce el DTO
-        // de bus (DetalleTurno, PrivateEvents) -- produce el tipo propio del dominio
-        // (TurnoProgramado, Programacion.DomainEvents). El FA mapea a DetalleTurno solo para los
-        // eventos que cruzan el bus (CA-5).
-        // Issue #341: la cascada de sede se aplica ANTES de construir cualquier evento -- ambos
-        // payloads (persistido y bus) derivan del mismo turno ya resuelto (un solo punto de
-        // resolucion). Sin ramificar por si la solicitud trae sede: con command.Sede null la
-        // cascada es identidad (Tell-don't-Ask, MEF-ADR-0012).
+        // La cascada de sede se aplica ANTES de construir cualquier evento: ambos payloads
+        // (persistido y de bus) derivan del mismo turno ya resuelto, un solo punto de resolucion.
+        // Sin ramificar por si la solicitud trae sede -- con command.Sede null la cascada es
+        // identidad (Tell-don't-Ask, MEF-ADR-0012).
         var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(command.Sede);
         var fechas = command.Fechas.AsReadOnly();
 
-        // Issue #319 CA-2/CA-5: el comando HTTP conserva el tipo de PublicEvents (fuera de alcance);
-        // el evento persistido tipa con ColaboradorProgramado (dominio) -- el mapeo vive aqui.
         var colaboradorDominio = MapearColaboradorProgramado(command.Colaborador);
         var evento = new ProgramacionTurnoSolicitada(
             command.Id, colaboradorDominio, fechas, turnoProgramado, command.Sede);
@@ -52,17 +47,11 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         _eventStore.StartStream(solicitud);
 
-        // ADR-0024 decision #2/#3: ProgramacionTurnoDiarioSolicitada es intra-BC (lo consume
-        // ControlHoras, mismo BC) -> IPrivateEvent publicado al ASB interno via IPrivateEventSender.
-        // CA-ADR-0029 decision #5 (payload por rol): el comando HTTP trae InformacionColaborador
-        // (PublicEvents) y el evento privado lleva DetalleColaborador, asi que el mapeo vive aqui --
-        // la Function App es el unico proyecto que ve ambos ensamblados.
-        var colaborador = MapearDetalleColaborador(command.Colaborador);
-        // Issue #319 CA-5: DetalleTurno (PrivateEvents) se deriva de TurnoProgramado (dominio),
-        // no directamente del catalogo -- unico punto de mapeo hacia el payload de bus.
+        // El comando HTTP trae los tipos de PublicEvents y el evento privado lleva los de
+        // PrivateEvents: los mapeos viven aqui porque esta Function App es el unico proyecto que ve
+        // ambos ensamblados (CA-ADR-0029 decision #5, payload por rol).
+        var colaborador = MapearResumenColaborador(command.Colaborador);
         var detalleTurno = MapearTurno(turnoProgramado);
-        // Issue #331: la sede es un gemelo deliberado (CA-ADR-0029 decision #5) -- mismo mapeo
-        // campo a campo que ColaboradorProgramado/DetalleTurno hacia su forma de bus.
         var sede = MapearSede(command.Sede);
         var eventosPrivados = command.Fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
@@ -72,28 +61,26 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         await _privateEventSender.PublishAsync(eventosPrivados);
     }
 
-    private static DetalleColaborador MapearDetalleColaborador(InformacionColaborador colaborador) =>
-        new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
-            colaborador.Nombres, colaborador.Apellidos);
+    // Unico punto donde el quinteto del body HTTP se comprime a la terna que cruza el bus, con el
+    // contrato del maestro Colaboradores ("{Tipo}-{Numero}" y el nombre ya concatenado). Cualquier
+    // otro consumidor de la terna debe pedirla aqui, no recomponerla. TRANSITORIO: muere cuando la
+    // fase A del corte (issue #433) tenga su fase B y el body HTTP tambien lleve la terna.
+    private static ResumenColaborador MapearResumenColaborador(InformacionColaborador colaborador) =>
+        new($"{colaborador.TipoIdentificacion}-{colaborador.NumeroIdentificacion}",
+            colaborador.CodigoColaborador,
+            $"{colaborador.Nombres} {colaborador.Apellidos}");
 
-    // Issue #319 CA-5: mapeo campo a campo hacia el record propio del dominio
-    // (Programacion.DomainEvents.ColaboradorProgramado), tipo del evento persistido
-    // ProgramacionTurnoSolicitada.
     private static ColaboradorProgramado MapearColaboradorProgramado(InformacionColaborador colaborador) =>
         new(colaborador.CodigoColaborador, colaborador.TipoIdentificacion, colaborador.NumeroIdentificacion,
             colaborador.Nombres, colaborador.Apellidos);
 
-    // Issue #319 CA-5: unico punto de traduccion desde TurnoProgramado (dominio) hacia el payload
-    // que cruza el bus interno (DetalleTurno, PrivateEvents), incluidas las listas anidadas de
-    // franjas y sub-franjas.
+    // Unico punto de traduccion desde TurnoProgramado (dominio) hacia el payload de bus, incluidas
+    // las listas anidadas de franjas y sub-franjas.
     private static DetalleTurno MapearTurno(TurnoProgramado turno) =>
         new(turno.Nombre,
             turno.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
             turno.Descripcion);
 
-    // Issue #341: la sede EFECTIVA de la franja (ya resuelta por la cascada, ConSedePorDefecto)
-    // se propaga al payload de bus con el mismo mapeo campo a campo que usa la sede de la
-    // solicitud (MapearSede) -- gemelo deliberado, no una traduccion nueva.
     private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>
         new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,
             franja.Descansos.Select(MapearSubFranja).ToList().AsReadOnly(),
@@ -105,8 +92,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         new(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio,
             subFranja.DiaOffsetFin, subFranja.Descripcion);
 
-    // Issue #331: unico punto de mapeo desde SedeProgramada (dominio) hacia el payload que cruza
-    // el bus interno (DetalleSede, PrivateEvents). Opcional: null se conserva.
+    // Unico punto de mapeo SedeProgramada -> DetalleSede. Opcional: null se conserva.
     private static DetalleSede? MapearSede(SedeProgramada? sede) =>
         sede is null ? null : new DetalleSede(sede.Id, sede.Nombre);
 }

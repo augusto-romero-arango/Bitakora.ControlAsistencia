@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
@@ -20,9 +21,8 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000009");
 
-    // Issue #318 CA-2: Colaborador ahora tipa con DetalleColaborador (payload propio de PrivateEvents).
-    private static readonly DetalleColaborador Colaborador = new(
-        "EMP-001", "CC", "1234567890", "Luis Augusto", "Barreto");
+    private static readonly ResumenColaborador Colaborador = new(
+        "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
 
@@ -64,7 +64,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     }
 
     // Issue #331 CA-5: la sede es un DTO plano de strings (DetalleSede) -- portable por el
-    // serializador por defecto del bus, igual que DetalleTurno/DetalleColaborador.
+    // serializador por defecto del bus, igual que DetalleTurno/ResumenColaborador.
     [Fact]
     public void RoundTrip_PreservaLaSede_ConSerializadorPorDefectoDelBus()
     {
@@ -179,9 +179,9 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         const string jsonPrevioAlCampo = """
             {
               "solicitudId": "019600b0-0000-7000-8000-000000000009",
-              "informacionColaborador": {
-                "codigoColaborador": "EMP-001", "tipoDocumento": "CC", "numeroDocumento": "1234567890",
-                "nombres": "Luis Augusto", "apellidos": "Barreto"
+              "colaborador": {
+                "identificacion": "CC-1234567890", "codigoColaborador": "EMP-001",
+                "nombreCompleto": "Luis Augusto Barreto"
               },
               "fecha": "2026-03-15",
               "detalleTurno": {
@@ -203,6 +203,7 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
 
         restaurado.Should().NotBeNull();
         var franja = restaurado.DetalleTurno.FranjasOrdinarias[0];
+        restaurado.Colaborador.Should().Be(Colaborador);
         restaurado.DetalleTurno.Descripcion.Should().BeEmpty();
         franja.Descripcion.Should().BeEmpty();
         franja.Descansos[0].Descripcion.Should().BeEmpty();

@@ -29,9 +29,9 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"cd:{CodigoColaborador}:{Fecha:yyyyMMdd}";
 
-    // Issue #322: Colaborador (ControlHoras.DomainEvents) -- el tipo que persiste TurnoDiarioAsignado.
+    // ColaboradorProgramado (ControlHoras.DomainEvents) es el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(
-        CodigoColaborador, "CC", "1234567890", "Luis Augusto", "Barreto");
+        "CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000003");
 
     // CA-1: turno partido con dos franjas ordinarias 08:00-12:00 y 14:00-18:00
