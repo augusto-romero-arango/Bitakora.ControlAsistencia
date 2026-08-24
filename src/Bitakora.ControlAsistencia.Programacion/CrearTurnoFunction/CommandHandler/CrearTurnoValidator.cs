@@ -13,6 +13,8 @@ public partial class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
     {
         RuleFor(x => x.TurnoId).NotEmpty();
         RuleFor(x => x.Nombre).NotEmpty();
-        RuleFor(x => x.Ordinarias).NotEmpty();
+        RuleFor(x => x.Ordinarias).NotEmpty().When(x => !x.EsDescanso);
+        RuleFor(x => x.Ordinarias).Empty().WithMessage(Mensajes.EsDescansoConFranjas)
+            .When(x => x.EsDescanso);
     }
 }

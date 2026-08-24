@@ -97,8 +97,13 @@ public sealed partial class TurnoCreado
     }
 
     // Issue #423: factory del descanso programado -- unica puerta a cero franjas ordinarias.
-    public static TurnoCreado CrearDescanso(Guid turnoId, string nombre) =>
-        throw new NotImplementedException();
+    public static TurnoCreado CrearDescanso(Guid turnoId, string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new AggregateException(new ArgumentException(Mensajes.NombreVacio));
+
+        return new TurnoCreado(turnoId, nombre, []);
+    }
 
     // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
     // Duplicacion deliberada respecto de FranjaTemporal.SeSolapaCon -- decidida en #272 y #285,
