@@ -109,6 +109,12 @@ public static class ConfiguracionMartenProjectionsControlHoras
                 // este no la da. Aqui mismo, y por esta via, el issue #323 retiro la proyeccion
                 // del read model anterior (#289).
                 opts.Projections.Add<TurnoVigenteProjection>(ProjectionLifecycle.Async);
+
+                // Issue #426 CA-7: proyeccion de la superficie de decision del Aprobador (N1, un
+                // solo stream "dc:{CodigoColaborador}:{yyyyMMdd}" por fila). Lifecycle Async, el
+                // canonico del worker (MEF-ADR-0034 seccion 3); se suma aditivamente sobre el mismo
+                // AddMartenStore que ya registra TurnoVigenteProjection (#328).
+                opts.Projections.Add<AsistenciaDiariaProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
