@@ -3,9 +3,8 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-// Issue #425: ResumenColaborador ahora tambien existe, homonimo, en ControlHoras.DomainEvents
-// (payload por rol, MEF-ADR-0039 decision #6). Alias de tipo (precedencia sobre un using de
-// namespace) para que este archivo siga resolviendo sin calificar, sin CS0104.
+// Alias de tipo: ResumenColaborador existe homonimo en ControlHoras.DomainEvents (payload por
+// rol, MEF-ADR-0039 decision #6); este archivo usa el del bus.
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction;

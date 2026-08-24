@@ -1,6 +1,6 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// Issue #425: payload propio de esta isla, espejo de PrivateEvents.ControlHoras.HorasDiscriminadas
+// Payload propio de esta isla, espejo de PrivateEvents.ControlHoras.HorasDiscriminadas
 // (payload por rol, MEF-ADR-0039 decision #6).
 //
 // El record por defecto compara HorasPorConcepto/Trazabilidad por referencia; estos overrides las

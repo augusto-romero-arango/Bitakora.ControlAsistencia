@@ -11,10 +11,8 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Testing.Utilities;
-// Issue #425: FranjaDepurada/MarcacionDelDia/HorasDiscriminadas/ResumenColaborador ahora tambien
-// existen, homonimos, en ControlHoras.DomainEvents (payload por rol, MEF-ADR-0039 decision #6).
-// Alias de tipo explicitos (tienen precedencia sobre un using de namespace) para que este archivo
-// -- que produce el evento de BUS DiaDepurado -- siga resolviendo sin calificar, sin CS0104.
+// Alias de tipo: estos nombres existen homonimos en ControlHoras.DomainEvents (payload por rol,
+// MEF-ADR-0039 decision #6); este archivo usa los del bus.
 using DiaDepurado = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.DiaDepurado;
 using FranjaDepurada = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.FranjaDepurada;
 using MarcacionDelDia = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.MarcacionDelDia;

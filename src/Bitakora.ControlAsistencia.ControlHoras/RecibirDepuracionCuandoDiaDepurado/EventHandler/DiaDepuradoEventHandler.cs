@@ -2,15 +2,17 @@ using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
+// FranjaDepurada/MarcacionDelDia/HorasDiscriminadas existen homonimos en las dos islas: el nombre
+// corto resuelve al tipo de bus (using de arriba) y el persistido va calificado como DomainEvents.X.
+using ColaboradorBus = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.RecibirDepuracionCuandoDiaDepurado.EventHandler;
 
-// Issue #425: recibe cada foto de DiaDepurado (PrivateEvents.ControlHoras) y la traduce a los
-// tipos ricos propios de ControlHoras.DomainEvents antes de entregarla al aggregate DiaCalculado
-// (CA-ADR-0029 decision #5: el Function App es el unico ensamblado que ve las tres islas, asi que
-// el mapeo vive aqui). Sin comando espejo: se consume directo con IPrivateEventHandlerAsync
-// (MEF-ADR-0024 decision #8). Ningun consumidor nuevo: no publica ningun evento (issue #425,
-// "Consumidores: ninguno nuevo").
+// Traduce cada foto de DiaDepurado (bus) a los tipos ricos de ControlHoras.DomainEvents antes de
+// entregarla al aggregate DiaCalculado: el mapeo vive aqui porque el Function App es el unico
+// ensamblado que ve las tres islas (CA-ADR-0029 decision #5). Se consume directo con
+// IPrivateEventHandlerAsync, sin comando espejo (MEF-ADR-0024 decision #8), y no publica ningun
+// evento.
 // MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
 public partial class DiaDepuradoEventHandler : IPrivateEventHandlerAsync<DiaDepurado>
 {
@@ -49,8 +51,7 @@ public partial class DiaDepuradoEventHandler : IPrivateEventHandlerAsync<DiaDepu
         }
     }
 
-    private static DomainEvents.ResumenColaborador? MapearColaborador(
-        Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador? colaborador) =>
+    private static DomainEvents.ResumenColaborador? MapearColaborador(ColaboradorBus? colaborador) =>
         colaborador is null
             ? null
             : new DomainEvents.ResumenColaborador(

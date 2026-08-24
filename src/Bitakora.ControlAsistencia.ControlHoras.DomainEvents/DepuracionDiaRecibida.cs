@@ -3,12 +3,10 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// Issue #425: evento de event sourcing que registra la recepcion de una foto de DiaDepurado
-// (PrivateEvents.ControlHoras) sobre el stream de DiaCalculadoAggregateRoot. Siempre se emite --
-// sin comparacion contra el estado previo, sin deduplicacion de ningun tipo (decision de sesion
-// 2026-08-24): el productor ya controla los duplicados de negocio en origen, y re-aplicar la
-// misma foto ante un redelivery de transporte es idempotente.
-// ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
+// Foto completa de un dia depurado, persistida en el stream de DiaCalculadoAggregateRoot. Cada
+// recepcion emite una: no hay deduplicacion de ningun tipo (el productor controla los duplicados
+// de negocio y re-aplicar la misma foto es idempotente).
+// MEF-ADR-0024: evento del aggregate, sin marker de bus.
 public sealed class DepuracionDiaRecibida
 {
     // Id es el stream key de DiaCalculado, tal como lo computa DiaCalculadoAggregateRoot.ComputarStreamId.
