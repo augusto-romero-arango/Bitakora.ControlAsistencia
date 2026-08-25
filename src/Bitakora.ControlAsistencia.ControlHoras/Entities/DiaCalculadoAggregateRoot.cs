@@ -80,14 +80,10 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Issue #429: metodo generador -- Tell-don't-Ask (MEF-ADR-0012). El aggregate cuenta su propio
-    // estado privado en la forma que la pantalla de investigacion del Aprobador necesita
-    // (DepuracionDelDia, via (b1) de skills/projections/read-apis.md); ninguna propiedad nueva se
-    // expone. Deriva Plan por la senal estructural del contrato #424 (NombreTurno null ->
-    // SinProgramar; nombre + cero franjas -> Descanso; nombre + franjas -> ConJornada), mapea
-    // EstadoDiaCalculado -> EstadoAsistencia, aplana la terna del colaborador (null si el dia nacio
-    // solo por marcacion, CA-4) y deriva Usada por marcacion -- igualdad EXACTA de Timestamp contra
-    // la Entrada o Salida de alguna franja (CA-2) -- una sola vez, aqui, nunca en la UI.
+    // Tell-don't-Ask (MEF-ADR-0012): el aggregate produce la vista de lectura desde su estado
+    // privado -- ninguna propiedad nueva se expone. Plan sale de la senal estructural del contrato
+    // de DiaDepurado (NombreTurno null -> SinProgramar; nombre + cero franjas -> Descanso), no de un
+    // campo propio del evento.
     public DepuracionDelDia GenerarDepuracionDelDia()
     {
         var plan = ClasificarPlan(_nombreTurno, _franjas);
@@ -135,8 +131,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
             _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, null)
         };
 
-    // CA-2: igualdad EXACTA de Timestamp contra la Entrada o Salida de alguna franja -- una sola vez,
-    // aqui, nunca en la UI.
+    // Igualdad EXACTA de Timestamp, derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
         franjas.Any(franja => franja.Entrada == marcacion.Timestamp || franja.Salida == marcacion.Timestamp);
 }

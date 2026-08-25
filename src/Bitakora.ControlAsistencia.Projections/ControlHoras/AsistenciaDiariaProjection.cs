@@ -1,9 +1,9 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en Marten.Events.Projections
-// Alias, no nombre corto: issue #429 agrego ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia
-// (tercer espejo del mismo termino, MEF-ADR-0039 decision 6), que colisionan (CS0104) con los
-// homonimos de DomainEvents que evento.Franjas/evento.Marcaciones ya tipan en este archivo.
+// Alias, no nombre corto: ReadModels.ControlHoras declara homonimos FranjaDepurada/MarcacionDelDia
+// (espejo por rol del mismo termino, MEF-ADR-0039 decision 6) que colisionan (CS0104) con los de
+// DomainEvents que evento.Franjas/evento.Marcaciones tipan aqui.
 using EventoFranjaDepurada = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.FranjaDepurada;
 using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.MarcacionDelDia;
 
