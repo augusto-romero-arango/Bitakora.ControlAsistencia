@@ -1,6 +1,11 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en Marten.Events.Projections
+// Alias, no nombre corto: issue #429 agrego ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia
+// (tercer espejo del mismo termino, MEF-ADR-0039 decision 6), que colisionan (CS0104) con los
+// homonimos de DomainEvents que evento.Franjas/evento.Marcaciones ya tipan en este archivo.
+using EventoFranjaDepurada = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.FranjaDepurada;
+using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.MarcacionDelDia;
 
 namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
@@ -54,7 +59,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
         };
     }
 
-    private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas) =>
+    private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<EventoFranjaDepurada> franjas) =>
         nombreTurno switch
         {
             null => PlanDelDia.SinProgramar,
@@ -62,15 +67,15 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             _ => PlanDelDia.ConJornada
         };
 
-    private static bool EsNoSePresento(PlanDelDia plan, IReadOnlyList<MarcacionDelDia> marcaciones) =>
+    private static bool EsNoSePresento(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.ConJornada && marcaciones.Count == 0;
 
-    private static bool EsFranjasIncompletas(PlanDelDia plan, IReadOnlyList<FranjaDepurada> franjas) =>
+    private static bool EsFranjasIncompletas(PlanDelDia plan, IReadOnlyList<EventoFranjaDepurada> franjas) =>
         plan == PlanDelDia.ConJornada && franjas.Any(franja => franja.EsAnomala);
 
-    private static bool EsVinoEnDescanso(PlanDelDia plan, IReadOnlyList<MarcacionDelDia> marcaciones) =>
+    private static bool EsVinoEnDescanso(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.Descanso && marcaciones.Count > 0;
 
-    private static bool EsTrabajoSinProgramacion(PlanDelDia plan, IReadOnlyList<MarcacionDelDia> marcaciones) =>
+    private static bool EsTrabajoSinProgramacion(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.SinProgramar && marcaciones.Count > 0;
 }

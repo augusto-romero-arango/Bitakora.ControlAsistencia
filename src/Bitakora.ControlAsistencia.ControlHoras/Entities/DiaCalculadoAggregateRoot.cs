@@ -1,6 +1,10 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Cosmos.EventSourcing.Abstractions;
+// Alias, no using de namespace: ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia son el
+// tercer espejo del mismo termino (MEF-ADR-0039 decision 6) y colisionarian (CS0104) con los
+// homonimos de DomainEvents que ya tipan _franjas/_marcaciones en este archivo.
+using DepuracionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.DepuracionDelDia;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -71,4 +75,14 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // Issue #429: metodo generador -- Tell-don't-Ask (MEF-ADR-0012). El aggregate cuenta su propio
+    // estado privado en la forma que la pantalla de investigacion del Aprobador necesita
+    // (DepuracionDelDia, via (b1) de skills/projections/read-apis.md); ninguna propiedad nueva se
+    // expone. Deriva Plan por la senal estructural del contrato #424 (NombreTurno null ->
+    // SinProgramar; nombre + cero franjas -> Descanso; nombre + franjas -> ConJornada), mapea
+    // EstadoDiaCalculado -> EstadoAsistencia, aplana la terna del colaborador (null si el dia nacio
+    // solo por marcacion, CA-4) y deriva Usada por marcacion -- igualdad EXACTA de Timestamp contra
+    // la Entrada o Salida de alguna franja (CA-2) -- una sola vez, aqui, nunca en la UI.
+    public DepuracionDelDia GenerarDepuracionDelDia() => throw new NotImplementedException();
 }
