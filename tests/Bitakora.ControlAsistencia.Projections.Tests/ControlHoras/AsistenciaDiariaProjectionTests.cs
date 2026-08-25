@@ -14,6 +14,11 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.ControlHoras;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
+// Alias, no nombre corto: issue #429 agrego ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia
+// (tercer espejo del mismo termino, MEF-ADR-0039 decision 6), que colisionan (CS0104) con los
+// homonimos de DomainEvents que este archivo ya usaba para construir DepuracionDiaRecibida.
+using EventoFranjaDepurada = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.FranjaDepurada;
+using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.MarcacionDelDia;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests.ControlHoras;
 
@@ -30,21 +35,21 @@ public class AsistenciaDiariaProjectionTests
 
     private static DepuracionDiaRecibida CrearEvento(
         string? nombreTurno,
-        IReadOnlyList<FranjaDepurada> franjas,
-        IReadOnlyList<MarcacionDelDia> marcaciones,
+        IReadOnlyList<EventoFranjaDepurada> franjas,
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones,
         HorasDiscriminadas horas) =>
         new(StreamKey, CodigoColaborador, Fecha, new ResumenColaborador("CC-1098765432", CodigoColaborador,
             "Ana Ramirez"), nombreTurno, franjas, marcaciones, horas);
 
-    private static FranjaDepurada FranjaValida() => new(
+    private static EventoFranjaDepurada FranjaValida() => new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
         new DateTime(2026, 8, 24, 6, 0, 0), new DateTime(2026, 8, 24, 14, 0, 0), EsAnomala: false);
 
-    private static FranjaDepurada FranjaAnomala() => new(
+    private static EventoFranjaDepurada FranjaAnomala() => new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
         null, null, EsAnomala: true);
 
-    private static MarcacionDelDia MarcacionDePrueba() =>
+    private static EventoMarcacionDelDia MarcacionDePrueba() =>
         new(new DateTime(2026, 8, 24, 6, 0, 0), "ENTRADA");
 
     [Fact]

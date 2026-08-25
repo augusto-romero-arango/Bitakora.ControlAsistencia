@@ -38,6 +38,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerTurnoVigenteEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente.FunctionEndpoint;
+using ObtenerDepuracionDelDiaEndpoint = Bitakora.ControlAsistencia.ControlHoras.ObtenerDepuracionDelDia.FunctionEndpoint;
 using ListarTurnosVigentesEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.FunctionEndpoint;
 using ListarAsistenciasDiariasEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias.FunctionEndpoint;
 using ListarResumenesAsistenciaEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia.FunctionEndpoint;
@@ -328,6 +329,27 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_turnovigente");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
+    }
+
+    // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
+    // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
+    // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
+    // ITenantResolver por constructor -- no el comportamiento de Run (parseo de fecha con 400,
+    // DiaCalculadoAggregateRoot.ComputarStreamId, AggregateStreamAsync y el 200/404, CA-5/CA-6/
+    // CA-7), que es responsabilidad de projection-implementer y del smoke test. Este issue no crea
+    // proyeccion nueva ni toca el seam del worker ("Necesidad de lectura", via (b1)): junto con la
+    // ausencia deliberada de config-test/unit tests de proyeccion Marten (no aplica, el aggregate
+    // ya existe desde #425), es la unica capa read-side de wiring declarada para el -- por eso este
+    // test queda en verde tan pronto exista el FunctionEndpoint stub con el constructor correcto.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerDepuracionDelDia_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerDepuracionDelDiaEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 
     // Issue #329: test de composicion de la Function GET de listado sobre TurnoVigente (#328),

@@ -1,6 +1,14 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Cosmos.EventSourcing.Abstractions;
+// Alias, no using de namespace: ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia son el
+// tercer espejo del mismo termino (MEF-ADR-0039 decision 6) y colisionarian (CS0104) con los
+// homonimos de DomainEvents que ya tipan _franjas/_marcaciones en este archivo.
+using DepuracionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.DepuracionDelDia;
+using VistaFranjaDepurada = Bitakora.ControlAsistencia.ReadModels.ControlHoras.FranjaDepurada;
+using VistaMarcacionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.MarcacionDelDia;
+using EstadoAsistencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.EstadoAsistencia;
+using PlanDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PlanDelDia;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -71,4 +79,59 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // Tell-don't-Ask (MEF-ADR-0012): el aggregate produce la vista de lectura desde su estado
+    // privado -- ninguna propiedad nueva se expone. Plan sale de la senal estructural del contrato
+    // de DiaDepurado (NombreTurno null -> SinProgramar; nombre + cero franjas -> Descanso), no de un
+    // campo propio del evento.
+    public DepuracionDelDia GenerarDepuracionDelDia()
+    {
+        var plan = ClasificarPlan(_nombreTurno, _franjas);
+        var horas = _horasDiscriminadas;
+
+        return new DepuracionDelDia(
+            _codigoColaborador,
+            _fecha,
+            _colaborador?.Identificacion,
+            _colaborador?.NombreCompleto,
+            MapearEstado(Estado),
+            plan,
+            _nombreTurno,
+            _franjas
+                .Select(franja => new VistaFranjaDepurada(
+                    franja.HoraInicioProgramada,
+                    franja.HoraFinProgramada,
+                    franja.DiaOffsetFin,
+                    franja.Entrada,
+                    franja.Salida,
+                    franja.EsAnomala))
+                .ToList(),
+            _marcaciones
+                .Select(marcacion => new VistaMarcacionDelDia(
+                    marcacion.Timestamp,
+                    marcacion.Tipo,
+                    EsUsada(marcacion, _franjas)))
+                .ToList(),
+            horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
+            horas?.Trazabilidad ?? []);
+    }
+
+    private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas) =>
+        nombreTurno switch
+        {
+            null => PlanDelDia.SinProgramar,
+            _ when franjas.Count == 0 => PlanDelDia.Descanso,
+            _ => PlanDelDia.ConJornada
+        };
+
+    private static EstadoAsistencia MapearEstado(EstadoDiaCalculado estado) =>
+        estado switch
+        {
+            EstadoDiaCalculado.Provisional => EstadoAsistencia.Provisional,
+            _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, null)
+        };
+
+    // Igualdad EXACTA de Timestamp, derivada una sola vez aqui: ningun cliente la recalcula.
+    private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
+        franjas.Any(franja => franja.Entrada == marcacion.Timestamp || franja.Salida == marcacion.Timestamp);
 }
