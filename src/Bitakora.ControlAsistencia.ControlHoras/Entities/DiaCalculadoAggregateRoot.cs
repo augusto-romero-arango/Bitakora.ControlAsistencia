@@ -5,6 +5,10 @@ using Cosmos.EventSourcing.Abstractions;
 // tercer espejo del mismo termino (MEF-ADR-0039 decision 6) y colisionarian (CS0104) con los
 // homonimos de DomainEvents que ya tipan _franjas/_marcaciones en este archivo.
 using DepuracionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.DepuracionDelDia;
+using VistaFranjaDepurada = Bitakora.ControlAsistencia.ReadModels.ControlHoras.FranjaDepurada;
+using VistaMarcacionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.MarcacionDelDia;
+using EstadoAsistencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.EstadoAsistencia;
+using PlanDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PlanDelDia;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -84,5 +88,55 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // EstadoDiaCalculado -> EstadoAsistencia, aplana la terna del colaborador (null si el dia nacio
     // solo por marcacion, CA-4) y deriva Usada por marcacion -- igualdad EXACTA de Timestamp contra
     // la Entrada o Salida de alguna franja (CA-2) -- una sola vez, aqui, nunca en la UI.
-    public DepuracionDelDia GenerarDepuracionDelDia() => throw new NotImplementedException();
+    public DepuracionDelDia GenerarDepuracionDelDia()
+    {
+        var plan = ClasificarPlan(_nombreTurno, _franjas);
+        var horas = _horasDiscriminadas;
+
+        return new DepuracionDelDia(
+            _codigoColaborador,
+            _fecha,
+            _colaborador?.Identificacion,
+            _colaborador?.NombreCompleto,
+            MapearEstado(Estado),
+            plan,
+            _nombreTurno,
+            _franjas
+                .Select(franja => new VistaFranjaDepurada(
+                    franja.HoraInicioProgramada,
+                    franja.HoraFinProgramada,
+                    franja.DiaOffsetFin,
+                    franja.Entrada,
+                    franja.Salida,
+                    franja.EsAnomala))
+                .ToList(),
+            _marcaciones
+                .Select(marcacion => new VistaMarcacionDelDia(
+                    marcacion.Timestamp,
+                    marcacion.Tipo,
+                    EsUsada(marcacion, _franjas)))
+                .ToList(),
+            horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
+            horas?.Trazabilidad ?? []);
+    }
+
+    private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas) =>
+        nombreTurno switch
+        {
+            null => PlanDelDia.SinProgramar,
+            _ when franjas.Count == 0 => PlanDelDia.Descanso,
+            _ => PlanDelDia.ConJornada
+        };
+
+    private static EstadoAsistencia MapearEstado(EstadoDiaCalculado estado) =>
+        estado switch
+        {
+            EstadoDiaCalculado.Provisional => EstadoAsistencia.Provisional,
+            _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, null)
+        };
+
+    // CA-2: igualdad EXACTA de Timestamp contra la Entrada o Salida de alguna franja -- una sola vez,
+    // aqui, nunca en la UI.
+    private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
+        franjas.Any(franja => franja.Entrada == marcacion.Timestamp || franja.Salida == marcacion.Timestamp);
 }

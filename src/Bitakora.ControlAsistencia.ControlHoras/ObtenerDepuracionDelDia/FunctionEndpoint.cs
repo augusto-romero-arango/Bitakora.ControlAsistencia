@@ -1,3 +1,5 @@
+using System.Globalization;
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Cosmos.MultiTenancy;
 using Marten;
 using Microsoft.AspNetCore.Http;
@@ -19,14 +21,34 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerDepuracionDelDia;
 // 200 con la vista que produce DiaCalculadoAggregateRoot.GenerarDepuracionDelDia() (CA-1).
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
+    private const string FormatoFecha = "yyyy-MM-dd";
+
     [Function("ObtenerDepuracionDelDia")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "control-horas/depuraciones/{codigoColaborador}/{fecha}")]
         HttpRequest req,
         string codigoColaborador,
         string fecha,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        // CA-5: parseo tipado explicito ANTES de tocar Marten (MEF-ADR-0037 seccion 2) -- 400 con
+        // mensaje, nunca el BadRequestResult pelado.
+        if (!DateOnly.TryParseExact(
+                fecha, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParseada))
+            return new BadRequestObjectResult(
+                $"El parametro 'fecha' debe tener el formato {FormatoFecha}");
+
+        var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(codigoColaborador, fechaParseada);
+
+        // CA-7: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // nunca a un tenant id que llegara por ruta o query string (MEF-ADR-0028).
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        var dia = await session.Events.AggregateStreamAsync<DiaCalculadoAggregateRoot>(streamId, token: ct);
+
+        // CA-6: 404 sin body cuando el stream no existe -- ningun dato creo la depuracion de ese dia.
+        if (dia is null)
+            return new NotFoundResult();
+
+        return new OkObjectResult(dia.GenerarDepuracionDelDia());
     }
 }
