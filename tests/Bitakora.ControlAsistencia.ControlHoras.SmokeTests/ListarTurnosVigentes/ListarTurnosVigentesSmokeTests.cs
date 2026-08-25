@@ -1,46 +1,28 @@
-// Issue #440: migracion de ListarTurnosVigentes de GET a QUERY (RFC 10008, MEF-ADR-0042). El
-// nombre de la Function y su Route no cambian al cruzar la frontera de verbo (MEF-ADR-0042 seccion
-// 5): solo el metodo HTTP y el transporte del filtro, que pasa de query string a un DTO tipado en
-// el body JSON. Sigue siendo la tercera Function GET read-side... ahora QUERY... sobre la MISMA
-// vista TurnoVigente que ya materializa #328 -- se siembran datos publicando ProgramacionTurno-
-// DiarioSolicitada al bus interno, exactamente el mismo mecanismo de ObtenerTurnoVigenteSmokeTests
-// (#328) y de la suite GET anterior (#290/#329/#337) que este archivo reemplaza.
+// Smoke tests de ListarTurnosVigentes -- QUERY control-horas/turnos-vigentes: los turnos vigentes
+// de un rango de fechas, con codigoColaborador y sedeId como filtros opcionales. El arrange va por
+// el bus interno (ProgramacionTurnoDiarioSolicitada al topic de entrada), nunca sembrando el event
+// store por fuera de el.
 //
-// Migracion seca (issue #440, "Contexto"): sin consumidores externos del GET, el verbo QUERY
-// reemplaza al GET en el mismo PR -- no hay convivencia GET+QUERY. Estos tests quedan ROJOS hasta
-// que el deploy publique la revision QUERY en dev: mientras la revision GET anterior siga
-// corriendo, el host responde 404 al verbo QUERY sobre esta ruta (nota de skills/projections/
-// read-apis.md: el host responde 404, no 405, ante verbo no coincidente). El CI de PR no los
-// ejecuta (solo corre *.Tests); su veredicto real se lee despues del deploy -- es ademas el gate
-// NO VERIFICADO de MEF-ADR-0042 seccion 6: si el 404 persiste tras un deploy exitoso, el sospechoso
-// es el borde de App Service filtrando el verbo QUERY, no el endpoint.
+// Quedan ROJOS hasta que el deploy publique la revision QUERY en dev: mientras siga corriendo la
+// revision GET anterior, el host responde 404 al verbo QUERY sobre esta ruta (404, no 405, ante
+// verbo no coincidente). El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real se lee
+// despues del deploy. Ese mismo 404 es ademas el gate NO VERIFICADO de MEF-ADR-0042 seccion 6 --
+// si persiste tras un deploy exitoso, el sospechoso es el borde de App Service filtrando un verbo
+// no estandar, no el endpoint.
 //
-// La proyeccion tiene lifecycle Async (MEF-ADR-0034): el worker la materializa DESPUES de que
-// ControlHoras persiste turno_diario_asignado. Los casos que dependen de datos sembrados envuelven
-// la consulta en Polling.WaitUntilAsync/WaitUntilTrueAsync (timeout estandar 30s) -- si el timeout
-// se agota es un fallo real (worker no desplegado o proyeccion sin registrar), nunca un skip.
+// La proyeccion tiene lifecycle Async (MEF-ADR-0034), asi que los casos que dependen del arrange
+// envuelven la consulta en Polling.WaitUntilAsync/WaitUntilTrueAsync -- agotar el timeout es un
+// fallo real (worker no desplegado o proyeccion sin registrar), nunca un skip.
 //
-// Formas locales DESACOPLADAS del read model de produccion (Bitakora.ControlAsistencia.ReadModels.
-// ControlHoras.TurnoVigente/Bloque/TipoBloque), del filtro de produccion (ControlHoras.
-// ListarTurnosVigentes.FiltroListarTurnosVigentes) y del envelope de produccion (ControlHoras.
-// ListarTurnosVigentes.ListaTurnosVigentes): el smoke test no referencia ReadModels ni el Function
-// App (isla, MEF-ADR-0034 seccion 5). TipoBloqueSmoke replica el orden de valores del enum de
-// produccion porque STJ lo serializa como el entero subyacente. El limite de 31 dias se afirma como
-// literal (desde + 30 dias), nunca leyendo RangoConsulta.CotaDias.
+// Formas locales DESACOPLADAS del read model, del filtro y del envelope de produccion: el smoke
+// test no referencia ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5). TipoBloqueSmoke
+// replica el ORDEN de valores del enum de produccion porque STJ lo serializa como el entero
+// subyacente -- si produccion reordenara alguno, la comparacion falla y delata el cambio de
+// contrato. El limite de 31 dias se afirma como literal (desde + 30 dias), nunca leyendo
+// RangoConsulta.CotaDias.
 //
-// Sin PostgresFixture: la verificacion de persistencia del evento turno_diario_asignado ya la cubre
-// AsignarTurnoViaSbSmokeTests (issue #322); aqui solo interesa que la vista materializada llegue al
-// endpoint HTTP -- mismo alcance que ObtenerTurnoVigenteSmokeTests.
-//
-// Issue #337 (CA-2/CA-3/CA-4, conservado intacto por esta migracion): sedeId es un tercer filtro
-// opcional sobre la MISMA Function. Para sembrar bloques con sede se publica ProgramacionTurno-
-// DiarioSolicitada con la clave "Sede" DENTRO de cada franja ordinaria (PrivateEvents.Programacion.
-// DetalleFranjaOrdinaria.Sede, issue #341) -- nunca a nivel del evento completo: la sede rige por
-// bloque, nunca por dia.
-//
-// ObtenerTurnoVigente (#328) NO se toca en este archivo ni en su propia suite: sigue GET por id
-// (MEF-ADR-0042 seccion 1, un identificador simple no es un filtro estructurado). El alcance de
-// esta migracion es el unico endpoint modificado por #440.
+// Sin PostgresFixture: la persistencia de turno_diario_asignado ya la cubre
+// AsignarTurnoViaSbSmokeTests; aqui solo interesa que la vista materializada llegue al endpoint.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -78,9 +60,9 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         Extra
     }
 
-    // Issue #337: SedeId/NombreSede son aditivos y opcionales en la vista, asi que tambien lo son en
-    // esta forma local -- un bloque sin sede (turno sembrado sin la clave "Sede", o documento
-    // proyectado antes de #336/#337) los trae null.
+    // SedeId/NombreSede son aditivos y opcionales en la vista, asi que tambien lo son en esta forma
+    // local -- un bloque sin sede (turno sembrado sin la clave "Sede", o documento proyectado antes
+    // de que la sede existiera) los trae null.
     private sealed record BloqueSmoke(
         TipoBloqueSmoke Tipo,
         DateTime Inicio,
@@ -103,8 +85,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         bool RangoRecortado,
         IReadOnlyList<TurnoVigenteRespuestaSmoke> Turnos);
 
-    // Nombres de propiedades en camelCase explicito (no aplica policy alguna sobre un tipo anonimo):
-    // reflejan literalmente el contrato de FiltroListarTurnosVigentes (issue #440).
+    // camelCase explicito: sobre un tipo anonimo no aplica ninguna naming policy, asi que estos
+    // nombres son literalmente el contrato de FiltroListarTurnosVigentes.
     private static object Filtro(
         DateOnly desde, DateOnly hasta, string? codigoColaborador = null, string? sedeId = null) =>
         new { desdeFecha = desde, hastaFecha = hasta, codigoColaborador, sedeId };
@@ -114,6 +96,18 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
         {
             Content = JsonContent.Create(filtro)
+        };
+        return await _client.SendAsync(request, ct);
+    }
+
+    // Body crudo, para los casos que el DTO no puede expresar: JSON malformado, body vacio o un
+    // Content-Type distinto de application/json.
+    private async Task<HttpResponseMessage> ConsultarCrudoAsync(
+        string body, string contentType, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
+        {
+            Content = new StringContent(body, Encoding.UTF8, contentType)
         };
         return await _client.SendAsync(request, ct);
     }
@@ -175,8 +169,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             Descripcion = (string?)null
         };
 
-    // Issue #337/#341: la clave "Sede" va DENTRO de la franja (DetalleFranjaOrdinaria.Sede), nunca a
-    // nivel del evento completo -- la sede rige por bloque, nunca por dia.
+    // La clave "Sede" va DENTRO de la franja (DetalleFranjaOrdinaria.Sede), nunca a nivel del
+    // evento completo -- la sede rige por bloque, nunca por dia.
     private static object FranjaOrdinaria(
         string horaInicio, string horaFin, string sedeId, string nombreSede) =>
         new
@@ -196,7 +190,6 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             solicitudId, codigoColaborador, fecha, nombreTurno, DescripcionTurnoSinSede,
             FranjaOrdinaria("08:00:00", "16:00:00"));
 
-    // Issue #337: una sola franja que SI trae sede -- escenario de combinacion sedeId + codigoColaborador.
     private Task PublicarTurnoConSedeAsync(
         Guid solicitudId, string codigoColaborador, DateOnly fecha, string nombreTurno,
         string sedeId, string nombreSede) =>
@@ -204,8 +197,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             solicitudId, codigoColaborador, fecha, nombreTurno, $"[TEST] {nombreTurno}",
             FranjaOrdinaria("08:00:00", "16:00:00", sedeId, nombreSede));
 
-    // Issue #337: turno partido en DOS franjas, cada una en su propia sede -- el escenario del
-    // "Contexto" del issue (Carlos manana-Suba/tarde-Chapinero).
+    // Turno partido: dos franjas del mismo dia, cada una en su propia sede.
     private Task PublicarTurnoMultiSedeAsync(
         Guid solicitudId, string codigoColaborador, DateOnly fecha, string nombreTurno,
         string sedeIdManana, string nombreSedeManana,
@@ -249,12 +241,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     {
         var ct = TestContext.Current.CancellationToken;
 
-        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
-        {
-            Content = new StringContent("{}", Encoding.UTF8, "text/plain")
-        };
-
-        var response = await _client.SendAsync(request, ct);
+        var response = await ConsultarCrudoAsync("{}", "text/plain", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
     }
@@ -265,12 +252,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     {
         var ct = TestContext.Current.CancellationToken;
 
-        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
-        {
-            Content = new StringContent("{ esto no es json valido", Encoding.UTF8, "application/json")
-        };
-
-        var response = await _client.SendAsync(request, ct);
+        var response = await ConsultarCrudoAsync("{ esto no es json valido", "application/json", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -281,12 +263,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     {
         var ct = TestContext.Current.CancellationToken;
 
-        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
-        {
-            Content = new StringContent(string.Empty, Encoding.UTF8, "application/json")
-        };
-
-        var response = await _client.SendAsync(request, ct);
+        var response = await ConsultarCrudoAsync(string.Empty, "application/json", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -297,17 +274,10 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Formato DD-MM-YYYY en vez de yyyy-MM-dd: DateOnly? no lo parsea -> JsonException -> 400.
-        // Distinto del 422 de "campo ausente" (issue #440, "Cambio sutil en el reparto ausente/
-        // malformado").
-        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
-        {
-            Content = new StringContent(
-                "{\"desdeFecha\":\"01-05-2026\",\"hastaFecha\":\"2026-05-10\"}",
-                Encoding.UTF8, "application/json")
-        };
-
-        var response = await _client.SendAsync(request, ct);
+        // Formato DD-MM-YYYY en vez de yyyy-MM-dd: DateOnly? no lo parsea -> JsonException -> 400,
+        // distinto del 422 de "campo ausente".
+        var response = await ConsultarCrudoAsync(
+            """{"desdeFecha":"01-05-2026","hastaFecha":"2026-05-10"}""", "application/json", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -394,7 +364,6 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
         await PublicarTurnoAsync(solicitudId, codigoColaborador, fechaTurno, "[TEST] Turno Vigente Trabajador");
 
-        // Act + Assert: reintentar la QUERY hasta que la proyeccion asincrona materialice la vista.
         var filtro = Filtro(desde, hasta, codigoColaborador);
         var respuesta = await ConsultarHastaQueAsync(filtro, body => body.Turnos.Count > 0, ct);
 
@@ -405,9 +374,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         respuesta.RangoRecortado.Should().BeFalse();
         respuesta.Turnos.Should().ContainSingle();
 
-        // Assert: cada elemento lleva la forma completa de la vista (Id y Bloques incluidos --
-        // decision de entrevista del issue #329, "Notas tecnicas": una sola proyeccion sirve grilla
-        // y calendario).
+        // Assert: cada elemento lleva la forma COMPLETA de la vista, Id y Bloques incluidos -- una
+        // sola proyeccion sirve tanto la grilla como el calendario.
         var turno = respuesta.Turnos[0];
         turno.Id.Should().Be($"cd:{codigoColaborador}:{fechaTurno:yyyyMMdd}");
         turno.CodigoColaborador.Should().Be(codigoColaborador);
@@ -416,8 +384,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         turno.NombreTurno.Should().Be("[TEST] Turno Vigente Trabajador");
         turno.HorarioResumido.Should().Be(DescripcionTurnoSinSede);
 
-        // Issue #337: el turno sembrado no trae sede, asi que el bloque llega con SedeId/NombreSede
-        // null (valores por defecto de BloqueSmoke) -- regresion de #329 intacta.
+        // El turno sembrado no trae sede, asi que el bloque llega con SedeId/NombreSede null
+        // (valores por defecto de BloqueSmoke).
         var bloqueEsperado = new BloqueSmoke(
             TipoBloqueSmoke.Ordinaria,
             fechaTurno.ToDateTime(new TimeOnly(8, 0)),

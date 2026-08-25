@@ -1,26 +1,13 @@
-// Issue #440: migracion de ListarTurnosVigentes de GET a QUERY (MEF-ADR-0042). Guards del borde
-// HTTP (415/400/422), la unica capa de CA-3 que corre en CI -- el smoke test que lo cubre
-// end-to-end depende del deploy (CA-6) y el test de composicion de ComposicionServiciosTests solo
-// verifica wiring (resolucion de IDocumentStore/ITenantResolver por constructor).
+// Guards del borde HTTP (415/400/422) de la Function QUERY, la unica capa de CA-3 que corre en CI:
+// el smoke test que lo cubre end-to-end depende del deploy y el test de composicion solo verifica
+// wiring.
 //
-// Reemplaza la matriz anterior de 7 casos de 400 sobre query string (issue #329/#337): el filtro
-// ahora viaja como DTO tipado en el body JSON (FiltroListarTurnosVigentes), asi que "ausente" y
-// "malformado" dejan de compartir un unico 400 -- se separan en 400 (JSON invalido) y 422
-// (DesdeFecha/HastaFecha ausentes o rango invertido), MEF-ADR-0042 seccion 3.
-//
-// A diferencia del precedente ListarAsistenciasDiarias (#427), CodigoColaborador y SedeId son
-// OPCIONALES aqui (issue #440, "Diferencia con el precedente que el implementer debe respetar"):
-// no hay caso 422 por su ausencia.
+// A diferencia del precedente ListarAsistenciasDiarias, CodigoColaborador y SedeId son opcionales:
+// su ausencia no produce ningun 422 propio.
 //
 // El IDocumentStore se pasa null! a proposito: los tres guards deben retornar ANTES de abrir la
 // QuerySession, asi que mover la apertura de sesion por encima de ellos rompe estos tests con
 // NullReferenceException en vez de pasar inadvertido.
-//
-// Reforzado con aserciones de CONTENIDO del mensaje (no solo StatusCode) en los casos 400: contra
-// el FunctionEndpoint.cs todavia-GET de esta fase roja, cualquier body sin querystring "desde"
-// cae en el mismo BadRequestObjectResult(400) que el guard legado -- coincide el StatusCode con
-// el esperado por pura casualidad de numero, pero el mensaje NO menciona JSON/body/query. Sin este
-// refuerzo esos dos tests pasarian en falso contra el codigo legado.
 
 using System.Text;
 using AwesomeAssertions;
@@ -69,6 +56,8 @@ public class FunctionEndpointTests
         resultado.StatusCode.Should().Be(StatusCodes.Status415UnsupportedMediaType);
     }
 
+    // El mensaje se afirma ademas del StatusCode: un 400 puede venir de este catch o del guard de
+    // body nulo, y solo el texto distingue cual de los dos respondio.
     [Fact]
     public async Task ListarTurnosVigentes_Retorna400_CuandoElBodyNoEsJsonValido()
     {
@@ -105,8 +94,6 @@ public class FunctionEndpointTests
         resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
-    // CA-2: CodigoColaborador y SedeId son opcionales -- su ausencia (aqui, ambos ademas de las
-    // fechas) no debe producir un 422 propio distinto al de las fechas ausentes.
     [Fact]
     public async Task ListarTurnosVigentes_Retorna422_CuandoElFiltroLlegaVacio()
     {
@@ -124,9 +111,6 @@ public class FunctionEndpointTests
         resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
-    // CA-2 + CA-3 (issue #337): la presencia de los dos filtros opcionales no relaja la validacion
-    // del rango -- la consulta del Trabajador filtrada por sede pasa por el mismo borde que el
-    // panorama del Programador.
     [Fact]
     public async Task ListarTurnosVigentes_Retorna422_CuandoCodigoColaboradorYSedeIdSonValidosPeroElRangoNoLoEs()
     {
