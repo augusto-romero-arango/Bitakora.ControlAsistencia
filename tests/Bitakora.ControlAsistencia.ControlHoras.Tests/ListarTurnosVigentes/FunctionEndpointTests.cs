@@ -1,19 +1,30 @@
-// Issue #329 CA-4: validacion del borde HTTP de ListarTurnosVigentes (desde/hasta obligatorios y
-// con formato yyyy-MM-dd, rango invertido rechazado). Estos casos son los unicos del endpoint que
-// NO dependen de Marten: cortocircuitan antes de abrir la QuerySession, asi que se prueban sobre
-// el mismo FunctionEndpoint real que activa el host.
+// Issue #440: migracion de ListarTurnosVigentes de GET a QUERY (MEF-ADR-0042). Guards del borde
+// HTTP (415/400/422), la unica capa de CA-3 que corre en CI -- el smoke test que lo cubre
+// end-to-end depende del deploy (CA-6) y el test de composicion de ComposicionServiciosTests solo
+// verifica wiring (resolucion de IDocumentStore/ITenantResolver por constructor).
 //
-// Agregado en la revision: sin este archivo, CA-4 (fechas invalidas o desde > hasta -> 400) queda
-// cubierto UNICAMENTE por el smoke test contra dev, que exige deploy y no corre en el CI del PR --
-// exactamente el hueco que el precedente #290 ya habia cerrado para su propio endpoint. El
-// carve-out de coverage de Functions GET (MEF-ADR-0035, issue #371) exime al endpoint que SOLO
-// delega a LoadAsync/Query; este tiene tres ramas de validacion propias antes de tocar Marten.
+// Reemplaza la matriz anterior de 7 casos de 400 sobre query string (issue #329/#337): el filtro
+// ahora viaja como DTO tipado en el body JSON (FiltroListarTurnosVigentes), asi que "ausente" y
+// "malformado" dejan de compartir un unico 400 -- se separan en 400 (JSON invalido) y 422
+// (DesdeFecha/HastaFecha ausentes o rango invertido), MEF-ADR-0042 seccion 3.
 //
-// El IDocumentStore y el ITenantResolver se pasan nulos a proposito: si un cambio futuro moviera la
-// apertura de la sesion ANTES de la validacion, estos tests se pondrian rojos -- que es exactamente
-// la senal que se quiere (validar el request antes de tocar la base de datos).
+// A diferencia del precedente ListarAsistenciasDiarias (#427), CodigoColaborador y SedeId son
+// OPCIONALES aqui (issue #440, "Diferencia con el precedente que el implementer debe respetar"):
+// no hay caso 422 por su ausencia.
+//
+// El IDocumentStore se pasa null! a proposito: los tres guards deben retornar ANTES de abrir la
+// QuerySession, asi que mover la apertura de sesion por encima de ellos rompe estos tests con
+// NullReferenceException en vez de pasar inadvertido.
+//
+// Reforzado con aserciones de CONTENIDO del mensaje (no solo StatusCode) en los casos 400: contra
+// el FunctionEndpoint.cs todavia-GET de esta fase roja, cualquier body sin querystring "desde"
+// cae en el mismo BadRequestObjectResult(400) que el guard legado -- coincide el StatusCode con
+// el esperado por pura casualidad de numero, pero el mensaje NO menciona JSON/body/query. Sin este
+// refuerzo esos dos tests pasarian en falso contra el codigo legado.
 
+using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,89 +33,108 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ListarTurnosVigentes;
 
 public class FunctionEndpointTests
 {
-    private static FunctionEndpoint Endpoint() => new(store: null!, tenantResolver: null!);
+    private static FunctionEndpoint Endpoint() => new(null!, new TenantResolverFijo());
 
-    private static HttpRequest FakeHttpRequest(string queryString)
+    private static HttpRequest Request(string? contentType, string body)
     {
         var context = new DefaultHttpContext();
-        context.Request.QueryString = new QueryString(queryString);
+        var bytes = Encoding.UTF8.GetBytes(body);
+        context.Request.ContentType = contentType;
+        context.Request.ContentLength = bytes.Length;
+        context.Request.Body = new MemoryStream(bytes);
         return context.Request;
     }
 
-    private static async Task<BadRequestObjectResult> EjecutarEsperandoBadRequest(string queryString)
-    {
-        var resultado = await Endpoint().Run(FakeHttpRequest(queryString), CancellationToken.None);
+    private static HttpRequest RequestJson(string body) => Request("application/json", body);
 
-        return resultado.Should().BeOfType<BadRequestObjectResult>().Subject;
+    private static async Task<ObjectResult> EjecutarAsync(HttpRequest request)
+    {
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+        return resultado.Should().BeAssignableTo<ObjectResult>().Subject;
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoFaltaElParametroDesde()
+    public async Task ListarTurnosVigentes_Retorna415_CuandoElContentTypeNoEsJson()
     {
-        var resultado = await EjecutarEsperandoBadRequest("?hasta=2026-05-10");
+        var resultado = await EjecutarAsync(Request("text/plain", "{}"));
 
-        // El mensaje nombra el parametro que falla: un cliente que recibe "400" a secas no sabe
-        // cual de los dos corregir.
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("desde");
+        resultado.StatusCode.Should().Be(StatusCodes.Status415UnsupportedMediaType);
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoFaltaElParametroHasta()
+    public async Task ListarTurnosVigentes_Retorna415_CuandoNoViajaContentType()
     {
-        var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-01");
+        var resultado = await EjecutarAsync(Request(contentType: null, body: "{}"));
 
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("hasta");
+        resultado.StatusCode.Should().Be(StatusCodes.Status415UnsupportedMediaType);
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoDesdeTieneFormatoInvalido()
+    public async Task ListarTurnosVigentes_Retorna400_CuandoElBodyNoEsJsonValido()
     {
-        // dd-MM-yyyy en vez de yyyy-MM-dd, mismo caso que ObtenerTurnoVigente (#328).
-        var resultado = await EjecutarEsperandoBadRequest("?desde=01-05-2026&hasta=2026-05-10");
+        var resultado = await EjecutarAsync(RequestJson("{ esto no es json valido"));
 
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("yyyy-MM-dd");
+        resultado.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("JSON");
+    }
+
+    // El literal null es JSON valido y deserializa a null: rama distinta del catch de
+    // JsonException.
+    [Fact]
+    public async Task ListarTurnosVigentes_Retorna400_CuandoElBodyDeserializaANull()
+    {
+        var resultado = await EjecutarAsync(RequestJson("null"));
+
+        resultado.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("query");
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoHastaTieneFormatoInvalido()
+    public async Task ListarTurnosVigentes_Retorna422_CuandoDesdeFechaEstaAusente()
     {
-        var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-01&hasta=10-05-2026");
+        var resultado = await EjecutarAsync(RequestJson("""{"hastaFecha":"2026-05-10"}"""));
 
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("hasta");
+        resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoHastaEsAnteriorADesde()
+    public async Task ListarTurnosVigentes_Retorna422_CuandoHastaFechaEstaAusente()
     {
-        // Rango invertido: decision documentada en FunctionEndpoint.cs (400, no lista vacia), misma
-        // eleccion que #290 congelo para el listado anterior. Este test la fija para que un cambio
-        // de contrato sea deliberado y no un efecto colateral.
-        var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-10&hasta=2026-05-05");
+        var resultado = await EjecutarAsync(RequestJson("""{"desdeFecha":"2026-05-01"}"""));
 
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("anterior");
+        resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    // CA-2: CodigoColaborador y SedeId son opcionales -- su ausencia (aqui, ambos ademas de las
+    // fechas) no debe producir un 422 propio distinto al de las fechas ausentes.
+    [Fact]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoElFiltroLlegaVacio()
+    {
+        var resultado = await EjecutarAsync(RequestJson("{}"));
+
+        resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoCodigoColaboradorEsValidoPeroElRangoNoLoEs()
+    public async Task ListarTurnosVigentes_Retorna422_CuandoElRangoEstaInvertido()
     {
-        // CA-2 + CA-4: la presencia del filtro opcional codigoColaborador no relaja la validacion del
-        // rango -- la consulta del Trabajador pasa por el mismo borde que la del Programador.
-        var resultado = await EjecutarEsperandoBadRequest("?desde=2026-05-10&hasta=2026-05-05&codigoColaborador=EMP-001");
+        var resultado = await EjecutarAsync(RequestJson(
+            """{"desdeFecha":"2026-05-10","hastaFecha":"2026-05-05"}"""));
 
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("anterior");
+        resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
+    // CA-2 + CA-3 (issue #337): la presencia de los dos filtros opcionales no relaja la validacion
+    // del rango -- la consulta del Trabajador filtrada por sede pasa por el mismo borde que el
+    // panorama del Programador.
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoSedeIdEsValidoPeroElRangoNoLoEs()
+    public async Task ListarTurnosVigentes_Retorna422_CuandoCodigoColaboradorYSedeIdSonValidosPeroElRangoNoLoEs()
     {
-        // Issue #337 CA-3: el tercer filtro opcional (sedeId, combinable con codigoColaborador) tampoco
-        // relaja la validacion del rango -- la consulta del jefe de sede pasa por el mismo borde.
-        // Es la unica rama del filtro por sede ejercitable sin Postgres: el predicado
-        // Bloques.Any(...) lo resuelve Marten contra la base real y queda cubierto por el smoke test
-        // contra dev (MEF-ADR-0013), no por este archivo -- que corre con store nulo a proposito.
-        var resultado = await EjecutarEsperandoBadRequest(
-            "?desde=2026-05-10&hasta=2026-05-05&codigoColaborador=EMP-001&sedeId=SD-SUBA");
+        var resultado = await EjecutarAsync(RequestJson(
+            """
+            {"desdeFecha":"2026-05-10","hastaFecha":"2026-05-05","codigoColaborador":"EMP-001","sedeId":"SD-SUBA"}
+            """));
 
-        resultado.Value.Should().BeOfType<string>().Which.Should().Contain("anterior");
+        resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 }
