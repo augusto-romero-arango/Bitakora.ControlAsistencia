@@ -1,22 +1,19 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
-using AwesomeAssertions;
-using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
-
-namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosVigentes;
-
-// Issue #329: smoke tests de ListarTurnosVigentes, GET control-horas/turnos-vigentes con desde/hasta
-// obligatorios y codigoColaborador opcional. Tercera Function GET read-side del BC sobre la MISMA vista
-// TurnoVigente que ya materializa #328 -- se siembran datos publicando ProgramacionTurnoDiario-
-// Solicitada al bus interno, exactamente el mismo mecanismo de ObtenerTurnoVigenteSmokeTests (#328)
-// y la suite del listado anterior (#290).
+// Issue #440: migracion de ListarTurnosVigentes de GET a QUERY (RFC 10008, MEF-ADR-0042). El
+// nombre de la Function y su Route no cambian al cruzar la frontera de verbo (MEF-ADR-0042 seccion
+// 5): solo el metodo HTTP y el transporte del filtro, que pasa de query string a un DTO tipado en
+// el body JSON. Sigue siendo la tercera Function GET read-side... ahora QUERY... sobre la MISMA
+// vista TurnoVigente que ya materializa #328 -- se siembran datos publicando ProgramacionTurno-
+// DiarioSolicitada al bus interno, exactamente el mismo mecanismo de ObtenerTurnoVigenteSmokeTests
+// (#328) y de la suite GET anterior (#290/#329/#337) que este archivo reemplaza.
 //
-// Estos tests quedan ROJOS hasta que el deploy publique ListarTurnosVigentes en dev: mientras la
-// revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- los casos
-// 400 y 200 fallan por esa razon, no por el contrato. Mismo precedente que el listado anterior
-// (#290) y ObtenerTurnoVigente (#328). El CI de PR no los ejecuta (solo corre *.Tests); su
-// veredicto real se lee despues del deploy.
+// Migracion seca (issue #440, "Contexto"): sin consumidores externos del GET, el verbo QUERY
+// reemplaza al GET en el mismo PR -- no hay convivencia GET+QUERY. Estos tests quedan ROJOS hasta
+// que el deploy publique la revision QUERY en dev: mientras la revision GET anterior siga
+// corriendo, el host responde 404 al verbo QUERY sobre esta ruta (nota de skills/projections/
+// read-apis.md: el host responde 404, no 405, ante verbo no coincidente). El CI de PR no los
+// ejecuta (solo corre *.Tests); su veredicto real se lee despues del deploy -- es ademas el gate
+// NO VERIFICADO de MEF-ADR-0042 seccion 6: si el 404 persiste tras un deploy exitoso, el sospechoso
+// es el borde de App Service filtrando el verbo QUERY, no el endpoint.
 //
 // La proyeccion tiene lifecycle Async (MEF-ADR-0034): el worker la materializa DESPUES de que
 // ControlHoras persiste turno_diario_asignado. Los casos que dependen de datos sembrados envuelven
@@ -24,38 +21,42 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosVigente
 // se agota es un fallo real (worker no desplegado o proyeccion sin registrar), nunca un skip.
 //
 // Formas locales DESACOPLADAS del read model de produccion (Bitakora.ControlAsistencia.ReadModels.
-// ControlHoras.TurnoVigente/Bloque/TipoBloque) y del envelope de produccion (ControlHoras.
-// ListarTurnosVigentes.ListaTurnosVigentes): el smoke test no referencia ReadModels (isla, MEF-ADR-
-// 0034 seccion 5) ni el Function App. TipoBloqueSmoke replica el orden de valores del enum de
-// produccion porque STJ lo serializa como el entero subyacente (mismo razonamiento documentado en
-// ObtenerTurnoVigenteSmokeTests). El limite de 31 dias se afirma como literal (desde + 30 dias),
-// nunca leyendo RangoConsulta.CotaDias.
+// ControlHoras.TurnoVigente/Bloque/TipoBloque), del filtro de produccion (ControlHoras.
+// ListarTurnosVigentes.FiltroListarTurnosVigentes) y del envelope de produccion (ControlHoras.
+// ListarTurnosVigentes.ListaTurnosVigentes): el smoke test no referencia ReadModels ni el Function
+// App (isla, MEF-ADR-0034 seccion 5). TipoBloqueSmoke replica el orden de valores del enum de
+// produccion porque STJ lo serializa como el entero subyacente. El limite de 31 dias se afirma como
+// literal (desde + 30 dias), nunca leyendo RangoConsulta.CotaDias.
 //
 // Sin PostgresFixture: la verificacion de persistencia del evento turno_diario_asignado ya la cubre
 // AsignarTurnoViaSbSmokeTests (issue #322); aqui solo interesa que la vista materializada llegue al
 // endpoint HTTP -- mismo alcance que ObtenerTurnoVigenteSmokeTests.
 //
-// Issue #337 (CA-2/CA-3/CA-4): sedeId es un tercer filtro opcional sobre la MISMA Function -- ningun
-// endpoint nuevo. Para sembrar bloques con sede se publica ProgramacionTurnoDiarioSolicitada con la
-// clave "Sede" DENTRO de cada franja ordinaria (PrivateEvents.Programacion.DetalleFranjaOrdinaria.
-// Sede, issue #341) -- nunca a nivel del evento completo: la sede rige por bloque, nunca por dia
-// (issue #337, "Contexto"). El mapeo real hasta el bloque de la vista es
-// ProgramacionTurnoDiarioSolicitadaEventHandler.MapearFranja -> TurnoDiario.Segmentar (#336) ->
-// TurnoVigenteProjection.MapearBloque (#337); este smoke test no lo referencia, solo publica el JSON
-// con la forma que ese mapeo espera. El detalle de "el ultimo gana" lo cubre el unit test de la
-// proyeccion (projection-test-writer); aqui se verifica el filtro sedeId del endpoint HTTP y, sobre
-// esa misma respuesta, que los campos de sede efectivamente VIAJEN al cliente en cada bloque (CA-1
-// de punta a punta: la cadena completa, no solo la funcion pura de mapeo).
+// Issue #337 (CA-2/CA-3/CA-4, conservado intacto por esta migracion): sedeId es un tercer filtro
+// opcional sobre la MISMA Function. Para sembrar bloques con sede se publica ProgramacionTurno-
+// DiarioSolicitada con la clave "Sede" DENTRO de cada franja ordinaria (PrivateEvents.Programacion.
+// DetalleFranjaOrdinaria.Sede, issue #341) -- nunca a nivel del evento completo: la sede rige por
+// bloque, nunca por dia.
 //
-// ObtenerTurnoVigente (#328) NO se toca en este archivo ni en su propia suite: su Function.cs no
-// cambio (issue #337, "Endpoints / rutas" -- "sin cambio de firma ni ruta"), aunque su respuesta
-// tambien ganaria los campos de sede en los bloques por compartir la misma vista TurnoVigente. El
-// alcance de esta tarea son los endpoints modificados, y el unico modificado es este.
+// ObtenerTurnoVigente (#328) NO se toca en este archivo ni en su propia suite: sigue GET por id
+// (MEF-ADR-0042 seccion 1, un identificador simple no es un filtro estructurado). El alcance de
+// esta migracion es el unico endpoint modificado por #440.
+using System.Net;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using AwesomeAssertions;
+using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
+
+namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosVigentes;
+
 public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string RutaListado = "/api/control-horas/turnos-vigentes";
+    private static readonly HttpMethod MetodoQuery = new("QUERY");
 
     // Descripcion del turno sembrado por PublicarTurnoAsync: es el dato que la vista devuelve como
     // HorarioResumido, asi que se afirma contra esta misma constante (eco del payload publicado).
@@ -102,24 +103,38 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         bool RangoRecortado,
         IReadOnlyList<TurnoVigenteRespuestaSmoke> Turnos);
 
-    private static string Ruta(
-        DateOnly desde, DateOnly hasta, string? codigoColaborador = null, string? sedeId = null)
-    {
-        var query = $"desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
-        if (codigoColaborador is not null)
-            query += $"&codigoColaborador={Uri.EscapeDataString(codigoColaborador)}";
-        if (sedeId is not null)
-            query += $"&sedeId={Uri.EscapeDataString(sedeId)}";
+    // Nombres de propiedades en camelCase explicito (no aplica policy alguna sobre un tipo anonimo):
+    // reflejan literalmente el contrato de FiltroListarTurnosVigentes (issue #440).
+    private static object Filtro(
+        DateOnly desde, DateOnly hasta, string? codigoColaborador = null, string? sedeId = null) =>
+        new { desdeFecha = desde, hastaFecha = hasta, codigoColaborador, sedeId };
 
-        return $"/api/control-horas/turnos-vigentes?{query}";
+    private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
+        {
+            Content = JsonContent.Create(filtro)
+        };
+        return await _client.SendAsync(request, ct);
     }
+
+    private Task<ListaTurnosVigentesSmoke> ConsultarHastaQueAsync(
+        object filtro, Func<ListaTurnosVigentesSmoke, bool> condicion, CancellationToken ct) =>
+        Polling.WaitUntilAsync(async () =>
+        {
+            using var response = await ConsultarAsync(filtro, ct);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var body = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+                JsonOptions, cancellationToken: ct);
+            return body is not null && condicion(body) ? body : null;
+        }, Timeout);
 
     // Envelope UNICO de ProgramacionTurnoDiarioSolicitada para toda la suite: entre escenarios solo
     // cambian las franjas y la descripcion del turno, nunca el colaborador ni la forma del evento
-    // (antes del issue #337 esta misma forma vivia triplicada -- MEF-ADR-0018, Rule of Three).
-    // FranjasOrdinarias viaja como object[] porque las franjas con y sin la clave "Sede" son tipos
-    // anonimos distintos; STJ serializa cada elemento por su tipo en tiempo de ejecucion, asi que
-    // ninguna pierde campos al convivir en el mismo arreglo.
+    // (MEF-ADR-0018, Rule of Three). FranjasOrdinarias viaja como object[] porque las franjas con y
+    // sin la clave "Sede" son tipos anonimos distintos; STJ serializa cada elemento por su tipo en
+    // tiempo de ejecucion, asi que ninguna pierde campos al convivir en el mismo arreglo.
     private async Task PublicarProgramacionAsync(
         Guid solicitudId, string codigoColaborador, DateOnly fecha, string nombreTurno,
         string descripcionTurno, params object[] franjasOrdinarias)
@@ -147,9 +162,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
     }
 
-    // Franja ordinaria SIN la clave "Sede" -- forma exacta que ya publicaba #329: sus bloques quedan
-    // con SedeId/NombreSede null, el equivalente comportamental de un documento proyectado antes de
-    // #336/#337 (CA-4/CA-5).
+    // Franja ordinaria SIN la clave "Sede": sus bloques quedan con SedeId/NombreSede null, el
+    // equivalente comportamental de un documento proyectado antes de #336/#337 (CA-4/CA-5).
     private static object FranjaOrdinaria(string horaInicio, string horaFin) =>
         new
         {
@@ -162,7 +176,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         };
 
     // Issue #337/#341: la clave "Sede" va DENTRO de la franja (DetalleFranjaOrdinaria.Sede), nunca a
-    // nivel del evento completo -- la sede rige por bloque, nunca por dia (issue #337, "Contexto").
+    // nivel del evento completo -- la sede rige por bloque, nunca por dia.
     private static object FranjaOrdinaria(
         string horaInicio, string horaFin, string sedeId, string nombreSede) =>
         new
@@ -182,8 +196,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             solicitudId, codigoColaborador, fecha, nombreTurno, DescripcionTurnoSinSede,
             FranjaOrdinaria("08:00:00", "16:00:00"));
 
-    // Issue #337: una sola franja que SI trae sede -- escenario de combinacion sedeId + codigoColaborador
-    // (CA-3).
+    // Issue #337: una sola franja que SI trae sede -- escenario de combinacion sedeId + codigoColaborador.
     private Task PublicarTurnoConSedeAsync(
         Guid solicitudId, string codigoColaborador, DateOnly fecha, string nombreTurno,
         string sedeId, string nombreSede) =>
@@ -192,9 +205,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             FranjaOrdinaria("08:00:00", "16:00:00", sedeId, nombreSede));
 
     // Issue #337: turno partido en DOS franjas, cada una en su propia sede -- el escenario del
-    // "Contexto" del issue (Carlos manana-Suba/tarde-Chapinero). Ambas franjas producen un bloque
-    // Ordinaria cada una (sin cruce de horario, sin solape) para que la vista materialice un dia
-    // multi-sede real.
+    // "Contexto" del issue (Carlos manana-Suba/tarde-Chapinero).
     private Task PublicarTurnoMultiSedeAsync(
         Guid solicitudId, string codigoColaborador, DateOnly fecha, string nombreTurno,
         string sedeIdManana, string nombreSedeManana,
@@ -213,7 +224,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     {
         return await Polling.WaitUntilTrueAsync(async () =>
         {
-            var response = await _client.GetAsync(Ruta(fecha, fecha, codigoColaborador), ct);
+            using var response = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador), ct);
             if (response.StatusCode != HttpStatusCode.OK)
                 return false;
 
@@ -234,54 +245,110 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoFaltaElParametroDesde()
+    public async Task ListarTurnosVigentes_Retorna415_CuandoContentTypeNoEsJson()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await _client.GetAsync(
-            "/api/control-horas/turnos-vigentes?hasta=2026-05-10", ct);
+        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "text/plain")
+        };
+
+        var response = await _client.SendAsync(request, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_Retorna400_CuandoElBodyNoEsJsonValido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
+        {
+            Content = new StringContent("{ esto no es json valido", Encoding.UTF8, "application/json")
+        };
+
+        var response = await _client.SendAsync(request, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoFaltaElParametroHasta()
+    public async Task ListarTurnosVigentes_Retorna400_CuandoElBodyEstaVacio()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await _client.GetAsync(
-            "/api/control-horas/turnos-vigentes?desde=2026-05-01", ct);
+        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
+        {
+            Content = new StringContent(string.Empty, Encoding.UTF8, "application/json")
+        };
+
+        var response = await _client.SendAsync(request, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoDesdeTieneFormatoInvalido()
+    public async Task ListarTurnosVigentes_Retorna400_CuandoDesdeFechaTieneFormatoInvalido()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Formato DD-MM-YYYY en vez de yyyy-MM-dd, mismo precedente que #290.
-        var response = await _client.GetAsync(
-            "/api/control-horas/turnos-vigentes?desde=01-05-2026&hasta=2026-05-10", ct);
+        // Formato DD-MM-YYYY en vez de yyyy-MM-dd: DateOnly? no lo parsea -> JsonException -> 400.
+        // Distinto del 422 de "campo ausente" (issue #440, "Cambio sutil en el reparto ausente/
+        // malformado").
+        using var request = new HttpRequestMessage(MetodoQuery, RutaListado)
+        {
+            Content = new StringContent(
+                "{\"desdeFecha\":\"01-05-2026\",\"hastaFecha\":\"2026-05-10\"}",
+                Encoding.UTF8, "application/json")
+        };
+
+        var response = await _client.SendAsync(request, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarTurnosVigentes_Retorna400_CuandoHastaEsAnteriorADesde()
+    public async Task ListarTurnosVigentes_Retorna422_CuandoFaltaDesdeFecha()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Rango invertido: decision documentada en FunctionEndpoint.cs (400, no lista vacia).
+        var filtro = new { hastaFecha = new DateOnly(2026, 5, 10) };
+        var response = await ConsultarAsync(filtro, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoFaltaHastaFecha()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var filtro = new { desdeFecha = new DateOnly(2026, 5, 1) };
+        var response = await ConsultarAsync(filtro, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoHastaFechaEsAnteriorADesdeFecha()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Rango invertido: decision documentada en FunctionEndpoint.cs (422, no lista vacia).
         var desde = new DateOnly(2026, 5, 10);
         var hasta = new DateOnly(2026, 5, 5);
 
-        var response = await _client.GetAsync(Ruta(desde, hasta), ct);
+        var response = await ConsultarAsync(Filtro(desde, hasta), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     [Fact]
@@ -295,7 +362,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         var desde = new DateOnly(2026, 5, 1);
         var hasta = new DateOnly(2026, 5, 5);
 
-        var response = await _client.GetAsync(Ruta(desde, hasta, codigoColaborador), ct);
+        var response = await ConsultarAsync(Filtro(desde, hasta, codigoColaborador), ct);
 
         // Assert: CA-4 -- 200 con Turnos: [], nunca 404. Rango dentro de la cota, sin recorte.
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -327,17 +394,9 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
         await PublicarTurnoAsync(solicitudId, codigoColaborador, fechaTurno, "[TEST] Turno Vigente Trabajador");
 
-        // Act + Assert: reintentar el GET hasta que la proyeccion asincrona materialice la vista.
-        var ruta = Ruta(desde, hasta, codigoColaborador);
-        var respuesta = await Polling.WaitUntilAsync(async () =>
-        {
-            var response = await _client.GetAsync(ruta, ct);
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            var body = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
-                JsonOptions, cancellationToken: ct);
-            return body is { Turnos.Count: > 0 } ? body : null;
-        }, Timeout);
+        // Act + Assert: reintentar la QUERY hasta que la proyeccion asincrona materialice la vista.
+        var filtro = Filtro(desde, hasta, codigoColaborador);
+        var respuesta = await ConsultarHastaQueAsync(filtro, body => body.Turnos.Count > 0, ct);
 
         // Assert: CA-4 -- rango dentro de la cota, sin recorte. Filtrado por codigoColaborador (GUID unico
         // de esta ejecucion), asi que la lista contiene exactamente el turno sembrado.
@@ -390,30 +449,13 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         // Sin codigoColaborador: la lista puede incluir turnos de otras ejecuciones de esta suite (sin
         // cleanup, GUIDs unicos por corrida) -- se espera a que AMBOS aparezcan antes de assertar,
         // filtrando siempre por CodigoColaborador, nunca por posicion/indice.
-        var ambosMaterializados = await Polling.WaitUntilTrueAsync(async () =>
-        {
-            var response = await _client.GetAsync(Ruta(fecha, fecha), ct);
-            if (response.StatusCode != HttpStatusCode.OK)
-                return false;
-
-            var body = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
-                JsonOptions, cancellationToken: ct);
-            return (body?.Turnos.Any(t => t.CodigoColaborador == codigoColaboradorA) ?? false)
-                && (body?.Turnos.Any(t => t.CodigoColaborador == codigoColaboradorB) ?? false);
-        }, Timeout);
-
-        ambosMaterializados.Should().BeTrue(
-            "ambos colaboradores deberian aparecer en el panorama dentro del timeout");
-
-        var response = await _client.GetAsync(Ruta(fecha, fecha), ct);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
-            JsonOptions, cancellationToken: ct);
-        respuesta.Should().NotBeNull();
+        var filtro = new { desdeFecha = fecha, hastaFecha = fecha };
+        var respuesta = await ConsultarHastaQueAsync(filtro, body =>
+            body.Turnos.Any(t => t.CodigoColaborador == codigoColaboradorA)
+            && body.Turnos.Any(t => t.CodigoColaborador == codigoColaboradorB), ct);
 
         // Assert: CA-1 -- el panorama trae ambos colaboradores, cada uno con su propio turno.
-        var turnoA = respuesta!.Turnos.Single(t => t.CodigoColaborador == codigoColaboradorA);
+        var turnoA = respuesta.Turnos.Single(t => t.CodigoColaborador == codigoColaboradorA);
         var turnoB = respuesta.Turnos.Single(t => t.CodigoColaborador == codigoColaboradorB);
         turnoA.NombreTurno.Should().Be("[TEST] Turno Panorama A");
         turnoB.NombreTurno.Should().Be("[TEST] Turno Panorama B");
@@ -454,7 +496,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         fueraMaterializado.Should().BeTrue(
             $"la vista de {codigoColaborador} en {fechaFuera} deberia materializarse dentro del timeout");
 
-        var response = await _client.GetAsync(Ruta(desde, hastaSolicitado, codigoColaborador), ct);
+        var response = await ConsultarAsync(Filtro(desde, hastaSolicitado, codigoColaborador), ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
@@ -502,7 +544,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             $"la vista de {codigoColaborador} en {fecha} deberia materializarse dentro del timeout");
 
         // Assert: aparece filtrando por la sede de la franja de la manana...
-        var responseManana = await _client.GetAsync(Ruta(fecha, fecha, codigoColaborador, sedeIdManana), ct);
+        var responseManana = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador, sedeIdManana), ct);
         responseManana.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaManana = await responseManana.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
@@ -528,15 +570,15 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         });
 
         // ...y TAMBIEN filtrando por la sede de la franja de la tarde -- mismo dia, dos sedes.
-        var responseTarde = await _client.GetAsync(Ruta(fecha, fecha, codigoColaborador, sedeIdTarde), ct);
+        var responseTarde = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador, sedeIdTarde), ct);
         responseTarde.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaTarde = await responseTarde.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
         respuestaTarde!.Turnos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
 
         // Assert: NO aparece bajo una sede que ningun bloque de este turno tiene.
-        var responseOtraSede = await _client.GetAsync(
-            Ruta(fecha, fecha, codigoColaborador, sedeIdSinTurnosDeEsteColaborador), ct);
+        var responseOtraSede = await ConsultarAsync(
+            Filtro(fecha, fecha, codigoColaborador, sedeIdSinTurnosDeEsteColaborador), ct);
         responseOtraSede.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaOtraSede = await responseOtraSede.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
@@ -569,15 +611,15 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             $"la vista de {codigoColaborador} en {fecha} deberia materializarse dentro del timeout");
 
         // Assert: filtrando por CUALQUIER sedeId, el dia sin sede queda fuera.
-        var responseFiltrada = await _client.GetAsync(
-            Ruta(fecha, fecha, codigoColaborador, sedeIdCualquiera), ct);
+        var responseFiltrada = await ConsultarAsync(
+            Filtro(fecha, fecha, codigoColaborador, sedeIdCualquiera), ct);
         responseFiltrada.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaFiltrada = await responseFiltrada.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
         respuestaFiltrada!.Turnos.Should().NotContain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
 
         // Assert: sin filtro de sede, el dia SI aparece -- regresion de #329 intacta.
-        var responseSinFiltro = await _client.GetAsync(Ruta(fecha, fecha, codigoColaborador), ct);
+        var responseSinFiltro = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador), ct);
         responseSinFiltro.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaSinFiltro = await responseSinFiltro.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
@@ -622,7 +664,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             $"la vista de {codigoColaboradorB} en {fecha} deberia materializarse dentro del timeout");
 
         // Act: combinar sedeId (compartido por A y B) + codigoColaborador=A.
-        var response = await _client.GetAsync(Ruta(fecha, fecha, codigoColaboradorA, sedeId), ct);
+        var response = await ConsultarAsync(Filtro(fecha, fecha, codigoColaboradorA, sedeId), ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
