@@ -123,19 +123,9 @@ public static class ComposicionServicios
             // los mismos valores literales, que es la dimension que el par de #289 dejo abierta.
             options.Schema.For<TurnoVigente>().UseNumericRevisions(true);
 
-            // Issue #448, mismo par que #328 cerro para TurnoVigente (y que #294 tuvo que cerrar
-            // en su momento para el read model anterior, retirado por #323): el worker registra
-            // AsistenciaDiariaProjection (PR #441), asi que Marten le aplica ProjectionDocumentPolicy
-            // en ESE store (UseNumericRevisions = true, mt_version bigint). Este Function App NO
-            // registra esa proyeccion (vive en el ensamblado del worker; referenciarla violaria
-            // CA-ADR-0029), asi que sin declarar la misma forma explicitamente con
-            // Schema.For<AsistenciaDiaria>().UseNumericRevisions(true) este store esperaria
-            // mt_version uuid sobre la MISMA tabla fisica que el worker crea como bigint. Con
-            // AutoCreate en su default CreateOrUpdate, Marten intenta "alter column mt_version type
-            // uuid" en cada request, Postgres lo rechaza con 42804 (no hay cast automatico
-            // bigint -> uuid) y ListarAsistenciasDiarias/ListarResumenesAsistencia responden 500 de
-            // forma permanente -- el sintoma real medido en App Insights desde el 2026-08-24 (PRs
-            // #443/#444).
+            // Mismo caso que TurnoVigente arriba, para la proyeccion que el worker registra desde
+            // el issue #441: quitar esta linea revive el "alter column" 42804 permanente descrito
+            // arriba, ahora en ListarAsistenciasDiarias/ListarResumenesAsistencia.
             options.Schema.For<AsistenciaDiaria>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
