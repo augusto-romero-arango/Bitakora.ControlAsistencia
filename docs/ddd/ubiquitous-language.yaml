@@ -4,7 +4,42 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-08-15 (proscripcion operativa de "Empleado": se elimina de todos
+# Ultima actualizacion: 2026-08-24 (sesion planner: refinamiento de #426 -- AsistenciaDiaria
+#   toma forma final en dos ejes: Plan (ConJornada/Descanso/SinProgramar + NombreTurno) y
+#   anomalias ya juzgadas (NoSePresento, FranjasIncompletas, VinoEnDescanso,
+#   TrabajoSinProgramacion, esta ultima ratificada como bandera propia); UltimaDepuracion
+#   retirado (ninguna decision del Aprobador lo justifica); NumeroMarcaciones descartado;
+#   Id corregido a la notacion dc: de #425. Tocados: AsistenciaDiaria.)
+# Actualizacion previa: 2026-08-24 (sesion planner: refinamiento de #423 -- contrato HTTP del
+#   descanso cerrado con el test de precedencia MEF-ADR-0043: paso 1, mismo evento TurnoCreado
+#   -> mismo create -> POST programacion/turnos, sin comando ni Function nuevos; marca explicita
+#   EsDescanso solo en el DTO de frontera (la senal implicita 'lista vacia' se descarto: descanso
+#   accidental silencioso); nomina del dia de descanso queda fuera del alcance, pregunta sigue
+#   abierta. Tocados: Turno.)
+# Actualizacion previa: 2026-08-20 (sesion planner: refinamiento de #424 -- payload final de
+#   DiaDepurado: marcaciones crudas sin marca usada/descartada, orden cronologico como
+#   contrato (lookup a demanda descartado: atomicidad expediente-veredicto); senal del plan
+#   estructural sin enum (NombreTurno? + franjas, espejo del catalogo #423); franja minima
+#   plan+realidad sin sede; HorasPorConcepto decimal incluida la clave Retardo; precision
+#   cerrada en 2 como constante nombrada. Tocados: DiaDepurado, Hora liquidable.)
+# Actualizacion previa: 2026-08-20 (sesion planner: reversion de la preclasificacion del
+#   extinto #422 -- sin jornada valida no hay depuracion: marcaciones crudas sin desglose;
+#   "bloque huerfano" retirado del vocabulario; aprobar el dia anomalo = no reconocer las
+#   marcaciones, la correccion legitima es reprogramar. Tocados: Depuracion, DiaDepurado,
+#   AsistenciaDiaria, Dia sin programar, Etiquetas de anomalia.)
+# Actualizacion previa: 2026-08-20 (sesion planner: refinamiento de #421 -- nace
+#   ResumenColaborador (terna de identidad del colaborador en eventos privados); definicion
+#   reafirmada "la verdad viaja en el evento, no el maestro"; DiaDepurado nace con payload
+#   minimo y CodigoColaborador top-level; #433 (borrador) adelgaza el quinteto del resto de
+#   la cadena de programacion.)
+# Actualizacion previa: 2026-08-19 (sesion planner: refinamiento de #419 y #420 -- notaciones
+#   rdm: y cd: para los stream IDs de ControlHoras; corregida la notacion del futuro stream de
+#   DiaCalculado a "dc:{codigo}:{yyyyMMdd}" (anatomia CA-ADR-0031); la purga de dev es operacion
+#   manual del experto, fuera del pipeline. Sin terminos nuevos.)
+# Actualizacion previa: 2026-08-17 (sesion planner: flujo de aprobacion -- aggregate DiaCalculado,
+#   evento DiaDepurado, estados Provisional/Aprobado, vista AsistenciaDiaria, descanso programable,
+#   dia sin programar, hora liquidable, etiquetas de anomalia. Issues #417-#429.)
+# Actualizacion previa: 2026-08-15 (proscripcion operativa de "Empleado": se elimina de todos
 #   los artefactos -- tipos #340, claves #401; EmpleadoId unificado en CodigoColaborador;
 #   criterio consolidado: los payloads por rol llevan calificador de intencion, el nombre puro
 #   se reserva al concepto rico. Sesion planner 2026-08-15.)
@@ -25,8 +60,10 @@ terms:
       Dato destilado de una marcacion que nuestro sistema recibe de forma asincrona.
       Contiene solo los campos minimos (CodigoColaborador, Timestamp, opcionalmente TipoMarcacion y DispositivoId).
       Es lo que persistimos y procesamos. Aggregate independiente en ControlHoras con stream ID
-      determinista "{CodigoColaborador}:{TimestampCrudo}". Responsable de idempotencia por duplicado exacto
-      y normalizacion (truncar segundos).
+      determinista en notacion "rdm:{CodigoColaborador}:{TimestampCrudo en ISO 8601 basico}"
+      (renotacion decidida 2026-08-18, issue #419 refinado 2026-08-19; hasta su merge el codigo
+      aun escribe "{CodigoColaborador}:{TimestampCrudo}" en formato extendido). Responsable de
+      idempotencia por duplicado exacto y normalizacion (truncar segundos).
     context: ControlHoras
     note: >
       Interfaz minima convergente para cualquier sistema de marcacion (propio o externo).
@@ -69,9 +106,23 @@ terms:
       segun sus franjas. Si no le sirve, la ignora y no recalcula.
 
   - name: Turno
-    definition: Plantilla reutilizable compuesta por franjas ordinarias, cada una con posibles descansos y extras contenidos. Se almacena en el catalogo con un Id (Guid generado por el cliente) y un nombre. Concepto operativo.
+    definition: >
+      Plantilla reutilizable del plan del dia: de trabajo (compuesta por franjas ordinarias,
+      cada una con posibles descansos y extras contenidos) o de descanso (sin franjas,
+      creada exclusivamente por el factory CrearDescanso). Se almacena en el catalogo con
+      un Id (Guid generado por el cliente) y un nombre. Concepto operativo.
     context: Programacion
-    note: "'Jornada' se reserva para el concepto juridico (duraciones y limites legales). Turno es lo que el sistema gestiona."
+    date_updated: 2026-08-24
+    note: >
+      'Jornada' se reserva para el concepto juridico (duraciones y limites legales).
+      Ampliacion 2026-08-17 (sesion planner, issue #423): el descanso programado es una
+      entrada del catalogo con cero franjas -- biunivoco por construccion (la invariante
+      '>=1 franja' sigue viva en Crear; CrearDescanso es la unica puerta al vacio).
+      Sin enum ni jerarquia: el comportamiento emerge de la estructura (Tell-don't-Ask).
+      Ampliacion 2026-08-24 (sesion planner, refinamiento de #423): el descanso entra por
+      el MISMO comando CrearTurno (POST programacion/turnos, paso 1 de MEF-ADR-0043: mismo
+      evento TurnoCreado -> mismo create); la deliberacion se declara con la marca EsDescanso,
+      que vive SOLO en el DTO de frontera -- nunca en el evento ni en el aggregate.
 
   - name: Turno Diario
     definition: >
@@ -138,7 +189,15 @@ terms:
       medio del gap. Primera marcacion en el rango es entrada, ultima es salida,
       intermedias se descartan.
     context: ControlHoras
-    note: "No es un bounded context separado. Es logica interna del aggregate ControlDiario."
+    date_updated: 2026-08-20
+    note: >
+      No es un bounded context separado. Es logica interna del aggregate ControlDiario.
+      Uso coloquial ampliado (2026-08-17): "la depuracion del dia" nombra el pase automatico
+      completo (depurar marcaciones + calcular desglose). Reversion 2026-08-20 (supersede la
+      preclasificacion del extinto #422): sin jornada valida que depurar (descanso programado
+      o dia sin programar) NO hay depuracion -- las marcaciones quedan crudas, sin
+      entrada/salida propuestas y sin desglose: solo la programacion da significado a las
+      marcaciones. La anomalia se deriva en el read-side (senal del plan + marcaciones).
 
   - name: Control de franja
     definition: >
@@ -253,12 +312,21 @@ terms:
 
   - name: DiaCalculado
     definition: >
-      Evento publico emitido por ControlDiarioAggregateRoot cada vez que su estado cambia
-      (nueva marcacion o nueva programacion). Contiene InformacionEmpleado, Fecha,
-      ControlesDeFranja (List<DetalleControlFranja>) y DesgloseHoras. Se emite siempre,
-      incluso con ceros, porque la presencia del evento evidencia actividad en ese dia.
+      Aggregate del dia de un colaborador en el mundo del juicio humano (aprobacion).
+      Consume DiaDepurado (bus interno), mantiene los valores provisionales del dia y vive
+      el ciclo de vida Provisional -> Aprobado. Stream: "dc:{CodigoColaborador}:{yyyyMMdd}"
+      (notacion corregida 2026-08-19 a la anatomia de CA-ADR-0031: separador `:` e ISO 8601
+      basico, uniforme con rdm: #419 y cd: #420; el boceto del 2026-08-17 decia
+      "dc_..._yyyy-MM-dd" y quedo superado por la decision del 2026-08-18).
+      Separado deliberadamente de ControlDiario (calculo automatico): la maquina depura y
+      calcula; el humano concilia y aprueba. El juicio humano nunca es sobrescrito por la maquina.
     context: ControlHoras
     date_added: 2026-04-15
+    date_updated: 2026-08-17
+    note: >
+      Termino PROMOVIDO: hasta 2026-08-17 nombraba el evento publico que ControlDiario emitia
+      hacia el bus. Ese evento se renombro DiaDepurado (y paso a privado) para ceder el nombre
+      al aggregate (issue #421). Sesion planner 2026-08-17.
 
   - name: Colaborador
     definition: >
@@ -351,6 +419,27 @@ terms:
     date_added: 2026-08-10
     date_updated: 2026-08-14
 
+  - name: ResumenColaborador
+    definition: >
+      Payload por rol reducido del colaborador que viaja en eventos privados intra-BC.
+      Vive en PrivateEvents/Colaboradores (namespace del dominio DUENO del concepto,
+      espejo de PublicEvents/Colaboradores). Terna de identidad, paridad con la cabecera
+      de FichaColaborador: Identificacion (stream key del maestro, "{Tipo}-{Numero}"),
+      CodigoColaborador y NombreCompleto (un solo campo, ya concatenado). Nace en #421
+      para DiaDepurado; #433 (borrador) adelgaza el resto de la cadena de programacion
+      hacia el, reemplazando el quinteto de DetalleColaborador / ColaboradorProgramado /
+      InformacionColaborador.
+    context: Colaboradores
+    date_added: 2026-08-20
+    rejected_synonyms: [DetalleColaborador (quinteto legacy, ns Programacion), llevar solo CodigoColaborador]
+    rejection_reason: >
+      Reducir, no eliminar (sesion 2026-08-19/20): los eventos llevan la foto del
+      colaborador porque la verdad viaja en el evento, no el maestro -- definicion del
+      proyecto; que exista NombresCorregidos en el maestro no invalida la foto historica.
+      TipoIdentificacion y NumeroIdentificacion por separado tienen cero consumidores en
+      todo el sistema; la Identificacion compuesta es el stream key del maestro y si
+      sirve para correlacionar.
+
   - name: Etiqueta
     definition: >
       Par categoria:valor libre definido por el cliente para segmentar colaboradores en
@@ -423,6 +512,144 @@ terms:
     rejection_reason: "hoy/fecha actual esconden la pregunta 'hoy de quien'; fecha de corte sugiere cierre contable, que no es"
     date_added: 2026-08-12
 
+  - name: Provisional
+    definition: >
+      Estado inicial del DiaCalculado: los numeros del dia aun se mueven solos (cada
+      DiaDepurado que llega los actualiza). Le dice al Aprobador que no actue sobre
+      ellos como finales.
+    context: ControlHoras
+    date_added: 2026-08-17
+    rejected_synonyms: [Abierto, Por aprobar, Borrador, En calculo, Causado]
+    rejection_reason: >
+      Abierto/Cerrado no dicen que hubo juicio humano; Por aprobar define por carencia;
+      Borrador implica redaccion humana; En calculo suena a proceso corriendo; Causado
+      es contable y esto no es una realidad contable.
+
+  - name: Aprobado
+    definition: >
+      Estado del DiaCalculado tras el acto del Aprobador. El dia queda en firme: sus
+      valores ya no cambian automaticamente ante nuevas marcaciones o programaciones.
+      Sobre un dia con datos atestigua "lo que paso esta bien calculado"; sobre un dia
+      vacio atestigua "no vino y no debia venir" (aval a la ausencia de programacion,
+      decision 2026-08-17: el aval del vacio crea el stream con DiaAprobado como primer evento).
+    context: ControlHoras
+    date_added: 2026-08-17
+    note: >
+      Cadena de naming: Aprobador -> AprobarDia -> DiaAprobado -> Aprobado (MEF-ADR-0005).
+      "En firme" sobrevive como prosa, no como nombre de estado. El ciclo no termina aqui:
+      hay al menos un estado posterior a la transmision, deliberadamente sin bautizar.
+
+  - name: DiaDepurado
+    definition: >
+      Evento privado (bus interno del BC) que ControlDiario publica en cada recalculo.
+      La voz de la maquina: "depure el dia". Payload plano y portable: senal del plan
+      estructural sin enum (NombreTurno? + franjas: null = sin programacion; nombre +
+      cero franjas = descanso; nombre + franjas = jornada valida), franjas con plan
+      (inicio/fin/offset) y realidad (entrada/salida/anomalia), TODAS las marcaciones
+      del dia crudas y en orden cronologico ascendente (contrato del evento; sin marca
+      usada/descartada: el receptor la deriva por igualdad de timestamp con
+      entrada/salida), y HorasPorConcepto en horas liquidables. Consumido por el
+      aggregate DiaCalculado. Aqui ocurre la transformacion unica minutos -> horas.
+    context: ControlHoras
+    date_added: 2026-08-17
+    rejected_synonyms: [DiaCalculado (como evento), DiaRecalculado, CalculoDelDiaActualizado]
+    rejection_reason: >
+      DiaCalculado cedio el nombre al aggregate; DiaRecalculado rozaba con la familia
+      "calculado" cruzando la frontera maquina/humano. Depurado ancla en la familia
+      lexica de la maquina (Depuracion automatica vs Conciliacion humana).
+    date_updated: 2026-08-20
+    note: >
+      Refinamiento #421 (2026-08-20): nace con payload MINIMO -- CodigoColaborador
+      top-level (siempre presente, identidad del dia; corrige que DiaCalculado no
+      identificaba al colaborador cuando viajaba sin turno asignado), Fecha,
+      ResumenColaborador? (la foto; null si el dia nacio solo por marcacion) y
+      HorasDiscriminadas. El payload enriquecido de la definicion llega con #424.
+      Reversion 2026-08-20: el "bloque huerfano preclasificado" salio del payload
+      (extinto #422); la anomalia del dia sin jornada valida la deriva el receptor.
+      Refinamiento #424 (2026-08-20): payload final cerrado -- lookup a demanda de
+      marcaciones contra ControlDiario descartado (atomicidad expediente-veredicto:
+      el Aprobador juzga la misma foto que produjo las horas); franja minima
+      plan+realidad, sin sede (fuera de la conversacion por ahora) ni descansos/extras
+      internos (ya digeridos en HorasPorConcepto); #424 no depende de #423 (el
+      contrato soporta el descanso estructuralmente: nombre + cero franjas).
+
+  - name: DepuracionDiaRecibida
+    definition: >
+      Evento persistido del aggregate DiaCalculado: "la depuracion del dia fue recibida".
+      Primer evento de dominio de su stream (cuando el dia nace por datos). El handler
+      traduce DiaDepurado (bus) a este evento (patron RegistroDeMarcacionCreado ->
+      MarcacionAdicionada). Genero: el participio concuerda con el nucleo "Depuracion"
+      (femenino) -- precedente ProgramacionTurnoSolicitada.
+    context: ControlHoras
+    date_added: 2026-08-17
+
+  - name: AsistenciaDiaria
+    definition: >
+      Vista (read model) del Aprobador: una fila liviana por colaborador+dia con la
+      superficie de DECISION en dos ejes -- Plan (ConJornada/Descanso/SinProgramar +
+      NombreTurno) y anomalias ya juzgadas (NoSePresento, FranjasIncompletas,
+      VinoEnDescanso, TrabajoSinProgramacion) -- mas Estado y HorasPorConcepto sparse.
+      La superficie de INVESTIGACION (franjas, marcaciones) NO se materializa: se lee
+      en vivo hidratando el aggregate DiaCalculado. Proyeccion N1 sobre el stream dc:.
+    context: ControlHoras
+    date_added: 2026-08-17
+    note: >
+      Criterio de diseno (2026-08-17): se materializa la superficie de decision; la de
+      investigacion se lee en vivo. El resumen del periodo se agrega en query-time sobre
+      estas filas (el periodo es arbitrario, no se pre-materializa).
+      Refinamiento 2026-08-24 (#426): las banderas crudas del borrador se reemplazan por
+      los dos ejes del Aprobador -- la derivacion vive una sola vez en la proyeccion
+      (MEF-ADR-0041); UltimaDepuracion retirado (ninguna decision del Aprobador lo
+      justifica); NumeroMarcaciones descartado (el contexto de investigacion es #429).
+
+  - name: Dia sin programar
+    definition: >
+      Dia para el que el Programador no definio ni turno ni descanso. Siempre anomalo:
+      alli falta una decision de planeacion. Con marcaciones produce la anomalia
+      "Trabajo sin programacion" (las marcaciones quedan crudas, sin desglose: solo la
+      programacion les da significado -- reversion 2026-08-20 de la presuncion de trabajo
+      ordinario); vacio, es avalable por el Aprobador ("no vino y no debia venir").
+    context: ControlHoras
+    date_added: 2026-08-17
+    date_updated: 2026-08-20
+    rejected_synonyms: [hueco, dia vacio]
+    rejection_reason: "hueco es jerga sin dignidad de dominio; vacio confunde con el dia sin marcaciones"
+
+  - name: Hora liquidable
+    definition: >
+      Unidad del mundo humano (aprobacion, vistas, nomina): horas y fraccion decimal
+      (hoy 2 posiciones). El mundo maquina (ControlDiario) calcula y persiste en minutos
+      enteros; la conversion ocurre UNA sola vez, al construir DiaDepurado, con la
+      precision como constante interna centralizada (nunca configurable por vista).
+    context: ControlHoras
+    date_added: 2026-08-17
+    date_updated: 2026-08-20
+    note: >
+      Consecuencia asumida: los totales de periodo son suma de valores redondeados por
+      concepto-dia. Precision CERRADA en 2 (decision del humano, refinamiento #424):
+      constante NOMBRADA dentro del tipo HorasLiquidables, nunca literal suelto; si una
+      valoracion de negocio futura dicta otra, se cambia en un solo lugar.
+
+  - name: Etiquetas de anomalia
+    definition: >
+      Vocabulario acordado para las celdas anomalas de la matriz plan x realidad:
+      "No se presento" (turno programado, sin marcaciones), "Franja incompleta"
+      (entrada sin salida), "Vino en descanso" (marcaciones sobre descanso programado),
+      "Trabajo sin programacion" (marcaciones en dia sin programar). El dia vacio con
+      descanso programado NO es anomalia (descanso como debia); el dia sin programar
+      siempre lo es.
+    context: ControlHoras
+    date_added: 2026-08-17
+    date_updated: 2026-08-20
+    note: >
+      'Trabajo sin programacion' y no 'trabajo sin programar': lo ausente es la
+      programacion (sustantivo), no un verbo omitido por el colaborador.
+      Reversion 2026-08-20 (supersede la decision 7 del 2026-08-17): las etiquetas NO
+      preclasifican a conceptos legales -- sin jornada valida las marcaciones quedan
+      crudas. Aprobar el dia anomalo = no reconocer esas marcaciones; si la anomalia
+      revela un error de programacion, la correccion legitima es reprogramar (el
+      recalculo es automatico, "el ultimo gana").
+
 # -------------------------
 # ACTORES DEL SISTEMA
 # Los roles son del sistema, no cargos organizacionales.
@@ -449,7 +676,12 @@ actors:
     frustrations:
       - Tener que verificar manualmente cada empleado por no confiar en el sistema automatico
     interacts_with: [ControlHoras]
-    note: "Puede ser la misma persona que el Programador de turnos. El unico lote de aprobacion es al momento de la transmision a nomina."
+    note: >
+      Puede ser la misma persona que el Programador de turnos.
+      Resolucion 2026-08-17: aprobar y transmitir son actos distintos en momentos distintos.
+      El Aprobador aprueba dia a dia cuando lo desea (deja el dia en firme: estado Aprobado
+      del aggregate DiaCalculado); la transmision a nomina es otro acto, posterior, aun sin
+      disenar. La nota anterior ("el unico lote es al transmitir") aplicaba solo a la transmision.
 
   - name: Colaborador (actor)
     type: user
@@ -532,10 +764,21 @@ open_questions:
     date: 2026-04-14
     priority: medium
 
-  - question: "Como funciona el flujo de aprobacion y transmision a nomina? El unico lote de aprobaciones es al cierre de nomina."
+  - question: "Como funciona la TRANSMISION a nomina? (La aprobacion quedo resuelta 2026-08-17: por dia, ciclo Provisional -> Aprobado del aggregate DiaCalculado; aprobar != transmitir. Pendiente: el acto de transmision, su lote, y el estado posterior del dia.)"
     context: ControlHoras
     date: 2026-04-15
+    date_updated: 2026-08-17
     priority: high
+
+  - question: "Precision definitiva de la hora liquidable (hoy 2 decimales, constante centralizada) y regla de redondeo por concepto-dia vs por periodo: valoracion de negocio pendiente."
+    context: ControlHoras
+    date: 2026-08-17
+    priority: medium
+
+  - question: "Descansos con nombre propio (dominical, compensatorio): cuantas entradas del catalogo necesita nomina distinguir? Y el dia de descanso, reporta horas a nomina o vale cero?"
+    context: Programacion
+    date: 2026-08-17
+    priority: medium
 
   - question: "Donde vive la configuracion de la Ventana de traslape nocturno por empresa?"
     context: Arquitectura
