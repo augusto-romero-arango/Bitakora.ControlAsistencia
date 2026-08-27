@@ -1,6 +1,7 @@
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -44,6 +45,11 @@ public static class ConfiguracionObservabilidadProjections
     // ConfiguracionObservabilidadProjectionsTests.
     internal const string PatronFuentePropia = NombreServicio + "*";
 
+    // Prefijos de categoria ILogger del daemon HotCold, que emite Information cada pocos segundos
+    // 24/7 (min_replicas = 1). Son los que el filtro de abajo acota; el resto del worker conserva
+    // su piso Information.
+    private static readonly string[] CategoriasDelDaemon = ["JasperFx", "Marten"];
+
     public static IServiceCollection ConfigurarObservabilidad(this IServiceCollection services)
     {
         // Observabilidad: exporta las trazas del worker (Npgsql, Marten) a Application Insights via
@@ -78,7 +84,17 @@ public static class ConfiguracionObservabilidadProjections
                 .AddSource("Marten")
                 .AddSource("Npgsql")
                 .AddSource(PatronFuentePropia))
-            .UseAzureMonitorExporter()
+            // MEF-ADR-0038 seccion 9: con su default `true`, el LogFilteringProcessor del exporter
+            // descarta todo LogRecord emitido bajo un span no grabado -- incluidos los LogError que
+            // el HighWaterAgent emite DENTRO del span de polling que el sampler de abajo dropea
+            // (medido: 35/35 nunca llegaron a `exceptions`). NO revertir a UseAzureMonitorExporter()
+            // sin argumentos ni volverlo opcion del consumidor: es mecanismo del marco.
+            //
+            // Efecto lateral del overload con callback: no registra DefaultAzureMonitorExporterOptions,
+            // asi que APPLICATIONINSIGHTS_CONNECTION_STRING ya solo llega via IConfiguration -- la
+            // puebla el proveedor de variables de entorno de Host.CreateApplicationBuilder. Un host
+            // sin ese proveedor apagaria la exportacion completa en silencio.
+            .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 // Issue #308 (hallazgo 2): el daemon HotCold de Marten emite un span de polling sin
                 // valor diagnostico cada 5s (marten.daemon.highwatermark) del que cuelga el 95% de
@@ -86,6 +102,18 @@ public static class ConfiguracionObservabilidadProjections
                 // actividad puntual sin afectar al resto de la fuente Marten.
                 .SetSampler(new SamplerQueDescartaPollingDelDaemon(
                     new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))));
+
+        // Contrapeso del flip de arriba, que por si solo dejaria pasar tambien los Information
+        // rutinarios del daemon contra el daily cap (CA-ADR-0009 Capa 3). El filtro va sobre el
+        // ILoggerProvider del exporter -- unico control de volumen de logs que queda del lado del
+        // consumidor (MEF-ADR-0038 seccion 9) -- y no sobre el logging global: la consola del
+        // Container App conserva Information, que fue la senal que permitio diagnosticar la
+        // perdida. Error > Warning, asi que los LogError del daemon siguen exportandose.
+        services.AddLogging(logging =>
+        {
+            foreach (var categoria in CategoriasDelDaemon)
+                logging.AddFilter<OpenTelemetryLoggerProvider>(categoria, LogLevel.Warning);
+        });
 
         return services;
     }

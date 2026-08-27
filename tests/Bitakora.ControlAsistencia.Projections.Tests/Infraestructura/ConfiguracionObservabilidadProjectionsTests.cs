@@ -39,8 +39,11 @@
 using System.Diagnostics;
 using System.Globalization;
 using AwesomeAssertions;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -376,5 +379,83 @@ public class ConfiguracionObservabilidadProjectionsTests
             atributos.Should().ContainKey(AtributoServiceName)
                 .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
         });
+    }
+
+    // --- Desacople del muestreo de logs del de trazas (MEF-ADR-0038 seccion 9) ---
+
+    // Restriccion: sin el flip, el LogFilteringProcessor que instala el exporter descarta todo
+    // LogRecord emitido bajo un span no grabado -- incluidos los LogError del HighWaterAgent, que
+    // caen dentro del span de polling que SamplerQueDescartaPollingDelDaemon dropea (medido: 35/35
+    // nunca llegaron a `exceptions`). Se lee el valor RESUELTO del contenedor, no el texto del seam.
+    [Fact]
+    public void ConfigurarObservabilidad_DeshabilitaElSamplerDeLogsBasadoEnTrazas()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<IOptionsMonitor<AzureMonitorExporterOptions>>()
+            .Get(Options.DefaultName);
+
+        opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
+    }
+
+    // Restriccion (MEF-ADR-0038 seccion 9): el overload con callback -- el que exige el flip de
+    // arriba -- NO registra DefaultAzureMonitorExporterOptions, que es quien lee
+    // APPLICATIONINSIGHTS_CONNECTION_STRING directo del entorno. La connection string pasa a llegar
+    // por un unico camino: IConfiguration, poblada por el proveedor de variables de entorno del
+    // Host.CreateApplicationBuilder del worker. Un host sin ese proveedor apagaria la exportacion
+    // completa EN SILENCIO, y los guardrails de TracerProvider de arriba seguirian verdes.
+    [Fact]
+    public void ConfigurarObservabilidad_ResuelveLaConnectionStringDelEntorno_EnLasOpcionesDelExporter()
+    {
+        ConVariableDeEntorno(VariableConnectionString, ConnectionStringAppInsightsDummy, () =>
+        {
+            using var provider = ComponerServiceProvider();
+
+            var opciones = provider.GetRequiredService<IOptionsMonitor<AzureMonitorExporterOptions>>()
+                .Get(Options.DefaultName);
+
+            opciones.ConnectionString.Should().Be(ConnectionStringAppInsightsDummy);
+        });
+    }
+
+    // Restriccion: el flip de arriba habilita el paso de TODOS los LogRecord del daemon, incluidos
+    // sus Information rutinarios (min_replicas = 1, 24/7) -- presion sobre el daily cap
+    // (CA-ADR-0009 Capa 3). El filtro sube el piso de EXPORTACION de esas categorias a Warning
+    // conservando sus LogError. Se verifica el efecto observable (IsEnabled), no el mecanismo:
+    // AddFilter<T> es una eleccion del seam, el piso resultante es el contrato.
+    [Fact]
+    public void ConfigurarObservabilidad_SubeANivelWarningElPisoDeExportacion_CuandoLaCategoriaEsDelDaemonJasperFx() =>
+        VerificarPisoDeExportacionEnWarning("JasperFx.Events.Daemon.HighWater.HighWaterAgent");
+
+    [Fact]
+    public void ConfigurarObservabilidad_SubeANivelWarningElPisoDeExportacion_CuandoLaCategoriaEsDelDaemonMarten() =>
+        VerificarPisoDeExportacionEnWarning("Marten.Events.Daemon.HighWater.HighWaterAgent");
+
+    // Control del filtro anterior: focalizado a las categorias del daemon, no un downgrade global
+    // del piso de exportacion -- eso apagaria la observabilidad del codigo propio del worker, que
+    // no exhibe el modo de perdida que este desacople corrige.
+    [Fact]
+    public void ConfigurarObservabilidad_ConservaElPisoInformation_ParaCategoriasFueraDelDaemon()
+    {
+        using var provider = ComponerServiceProvider();
+        var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+
+        var logger = loggerFactory.CreateLogger(NombreServicioComoCategoria);
+
+        logger.IsEnabled(LogLevel.Information).Should().BeTrue();
+    }
+
+    private const string NombreServicioComoCategoria =
+        ConfiguracionObservabilidadProjections.NombreServicio + ".Worker";
+
+    private static void VerificarPisoDeExportacionEnWarning(string categoriaDelDaemon)
+    {
+        using var provider = ComponerServiceProvider();
+        var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+
+        var logger = loggerFactory.CreateLogger(categoriaDelDaemon);
+
+        logger.IsEnabled(LogLevel.Information).Should().BeFalse();
+        logger.IsEnabled(LogLevel.Warning).Should().BeTrue();
     }
 }

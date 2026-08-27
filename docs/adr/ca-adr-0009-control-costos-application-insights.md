@@ -418,3 +418,59 @@ Function Apps `Running`.
 
 Capas 1, 2 y 3 sin cambios. La Capa 4 conserva sus tres alertas; lo que cambia es lo que se sabe de
 ellas.
+
+## Actualizacion (2026-08-27, issue #414): desacople del muestreo de logs del de trazas (worker)
+
+El resultado 3 del #412 se cierra: `EnableTraceBasedLogsSampler` queda en `false` en
+`ConfiguracionObservabilidadProjections.ConfigurarObservabilidad`, con guardrail de composicion que
+lee las opciones efectivas del contenedor (`IOptionsMonitor<AzureMonitorExporterOptions>`) para que
+un cambio futuro del default del paquete, o un refactor del seam, no lo reactive en silencio.
+
+**Decision.** Flag apagado + filtro de nivel por proveedor sobre las categorias del daemon
+(`JasperFx*` / `Marten*`), no flag solo. Apagar unicamente el flag habilita el paso de TODOS los
+`LogRecord` del daemon HotCold hacia el exporter -- incluidos sus `Information` rutinarios
+("Executed updates for Event range...", emitidos cada pocos segundos con `min_replicas = 1`, 24/7,
+a diferencia de las Function Apps que escalan a cero) -- presionando la Capa 3 (daily cap) en la
+direccion opuesta a la que este issue busca. El filtro sube el piso de EXPORTACION de esas
+categorias a `Warning`: los `LogError` que este cambio rescata (`Error > Warning`) se conservan, el
+ruido `Information` no. Se implemento con `AddFilter<OpenTelemetryLoggerProvider>(categoria,
+LogLevel.Warning)` sobre el `ILoggerProvider` que `UseAzureMonitorExporter` instala
+(`OpenTelemetry.Logs.OpenTelemetryLoggerProvider`, verificado por reflection contra
+`Azure.Monitor.OpenTelemetry.Exporter` 1.8.1 / `OpenTelemetry.Extensions.Hosting` 1.16.0) -- no toca
+`host.json`/`appsettings.json`, asi que la consola del Container App conserva `Information` intacto
+(fue la senal que permitio diagnosticar el bug en el #412).
+
+**Consecuencia operativa del overload con callback.** `UseAzureMonitorExporter()` sin argumentos
+registraba `DefaultAzureMonitorExporterOptions`, que lee `APPLICATIONINSIGHTS_CONNECTION_STRING`
+directo del entorno; el overload con callback no lo registra. La connection string sigue llegando
+-- via `IConfiguration`, que el proveedor de variables de entorno de `Host.CreateApplicationBuilder`
+del worker puebla, de modo que la Key Vault reference que inyecta el Container App
+(MEF-ADR-0025/CA-ADR-0026) no cambia --, pero ese camino pasa a ser el unico: un host sin ese
+proveedor apagaria la exportacion completa en silencio, y los guardrails que solo resuelven el
+`TracerProvider` del contenedor seguirian verdes. Queda fijado con un guardrail propio
+(`ConfigurarObservabilidad_ResuelveLaConnectionStringDelEntorno_EnLasOpcionesDelExporter`) que
+compara la connection string RESUELTA en las opciones efectivas contra la variable de entorno.
+
+**Alcance: solo el worker (Rule of Three, MEF-ADR-0018).** Los tres Function Apps NO exhiben este
+modo de perdida: sus 810 excepciones del experimento #412 (`Wolverine.RDBMS.DurabilityAgent` /
+`IAgentCommand`) SI llegaron a `exceptions` -- `operation_Id` vacio implica `SpanId == default`,
+que el `LogFilteringProcessor` deja pasar sin condicion. El modo de perdida binario requiere un
+sampler que descarte al 100% una familia de spans con `LogError` emitidos adentro, y ese sampler
+(`SamplerQueDescartaPollingDelDaemon`, issue #308) solo existe en el worker. El gap de los Function
+Apps es de alertas (las dos alertas de borde HTTP son estructuralmente ciegas a fallos de agentes de
+fondo sin `requests`, ya documentado en la actualizacion del #412) -- lo cubre el issue #415, no
+este.
+
+**Verificacion empirica pendiente, delegada al issue #413.** Este cambio se valida por composicion
+(guardrails de `ConfiguracionObservabilidadProjectionsTests`): que el flag efectivo sea `false` y que
+el filtro suba el piso de exportacion del daemon a `Warning` conservando `Information` para el resto
+del worker. Falta por medir en dev, con el mismo protocolo de caida inducida de Postgres del #412:
+(a) que los `LogError` del `HighWaterAgent` efectivamente lleguen a `exceptions` con el flag apagado
+(cerrar el 0% de ratio medido), y (b) el volumen exportado resultante contra el daily cap de la Capa
+3, dato que tambien alimenta la recalibracion del umbral de la Capa 4 que el #413 hace en el mismo
+paso.
+
+Capas 1 y 3 sin cambios. La Capa 2 (sampling de trazas, `TELEMETRY_SAMPLING_RATIO`) tampoco cambia:
+este desacople es exclusivamente del pipeline de logs -- las trazas siguen su propio sampler
+(`SamplerQueDescartaPollingDelDaemon` envolviendo `ParentBasedSampler{TraceIdRatioBasedSampler}`),
+sin tocar.
