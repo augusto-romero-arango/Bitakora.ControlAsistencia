@@ -1,20 +1,19 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
-// Issue #166: warm-up funcional de la cadena Service Bus.
+// Warm-up funcional de la cadena Service Bus.
 //
-// Problema (H1, cold start del listener SB): tras ventanas largas de inactividad el host de
-// Functions se duerme (B1 sin always_on, descartado por costo - ver ADR-0009). Un health-ping
-// HTTP solo confirma "host HTTP arriba", no "listeners SB consumiendo": la inicializacion del
-// listener (link AMQP + lease de la subscription) es asincrona y posterior al 200. El test
-// RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada... ya ceba implicitamente AsignarTurno
-// en su setup, pero AdicionarMarcacion arranca frio justo en el Act y los 30s no alcanzan.
+// Tras ventanas largas de inactividad el host de Functions se duerme (B1 sin always_on, descartado
+// por costo - ver ADR-0009). Un health-ping HTTP solo confirma "host HTTP arriba", no "listeners SB
+// consumiendo": la inicializacion del listener (link AMQP + lease de la subscription) es asincrona
+// y posterior al 200, y los 30s de las aserciones no alcanzan para absorberla.
 //
-// Solucion: ejecutar la cadena SB completa UNA sola vez, con identificadores descartables,
-// antes de toda la suite. La unica senal fiable de "listener vivo" es que procese un mensaje,
-// asi que el cebado publica y espera la persistencia de cada salto:
+// La unica senal fiable de "listener vivo" es que procese un mensaje, asi que el cebado ejecuta la
+// cadena SB completa UNA sola vez, con identificadores descartables, antes de toda la suite,
+// esperando la persistencia de cada salto:
 //   1. programacion-turno-diario-solicitada -> listener AsignarTurno -> turno_diario_asignado
 //   2. POST marcacion (registro-de-marcacion-creado) -> listener AdicionarMarcacion -> marcacion_adicionada
 //
@@ -32,9 +31,9 @@ public class WarmupFixture : IAsyncLifetime
     private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
     private const string TipoEventoMarcacionAdicionada = "marcacion_adicionada";
 
-    // CA-2: timeout amplio (>= 90s) para absorber el cold start del listener SB tras inactividad.
-    // Este es el unico punto donde se paga el arranque frio, controlado y una sola vez. NO se usa
-    // para inflar el Timeout = 30s de las aserciones de los tests reales.
+    // Timeout amplio para absorber el cold start del listener SB tras inactividad: este es el unico
+    // punto donde se paga el arranque frio, controlado y una sola vez. NO se usa para inflar el
+    // Timeout = 30s de las aserciones de los tests reales.
     private static readonly TimeSpan WarmupTimeout = TimeSpan.FromSeconds(120);
 
     public async ValueTask InitializeAsync()
@@ -63,7 +62,7 @@ public class WarmupFixture : IAsyncLifetime
         }
         catch (Exception ex)
         {
-            // CA-3: el fallo del cebado es visible y diagnosticable, pero NO se relanza. El warm-up
+            // El fallo del cebado es visible y diagnosticable, pero NO se relanza. El warm-up
             // es best-effort a proposito: un gate que tirara reintroduciria flakiness (podria matar
             // la suite justo cuando los listeners terminaron de calentarse tras el timeout). Los
             // tests reales corren igual con su Timeout = 30s honesto; si el handler tiene una
@@ -84,7 +83,7 @@ public class WarmupFixture : IAsyncLifetime
     {
         var stopwatch = Stopwatch.StartNew();
 
-        // CA-4: identificadores descartables y unicos. El stream cd:{codigoColaborador}:{fecha} queda
+        // Identificadores descartables y unicos. El stream cd:{codigoColaborador}:{fecha} queda
         // aislado; no toca los streams ni las suscripciones que verifican los tests reales. No leemos
         // ni purgamos la suscripcion smoke-tests de dia-depurado: el
         // DiaDepurado que emite este cebado lleva un CodigoColaborador distinto (los tests filtran por
@@ -100,14 +99,8 @@ public class WarmupFixture : IAsyncLifetime
         var programacionPayload = new
         {
             SolicitudId = solicitudId,
-            Colaborador = new
-            {
-                CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "000000000",
-                Nombres = "[WARMUP] Cebado cadena SB",
-                Apellidos = "[WARMUP] Issue 166"
-            },
+            Colaborador = new ResumenColaborador(
+                "CC-000000000", codigoColaborador, "[WARMUP] Cebado cadena SB"),
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
             {
@@ -168,7 +161,7 @@ public class WarmupFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    // CA-3: visible y "no se traga en silencio". Console.Error aparece en el log del job de CI con
+    // Visible y "no se traga en silencio". Console.Error aparece en el log del job de CI con
     // verbosidad por defecto; SendDiagnosticMessage es el canal idiomatico de xUnit v3 (IMessageSink
     // dejo de inyectarse en fixtures en v3 - https://github.com/xunit/xunit/issues/3001). El mensaje
     // no contiene llaves para ser inocuo ante el overload de formato compuesto.

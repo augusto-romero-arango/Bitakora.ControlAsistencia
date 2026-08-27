@@ -1,14 +1,10 @@
-// Smoke tests de ListarTurnosVigentes -- QUERY control-horas/turnos-vigentes: los turnos vigentes
-// de un rango de fechas, con codigoColaborador y sedeId como filtros opcionales. El arrange va por
-// el bus interno (ProgramacionTurnoDiarioSolicitada al topic de entrada), nunca sembrando el event
-// store por fuera de el.
+// El arrange va por el bus interno (ProgramacionTurnoDiarioSolicitada al topic de entrada), nunca
+// sembrando el event store por fuera de el. El CI de PR no ejecuta esta suite (solo corre *.Tests);
+// su veredicto real se lee tras el deploy.
 //
-// Quedan ROJOS hasta que el deploy publique la revision QUERY en dev: mientras siga corriendo la
-// revision GET anterior, el host responde 404 al verbo QUERY sobre esta ruta (404, no 405, ante
-// verbo no coincidente). El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real se lee
-// despues del deploy. Ese mismo 404 es ademas el gate NO VERIFICADO de MEF-ADR-0042 seccion 6 --
-// si persiste tras un deploy exitoso, el sospechoso es el borde de App Service filtrando un verbo
-// no estandar, no el endpoint.
+// Gate NO VERIFICADO de MEF-ADR-0042 seccion 6: si el host responde 404 al verbo QUERY sobre esta
+// ruta tras un deploy exitoso (404, no 405, ante verbo no coincidente), el sospechoso es el borde
+// de App Service filtrando un verbo no estandar, no el endpoint.
 //
 // La proyeccion tiene lifecycle Async (MEF-ADR-0034), asi que los casos que dependen del arrange
 // envuelven la consulta en Polling.WaitUntilAsync/WaitUntilTrueAsync -- agotar el timeout es un
@@ -29,6 +25,7 @@ using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ListarTurnosVigentes;
 
@@ -43,6 +40,9 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     // Descripcion del turno sembrado por PublicarTurnoAsync: es el dato que la vista devuelve como
     // HorarioResumido, asi que se afirma contra esta misma constante (eco del payload publicado).
     private const string DescripcionTurnoSinSede = "[TEST] Turno Vigente Listar 08:00-16:00";
+
+    // Eco del colaborador sembrado: la vista devuelve NombreCompleto tal cual viaja en el evento.
+    private const string NombreCompletoSembrado = "[TEST] Smoke Listar TurnosVigentes";
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
@@ -136,14 +136,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         var evento = new
         {
             SolicitudId = solicitudId,
-            Colaborador = new
-            {
-                CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "444555666",
-                Nombres = "[TEST] Smoke Listar",
-                Apellidos = "[TEST] TurnosVigentes"
-            },
+            Colaborador = new ResumenColaborador(
+                "CC-444555666", codigoColaborador, NombreCompletoSembrado),
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
             {
@@ -156,8 +150,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
     }
 
-    // Franja ordinaria SIN la clave "Sede": sus bloques quedan con SedeId/NombreSede null, el
-    // equivalente comportamental de un documento proyectado antes de #336/#337 (CA-4/CA-5).
+    // Franja ordinaria SIN la clave "Sede": sus bloques quedan con SedeId/NombreSede null.
     private static object FranjaOrdinaria(string horaInicio, string horaFin) =>
         new
         {
@@ -379,7 +372,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         var turno = respuesta.Turnos[0];
         turno.Id.Should().Be($"cd:{codigoColaborador}:{fechaTurno:yyyyMMdd}");
         turno.CodigoColaborador.Should().Be(codigoColaborador);
-        turno.NombreCompleto.Should().Be("[TEST] Smoke Listar [TEST] TurnosVigentes");
+        turno.NombreCompleto.Should().Be(NombreCompletoSembrado);
         turno.Fecha.Should().Be(fechaTurno);
         turno.NombreTurno.Should().Be("[TEST] Turno Vigente Trabajador");
         turno.HorarioResumido.Should().Be(DescripcionTurnoSinSede);

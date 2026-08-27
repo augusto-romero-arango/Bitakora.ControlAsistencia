@@ -3,44 +3,38 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
+using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ObtenerTurnoVigente;
 
-// Issue #328: smoke tests de ObtenerTurnoVigente, GET control-horas/turnos-vigentes/{codigoColaborador}/{fecha}.
-// Function GET read-side sobre la proyeccion TurnoVigente (receta N1, MEF-ADR-0034/0035) --
-// reemplazo del read model del issue #289, retirado por la contraccion del issue #323. Mismo
-// mecanismo de siembra que uso la suite de aquel read model (#289): se publica
-// ProgramacionTurnoDiarioSolicitada al bus interno; ControlHoras persiste TurnoDiarioAsignado y el
-// worker de proyecciones materializa la vista de forma asincrona.
-//
-// Estos tests quedan ROJOS hasta que el deploy publique ObtenerTurnoVigente en dev: mientras la
-// revision anterior siga corriendo, la ruta no existe y el host responde 404 a todo -- el caso 400
-// falla y el caso 404 pasa por la razon equivocada -- mismo precedente que las suites de #289 y
-// #290. El CI de PR no los ejecuta (solo corre *.Tests); su
-// veredicto real se lee despues del deploy.
+// El arrange va por el bus interno (ProgramacionTurnoDiarioSolicitada al topic de entrada), nunca
+// sembrando el event store por fuera de el. El CI de PR no ejecuta esta suite (solo corre *.Tests);
+// su veredicto real se lee tras el deploy.
 //
 // Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa TurnoVigente DESPUES de que
-// ControlHoras persiste turno_diario_asignado. El caso de exito envuelve la consulta en
-// Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling
-// directo en tests": si el timeout se agota es un fallo real (worker no desplegado o proyeccion sin
-// registrar en el named store), nunca un skip.
+// ControlHoras persiste turno_diario_asignado, asi que el caso de exito envuelve la consulta en
+// Polling.WaitUntilAsync -- unica excepcion al "no usar Polling directo en tests": agotar el
+// timeout es un fallo real (worker no desplegado o proyeccion sin registrar en el named store),
+// nunca un skip.
 //
-// Formas locales DESACOPLADAS del read model de produccion (Bitakora.ControlAsistencia.ReadModels.
-// ControlHoras.TurnoVigente/Bloque/TipoBloque): el smoke test no referencia ReadModels (isla, MEF-
-// ADR-0034 seccion 5) ni el Function App. TipoBloqueSmoke replica el orden de valores del enum de
-// produccion porque STJ lo serializa como el entero subyacente (ComposicionServicios no registra
-// JsonStringEnumConverter para las respuestas HTTP) -- si produccion reordenara TipoBloque, este
-// test detectaria el cambio de contrato al fallar la comparacion.
+// Formas locales DESACOPLADAS del read model de produccion: el smoke test no referencia ReadModels
+// (isla, MEF-ADR-0034 seccion 5) ni el Function App. TipoBloqueSmoke replica el ORDEN de valores
+// del enum de produccion porque STJ lo serializa como el entero subyacente (ComposicionServicios no
+// registra JsonStringEnumConverter para las respuestas HTTP) -- si produccion reordenara TipoBloque,
+// la comparacion falla y delata el cambio de contrato.
 //
-// No se repite aqui el CA-2 ("el ultimo gana", reasignacion sobrescribe) ni el mapeo detallado de
-// descansos/extras: esas reglas de negocio de la proyeccion ya las cubre el unit test de
-// TurnoVigenteProjection (projection-test-writer). Este smoke test es black-box: solo verifica que
-// el endpoint desplegado responde con la vista materializada.
+// Las reglas de negocio de la proyeccion (reasignacion, mapeo de descansos/extras) las cubre el
+// unit test de TurnoVigenteProjection; aqui solo interesa que el endpoint desplegado responda con
+// la vista materializada.
 public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string TopicEntrada = "programacion-turno-diario-solicitada";
+
+    // Eco del colaborador sembrado: la vista devuelve NombreCompleto tal cual viaja en el evento.
+    private const string NombreCompletoSembrado = "[TEST] Smoke TurnoVigente";
+
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
@@ -103,14 +97,8 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
         var evento = new
         {
             SolicitudId = solicitudId,
-            Colaborador = new
-            {
-                CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "111222333",
-                Nombres = "[TEST] Smoke",
-                Apellidos = "[TEST] TurnoVigente"
-            },
+            Colaborador = new ResumenColaborador(
+                "CC-111222333", codigoColaborador, NombreCompletoSembrado),
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
             {
@@ -151,17 +139,17 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
         // Sin assert de NotBeNull: WaitUntilAsync devuelve un valor no nulo o lanza TimeoutException
         // ("el worker no materializo TurnoVigente dentro del timeout"), nunca null.
 
-        // Assert: Id como stream key -- ancla para comandos/lookups de la UI, no se pinta pero SI
-        // viaja en la respuesta (decision de entrevista, "Notas tecnicas" del issue #328).
+        // Id como stream key: ancla para comandos/lookups de la UI, no se pinta pero SI viaja en
+        // la respuesta.
         respuesta.Id.Should().Be(ComputarStreamId(codigoColaborador, fecha));
         respuesta.CodigoColaborador.Should().Be(codigoColaborador);
-        respuesta.NombreCompleto.Should().Be("[TEST] Smoke [TEST] TurnoVigente");
+        respuesta.NombreCompleto.Should().Be(NombreCompletoSembrado);
         respuesta.Fecha.Should().Be(fecha);
         respuesta.NombreTurno.Should().Be("[TEST] Turno Vigente Query");
         respuesta.HorarioResumido.Should().Be("[TEST] Turno Vigente 08:00-16:00");
 
-        // Assert: Bloques -- un solo tramo Ordinaria (sin descansos/extras/cruce de medianoche),
-        // absoluto contra la fecha de asignacion (TurnoDiario.Segmentar, issue #327).
+        // Bloques: un solo tramo Ordinaria (sin descansos/extras/cruce de medianoche), absoluto
+        // contra la fecha de asignacion (TurnoDiario.Segmentar).
         var bloqueEsperado = new BloqueSmoke(
             TipoBloqueSmoke.Ordinaria,
             fecha.ToDateTime(new TimeOnly(8, 0)),
@@ -175,15 +163,14 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: codigoColaborador nuevo, nunca creado por ningun test -- no puede tener turno vigente.
+        // codigoColaborador nuevo, nunca creado por ningun test -- no puede tener turno vigente.
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 10);
 
         var response = await _client.GetAsync(Ruta(codigoColaborador, fecha), ct);
 
-        // Assert: CA-4 -- 404 SIN BODY (mismo criterio que #289): distingue el
-        // NotFoundResult() del endpoint de un 404 con payload de error, y de la pagina de error del
-        // host si la ruta no existiera.
+        // 404 SIN BODY: distingue el NotFoundResult() del endpoint de un 404 con payload de error,
+        // y de la pagina de error del host si la ruta no existiera.
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
     }
@@ -194,7 +181,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: formato DD-MM-YYYY en vez de yyyy-MM-dd (mismo criterio que #289).
+        // Formato DD-MM-YYYY en vez de yyyy-MM-dd.
         var codigoColaborador = Guid.CreateVersion7().ToString();
 
         var response = await _client.GetAsync(
