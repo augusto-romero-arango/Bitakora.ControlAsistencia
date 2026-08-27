@@ -440,6 +440,17 @@ LogLevel.Warning)` sobre el `ILoggerProvider` que `UseAzureMonitorExporter` inst
 `host.json`/`appsettings.json`, asi que la consola del Container App conserva `Information` intacto
 (fue la senal que permitio diagnosticar el bug en el #412).
 
+**Consecuencia operativa del overload con callback.** `UseAzureMonitorExporter()` sin argumentos
+registraba `DefaultAzureMonitorExporterOptions`, que lee `APPLICATIONINSIGHTS_CONNECTION_STRING`
+directo del entorno; el overload con callback no lo registra. La connection string sigue llegando
+-- via `IConfiguration`, que el proveedor de variables de entorno de `Host.CreateApplicationBuilder`
+del worker puebla, de modo que la Key Vault reference que inyecta el Container App
+(MEF-ADR-0025/CA-ADR-0026) no cambia --, pero ese camino pasa a ser el unico: un host sin ese
+proveedor apagaria la exportacion completa en silencio, y los guardrails que solo resuelven el
+`TracerProvider` del contenedor seguirian verdes. Queda fijado con un guardrail propio
+(`ConfigurarObservabilidad_ResuelveLaConnectionStringDelEntorno_EnLasOpcionesDelExporter`) que
+compara la connection string RESUELTA en las opciones efectivas contra la variable de entorno.
+
 **Alcance: solo el worker (Rule of Three, MEF-ADR-0018).** Los tres Function Apps NO exhiben este
 modo de perdida: sus 810 excepciones del experimento #412 (`Wolverine.RDBMS.DurabilityAgent` /
 `IAgentCommand`) SI llegaron a `exceptions` -- `operation_Id` vacio implica `SpanId == default`,

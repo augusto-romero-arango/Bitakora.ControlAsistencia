@@ -45,15 +45,9 @@ public static class ConfiguracionObservabilidadProjections
     // ConfiguracionObservabilidadProjectionsTests.
     internal const string PatronFuentePropia = NombreServicio + "*";
 
-    // Issue #414 (CA-2): prefijos de categoria ILogger de las clases del daemon HotCold que hoy
-    // exportan en Information cada pocos segundos, 24/7 (min_replicas = 1). El filtro sube su piso
-    // de EXPORTACION a Warning para que dejen de presionar el daily cap (CA-ADR-0009 Capa 3) sin
-    // perder los LogError que este issue rescata del modo de perdida binario descrito en el
-    // encabezado del issue. "JasperFx" cubre JasperFx.Events.Daemon.HighWater.HighWaterAgent
-    // (verificado por el planner contra consola real); "Marten" cubre el resto de categorias del
-    // daemon bajo ese namespace. La consola del Container App (appsettings.json) no se toca: este
-    // filtro se aplica sobre el ILoggerProvider que UseAzureMonitorExporter instala
-    // (OpenTelemetry.Logs.OpenTelemetryLoggerProvider), no sobre el logging global del host.
+    // Prefijos de categoria ILogger del daemon HotCold, que emite Information cada pocos segundos
+    // 24/7 (min_replicas = 1). Son los que el filtro de abajo acota; el resto del worker conserva
+    // su piso Information.
     private static readonly string[] CategoriasDelDaemon = ["JasperFx", "Marten"];
 
     public static IServiceCollection ConfigurarObservabilidad(this IServiceCollection services)
@@ -90,15 +84,16 @@ public static class ConfiguracionObservabilidadProjections
                 .AddSource("Marten")
                 .AddSource("Npgsql")
                 .AddSource(PatronFuentePropia))
-            // Issue #414 (CA-1): EnableTraceBasedLogsSampler viene en `true` por defecto (1.8.1) e
-            // instala un LogFilteringProcessor que descarta OnEnd(logRecord) salvo que
-            // logRecord.SpanId == default || logRecord.TraceFlags == Recorded. Los LogError que
-            // JasperFx.Events.Daemon.HighWater.HighWaterAgent emite DENTRO del span
-            // marten.daemon.highwatermark (que SamplerQueDescartaPollingDelDaemon, issue #308,
-            // dropea) caen del lado equivocado de esa condicion y nunca llegan a `exceptions`
-            // (0% de ratio medido en el issue #412). El muestreo de logs se desacopla del de trazas
-            // apagando este flag; el volumen resultante se controla con el filtro por proveedor de
-            // CA-2, no con el sampler de trazas.
+            // MEF-ADR-0038 seccion 9: con su default `true`, el LogFilteringProcessor del exporter
+            // descarta todo LogRecord emitido bajo un span no grabado -- incluidos los LogError que
+            // el HighWaterAgent emite DENTRO del span de polling que el sampler de abajo dropea
+            // (medido: 35/35 nunca llegaron a `exceptions`). NO revertir a UseAzureMonitorExporter()
+            // sin argumentos ni volverlo opcion del consumidor: es mecanismo del marco.
+            //
+            // Efecto lateral del overload con callback: no registra DefaultAzureMonitorExporterOptions,
+            // asi que APPLICATIONINSIGHTS_CONNECTION_STRING ya solo llega via IConfiguration -- la
+            // puebla el proveedor de variables de entorno de Host.CreateApplicationBuilder. Un host
+            // sin ese proveedor apagaria la exportacion completa en silencio.
             .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 // Issue #308 (hallazgo 2): el daemon HotCold de Marten emite un span de polling sin
@@ -108,15 +103,12 @@ public static class ConfiguracionObservabilidadProjections
                 .SetSampler(new SamplerQueDescartaPollingDelDaemon(
                     new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))));
 
-        // Issue #414 (CA-2): el flag de CA-1 por si solo dejaria pasar TODOS los LogRecord del
-        // daemon hacia el exporter, incluidos los `Information` rutinarios ("Executed updates for
-        // Event range...") que emite cada pocos segundos con min_replicas = 1 -- presionando el
-        // daily cap (CA-ADR-0009 Capa 3) en la direccion opuesta a la que este issue busca. Se sube
-        // el piso de EXPORTACION (no el de la consola: appsettings.json queda intacto) de esas
-        // categorias a Warning sobre el ILoggerProvider que UseAzureMonitorExporter instala
-        // (OpenTelemetry.Logs.OpenTelemetryLoggerProvider) -- los LogError (Error > Warning) del
-        // daemon siguen exportandose, los Information del ruido rutinario no. AddLogging es
-        // aditivo: no reemplaza el AddLogging() ya invocado por el host del worker.
+        // Contrapeso del flip de arriba, que por si solo dejaria pasar tambien los Information
+        // rutinarios del daemon contra el daily cap (CA-ADR-0009 Capa 3). El filtro va sobre el
+        // ILoggerProvider del exporter -- unico control de volumen de logs que queda del lado del
+        // consumidor (MEF-ADR-0038 seccion 9) -- y no sobre el logging global: la consola del
+        // Container App conserva Information, que fue la senal que permitio diagnosticar la
+        // perdida. Error > Warning, asi que los LogError del daemon siguen exportandose.
         services.AddLogging(logging =>
         {
             foreach (var categoria in CategoriasDelDaemon)
