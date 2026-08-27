@@ -123,6 +123,11 @@ public static class ComposicionServicios
             // los mismos valores literales, que es la dimension que el par de #289 dejo abierta.
             options.Schema.For<TurnoVigente>().UseNumericRevisions(true);
 
+            // Mismo caso que TurnoVigente arriba, para la proyeccion que el worker registra desde
+            // el issue #441: quitar esta linea revive el "alter column" 42804 permanente descrito
+            // arriba, ahora en ListarAsistenciasDiarias/ListarResumenesAsistencia.
+            options.Schema.For<AsistenciaDiaria>().UseNumericRevisions(true);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>

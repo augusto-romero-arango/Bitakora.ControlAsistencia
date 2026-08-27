@@ -331,6 +331,45 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
     }
 
+    // Hermano del de TurnoVigente de arriba, para la proyeccion que el worker registra desde el
+    // issue #441. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica congela desde el worker:
+    // los tres literales tienen que cambiar en los dos lados a la vez o dejan de ser un par.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAsistenciaDiaria()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AsistenciaDiaria));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda mitad del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6) para
+    // AsistenciaDiaria, la que el test de arriba no cubre: tabla, tenancy e IdMember tienen que
+    // converger con lo que el worker materializa o los GET devuelven vacio para siempre con el
+    // daemon funcionando. Marten resuelve los tres por convencion, pero este lado ya declara un
+    // Schema.For<AsistenciaDiaria>() propio -- justo el tipo de declaracion por documento que puede
+    // desviar la tabla o la tenancy de un solo lado. Mismo razonamiento que motivo el test hermano
+    // de TurnoVigente en la revision de #328.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveAsistenciaDiariaSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AsistenciaDiaria));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_asistenciadiaria");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AsistenciaDiaria.Id));
+    }
+
     // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
     // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
     // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
