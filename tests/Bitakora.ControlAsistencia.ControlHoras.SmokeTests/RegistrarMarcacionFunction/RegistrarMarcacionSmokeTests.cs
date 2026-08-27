@@ -8,29 +8,15 @@ using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RegistrarMarcacionFunction;
 
-// HU-105: Smoke tests del endpoint POST control-horas/marcaciones
-// Verifica camino feliz (202 + persistencia en Postgres), duplicado silencioso (202) y body malformado (400).
-// CA-4: duplicado exacto retorna 202 silenciosamente, sin persistir ni publicar de nuevo.
-// CA-6: tanto creacion exitosa como duplicado retornan 202 Accepted.
-// HU-108: cobertura adicional de los efectos del handler in-process
-// AdicionarMarcacionCuandoRegistroDeMarcacionCreado, que tras el POST persiste marcacion_adicionada
-// y publica DiaDepurado al topic dia-depurado.
-// Issue #270: RegistrarMarcacionCommandHandler ya no publica MarcacionRegistrada (evento de dominio)
-// al bus; publica el contrato RegistroDeMarcacionCreado al topic registro-de-marcacion-creado (#274).
-// Ningun test consume la suscripcion smoke-tests de ese topic privado: la cobertura de esa
-// publicacion/consumo vive en RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada...,
-// que la verifica de forma mas fuerte por transitividad -- ver el porque en su propio comentario.
-// Issue #279: RegistrarMarcacionValidator agrega reglas reales de forma en el borde. Los tests
-// RegistrarMarcacion_Retorna400_Cuando* de mas abajo verifican black-box que esas reglas rechazan el
-// request contra el entorno desplegado (no repiten la matriz completa del unit test del validator).
-// Quedan rojos hasta que el deploy publique el validator en dev: el endpoint desplegado responde 202
-// mientras la version anterior siga corriendo. El CI de PR no los ejecuta (solo corre *.Tests).
-// Issue #275: protege MarcacionRegistrada con factory y ctores privados, sin efectos nuevos
-// observables desde afuera. El truncamiento al minuto solo cambio de casa (handler -> factory) y
-// DebeRetornar202YPersistirEvento_CuandoMarcacionEsValida lo sigue verificando end-to-end; el
-// CodigoColaborador vacio ya lo rechaza el validator con 400 (#279, arriba) antes de llegar al factory.
-// El resto de sus CAs son invariantes internas del tipo (ctores privados, serializacion), cubiertas
-// en *.Tests por MarcacionRegistradaTests y MarcacionRegistradaSerializacionTests.
+// El CI de PR no ejecuta esta suite (solo corre *.Tests); su veredicto real se lee tras el deploy.
+//
+// Ningun test consume la suscripcion smoke-tests del topic privado registro-de-marcacion-creado: la
+// cobertura de esa publicacion/consumo vive en
+// RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada..., que la verifica de forma mas
+// fuerte por transitividad -- ver el porque en su propio comentario.
+//
+// Los casos RegistrarMarcacion_Retorna400_Cuando* verifican black-box que las reglas del validator
+// rechazan el request contra el entorno desplegado; no repiten la matriz completa de su unit test.
 public class RegistrarMarcacionSmokeTests(
     ApiFixture api,
     PostgresFixture postgres,
@@ -48,18 +34,18 @@ public class RegistrarMarcacionSmokeTests(
     private const string SuscripcionSmokeTests = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Issue #279: timestamp valido y fijo para los casos donde lo invalido es el CodigoColaborador, no la
-    // fecha; asi el 400 esperado solo puede venir de la regla bajo prueba.
+    // Timestamp valido y fijo para los casos donde lo invalido es el CodigoColaborador, no la fecha:
+    // asi el 400 esperado solo puede venir de la regla bajo prueba.
     private static readonly DateTime TimestampValido = new(2026, 4, 20, 8, 0, 0, DateTimeKind.Utc);
 
-    // Issue #419 CA-6: stream ID determinista = "rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}",
-    // en sync con RegistroDeMarcacionAggregateRoot.ComputarStreamId. El timestamp que se usa para el
-    // stream ID es el crudo (antes de normalizar al minuto).
+    // Stream ID determinista "rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}", en sync con
+    // RegistroDeMarcacionAggregateRoot.ComputarStreamId. El timestamp del stream ID es el crudo,
+    // antes de normalizar al minuto.
     private static string ComputarStreamId(string codigoColaborador, DateTime timestampCrudo) =>
         $"rdm:{codigoColaborador}:{timestampCrudo:yyyyMMddTHHmmss}";
 
-    // Issue #279: los casos de rechazo por forma solo varian en CodigoColaborador o Timestamp; el resto del
-    // payload es identico. Se envia el timestamp con el mismo formato que el resto del archivo.
+    // Los casos de rechazo por forma solo varian en CodigoColaborador o Timestamp; el resto del
+    // payload es identico.
     private Task<HttpResponseMessage> PostMarcacionAsync(
         string codigoColaborador, DateTime timestamp, string dispositivoId) =>
         _client.PostAsJsonAsync(Ruta, new
@@ -236,7 +222,7 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #279 CA-2: CodigoColaborador vacio produce 400.
+    // CodigoColaborador vacio produce 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarMarcacion_Retorna400_CuandoCodigoColaboradorEsVacio()
@@ -247,7 +233,7 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #279 CA-2: CodigoColaborador con solo espacios en blanco produce 400.
+    // CodigoColaborador con solo espacios en blanco produce 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarMarcacion_Retorna400_CuandoCodigoColaboradorSonSoloEspacios()
@@ -258,7 +244,7 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #279 CA-3: CodigoColaborador con ':' produce 400. ComputarStreamId usa ':' como separador entre
+    // CodigoColaborador con ':' produce 400. ComputarStreamId usa ':' como separador entre
     // CodigoColaborador y Timestamp; sin esta regla, un CodigoColaborador con ':' podria fabricar el mismo stream ID
     // que otra combinacion legitima (colision descrita en el Contexto del issue).
     [Fact]
@@ -282,18 +268,16 @@ public class RegistrarMarcacionSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // HU-108: tras el POST, el handler in-process AdicionarMarcacionCuandoRegistroDeMarcacionCreado
-    // persiste marcacion_adicionada en el stream {codigoColaborador}:{fecha} y publica DiaDepurado.
-    // Setup: se publica programacion-turno-diario-solicitada para que el aggregate tenga
-    // turno previo, asegurando que DiaDepurado.Colaborador no sea null y se pueda filtrar por
-    // CodigoColaborador en la suscripcion smoke-tests.
-    // Issue #270: este es el test que cierra el circuito completo del contrato de bus
-    // RegistroDeMarcacionCreado -- el POST solo puede llegar a persistir marcacion_adicionada si
-    // RegistrarMarcacionCommandHandler publico RegistroDeMarcacionCreado correctamente al topic
+    // Cierra el circuito completo del contrato de bus RegistroDeMarcacionCreado: el POST solo puede
+    // llegar a persistir marcacion_adicionada si RegistrarMarcacionCommandHandler lo publico al topic
     // "registro-de-marcacion-creado" y AdicionarMarcacionCuandoRegistroDeMarcacionCreado lo consumio
-    // desde "control-horas-escucha-registro-de-marcacion" (#274). Es un assert black-box mas fuerte
-    // que consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de
-    // PRODUCCION (no un consumidor competidor) proceso el mensaje.
+    // desde "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
+    // consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de PRODUCCION
+    // (no un consumidor competidor) proceso el mensaje.
+    //
+    // El setup publica programacion-turno-diario-solicitada para que el aggregate tenga turno previo,
+    // asegurando que DiaDepurado.Colaborador no sea null y se pueda filtrar por CodigoColaborador en
+    // la suscripcion smoke-tests.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarMarcacion_PublicaDiaDepuradoYPersisteMarcacionAdicionada_CuandoGeneraNuevoEvento()
@@ -314,17 +298,12 @@ public class RegistrarMarcacionSmokeTests(
         // persista turno_diario_asignado. Asi el ControlDiario tendra TurnoDiarioAsignado previo
         // antes de procesar la marcacion.
         var solicitudId = Guid.CreateVersion7();
+        var colaborador = new ResumenColaborador(
+            "CC-888777666", codigoColaborador, "[TEST] Smoke DiaDepurado");
         var programacionPayload = new
         {
             SolicitudId = solicitudId,
-            Colaborador = new
-            {
-                CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "888777666",
-                Nombres = "[TEST] Smoke DiaDepurado",
-                Apellidos = "[TEST] HU108"
-            },
+            Colaborador = colaborador,
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
             {
@@ -389,19 +368,17 @@ public class RegistrarMarcacionSmokeTests(
 
         diaDepurado.Fecha.Should().Be(fecha);
         diaDepurado.CodigoColaborador.Should().Be(codigoColaborador);
-        // CA-1/CA-2: el turno ya estaba asignado antes de la marcacion, asi que Colaborador lleva la
-        // terna compuesta -- flujo de marcacion, complementario al de AsignarTurnoViaSbSmokeTests.
-        var colaboradorEsperado = new ResumenColaborador(
-            "CC-888777666", codigoColaborador, "[TEST] Smoke DiaDepurado [TEST] HU108");
-        diaDepurado.Colaborador.Should().Be(colaboradorEsperado);
-        // Issue #183 CA-6: el payload viaja plano (HorasDiscriminadas) y se deserializo con el
+        // El turno ya estaba asignado antes de la marcacion, asi que Colaborador lleva la misma terna
+        // sembrada: el aggregate la mapea campo a campo, sin componer nada.
+        diaDepurado.Colaborador.Should().Be(colaborador);
+        // El payload viaja plano (HorasDiscriminadas) y se deserializo con el
         // serializador POR DEFECTO del fixture (sin resolver custom). Esta marcacion es solo ENTRADA:
         // la franja queda anomala (sin salida) -> sin horas calculables -> HorasPorConcepto vacio.
         diaDepurado.HorasDiscriminadas.Should().NotBeNull(
             "DiaDepurado siempre se emite con HorasDiscriminadas");
         diaDepurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty(
             "una entrada sola deja la franja anomala, sin horas por concepto");
-        // Issue #424 CA-3/CA-4/CA-5: el payload enriquecido lleva NombreTurno, la franja anomala
+        // El payload enriquecido lleva NombreTurno, la franja anomala
         // (espejo del ControlFranja real) y la marcacion cruda de la entrada.
         diaDepurado.NombreTurno.Should().Be("[TEST] Turno HU108");
         diaDepurado.Franjas.Should().ContainSingle(f => f.EsAnomala);
@@ -448,14 +425,8 @@ public class RegistrarMarcacionSmokeTests(
         var programacionPayload = new
         {
             SolicitudId = solicitudId,
-            Colaborador = new
-            {
-                CodigoColaborador = codigoColaborador,
-                TipoIdentificacion = "CC",
-                NumeroIdentificacion = "777666555",
-                Nombres = "[TEST] Smoke Desglose Real",
-                Apellidos = "[TEST] HU181"
-            },
+            Colaborador = new ResumenColaborador(
+                "CC-777666555", codigoColaborador, "[TEST] Smoke Desglose Real"),
             Fecha = fecha.ToString("yyyy-MM-dd"),
             DetalleTurno = new
             {
@@ -551,8 +522,8 @@ public class RegistrarMarcacionSmokeTests(
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
     }
 
-    // CA-1/CA-4: sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo
-    // desde la marcacion y CrearDiaDepurado() no tiene InformacionColaborador que mapear. Prueba
+    // Sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo desde la
+    // marcacion y CrearDiaDepurado() no tiene InformacionColaborador que mapear. Prueba
     // contra el entorno real que la cadena completa (handler -> IPrivateEventSender ->
     // deserializacion) preserva CodigoColaborador top-level y Colaborador null, tal como lo predice
     // el unit test CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno.
