@@ -39,8 +39,11 @@
 using System.Diagnostics;
 using System.Globalization;
 using AwesomeAssertions;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -376,5 +379,79 @@ public class ConfiguracionObservabilidadProjectionsTests
             atributos.Should().ContainKey(AtributoServiceName)
                 .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
         });
+    }
+
+    // --- Desacople del muestreo de logs del de trazas (issue #414, CA-1 y CA-2) ---
+    //
+    // Cadena causal verificada en el issue #412 y confirmada por decompilacion de
+    // Azure.Monitor.OpenTelemetry.Exporter 1.8.1 (OpenTelemetryBuilderExtensions.UseAzureMonitorExporter /
+    // ExporterRegistrationHostedService.Initialize): AzureMonitorExporterOptions.EnableTraceBasedLogsSampler
+    // llega en `true` por defecto y hace que el pipeline de logs instale un LogFilteringProcessor en vez de
+    // un BatchLogRecordExportProcessor liso. Ese processor descarta OnEnd(logRecord) salvo que
+    // logRecord.SpanId == default || logRecord.TraceFlags == Recorded -- exactamente el caso de los
+    // LogError que JasperFx.Events.Daemon.HighWater.HighWaterAgent emite DENTRO del span
+    // marten.daemon.highwatermark, que SamplerQueDescartaPollingDelDaemon (issue #308) dropea. Resultado
+    // medido: 35/35 de esos LogError nunca llegaron a la tabla `exceptions` (0% de ratio, issue #412).
+    //
+    // CA-1 se resuelve leyendo las OPCIONES EFECTIVAS del contenedor (IOptionsMonitor, la misma via por la
+    // que UseAzureMonitorExporter las resuelve internamente -- verificado por decompilacion), no por
+    // reflection: AzureMonitorExporterOptions.EnableTraceBasedLogsSampler es una propiedad publica, asi que
+    // no hace falta el equivalente de SamplerEfectivo aqui.
+    [Fact]
+    public void ConfigurarObservabilidad_DeshabilitaElSamplerDeLogsBasadoEnTrazas()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<IOptionsMonitor<AzureMonitorExporterOptions>>()
+            .Get(Options.DefaultName);
+
+        opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
+    }
+
+    // CA-2: el flag de CA-1 por si solo dejaria pasar TODOS los LogRecord del daemon al exporter --
+    // incluidos los `Information` ("Executed updates for Event range...") que el daemon HotCold emite cada
+    // pocos segundos, 24/7, con min_replicas = 1 (worker sin escala a cero, a diferencia de los Function
+    // Apps) -- presionando el daily cap (CA-ADR-0009 Capa 3) en la direccion opuesta a la que este issue
+    // busca. El filtro por proveedor sube el piso de EXPORTACION de esas categorias a Warning: los
+    // LogError que este issue rescata (Error > Warning) siguen pasando, los Information del ruido rutinario
+    // no. Verificado por comportamiento observable (ILogger.IsEnabled, MEF-ADR-0012 Tell-don't-Ask) sobre
+    // el contenedor real -- no se afirma que el seam llame a un metodo concreto (p. ej. AddFilter<T>), solo
+    // el efecto que debe producir; el mecanismo concreto queda a criterio del implementer (nota tecnica del
+    // issue #414: "gate NO VERIFICADO").
+    //
+    // "JasperFx.Events.Daemon.HighWater.HighWaterAgent" es la categoria real verificada por el planner
+    // (issue #414, seccion "Notas tecnicas": el nombre de categoria ILogger es el nombre completo del tipo
+    // emisor). El segundo caso cubre el otro prefijo que CA-2 exige ("Marten*"), con una categoria
+    // representativa bajo ese namespace -- el nombre exacto de esa segunda categoria no es el sujeto de la
+    // guarda: lo es el prefijo "Marten" que la cubre.
+    [Theory]
+    [InlineData("JasperFx.Events.Daemon.HighWater.HighWaterAgent")]
+    [InlineData("Marten.Events.Daemon.HighWater.HighWaterAgent")]
+    public void ConfigurarObservabilidad_SubeElPisoDeExportacionDeLogsDelDaemon_ANivelWarning(
+        string categoriaDelDaemon)
+    {
+        using var provider = ComponerServiceProvider();
+        var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+
+        var logger = loggerFactory.CreateLogger(categoriaDelDaemon);
+
+        logger.IsEnabled(LogLevel.Information).Should().BeFalse();
+        logger.IsEnabled(LogLevel.Warning).Should().BeTrue();
+    }
+
+    // Control de CA-2: el filtro debe ser focalizado a las categorias del daemon, no un downgrade global
+    // del piso de exportacion -- eso apagaria observabilidad de codigo propio del worker que hoy exporta en
+    // Information sin el modo de perdida que este issue corrige. Distinto de los dos tests de arriba: aqui
+    // se espera que el comportamiento de HOY (sin filtro) y el de DESPUES (filtro focalizado) coincidan, asi
+    // que este caso no aporta rojo por si solo -- lo aporta el par de arriba.
+    [Fact]
+    public void ConfigurarObservabilidad_ConservaElPisoInformation_ParaCategoriasFueraDelDaemon()
+    {
+        using var provider = ComponerServiceProvider();
+        var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+
+        var logger = loggerFactory.CreateLogger("Bitakora.ControlAsistencia.Projections.Worker");
+
+        logger.IsEnabled(LogLevel.Information).Should().BeTrue();
     }
 }
