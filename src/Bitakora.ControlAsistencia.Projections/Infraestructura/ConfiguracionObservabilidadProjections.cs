@@ -1,6 +1,7 @@
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -44,6 +45,17 @@ public static class ConfiguracionObservabilidadProjections
     // ConfiguracionObservabilidadProjectionsTests.
     internal const string PatronFuentePropia = NombreServicio + "*";
 
+    // Issue #414 (CA-2): prefijos de categoria ILogger de las clases del daemon HotCold que hoy
+    // exportan en Information cada pocos segundos, 24/7 (min_replicas = 1). El filtro sube su piso
+    // de EXPORTACION a Warning para que dejen de presionar el daily cap (CA-ADR-0009 Capa 3) sin
+    // perder los LogError que este issue rescata del modo de perdida binario descrito en el
+    // encabezado del issue. "JasperFx" cubre JasperFx.Events.Daemon.HighWater.HighWaterAgent
+    // (verificado por el planner contra consola real); "Marten" cubre el resto de categorias del
+    // daemon bajo ese namespace. La consola del Container App (appsettings.json) no se toca: este
+    // filtro se aplica sobre el ILoggerProvider que UseAzureMonitorExporter instala
+    // (OpenTelemetry.Logs.OpenTelemetryLoggerProvider), no sobre el logging global del host.
+    private static readonly string[] CategoriasDelDaemon = ["JasperFx", "Marten"];
+
     public static IServiceCollection ConfigurarObservabilidad(this IServiceCollection services)
     {
         // Observabilidad: exporta las trazas del worker (Npgsql, Marten) a Application Insights via
@@ -78,7 +90,16 @@ public static class ConfiguracionObservabilidadProjections
                 .AddSource("Marten")
                 .AddSource("Npgsql")
                 .AddSource(PatronFuentePropia))
-            .UseAzureMonitorExporter()
+            // Issue #414 (CA-1): EnableTraceBasedLogsSampler viene en `true` por defecto (1.8.1) e
+            // instala un LogFilteringProcessor que descarta OnEnd(logRecord) salvo que
+            // logRecord.SpanId == default || logRecord.TraceFlags == Recorded. Los LogError que
+            // JasperFx.Events.Daemon.HighWater.HighWaterAgent emite DENTRO del span
+            // marten.daemon.highwatermark (que SamplerQueDescartaPollingDelDaemon, issue #308,
+            // dropea) caen del lado equivocado de esa condicion y nunca llegan a `exceptions`
+            // (0% de ratio medido en el issue #412). El muestreo de logs se desacopla del de trazas
+            // apagando este flag; el volumen resultante se controla con el filtro por proveedor de
+            // CA-2, no con el sampler de trazas.
+            .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 // Issue #308 (hallazgo 2): el daemon HotCold de Marten emite un span de polling sin
                 // valor diagnostico cada 5s (marten.daemon.highwatermark) del que cuelga el 95% de
@@ -86,6 +107,21 @@ public static class ConfiguracionObservabilidadProjections
                 // actividad puntual sin afectar al resto de la fuente Marten.
                 .SetSampler(new SamplerQueDescartaPollingDelDaemon(
                     new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))));
+
+        // Issue #414 (CA-2): el flag de CA-1 por si solo dejaria pasar TODOS los LogRecord del
+        // daemon hacia el exporter, incluidos los `Information` rutinarios ("Executed updates for
+        // Event range...") que emite cada pocos segundos con min_replicas = 1 -- presionando el
+        // daily cap (CA-ADR-0009 Capa 3) en la direccion opuesta a la que este issue busca. Se sube
+        // el piso de EXPORTACION (no el de la consola: appsettings.json queda intacto) de esas
+        // categorias a Warning sobre el ILoggerProvider que UseAzureMonitorExporter instala
+        // (OpenTelemetry.Logs.OpenTelemetryLoggerProvider) -- los LogError (Error > Warning) del
+        // daemon siguen exportandose, los Information del ruido rutinario no. AddLogging es
+        // aditivo: no reemplaza el AddLogging() ya invocado por el host del worker.
+        services.AddLogging(logging =>
+        {
+            foreach (var categoria in CategoriasDelDaemon)
+                logging.AddFilter<OpenTelemetryLoggerProvider>(categoria, LogLevel.Warning);
+        });
 
         return services;
     }
