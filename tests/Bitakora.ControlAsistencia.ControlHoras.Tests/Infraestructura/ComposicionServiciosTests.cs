@@ -331,6 +331,36 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
     }
 
+    // Issue #448, mismo par que #328 cerro para TurnoVigente (y que #294 tuvo que cerrar en su
+    // momento para el read model anterior, retirado por #323): AsistenciaDiariaProjection quedo
+    // registrada en el worker desde #441 (ver ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica, ya en verde alla), asi
+    // que Marten le aplica ProjectionDocumentPolicy en ESE store (UseNumericRevisions = true,
+    // mt_version bigint) -- este Function App NO puede registrar esa proyeccion (vive en el
+    // ensamblado del worker, referenciarla violaria CA-ADR-0029), asi que sin declarar la misma
+    // forma explicitamente con Schema.For<AsistenciaDiaria>().UseNumericRevisions(true) este store
+    // esperaria mt_version uuid sobre la MISMA tabla fisica que el worker crea como bigint. Con
+    // AutoCreate en su default CreateOrUpdate, Marten intenta "alter column mt_version type uuid" en
+    // cada request, Postgres lo rechaza con 42804 (no hay cast automatico bigint -> uuid) y
+    // ListarAsistenciasDiarias/ListarResumenesAsistencia responden 500 de forma permanente -- el
+    // sintoma real medido en App Insights desde el 2026-08-24 (PRs #443/#444).
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica congela desde el worker.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAsistenciaDiaria()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AsistenciaDiaria));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
     // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
     // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
     // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
