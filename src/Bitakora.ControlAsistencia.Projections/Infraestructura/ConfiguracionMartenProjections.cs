@@ -16,6 +16,7 @@ public static class ConfiguracionMartenProjections
         services.ConfigurarProgramacion(martenConnectionString);
         services.ConfigurarControlHoras(martenConnectionString);
         services.ConfigurarColaboradores(martenConnectionString);
+        services.ConfigurarSedes(martenConnectionString);
 
         return services;
     }

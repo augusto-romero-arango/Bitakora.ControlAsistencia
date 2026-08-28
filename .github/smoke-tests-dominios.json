@@ -13,5 +13,10 @@
     "dominio": "Colaboradores",
     "base_url": "https://func-asist-dev-colaboradores.azurewebsites.net",
     "test_project": "tests/Bitakora.ControlAsistencia.Colaboradores.SmokeTests/"
+  },
+  {
+    "dominio": "Sedes",
+    "base_url": "https://func-asist-dev-sedes.azurewebsites.net",
+    "test_project": "tests/Bitakora.ControlAsistencia.Sedes.SmokeTests/"
   }
 ]
