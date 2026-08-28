@@ -20,10 +20,12 @@ public partial class SedeAggregateRoot : AggregateRoot
     private string? _nombre;
     private string? _ciudad;
     private string? _direccion;
+    private string? _centroDeCostos;
 
     internal string Nombre => _nombre!;
     internal string? Ciudad => _ciudad;
     internal string? Direccion => _direccion;
+    internal string? CentroDeCostos => _centroDeCostos;
 
     // Punto unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la
     // concatena por su cuenta.
@@ -77,5 +79,28 @@ public partial class SedeAggregateRoot : AggregateRoot
         var evento = new UbicacionActualizada(ciudad, direccion);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+    }
+
+    public void Apply(CentroDeCostosAsignado e) => _centroDeCostos = e.CentroDeCostos;
+
+    internal void AsignarCentroDeCostos(string centroDeCostos)
+    {
+        var evento = new CentroDeCostosAsignado(centroDeCostos);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    public void Apply(CentroDeCostosRetirado e) => _centroDeCostos = null;
+
+    internal ResultadoRetiroCentroDeCostos RetirarCentroDeCostos()
+    {
+        if (_centroDeCostos is null)
+            return ResultadoRetiroCentroDeCostos.SinCentroDeCostosVigente;
+
+        var evento = new CentroDeCostosRetirado();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoRetiroCentroDeCostos.Exitosa;
     }
 }
