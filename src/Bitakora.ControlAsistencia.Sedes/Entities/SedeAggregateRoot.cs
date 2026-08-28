@@ -21,11 +21,13 @@ public partial class SedeAggregateRoot : AggregateRoot
     private string? _ciudad;
     private string? _direccion;
     private string? _centroDeCostos;
+    private bool _activa;
 
     internal string Nombre => _nombre!;
     internal string? Ciudad => _ciudad;
     internal string? Direccion => _direccion;
     internal string? CentroDeCostos => _centroDeCostos;
+    internal bool Activa => _activa;
 
     // Punto unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la
     // concatena por su cuenta.
@@ -40,6 +42,8 @@ public partial class SedeAggregateRoot : AggregateRoot
         _nombre = e.Nombre;
         _ciudad = e.Ciudad;
         _direccion = e.Direccion;
+        // La sede nace activa: no hay evento inicial de activacion que aplicar.
+        _activa = true;
     }
 
     // Los metodos de mutacion no interrogan el estado propio: el handler ya resolvio que el stream
@@ -102,5 +106,33 @@ public partial class SedeAggregateRoot : AggregateRoot
         Apply(evento);
 
         return ResultadoRetiroCentroDeCostos.Exitosa;
+    }
+
+    public void Apply(SedeActivada e) => _activa = true;
+
+    internal ResultadoActivacionSede Activar()
+    {
+        if (_activa)
+            return ResultadoActivacionSede.YaActiva;
+
+        var evento = new SedeActivada();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoActivacionSede.Exitosa;
+    }
+
+    public void Apply(SedeDesactivada e) => _activa = false;
+
+    internal ResultadoDesactivacionSede Desactivar()
+    {
+        if (!_activa)
+            return ResultadoDesactivacionSede.YaInactiva;
+
+        var evento = new SedeDesactivada();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoDesactivacionSede.Exitosa;
     }
 }

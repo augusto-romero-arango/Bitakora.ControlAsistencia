@@ -20,5 +20,7 @@ public static class IdentidadEventosSedes
         typeof(UbicacionActualizada),
         typeof(CentroDeCostosAsignado),
         typeof(CentroDeCostosRetirado),
+        typeof(SedeActivada),
+        typeof(SedeDesactivada),
     ];
 }

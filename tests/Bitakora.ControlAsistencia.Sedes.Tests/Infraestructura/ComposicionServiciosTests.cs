@@ -237,7 +237,8 @@ public class ComposicionServiciosTests
         store.AssertEventosPersistidosRegistrados(
             [
                 typeof(SedeRegistrada), typeof(NombreSedeModificado), typeof(UbicacionActualizada),
-                typeof(CentroDeCostosAsignado), typeof(CentroDeCostosRetirado)
+                typeof(CentroDeCostosAsignado), typeof(CentroDeCostosRetirado),
+                typeof(SedeActivada), typeof(SedeDesactivada)
             ]);
     }
 
@@ -259,7 +260,9 @@ public class ComposicionServiciosTests
             [typeof(NombreSedeModificado)] = "nombre_sede_modificado",
             [typeof(UbicacionActualizada)] = "ubicacion_actualizada",
             [typeof(CentroDeCostosAsignado)] = "centro_de_costos_asignado",
-            [typeof(CentroDeCostosRetirado)] = "centro_de_costos_retirado"
+            [typeof(CentroDeCostosRetirado)] = "centro_de_costos_retirado",
+            [typeof(SedeActivada)] = "sede_activada",
+            [typeof(SedeDesactivada)] = "sede_desactivada"
         });
     }
 }
