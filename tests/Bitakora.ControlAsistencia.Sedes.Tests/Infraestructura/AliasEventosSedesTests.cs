@@ -51,4 +51,22 @@ public class AliasEventosSedesTests
 
         AliasDe<UbicacionActualizada>(options).Should().Be("ubicacion_actualizada");
     }
+
+    // Issue #458
+    [Fact]
+    public void CentroDeCostosAsignado_TieneAliasCentroDeCostosAsignado()
+    {
+        var options = CrearOpcionesConEventosDeSedesRegistrados();
+
+        AliasDe<CentroDeCostosAsignado>(options).Should().Be("centro_de_costos_asignado");
+    }
+
+    // Issue #458
+    [Fact]
+    public void CentroDeCostosRetirado_TieneAliasCentroDeCostosRetirado()
+    {
+        var options = CrearOpcionesConEventosDeSedesRegistrados();
+
+        AliasDe<CentroDeCostosRetirado>(options).Should().Be("centro_de_costos_retirado");
+    }
 }

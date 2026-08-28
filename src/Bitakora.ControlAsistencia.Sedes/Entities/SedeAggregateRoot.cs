@@ -20,10 +20,12 @@ public partial class SedeAggregateRoot : AggregateRoot
     private string? _nombre;
     private string? _ciudad;
     private string? _direccion;
+    private string? _centroDeCostos;
 
     internal string Nombre => _nombre!;
     internal string? Ciudad => _ciudad;
     internal string? Direccion => _direccion;
+    internal string? CentroDeCostos => _centroDeCostos;
 
     // Punto unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la
     // concatena por su cuenta.
@@ -78,4 +80,20 @@ public partial class SedeAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // Issue #458 (MEF-ADR-0043 paso 2): reemplazo completo del CC opaco -- asignar por primera vez
+    // y reemplazar son el mismo comando, sin variante de idempotencia silenciosa. Fase roja: stub
+    // minimo, el implementer completa.
+    public void Apply(CentroDeCostosAsignado e) => throw new NotImplementedException();
+
+    internal void AsignarCentroDeCostos(string centroDeCostos) =>
+        throw new NotImplementedException();
+
+    // Issue #458 (MEF-ADR-0043 paso 3, CA-ADR-0030): mecanismo "declinar con resultado" -- sin CC
+    // vigente el aggregate declina sin mutar ni emitir (CA-4). Fase roja: stub minimo, el
+    // implementer completa.
+    public void Apply(CentroDeCostosRetirado e) => throw new NotImplementedException();
+
+    internal ResultadoRetiroCentroDeCostos RetirarCentroDeCostos() =>
+        throw new NotImplementedException();
 }
