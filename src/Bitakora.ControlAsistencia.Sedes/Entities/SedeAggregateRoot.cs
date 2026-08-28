@@ -138,15 +138,35 @@ public partial class SedeAggregateRoot : AggregateRoot
 
     // Issue #460: coleccion interna de dispositivos instalados -- Tell-don't-Ask (MEF-ADR-0012),
     // el dispositivo es ajeno al sistema (DispositivoId opaco), no es aggregate root propio.
-    internal IReadOnlyCollection<string> DispositivosInstalados => throw new NotImplementedException();
+    private readonly List<string> _dispositivosInstalados = [];
 
-    public void Apply(DispositivoInstalado e) => throw new NotImplementedException();
+    internal IReadOnlyCollection<string> DispositivosInstalados => _dispositivosInstalados;
 
-    internal ResultadoInstalacionDispositivo InstalarDispositivo(string dispositivoId) =>
-        throw new NotImplementedException();
+    public void Apply(DispositivoInstalado e) => _dispositivosInstalados.Add(e.DispositivoId);
 
-    public void Apply(DispositivoRetirado e) => throw new NotImplementedException();
+    internal ResultadoInstalacionDispositivo InstalarDispositivo(string dispositivoId)
+    {
+        if (_dispositivosInstalados.Contains(dispositivoId))
+            return ResultadoInstalacionDispositivo.YaInstalado;
 
-    internal ResultadoRetiroDispositivo RetirarDispositivo(string dispositivoId) =>
-        throw new NotImplementedException();
+        var evento = new DispositivoInstalado(dispositivoId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoInstalacionDispositivo.Exitosa;
+    }
+
+    public void Apply(DispositivoRetirado e) => _dispositivosInstalados.Remove(e.DispositivoId);
+
+    internal ResultadoRetiroDispositivo RetirarDispositivo(string dispositivoId)
+    {
+        if (!_dispositivosInstalados.Contains(dispositivoId))
+            return ResultadoRetiroDispositivo.NoInstalado;
+
+        var evento = new DispositivoRetirado(dispositivoId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoRetiroDispositivo.Exitosa;
+    }
 }
