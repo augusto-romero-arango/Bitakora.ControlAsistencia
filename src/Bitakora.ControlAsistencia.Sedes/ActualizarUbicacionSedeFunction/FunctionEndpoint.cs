@@ -17,10 +17,27 @@ namespace Bitakora.ControlAsistencia.Sedes.ActualizarUbicacionSedeFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("ActualizarUbicacionSede")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "sedes/{codigo}/ubicacion")]
         HttpRequest req,
         string codigo,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var (body, error) = await requestValidator.ValidarAsync<ActualizarUbicacionSedeBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new ActualizarUbicacionSede(codigo, body!.Ciudad, body.Direccion);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }

@@ -18,10 +18,27 @@ namespace Bitakora.ControlAsistencia.Sedes.ModificarNombreSedeFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("ModificarNombreSede")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "sedes/{codigo}/nombre")]
         HttpRequest req,
         string codigo,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var (body, error) = await requestValidator.ValidarAsync<ModificarNombreSedeBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new ModificarNombreSede(codigo, body!.Nombre);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }
