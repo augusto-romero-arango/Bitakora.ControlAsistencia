@@ -135,4 +135,18 @@ public partial class SedeAggregateRoot : AggregateRoot
 
         return ResultadoDesactivacionSede.Exitosa;
     }
+
+    // Issue #460: coleccion interna de dispositivos instalados -- Tell-don't-Ask (MEF-ADR-0012),
+    // el dispositivo es ajeno al sistema (DispositivoId opaco), no es aggregate root propio.
+    internal IReadOnlyCollection<string> DispositivosInstalados => throw new NotImplementedException();
+
+    public void Apply(DispositivoInstalado e) => throw new NotImplementedException();
+
+    internal ResultadoInstalacionDispositivo InstalarDispositivo(string dispositivoId) =>
+        throw new NotImplementedException();
+
+    public void Apply(DispositivoRetirado e) => throw new NotImplementedException();
+
+    internal ResultadoRetiroDispositivo RetirarDispositivo(string dispositivoId) =>
+        throw new NotImplementedException();
 }
