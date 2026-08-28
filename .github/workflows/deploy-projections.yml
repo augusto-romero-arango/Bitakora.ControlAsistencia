@@ -48,12 +48,21 @@ on:
     paths:
       - 'src/Bitakora.ControlAsistencia.Projections/**'
       - 'src/Bitakora.ControlAsistencia.ReadModels/**'
-      # Issue #237: el worker compila contra los dos DomainEvents para ver los tipos de evento que
-      # proyecta y su ConfigurarSerializacion (MEF-ADR-0034 seccion 5), y contra Public/PrivateEvents
-      # por transitividad. Un cambio en cualquiera de los cuatro cambia su binario, asi que sin estas
-      # rutas el worker quedaria desplegado con una version vieja de los tipos que deserializa.
+      # Issue #237: el worker compila contra el DomainEvents de CADA dominio del BC para ver los
+      # tipos de evento que proyecta y su ConfigurarSerializacion (MEF-ADR-0034 seccion 5), y contra
+      # Public/PrivateEvents por transitividad. Un cambio en cualquiera de ellos cambia su binario,
+      # asi que sin estas rutas el worker quedaria desplegado con una version vieja de los tipos que
+      # deserializa.
+      #
+      # Esta lista debe seguir siendo espejo exacto de los ProjectReference de
+      # Bitakora.ControlAsistencia.Projections.csproj: un dominio nuevo scaffoldeado agrega su
+      # referencia alli y DEBE agregar su ruta aqui. Colaboradores (#360) y Sedes (#455) nacieron
+      # sin ella -- la omision no rompe nada visible, solo deja al worker sirviendo tipos viejos en
+      # silencio, que es justo el modo de fallo que esta lista existe para evitar.
       - 'src/Bitakora.ControlAsistencia.Programacion.DomainEvents/**'
       - 'src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/**'
+      - 'src/Bitakora.ControlAsistencia.Colaboradores.DomainEvents/**'
+      - 'src/Bitakora.ControlAsistencia.Sedes.DomainEvents/**'
       - 'src/Bitakora.ControlAsistencia.PrivateEvents/**'
       - 'src/Bitakora.ControlAsistencia.PublicEvents/**'
       - 'global.json'

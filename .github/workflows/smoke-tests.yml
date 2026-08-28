@@ -35,8 +35,8 @@ jobs:
     # 31516470612 arranco y paso al conceder esto.
     #
     # Va a nivel de JOB y no de workflow para no alterar los permisos de 'discovery', que solo
-    # necesita el default para su checkout. Los cuatro deploy-*.yml que invocan este mismo reusable
-    # llevan la concesion en su job de smoke por la misma razon.
+    # necesita el default para su checkout. Cada deploy-*.yml que invoca este mismo reusable lleva
+    # la concesion en su job de smoke por la misma razon.
     permissions:
       contents: read
       actions: read

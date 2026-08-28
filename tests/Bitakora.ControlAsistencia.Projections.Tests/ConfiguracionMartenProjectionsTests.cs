@@ -51,6 +51,9 @@ public class ConfiguracionMartenProjectionsTests
     private static ServiceProvider ProviderDeColaboradores() =>
         CrearProvider(services => services.ConfigurarColaboradores(ConnectionStringDummy));
 
+    private static ServiceProvider ProviderDeSedes() =>
+        CrearProvider(services => services.ConfigurarSedes(ConnectionStringDummy));
+
     // --- Programacion (CA-1, CA-3, CA-6, CA-7) ---
 
     [Fact]
@@ -645,6 +648,96 @@ public class ConfiguracionMartenProjectionsTests
         mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "nombre", "completo"));
     }
 
+    // --- Sedes (issue #455: el named store nace con el andamiaje del dominio, sin proyecciones) ---
+
+    // Mismas guardas que los demas dominios: son las que fijan la forma del named store ANTES de
+    // que exista la primera proyeccion. Su valor esta justo ahi -- schema, identidad de stream,
+    // tenancy y naming de eventos deben coincidir con el write-side desde el primer evento
+    // persistido; descubrir una divergencia despues obliga a migrar datos ya escritos.
+    //
+    // Todavia sin equivalente de ConfigurarX_RegistraLosTiposDeEventoPersistidos ni de
+    // ConfigurarX_ConservaElResolverDeSerializacionCustom: el dominio no tiene ningun evento
+    // persistido (IdentidadEventosSedes.TiposPersistidos esta vacia) ni ningun value object con
+    // ctor privado. Se agregan junto con el primer evento del desglose #456-#461.
+
+    [Fact]
+    public void ConfigurarSedes_ResuelveElNamedStoreDelDominio()
+    {
+        using var provider = ProviderDeSedes();
+
+        var store = provider.GetService<ISedesProjectionStore>();
+
+        store.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_RegistraElNamedStoreSobreElSchemaDeSedes()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertSchema("sedes");
+    }
+
+    [Fact]
+    public void ConfigurarSedes_ReplicaLaMetadataDeEventoDelWriteSide()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertOpcionesDeEvento();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_NoRegistraNingunaProyeccionInline()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertSinProyeccionesInline();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_EnciendeElDaemonEnModoHotCold()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.AssertDaemonHotCold<ISedesProjectionStore>();
+    }
+
+    // El stream de Sede se identifica por CodigoSede (texto del cliente), no por Guid: sin esta
+    // guarda Marten volveria a su default AsGuid y el daemon leeria stream_id varchar como uuid,
+    // sin encontrar ningun stream (issue #253).
+    [Fact]
+    public void ConfigurarSedes_DeclaraLaStreamIdentityComoString()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertStreamIdentityAsString();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_DeclaraTenancyDeEventosConjoined()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertTenancyDeEventosConjoined();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_DeclaraEventNamingStyleSmarterTypeName()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertEventNamingStyleSmarterTypeName();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_DeclaraLosDocumentosComoMultiTenant()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>()
+            .AssertDocumentosMultiTenant<DocumentoCanarioTenancy>();
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
@@ -659,5 +752,6 @@ public class ConfiguracionMartenProjectionsTests
         provider.GetService<IProgramacionProjectionStore>().Should().NotBeNull();
         provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
         provider.GetService<IColaboradoresProjectionStore>().Should().NotBeNull();
+        provider.GetService<ISedesProjectionStore>().Should().NotBeNull();
     }
 }
