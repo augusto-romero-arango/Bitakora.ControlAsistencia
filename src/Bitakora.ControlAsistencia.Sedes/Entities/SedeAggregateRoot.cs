@@ -135,4 +135,38 @@ public partial class SedeAggregateRoot : AggregateRoot
 
         return ResultadoDesactivacionSede.Exitosa;
     }
+
+    // El dispositivo es ajeno al sistema (DispositivoId opaco) y no existe sin sede: es entidad
+    // interna de este aggregate, nunca un aggregate root propio.
+    private readonly List<string> _dispositivosInstalados = [];
+
+    internal IReadOnlyCollection<string> DispositivosInstalados => _dispositivosInstalados;
+
+    public void Apply(DispositivoInstalado e) => _dispositivosInstalados.Add(e.DispositivoId);
+
+    internal ResultadoInstalacionDispositivo InstalarDispositivo(string dispositivoId)
+    {
+        if (_dispositivosInstalados.Contains(dispositivoId))
+            return ResultadoInstalacionDispositivo.YaInstalado;
+
+        var evento = new DispositivoInstalado(dispositivoId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoInstalacionDispositivo.Exitosa;
+    }
+
+    public void Apply(DispositivoRetirado e) => _dispositivosInstalados.Remove(e.DispositivoId);
+
+    internal ResultadoRetiroDispositivo RetirarDispositivo(string dispositivoId)
+    {
+        if (!_dispositivosInstalados.Contains(dispositivoId))
+            return ResultadoRetiroDispositivo.NoInstalado;
+
+        var evento = new DispositivoRetirado(dispositivoId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoRetiroDispositivo.Exitosa;
+    }
 }

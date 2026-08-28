@@ -1,0 +1,27 @@
+using Bitakora.ControlAsistencia.Sedes.Entities;
+using Cosmos.EventSourcing.Abstractions.Commands;
+
+namespace Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction.CommandHandler;
+
+// Traduce el resultado declinado del aggregate a InvalidOperationException/409 (CA-ADR-0030).
+// Sede inexistente es precondicion de orquestacion (KeyNotFoundException/404), sin evento de fallo
+// persistido.
+public partial class InstalarDispositivoCommandHandler : ICommandHandlerAsync<InstalarDispositivo>
+{
+    private readonly IEventStore _eventStore;
+
+    public InstalarDispositivoCommandHandler(IEventStore eventStore) =>
+        _eventStore = eventStore;
+
+    public async Task HandleAsync(InstalarDispositivo command, CancellationToken ct = default)
+    {
+        var streamId = SedeAggregateRoot.ComputarStreamId(command.Codigo);
+        var sede = await _eventStore.GetAggregateRootAsync<SedeAggregateRoot>(streamId, ct);
+        if (sede is null)
+            throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
+
+        var resultado = sede.InstalarDispositivo(command.DispositivoId);
+        if (resultado == ResultadoInstalacionDispositivo.YaInstalado)
+            throw new InvalidOperationException(Mensajes.DispositivoYaInstalado);
+    }
+}

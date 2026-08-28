@@ -83,4 +83,20 @@ public class AliasEventosSedesTests
 
         AliasDe<SedeDesactivada>(options).Should().Be("sede_desactivada");
     }
+
+    [Fact]
+    public void DispositivoInstalado_TieneAliasDispositivoInstalado()
+    {
+        var options = CrearOpcionesConEventosDeSedesRegistrados();
+
+        AliasDe<DispositivoInstalado>(options).Should().Be("dispositivo_instalado");
+    }
+
+    [Fact]
+    public void DispositivoRetirado_TieneAliasDispositivoRetirado()
+    {
+        var options = CrearOpcionesConEventosDeSedesRegistrados();
+
+        AliasDe<DispositivoRetirado>(options).Should().Be("dispositivo_retirado");
+    }
 }
