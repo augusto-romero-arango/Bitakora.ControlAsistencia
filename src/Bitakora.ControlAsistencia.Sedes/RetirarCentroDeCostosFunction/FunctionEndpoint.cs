@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +18,30 @@ namespace Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction;
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarCentroDeCostos")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "sedes/{codigo}/centro-de-costos")]
         HttpRequest req,
         string codigo,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!CodigoSedeDeRuta.EsValido(codigo, out var errorDeCodigo))
+            return errorDeCodigo;
+
+        var comando = new RetirarCentroDeCostos(codigo);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }

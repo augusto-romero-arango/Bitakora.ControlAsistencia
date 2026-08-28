@@ -18,10 +18,30 @@ namespace Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarCentroDeCostos")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "sedes/{codigo}/centro-de-costos")]
         HttpRequest req,
         string codigo,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!CodigoSedeDeRuta.EsValido(codigo, out var errorDeCodigo))
+            return errorDeCodigo;
+
+        var (body, error) = await requestValidator.ValidarAsync<AsignarCentroDeCostosBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new AsignarCentroDeCostos(codigo, body!.CentroDeCostos);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }

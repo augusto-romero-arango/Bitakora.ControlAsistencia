@@ -14,6 +14,15 @@ public partial class RetirarCentroDeCostosCommandHandler : ICommandHandlerAsync<
     public RetirarCentroDeCostosCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(RetirarCentroDeCostos command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(RetirarCentroDeCostos command, CancellationToken ct = default)
+    {
+        var streamId = SedeAggregateRoot.ComputarStreamId(command.Codigo);
+        var sede = await _eventStore.GetAggregateRootAsync<SedeAggregateRoot>(streamId, ct);
+        if (sede is null)
+            throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
+
+        var resultado = sede.RetirarCentroDeCostos();
+        if (resultado == ResultadoRetiroCentroDeCostos.SinCentroDeCostosVigente)
+            throw new InvalidOperationException(Mensajes.SinCentroDeCostosVigente);
+    }
 }

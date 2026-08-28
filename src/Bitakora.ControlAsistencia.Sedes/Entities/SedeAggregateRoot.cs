@@ -82,18 +82,29 @@ public partial class SedeAggregateRoot : AggregateRoot
     }
 
     // Issue #458 (MEF-ADR-0043 paso 2): reemplazo completo del CC opaco -- asignar por primera vez
-    // y reemplazar son el mismo comando, sin variante de idempotencia silenciosa. Fase roja: stub
-    // minimo, el implementer completa.
-    public void Apply(CentroDeCostosAsignado e) => throw new NotImplementedException();
+    // y reemplazar son el mismo comando, sin variante de idempotencia silenciosa.
+    public void Apply(CentroDeCostosAsignado e) => _centroDeCostos = e.CentroDeCostos;
 
-    internal void AsignarCentroDeCostos(string centroDeCostos) =>
-        throw new NotImplementedException();
+    internal void AsignarCentroDeCostos(string centroDeCostos)
+    {
+        var evento = new CentroDeCostosAsignado(centroDeCostos);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
 
     // Issue #458 (MEF-ADR-0043 paso 3, CA-ADR-0030): mecanismo "declinar con resultado" -- sin CC
-    // vigente el aggregate declina sin mutar ni emitir (CA-4). Fase roja: stub minimo, el
-    // implementer completa.
-    public void Apply(CentroDeCostosRetirado e) => throw new NotImplementedException();
+    // vigente el aggregate declina sin mutar ni emitir (CA-4).
+    public void Apply(CentroDeCostosRetirado e) => _centroDeCostos = null;
 
-    internal ResultadoRetiroCentroDeCostos RetirarCentroDeCostos() =>
-        throw new NotImplementedException();
+    internal ResultadoRetiroCentroDeCostos RetirarCentroDeCostos()
+    {
+        if (_centroDeCostos is null)
+            return ResultadoRetiroCentroDeCostos.SinCentroDeCostosVigente;
+
+        var evento = new CentroDeCostosRetirado();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoRetiroCentroDeCostos.Exitosa;
+    }
 }

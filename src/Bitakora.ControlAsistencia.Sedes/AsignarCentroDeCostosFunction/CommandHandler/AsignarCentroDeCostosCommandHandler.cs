@@ -14,6 +14,13 @@ public partial class AsignarCentroDeCostosCommandHandler : ICommandHandlerAsync<
     public AsignarCentroDeCostosCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(AsignarCentroDeCostos command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(AsignarCentroDeCostos command, CancellationToken ct = default)
+    {
+        var streamId = SedeAggregateRoot.ComputarStreamId(command.Codigo);
+        var sede = await _eventStore.GetAggregateRootAsync<SedeAggregateRoot>(streamId, ct);
+        if (sede is null)
+            throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
+
+        sede.AsignarCentroDeCostos(command.CentroDeCostos);
+    }
 }

@@ -18,5 +18,7 @@ public static class IdentidadEventosSedes
         typeof(SedeRegistrada),
         typeof(NombreSedeModificado),
         typeof(UbicacionActualizada),
+        typeof(CentroDeCostosAsignado),
+        typeof(CentroDeCostosRetirado),
     ];
 }
