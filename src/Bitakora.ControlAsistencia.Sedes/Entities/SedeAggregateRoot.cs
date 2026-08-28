@@ -21,11 +21,13 @@ public partial class SedeAggregateRoot : AggregateRoot
     private string? _ciudad;
     private string? _direccion;
     private string? _centroDeCostos;
+    private bool _activa;
 
     internal string Nombre => _nombre!;
     internal string? Ciudad => _ciudad;
     internal string? Direccion => _direccion;
     internal string? CentroDeCostos => _centroDeCostos;
+    internal bool Activa => _activa;
 
     // Punto unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la
     // concatena por su cuenta.
@@ -103,4 +105,18 @@ public partial class SedeAggregateRoot : AggregateRoot
 
         return ResultadoRetiroCentroDeCostos.Exitosa;
     }
+
+    // Issue #459 (CA-ADR-0030): mecanismo "declinar con resultado" -- activar una sede ya activa
+    // declina sin mutar ni emitir (CA-3, aplica igual a una sede recien registrada: la sede nace
+    // activa, sin evento inicial). Fase roja: stub minimo -- el implementer completa, incluyendo
+    // Apply(SedeRegistrada) para que _activa nazca en true.
+    public void Apply(SedeActivada e) => throw new NotImplementedException();
+
+    internal ResultadoActivacionSede Activar() => throw new NotImplementedException();
+
+    // Issue #459 (CA-ADR-0030): mecanismo "declinar con resultado" -- desactivar una sede ya
+    // inactiva declina sin mutar ni emitir (CA-4). Fase roja: stub minimo, el implementer completa.
+    public void Apply(SedeDesactivada e) => throw new NotImplementedException();
+
+    internal ResultadoDesactivacionSede Desactivar() => throw new NotImplementedException();
 }

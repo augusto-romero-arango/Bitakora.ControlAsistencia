@@ -20,5 +20,8 @@ public static class IdentidadEventosSedes
         typeof(UbicacionActualizada),
         typeof(CentroDeCostosAsignado),
         typeof(CentroDeCostosRetirado),
+        // Issue #459
+        typeof(SedeActivada),
+        typeof(SedeDesactivada),
     ];
 }
