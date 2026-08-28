@@ -32,4 +32,13 @@
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Sedes.DomainEvents\Bitakora.ControlAsistencia.Sedes.DomainEvents.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Issue #456: SedeAggregateRoot expone su estado interno (Nombre, Ciudad, Direccion) como
+         internal. El issue no lo declara publico (Tell-don't-Ask, MEF-ADR-0012), asi que se abre
+         via InternalsVisibleTo para que el harness de tests pueda verificarlo sin ampliar la
+         superficie publica del dominio. Mismo patron que Colaboradores (RegistrarSedeCommandHandler.
+         Mensajes tambien es internal). -->
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Sedes.Tests" />
+  </ItemGroup>
+
 </Project>

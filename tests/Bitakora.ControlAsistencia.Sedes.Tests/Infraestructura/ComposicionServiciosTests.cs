@@ -15,6 +15,7 @@
 using System.Globalization;
 using System.Reflection;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Marten;
@@ -213,5 +214,44 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ReadyCheck>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    // Issue #456 (patron replicado de Colaboradores #330 / ControlHoras-Programacion #277 CA-2/
+    // CA-4): SedeRegistrada nace con este issue en Sedes.DomainEvents sin registrar su tipo en el
+    // EventGraph. Toda lectura quedaria dependiendo del fallback por mt_dotnet_type en vez de
+    // resolver por alias (columna "type" de mt_events). Este guardrail detecta el olvido sobre el
+    // store real que compone el contenedor, sin Postgres.
+    //
+    // El tipo esperado se lista literalmente (oraculo independiente, MEF-ADR-0002): leerlo de
+    // IdentidadEventosSedes.TiposPersistidos acoplaria el guardrail al mismo artefacto que
+    // AliasEventosSedesTests ya verifica, y la asercion pasaria en verde aunque la lista quedara
+    // vacia.
+    [Fact]
+    public async Task AgregarServiciosSedes_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertEventosPersistidosRegistrados([typeof(SedeRegistrada)]);
+    }
+
+    // Issue #456: registrar el tipo solo sirve si el alias sigue siendo el que las filas ya
+    // escritas llevan en su columna "type". AliasEventosSedesTests lo congela sobre un StoreOptions
+    // standalone; esta guarda lo congela sobre el store del contenedor, el unico lugar donde un
+    // MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
+    [Fact]
+    public async Task AgregarServiciosSedes_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+
+        store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
+        {
+            [typeof(SedeRegistrada)] = "sede_registrada"
+        });
     }
 }
