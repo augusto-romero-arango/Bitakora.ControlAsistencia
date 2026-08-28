@@ -158,8 +158,10 @@ evento.
 | `control_horas` | `DiaCalculado` (nace en #425) | -- (no existe todavia como aggregate persistido) | `dc:{codigo}:{yyyyMMdd}` | Nace directamente en notacion objetivo -- ningun issue de migracion necesario. El prefijo `dc:` es lo que evita la colision con `ControlDiario` que motiva este ADR (misma identidad logica colaborador+fecha, mismo store). |
 | `colaboradores` | `ColaboradorAggregateRoot` | `{Tipo}-{Numero}` (contrato de `Identificacion.ToString()`, ej. `CC-79543210`) | Sin cambio | Vigente sin prefijo: decision del experto de dominio, 2026-08-19. Es identidad de UN componente que ya viaja en URL (ya URL-safe, `ObtenerFichaColaborador`), el store de Colaboradores tiene un solo aggregate (nada que prevenir todavia), y renotar exigiria migracion + rebuild de `FichaColaborador` (worker de proyecciones) sin comprar ninguna disjuncion real. |
 | `programacion` | `CatalogoTurnos`, `SolicitudProgramacionAggregateRoot` | Guid canonico "D" | Sin cambio | Paso 1 de la heuristica: ninguno de los dos necesita identidad natural. Sin registro adicional -- un Guid nunca colisiona con otro Guid de otro aggregate por construccion (espacio de valores, no de forma). |
+| `sedes` | `SedeAggregateRoot` (nace en #456) | `s:{codigo}` | -- (nace en notacion objetivo) | Paso 1: SI necesita identidad natural -- el `CodigoSede` que trae el cliente debe casar con los ids opacos que ya circulan en `SedeProgramada.Id` (#331), asi que un Guid no sirve. Paso 2: prefijo `s` (inicial del aggregate). Paso 3: no aplica -- ningun componente de fecha. Paso 4: separador `:`, fuera del charset URL-safe (RFC 3986 unreserved) que `ValidacionesCompartidasSedes` garantiza para `Codigo` en el borde. Paso 5: un solo componente de dominio, `Split(':')` devuelve siempre 2 partes -- congelado en `SedeAggregateRootTests.ComputarStreamId_ProduceExactamenteElPrefijoYElCodigoAlHacerSplit`. |
 
-La fila de Colaboradores es una **excepcion deliberada** al paso 2 de la heuristica (prefijo
+El registro pasa de tres a cuatro stores con la llegada de `sedes` (#455 crea el schema, #456 su primer
+aggregate). La fila de Colaboradores es una **excepcion deliberada** al paso 2 de la heuristica (prefijo
 obligatorio), no una violacion: el paso 2 existe para disjuntar vecinos dentro de un store, y hoy no
 hay ningun vecino que prevenir en `colaboradores`. Si un segundo aggregate llegara a ese store con
 riesgo de colision de identidad, esa fila se re-evalua bajo la regla de "primero-llega-primero-se-
@@ -318,3 +320,8 @@ adaptarse.
   escribir doctrina". (d) La referencia [2] pasa de un gist de terceros a la documentacion oficial de
   Stripe, y el paso 2 declara que se adopta la forma del prefijo pero **no** su regimen de
   estabilidad (Stripe trata sus ids como opacos; aqui la clave es persistida).
+- 2026-08-27: enmienda del registro (paso 6 de la heuristica) por el issue #456 -- nace el cuarto store del
+  BC, `sedes`, con su primer aggregate `SedeAggregateRoot` en anatomia objetivo `s:{codigo}`. Sin migracion:
+  el store no tenia ningun stream previo. La anatomia usa el separador `:` por defecto de la seccion 2 paso 4,
+  disponible porque el unico componente de dominio (`Codigo`) esta acotado al charset unreserved de RFC 3986
+  por la validacion de borde que exige MEF-ADR-0043 seccion 1.2 (rechazo 400, nunca normalizacion).

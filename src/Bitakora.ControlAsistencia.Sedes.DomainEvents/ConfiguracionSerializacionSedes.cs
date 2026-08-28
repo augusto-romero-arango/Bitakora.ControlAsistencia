@@ -21,8 +21,10 @@ public static class ConfiguracionSerializacionSedes
     }
 
     // SedeRegistrada es un record plano (issue #456): ningun VO con ctor privado que registrar
-    // todavia. El metodo existe para que los round-trip de este dominio usen siempre las mismas
-    // opciones que Marten, en vez de un resolver armado inline (seccion 6d del test-writer).
+    // todavia. El cuerpo vacio no lo vuelve prescindible -- lo invocan ya los dos lados que leen
+    // estos streams (ComposicionServicios.AgregarServiciosSedes del write-side y
+    // ConfiguracionMartenProjectionsSedes del worker), de modo que #457-#461 solo tengan que
+    // agregar aqui su VO para que ambos lo instalen a la vez.
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
     }

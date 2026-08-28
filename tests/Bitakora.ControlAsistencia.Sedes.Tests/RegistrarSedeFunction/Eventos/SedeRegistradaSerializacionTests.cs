@@ -16,7 +16,6 @@ namespace Bitakora.ControlAsistencia.Sedes.Tests.RegistrarSedeFunction.Eventos;
 
 public class SedeRegistradaSerializacionTests
 {
-    // Usa las opciones REALES de Marten del dominio (regla 6d) -- no un resolver armado inline.
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionSedes.CrearOpcionesMarten();
 

@@ -28,9 +28,6 @@ public class AliasEventosSedesTests
             .SingleOrDefault(evento => evento.EventType == typeof(TEvento))
             ?.Alias;
 
-    // Rojo esperado (fase roja, issue #456): IdentidadEventosSedes.TiposPersistidos sigue vacio
-    // hasta que el implementer registre SedeRegistrada -- el implementer lo agrega ahi (no aqui,
-    // MEF-ADR-0002).
     [Fact]
     public void SedeRegistrada_TieneAliasSedeRegistrada()
     {
