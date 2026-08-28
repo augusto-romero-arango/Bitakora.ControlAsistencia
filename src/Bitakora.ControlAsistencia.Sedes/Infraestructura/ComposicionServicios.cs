@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Cosmos.EventDriven.CritterStack;
@@ -81,15 +82,28 @@ public static class ComposicionServicios
         services.ConfigureMarten(options =>
         {
             // Issue #277 (replicado desde el scaffold): registra los tipos de evento persistidos en
-            // el EventGraph. Lista vacia al nacer -- se llena a medida que SedeAggregateRoot aplique
-            // sus primeros eventos.
+            // el EventGraph. Issue #456: la lista estrena su primer tipo (SedeRegistrada).
             options.Events.AddEventTypes(IdentidadEventosSedes.TiposPersistidos);
 
-            // Cuando aparezca un value object rico que necesite ConfigurarSerializacion (ctor
-            // privado), se invoca AQUI DENTRO junto a AddEventTypes -- nunca en un ConfigureMarten
-            // separado (issue #232 CA-5: ComposicionServiciosTests lo verifica sobre el store real
-            // del contenedor, y un segundo ConfigureMarten corre el riesgo de que el resolver de
-            // serializacion custom quede sin efecto en silencio si el orden de callbacks cambia).
+            // Issue #456: instala el resolver de serializacion del dominio -- AQUI DENTRO junto a
+            // AddEventTypes, nunca en un ConfigureMarten separado (issue #232 CA-5:
+            // ComposicionServiciosTests lo verifica sobre el store real del contenedor, y un segundo
+            // ConfigureMarten corre el riesgo de que el resolver quede sin efecto en silencio si el
+            // orden de callbacks cambia). Hoy ConfigurarResolver no registra ningun tipo
+            // (SedeRegistrada es un record plano), pero la llamada se cablea ya: el dia que
+            // #457-#461 agreguen un VO con ctor privado, registrarlo en ConfiguracionSerializacionSedes
+            // basta para que el write-side lo use -- sin esta linea el round-trip de
+            // SedeRegistradaSerializacionTests seguiria verde mientras Marten reventaria en runtime.
+            // Mismo patron que Colaboradores/ControlHoras/Programacion.
+            if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
+            {
+                stj.Configure(jsonOptions =>
+                {
+                    var resolver = new DefaultJsonTypeInfoResolver();
+                    ConfiguracionSerializacionSedes.ConfigurarResolver(resolver);
+                    jsonOptions.TypeInfoResolver = resolver;
+                });
+            }
         });
 
         // Observabilidad (issue #308, CA-ADR-0009 Capa 2): mismo wiring que ControlHoras/

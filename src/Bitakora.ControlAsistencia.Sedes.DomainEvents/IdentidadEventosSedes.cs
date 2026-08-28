@@ -13,5 +13,8 @@ namespace Bitakora.ControlAsistencia.Sedes.DomainEvents;
 // primera lectura del proceso, en vez de depender de que un append lo haya poblado.
 public static class IdentidadEventosSedes
 {
-    public static IReadOnlyList<Type> TiposPersistidos { get; } = [];
+    public static IReadOnlyList<Type> TiposPersistidos { get; } =
+    [
+        typeof(SedeRegistrada),
+    ];
 }

@@ -1,0 +1,31 @@
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+
+namespace Bitakora.ControlAsistencia.Sedes.DomainEvents;
+
+// Issue #456: gemela de ConfiguracionSerializacionColaboradores/ConfiguracionSerializacionControlHoras/
+// ConfiguracionSerializacionProgramacion. Vive en la raiz de Sedes.DomainEvents, no en
+// Infraestructura/ del Function App (MEF-ADR-0039 decision 5): es la unica fuente que compartirian
+// el write-side y un futuro worker de proyecciones sobre eventos persistidos de Sedes.
+public static class ConfiguracionSerializacionSedes
+{
+    public static JsonSerializerOptions CrearOpcionesMarten()
+    {
+        var resolver = new DefaultJsonTypeInfoResolver();
+        ConfigurarResolver(resolver);
+        return new JsonSerializerOptions
+        {
+            TypeInfoResolver = resolver,
+            PropertyNamingPolicy = null
+        };
+    }
+
+    // SedeRegistrada es un record plano (issue #456): ningun VO con ctor privado que registrar
+    // todavia. El cuerpo vacio no lo vuelve prescindible -- lo invocan ya los dos lados que leen
+    // estos streams (ComposicionServicios.AgregarServiciosSedes del write-side y
+    // ConfiguracionMartenProjectionsSedes del worker), de modo que #457-#461 solo tengan que
+    // agregar aqui su VO para que ambos lo instalen a la vez.
+    public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
+    {
+    }
+}

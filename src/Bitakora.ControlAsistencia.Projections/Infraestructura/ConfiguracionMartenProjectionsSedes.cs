@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
+using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
 
 namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
 
@@ -74,9 +76,27 @@ public static class ConfiguracionMartenProjectionsSedes
 
                 // Defensa en profundidad read-side: registra los tipos de evento persistidos de
                 // Sedes en el EventGraph de este named store, para que el daemon no dependa del
-                // fallback por mt_dotnet_type al leer streams preexistentes. Lista vacia al nacer
-                // -- se llena junto con IdentidadEventosSedes.TiposPersistidos.
+                // fallback por mt_dotnet_type al leer streams preexistentes. La lista se lee del
+                // mismo artefacto que el write-side (issue #456: SedeRegistrada), asi que ambos
+                // lados no pueden divergir.
                 opts.Events.AddEventTypes(IdentidadEventosSedes.TiposPersistidos);
+
+                // Issue #456 (par 1 de MEF-ADR-0034 seccion 6, fila "Serializador"): el dominio
+                // estrena su primer evento persistido, asi que el read-side deja de poder confiar
+                // en un default. EnumStorage.AsInteger/Casing.Default son los que fija el write-side
+                // via AgregarConfiguracionMartenComandos (Cosmos.EventSourcing.CritterStack 2.3.1);
+                // se declaran igual para no depender de un default de Marten que un upgrade futuro
+                // podria mover. Serializador y resolver en una sola llamada: UseSystemTextJsonFor-
+                // Serialization construye un serializador NUEVO y lo reemplaza, asi que invocarlo
+                // despues de un stj.Configure(...) perderia el TypeInfoResolver en silencio ("la
+                // trampa del orden", issue #268). Fuente unica con el write-side (MEF-ADR-0029): se
+                // invoca la misma clase, nunca una copia.
+                opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, jsonOptions =>
+                {
+                    var resolver = new DefaultJsonTypeInfoResolver();
+                    ConfiguracionSerializacionSedes.ConfigurarResolver(resolver);
+                    jsonOptions.TypeInfoResolver = resolver;
+                });
 
                 // Cuando SedeAggregateRoot aplique su primer evento y aparezca la primera
                 // proyeccion, se agrega aqui con opts.Projections.Add<TProjection>(ProjectionLifecycle.Async)
