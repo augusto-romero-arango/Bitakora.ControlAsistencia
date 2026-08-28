@@ -55,4 +55,19 @@ public partial class SedeAggregateRoot : AggregateRoot
 
         return sede;
     }
+
+    // Issue #457 (MEF-ADR-0043 paso 2): reemplazo completo del nombre -- VO atomico direccionable
+    // por {codigo}. El handler ya resolvio que el stream existe (CA-ADR-0030): el aggregate no
+    // vuelve a interrogar su propio estado. Fase roja: stub minimo, el implementer completa.
+    public void Apply(NombreSedeModificado e) => throw new NotImplementedException();
+
+    internal void ModificarNombre(string nombre) => throw new NotImplementedException();
+
+    // Issue #457 (MEF-ADR-0043 paso 2): reemplazo completo de Ciudad+Direccion como valor atomico.
+    // La bandera Activa (issue #459, sin implementar todavia) no gobierna esta operacion -- una
+    // sede desactivada sigue siendo editable (CA-5).
+    public void Apply(UbicacionActualizada e) => throw new NotImplementedException();
+
+    internal void ActualizarUbicacion(string? ciudad, string? direccion) =>
+        throw new NotImplementedException();
 }
