@@ -34,21 +34,40 @@ namespace Bitakora.ControlAsistencia.Projections.Sedes;
 /// </summary>
 public sealed partial class FichaSedeProjection : SingleStreamProjection<FichaSede, string>
 {
-    public static FichaSede Create(IEvent<SedeRegistrada> e) => throw new NotImplementedException();
+    // CA-1: Activa nace true, sin CC ni dispositivos -- Id es el StreamKey del stream de
+    // SedeAggregateRoot ("s:{codigo}"), nunca recomputado a mano desde el payload.
+    public static FichaSede Create(IEvent<SedeRegistrada> e) =>
+        new(e.StreamKey!, e.Data.Codigo, e.Data.Nombre, e.Data.Ciudad, e.Data.Direccion, null, true, []);
 
-    public static FichaSede Apply(NombreSedeModificado e, FichaSede vista) => throw new NotImplementedException();
+    // CA-2: reemplaza Nombre.
+    public static FichaSede Apply(NombreSedeModificado e, FichaSede vista) =>
+        vista with { Nombre = e.Nombre };
 
-    public static FichaSede Apply(UbicacionActualizada e, FichaSede vista) => throw new NotImplementedException();
+    // CA-2: reemplaza Ciudad+Direccion ATOMICAMENTE -- el evento trae ambos valores completos, sin
+    // merge parcial de los nulos que pueda traer.
+    public static FichaSede Apply(UbicacionActualizada e, FichaSede vista) =>
+        vista with { Ciudad = e.Ciudad, Direccion = e.Direccion };
 
-    public static FichaSede Apply(CentroDeCostosAsignado e, FichaSede vista) => throw new NotImplementedException();
+    // CA-3: el CC vigente.
+    public static FichaSede Apply(CentroDeCostosAsignado e, FichaSede vista) =>
+        vista with { CentroDeCostos = e.CentroDeCostos };
 
-    public static FichaSede Apply(CentroDeCostosRetirado e, FichaSede vista) => throw new NotImplementedException();
+    // CA-3: el CC vigente vuelve a null.
+    public static FichaSede Apply(CentroDeCostosRetirado e, FichaSede vista) =>
+        vista with { CentroDeCostos = null };
 
-    public static FichaSede Apply(SedeActivada e, FichaSede vista) => throw new NotImplementedException();
+    // CA-4: conmuta Activa.
+    public static FichaSede Apply(SedeActivada e, FichaSede vista) =>
+        vista with { Activa = true };
 
-    public static FichaSede Apply(SedeDesactivada e, FichaSede vista) => throw new NotImplementedException();
+    public static FichaSede Apply(SedeDesactivada e, FichaSede vista) =>
+        vista with { Activa = false };
 
-    public static FichaSede Apply(DispositivoInstalado e, FichaSede vista) => throw new NotImplementedException();
+    // CA-4: agrega el dispositivo instalado manteniendo los existentes.
+    public static FichaSede Apply(DispositivoInstalado e, FichaSede vista) =>
+        vista with { Dispositivos = [.. vista.Dispositivos, e.DispositivoId] };
 
-    public static FichaSede Apply(DispositivoRetirado e, FichaSede vista) => throw new NotImplementedException();
+    // CA-4: remueve solo el dispositivo retirado, dejando intactos los demas.
+    public static FichaSede Apply(DispositivoRetirado e, FichaSede vista) =>
+        vista with { Dispositivos = vista.Dispositivos.Where(d => d != e.DispositivoId).ToList() };
 }

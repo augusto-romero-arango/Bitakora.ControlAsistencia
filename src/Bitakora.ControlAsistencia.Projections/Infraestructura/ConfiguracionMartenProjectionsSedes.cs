@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization.Metadata;
+using Bitakora.ControlAsistencia.Projections.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
+using JasperFx.Events.Projections; // ProjectionLifecycle (NO Marten.*, mismo gotcha que DaemonMode/StreamIdentity)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
 using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
@@ -98,10 +100,11 @@ public static class ConfiguracionMartenProjectionsSedes
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
-                // Cuando SedeAggregateRoot aplique su primer evento y aparezca la primera
-                // proyeccion, se agrega aqui con opts.Projections.Add<TProjection>(ProjectionLifecycle.Async)
-                // -- lifecycle Async es el canonico del worker (MEF-ADR-0034 seccion 3); Inline solo
-                // seria valido con justificacion explicita en el issue correspondiente.
+                // Issue #461: primera proyeccion concreta del dominio -- N1 (SingleStreamProjection
+                // sobre el stream de SedeAggregateRoot). Async es el lifecycle canonico del worker
+                // (MEF-ADR-0034 seccion 3); Inline solo seria valido con justificacion explicita en
+                // el issue correspondiente.
+                opts.Projections.Add<FichaSedeProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
