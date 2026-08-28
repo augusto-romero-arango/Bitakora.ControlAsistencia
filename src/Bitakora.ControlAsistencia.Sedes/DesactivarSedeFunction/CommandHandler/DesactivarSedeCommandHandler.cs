@@ -5,8 +5,7 @@ namespace Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction.CommandHandler
 
 // Mecanismo "declinar con resultado" (CA-ADR-0030): una sede ya inactiva declina sin mutar ni
 // emitir (CA-4), y este handler traduce a InvalidOperationException/409. Sede inexistente es
-// precondicion de orquestacion (KeyNotFoundException/404). Fase roja: stub minimo, el implementer
-// completa la orquestacion real.
+// precondicion de orquestacion (KeyNotFoundException/404).
 public partial class DesactivarSedeCommandHandler : ICommandHandlerAsync<DesactivarSede>
 {
     private readonly IEventStore _eventStore;
@@ -14,6 +13,15 @@ public partial class DesactivarSedeCommandHandler : ICommandHandlerAsync<Desacti
     public DesactivarSedeCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(DesactivarSede command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(DesactivarSede command, CancellationToken ct = default)
+    {
+        var streamId = SedeAggregateRoot.ComputarStreamId(command.Codigo);
+        var sede = await _eventStore.GetAggregateRootAsync<SedeAggregateRoot>(streamId, ct);
+        if (sede is null)
+            throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
+
+        var resultado = sede.Desactivar();
+        if (resultado == ResultadoDesactivacionSede.YaInactiva)
+            throw new InvalidOperationException(Mensajes.SedeYaInactiva);
+    }
 }

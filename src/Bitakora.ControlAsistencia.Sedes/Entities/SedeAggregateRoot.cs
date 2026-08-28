@@ -42,6 +42,7 @@ public partial class SedeAggregateRoot : AggregateRoot
         _nombre = e.Nombre;
         _ciudad = e.Ciudad;
         _direccion = e.Direccion;
+        _activa = true;
     }
 
     // Los metodos de mutacion no interrogan el estado propio: el handler ya resolvio que el stream
@@ -108,15 +109,34 @@ public partial class SedeAggregateRoot : AggregateRoot
 
     // Issue #459 (CA-ADR-0030): mecanismo "declinar con resultado" -- activar una sede ya activa
     // declina sin mutar ni emitir (CA-3, aplica igual a una sede recien registrada: la sede nace
-    // activa, sin evento inicial). Fase roja: stub minimo -- el implementer completa, incluyendo
-    // Apply(SedeRegistrada) para que _activa nazca en true.
-    public void Apply(SedeActivada e) => throw new NotImplementedException();
+    // activa, sin evento inicial).
+    public void Apply(SedeActivada e) => _activa = true;
 
-    internal ResultadoActivacionSede Activar() => throw new NotImplementedException();
+    internal ResultadoActivacionSede Activar()
+    {
+        if (_activa)
+            return ResultadoActivacionSede.YaActiva;
+
+        var evento = new SedeActivada();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoActivacionSede.Exitosa;
+    }
 
     // Issue #459 (CA-ADR-0030): mecanismo "declinar con resultado" -- desactivar una sede ya
-    // inactiva declina sin mutar ni emitir (CA-4). Fase roja: stub minimo, el implementer completa.
-    public void Apply(SedeDesactivada e) => throw new NotImplementedException();
+    // inactiva declina sin mutar ni emitir (CA-4).
+    public void Apply(SedeDesactivada e) => _activa = false;
 
-    internal ResultadoDesactivacionSede Desactivar() => throw new NotImplementedException();
+    internal ResultadoDesactivacionSede Desactivar()
+    {
+        if (!_activa)
+            return ResultadoDesactivacionSede.YaInactiva;
+
+        var evento = new SedeDesactivada();
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoDesactivacionSede.Exitosa;
+    }
 }

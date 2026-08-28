@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,15 +11,34 @@ namespace Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction;
 // sufijo "Function". Route = "sedes/{codigo}:desactivar" (kebab-case minusculo).
 // CA-ADR-0030 / MEF-ADR-0004 (precedente RetirarCentroDeCostosFunction.FunctionEndpoint): validar
 // {codigo} de ruta (400) -> despachar comando -> InvalidOperationException -> 409 (CA-4, sede ya
-// inactiva); KeyNotFoundException -> 404; exito -> 202 Accepted. Fase roja: stub minimo, el
-// implementer completa la orquestacion real.
+// inactiva); KeyNotFoundException -> 404; exito -> 202 Accepted.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("DesactivarSede")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "sedes/{codigo}:desactivar")]
         HttpRequest req,
         string codigo,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!CodigoSedeDeRuta.EsValido(codigo, out var errorDeCodigo))
+            return errorDeCodigo;
+
+        var comando = new DesactivarSede(codigo);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }
