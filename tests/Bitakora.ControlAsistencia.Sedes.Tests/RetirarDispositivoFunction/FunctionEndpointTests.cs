@@ -38,7 +38,7 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NotFoundObjectResult>();
     }
 
-    // CA-5: sede inexistente -> 404
+    // Sede inexistente -> 404 (precondicion de orquestacion, no un CA propio del issue)
     [Fact]
     public async Task RetirarDispositivo_Retorna404_CuandoSedeNoExiste()
     {

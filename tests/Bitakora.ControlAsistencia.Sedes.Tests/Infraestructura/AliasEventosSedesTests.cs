@@ -84,7 +84,6 @@ public class AliasEventosSedesTests
         AliasDe<SedeDesactivada>(options).Should().Be("sede_desactivada");
     }
 
-    // Issue #460
     [Fact]
     public void DispositivoInstalado_TieneAliasDispositivoInstalado()
     {

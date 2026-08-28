@@ -19,11 +19,14 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
 
     // Oraculo independiente de la clave de stream: literal, nunca derivado de ComputarStreamId.
     private const string StreamIdEsperado = "s:SEDE-001";
+    private const string OtroCodigo = "SEDE-002";
+    private const string OtroStreamIdEsperado = "s:SEDE-002";
 
     protected override ICommandHandlerAsync<InstalarDispositivo> Handler =>
         new InstalarDispositivoCommandHandler(EventStore);
 
-    private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
+    private static SedeRegistrada CrearSedeRegistrada(string codigo = Codigo) =>
+        new(codigo, Nombre, null, null);
 
     // CA-1
     [Fact]
@@ -58,6 +61,20 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
             CrearSedeRegistrada(),
             new DispositivoInstalado(DispositivoId),
             new DispositivoRetirado(DispositivoId));
+
+        await WhenAsync(new InstalarDispositivo(Codigo, DispositivoId));
+
+        Then(StreamIdEsperado, new DispositivoInstalado(DispositivoId));
+        And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
+    }
+
+    // El reverso de CA-2: sin verificacion cross-sede en v1, el mismo dispositivo instalado en otra
+    // sede no bloquea esta instalacion (decision deliberada -- la correccion es retirarlo alla).
+    [Fact]
+    public async Task InstalarDispositivo_EmiteDispositivoInstalado_CuandoElDispositivoEstaInstaladoEnOtraSede()
+    {
+        Given(OtroStreamIdEsperado, CrearSedeRegistrada(OtroCodigo), new DispositivoInstalado(DispositivoId));
+        Given(StreamIdEsperado, CrearSedeRegistrada());
 
         await WhenAsync(new InstalarDispositivo(Codigo, DispositivoId));
 

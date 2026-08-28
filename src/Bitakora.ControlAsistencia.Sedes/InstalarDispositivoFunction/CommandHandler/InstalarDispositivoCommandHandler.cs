@@ -3,9 +3,9 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction.CommandHandler;
 
-// Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la razon
-// del rechazo y este handler la traduce a InvalidOperationException/409. Sede inexistente es
-// precondicion de orquestacion (KeyNotFoundException/404), sin evento de fallo persistido.
+// Traduce el resultado declinado del aggregate a InvalidOperationException/409 (CA-ADR-0030).
+// Sede inexistente es precondicion de orquestacion (KeyNotFoundException/404), sin evento de fallo
+// persistido.
 public partial class InstalarDispositivoCommandHandler : ICommandHandlerAsync<InstalarDispositivo>
 {
     private readonly IEventStore _eventStore;

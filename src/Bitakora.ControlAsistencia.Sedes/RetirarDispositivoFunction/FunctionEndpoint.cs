@@ -11,6 +11,9 @@ namespace Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction;
 // ruta es lo unico que se valida aqui (MEF-ADR-0037 seccion 2); {dispositivoId} no lleva invariante
 // propia en este endpoint -- la URL-safe del DispositivoId se gano en el borde del POST
 // (InstalarDispositivo), no se re-valida al retirar.
+// Sin catch de InvalidOperationException: este comando no tiene ninguna razon de rechazo que se
+// traduzca a 409 -- retirar lo no instalado es un sub-recurso ausente (404). Agregarlo "por
+// simetria" con los demas endpoints convertiria en 409 cualquier fallo inesperado del pipeline.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarDispositivo")]
@@ -29,10 +32,6 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
         try
         {
             await commandRouter.InvokeAsync(comando, ct);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return new ConflictObjectResult(ex.Message);
         }
         catch (KeyNotFoundException ex)
         {

@@ -3,10 +3,9 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction.CommandHandler;
 
-// Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la razon
-// del rechazo y este handler la traduce a KeyNotFoundException/404 (sub-recurso inexistente, a
-// diferencia de RetirarCentroDeCostos que es un VO singular -> 409). Sede inexistente es
-// precondicion de orquestacion (KeyNotFoundException/404), sin evento de fallo persistido.
+// Traduce el resultado declinado del aggregate a KeyNotFoundException/404 (CA-ADR-0030):
+// sub-recurso inexistente, a diferencia de RetirarCentroDeCostos que es un VO singular -> 409.
+// Sede inexistente cae en la misma respuesta, como precondicion de orquestacion.
 public partial class RetirarDispositivoCommandHandler : ICommandHandlerAsync<RetirarDispositivo>
 {
     private readonly IEventStore _eventStore;

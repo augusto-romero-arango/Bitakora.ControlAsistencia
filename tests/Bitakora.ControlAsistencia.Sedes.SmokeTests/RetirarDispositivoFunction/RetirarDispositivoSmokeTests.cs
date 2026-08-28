@@ -1,5 +1,5 @@
-// Issue #460: DispositivoRetirado no cruza el bus en este issue -- la unica verificacion black-box
-// de los efectos del handler es leer mt_events via PostgresFixture, sin ServiceBusFixture.
+// DispositivoRetirado no cruza el bus: la unica verificacion black-box de los efectos del handler
+// es leer mt_events via PostgresFixture -- de ahi la ausencia de ServiceBusFixture.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
