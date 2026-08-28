@@ -35,4 +35,20 @@ public class AliasEventosSedesTests
 
         AliasDe<SedeRegistrada>(options).Should().Be("sede_registrada");
     }
+
+    [Fact]
+    public void NombreSedeModificado_TieneAliasNombreSedeModificado()
+    {
+        var options = CrearOpcionesConEventosDeSedesRegistrados();
+
+        AliasDe<NombreSedeModificado>(options).Should().Be("nombre_sede_modificado");
+    }
+
+    [Fact]
+    public void UbicacionActualizada_TieneAliasUbicacionActualizada()
+    {
+        var options = CrearOpcionesConEventosDeSedesRegistrados();
+
+        AliasDe<UbicacionActualizada>(options).Should().Be("ubicacion_actualizada");
+    }
 }

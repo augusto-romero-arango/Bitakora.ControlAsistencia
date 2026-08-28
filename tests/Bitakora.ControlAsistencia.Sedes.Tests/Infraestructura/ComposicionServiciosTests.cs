@@ -234,7 +234,8 @@ public class ComposicionServiciosTests
 
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
 
-        store.AssertEventosPersistidosRegistrados([typeof(SedeRegistrada)]);
+        store.AssertEventosPersistidosRegistrados(
+            [typeof(SedeRegistrada), typeof(NombreSedeModificado), typeof(UbicacionActualizada)]);
     }
 
     // Issue #456: registrar el tipo solo sirve si el alias sigue siendo el que las filas ya
@@ -251,7 +252,9 @@ public class ComposicionServiciosTests
 
         store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
         {
-            [typeof(SedeRegistrada)] = "sede_registrada"
+            [typeof(SedeRegistrada)] = "sede_registrada",
+            [typeof(NombreSedeModificado)] = "nombre_sede_modificado",
+            [typeof(UbicacionActualizada)] = "ubicacion_actualizada"
         });
     }
 }

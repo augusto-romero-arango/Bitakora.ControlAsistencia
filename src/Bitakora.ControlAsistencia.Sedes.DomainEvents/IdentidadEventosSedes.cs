@@ -16,5 +16,7 @@ public static class IdentidadEventosSedes
     public static IReadOnlyList<Type> TiposPersistidos { get; } =
     [
         typeof(SedeRegistrada),
+        typeof(NombreSedeModificado),
+        typeof(UbicacionActualizada),
     ];
 }
