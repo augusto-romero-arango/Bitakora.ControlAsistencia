@@ -16,12 +16,16 @@ using System.Globalization;
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
+using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.Infraestructura;
+using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 using Wolverine;
+using ObtenerFichaSedeEndpoint = Bitakora.ControlAsistencia.Sedes.ObtenerFichaSede.FunctionEndpoint;
+using ListarFichasSedeEndpoint = Bitakora.ControlAsistencia.Sedes.ListarFichasSede.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 
@@ -267,5 +271,89 @@ public class ComposicionServiciosTests
             [typeof(DispositivoInstalado)] = "dispositivo_instalado",
             [typeof(DispositivoRetirado)] = "dispositivo_retirado"
         });
+    }
+
+    // Issue #461: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma idea
+    // que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
+    // FunctionEndpoint en vez de un router de Wolverine. ActivatorUtilities.CreateInstance
+    // reproduce la activacion por tipo que hace el host de Azure Functions isolated worker, sin
+    // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
+    // Functions isolated worker).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (recomputar el stream key, session.LoadAsync y el 200/404, CA-5), que
+    // es responsabilidad de projection-implementer y del smoke test. Por eso este test queda en
+    // verde tan pronto exista el FunctionEndpoint stub con el constructor correcto -- no es la
+    // guarda que fuerza el rojo de este issue (esa la dan los unit tests de la proyeccion y el
+    // config-test del worker, en Projections.Tests).
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveElEndpointDeObtenerFichaSede_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerFichaSedeEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Hermano del de ObtenerFichaSede de arriba, para el listado (CA-6). Mismo alcance: solo la
+    // RESOLUCION del constructor, no el filtro Activa opcional (MEF-ADR-0042 seccion 1) ni la
+    // ausencia de paginacion (decision de sesion 2026-08-27, MEF-ADR-0018).
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveElEndpointDeListarFichasSede_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarFichasSedeEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #461, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6). Heredada de la guarda que #356 dejo para FichaColaborador, por el incidente real
+    // del issue #294: este Function App LEE FichaSede (ObtenerFichaSede, ListarFichasSede) sin
+    // registrar la proyeccion, mientras el worker la MATERIALIZA en otro proceso sobre la misma
+    // tabla fisica.
+    //
+    // Sin la declaracion explicita del lado lectura (Schema.For<FichaSede>().UseNumericRevisions),
+    // este store espera mt_version uuid sobre la tabla que el worker creo como bigint, Marten
+    // intenta "alter column" en CADA request y Postgres responde 42804: GET en 500 permanente con
+    // el daemon funcionando.
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarSedes_MaterializaFichaSedeConRevisionNumerica congela desde el worker, sin que
+    // ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosSedes_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaSede()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaSede));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #461, segunda dimension del mismo par 2 (precedente #356 sobre FichaColaborador): tabla,
+    // tenancy e IdMember tienen que converger entre el worker que materializa y este Function App
+    // que consulta, o el GET responde 404 para siempre con el daemon funcionando. Ningun compilador
+    // lo garantiza -- son dos configuraciones de Marten independientes sobre el mismo schema.
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveFichaSedeSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaSede));
+
+        mapping.TableName.QualifiedName.Should().Be("sedes.mt_doc_fichasede");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(FichaSede.Id));
     }
 }

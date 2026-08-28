@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Azure.Monitor.OpenTelemetry.Exporter;
+using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -84,6 +85,25 @@ public static class ComposicionServicios
             // Issue #277 (replicado desde el scaffold): registra los tipos de evento persistidos en
             // el EventGraph. Issue #456: la lista estrena su primer tipo (SedeRegistrada).
             options.Events.AddEventTypes(IdentidadEventosSedes.TiposPersistidos);
+
+            // Issue #461 (par 2 de compatibilidad write-side/read-side, MEF-ADR-0034 seccion 6;
+            // mismo patron que #294/#328/#356 dejaron en Colaboradores y ControlHoras): declara del
+            // lado LECTURA la forma de mt_version que el worker ya impone del lado escritura -- la
+            // tabla de FichaSede la posee la proyeccion y este Function App solo la consulta
+            // (ObtenerFichaSede, ListarFichasSede).
+            //
+            // Marten aplica ProjectionDocumentPolicy a todo documento target de una proyeccion
+            // registrada en ese store: UseNumericRevisions = true, Metadata.Revision (mt_version
+            // bigint) habilitada y Metadata.Version (mt_version uuid) DESHABILITADA -- incondicional
+            // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents"). Este
+            // store no registra FichaSedeProjection ni puede hacerlo (vive en el worker,
+            // CA-ADR-0029), asi que sin esta linea esperaria mt_version uuid sobre la MISMA tabla
+            // fisica: Marten intenta "alter column mt_version type uuid" en CADA request, Postgres
+            // lo rechaza con 42804 y los GET responden 500 permanente -- no 404. Es lo que ocurrio
+            // en dev tras el deploy de #290.
+            //
+            // El par de config-tests (este lado y el del worker) congela los mismos literales.
+            options.Schema.For<FichaSede>().UseNumericRevisions(true);
 
             // Issue #456: instala el resolver de serializacion del dominio -- AQUI DENTRO junto a
             // AddEventTypes, nunca en un ConfigureMarten separado (issue #232 CA-5:
