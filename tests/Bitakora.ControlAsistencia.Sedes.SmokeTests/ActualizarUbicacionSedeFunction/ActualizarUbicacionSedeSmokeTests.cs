@@ -1,7 +1,3 @@
-// Issue #457: smoke tests del endpoint PUT sedes/{codigo}/ubicacion. Comando event-sourcing puro
-// sin consumidores downstream (CA-ADR-0030): UbicacionActualizada no cruza el bus en este issue,
-// asi que no hay ServiceBusFixture -- la unica verificacion black-box de los efectos del handler es
-// leer mt_events via PostgresFixture.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -10,6 +6,8 @@ using Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.ActualizarUbicacionSedeFunction;
 
+// UbicacionActualizada no cruza el bus: la unica verificacion black-box de los efectos del handler
+// es leer mt_events via PostgresFixture -- no hay ServiceBusFixture que consultar.
 public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
@@ -20,12 +18,11 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
     private const string TipoEventoUbicacionActualizada = "ubicacion_actualizada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Prefijo "TEST-" en vez de "[TEST] ": Codigo esta sujeto al charset URL-safe (CA-4 de #456) y
-    // "[", "]" y el espacio quedan fuera de ese set.
+    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
+    // del que "[", "]" y el espacio quedan fuera.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
 
-    // Recomputo local del streamId (oraculo independiente, MEF-ADR-0002): no se referencia
-    // SedeAggregateRoot.ComputarStreamId desde el smoke test.
+    // Recomputo local del streamId: oraculo independiente, sin referenciar ComputarStreamId.
     private static string ComputarStreamId(string codigo) => $"s:{codigo}";
 
     private static string RutaUbicacion(string codigo) => $"/api/sedes/{codigo}/ubicacion";
@@ -58,7 +55,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-3: PUT ubicacion persiste UbicacionActualizada con ambos campos presentes.
+    // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna202YPersisteUbicacionActualizada_CuandoAmbosCamposLlegan()
@@ -87,7 +84,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         evento.GetProperty("Direccion").GetString().Should().Be("Carrera 50 # 10-20");
     }
 
-    // CA-3: Ciudad y Direccion son opcionales -- se aceptan nulos y se persisten como tal.
+    // CA-3: los opcionales ausentes se persisten como null, no se omiten del evento.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna202YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
@@ -116,7 +113,22 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         evento.GetProperty("Direccion").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
-    // CA-4: sede inexistente -> 404, sin evento.
+    // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
+    // unreserved y se rechaza con 400, nunca con el 404 de un stream inexistente.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ActualizarUbicacionSede_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { ciudad = "Cali", direccion = "Avenida 6 # 3-4" };
+
+        var response = await _client.PutAsJsonAsync(
+            RutaUbicacion($"TEST!{Guid.CreateVersion7()}"), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-4
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna404_CuandoSedeNoExiste()

@@ -36,7 +36,6 @@ public class AliasEventosSedesTests
         AliasDe<SedeRegistrada>(options).Should().Be("sede_registrada");
     }
 
-    // Issue #457: mismo guardrail para el segundo y tercer evento persistido de Sedes.
     [Fact]
     public void NombreSedeModificado_TieneAliasNombreSedeModificado()
     {

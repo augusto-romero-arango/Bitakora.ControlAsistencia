@@ -1,6 +1,3 @@
-// Issue #457 (CA-2): validacion de forma del body de ModificarNombreSede en el borde
-// (MEF-ADR-0004 capa 1 -> 400 BadRequest).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.ModificarNombreSedeFunction;
 using FluentValidation.Results;
@@ -22,7 +19,7 @@ public class ModificarNombreSedeBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-2: nombre vacio produce 400
+    // CA-2
     [Fact]
     public async Task Validar_RechazaNombre_CuandoEstaVacio()
     {

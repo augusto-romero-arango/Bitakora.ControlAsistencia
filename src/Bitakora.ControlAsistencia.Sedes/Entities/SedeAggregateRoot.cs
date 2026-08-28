@@ -3,17 +3,15 @@ using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Sedes.Entities;
 
-// Issue #456: primer aggregate del dominio Sedes. Identidad natural: el CodigoSede que trae el
-// cliente (debe casar con los ids opacos que ya circulan en SedeProgramada.Id, #331).
+// Identidad natural: el CodigoSede que trae el cliente (debe casar con los ids opacos que ya
+// circulan en SedeProgramada.Id).
 //
-// Anatomia CA-ADR-0031 (registro pendiente en el ADR, seccion 4): "s:{codigo}" -- prefijo "s"
-// (iniciales del aggregate, paso 2 de la heuristica), separador ":" (paso 4, fuera del charset
-// URL-safe del componente que ValidacionesCompartidasSedes ya garantiza en el borde). Un solo
-// componente de dominio (Codigo): el split siempre devuelve exactamente 2 partes (paso 5).
+// Anatomia CA-ADR-0031: "s:{codigo}" -- prefijo "s" (iniciales del aggregate), separador ":" (fuera
+// del charset URL-safe que el borde garantiza para el codigo). Un solo componente de dominio: el
+// split siempre devuelve exactamente 2 partes.
 //
-// Estado observable: internal (Tell-don't-Ask, MEF-ADR-0012) -- el issue no expone Nombre/Ciudad/
-// Direccion al exterior del ensamblado; existen para que el DSL de tests (And<>) verifique el
-// estado rehidratado, mismo patron que ColaboradorAggregateRoot.
+// Estado observable internal (Tell-don't-Ask, MEF-ADR-0012): existe para que el DSL de tests lo
+// verifique, no para consumo externo al ensamblado.
 public partial class SedeAggregateRoot : AggregateRoot
 {
     private const string PrefijoStreamId = "s";
@@ -42,8 +40,9 @@ public partial class SedeAggregateRoot : AggregateRoot
         _direccion = e.Direccion;
     }
 
-    // Factory interno: el handler decide si el stream ya existe (patron RegistrarColaborador,
-    // CA-ADR-0030) antes de invocar este factory -- el aggregate no interroga su propio estado.
+    // Los metodos de mutacion no interrogan el estado propio: el handler ya resolvio que el stream
+    // existe (CA-ADR-0030), y una sede desactivada sigue siendo editable -- la bandera Activa no
+    // gobierna estas operaciones.
     internal static SedeAggregateRoot Registrar(
         string codigo, string nombre, string? ciudad, string? direccion)
     {
@@ -56,9 +55,6 @@ public partial class SedeAggregateRoot : AggregateRoot
         return sede;
     }
 
-    // Issue #457 (MEF-ADR-0043 paso 2): reemplazo completo del nombre -- VO atomico direccionable
-    // por {codigo}. El handler ya resolvio que el stream existe (CA-ADR-0030): el aggregate no
-    // vuelve a interrogar su propio estado.
     public void Apply(NombreSedeModificado e) => _nombre = e.Nombre;
 
     internal void ModificarNombre(string nombre)
@@ -68,9 +64,8 @@ public partial class SedeAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Issue #457 (MEF-ADR-0043 paso 2): reemplazo completo de Ciudad+Direccion como valor atomico.
-    // La bandera Activa (issue #459, sin implementar todavia) no gobierna esta operacion -- una
-    // sede desactivada sigue siendo editable (CA-5).
+    // Reemplazo completo de Ciudad+Direccion: los nulos que trae el evento se escriben, no se
+    // ignoran.
     public void Apply(UbicacionActualizada e)
     {
         _ciudad = e.Ciudad;

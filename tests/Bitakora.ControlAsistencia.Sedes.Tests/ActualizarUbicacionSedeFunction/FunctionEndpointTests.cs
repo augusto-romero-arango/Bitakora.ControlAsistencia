@@ -1,10 +1,6 @@
-// Issue #457: tests del endpoint HTTP PUT sedes/{codigo}/ubicacion (actualizar ubicacion de sede).
-// MEF-ADR-0004: KeyNotFoundException -> 404, exito -> 202. Precedente: CorregirNombresFunction.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.ActualizarUbicacionSedeFunction;
-using Bitakora.ControlAsistencia.Sedes.Infraestructura;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,13 +12,9 @@ public class FunctionEndpointTests
 
     private static ActualizarUbicacionSedeBody BodyValido() => new("Medellin", "Carrera 50 # 20-30");
 
-    private static HttpRequest FakeHttpRequest()
-    {
-        var context = new DefaultHttpContext();
-        return context.Request;
-    }
+    private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-3: PUT exitoso retorna 202 Accepted
+    // CA-3
     [Fact]
     public async Task ActualizarUbicacionSede_Retorna202_CuandoComandoEsValido()
     {
@@ -35,12 +27,12 @@ public class FunctionEndpointTests
         result.Should().BeOfType<AcceptedResult>();
     }
 
-    // CA-4: PUT sobre una sede inexistente retorna 404 Not Found
+    // CA-4
     [Fact]
     public async Task ActualizarUbicacionSede_Retorna404_CuandoSedeNoExiste()
     {
         var validator = new FakeRequestValidator<ActualizarUbicacionSedeBody>(BodyValido());
-        var router = new FakeCommandRouter(lanzarKeyNotFoundException: true);
+        var router = new FakeCommandRouter(new KeyNotFoundException("La sede no existe"));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
@@ -48,9 +40,7 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NotFoundObjectResult>();
     }
 
-    // Body malformado (JSON invalido) retorna 400 Bad Request -- sin validator de forma (ambos
-    // campos son opcionales), pero RequestValidator.ValidarAsync sigue rechazando un body que no
-    // deserializa.
+    // Ciudad y Direccion son opcionales, pero un body que no deserializa sigue siendo 400.
     [Fact]
     public async Task ActualizarUbicacionSede_Retorna400_CuandoRequestEsInvalido()
     {
@@ -63,52 +53,19 @@ public class FunctionEndpointTests
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
-}
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-internal class FakeRequestValidator<TComando> : IRequestValidator
-{
-    private readonly TComando? _comando;
-    private readonly IActionResult? _error;
-
-    public FakeRequestValidator(TComando? comando = default, IActionResult? error = null)
+    // El {codigo} de ruta se rechaza en el borde antes de tocar el comando: sin esta guarda el
+    // charset URL-safe que #456 gano solo regiria en el registro (MEF-ADR-0037 seccion 2).
+    [Fact]
+    public async Task ActualizarUbicacionSede_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
     {
-        _comando = comando;
-        _error = error;
+        var validator = new FakeRequestValidator<ActualizarUbicacionSedeBody>(BodyValido());
+        var router = new FakeCommandRouter(
+            new KeyNotFoundException("el comando nunca debe despacharse con un codigo invalido"));
+        var function = new FunctionEndpoint(validator, router);
+
+        var result = await function.Run(FakeHttpRequest(), "SEDE 001", CancellationToken.None);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
-
-    public Task<(T? Comando, IActionResult? Error)> ValidarAsync<T>(
-        HttpRequest req, CancellationToken ct)
-    {
-        if (_error is not null)
-            return Task.FromResult<(T?, IActionResult?)>((default, _error));
-
-        if (_comando is T resultado)
-            return Task.FromResult<(T?, IActionResult?)>((resultado, null));
-
-        return Task.FromResult<(T?, IActionResult?)>((default, null));
-    }
-}
-
-internal class FakeCommandRouter : ICommandRouter
-{
-    private readonly bool _lanzarKeyNotFound;
-
-    public FakeCommandRouter(bool lanzarKeyNotFoundException = false) =>
-        _lanzarKeyNotFound = lanzarKeyNotFoundException;
-
-    public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
-        where TCommand : class
-    {
-        if (_lanzarKeyNotFound)
-            throw new KeyNotFoundException("La sede no existe");
-
-        return Task.CompletedTask;
-    }
-
-    public Task<TResult> InvokeAsync<TCommand, TResult>(
-        TCommand command, CancellationToken ct = default)
-        where TCommand : class
-        => throw new NotImplementedException();
 }

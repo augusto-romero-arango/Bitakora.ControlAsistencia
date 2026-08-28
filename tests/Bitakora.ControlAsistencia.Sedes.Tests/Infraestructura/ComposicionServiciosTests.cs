@@ -226,9 +226,6 @@ public class ComposicionServiciosTests
     // IdentidadEventosSedes.TiposPersistidos acoplaria el guardrail al mismo artefacto que
     // AliasEventosSedesTests ya verifica, y la asercion pasaria en verde aunque la lista quedara
     // vacia.
-    //
-    // Issue #457 (CA-ADR-0029 decision #6): suma NombreSedeModificado y UbicacionActualizada, los
-    // dos eventos persistidos nuevos de este issue.
     [Fact]
     public async Task AgregarServiciosSedes_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -245,8 +242,6 @@ public class ComposicionServiciosTests
     // escritas llevan en su columna "type". AliasEventosSedesTests lo congela sobre un StoreOptions
     // standalone; esta guarda lo congela sobre el store del contenedor, el unico lugar donde un
     // MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
-    //
-    // Issue #457: suma los alias de los dos eventos persistidos nuevos.
     [Fact]
     public async Task AgregarServiciosSedes_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {

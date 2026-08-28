@@ -1,9 +1,3 @@
-// Issue #457 (MEF-ADR-0043 paso 2): modificar el nombre de una sede -- reemplazo completo del VO
-// atomico Nombre. CA-ADR-0030: sin eventos de fallo -- el handler solo traduce "sede inexistente" a
-// KeyNotFoundException (404, CA-4). CA-5: la bandera Activa (issue #459, sin implementar todavia)
-// no se interroga -- una sede desactivada sigue siendo editable; sin evento de desactivacion en
-// este dominio aun, este CA no tiene un escenario Given propio que construir en este issue.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
@@ -14,8 +8,8 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.ModificarNombreSedeFunction;
 
-// El aggregate usa un stream ID compuesto (SedeAggregateRoot.ComputarStreamId, "s:{codigo}"), no
-// el GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 test-writer).
+// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness: Given/Then/And exigen
+// los overloads que reciben el streamId explicito.
 public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<ModificarNombreSede>
 {
     private const string Codigo = "SEDE-001";
@@ -24,8 +18,7 @@ public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<Mo
     private const string Ciudad = "Bogota";
     private const string Direccion = "Calle 100 # 10-20";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de SedeAggregateRoot.ComputarStreamId.
+    // Oraculo independiente de la clave de stream: literal, nunca derivado de ComputarStreamId.
     private const string StreamIdEsperado = "s:SEDE-001";
 
     protected override ICommandHandlerAsync<ModificarNombreSede> Handler =>
@@ -34,8 +27,7 @@ public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<Mo
     private static SedeRegistrada CrearSedeRegistrada() =>
         new(Codigo, NombreOriginal, Ciudad, Direccion);
 
-    // CA-1: sede existente + comando con nombre nuevo -> el stream recibe NombreSedeModificado; el
-    // aggregate rehidratado refleja el nombre nuevo.
+    // CA-1
     [Fact]
     public async Task ModificarNombreSede_EmiteNombreSedeModificado_CuandoSedeExiste()
     {
@@ -47,9 +39,8 @@ public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<Mo
         And<SedeAggregateRoot, string>(StreamIdEsperado, s => s.Nombre, NombreNuevo);
     }
 
-    // CA-4: sede inexistente -> 404 (KeyNotFoundException), sin escribir nada al event store. Sin
-    // Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir nada al event
-    // store" (mismo precedente que CorregirNombresCommandHandlerTests CA-4).
+    // CA-4: sin Given -- el stream no existe. El Then sin eventos esperados es la asercion de que
+    // nada se escribio al event store.
     [Fact]
     public async Task ModificarNombreSede_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {

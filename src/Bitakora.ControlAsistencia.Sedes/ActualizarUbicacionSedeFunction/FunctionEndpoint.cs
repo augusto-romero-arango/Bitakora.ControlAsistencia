@@ -6,14 +6,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.ActualizarUbicacionSedeFunction;
 
-// Issue #457: endpoint HTTP PUT para reemplazar la ubicacion de una sede existente.
-// MEF-ADR-0006: [Function("ActualizarUbicacionSede")]; carpeta CON sufijo "Function" -- el record
-// del comando es homonimo del feature folder.
-// Route = "sedes/{codigo}/ubicacion" (kebab-case minusculo, MEF-ADR-0043 paso 2): {codigo} no
-// requiere parseo tipado adicional en el borde, misma razon que ModificarNombreSedeFunction.
-// CA-ADR-0030 / MEF-ADR-0004 (precedente CorregirNombresFunction.FunctionEndpoint): validar body
-// (400 via IRequestValidator) -> despachar comando -> KeyNotFoundException -> 404 (CA-4); exito ->
-// 202 Accepted. Fase roja: stub minimo, el implementer completa la orquestacion real.
+// PUT que reemplaza completa la ubicacion (Ciudad+Direccion) como valor atomico direccionable por
+// {codigo} (MEF-ADR-0043 paso 2). El {codigo} de ruta se valida aqui porque IRequestValidator solo
+// cubre el body (MEF-ADR-0037 seccion 2: un unico chequeo del componente, con 400 explicito).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("ActualizarUbicacionSede")]
@@ -23,6 +18,9 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         string codigo,
         CancellationToken ct)
     {
+        if (!CodigoSedeDeRuta.EsValido(codigo, out var errorDeCodigo))
+            return errorDeCodigo;
+
         var (body, error) = await requestValidator.ValidarAsync<ActualizarUbicacionSedeBody>(req, ct);
         if (error is not null)
             return error;
