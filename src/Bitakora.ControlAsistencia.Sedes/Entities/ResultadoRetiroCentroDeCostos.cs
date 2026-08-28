@@ -1,12 +1,9 @@
 namespace Bitakora.ControlAsistencia.Sedes.Entities;
 
-// Issue #458: resultado de SedeAggregateRoot.RetirarCentroDeCostos. Mecanismo "declinar con
-// resultado" (CA-ADR-0030) -- retirar sin CC vigente es la unica razon de rechazo, evaluable solo
-// con el estado del stream, sin reloj. El handler la traduce a InvalidOperationException/409 (CA-4,
-// propuesta revisable segun el issue).
-// internal: mismo criterio de visibilidad que los resultados hermanos de Colaboradores
-// (ResultadoAsignacionEtiqueta/ResultadoRetiroEtiqueta) -- vive en el mismo ensamblado que el
-// handler que lo consume.
+// Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la razon
+// del rechazo y el handler la traduce al status code. Unica razon aqui, evaluable solo con el
+// estado del stream y sin reloj.
+// internal: mismo criterio de visibilidad que los resultados hermanos de Colaboradores.
 internal enum ResultadoRetiroCentroDeCostos
 {
     Exitosa,

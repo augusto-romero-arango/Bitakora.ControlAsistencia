@@ -52,7 +52,6 @@ public class AliasEventosSedesTests
         AliasDe<UbicacionActualizada>(options).Should().Be("ubicacion_actualizada");
     }
 
-    // Issue #458
     [Fact]
     public void CentroDeCostosAsignado_TieneAliasCentroDeCostosAsignado()
     {
@@ -61,7 +60,6 @@ public class AliasEventosSedesTests
         AliasDe<CentroDeCostosAsignado>(options).Should().Be("centro_de_costos_asignado");
     }
 
-    // Issue #458
     [Fact]
     public void CentroDeCostosRetirado_TieneAliasCentroDeCostosRetirado()
     {

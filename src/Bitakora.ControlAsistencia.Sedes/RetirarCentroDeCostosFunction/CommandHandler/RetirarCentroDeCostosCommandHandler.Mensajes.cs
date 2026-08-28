@@ -8,7 +8,7 @@ public partial class RetirarCentroDeCostosCommandHandler
         "Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction.CommandHandler.RetirarCentroDeCostosCommandHandlerMensajes",
         typeof(RetirarCentroDeCostosCommandHandler).Assembly);
 
-    // internal, no private: los tests afirman los mensajes del 404/409 via InternalsVisibleTo.
+    // internal, no private: los tests los afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string SedeNoEncontrada =>

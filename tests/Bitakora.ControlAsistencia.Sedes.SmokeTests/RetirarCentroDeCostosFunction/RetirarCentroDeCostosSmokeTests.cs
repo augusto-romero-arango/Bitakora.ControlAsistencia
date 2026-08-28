@@ -75,7 +75,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-3: DELETE con CC vigente persiste CentroDeCostosRetirado.
+    // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarCentroDeCostos_Retorna202YPersisteCentroDeCostosRetirado_CuandoHayCentroDeCostosVigente()
@@ -97,7 +97,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             $"el evento {TipoEventoCentroDeCostosRetirado} deberia existir en el stream {streamId}");
     }
 
-    // CA-4: DELETE sin CC vigente declina -> 409, sin evento (CA-ADR-0030).
+    // CA-4: declina sin persistir evento (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarCentroDeCostos_Retorna409YNoPersisteEvento_CuandoNoHayCentroDeCostosVigente()
@@ -132,7 +132,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-5: sede inexistente -> 404.
+    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarCentroDeCostos_Retorna404_CuandoSedeNoExiste()

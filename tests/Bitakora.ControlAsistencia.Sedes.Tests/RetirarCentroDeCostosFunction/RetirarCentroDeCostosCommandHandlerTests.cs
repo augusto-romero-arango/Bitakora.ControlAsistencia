@@ -1,8 +1,3 @@
-// Issue #458: retirar el centro de costos de una sede -- la sede vuelve a "sin CC". CA-ADR-0030:
-// mecanismo "declinar con resultado" -- sin CC vigente se rechaza con InvalidOperationException
-// (409, CA-4, propuesta revisable segun el issue); sede inexistente se declina con
-// KeyNotFoundException (404). No hay eventos de fallo persistidos.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
@@ -13,8 +8,8 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.RetirarCentroDeCostosFunction;
 
-// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness -- overloads explicitos
-// de Given/Then/And (regla 18 del test-writer).
+// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness: Given/Then/And exigen
+// los overloads que reciben el streamId explicito.
 public class RetirarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<RetirarCentroDeCostos>
 {
     private const string Codigo = "SEDE-001";
@@ -29,7 +24,7 @@ public class RetirarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
 
     private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
 
-    // CA-3: CC vigente -> persiste CentroDeCostosRetirado; la sede vuelve a "sin CC".
+    // CA-3
     [Fact]
     public async Task RetirarCentroDeCostos_EmiteCentroDeCostosRetirado_CuandoLaSedeTieneCentroVigente()
     {
@@ -41,7 +36,7 @@ public class RetirarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, null);
     }
 
-    // CA-4: sin CC vigente declina -> 409, ningun evento nuevo, el estado permanece "sin CC".
+    // CA-4: declina sin emitir ningun evento nuevo (CA-ADR-0030).
     [Fact]
     public async Task RetirarCentroDeCostos_LanzaInvalidOperationException_CuandoLaSedeNoTieneCentroVigente()
     {
@@ -55,7 +50,7 @@ public class RetirarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, null);
     }
 
-    // CA-5: sede inexistente -> 404 (KeyNotFoundException), sin escribir nada al event store.
+    // CA-5: sede inexistente -> KeyNotFoundException, sin escribir nada al event store.
     [Fact]
     public async Task RetirarCentroDeCostos_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {

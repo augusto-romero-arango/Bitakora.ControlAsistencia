@@ -1,7 +1,3 @@
-// Issue #458 (MEF-ADR-0043 paso 3): tests del endpoint HTTP DELETE sedes/{codigo}/centro-de-costos.
-// CA-ADR-0030 / MEF-ADR-0004: InvalidOperationException -> 409, KeyNotFoundException -> 404, exito
-// -> 202.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
@@ -53,9 +49,8 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NotFoundObjectResult>();
     }
 
-    // El {codigo} de ruta se rechaza en el borde antes de tocar el comando -- invariante URL-safe
-    // ganada en #456 (MEF-ADR-0043 seccion 1.3), mismo criterio que ModificarNombreSede/
-    // ActualizarUbicacionSede.
+    // El {codigo} de ruta se rechaza en el borde: el FakeCommandRouter lanzaria si el comando
+    // llegara a despacharse con un codigo invalido.
     [Fact]
     public async Task RetirarCentroDeCostos_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
     {

@@ -5,8 +5,7 @@ namespace Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction.Command
 
 // Sede inexistente se declina con KeyNotFoundException (el endpoint la traduce a 404), sin
 // persistir ningun evento de fallo -- CA-ADR-0030. Asignar por primera vez y reemplazar son el
-// mismo comando (PUT semantico, MEF-ADR-0043 paso 2): sin variante de idempotencia silenciosa.
-// Fase roja: stub minimo, el implementer completa la orquestacion real.
+// mismo comando: sin variante de idempotencia silenciosa (a diferencia de AsignarEtiqueta).
 public partial class AsignarCentroDeCostosCommandHandler : ICommandHandlerAsync<AsignarCentroDeCostos>
 {
     private readonly IEventStore _eventStore;

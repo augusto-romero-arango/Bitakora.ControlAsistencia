@@ -81,8 +81,6 @@ public partial class SedeAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Issue #458 (MEF-ADR-0043 paso 2): reemplazo completo del CC opaco -- asignar por primera vez
-    // y reemplazar son el mismo comando, sin variante de idempotencia silenciosa.
     public void Apply(CentroDeCostosAsignado e) => _centroDeCostos = e.CentroDeCostos;
 
     internal void AsignarCentroDeCostos(string centroDeCostos)
@@ -92,8 +90,6 @@ public partial class SedeAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Issue #458 (MEF-ADR-0043 paso 3, CA-ADR-0030): mecanismo "declinar con resultado" -- sin CC
-    // vigente el aggregate declina sin mutar ni emitir (CA-4).
     public void Apply(CentroDeCostosRetirado e) => _centroDeCostos = null;
 
     internal ResultadoRetiroCentroDeCostos RetirarCentroDeCostos()

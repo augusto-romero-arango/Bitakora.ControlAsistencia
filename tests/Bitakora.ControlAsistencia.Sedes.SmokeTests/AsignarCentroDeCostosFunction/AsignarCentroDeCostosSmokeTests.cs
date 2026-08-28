@@ -19,6 +19,9 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     private const string TipoEventoCentroDeCostosAsignado = "centro_de_costos_asignado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
+    // Espacios y minusculas deliberados: el CC es opaco y debe persistirse tal cual llego.
+    private const string CentroDeCostosSinNormalizar = "  cc-001 / bodega  ";
+
     // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
     // del que "[", "]" y el espacio quedan fuera.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
@@ -56,7 +59,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: PUT con CC valido persiste el string opaco tal cual, sin normalizacion.
+    // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna202YPersisteCentroDeCostosAsignado_CuandoCentroDeCostosEsValido()
@@ -66,28 +69,27 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var ct = TestContext.Current.CancellationToken;
         var codigo = await RegistrarSedeDePruebaAsync(ct);
 
-        var payload = new { centroDeCostos = "CC-001" };
+        var payload = new { centroDeCostos = CentroDeCostosSinNormalizar };
         var response = await _client.PutAsJsonAsync(RutaCentroDeCostos(codigo), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
-            SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado, Timeout,
-            campoJson: "CentroDeCostos", valorJson: "CC-001");
+            SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado, Timeout);
 
         existe.Should().BeTrue(
             $"el evento {TipoEventoCentroDeCostosAsignado} deberia existir en el stream {streamId}");
 
+        // Sin filtrar por valor: filtrar por el mismo string que luego se afirma volveria la
+        // asercion tautologica -- y es justo el valor lo que CA-1 pone a prueba.
         var evento = await postgres.ObtenerEventoAsync<JsonElement>(
-            SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado,
-            "CentroDeCostos", "CC-001", TimeSpan.FromSeconds(5));
+            SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado, TimeSpan.FromSeconds(5));
 
-        evento.GetProperty("CentroDeCostos").GetString().Should().Be("CC-001");
+        evento.GetProperty("CentroDeCostos").GetString().Should().Be(CentroDeCostosSinNormalizar);
     }
 
-    // CA-2: PUT sobre una sede que ya tiene CC persiste un nuevo CentroDeCostosAsignado (reemplazo,
-    // mismo comando -- PUT semantico, MEF-ADR-0043 paso 2).
+    // CA-2
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna202YPersisteSegundoEvento_CuandoYaTieneCentroDeCostosVigente()
@@ -126,7 +128,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             "asignar por primera vez y reemplazar son el mismo comando: cada PUT agrega su propio evento");
     }
 
-    // CA-5: CC vacio -> 400.
+    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna400_CuandoCentroDeCostosEsVacio()
@@ -154,7 +156,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-5: sede inexistente -> 404.
+    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna404_CuandoSedeNoExiste()

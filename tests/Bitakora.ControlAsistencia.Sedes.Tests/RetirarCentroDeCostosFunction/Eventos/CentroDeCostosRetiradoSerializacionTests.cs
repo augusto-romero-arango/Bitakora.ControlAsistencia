@@ -4,8 +4,7 @@ using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.RetirarCentroDeCostosFunction.Eventos;
 
-// Round-trip con las opciones REALES de Marten del dominio. Sin payload -- el round-trip solo
-// verifica que el tipo sobrevive la (de)serializacion, sin campos que perder.
+// Round-trip con las opciones REALES de Marten del dominio, nunca un resolver armado inline.
 public class CentroDeCostosRetiradoSerializacionTests
 {
     private static JsonSerializerOptions CrearOpcionesMarten() =>

@@ -6,15 +6,11 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction;
 
-// Issue #458: endpoint HTTP PUT para asignar (o reemplazar por completo) el centro de costos de una
-// sede -- VO opaco direccionable por {codigo} (MEF-ADR-0043 paso 2). MEF-ADR-0006:
-// [Function("AsignarCentroDeCostos")]; carpeta CON sufijo "Function".
-// Route = "sedes/{codigo}/centro-de-costos" (kebab-case minusculo, MEF-ADR-0043 seccion 3):
-// asignar por primera vez y reemplazar son el mismo comando (PUT semantico).
-// CA-ADR-0030 / MEF-ADR-0004 (precedente ModificarNombreSedeFunction.FunctionEndpoint): validar
-// {codigo} de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
-// KeyNotFoundException -> 404; exito -> 202 Accepted. Fase roja: stub minimo, el implementer
-// completa la orquestacion real.
+// PUT que reemplaza completo el centro de costos -- VO atomico direccionable por {codigo}
+// (MEF-ADR-0043 paso 2). El {codigo} de ruta se valida aqui porque IRequestValidator solo cubre el
+// body (MEF-ADR-0037 seccion 2: un unico chequeo del componente, con 400 explicito).
+// Comparte segmento con RetirarCentroDeCostos (DELETE): ambos deben declarar su verbo o uno
+// capturaria al otro (MEF-ADR-0006).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarCentroDeCostos")]

@@ -1,7 +1,3 @@
-// Issue #458: asignar (o reemplazar) el centro de costos de una sede. CC opaco -- sin
-// interpretacion ni normalizacion, se estampa tal cual (decision de sesion 2026-08-27). CA-ADR-0030:
-// sede inexistente se declina con KeyNotFoundException (404); no hay eventos de fallo persistidos.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction;
 using Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction.CommandHandler;
@@ -12,14 +8,18 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.AsignarCentroDeCostosFunction;
 
-// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness -- overloads explicitos
-// de Given/Then/And (regla 18 del test-writer).
+// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness: Given/Then/And exigen
+// los overloads que reciben el streamId explicito.
 public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<AsignarCentroDeCostos>
 {
     private const string Codigo = "SEDE-001";
     private const string Nombre = "Sede Principal";
     private const string CentroDeCostosNuevo = "CC-100";
     private const string CentroDeCostosPrevio = "CC-050";
+
+    // Espacios y minusculas deliberados: si alguien agregara Trim/ToUpper al asignar, el
+    // evento dejaria de llevar el string que envio el cliente.
+    private const string CentroDeCostosSinNormalizar = "  cc-100 / bodega  ";
 
     // Oraculo independiente de la clave de stream: literal, nunca derivado de ComputarStreamId.
     private const string StreamIdEsperado = "s:SEDE-001";
@@ -29,7 +29,7 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
 
     private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
 
-    // CA-1: CC valido persiste el string opaco tal cual, sin normalizacion.
+    // CA-1
     [Fact]
     public async Task AsignarCentroDeCostos_EmiteCentroDeCostosAsignado_CuandoSedeExiste()
     {
@@ -41,8 +41,7 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, CentroDeCostosNuevo);
     }
 
-    // CA-2: la sede ya tiene un CC vigente -- el mismo comando reemplaza el valor previo, sin
-    // distinguir "primera asignacion" de "reemplazo" (PUT semantico).
+    // CA-2
     [Fact]
     public async Task AsignarCentroDeCostos_EmiteCentroDeCostosAsignado_CuandoLaSedeYaTieneUnCentroVigente()
     {
@@ -54,7 +53,7 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, CentroDeCostosNuevo);
     }
 
-    // CA-5: sede inexistente -> 404 (KeyNotFoundException), sin escribir nada al event store.
+    // CA-5: sede inexistente -> KeyNotFoundException, sin escribir nada al event store.
     [Fact]
     public async Task AsignarCentroDeCostos_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {
@@ -63,5 +62,18 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
             .WithMessage($"*{AsignarCentroDeCostosCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
+    }
+
+    // CA-1: el CC es opaco -- se estampa byte a byte, sin trim, sin casing, sin validacion contra
+    // catalogo alguno.
+    [Fact]
+    public async Task AsignarCentroDeCostos_EstampaElCentroDeCostosSinNormalizar_CuandoTraeEspaciosYMinusculas()
+    {
+        Given(StreamIdEsperado, CrearSedeRegistrada());
+
+        await WhenAsync(new AsignarCentroDeCostos(Codigo, CentroDeCostosSinNormalizar));
+
+        Then(StreamIdEsperado, new CentroDeCostosAsignado(CentroDeCostosSinNormalizar));
+        And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, CentroDeCostosSinNormalizar);
     }
 }
