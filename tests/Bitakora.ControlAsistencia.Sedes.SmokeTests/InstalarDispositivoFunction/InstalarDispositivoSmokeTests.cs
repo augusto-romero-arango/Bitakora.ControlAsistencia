@@ -1,0 +1,224 @@
+// Issue #460: DispositivoInstalado no cruza el bus en este issue -- la unica verificacion
+// black-box de los efectos del handler es leer mt_events via PostgresFixture, sin ServiceBusFixture.
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
+
+namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.InstalarDispositivoFunction;
+
+public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postgres)
+{
+    private readonly HttpClient _client = api.Client;
+
+    private const string RutaRegistrarSede = "/api/sedes";
+    private const string SchemaSedes = "sedes";
+    private const string TipoEventoSedeRegistrada = "sede_registrada";
+    private const string TipoEventoDispositivoInstalado = "dispositivo_instalado";
+    private const string TipoEventoDispositivoRetirado = "dispositivo_retirado";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+
+    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
+    // del que "[", "]" y el espacio quedan fuera.
+    private static string NuevoCodigoSede() => $"TEST-{Guid.CreateVersion7()}";
+
+    private static string NuevoDispositivoId() => $"TEST-DISPOSITIVO-{Guid.CreateVersion7()}";
+
+    // Recomputo local del streamId: oraculo independiente, sin referenciar ComputarStreamId.
+    private static string ComputarStreamId(string codigo) => $"s:{codigo}";
+
+    private static string RutaDispositivos(string codigo) => $"/api/sedes/{codigo}/dispositivos";
+
+    private static string RutaDispositivo(string codigo, string dispositivoId) =>
+        $"/api/sedes/{codigo}/dispositivos/{dispositivoId}";
+
+    private async Task<string> RegistrarSedeDePruebaAsync(CancellationToken ct)
+    {
+        var codigo = NuevoCodigoSede();
+        var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrarSede, payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que el registro previo de la sede funcione");
+
+        var streamId = ComputarStreamId(codigo);
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaSedes, streamId, TipoEventoSedeRegistrada, Timeout);
+        existe.Should().BeTrue(
+            $"el evento {TipoEventoSedeRegistrada} deberia existir en el stream {streamId} antes de instalar el dispositivo");
+
+        return codigo;
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task DebeEstarDisponible_CuandoSeConsultaHealthCheck()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    // CA-1
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna202YPersisteDispositivoInstalado_CuandoDispositivoIdEsValido()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var codigo = await RegistrarSedeDePruebaAsync(ct);
+        var dispositivoId = NuevoDispositivoId();
+
+        var response = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigo), new { dispositivoId }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(codigo);
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaSedes, streamId, TipoEventoDispositivoInstalado, Timeout,
+            campoJson: "DispositivoId", valorJson: dispositivoId);
+
+        existe.Should().BeTrue(
+            $"el evento {TipoEventoDispositivoInstalado} deberia existir en el stream {streamId}");
+
+        var evento = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaSedes, streamId, TipoEventoDispositivoInstalado,
+            "DispositivoId", dispositivoId, TimeSpan.FromSeconds(5));
+
+        evento.GetProperty("DispositivoId").GetString().Should().Be(dispositivoId);
+    }
+
+    // CA-2: declina sin persistir un segundo evento (CA-ADR-0030).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna409YNoDuplicaEvento_CuandoDispositivoYaInstaladoEnEstaSede()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var codigo = await RegistrarSedeDePruebaAsync(ct);
+        var streamId = ComputarStreamId(codigo);
+        var dispositivoId = NuevoDispositivoId();
+
+        var primeraInstalacion = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigo), new { dispositivoId }, ct);
+        primeraInstalacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que la primera instalacion funcione");
+
+        var existePrimeraInstalacion = await postgres.ExisteEventoAsync(
+            SchemaSedes, streamId, TipoEventoDispositivoInstalado, Timeout,
+            campoJson: "DispositivoId", valorJson: dispositivoId);
+        existePrimeraInstalacion.Should().BeTrue(
+            $"el evento {TipoEventoDispositivoInstalado} deberia estar en el stream {streamId} antes de reintentar");
+
+        var segundaInstalacion = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigo), new { dispositivoId }, ct);
+
+        segundaInstalacion.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var registros = await postgres.ContarEventosAsync(
+            SchemaSedes, streamId, TipoEventoDispositivoInstalado);
+        registros.Should().Be(1,
+            "el segundo intento se rechazo con 409: no debe haber escrito un segundo dispositivo_instalado");
+    }
+
+    // CA-6: reinstalar un dispositivo previamente retirado de esta sede procede -- no es la misma
+    // invariante de exclusividad que CA-2 (ese dispositivo ya no esta instalado en esta sede).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna202YPersisteSegundoEvento_CuandoReinstalaDispositivoPreviamenteRetirado()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var codigo = await RegistrarSedeDePruebaAsync(ct);
+        var streamId = ComputarStreamId(codigo);
+        var dispositivoId = NuevoDispositivoId();
+
+        var instalacion = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigo), new { dispositivoId }, ct);
+        instalacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que la instalacion inicial funcione");
+
+        var retiro = await _client.DeleteAsync(RutaDispositivo(codigo, dispositivoId), ct);
+        retiro.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que el retiro previo funcione");
+
+        var existeRetiro = await postgres.ExisteEventoAsync(
+            SchemaSedes, streamId, TipoEventoDispositivoRetirado, Timeout,
+            campoJson: "DispositivoId", valorJson: dispositivoId);
+        existeRetiro.Should().BeTrue(
+            $"el evento {TipoEventoDispositivoRetirado} deberia estar en el stream {streamId} antes de reinstalar");
+
+        var reinstalacion = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigo), new { dispositivoId }, ct);
+
+        reinstalacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var registros = await postgres.ContarEventosAsync(
+            SchemaSedes, streamId, TipoEventoDispositivoInstalado);
+        registros.Should().Be(2,
+            "instalar, retirar y reinstalar el mismo dispositivo agrega un segundo dispositivo_instalado");
+    }
+
+    // CA-5
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna400_CuandoDispositivoIdEsVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { dispositivoId = "" };
+
+        var response = await _client.PostAsJsonAsync(
+            RutaDispositivos(NuevoCodigoSede()), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-5: mismo charset URL-safe de CodigoSede -- el DispositivoId se expone luego como segmento
+    // de ruta en el DELETE (MEF-ADR-0043 seccion 1.3).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna400_CuandoDispositivoIdNoEsUrlSafe()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { dispositivoId = "TEST DISPOSITIVO!" };
+
+        var response = await _client.PostAsJsonAsync(
+            RutaDispositivos(NuevoCodigoSede()), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
+    // unreserved y se rechaza con 400, nunca con el 404 de un stream inexistente.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { dispositivoId = NuevoDispositivoId() };
+
+        var response = await _client.PostAsJsonAsync(
+            RutaDispositivos($"TEST!{Guid.CreateVersion7()}"), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna404_CuandoSedeNoExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { dispositivoId = NuevoDispositivoId() };
+
+        var response = await _client.PostAsJsonAsync(
+            RutaDispositivos(NuevoCodigoSede()), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+}
