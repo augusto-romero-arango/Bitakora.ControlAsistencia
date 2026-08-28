@@ -8,7 +8,7 @@ public partial class DesactivarSedeCommandHandler
         "Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction.CommandHandler.DesactivarSedeCommandHandlerMensajes",
         typeof(DesactivarSedeCommandHandler).Assembly);
 
-    // internal, no private: los tests afirman los mensajes del 404/409 via InternalsVisibleTo.
+    // internal, no private: los tests los afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string SedeNoEncontrada =>

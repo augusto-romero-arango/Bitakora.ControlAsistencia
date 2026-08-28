@@ -238,7 +238,6 @@ public class ComposicionServiciosTests
             [
                 typeof(SedeRegistrada), typeof(NombreSedeModificado), typeof(UbicacionActualizada),
                 typeof(CentroDeCostosAsignado), typeof(CentroDeCostosRetirado),
-                // Issue #459
                 typeof(SedeActivada), typeof(SedeDesactivada)
             ]);
     }
@@ -262,7 +261,6 @@ public class ComposicionServiciosTests
             [typeof(UbicacionActualizada)] = "ubicacion_actualizada",
             [typeof(CentroDeCostosAsignado)] = "centro_de_costos_asignado",
             [typeof(CentroDeCostosRetirado)] = "centro_de_costos_retirado",
-            // Issue #459
             [typeof(SedeActivada)] = "sede_activada",
             [typeof(SedeDesactivada)] = "sede_desactivada"
         });

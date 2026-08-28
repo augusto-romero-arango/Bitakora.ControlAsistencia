@@ -4,8 +4,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 namespace Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction.CommandHandler;
 
 // Mecanismo "declinar con resultado" (CA-ADR-0030): una sede ya inactiva declina sin mutar ni
-// emitir (CA-4), y este handler traduce a InvalidOperationException/409. Sede inexistente es
-// precondicion de orquestacion (KeyNotFoundException/404).
+// emitir, y este handler traduce esa razon a InvalidOperationException/409. Sede inexistente es
+// precondicion de orquestacion (KeyNotFoundException/404), sin evento de fallo persistido.
 public partial class DesactivarSedeCommandHandler : ICommandHandlerAsync<DesactivarSede>
 {
     private readonly IEventStore _eventStore;

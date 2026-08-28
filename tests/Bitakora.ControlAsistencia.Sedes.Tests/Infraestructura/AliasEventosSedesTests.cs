@@ -68,7 +68,6 @@ public class AliasEventosSedesTests
         AliasDe<CentroDeCostosRetirado>(options).Should().Be("centro_de_costos_retirado");
     }
 
-    // Issue #459
     [Fact]
     public void SedeActivada_TieneAliasSedeActivada()
     {
@@ -77,7 +76,6 @@ public class AliasEventosSedesTests
         AliasDe<SedeActivada>(options).Should().Be("sede_activada");
     }
 
-    // Issue #459
     [Fact]
     public void SedeDesactivada_TieneAliasSedeDesactivada()
     {

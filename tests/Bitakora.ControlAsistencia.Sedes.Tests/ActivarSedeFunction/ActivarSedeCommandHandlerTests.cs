@@ -1,9 +1,3 @@
-// Issue #459: activar una sede inactiva. CA-ADR-0030: sede inexistente se declina con
-// KeyNotFoundException (404); activar una sede ya activa declina con InvalidOperationException
-// (409) via el mecanismo "declinar con resultado" -- sin evento de fallo persistido. La sede nace
-// activa (sin evento inicial de activacion, decision de sesion 2026-08-27): CA-3 aplica igual sobre
-// una sede recien registrada que sobre una explicitamente reactivada.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.ActivarSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.ActivarSedeFunction.CommandHandler;
@@ -14,8 +8,8 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.ActivarSedeFunction;
 
-// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness -- overloads explicitos
-// de Given/Then/And (regla 18 del test-writer).
+// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness: Given/Then/And exigen
+// los overloads que reciben el streamId explicito.
 public class ActivarSedeCommandHandlerTests : CommandHandlerAsyncTest<ActivarSede>
 {
     private const string Codigo = "SEDE-001";
@@ -29,7 +23,6 @@ public class ActivarSedeCommandHandlerTests : CommandHandlerAsyncTest<ActivarSed
 
     private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
 
-    // CA-2: sede desactivada + POST -> SedeActivada, la sede queda activa.
     [Fact]
     public async Task ActivarSede_EmiteSedeActivada_CuandoLaSedeEstaInactiva()
     {
@@ -41,8 +34,6 @@ public class ActivarSedeCommandHandlerTests : CommandHandlerAsyncTest<ActivarSed
         And<SedeAggregateRoot, bool>(StreamIdEsperado, s => s.Activa, true);
     }
 
-    // CA-3: la sede nace activa (sin evento inicial) -> activar una sede recien registrada declina
-    // igual que activar una ya reactivada, sin emitir ningun evento.
     [Fact]
     public async Task ActivarSede_LanzaInvalidOperationException_CuandoLaSedeYaEstaActivaPorNacimiento()
     {
@@ -56,7 +47,6 @@ public class ActivarSedeCommandHandlerTests : CommandHandlerAsyncTest<ActivarSed
         And<SedeAggregateRoot, bool>(StreamIdEsperado, s => s.Activa, true);
     }
 
-    // CA-3: una sede reactivada explicitamente tambien declina ante un segundo ActivarSede.
     [Fact]
     public async Task ActivarSede_LanzaInvalidOperationException_CuandoLaSedeYaFueReactivadaAntes()
     {
@@ -70,7 +60,6 @@ public class ActivarSedeCommandHandlerTests : CommandHandlerAsyncTest<ActivarSed
         And<SedeAggregateRoot, bool>(StreamIdEsperado, s => s.Activa, true);
     }
 
-    // CA-5: sede inexistente -> 404 (KeyNotFoundException), sin escribir nada al event store.
     [Fact]
     public async Task ActivarSede_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {

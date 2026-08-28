@@ -42,6 +42,7 @@ public partial class SedeAggregateRoot : AggregateRoot
         _nombre = e.Nombre;
         _ciudad = e.Ciudad;
         _direccion = e.Direccion;
+        // La sede nace activa: no hay evento inicial de activacion que aplicar.
         _activa = true;
     }
 
@@ -107,9 +108,6 @@ public partial class SedeAggregateRoot : AggregateRoot
         return ResultadoRetiroCentroDeCostos.Exitosa;
     }
 
-    // Issue #459 (CA-ADR-0030): mecanismo "declinar con resultado" -- activar una sede ya activa
-    // declina sin mutar ni emitir (CA-3, aplica igual a una sede recien registrada: la sede nace
-    // activa, sin evento inicial).
     public void Apply(SedeActivada e) => _activa = true;
 
     internal ResultadoActivacionSede Activar()
@@ -124,8 +122,6 @@ public partial class SedeAggregateRoot : AggregateRoot
         return ResultadoActivacionSede.Exitosa;
     }
 
-    // Issue #459 (CA-ADR-0030): mecanismo "declinar con resultado" -- desactivar una sede ya
-    // inactiva declina sin mutar ni emitir (CA-4).
     public void Apply(SedeDesactivada e) => _activa = false;
 
     internal ResultadoDesactivacionSede Desactivar()

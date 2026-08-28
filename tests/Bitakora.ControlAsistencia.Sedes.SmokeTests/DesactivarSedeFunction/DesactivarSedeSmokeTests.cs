@@ -1,6 +1,5 @@
-// Issue #459: smoke tests de POST sedes/{codigo}:desactivar. SedeDesactivada no cruza el bus en
-// este issue: la unica verificacion black-box de los efectos del handler es leer mt_events via
-// PostgresFixture -- no hay ServiceBusFixture que consultar.
+// SedeDesactivada no cruza el bus: la unica verificacion black-box de los efectos del handler es
+// leer mt_events via PostgresFixture -- no hay ServiceBusFixture que consultar.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
@@ -74,7 +73,6 @@ public class DesactivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DesactivarSede_Retorna202YPersisteSedeDesactivada_CuandoSedeEstaActiva()
@@ -96,7 +94,6 @@ public class DesactivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             $"el evento {TipoEventoSedeDesactivada} deberia existir en el stream {streamId}");
     }
 
-    // CA-4
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DesactivarSede_Retorna409YNoDuplicaEvento_CuandoSedeYaEstaInactiva()
@@ -117,7 +114,6 @@ public class DesactivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             "la declinacion por 409 no debe haber escrito un segundo sede_desactivada (CA-ADR-0030)");
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DesactivarSede_Retorna404_CuandoSedeNoExiste()

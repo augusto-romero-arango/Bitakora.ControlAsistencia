@@ -6,12 +6,10 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction;
 
-// Issue #459 (MEF-ADR-0043 paso 4): endpoint HTTP POST para desactivar una sede -- accion de
-// negocio con verbo propio, sin body. MEF-ADR-0006: [Function("DesactivarSede")]; carpeta CON
-// sufijo "Function". Route = "sedes/{codigo}:desactivar" (kebab-case minusculo).
-// CA-ADR-0030 / MEF-ADR-0004 (precedente RetirarCentroDeCostosFunction.FunctionEndpoint): validar
-// {codigo} de ruta (400) -> despachar comando -> InvalidOperationException -> 409 (CA-4, sede ya
-// inactiva); KeyNotFoundException -> 404; exito -> 202 Accepted.
+// Accion de negocio con verbo propio: ni crea, ni reemplaza un VO direccionable, ni remueve
+// (MEF-ADR-0043 paso 4) -- POST "{recurso}:{verbo}", nunca PUT sobre una bandera. Sin body, asi
+// que no hay IRequestValidator: el {codigo} de ruta es lo unico que validar (MEF-ADR-0037
+// seccion 2).
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("DesactivarSede")]

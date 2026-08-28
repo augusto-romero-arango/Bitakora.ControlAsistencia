@@ -1,6 +1,5 @@
-// Issue #459: smoke tests de POST sedes/{codigo}:activar. SedeActivada no cruza el bus en este
-// issue: la unica verificacion black-box de los efectos del handler es leer mt_events via
-// PostgresFixture -- no hay ServiceBusFixture que consultar.
+// SedeActivada no cruza el bus: la unica verificacion black-box de los efectos del handler es
+// leer mt_events via PostgresFixture -- no hay ServiceBusFixture que consultar.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
@@ -76,7 +75,6 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-2
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActivarSede_Retorna202YPersisteSedeActivada_CuandoSedeEstaInactiva()
@@ -98,7 +96,6 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             $"el evento {TipoEventoSedeActivada} deberia existir en el stream {streamId}");
     }
 
-    // CA-3: aplica tambien a una sede recien registrada (nace activa, sin evento inicial).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActivarSede_Retorna409YNoPersisteEvento_CuandoSedeYaEstaActiva()
@@ -119,7 +116,6 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             "la declinacion por 409 no debe haber persistido un evento de activacion (CA-ADR-0030)");
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActivarSede_Retorna404_CuandoSedeNoExiste()
