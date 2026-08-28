@@ -37,8 +37,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         await using var session = store.QuerySession(tenantResolver.TenantId);
 
         IQueryable<FichaSede> query = session.Query<FichaSede>();
-        if (filtroActiva is not null)
-            query = query.Where(f => f.Activa == filtroActiva);
+
+        // El predicado captura un bool NO nullable: comparar contra el bool? cerrado
+        // (f.Activa == filtroActiva) arma una igualdad lifted -- Convert(f.Activa, bool?) -- que
+        // el proveedor LINQ de Marten no declara traducible, y su modo de falla seria un 500 en
+        // runtime que ningun test unitario ve (mismo tipo de trampa que MEF-ADR-0042 seccion 6
+        // registra para CompareTo sobre string).
+        if (filtroActiva is { } activa)
+            query = query.Where(f => f.Activa == activa);
 
         // OrderBy(Codigo): sin este orden, dos consultas consecutivas podrian devolver el mismo
         // catalogo permutado (mismo criterio que ListarCategoriasDeEtiquetas).

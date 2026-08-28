@@ -15,11 +15,11 @@ namespace Bitakora.ControlAsistencia.Projections.Sedes;
 /// limpio pero falla en RUNTIME al registrar la proyeccion (InvalidProjectionException).
 ///
 /// Se registra en ConfiguracionMartenProjectionsSedes.ConfigurarSedes con
-/// opts.Projections.Add&lt;FichaSedeProjection&gt;(ProjectionLifecycle.Async) -- AUSENTE hoy a
-/// proposito: el seam existe desde el issue #455 sin ninguna proyeccion concreta, y sumar esa unica
-/// linea es responsabilidad de projection-implementer (fase verde). Hasta entonces
-/// ConfiguracionMartenProjectionsTests.ConfigurarSedes_RegistraFichaSedeProjectionComoAsync queda en
-/// rojo.
+/// opts.Projections.Add&lt;FichaSedeProjection&gt;(ProjectionLifecycle.Async) -- lifecycle canonico
+/// del worker (MEF-ADR-0034 seccion 3). Ese registro es ademas lo que hace que Marten aplique
+/// ProjectionDocumentPolicy sobre FichaSede (mt_version bigint): el Function App que la consulta
+/// debe declarar la misma forma con Schema.For&lt;FichaSede&gt;().UseNumericRevisions(true), y el
+/// par de config-tests de ambos lados congela esos literales.
 ///
 /// Create toma IEvent&lt;SedeRegistrada&gt;, no SedeRegistrada a secas: la identidad del documento
 /// (FichaSede.Id) es exactamente el StreamKey del stream de SedeAggregateRoot (Events.StreamIdentity
@@ -27,10 +27,6 @@ namespace Bitakora.ControlAsistencia.Projections.Sedes;
 /// payload (mismo criterio que skills/projections/modelos-marten.md).
 ///
 /// Sin ShouldDelete: la ficha nunca se borra (issue #461, "Receta" no lo pide).
-///
-/// Cuerpos en NotImplementedException (MEF-ADR-0033, stub minimo de compilacion): el COMPORTAMIENTO
-/// (que campo actualiza cada evento) es responsabilidad de projection-implementer; los oraculos ya
-/// estan fijados por FichaSedeProjectionTests (Projections.Tests).
 /// </summary>
 public sealed partial class FichaSedeProjection : SingleStreamProjection<FichaSede, string>
 {
@@ -39,35 +35,29 @@ public sealed partial class FichaSedeProjection : SingleStreamProjection<FichaSe
     public static FichaSede Create(IEvent<SedeRegistrada> e) =>
         new(e.StreamKey!, e.Data.Codigo, e.Data.Nombre, e.Data.Ciudad, e.Data.Direccion, null, true, []);
 
-    // CA-2: reemplaza Nombre.
     public static FichaSede Apply(NombreSedeModificado e, FichaSede vista) =>
         vista with { Nombre = e.Nombre };
 
-    // CA-2: reemplaza Ciudad+Direccion ATOMICAMENTE -- el evento trae ambos valores completos, sin
-    // merge parcial de los nulos que pueda traer.
+    // Reemplazo ATOMICO de Ciudad+Direccion: el evento trae ambos valores completos, sin merge
+    // parcial de los nulos que pueda traer.
     public static FichaSede Apply(UbicacionActualizada e, FichaSede vista) =>
         vista with { Ciudad = e.Ciudad, Direccion = e.Direccion };
 
-    // CA-3: el CC vigente.
     public static FichaSede Apply(CentroDeCostosAsignado e, FichaSede vista) =>
         vista with { CentroDeCostos = e.CentroDeCostos };
 
-    // CA-3: el CC vigente vuelve a null.
     public static FichaSede Apply(CentroDeCostosRetirado e, FichaSede vista) =>
         vista with { CentroDeCostos = null };
 
-    // CA-4: conmuta Activa.
     public static FichaSede Apply(SedeActivada e, FichaSede vista) =>
         vista with { Activa = true };
 
     public static FichaSede Apply(SedeDesactivada e, FichaSede vista) =>
         vista with { Activa = false };
 
-    // CA-4: agrega el dispositivo instalado manteniendo los existentes.
     public static FichaSede Apply(DispositivoInstalado e, FichaSede vista) =>
         vista with { Dispositivos = [.. vista.Dispositivos, e.DispositivoId] };
 
-    // CA-4: remueve solo el dispositivo retirado, dejando intactos los demas.
     public static FichaSede Apply(DispositivoRetirado e, FichaSede vista) =>
-        vista with { Dispositivos = vista.Dispositivos.Where(d => d != e.DispositivoId).ToList() };
+        vista with { Dispositivos = [.. vista.Dispositivos.Where(d => d != e.DispositivoId)] };
 }
