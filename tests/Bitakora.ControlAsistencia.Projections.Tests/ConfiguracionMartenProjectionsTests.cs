@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
+using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Microsoft.Extensions.DependencyInjection;
 using Weasel.Postgresql.Tables; // IndexMethod/IndexDefinition (NO Marten.*: viven en Weasel.Postgresql.Tables)
@@ -655,10 +656,11 @@ public class ConfiguracionMartenProjectionsTests
     // tenancy y naming de eventos deben coincidir con el write-side desde el primer evento
     // persistido; descubrir una divergencia despues obliga a migrar datos ya escritos.
     //
-    // Todavia sin equivalente de ConfigurarX_RegistraLosTiposDeEventoPersistidos ni de
-    // ConfigurarX_ConservaElResolverDeSerializacionCustom: el dominio no tiene ningun evento
-    // persistido (IdentidadEventosSedes.TiposPersistidos esta vacia) ni ningun value object con
-    // ctor privado. Se agregan junto con el primer evento del desglose #456-#461.
+    // Issue #461: el desglose #456-#460 (ya en main al momento de este issue) pobló
+    // IdentidadEventosSedes.TiposPersistidos con los 9 tipos de SedeAggregateRoot -- ya no aplica
+    // "el dominio no tiene ningun evento persistido" (nota original del issue #455). Sin ningun
+    // value object con ctor privado (todos los eventos de Sedes son records planos): no hay
+    // equivalente de ConfigurarX_ConservaElResolverDeSerializacionCustom para este dominio.
 
     [Fact]
     public void ConfigurarSedes_ResuelveElNamedStoreDelDominio()
@@ -736,6 +738,46 @@ public class ConfiguracionMartenProjectionsTests
 
         provider.GetRequiredService<ISedesProjectionStore>()
             .AssertDocumentosMultiTenant<DocumentoCanarioTenancy>();
+    }
+
+    // Issue #461 (defensa en profundidad read-side, patron de Programacion/ControlHoras/
+    // Colaboradores, issue #277): el dominio estrena su primera proyeccion concreta --
+    // IdentidadEventosSedes.TiposPersistidos paso de vacia (issue #455) a los 9 tipos de
+    // SedeAggregateRoot (issues #456-#460).
+    //
+    // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
+    // IdentidadEventosSedes.TiposPersistidos acoplaria este guardrail al mismo artefacto que
+    // AliasEventosSedesTests ya verifica en el write-side.
+    [Fact]
+    public void ConfigurarSedes_RegistraLosTiposDeEventoPersistidos()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>()
+            .AssertEventosPersistidosRegistrados(
+            [
+                typeof(SedeRegistrada), typeof(NombreSedeModificado), typeof(UbicacionActualizada),
+                typeof(CentroDeCostosAsignado), typeof(CentroDeCostosRetirado),
+                typeof(SedeActivada), typeof(SedeDesactivada),
+                typeof(DispositivoInstalado), typeof(DispositivoRetirado)
+            ]);
+    }
+
+    // Issue #461 CA-1..CA-4: primera proyeccion concreta del dominio Sedes (N1,
+    // SingleStreamProjection<FichaSede, string> sobre el stream de SedeAggregateRoot). Complementa
+    // ConfigurarSedes_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo Inline, esta
+    // prueba que la proyeccion CONCRETA se registro con lifecycle Async, el canonico del worker
+    // (MEF-ADR-0034 seccion 3). El seam (ConfiguracionMartenProjectionsSedes.ConfigurarSedes) existe
+    // desde el issue #455 sin ninguna proyeccion; este issue le agrega la unica linea
+    // opts.Projections.Add<FichaSedeProjection>(ProjectionLifecycle.Async) -- ausente hoy, por eso
+    // este test queda en rojo hasta que projection-implementer la sume.
+    [Fact]
+    public void ConfigurarSedes_RegistraFichaSedeProjectionComoAsync()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("FichaSede");
     }
 
     // --- Seam de nivel BC (CA-4) ---
