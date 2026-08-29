@@ -74,10 +74,12 @@ public class DiaCalculadoAggregateRootTests
             EstadoAsistencia.Provisional,
             PlanDelDia.ConJornada,
             "Manana",
-            [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false)],
+            [new FranjaDepurada(
+                new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+                SedeEfectiva: null, EnConflictoDeSede: false, CandidatasDeSede: [])],
             [
-                new MarcacionDelDia(entrada, "Entrada", true),
-                new MarcacionDelDia(salida, "Salida", true)
+                new MarcacionDelDia(entrada, "Entrada", true, CodigoSede: null, NombreSede: null, CentroDeCostos: null),
+                new MarcacionDelDia(salida, "Salida", true, CodigoSede: null, NombreSede: null, CentroDeCostos: null)
             ],
             new Dictionary<string, decimal> { ["Ordinaria"] = 8m },
             ["Se tomo la franja unica del turno Manana"]);
@@ -179,5 +181,250 @@ public class DiaCalculadoAggregateRootTests
         vista.NombreTurno.Should().Be("Manana");
         vista.Estado.Should().Be(EstadoAsistencia.Provisional);
         vista.Franjas.Should().ContainSingle().Which.EsAnomala.Should().BeTrue();
+    }
+
+    // ---- Issue #482: deteccion de conflicto de sede por franja (candidatas, sede efectiva) ----
+    // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT -- 2+ codigos de sede distintos
+    // entre candidatas -> conflicto, sin sede efectiva, todas las candidatas expuestas.
+
+    private static readonly SedeDeFranja SedePrincipal = new("SEDE-01", "Sede Principal", "CC-100");
+    private static readonly SedeDeFranja SedeNorte = new("SEDE-02", "Sede Norte", "CC-200");
+    private static readonly SedeDeFranja SedeSur = new("SEDE-03", "Sede Sur", "CC-300");
+
+    // CA-1: sede programada y marcaciones usadas coinciden en la misma sede -> sin conflicto; sede
+    // efectiva con el CC estampado en la marcacion (no el programado, aunque aqui coincidan).
+    [Fact]
+    public void GenerarDepuracionDelDia_DerivaSedeEfectivaSinConflicto_CuandoProgramadaYMarcadaCoincidenEnSede()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+        [
+            new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-01", "Sede Principal", "CC-100"),
+            new EventoMarcacionDelDia(salida, "Salida", "SEDE-01", "Sede Principal", "CC-100")
+        ];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.SedeEfectiva.Should().Be(SedePrincipal);
+        franjaVista.EnConflictoDeSede.Should().BeFalse();
+        franjaVista.CandidatasDeSede.Should().BeEmpty();
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-2: la marcacion usada trae una sede distinta de la programada -> franja en conflicto, sin
+    // sede efectiva, candidatas {programada, marcada} expuestas.
+    [Fact]
+    public void GenerarDepuracionDelDia_DerivaFranjaEnConflicto_CuandoProgramadaYMarcacionUsadaDifierenEnSede()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+        [
+            new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-02", "Sede Norte", "CC-200"),
+            new EventoMarcacionDelDia(salida, "Salida")
+        ];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.SedeEfectiva.Should().BeNull();
+        franjaVista.EnConflictoDeSede.Should().BeTrue();
+        franjaVista.CandidatasDeSede.Should().BeEquivalentTo([SedePrincipal, SedeNorte]);
+        dia.TieneConflictoDeSedePendiente.Should().BeTrue();
+    }
+
+    // CA-3: entrada y salida vienen de sedes distintas entre si y de la programada -> 3 candidatas
+    // expuestas; el Aprobador elegira entre todas (#483).
+    [Fact]
+    public void GenerarDepuracionDelDia_ExponeTresCandidatas_CuandoEntradaYSalidaVienenDeSedesDistintasDeLaProgramada()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+        [
+            new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-02", "Sede Norte", "CC-200"),
+            new EventoMarcacionDelDia(salida, "Salida", "SEDE-03", "Sede Sur", "CC-300")
+        ];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.EnConflictoDeSede.Should().BeTrue();
+        franjaVista.SedeEfectiva.Should().BeNull();
+        franjaVista.CandidatasDeSede.Should().BeEquivalentTo([SedePrincipal, SedeNorte, SedeSur]);
+        dia.TieneConflictoDeSedePendiente.Should().BeTrue();
+    }
+
+    // CA-4: unica fuente presente -- solo la programada, ninguna marcacion trae sede estampada ->
+    // sede efectiva la programada, sin conflicto.
+    [Fact]
+    public void GenerarDepuracionDelDia_DerivaSedeEfectivaConLaProgramada_CuandoSoloHaySedeProgramada()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+            [new EventoMarcacionDelDia(entrada, "Entrada"), new EventoMarcacionDelDia(salida, "Salida")];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.SedeEfectiva.Should().Be(SedePrincipal);
+        franjaVista.EnConflictoDeSede.Should().BeFalse();
+        franjaVista.CandidatasDeSede.Should().BeEmpty();
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-4: unica fuente presente -- franja sin sede programada, marcacion usada con sede marcada ->
+    // sede efectiva la marcada, sin conflicto.
+    [Fact]
+    public void GenerarDepuracionDelDia_DerivaSedeEfectivaConLaMarcada_CuandoSoloHaySedeMarcadaEnLaMarcacionUsada()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false);
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+        [
+            new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-02", "Sede Norte", "CC-200"),
+            new EventoMarcacionDelDia(salida, "Salida")
+        ];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.SedeEfectiva.Should().Be(SedeNorte);
+        franjaVista.EnConflictoDeSede.Should().BeFalse();
+        franjaVista.CandidatasDeSede.Should().BeEmpty();
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-4: dia nacido solo por marcacion (sin franjas) -- la marcacion expone su sede marcada cruda
+    // en la vista, para que el Aprobador vea de donde salio, aunque no exista franja que la confronte.
+    [Fact]
+    public void GenerarDepuracionDelDia_ExponeSedeMarcadaEnLaMarcacion_CuandoElDiaNacioSoloPorMarcacion()
+    {
+        var timestamp = new DateTime(2026, 8, 24, 9, 0, 0);
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+            [new EventoMarcacionDelDia(timestamp, "Entrada", "SEDE-02", "Sede Norte", "CC-200")];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, null, [], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var marcacionVista = vista.Marcaciones.Should().ContainSingle().Which;
+        marcacionVista.CodigoSede.Should().Be("SEDE-02");
+        marcacionVista.NombreSede.Should().Be("Sede Norte");
+        marcacionVista.CentroDeCostos.Should().Be("CC-200");
+        vista.Franjas.Should().BeEmpty();
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-5: misma sede en programada y marcada con CC distinto -> NO es conflicto (se hereda la sede
+    // y prevalece el CC estampado en la marcacion, nunca un lookup al maestro).
+    [Fact]
+    public void GenerarDepuracionDelDia_NoDetectaConflicto_CuandoLaSedeEsIgualYSoloElCentroDeCostosDifiere()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+        [
+            new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-01", "Sede Principal", "CC-999"),
+            new EventoMarcacionDelDia(salida, "Salida", "SEDE-01", "Sede Principal", "CC-999")
+        ];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.EnConflictoDeSede.Should().BeFalse();
+        franjaVista.SedeEfectiva.Should().Be(new SedeDeFranja("SEDE-01", "Sede Principal", "CC-999"));
+        franjaVista.CandidatasDeSede.Should().BeEmpty();
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-6: la senal es 100% derivada de la ultima foto -- una segunda DepuracionDiaRecibida que ya
+    // no trae la discrepancia disuelve el conflicto, sin evento de resolucion (#483 es el acto
+    // humano de resolver; esto es la maquina re-evaluando sola sobre cada foto nueva).
+    [Fact]
+    public void TieneConflictoDeSedePendiente_ReflejaLaUltimaFoto_CuandoUnaNuevaFotoResuelveLaDiscrepancia()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franjaConConflicto = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcacionesConConflicto =
+            [new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-02", "Sede Norte", "CC-200")];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franjaConConflicto], marcacionesConConflicto, horas));
+        dia.TieneConflictoDeSedePendiente.Should().BeTrue();
+
+        var franjaCorregida = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcacionesCorregidas =
+            [new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-01", "Sede Principal", "CC-100")];
+        dia.Apply(Evento(null, "Manana", [franjaCorregida], marcacionesCorregidas, horas));
+
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // Riesgo anticipado por el planner: streams anteriores a #464/#484 sin campos de sede -- ni la
+    // franja ni las marcaciones traen sede -> sin candidatas, sin conflicto (MEF-ADR-0004: deriva
+    // "sin candidatas", nunca excepcion; nunca un conflicto falso).
+    [Fact]
+    public void GenerarDepuracionDelDia_DerivaSinCandidatasNiConflicto_CuandoNiLaFranjaNiLasMarcacionesTraenSede()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false);
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+            [new EventoMarcacionDelDia(entrada, "Entrada"), new EventoMarcacionDelDia(salida, "Salida")];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.SedeEfectiva.Should().BeNull();
+        franjaVista.EnConflictoDeSede.Should().BeFalse();
+        franjaVista.CandidatasDeSede.Should().BeEmpty();
+        dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 }

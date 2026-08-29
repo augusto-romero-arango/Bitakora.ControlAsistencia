@@ -20,6 +20,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
 {
     public EstadoDiaCalculado Estado { get; private set; }
 
+    // Issue #482: senal publica derivada de la ultima foto -- la consumira la invariante de
+    // AprobarDia (aun no existe) y la guarda de resolucion del conflicto (#483). Stub de fase roja:
+    // la derivacion real llega en la fase verde.
+    public bool TieneConflictoDeSedePendiente => throw new NotImplementedException();
+
     // Valores provisionales de la ultima foto recibida: nunca se exponen como propiedades sueltas
     // (MEF-ADR-0012, Tell-don't-Ask). Solo Apply los reemplaza.
     private string _codigoColaborador = string.Empty;
@@ -104,13 +109,21 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                     franja.DiaOffsetFin,
                     franja.Entrada,
                     franja.Salida,
-                    franja.EsAnomala))
+                    franja.EsAnomala,
+                    // Issue #482: placeholder de fase roja -- la derivacion real de candidatas,
+                    // sede efectiva y conflicto llega en la fase verde.
+                    SedeEfectiva: null,
+                    EnConflictoDeSede: false,
+                    CandidatasDeSede: []))
                 .ToList(),
             _marcaciones
                 .Select(marcacion => new VistaMarcacionDelDia(
                     marcacion.Timestamp,
                     marcacion.Tipo,
-                    EsUsada(marcacion, _franjas)))
+                    EsUsada(marcacion, _franjas),
+                    CodigoSede: null,
+                    NombreSede: null,
+                    CentroDeCostos: null))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? []);

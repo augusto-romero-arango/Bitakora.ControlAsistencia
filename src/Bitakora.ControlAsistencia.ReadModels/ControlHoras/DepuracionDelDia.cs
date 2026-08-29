@@ -31,6 +31,11 @@ public sealed record DepuracionDelDia(
 /// <summary>
 /// Espejo por rol del homonimo de ControlHoras.DomainEvents (MEF-ADR-0039 decision 6). Ningun campo
 /// tipa contra DomainEvents: ReadModels es la cuarta isla, cero referencias de proyecto.
+///
+/// Issue #482: SedeEfectiva/EnConflictoDeSede/CandidatasDeSede son la deteccion de conflicto de
+/// sede que el aggregate deriva por franja (Tell-don't-Ask, MEF-ADR-0012). CandidatasDeSede va
+/// vacia cuando no hay conflicto; con conflicto expone TODAS las candidatas (2 o 3) para que el
+/// Aprobador elija entre ellas (#483).
 /// </summary>
 public sealed record FranjaDepurada(
     TimeOnly HoraInicioProgramada,
@@ -38,12 +43,30 @@ public sealed record FranjaDepurada(
     int DiaOffsetFin,
     DateTime? Entrada,
     DateTime? Salida,
-    bool EsAnomala);
+    bool EsAnomala,
+    SedeDeFranja? SedeEfectiva,
+    bool EnConflictoDeSede,
+    IReadOnlyList<SedeDeFranja> CandidatasDeSede);
 
 /// <summary>
-/// Espejo por rol del homonimo de ControlHoras.DomainEvents, con un campo propio de esta isla:
-/// Usada, que deriva el generador y ningun cliente recalcula. TODAS las marcaciones del dia viajan
+/// Candidata de sede de una franja: la sede programada o la marcada en alguna de sus marcaciones
+/// usadas, deduplicada por Codigo (issue #482). El CentroDeCostos viaja tal como se estampo en su
+/// fuente -- nunca un lookup al maestro de sedes (la verdad viaja en el evento).
+/// </summary>
+public sealed record SedeDeFranja(string Codigo, string Nombre, string? CentroDeCostos);
+
+/// <summary>
+/// Espejo por rol del homonimo de ControlHoras.DomainEvents, con campos propios de esta isla:
+/// Usada, que deriva el generador y ningun cliente recalcula, y (issue #482) CodigoSede/NombreSede/
+/// CentroDeCostos -- la sede marcada cruda de esta marcacion, para que el Aprobador vea de donde
+/// salio cada candidata de FranjaDepurada.CandidatasDeSede. TODAS las marcaciones del dia viajan
 /// aqui, en orden cronologico -- las descartadas se muestran igual, para que el Aprobador vea que la
 /// maquina las dejo afuera.
 /// </summary>
-public sealed record MarcacionDelDia(DateTime Timestamp, string? Tipo, bool Usada);
+public sealed record MarcacionDelDia(
+    DateTime Timestamp,
+    string? Tipo,
+    bool Usada,
+    string? CodigoSede,
+    string? NombreSede,
+    string? CentroDeCostos);
