@@ -37,6 +37,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             FranjasIncompletas: EsFranjasIncompletas(plan, evento.Franjas),
             VinoEnDescanso: EsVinoEnDescanso(plan, evento.Marcaciones),
             TrabajoSinProgramacion: EsTrabajoSinProgramacion(plan, evento.Marcaciones),
+            ConflictoDeSedePendiente: EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             evento.HorasDiscriminadas.HorasPorConcepto);
     }
 
@@ -55,6 +56,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             FranjasIncompletas = EsFranjasIncompletas(plan, evento.Franjas),
             VinoEnDescanso = EsVinoEnDescanso(plan, evento.Marcaciones),
             TrabajoSinProgramacion = EsTrabajoSinProgramacion(plan, evento.Marcaciones),
+            ConflictoDeSedePendiente = EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             HorasPorConcepto = evento.HorasDiscriminadas.HorasPorConcepto
         };
     }
@@ -78,4 +80,26 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
 
     private static bool EsTrabajoSinProgramacion(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.SinProgramar && marcaciones.Count > 0;
+
+    // Re-derivacion de la politica de DiaCalculadoAggregateRoot.DerivarSedeDeFranja, duplicada a
+    // proposito (MEF-ADR-0018): si cambia alla, cambia aqui. Solo el booleano -- sede efectiva, CC y
+    // candidatas con nombre quedan fuera: son superficie de investigacion y ya las sirve el aggregate.
+    private static bool EsConflictoDeSedePendiente(
+        IReadOnlyList<EventoFranjaDepurada> franjas, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
+        franjas.Any(franja => CandidatasDeSede(franja, marcaciones).Distinct().Count() >= 2);
+
+    private static IEnumerable<string> CandidatasDeSede(
+        EventoFranjaDepurada franja, IReadOnlyList<EventoMarcacionDelDia> marcaciones)
+    {
+        if (franja.CodigoSedeProgramada is not null)
+            yield return franja.CodigoSedeProgramada;
+
+        foreach (var marcacion in marcaciones.Where(marcacion => PerteneceA(marcacion, franja)))
+            if (marcacion.CodigoSede is not null)
+                yield return marcacion.CodigoSede;
+    }
+
+    // Misma regla de pertenencia que DiaCalculadoAggregateRoot.PerteneceA (MEF-ADR-0018).
+    private static bool PerteneceA(EventoMarcacionDelDia marcacion, EventoFranjaDepurada franja) =>
+        marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida;
 }

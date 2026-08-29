@@ -41,16 +41,18 @@ public static class SintesisCalendarioAsistencia
             documento.FranjasIncompletas,
             documento.VinoEnDescanso,
             documento.TrabajoSinProgramacion,
+            documento.ConflictoDeSedePendiente,
             documento.HorasPorConcepto);
 
     // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
-    // cuatro banderas van en false -- el vacio se avala, no se aprueba.
+    // cinco banderas van en false -- el vacio se avala, no se aprueba.
     private static FilaAsistenciaDiaria FilaSintetica(DateOnly fecha) =>
         new(
             fecha,
             EstadoAsistenciaPresentado.SinDatos,
             PlanDelDia.SinProgramar,
             null,
+            false,
             false,
             false,
             false,

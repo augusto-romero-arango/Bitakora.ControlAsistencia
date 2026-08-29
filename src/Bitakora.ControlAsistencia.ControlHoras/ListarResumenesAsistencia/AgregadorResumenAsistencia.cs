@@ -67,6 +67,7 @@ public static class AgregadorResumenAsistencia
             documentos.Count(d => d.FranjasIncompletas),
             documentos.Count(d => d.VinoEnDescanso),
             documentos.Count(d => d.TrabajoSinProgramacion),
+            documentos.Count(d => d.ConflictoDeSedePendiente),
             documentos.Count(d => d.Estado == EstadoAsistencia.Aprobado),
             documentos.Count(d => d.Estado == EstadoAsistencia.Provisional),
             diasSinFila,

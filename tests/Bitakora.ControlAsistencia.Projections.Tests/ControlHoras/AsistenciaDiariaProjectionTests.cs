@@ -155,7 +155,7 @@ public class AsistenciaDiariaProjectionTests
         var vistaPrevia = new AsistenciaDiaria(
             StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
             "Turno Manana", NoSePresento: false, FranjasIncompletas: true, VinoEnDescanso: false,
-            TrabajoSinProgramacion: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
             HorasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 4.00m });
 
         // Segunda foto: la anomalia de la franja se corrigio y ahora la jornada quedo completa.
@@ -176,5 +176,144 @@ public class AsistenciaDiariaProjectionTests
         vista.TrabajoSinProgramacion.Should().BeFalse();
         vista.HorasPorConcepto.Should().BeEquivalentTo(
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+    }
+
+    [Fact]
+    public void Create_MarcaConflictoDeSedePendiente_CuandoSedeProgramadaYSedeMarcadaDifierenEnUnaFranja()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var marcacion = new EventoMarcacionDelDia(entrada, "ENTRADA", CodigoSede: "SEDE-Y");
+        var evento = CrearEvento("Turno Manana", [franja], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoSoloHayUnaFuenteDeSedeEnLaFranja()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var marcacion = new EventoMarcacionDelDia(entrada, "ENTRADA");
+        var evento = CrearEvento("Turno Manana", [franja], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoLaSedeCoincideYSoloElCentroDeCostosDifiereEntreFuentes()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X", CentroDeCostosProgramado: "CC-1");
+        var marcacion = new EventoMarcacionDelDia(
+            entrada, "ENTRADA", CodigoSede: "SEDE-X", CentroDeCostos: "CC-2");
+        var evento = CrearEvento("Turno Manana", [franja], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoFranjasYMarcacionesNoTraenCamposDeSede()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ApagaConflictoDeSedePendiente_CuandoLaFotoNuevaYaNoTraeLaDiscrepanciaDeSede()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", NoSePresento: false, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: true,
+            HorasPorConcepto: new Dictionary<string, decimal>());
+
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franjaSinDiscrepancia = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var marcacion = new EventoMarcacionDelDia(entrada, "ENTRADA", CodigoSede: "SEDE-X");
+        var segundoEvento = CrearEvento(
+            "Turno Manana", [franjaSinDiscrepancia], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(segundoEvento, vistaPrevia);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // Guardrail de la asociacion marcacion-franja: un dia partido puede tener cada franja en una
+    // sede distinta sin que eso sea discrepancia. Sin el filtro de pertenencia, las sedes de ambas
+    // franjas se mezclarian y el dia se marcaria en conflicto falso.
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoCadaFranjaDelDiaTieneSuPropiaSedeSinDiscrepancia()
+    {
+        var entradaManana = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salidaManana = new DateTime(2026, 8, 24, 10, 0, 0);
+        var entradaTarde = new DateTime(2026, 8, 24, 14, 0, 0);
+        var salidaTarde = new DateTime(2026, 8, 24, 18, 0, 0);
+        var manana = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(10, 0), 0, entradaManana, salidaManana, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var tarde = new EventoFranjaDepurada(
+            new TimeOnly(14, 0), new TimeOnly(18, 0), 0, entradaTarde, salidaTarde, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-Y");
+        var evento = CrearEvento(
+            "Turno Partido",
+            [manana, tarde],
+            [
+                new EventoMarcacionDelDia(entradaManana, "ENTRADA", CodigoSede: "SEDE-X"),
+                new EventoMarcacionDelDia(salidaTarde, "SALIDA", CodigoSede: "SEDE-Y")
+            ],
+            SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_MarcaConflictoDeSedePendiente_CuandoLaDiscrepanciaEstaSoloEnLaSegundaFranjaDelDia()
+    {
+        var entradaManana = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salidaManana = new DateTime(2026, 8, 24, 10, 0, 0);
+        var entradaTarde = new DateTime(2026, 8, 24, 14, 0, 0);
+        var salidaTarde = new DateTime(2026, 8, 24, 18, 0, 0);
+        var manana = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(10, 0), 0, entradaManana, salidaManana, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var tarde = new EventoFranjaDepurada(
+            new TimeOnly(14, 0), new TimeOnly(18, 0), 0, entradaTarde, salidaTarde, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-Y");
+        var evento = CrearEvento(
+            "Turno Partido",
+            [manana, tarde],
+            [
+                new EventoMarcacionDelDia(entradaManana, "ENTRADA", CodigoSede: "SEDE-X"),
+                new EventoMarcacionDelDia(entradaTarde, "ENTRADA", CodigoSede: "SEDE-Z")
+            ],
+            SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeTrue();
     }
 }

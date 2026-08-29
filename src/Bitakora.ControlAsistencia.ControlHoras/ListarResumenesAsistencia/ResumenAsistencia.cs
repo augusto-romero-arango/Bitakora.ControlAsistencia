@@ -25,6 +25,7 @@ public sealed record ResumenAsistencia(
     int FranjasIncompletas,
     int VinoEnDescanso,
     int TrabajoSinProgramacion,
+    int ConflictoDeSedePendiente,
     int Aprobados,
     int Pendientes,
     int SinDatos,

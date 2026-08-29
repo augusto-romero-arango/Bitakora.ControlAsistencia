@@ -30,9 +30,13 @@ public enum PlanDelDia
 /// Id es el stream key que computa el write-side (DiaCalculadoAggregateRoot.ComputarStreamId): la
 /// vista lo consume tal cual, nunca lo re-computa (MEF-ADR-0037).
 ///
-/// Las cuatro banderas se derivan una sola vez en Create/Apply; ninguna consulta las recalcula en
+/// Las cinco banderas se derivan una sola vez en Create/Apply; ninguna consulta las recalcula en
 /// query-time -- la fila no carga los datos que harian falta para hacerlo. HorasPorConcepto llega ya
 /// filtrada desde el productor (DesgloseHoras.Discriminar): no re-filtrar aqui.
+///
+/// ConflictoDeSedePendiente: mientras este en true el dia no es aprobable (glosario "Conflicto de
+/// sede"). Es del DIA completo, a diferencia del homonimo EnConflictoDeSede de
+/// DepuracionDelDia.FranjaDepurada, que es por franja.
 /// </summary>
 public sealed record AsistenciaDiaria(
     string Id,
@@ -45,4 +49,5 @@ public sealed record AsistenciaDiaria(
     bool FranjasIncompletas,
     bool VinoEnDescanso,
     bool TrabajoSinProgramacion,
+    bool ConflictoDeSedePendiente,
     IReadOnlyDictionary<string, decimal> HorasPorConcepto);
