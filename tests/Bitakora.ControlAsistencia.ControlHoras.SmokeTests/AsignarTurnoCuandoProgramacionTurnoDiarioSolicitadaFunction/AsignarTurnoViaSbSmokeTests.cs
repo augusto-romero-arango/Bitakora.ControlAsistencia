@@ -286,6 +286,93 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             solicitudId, SuscripcionConsumidor);
     }
 
+    // Issue #462 CA-3: el CC viaja dentro de DetalleSede -> el handler solo lo transporta y
+    // persiste (mapeo mecanico DetalleSede -> SedeProgramada, sin validarlo ni derivarlo -- mismo
+    // criterio que el resto de los campos de sede, #336). El assert de dead-letter confirma que el
+    // campo nuevo no rompe el mapeo existente.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ProgramacionTurnoDiarioSolicitada_PersisteElCentroDeCostosDeLaSedeDeLaFranja_CuandoElEventoLoTrae()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        // Arrange
+        var correlationId = Guid.CreateVersion7().ToString();
+        var solicitudId = Guid.CreateVersion7();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 13);
+        var centroDeCostos = "CC-300-LOGISTICA";
+
+        var evento = new
+        {
+            SolicitudId = solicitudId,
+            Colaborador = new
+            {
+                Identificacion = "CC-333444555",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Centro De Costos SB"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = "[TEST] Turno Con CC",
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = "08:00:00",
+                        HoraFin = "16:00:00",
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>(),
+                        Sede = new
+                        {
+                            Id = "SEDE-CC-04",
+                            Nombre = "[TEST] Sede Con Costeo SB",
+                            CentroDeCostos = centroDeCostos
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act: publicar al topic de Service Bus
+        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+
+        // Assert: el evento TurnoDiarioAsignado fue persistido con el CC dentro de su sede
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
+        var tipoEvento = "turno_diario_asignado";
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, tipoEvento, Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+
+        existe.Should().BeTrue(
+            $"el evento {tipoEvento} con SolicitudId {solicitudId} deberia existir en el stream {streamId}");
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaControlHoras, streamId, tipoEvento,
+            "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
+
+        var sedeEsperada = new SedeProgramada("SEDE-CC-04", "[TEST] Sede Con Costeo SB", centroDeCostos);
+        var turnoDiarioPersistido = eventoPersistido
+            .GetProperty("DetalleTurno").Deserialize<TurnoDiario>();
+        turnoDiarioPersistido!.FranjasOrdinarias.Should().ContainSingle();
+        turnoDiarioPersistido.FranjasOrdinarias[0].Sede.Should().Be(sedeEsperada);
+
+        // Assert: el mapeo DetalleSede -> SedeProgramada del CC no rompe el handler (sin dead
+        // letter de esta corrida en la suscripcion del consumidor real).
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
+            TopicEntrada, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
+
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el mapeo del centro de costos fallo al procesar el evento",
+            solicitudId, SuscripcionConsumidor);
+    }
+
     /// <summary>
     /// Regression test para el bug del issue #29.
     /// Wolverine serializa con camelCase. El endpoint consumidor usaba ToObjectFromJson
