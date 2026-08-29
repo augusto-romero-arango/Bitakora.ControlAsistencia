@@ -28,6 +28,7 @@ public static class IdentidadEventosControlHoras
         typeof(TurnoDiarioAsignado),
         typeof(DepuracionDiaRecibida),
         typeof(SedeDeMarcacionIdentificada),
-        typeof(DiaAprobado)
+        typeof(DiaAprobado),
+        typeof(DepuracionPosAprobacionRecibida)
     ];
 }
