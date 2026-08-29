@@ -22,10 +22,9 @@ public partial class InstalarDispositivoCommandHandler : ICommandHandlerAsync<In
         var streamId = SedeAggregateRoot.ComputarStreamId(command.Codigo);
 
         // CA-1 (#477): rechazo cross-sede ANTES de cargar el aggregate destino (rechazo barato).
-        // Pendiente de implementar -- stub de fase roja, ver InstalarDispositivoCommandHandlerTests.
         var ubicacion = await _lector.BuscarUbicacionAsync(command.DispositivoId, ct);
         if (ubicacion is not null && ubicacion.SedeId != streamId)
-            throw new NotImplementedException();
+            throw new InvalidOperationException(Mensajes.DispositivoInstaladoEnOtraSede);
 
         var sede = await _eventStore.GetAggregateRootAsync<SedeAggregateRoot>(streamId, ct);
         if (sede is null)

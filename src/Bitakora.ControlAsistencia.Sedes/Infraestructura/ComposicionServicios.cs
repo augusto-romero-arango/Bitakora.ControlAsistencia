@@ -5,6 +5,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.PrivateEvents.Sedes;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
+using Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 using Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -81,6 +82,9 @@ public static class ComposicionServicios
         // eventos privados (MEF-ADR-0024 decision #8).
         services.AgregarWolverinePrivateEventRouter();
         services.AddScoped<ILectorSedesParaMarcacion, LectorSedesParaMarcacion>();
+        // Issue #477: mismo lookup, puerto segregado para InstalarDispositivoCommandHandler --
+        // ambas interfaces resuelven a la misma implementacion concreta (ver LectorSedesParaMarcacion).
+        services.AddScoped<ILectorUbicacionDispositivo, LectorSedesParaMarcacion>();
 
         services.ConfigureMarten(options =>
         {
