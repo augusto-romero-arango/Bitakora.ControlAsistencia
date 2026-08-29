@@ -35,6 +35,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     private IReadOnlyList<FranjaDepurada> _franjas = [];
     private IReadOnlyList<MarcacionDelDia> _marcaciones = [];
     private HorasDiscriminadas? _horasDiscriminadas;
+    private IReadOnlyList<SedeDecidida> _sedesDecididas = [];
 
     // CA-ADR-0031: el prefijo "dc" disjunta este stream del de ControlDiario ("cd"), que comparte la
     // identidad logica colaborador+fecha en el mismo store; la fecha va en ISO 8601 basico para que
@@ -80,10 +81,75 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     }
 
     // CA-2/CA-4: toda foto que llega a un dia ya existente se agrega al mismo stream, siempre.
+    // Issue #489 CA-8: guarda minima -- un dia ya Aprobado ignora en silencio la foto tardia (ni
+    // evento nuevo ni cambio de estado/valores). Apply(DepuracionDiaRecibida) regresaria el dia a
+    // Provisional si se dejara pasar, rompiendo la invariante que este issue introduce. La evidencia
+    // auditable (DepuracionPosAprobacionRecibida) llega con el issue B.
     internal void RecibirDepuracion(DepuracionDiaRecibida evento)
     {
+        if (Estado == EstadoDiaCalculado.Aprobado)
+            return;
+
         _uncommittedEvents.Add(evento);
         Apply(evento);
+    }
+
+    // Issue #489. MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
+    // el estado previo. public: requerido para que TestStore.ApplyEvent lo encuentre via
+    // GetMethods(). Es tambien el primer evento del aval del vacio (CA-7): fija Id, colaborador y
+    // fecha aunque nunca haya llegado una DepuracionDiaRecibida.
+    public void Apply(DiaAprobado e)
+    {
+        Id = e.Id;
+        _codigoColaborador = e.CodigoColaborador;
+        _fecha = e.Fecha;
+        _sedesDecididas = e.SedesDecididas;
+        Estado = EstadoDiaCalculado.Aprobado;
+    }
+
+    // Issue #489: cierre del acto de aprobar. CA-ADR-0030 -- declina con resultado, nunca lanza; el
+    // handler traduce cada valor distinto de Aprobado a InvalidOperationException. streamId,
+    // codigoColaborador y fecha viajan como parametros (no se leen de _codigoColaborador/_fecha)
+    // porque el aval del vacio (CA-7) llama este mismo metodo sobre un aggregate recien construido,
+    // sin ninguna DepuracionDiaRecibida previa que los haya fijado.
+    internal ResultadoAprobacion Aprobar(
+        string streamId, string codigoColaborador, DateOnly fecha,
+        IReadOnlyList<DecisionDeSede> decisiones)
+    {
+        if (Estado == EstadoDiaCalculado.Aprobado)
+            return ResultadoAprobacion.DiaYaAprobado;
+
+        var sedesDecididas = new List<SedeDecidida>();
+        var horasDecididas = new HashSet<TimeOnly>();
+
+        foreach (var decision in decisiones)
+        {
+            var franja = _franjas.FirstOrDefault(f => f.HoraInicioProgramada == decision.HoraInicioProgramada);
+            if (franja is null)
+                return ResultadoAprobacion.DecisionParaFranjaInvalida;
+
+            var derivacion = DerivarSedeDeFranja(franja, _marcaciones);
+            if (!derivacion.EnConflicto)
+                return ResultadoAprobacion.DecisionParaFranjaInvalida;
+
+            var candidata = derivacion.Candidatas.FirstOrDefault(c => c.Codigo == decision.CodigoSede);
+            if (candidata is null)
+                return ResultadoAprobacion.CodigoSedeNoCandidata;
+
+            sedesDecididas.Add(new SedeDecidida(
+                decision.HoraInicioProgramada, candidata.Codigo, candidata.Nombre, candidata.CentroDeCostos));
+            horasDecididas.Add(decision.HoraInicioProgramada);
+        }
+
+        var quedanConflictosSinDecidir = _franjas.Any(f =>
+            DerivarSedeDeFranja(f, _marcaciones).EnConflicto && !horasDecididas.Contains(f.HoraInicioProgramada));
+        if (quedanConflictosSinDecidir)
+            return ResultadoAprobacion.ConflictosSinDecidir;
+
+        var evento = DiaAprobado.Crear(streamId, codigoColaborador, fecha, sedesDecididas);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAprobacion.Aprobado;
     }
 
     // Tell-don't-Ask (MEF-ADR-0012): el aggregate produce la vista de lectura desde su estado
@@ -107,6 +173,18 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                 .Select(franja =>
                 {
                     var (efectiva, enConflicto, candidatas) = DerivarSedeDeFranja(franja, _marcaciones);
+
+                    // Issue #489 CA-2: el expediente aprobado se lee resuelto -- la sede que el
+                    // Aprobador decidio reemplaza la derivacion de conflicto de esa franja.
+                    var decidida = _sedesDecididas.FirstOrDefault(
+                        sd => sd.HoraInicioProgramada == franja.HoraInicioProgramada);
+                    if (decidida is not null)
+                    {
+                        efectiva = new SedeDeFranja(decidida.CodigoSede, decidida.NombreSede, decidida.CentroDeCostos);
+                        enConflicto = false;
+                        candidatas = [];
+                    }
+
                     return new VistaFranjaDepurada(
                         franja.HoraInicioProgramada,
                         franja.HoraFinProgramada,
@@ -144,6 +222,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         estado switch
         {
             EstadoDiaCalculado.Provisional => EstadoAsistencia.Provisional,
+            EstadoDiaCalculado.Aprobado => EstadoAsistencia.Aprobado,
             _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, null)
         };
 

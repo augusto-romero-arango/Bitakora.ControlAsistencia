@@ -28,5 +28,6 @@ public static class ConfiguracionSerializacionControlHoras
         MarcacionAdicionada.ConfigurarSerializacion(resolver);
         DepuracionDiaRecibida.ConfigurarSerializacion(resolver);
         SedeDeMarcacionIdentificada.ConfigurarSerializacion(resolver);
+        DiaAprobado.ConfigurarSerializacion(resolver);
     }
 }

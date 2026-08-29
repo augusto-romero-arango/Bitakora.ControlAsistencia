@@ -72,4 +72,13 @@ public class AliasEventosControlHorasTests
 
         AliasDe<SedeDeMarcacionIdentificada>(options).Should().Be("sede_de_marcacion_identificada");
     }
+
+    // Issue #489: congela el alias de DiaAprobado antes de desplegarlo.
+    [Fact]
+    public void DiaAprobado_TieneAliasDiaAprobado()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<DiaAprobado>(options).Should().Be("dia_aprobado");
+    }
 }

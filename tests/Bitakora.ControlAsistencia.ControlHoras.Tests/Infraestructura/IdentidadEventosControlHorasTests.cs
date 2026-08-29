@@ -8,6 +8,8 @@
 // y se suma a la lista literal.
 // Issue #463 CA-5: SedeDeMarcacionIdentificada se persiste en el stream de ControlDiarioAggregateRoot
 // (estampado de sede sobre una marcacion ya adicionada) y se suma a la lista literal.
+// Issue #489: DiaAprobado se persiste en el stream de DiaCalculadoAggregateRoot (cierre del acto de
+// aprobar) y se suma a la lista literal.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -19,7 +21,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class IdentidadEventosControlHorasTests
 {
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosCincoEventosPersistidosDeControlHoras()
+    public void TiposPersistidos_ContieneExactamenteLosSeisEventosPersistidosDeControlHoras()
     {
         IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
         [
@@ -27,7 +29,8 @@ public class IdentidadEventosControlHorasTests
             typeof(MarcacionAdicionada),
             typeof(TurnoDiarioAsignado),
             typeof(DepuracionDiaRecibida),
-            typeof(SedeDeMarcacionIdentificada)
+            typeof(SedeDeMarcacionIdentificada),
+            typeof(DiaAprobado)
         ]);
     }
 

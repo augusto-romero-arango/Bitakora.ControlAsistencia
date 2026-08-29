@@ -13,10 +13,12 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using DepuracionDiaRecibida = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.DepuracionDiaRecibida;
+using DiaAprobado = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.DiaAprobado;
 using EventoFranjaDepurada = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.FranjaDepurada;
 using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.MarcacionDelDia;
 using HorasDiscriminadas = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.HorasDiscriminadas;
 using ResumenColaborador = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.ResumenColaborador;
+using SedeDecidida = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.SedeDecidida;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
@@ -468,5 +470,36 @@ public class DiaCalculadoAggregateRootTests
         franjaVista.CandidatasDeSede.Should().BeEquivalentTo(
             [SedePrincipal, new SedeDeFranja("SEDE-02", null, null)]);
         dia.TieneConflictoDeSedePendiente.Should().BeTrue();
+    }
+
+    // Issue #489 CA-2: tras aprobar, GenerarDepuracionDelDia refleja la sede decidida como
+    // efectiva y sin conflicto -- el expediente aprobado se lee resuelto.
+    [Fact]
+    public void GenerarDepuracionDelDia_MuestraLaSedeDecididaComoEfectivaSinConflicto_CuandoElDiaEstaAprobado()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+            "SEDE-01", "Sede Principal", "CC-100");
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones =
+        [
+            new EventoMarcacionDelDia(entrada, "Entrada", "SEDE-02", "Sede Norte", "CC-200"),
+            new EventoMarcacionDelDia(salida, "Salida")
+        ];
+        var horas = new HorasDiscriminadas(new Dictionary<string, decimal>(), []);
+        var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
+        var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(CodigoColaborador, Fecha);
+
+        dia.Apply(DiaAprobado.Crear(streamId, CodigoColaborador, Fecha,
+            [new SedeDecidida(new TimeOnly(6, 0), "SEDE-02", "Sede Norte", "CC-200")]));
+
+        var vista = dia.GenerarDepuracionDelDia();
+
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        var franjaVista = vista.Franjas.Should().ContainSingle().Which;
+        franjaVista.SedeEfectiva.Should().Be(SedeNorte);
+        franjaVista.EnConflictoDeSede.Should().BeFalse();
+        franjaVista.CandidatasDeSede.Should().BeEmpty();
     }
 }
