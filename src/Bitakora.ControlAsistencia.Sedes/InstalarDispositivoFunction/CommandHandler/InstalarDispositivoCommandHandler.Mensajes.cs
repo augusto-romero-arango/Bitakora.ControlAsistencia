@@ -16,5 +16,8 @@ public partial class InstalarDispositivoCommandHandler
 
         public static string DispositivoYaInstalado =>
             ResourceManager.GetString(nameof(DispositivoYaInstalado))!;
+
+        public static string DispositivoInstaladoEnOtraSede =>
+            ResourceManager.GetString(nameof(DispositivoInstaladoEnOtraSede))!;
     }
 }
