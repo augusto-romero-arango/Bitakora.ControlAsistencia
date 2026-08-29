@@ -121,6 +121,32 @@ public class SedeDeMarcacionResueltaEventHandlerTests
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
+    // Issue #464 CA-3: la marcacion estampada republica DiaDepurado con la sede marcada viajando en
+    // la MarcacionDelDia correspondiente -- codigo, nombre y centro de costos de SedeDeMarcacionResuelta,
+    // no de la sede programada (ese es el payload de la Franja, un dato distinto -- CA-1/CA-2).
+    [Fact]
+    public async Task SedeDeMarcacionResuelta_RepublicaDiaDepuradoConSedeEnLaMarcacion_CuandoEstampaLaSede()
+    {
+        Given(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana));
+
+        await WhenAsync(CrearSedeDeMarcacionResuelta(TimestampFueraDeVentana));
+
+        Then(StreamIdDia15, CrearSedeDeMarcacionIdentificada(StreamIdDia15, TimestampFueraDeVentana));
+        And<ControlDiarioAggregateRoot, string?>(
+            StreamIdDia15,
+            c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampFueraDeVentana).CodigoSede,
+            CodigoSede);
+
+        ThenIsPublishedPrivately(new DiaDepurado(
+            CodigoColaborador,
+            new DateOnly(2026, 3, 15),
+            null,
+            null,
+            [],
+            [new MarcacionDelDia(TimestampFueraDeVentana, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos)],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+    }
+
     // CA-3 (carrera de orden): el ControlDiario destino no existe todavia -- fallar es deliberado,
     // el retry del bus lo resuelve; crear un stream vacio inventaria estado.
     [Fact]

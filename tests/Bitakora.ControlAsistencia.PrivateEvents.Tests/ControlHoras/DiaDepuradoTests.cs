@@ -17,6 +17,9 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 ///
 /// Issue #424: el payload se enriquece con NombreTurno, Franjas y Marcaciones; HorasDiscriminadas
 /// habla horas liquidables (decimal), no minutos.
+///
+/// Issue #464 (CA-5): Franja/Marcacion llevan ademas los seis campos planos de sede (programada y
+/// marcada) -- portables por ser primitivos, mismo criterio del resto del payload.
 /// </summary>
 public class DiaDepuradoTests
 {
@@ -36,12 +39,13 @@ public class DiaDepuradoTests
 
     private static FranjaDepurada FranjaConDatos() => new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
-        new DateTime(2026, 3, 15, 7, 0, 0), new DateTime(2026, 3, 15, 15, 0, 0), false);
+        new DateTime(2026, 3, 15, 7, 0, 0), new DateTime(2026, 3, 15, 15, 0, 0), false,
+        "001", "Sede Principal", "CC-100");
 
     private static readonly MarcacionDelDia MarcacionEntrada =
-        new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA");
+        new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA", "001", "Sede Principal", "CC-100");
     private static readonly MarcacionDelDia MarcacionSalida =
-        new(new DateTime(2026, 3, 15, 15, 0, 0), "SALIDA");
+        new(new DateTime(2026, 3, 15, 15, 0, 0), "SALIDA", "002", "Sede Bodega", null);
 
     // CA-3/CA-4/CA-7: round-trip con el serializador POR DEFECTO del bus preserva todo el payload
     // enriquecido, incluidas Franjas y Marcaciones.

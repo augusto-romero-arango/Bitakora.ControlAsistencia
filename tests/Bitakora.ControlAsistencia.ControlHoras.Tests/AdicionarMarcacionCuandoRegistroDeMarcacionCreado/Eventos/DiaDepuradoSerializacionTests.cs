@@ -6,6 +6,9 @@
 // La asercion es deliberadamente la OPUESTA a la del test legado, que afirmaba que la
 // deserializacion FALLABA sin resolver custom (Retardo tenia ctor privado): si alguien reintroduce
 // un tipo rico al payload, este test se pone rojo.
+//
+// Issue #464 (CA-5): Franja/Marcacion llevan datos de sede (programada y marcada) para que el
+// round-trip cubra tambien esos seis campos planos nuevos.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -24,10 +27,11 @@ public class DiaDepuradoSerializacionTests
 
     private static readonly FranjaDepurada Franja = new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
-        new DateTime(2026, 3, 15, 7, 0, 0), new DateTime(2026, 3, 15, 15, 0, 0), false);
+        new DateTime(2026, 3, 15, 7, 0, 0), new DateTime(2026, 3, 15, 15, 0, 0), false,
+        "001", "Sede Principal", "CC-100");
 
     private static readonly MarcacionDelDia Marcacion =
-        new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA");
+        new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA", "001", "Sede Principal", "CC-100");
 
     // Payload con datos reales: varias claves de concepto y la clave literal "Retardo", ya en horas
     // liquidables (issue #424).
