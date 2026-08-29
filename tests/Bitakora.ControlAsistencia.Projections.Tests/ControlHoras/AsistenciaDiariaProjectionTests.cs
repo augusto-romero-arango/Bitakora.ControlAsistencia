@@ -316,4 +316,82 @@ public class AsistenciaDiariaProjectionTests
 
         vista.ConflictoDeSedePendiente.Should().BeTrue();
     }
+
+    // Aval del vacio: DiaAprobado como PRIMER evento del stream, sin depuracion previa.
+    [Fact]
+    public void Create_ProyectaElDiaAprobadoSinDatosPrevios_DesdeElAvalDelVacio()
+    {
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Id.Should().Be(StreamKey);
+        vista.CodigoColaborador.Should().Be(CodigoColaborador);
+        vista.Fecha.Should().Be(Fecha);
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.Plan.Should().Be(PlanDelDia.SinProgramar);
+        vista.NombreTurno.Should().BeNull();
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+        vista.VinoEnDescanso.Should().BeFalse();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+        vista.HorasPorConcepto.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_ApruebaLaFilaYApagaConflictoDeSedePendiente_CuandoLlegaDiaAprobado()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", NoSePresento: false, FranjasIncompletas: true, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: true,
+            HorasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+
+        var evento = DiaAprobado.Crear(
+            StreamKey, CodigoColaborador, Fecha,
+            [new SedeDecidida(new TimeOnly(6, 0), "SEDE-X", "Sede Principal", "CC-1")]);
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.Id.Should().Be(StreamKey);
+        vista.CodigoColaborador.Should().Be(CodigoColaborador);
+        vista.Fecha.Should().Be(Fecha);
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+        vista.Plan.Should().Be(PlanDelDia.ConJornada);
+        vista.NombreTurno.Should().Be("Turno Manana");
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeTrue();
+        vista.VinoEnDescanso.Should().BeFalse();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.HorasPorConcepto.Should().BeEquivalentTo(
+            new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+    }
+
+    [Fact]
+    public void Apply_ProyectaLaFilaAprobada_CuandoDiaAprobadoLlegaTrasDepuracionDiaRecibidaEnElMismoStream()
+    {
+        // Create(DepuracionDiaRecibida) se usa aqui como ARRANGE, no como oraculo: arma el estado
+        // previo realista del stream; lo que se afirma a mano es solo el resultado de Apply.
+        var horas = HorasDePrueba(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+        var eventoDepuracion = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], horas);
+        var vistaTrasDepuracion = AsistenciaDiariaProjection.Create(eventoDepuracion);
+
+        var eventoAprobacion = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Apply(eventoAprobacion, vistaTrasDepuracion);
+
+        vista.Id.Should().Be(StreamKey);
+        vista.CodigoColaborador.Should().Be(CodigoColaborador);
+        vista.Fecha.Should().Be(Fecha);
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+        vista.Plan.Should().Be(PlanDelDia.ConJornada);
+        vista.NombreTurno.Should().Be("Turno Manana");
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+        vista.HorasPorConcepto.Should().BeEquivalentTo(
+            new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+    }
 }
