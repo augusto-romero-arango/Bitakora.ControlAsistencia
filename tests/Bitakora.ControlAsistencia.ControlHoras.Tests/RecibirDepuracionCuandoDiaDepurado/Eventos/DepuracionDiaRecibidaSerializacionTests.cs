@@ -23,7 +23,7 @@ public class DepuracionDiaRecibidaSerializacionTests
     private static readonly ResumenColaborador Colaborador =
         new("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
 
-    // Issue #484: sede programada/marcada plana y opcional en cada record anidado.
+    // Issue #484: cada record anidado se prueba en sus dos formas -- con sede y sin ella.
     private static readonly FranjaDepurada Franja = new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
         new DateTime(2026, 3, 15, 6, 0, 0), new DateTime(2026, 3, 15, 14, 0, 0), false,
@@ -72,8 +72,8 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado.HorasDiscriminadas.Should().Be(HorasConDatos());
     }
 
-    // CA-4: el roundtrip conserva la sede PROGRAMADA de la franja y la sede MARCADA de la
-    // marcacion -- los 6 campos nuevos que introduce #484.
+    // CA-4 (#484): el roundtrip conserva la sede PROGRAMADA de la franja y la sede MARCADA de la
+    // marcacion -- los 6 campos nuevos que introduce el issue.
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConSedeProgramadaYSedeMarcada()
     {
@@ -96,7 +96,7 @@ public class DepuracionDiaRecibidaSerializacionTests
         marcacion.CentroDeCostos.Should().Be("CC-200");
     }
 
-    // CA-3: dia sin jornada valida -- Colaborador/NombreTurno null, Franjas y HorasPorConcepto
+    // CA-3 (#425): dia sin jornada valida -- Colaborador/NombreTurno null, Franjas y HorasPorConcepto
     // vacios, Marcaciones cruda como unica evidencia (sin sede estampada).
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoNoHayJornadaValida()
@@ -117,8 +117,8 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-3: franja/marcacion sin sede (null en los 3 campos) viajan null aunque el resto del dia
-    // si tenga jornada valida -- el flujo actual de #425 no se altera.
+    // CA-3 (#484): franja/marcacion sin sede (null en los 3 campos) viajan null aunque el resto del
+    // dia si tenga jornada valida -- el flujo actual de #425 no se altera.
     [Fact]
     public void Deserializar_PreservaSedesNulas_CuandoLaFranjaYLaMarcacionNoTraenSede()
     {
