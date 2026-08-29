@@ -22,6 +22,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         DiaCalculadoAggregateRoot.ComputarStreamId(CodigoColaborador, Fecha);
 
     private static readonly TimeOnly HoraInicioFranjaEnConflicto = new(6, 0);
+    private static readonly TimeOnly HoraInicioSegundaFranjaEnConflicto = new(15, 0);
 
     protected override ICommandHandlerAsync<AprobarDia> Handler =>
         new AprobarDiaCommandHandler(EventStore);
@@ -57,7 +58,35 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
             new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
     }
 
-    private static AprobarDia.DecisionDeSede DecisionValida() =>
+    // ---- Precondicion: dia Provisional con DOS franjas en conflicto de sede ----
+    private static DepuracionDiaRecibida DepuracionConDosFranjasEnConflicto()
+    {
+        var entradaManana = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salidaManana = new DateTime(2026, 8, 24, 14, 0, 0);
+        var entradaTarde = new DateTime(2026, 8, 24, 15, 0, 0);
+        var salidaTarde = new DateTime(2026, 8, 24, 19, 0, 0);
+        IReadOnlyList<FranjaDepurada> franjas =
+        [
+            new FranjaDepurada(
+                HoraInicioFranjaEnConflicto, new TimeOnly(14, 0), 0, entradaManana, salidaManana, false,
+                "SEDE-01", "Sede Principal", "CC-100"),
+            new FranjaDepurada(
+                HoraInicioSegundaFranjaEnConflicto, new TimeOnly(19, 0), 0, entradaTarde, salidaTarde, false,
+                "SEDE-03", "Sede Sur", "CC-300")
+        ];
+        IReadOnlyList<MarcacionDelDia> marcaciones =
+        [
+            new MarcacionDelDia(entradaManana, "Entrada", "SEDE-02", "Sede Norte", "CC-200"),
+            new MarcacionDelDia(salidaManana, "Salida"),
+            new MarcacionDelDia(entradaTarde, "Entrada", "SEDE-04", "Sede Oriente", "CC-400"),
+            new MarcacionDelDia(salidaTarde, "Salida")
+        ];
+        return new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, "Jornada partida", franjas, marcaciones,
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+    }
+
+    private static DecisionDeSede DecisionValida() =>
         new(HoraInicioFranjaEnConflicto, "SEDE-02");
 
     // CA-1: dia Provisional sin conflictos, sin decisiones -> DiaAprobado con SedesDecididas vacia.
@@ -68,7 +97,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
 
         await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
 
-        Then(StreamId, new DiaAprobado(StreamId, CodigoColaborador, Fecha, []));
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
@@ -81,7 +110,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
 
         await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, [DecisionValida()]));
 
-        Then(StreamId, new DiaAprobado(StreamId, CodigoColaborador, Fecha,
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha,
             [new SedeDecidida(HoraInicioFranjaEnConflicto, "SEDE-02", "Sede Norte", "CC-200")]));
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
@@ -101,6 +130,21 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
+    // CA-3, variante "incompleto": el dia tiene DOS franjas en conflicto y el payload decide solo
+    // una -- el acto sigue exigiendo decision donde la maquina se abstuvo (409, sin evento).
+    [Fact]
+    public async Task AprobarDia_LanzaInvalidOperationException_CuandoElPayloadDecideSoloUnaDeLasFranjasEnConflicto()
+    {
+        Given(StreamId, DepuracionConDosFranjasEnConflicto());
+
+        var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, [DecisionValida()]));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.ConflictosSinDecidir}*");
+        Then(StreamId);
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
+    }
+
     // CA-4: CodigoSede que no es candidata de esa franja -> 409, sin evento persistido.
     [Fact]
     public async Task AprobarDia_LanzaInvalidOperationException_CuandoElCodigoSedeNoEsCandidata()
@@ -108,7 +152,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         Given(StreamId, DepuracionConFranjaEnConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(
-            CodigoColaborador, Fecha, [new AprobarDia.DecisionDeSede(HoraInicioFranjaEnConflicto, "SEDE-99")]));
+            CodigoColaborador, Fecha, [new DecisionDeSede(HoraInicioFranjaEnConflicto, "SEDE-99")]));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.CodigoSedeNoCandidata}*");
@@ -124,7 +168,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         Given(StreamId, DepuracionSinConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(
-            CodigoColaborador, Fecha, [new AprobarDia.DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
+            CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida}*");
@@ -140,7 +184,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         Given(StreamId, DepuracionConFranjaEnConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(
-            CodigoColaborador, Fecha, [new AprobarDia.DecisionDeSede(new TimeOnly(22, 0), "SEDE-02")]));
+            CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(22, 0), "SEDE-02")]));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida}*");
@@ -153,7 +197,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     [Fact]
     public async Task AprobarDia_LanzaInvalidOperationException_CuandoElDiaYaEstaAprobado()
     {
-        Given(StreamId, DepuracionSinConflicto(), new DiaAprobado(StreamId, CodigoColaborador, Fecha, []));
+        Given(StreamId, DepuracionSinConflicto(), DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
 
         var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
 
@@ -172,7 +216,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
 
         await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
 
-        Then(StreamId, new DiaAprobado(StreamId, CodigoColaborador, Fecha, []));
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
@@ -186,7 +230,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         // Sin Given - el stream dc:EMP-001:20260824 no existe
 
         var act = async () => await WhenAsync(new AprobarDia(
-            CodigoColaborador, Fecha, [new AprobarDia.DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
+            CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida}*");

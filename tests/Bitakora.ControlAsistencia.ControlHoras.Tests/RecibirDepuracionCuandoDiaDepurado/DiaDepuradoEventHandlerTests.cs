@@ -234,7 +234,7 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
             new DepuracionDiaRecibida(
                 StreamId, CodigoColaborador, Fecha, null, null, [], [],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])),
-            new DiaAprobado(StreamId, CodigoColaborador, Fecha, []));
+            DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
 
         await WhenAsync(CrearDiaDepurado(
             ColaboradorRecibido, "Turno Manana", [FranjaRecibida], [MarcacionRecibida], HorasRecibidas()));

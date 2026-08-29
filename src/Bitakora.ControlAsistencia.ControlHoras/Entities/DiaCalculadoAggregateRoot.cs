@@ -1,5 +1,4 @@
 using System.Globalization;
-using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Cosmos.EventSourcing.Abstractions;
 // Alias, no using de namespace: ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia son el
@@ -115,7 +114,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // sin ninguna DepuracionDiaRecibida previa que los haya fijado.
     internal ResultadoAprobacion Aprobar(
         string streamId, string codigoColaborador, DateOnly fecha,
-        IReadOnlyList<AprobarDia.DecisionDeSede> decisiones)
+        IReadOnlyList<DecisionDeSede> decisiones)
     {
         if (Estado == EstadoDiaCalculado.Aprobado)
             return ResultadoAprobacion.DiaYaAprobado;
@@ -147,7 +146,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         if (quedanConflictosSinDecidir)
             return ResultadoAprobacion.ConflictosSinDecidir;
 
-        var evento = new DiaAprobado(streamId, codigoColaborador, fecha, sedesDecididas);
+        var evento = DiaAprobado.Crear(streamId, codigoColaborador, fecha, sedesDecididas);
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAprobacion.Aprobado;

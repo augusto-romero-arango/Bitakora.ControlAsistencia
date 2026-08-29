@@ -3,10 +3,9 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction.CommandHandler;
 
-// Issue #489: handler del acto de aprobar. CA-ADR-0030: el aggregate declina con resultado (nunca
-// lanza, nunca emite evento de fallo persistido); este handler traduce la razon del rechazo a
+// CA-ADR-0030: el aggregate declina con resultado y este handler traduce la razon a
 // InvalidOperationException (-> 409, MEF-ADR-0004 capa 2). Aval del vacio (CA-7): un stream
-// inexistente tambien es un acto valido -- crea el stream con DiaAprobado como primer evento.
+// inexistente tambien es un acto valido, no un 404 -- se crea con DiaAprobado como primer evento.
 // partial: la clase Mensajes vive en archivo separado (MEF-ADR-0009).
 public partial class AprobarDiaCommandHandler : ICommandHandlerAsync<AprobarDia>
 {
@@ -32,14 +31,9 @@ public partial class AprobarDiaCommandHandler : ICommandHandlerAsync<AprobarDia>
             _eventStore.StartStream(dia);
     }
 
-    // Lookup map (seleccion por clave discreta, ver "Lookup map sobre switch/if" del implementer):
-    // cada valor de fallo de ResultadoAprobacion resuelve al mensaje .resx que le corresponde.
-    // Lazy, no un Dictionary de inicializacion directa: un campo estatico plano evaluaria
-    // Mensajes.X (que lee el campo estatico ResourceManager de la OTRA parte de esta partial
-    // class, en AprobarDiaCommandHandler.Mensajes.cs) durante el cctor combinado del tipo, con
-    // riesgo de correr antes de que ResourceManager se inicialice -- el orden entre inicializadores
-    // estaticos de distintos archivos de una misma partial class no esta garantizado por C#. Lazy
-    // difiere esa lectura al primer uso real, cuando el tipo ya termino de inicializarse por completo.
+    // Lazy y no un Dictionary de inicializacion directa: C# no garantiza el orden entre
+    // inicializadores estaticos de distintos archivos de una misma partial class, y leer Mensajes.X
+    // en el cctor corria antes de que ResourceManager (otra parte de esta clase) existiera.
     private static readonly Lazy<IReadOnlyDictionary<ResultadoAprobacion, string>> MensajesPorResultado = new(() =>
         new Dictionary<ResultadoAprobacion, string>
         {

@@ -5,6 +5,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -44,7 +45,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task AprobarDia_ComponeElComando_DesdeRutaYBody()
     {
-        var decision = new AprobarDia.DecisionDeSede(new TimeOnly(6, 0), "SEDE-02");
+        var decision = new DecisionDeSede(new TimeOnly(6, 0), "SEDE-02");
         var validator = new FakeAprobarDiaBodyRequestValidator(new AprobarDiaBody([decision]));
         var router = new FakeAprobarDiaCommandRouter();
         var function = new FunctionEndpoint(validator, router);

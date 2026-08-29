@@ -24,7 +24,7 @@ public class DiaAprobadoSerializacionTests
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoTraeSedesDecididas()
     {
-        var evento = new DiaAprobado(StreamId, CodigoColaborador, Fecha,
+        var evento = DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha,
             [new SedeDecidida(new TimeOnly(6, 0), "SEDE-02", "Sede Norte", "CC-200")]);
         var opciones = CrearOpcionesMarten();
 
@@ -44,7 +44,7 @@ public class DiaAprobadoSerializacionTests
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoSedesDecididasEstaVacia()
     {
-        var evento = new DiaAprobado(StreamId, CodigoColaborador, Fecha, []);
+        var evento = DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []);
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -60,7 +60,7 @@ public class DiaAprobadoSerializacionTests
     [Fact]
     public void Deserializar_LanzaNotSupportedException_CuandoElResolverNoRegistraElTipo()
     {
-        var evento = new DiaAprobado(StreamId, CodigoColaborador, Fecha, []);
+        var evento = DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []);
         var opcionesSinRegistro = new JsonSerializerOptions
         {
             TypeInfoResolver = new DefaultJsonTypeInfoResolver(),

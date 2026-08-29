@@ -19,7 +19,11 @@ public sealed class DiaAprobado
     // decisiones de sede son solo el insumo que el acto exige donde la maquina se abstuvo.
     public IReadOnlyList<SedeDecidida> SedesDecididas { get; private set; } = null!;
 
-    public DiaAprobado(
+    // Constructor real privado: solo el factory Crear lo invoca. Patron canonico de evento
+    // persistido (MEF-ADR-0012, precedente MarcacionRegistrada / issue #275). Con un ctor publico
+    // parametrizado, STJ lo resolveria solo y ConfigurarSerializacion quedaria como codigo muerto
+    // -- el guardrail "sin registro falla" pasaria en falso.
+    private DiaAprobado(
         string id,
         string codigoColaborador,
         DateOnly fecha,
@@ -31,8 +35,17 @@ public sealed class DiaAprobado
         SedesDecididas = sedesDecididas;
     }
 
-    // Constructor privado para Marten/serializacion
+    // Constructor vacio privado, solo para Marten/STJ via ConfigurarSerializacion (repuebla los
+    // backing fields por reflexion). El dominio nunca lo invoca.
     private DiaAprobado() { }
+
+    // Unica via de construccion desde el dominio.
+    public static DiaAprobado Crear(
+        string id,
+        string codigoColaborador,
+        DateOnly fecha,
+        IReadOnlyList<SedeDecidida> sedesDecididas) =>
+        new(id, codigoColaborador, fecha, sedesDecididas);
 
     // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
     // y propiedades con private set. Ver MEF-ADR-0012 y DiaAprobadoSerializacionTests.

@@ -491,7 +491,7 @@ public class DiaCalculadoAggregateRootTests
         var dia = HidratarCon(Evento(null, "Manana", [franja], marcaciones, horas));
         var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(CodigoColaborador, Fecha);
 
-        dia.Apply(new DiaAprobado(streamId, CodigoColaborador, Fecha,
+        dia.Apply(DiaAprobado.Crear(streamId, CodigoColaborador, Fecha,
             [new SedeDecidida(new TimeOnly(6, 0), "SEDE-02", "Sede Norte", "CC-200")]));
 
         var vista = dia.GenerarDepuracionDelDia();

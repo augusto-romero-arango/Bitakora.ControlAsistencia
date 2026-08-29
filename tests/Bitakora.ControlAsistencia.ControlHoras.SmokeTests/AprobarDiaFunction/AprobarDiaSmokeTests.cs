@@ -40,17 +40,17 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
     // CodigoSede -- DerivarSedeDeFranja no encuentra ninguna fuente, EnConflicto queda false.
     private static object CrearDiaDepuradoSinConflicto(
         string codigoColaborador, DateOnly fecha, TimeOnly horaInicio, TimeOnly horaFin) => new
-    {
-        CodigoColaborador = codigoColaborador,
-        Fecha = fecha.ToString("yyyy-MM-dd"),
-        Colaborador = new
         {
-            Identificacion = "CC-100200300",
             CodigoColaborador = codigoColaborador,
-            NombreCompleto = "[TEST] Smoke Aprobar"
-        },
-        NombreTurno = "[TEST] Turno Aprobar",
-        Franjas = new object[]
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Colaborador = new
+            {
+                Identificacion = "CC-100200300",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Aprobar"
+            },
+            NombreTurno = "[TEST] Turno Aprobar",
+            Franjas = new object[]
         {
             new
             {
@@ -62,34 +62,34 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
                 EsAnomala = false
             }
         },
-        Marcaciones = new object[]
+            Marcaciones = new object[]
         {
             new { Timestamp = $"{fecha:yyyy-MM-dd}T{horaInicio:HH:mm:ss}", Tipo = "ENTRADA" },
             new { Timestamp = $"{fecha:yyyy-MM-dd}T{horaFin:HH:mm:ss}", Tipo = "SALIDA" }
         },
-        HorasDiscriminadas = new
-        {
-            HorasPorConcepto = new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m },
-            Trazabilidad = Array.Empty<string>()
-        }
-    };
+            HorasDiscriminadas = new
+            {
+                HorasPorConcepto = new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m },
+                Trazabilidad = Array.Empty<string>()
+            }
+        };
 
     // Payload CON una franja en conflicto de sede: SEDE-01 programada vs SEDE-02 marcada en la
     // entrada -- dos fuentes de codigo distinto para la misma franja (DiaCalculadoAggregateRoot.
     // DerivarSedeDeFranja).
     private static object CrearDiaDepuradoConConflicto(
         string codigoColaborador, DateOnly fecha, TimeOnly horaInicio, TimeOnly horaFin) => new
-    {
-        CodigoColaborador = codigoColaborador,
-        Fecha = fecha.ToString("yyyy-MM-dd"),
-        Colaborador = new
         {
-            Identificacion = "CC-100200301",
             CodigoColaborador = codigoColaborador,
-            NombreCompleto = "[TEST] Smoke Aprobar Conflicto"
-        },
-        NombreTurno = "[TEST] Turno Aprobar Conflicto",
-        Franjas = new object[]
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Colaborador = new
+            {
+                Identificacion = "CC-100200301",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Aprobar Conflicto"
+            },
+            NombreTurno = "[TEST] Turno Aprobar Conflicto",
+            Franjas = new object[]
         {
             new
             {
@@ -104,7 +104,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
                 CentroDeCostosProgramado = "CC-100"
             }
         },
-        Marcaciones = new object[]
+            Marcaciones = new object[]
         {
             new
             {
@@ -116,12 +116,12 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             },
             new { Timestamp = $"{fecha:yyyy-MM-dd}T{horaFin:HH:mm:ss}", Tipo = "SALIDA" }
         },
-        HorasDiscriminadas = new
-        {
-            HorasPorConcepto = new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m },
-            Trazabilidad = Array.Empty<string>()
-        }
-    };
+            HorasDiscriminadas = new
+            {
+                HorasPorConcepto = new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m },
+                Trazabilidad = Array.Empty<string>()
+            }
+        };
 
     // Arrange comun a los casos con precondicion Provisional: publica DiaDepurado y espera a que el
     // consumidor persista depuracion_dia_recibida antes de que el test invoque el POST bajo prueba.
