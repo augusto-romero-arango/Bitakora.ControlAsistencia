@@ -22,9 +22,20 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     private static CrearTurno ComandoConUnaFranja(Guid turnoId) =>
         new(turnoId, NombreTurno, [FranjaDiurnaSimple()]);
 
-    // Issue #497: catalogo de nombres vigentes contra FichaTurno, vacio por defecto -- los tests de
-    // duplicado lo reasignan antes de WhenAsync (mismo patron que FakeLectorUbicacionDispositivo, #477).
+    // Catalogo vigente que el handler ve (vista FichaTurno). Reasignarlo SIEMPRE antes de
+    // WhenAsync: Handler se construye recien al ejecutar el comando.
     private FakeLectorNombresTurno _lector = new();
+
+    // Siembra un turno ya creado en el catalogo: el evento en su propio stream (lo que el event
+    // store ve) y su nombre en el lector (lo que la vista le devuelve al handler).
+    private Guid SembrarTurnoEnCatalogo(string nombre)
+    {
+        var turnoId = new Guid("0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b");
+        var comandoPrevio = new CrearTurno(turnoId, nombre, [FranjaDiurnaSimple()]);
+        Given(turnoId.ToString(), TurnoCreado.Crear(turnoId, nombre, comandoPrevio.ToDatosFranjas()));
+        _lector = new FakeLectorNombresTurno(nombre);
+        return turnoId;
+    }
 
     protected override ICommandHandlerAsync<CrearTurno> Handler =>
         new CrearTurnoCommandHandler(EventStore, _lector);
@@ -106,16 +117,16 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     public async Task CrearTurno_LanzaInvalidOperationException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
     {
         const string nombreExistente = "Limpieza mañana";
-        _lector = new FakeLectorNombresTurno(nombreExistente);
+        var turnoExistenteId = SembrarTurnoEnCatalogo(nombreExistente);
         var comando = new CrearTurno(GuidAggregateId, nombreExistente, [FranjaDiurnaSimple()]);
-
-        Given();
 
         var act = async () => await WhenAsync(comando);
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
-        Then();
+        Then(GuidAggregateId.ToString());
+        And<CatalogoTurnos, string>(
+            turnoExistenteId.ToString(), c => c.ToString(), $"{nombreExistente} (08:00-16:00)");
     }
 
     // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
@@ -125,16 +136,16 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     {
         const string nombreExistente = "Limpieza mañana";
         const string nombreConEspaciosYMayusculas = "  limpieza  MAÑANA ";
-        _lector = new FakeLectorNombresTurno(nombreExistente);
+        var turnoExistenteId = SembrarTurnoEnCatalogo(nombreExistente);
         var comando = new CrearTurno(GuidAggregateId, nombreConEspaciosYMayusculas, [FranjaDiurnaSimple()]);
-
-        Given();
 
         var act = async () => await WhenAsync(comando);
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
-        Then();
+        Then(GuidAggregateId.ToString());
+        And<CatalogoTurnos, string>(
+            turnoExistenteId.ToString(), c => c.ToString(), $"{nombreExistente} (08:00-16:00)");
     }
 
     // CA-3: nombre difiere solo en acentos de uno existente -> se crea normalmente (decision del

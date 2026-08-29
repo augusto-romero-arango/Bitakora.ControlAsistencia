@@ -72,8 +72,6 @@ public static class ComposicionServicios
         services.AddScoped<ITenantResolver, TenantResolverFijo>();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
-        // Issue #497: rechazo best-effort de nombre duplicado en CrearTurno contra FichaTurno
-        // (CA-ADR-0030, precedente ILectorUbicacionDispositivo/#477).
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
 
         // Registrar serializacion custom para tipos con constructores privados.

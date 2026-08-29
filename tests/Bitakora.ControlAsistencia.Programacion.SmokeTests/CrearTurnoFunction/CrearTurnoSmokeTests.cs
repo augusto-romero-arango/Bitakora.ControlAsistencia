@@ -152,10 +152,14 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que CrearTurno funcione");
         await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
 
+        var turnoSinAcentoId = Guid.CreateVersion7();
         var response = await _client.PostAsJsonAsync(
-            "/api/programacion/turnos", PayloadValido(Guid.CreateVersion7(), nombreSinAcento), ct);
+            "/api/programacion/turnos", PayloadValido(turnoSinAcentoId, nombreSinAcento), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // El 202 solo dice que el comando fue aceptado: el efecto secundario real de este handler
+        // (StartStream -> turno visible en el catalogo) es lo que cierra MEF-ADR-0013.
+        await EsperarTurnoMaterializadoAsync(turnoSinAcentoId, ct);
     }
 
     [Fact]

@@ -6,11 +6,9 @@ using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunc
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
-// HU-4: Handler que crea un nuevo turno de trabajo
-// Flujo: verificar idempotencia -> construir evento via TurnoCreado.Crear(comando)
-//        -> iniciar stream del aggregate -> persistir
-// ADR-0007: lanza InvalidOperationException si el turno ya existe (-> 409 Conflict)
-//           deja propagar AggregateException del factory (-> 400 Bad Request)
+// La excepcion ES el canal de respuesta: InvalidOperationException -> 409 Conflict, y la
+// AggregateException del factory se deja propagar -> 400 Bad Request (MEF-ADR-0004/CA-ADR-0030,
+// comando HTTP sin consumidores downstream). No envolver en try/catch ni degradar a resultado.
 public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrearTurno>
 {
     private readonly IEventStore _eventStore;
@@ -42,8 +40,12 @@ public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrea
         _eventStore.StartStream(catalogo);
     }
 
-    // Trim de extremos + colapso de espacios internos + comparacion case-insensitive. Los acentos
-    // SON significativos (decision del experto, issue #497): ToUpperInvariant no los remueve.
+    // Trim de extremos + colapso de espacios internos + case-folding. Los acentos SON
+    // significativos (decision del experto, issue #497): ToUpperInvariant no los remueve, y por eso
+    // la comparacion final es Ordinal sobre los dos nombres ya normalizados.
     private static string NormalizarNombre(string nombre) =>
-        Regex.Replace(nombre.Trim(), @"\s+", " ").ToUpperInvariant();
+        EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex EspaciosConsecutivos();
 }
