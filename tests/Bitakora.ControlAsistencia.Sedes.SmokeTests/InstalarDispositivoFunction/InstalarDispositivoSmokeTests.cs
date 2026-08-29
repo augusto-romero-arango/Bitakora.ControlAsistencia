@@ -126,15 +126,15 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             "el segundo intento se rechazo con 409: no debe haber escrito un segundo dispositivo_instalado");
     }
 
-    // Issue #477 CA-1: rechazo cross-sede antes de cargar el aggregate destino. UbicacionDispositivo
-    // materializa de forma ASINCRONA (MEF-ADR-0034 seccion 3) y no tiene endpoint GET propio, asi
-    // que no hay forma black-box de esperar su materializacion sin reintentar el propio comando.
-    // Reintentar el POST a destino tiene un efecto real: mientras la vista no haya materializado
-    // SedeId=origen, el intento en destino puede colarse (202) -- la ventana best-effort que el
-    // propio issue documenta. Se limpia esa instalacion fantasma retirandola (la remediacion que
-    // el issue senala explicitamente) y se reintenta hasta que la vista alcance al event store; la
-    // asercion de "sin evento nuevo" compara el conteo justo antes/despues del intento que SI
-    // resuelve en 409, no el historico completo (que puede incluir fantasmas ya retirados).
+    // Rechazo cross-sede. UbicacionDispositivo materializa de forma ASINCRONA (MEF-ADR-0034 seccion
+    // 3) y no expone GET: la unica espera black-box es reintentar el propio POST. Mientras la vista
+    // no materialice SedeId=origen el intento en destino puede colarse (202) -- ventana best-effort
+    // conocida --, y esa instalacion fantasma se retira antes de reintentar, o el siguiente 409
+    // vendria de YaInstalado y no del cruce.
+    //
+    // Polling.WaitUntilTrueAsync TRAGA las excepciones de su lambda y reintenta: toda asercion del
+    // CA va fuera del bucle. Dentro, un conteo que no cuadre se reintentaria hasta cuadrar y el
+    // test pasaria en verde ocultando el defecto.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna409YNoInstalaEnDestino_CuandoDispositivoYaEstaInstaladoEnOtraSede()
@@ -160,37 +160,34 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             $"el evento {TipoEventoDispositivoInstalado} deberia estar en el stream {streamOrigen} antes de intentar el cruce");
 
         HttpStatusCode? ultimoStatus = null;
+        var eventosAntesDelRechazo = 0;
 
-        var rechazado = await Polling.WaitUntilTrueAsync(async () =>
+        var resuelto = await Polling.WaitUntilTrueAsync(async () =>
         {
-            var eventosAntes = await postgres.ContarEventosAsync(
+            eventosAntesDelRechazo = await postgres.ContarEventosAsync(
                 SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
 
             var intento = await _client.PostAsJsonAsync(
                 RutaDispositivos(codigoDestino), new { dispositivoId }, ct);
             ultimoStatus = intento.StatusCode;
 
-            if (intento.StatusCode == HttpStatusCode.Accepted)
-            {
-                await _client.DeleteAsync(RutaDispositivo(codigoDestino, dispositivoId), ct);
-                return false;
-            }
+            if (intento.StatusCode != HttpStatusCode.Accepted)
+                return true;
 
-            if (intento.StatusCode != HttpStatusCode.Conflict)
-                throw new InvalidOperationException(
-                    $"Respuesta inesperada al instalar en destino: {intento.StatusCode}");
-
-            var eventosDespues = await postgres.ContarEventosAsync(
-                SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
-            eventosDespues.Should().Be(eventosAntes,
-                "el rechazo cross-sede debe ocurrir antes de cargar el aggregate destino: no debe agregar un nuevo dispositivo_instalado");
-
-            return true;
+            var retiro = await _client.DeleteAsync(RutaDispositivo(codigoDestino, dispositivoId), ct);
+            retiro.StatusCode.Should().Be(HttpStatusCode.Accepted,
+                "el reintento solo es valido si la instalacion fantasma quedo retirada del destino");
+            return false;
         }, Timeout);
 
-        rechazado.Should().BeTrue(
-            "la instalacion cross-sede deberia terminar rechazada con 409 una vez que UbicacionDispositivo materialice la sede origen");
+        resuelto.Should().BeTrue(
+            "la instalacion cross-sede deberia dejar de aceptarse una vez que UbicacionDispositivo materialice la sede origen");
         ultimoStatus.Should().Be(HttpStatusCode.Conflict);
+
+        var eventosDespuesDelRechazo = await postgres.ContarEventosAsync(
+            SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
+        eventosDespuesDelRechazo.Should().Be(eventosAntesDelRechazo,
+            "el rechazo cross-sede ocurre antes de cargar el aggregate destino: no debe agregar un nuevo dispositivo_instalado");
     }
 
     // CA-6: reinstalar un dispositivo previamente retirado de esta sede procede -- no es la misma

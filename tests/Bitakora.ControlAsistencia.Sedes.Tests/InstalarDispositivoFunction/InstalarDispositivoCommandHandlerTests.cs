@@ -93,6 +93,8 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
 
     // Nota tecnica del issue: la validacion cross-sede corre ANTES de cargar el aggregate destino
     // (rechazo barato) -- el 409 prevalece aunque la sede destino ni siquiera exista en el store.
+    // El And afirma sobre el ORIGEN, no sobre el destino: el destino nunca entra al store en este
+    // escenario y And<> exige un aggregate existente (lanza si GetAggregateRoot devuelve null).
     [Fact]
     public async Task InstalarDispositivo_LanzaInvalidOperationException_CuandoDispositivoEstaInstaladoEnOtraSede_AunqueLaSedeDestinoNoExista()
     {
@@ -104,7 +106,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{InstalarDispositivoCommandHandler.Mensajes.DispositivoInstaladoEnOtraSede}*");
         Then(StreamIdEsperado);
-        And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
+        And<SedeAggregateRoot, int>(OtroStreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
     // CA-2: la vista ya ubica al dispositivo en la MISMA sede destino -> la validacion cross-sede
@@ -136,13 +138,9 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
     }
 }
 
-// ---- Fake manual, nunca NSubstitute ----
-internal sealed class FakeLectorUbicacionDispositivo : ILectorUbicacionDispositivo
+internal sealed class FakeLectorUbicacionDispositivo(UbicacionDispositivo? ubicacion = null)
+    : ILectorUbicacionDispositivo
 {
-    private readonly UbicacionDispositivo? _ubicacion;
-
-    public FakeLectorUbicacionDispositivo(UbicacionDispositivo? ubicacion = null) => _ubicacion = ubicacion;
-
     public Task<UbicacionDispositivo?> BuscarUbicacionAsync(string dispositivoId, CancellationToken ct = default) =>
-        Task.FromResult(_ubicacion);
+        Task.FromResult(ubicacion);
 }

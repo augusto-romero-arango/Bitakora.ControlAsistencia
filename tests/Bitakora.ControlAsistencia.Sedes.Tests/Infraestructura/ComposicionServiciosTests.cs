@@ -31,6 +31,8 @@ using ObtenerFichaSedeEndpoint = Bitakora.ControlAsistencia.Sedes.ObtenerFichaSe
 using ListarFichasSedeEndpoint = Bitakora.ControlAsistencia.Sedes.ListarFichasSede.FunctionEndpoint;
 using ResolverSedeDeMarcacionEndpoint =
     Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado.FunctionEndpoint;
+using InstalarDispositivoHandler =
+    Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction.CommandHandler.InstalarDispositivoCommandHandler;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 
@@ -446,6 +448,21 @@ public class ComposicionServiciosTests
 
         var act = () => ActivatorUtilities
             .CreateInstance<RegistroDeMarcacionCreadoEventHandler>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Wolverine activa el CommandHandler, no el contenedor: ActivatorUtilities reproduce esa
+    // activacion y valida sus dos dependencias (IEventStore, ILectorUbicacionDispositivo). Sin este
+    // guardrail, un ILectorUbicacionDispositivo sin registrar compila y solo revienta en el primer
+    // POST contra dev.
+    [Fact]
+    public async Task AgregarServiciosSedes_ActivaElHandlerDeInstalarDispositivo_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<InstalarDispositivoHandler>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }
