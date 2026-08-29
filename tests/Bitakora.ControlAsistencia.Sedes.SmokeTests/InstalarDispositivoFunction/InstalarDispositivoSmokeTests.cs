@@ -126,6 +126,73 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             "el segundo intento se rechazo con 409: no debe haber escrito un segundo dispositivo_instalado");
     }
 
+    // Issue #477 CA-1: rechazo cross-sede antes de cargar el aggregate destino. UbicacionDispositivo
+    // materializa de forma ASINCRONA (MEF-ADR-0034 seccion 3) y no tiene endpoint GET propio, asi
+    // que no hay forma black-box de esperar su materializacion sin reintentar el propio comando.
+    // Reintentar el POST a destino tiene un efecto real: mientras la vista no haya materializado
+    // SedeId=origen, el intento en destino puede colarse (202) -- la ventana best-effort que el
+    // propio issue documenta. Se limpia esa instalacion fantasma retirandola (la remediacion que
+    // el issue senala explicitamente) y se reintenta hasta que la vista alcance al event store; la
+    // asercion de "sin evento nuevo" compara el conteo justo antes/despues del intento que SI
+    // resuelve en 409, no el historico completo (que puede incluir fantasmas ya retirados).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task InstalarDispositivo_Retorna409YNoInstalaEnDestino_CuandoDispositivoYaEstaInstaladoEnOtraSede()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var codigoOrigen = await RegistrarSedeDePruebaAsync(ct);
+        var codigoDestino = await RegistrarSedeDePruebaAsync(ct);
+        var streamOrigen = ComputarStreamId(codigoOrigen);
+        var streamDestino = ComputarStreamId(codigoDestino);
+        var dispositivoId = NuevoDispositivoId();
+
+        var instalacionOrigen = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigoOrigen), new { dispositivoId }, ct);
+        instalacionOrigen.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que la instalacion en la sede origen funcione");
+
+        var existeEnOrigen = await postgres.ExisteEventoAsync(
+            SchemaSedes, streamOrigen, TipoEventoDispositivoInstalado, Timeout,
+            campoJson: "DispositivoId", valorJson: dispositivoId);
+        existeEnOrigen.Should().BeTrue(
+            $"el evento {TipoEventoDispositivoInstalado} deberia estar en el stream {streamOrigen} antes de intentar el cruce");
+
+        HttpStatusCode? ultimoStatus = null;
+
+        var rechazado = await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var eventosAntes = await postgres.ContarEventosAsync(
+                SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
+
+            var intento = await _client.PostAsJsonAsync(
+                RutaDispositivos(codigoDestino), new { dispositivoId }, ct);
+            ultimoStatus = intento.StatusCode;
+
+            if (intento.StatusCode == HttpStatusCode.Accepted)
+            {
+                await _client.DeleteAsync(RutaDispositivo(codigoDestino, dispositivoId), ct);
+                return false;
+            }
+
+            if (intento.StatusCode != HttpStatusCode.Conflict)
+                throw new InvalidOperationException(
+                    $"Respuesta inesperada al instalar en destino: {intento.StatusCode}");
+
+            var eventosDespues = await postgres.ContarEventosAsync(
+                SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
+            eventosDespues.Should().Be(eventosAntes,
+                "el rechazo cross-sede debe ocurrir antes de cargar el aggregate destino: no debe agregar un nuevo dispositivo_instalado");
+
+            return true;
+        }, Timeout);
+
+        rechazado.Should().BeTrue(
+            "la instalacion cross-sede deberia terminar rechazada con 409 una vez que UbicacionDispositivo materialice la sede origen");
+        ultimoStatus.Should().Be(HttpStatusCode.Conflict);
+    }
+
     // CA-6: reinstalar un dispositivo previamente retirado de esta sede procede -- no es la misma
     // invariante de exclusividad que CA-2 (ese dispositivo ya no esta instalado en esta sede).
     [Fact]
