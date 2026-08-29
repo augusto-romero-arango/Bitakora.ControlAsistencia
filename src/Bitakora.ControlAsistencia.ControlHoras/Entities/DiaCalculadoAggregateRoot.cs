@@ -9,6 +9,7 @@ using VistaFranjaDepurada = Bitakora.ControlAsistencia.ReadModels.ControlHoras.F
 using VistaMarcacionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.MarcacionDelDia;
 using EstadoAsistencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.EstadoAsistencia;
 using PlanDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PlanDelDia;
+using SedeDeFranja = Bitakora.ControlAsistencia.ReadModels.ControlHoras.SedeDeFranja;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -19,6 +20,11 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 public partial class DiaCalculadoAggregateRoot : AggregateRoot
 {
     public EstadoDiaCalculado Estado { get; private set; }
+
+    // Sin consumidor todavia en este repo -- no es codigo muerto: la consumiran la invariante de
+    // AprobarDia (aun no existe) y la guarda de resolucion del conflicto (#483).
+    public bool TieneConflictoDeSedePendiente =>
+        _franjas.Any(franja => DerivarSedeDeFranja(franja, _marcaciones).EnConflicto);
 
     // Valores provisionales de la ultima foto recibida: nunca se exponen como propiedades sueltas
     // (MEF-ADR-0012, Tell-don't-Ask). Solo Apply los reemplaza.
@@ -98,19 +104,29 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
             plan,
             _nombreTurno,
             _franjas
-                .Select(franja => new VistaFranjaDepurada(
-                    franja.HoraInicioProgramada,
-                    franja.HoraFinProgramada,
-                    franja.DiaOffsetFin,
-                    franja.Entrada,
-                    franja.Salida,
-                    franja.EsAnomala))
+                .Select(franja =>
+                {
+                    var (efectiva, enConflicto, candidatas) = DerivarSedeDeFranja(franja, _marcaciones);
+                    return new VistaFranjaDepurada(
+                        franja.HoraInicioProgramada,
+                        franja.HoraFinProgramada,
+                        franja.DiaOffsetFin,
+                        franja.Entrada,
+                        franja.Salida,
+                        franja.EsAnomala,
+                        SedeEfectiva: efectiva,
+                        EnConflictoDeSede: enConflicto,
+                        CandidatasDeSede: candidatas);
+                })
                 .ToList(),
             _marcaciones
                 .Select(marcacion => new VistaMarcacionDelDia(
                     marcacion.Timestamp,
                     marcacion.Tipo,
-                    EsUsada(marcacion, _franjas)))
+                    EsUsada(marcacion, _franjas),
+                    marcacion.CodigoSede,
+                    marcacion.NombreSede,
+                    marcacion.CentroDeCostos))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? []);
@@ -131,7 +147,52 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
             _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, null)
         };
 
-    // Igualdad EXACTA de Timestamp, derivada una sola vez aqui: ningun cliente la recalcula.
+    // Una marcacion pertenece a una franja si su Timestamp coincide EXACTAMENTE con la entrada o la
+    // salida de esa franja. Regla unica del expediente: la usan por igual la marca de uso de la
+    // vista y las candidatas de sede.
+    private static bool PerteneceA(MarcacionDelDia marcacion, FranjaDepurada franja) =>
+        marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida;
+
+    // Derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
-        franjas.Any(franja => franja.Entrada == marcacion.Timestamp || franja.Salida == marcacion.Timestamp);
+        franjas.Any(franja => PerteneceA(marcacion, franja));
+
+    // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT -- dos o mas codigos de sede
+    // distintos entre las fuentes de una franja dejan la decision al Aprobador (#483); la maquina
+    // no elige por el, expone las candidatas y se abstiene de sede efectiva.
+    private static (SedeDeFranja? Efectiva, bool EnConflicto, IReadOnlyList<SedeDeFranja> Candidatas)
+        DerivarSedeDeFranja(FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
+    {
+        // Last() por codigo, no First(): el CentroDeCostos estampado en la marcacion prevalece
+        // sobre el programado cuando ambas fuentes coinciden en sede -- tambien dentro del
+        // conflicto, para que la candidata que elija el Aprobador herede el CC correcto.
+        var candidatas = FuentesDeSede(franja, marcaciones)
+            .GroupBy(fuente => fuente.Codigo)
+            .Select(porCodigo => porCodigo.Last())
+            .ToList();
+
+        return candidatas switch
+        {
+            [] => (null, false, []),
+            [var unica] => (unica, false, []),
+            _ => (null, true, candidatas)
+        };
+    }
+
+    // Orden significativo: la programada primero, las marcadas despues -- de ahi sale la precedencia
+    // del CentroDeCostos al deduplicar. Los tres campos de sede son opcionales e independientes en
+    // el evento: una fuente sin codigo no es candidata y una sin nombre se expone tal cual, sin
+    // inventar el dato ausente (MEF-ADR-0004: derivar, nunca lanzar).
+    private static IEnumerable<SedeDeFranja> FuentesDeSede(
+        FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
+    {
+        if (franja.CodigoSedeProgramada is not null)
+            yield return new SedeDeFranja(
+                franja.CodigoSedeProgramada, franja.NombreSedeProgramada, franja.CentroDeCostosProgramado);
+
+        foreach (var marcacion in marcaciones.Where(marcacion => PerteneceA(marcacion, franja)))
+            if (marcacion.CodigoSede is not null)
+                yield return new SedeDeFranja(
+                    marcacion.CodigoSede, marcacion.NombreSede, marcacion.CentroDeCostos);
+    }
 }
