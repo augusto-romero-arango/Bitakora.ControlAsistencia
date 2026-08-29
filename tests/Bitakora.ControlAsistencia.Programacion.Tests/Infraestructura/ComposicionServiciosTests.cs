@@ -24,10 +24,14 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
+using ObtenerFichaTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno.FunctionEndpoint;
+using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ListarFichasTurno.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
@@ -208,5 +212,67 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ReadyCheck>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    // ActivatorUtilities.CreateInstance reproduce la activacion por tipo del host de Azure
+    // Functions isolated worker, para el que no existe un WebApplicationFactory (MEF-ADR-0029,
+    // Alt 1). Solo cubre la RESOLUCION del constructor, no el comportamiento de Run.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerFichaTurno_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerFichaTurnoEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarFichasTurno_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarFichasTurnoEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Mitad write-side del par 2 (MEF-ADR-0034 seccion 6): este Function App LEE FichaTurno sin
+    // registrar la proyeccion, mientras el worker la MATERIALIZA en otro proceso sobre la misma
+    // tabla. Sin Schema.For<FichaTurno>().UseNumericRevisions este store espera mt_version uuid
+    // sobre una tabla bigint y los GET quedan en 500 permanente. Oraculo literal espejo del que
+    // congela ConfiguracionMartenProjectionsTests, sin que un ensamblado referencie al otro.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaTurno()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaTurno));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
+    // worker que materializa y este Function App que consulta, o el GET responde 404 para siempre
+    // con el daemon funcionando. Son dos configuraciones de Marten independientes sobre el mismo
+    // schema: ningun compilador lo garantiza.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveFichaTurnoSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaTurno));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_fichaturno");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 }

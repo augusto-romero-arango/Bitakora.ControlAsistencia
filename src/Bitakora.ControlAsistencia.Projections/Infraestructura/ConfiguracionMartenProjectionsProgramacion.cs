@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Projections.Programacion;
 using JasperFx.Events; // StreamIdentity, EventNamingStyle (NO Marten.Events, mismo gotcha que DaemonMode)
 using JasperFx.Events.Daemon; // DaemonMode (NO Marten.Events.Daemon: compila pero deja DaemonMode sin resolver)
+using JasperFx.Events.Projections; // ProjectionLifecycle (NO Marten.*, mismo gotcha que DaemonMode/StreamIdentity)
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*, mismo gotcha que StreamIdentity/DaemonMode)
 using Marten;
 using Weasel.Core; // EnumStorage, Casing (NO Marten.*: viven en Weasel.Core)
@@ -104,6 +106,10 @@ public static class ConfiguracionMartenProjectionsProgramacion
                     ConfiguracionSerializacionProgramacion.ConfigurarResolver(resolver);
                     jsonOptions.TypeInfoResolver = resolver;
                 });
+
+                // Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3). Registrarla
+                // aqui es tambien lo que hace que Marten fije mt_version bigint sobre FichaTurno.
+                opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

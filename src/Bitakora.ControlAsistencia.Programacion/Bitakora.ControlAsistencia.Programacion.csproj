@@ -27,6 +27,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.PrivateEvents\Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <ProjectReference Include="..\Bitakora.ControlAsistencia.Programacion.DomainEvents\Bitakora.ControlAsistencia.Programacion.DomainEvents.csproj" />
+    <!-- Issue #496: primera Function GET del dominio (ObtenerFichaTurno/ListarFichasTurno),
+         necesita el read model FichaTurno para consultarlo via Marten (session.LoadAsync/Query).
+         Mismo precedente que Sedes.csproj desde el issue #461. -->
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -83,6 +84,15 @@ public static class ComposicionServicios
             // mapping exista antes de la primera lectura, en vez de depender de que un append lo
             // haya poblado (issue #237 seccion "Consecuencia asumida").
             options.Events.AddEventTypes(IdentidadEventosProgramacion.TiposPersistidos);
+
+            // Par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6). Marten aplica
+            // ProjectionDocumentPolicy -- mt_version bigint, incondicional
+            // (https://martendb.io/documents/concurrency) -- a todo documento target de una
+            // proyeccion registrada. FichaTurnoProjection vive en el worker (CA-ADR-0029), asi que
+            // este store no puede registrarla y sin esta linea esperaria mt_version uuid sobre la
+            // MISMA tabla fisica: "alter column" en CADA request, rechazado por Postgres con 42804,
+            // y los GET en 500 permanente. El par de config-tests congela ambos literales.
+            options.Schema.For<FichaTurno>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {

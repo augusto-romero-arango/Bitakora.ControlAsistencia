@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
+using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
@@ -179,6 +180,53 @@ public class ConfiguracionMartenProjectionsTests
 
         provider.GetRequiredService<IProgramacionProjectionStore>()
             .AssertEventosPersistidosRegistrados([typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada)]);
+    }
+
+    // CA-5. Complementa ConfigurarProgramacion_NoRegistraNingunaProyeccionInline: aquella prueba
+    // que NADA quedo Inline -- una lista vacia la pasaria --, esta que la proyeccion CONCRETA se
+    // registro con lifecycle Async (MEF-ADR-0034 seccion 3).
+    [Fact]
+    public void ConfigurarProgramacion_RegistraFichaTurnoProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("FichaTurno");
+    }
+
+    // Marten aplica ProjectionDocumentPolicy ("Numeric Revisioned Documents") SOLO a los documentos
+    // target de una proyeccion REGISTRADA: mt_version bigint. Este lado no declara nada para que sea
+    // asi -- lo impone Marten --, pero DEFINE la forma fisica de la tabla que el write-side debe
+    // replicar, por eso el oraculo se congela aqui tambien. Si FichaTurnoProjection dejara de
+    // registrarse arriba, el mapping caeria al default y este test se pondria rojo.
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaFichaTurnoConRevisionNumerica()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaTurno));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Mitad worker del par 2 (MEF-ADR-0034 seccion 6): el daemon materializa FichaTurno desde este
+    // named store y el Function App la lee en otro proceso. Que ambos converjan en la MISMA tabla,
+    // tenancy e IdMember no lo garantiza ningun compilador -- una divergencia deja el GET en 404
+    // permanente con el daemon funcionando.
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaFichaTurnoSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(FichaTurno));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_fichaturno");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
