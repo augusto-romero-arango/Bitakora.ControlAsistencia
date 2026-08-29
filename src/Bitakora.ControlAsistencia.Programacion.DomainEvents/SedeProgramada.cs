@@ -14,8 +14,12 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// El nombre puro "Sede" queda RESERVADO para el concepto rico del futuro maestro de sedes (#338,
 /// direccion/ciudad/dispositivos asociados) -- este record es deliberadamente "Programada" para no
 /// hacer squatting de ese nombre.
+/// Issue #462: CentroDeCostos es opcional y aditivo, string opaco que el FRONT construye y envia
+/// tal cual (consulta el maestro FichaSede, #461) -- el servidor NUNCA lo valida contra el
+/// maestro, el mismo criterio que ya rige para Id/Nombre. La inexistencia del dato es null, nunca
+/// cadena vacia (normalizacion en el punto de entrada del BC, no en este record).
 /// </remarks>
-public record SedeProgramada(string Id, string Nombre)
+public record SedeProgramada(string Id, string Nombre, string? CentroDeCostos = null)
 {
     /// <summary>
     /// Una sede referenciada esta completa cuando trae ambos datos: el id opaco del cliente y el

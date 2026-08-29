@@ -2,6 +2,8 @@
 // Detalle*IgualdadTests. Todos los campos son string: la igualdad por valor del record por
 // defecto ya es correcta, sin Equals/GetHashCode propios (MEF-ADR-0012) -- mismo criterio que
 // ResumenColaborador.
+// Issue #462: CrearInstancia/Copia pueblan CentroDeCostos para que el campo nuevo participe
+// realmente de la comparacion (con null en ambos lados, un bug de igualdad pasaria inadvertido).
 
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
@@ -10,14 +12,15 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.Programacion;
 public class DetalleSedeIgualdadTests : IgualdadTestBase<DetalleSede>
 {
     protected override DetalleSede CrearInstancia() =>
-        new("SEDE-01", "Sede Principal");
+        new("SEDE-01", "Sede Principal", "CC-100");
 
     protected override DetalleSede CrearInstanciaCopia() =>
-        new("SEDE-01", "Sede Principal");
+        new("SEDE-01", "Sede Principal", "CC-100");
 
     protected override IEnumerable<(string, DetalleSede)> CrearInstanciasDiferentes()
     {
-        yield return ("Id", new DetalleSede("SEDE-02", "Sede Principal"));
-        yield return ("Nombre", new DetalleSede("SEDE-01", "Sede Norte"));
+        yield return ("Id", new DetalleSede("SEDE-02", "Sede Principal", "CC-100"));
+        yield return ("Nombre", new DetalleSede("SEDE-01", "Sede Norte", "CC-100"));
+        yield return ("CentroDeCostos", new DetalleSede("SEDE-01", "Sede Principal", "CC-200"));
     }
 }

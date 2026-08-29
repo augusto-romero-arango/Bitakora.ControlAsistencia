@@ -153,6 +153,52 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         restaurado.DetalleTurno.Nombre.Should().Be("Turno Manana");
     }
 
+    // Issue #462 CA-2: el CC dentro de DetalleSede es un string opaco, plano y portable por el
+    // serializador por defecto del bus -- igual que el resto de los campos de sede (#331/#341).
+    [Fact]
+    public void RoundTrip_PreservaElCentroDeCostosDeLaSede_ConSerializadorPorDefectoDelBus()
+    {
+        var detalleTurno = CrearDetalleTurno();
+        var sede = new DetalleSede("SEDE-01", "Sede Principal", "CC-100");
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, detalleTurno, sede);
+
+        var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
+
+        var body = BinaryData.FromString(json);
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(body);
+
+        restaurado.Should().NotBeNull();
+        restaurado.Sede!.CentroDeCostos.Should().Be("CC-100");
+    }
+
+    // Issue #462 CA-4: mensajes publicados antes de este issue no llevan "centroDeCostos" dentro de
+    // "sede" -- STJ deja null en el parametro posicional opcional. Se parte de un evento CON CC para
+    // que la asercion sobre Remove() delate un test vacuo si la clave cambiara de nombre (mismo
+    // patron que JsonSinLaClaveSede/JsonSinLaClaveSedeEnLaFranja).
+    [Fact]
+    public void Deserializar_DejaCentroDeCostosEnNull_CuandoElMensajeNoLlevaEseCampoEnLaSede()
+    {
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(
+            BinaryData.FromString(JsonConSedeSinCentroDeCostos()));
+
+        restaurado.Should().NotBeNull();
+        restaurado.Sede.Should().NotBeNull();
+        restaurado.Sede!.CentroDeCostos.Should().BeNull();
+    }
+
+    private static string JsonConSedeSinCentroDeCostos()
+    {
+        var conSede = new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, Colaborador, Fecha, CrearDetalleTurno(),
+            new DetalleSede("SEDE-01", "Sede Principal", "CC-100"));
+
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(conSede, CrearOpcionesProductor()))!;
+        nodo["sede"]!.AsObject().Remove("centroDeCostos").Should().BeTrue(
+            "el JSON del bus debe llevar la clave 'centroDeCostos' en sede para que quitarla represente la forma anterior a #462");
+
+        return nodo.ToJsonString();
+    }
+
     private static string JsonSinLaClaveSedeEnLaFranja()
     {
         var franjaConSede = new DetalleFranjaOrdinaria(

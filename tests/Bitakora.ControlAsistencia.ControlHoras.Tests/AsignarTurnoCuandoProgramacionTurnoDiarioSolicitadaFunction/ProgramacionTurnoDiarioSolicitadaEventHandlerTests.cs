@@ -186,4 +186,63 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, SedeProgramada?>(
             StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, null);
     }
+
+    // Issue #462 CA-3: el CC dentro de la sede efectiva de la franja (ya resuelto por la cascada del
+    // lado de Programacion) se persiste tal cual en TurnoDiarioAsignado -- ControlHoras solo lo
+    // transporta y nunca lo valida ni lo deriva (mismo criterio que el resto de los campos de sede,
+    // issue #336).
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_PropagaElCentroDeCostosDeLaSede_CuandoElEventoLoTrae()
+    {
+        var sedeConCentroDeCostos = new DetalleSede("SEDE-SUBA", "Suba", "CC-100");
+        var turnoEntrante = new DetalleTurno(
+            "Turno Manana",
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)", sedeConCentroDeCostos)],
+            "Turno Manana (08:00-16:00)");
+
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, ColaboradorResumen, Fecha, turnoEntrante));
+
+        // Oraculo construido a mano, no derivado del mapeo bajo prueba (MEF-ADR-0002).
+        var sedeConCentroDeCostosEsperada = new SedeProgramada("SEDE-SUBA", "Suba", "CC-100");
+        var turnoPersistidoEsperado = new TurnoDiario(
+            "Turno Manana",
+            [new FranjaProgramada(
+                new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)", sedeConCentroDeCostosEsperada)],
+            "Turno Manana (08:00-16:00)");
+
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Colaborador, Fecha, turnoPersistidoEsperado, SolicitudId));
+        And<ControlDiarioAggregateRoot, string?>(
+            StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, "CC-100");
+    }
+
+    // Issue #462 CA-4: la franja sin sede (o con sede sin CC) sigue dejando Sede/CentroDeCostos en
+    // null -- comportamiento actual intacto, sin regla nueva.
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_DejaCentroDeCostosEnNull_CuandoLaSedeDeLaFranjaNoLoTrae()
+    {
+        var sedeSinCentroDeCostos = new DetalleSede("SEDE-SUBA", "Suba");
+        var turnoEntrante = new DetalleTurno(
+            "Turno Manana",
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)", sedeSinCentroDeCostos)],
+            "Turno Manana (08:00-16:00)");
+
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, ColaboradorResumen, Fecha, turnoEntrante));
+
+        var sedeSinCentroDeCostosEsperada = new SedeProgramada("SEDE-SUBA", "Suba");
+        var turnoPersistidoEsperado = new TurnoDiario(
+            "Turno Manana",
+            [new FranjaProgramada(
+                new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)", sedeSinCentroDeCostosEsperada)],
+            "Turno Manana (08:00-16:00)");
+
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Colaborador, Fecha, turnoPersistidoEsperado, SolicitudId));
+        And<ControlDiarioAggregateRoot, string?>(
+            StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
+    }
 }

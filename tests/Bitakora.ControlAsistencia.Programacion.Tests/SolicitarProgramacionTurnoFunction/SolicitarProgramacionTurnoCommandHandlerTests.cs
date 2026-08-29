@@ -141,6 +141,34 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
     private static readonly DetalleSede SedeSubaDetalle = new("SEDE-SUBA", "Suba");
 
+    // --- Issue #462: Centro de Costos dentro de la sede ---
+    //
+    // El CC lo construye el FRONT (consulta FichaSede, #461) y lo envia tal cual -- el servidor
+    // NUNCA lo valida contra el maestro. SedeConCentroDeCostos comparte Id/Nombre con SedePrincipal
+    // a proposito: el unico eje que varia entre los tests de esta seccion es CentroDeCostos.
+    private static readonly SedeProgramada SedeConCentroDeCostos =
+        new("SEDE-01", "Sede Principal", "CC-100");
+    private static readonly DetalleSede SedeConCentroDeCostosDetalle =
+        new("SEDE-01", "Sede Principal", "CC-100");
+    private static readonly SedeProgramada SedeConCentroDeCostosEnBlanco =
+        new("SEDE-01", "Sede Principal", "   ");
+
+    private static readonly TurnoProgramado TurnoProgramadoConCentroDeCostosEsperado = new(
+        "Turno Manana",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedeConCentroDeCostos)
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
+    private static readonly DetalleTurno DetalleConCentroDeCostosEsperado = new(
+        "Turno Manana",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedeConCentroDeCostosDetalle)
+        }.AsReadOnly(),
+        "Turno Manana (06:00-14:00)");
+
     private static TurnoCreado CrearEventoTurnoConSedePrearmada() =>
         TurnoCreado.Crear(
             TurnoConSedePrearmadaId,
@@ -382,6 +410,67 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, ColaboradorResumen, Fecha1, DetalleConSedePrearmadaEsperado, sede: null));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
+    }
+
+    // Issue #462 CA-1/CA-2: el CC viaja TAL CUAL desde el comando -- sin validacion contra el
+    // maestro (esa consulta la hizo el front, #461) -- y queda grabado en el evento persistido
+    // (a nivel de evento y de la franja que la cascada resuelve) y en el evento de bus (DetalleSede).
+    [Fact]
+    public async Task SolicitarProgramacionTurno_PersisteElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1], SedeConCentroDeCostos));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1],
+            TurnoProgramadoConCentroDeCostosEsperado, SedeConCentroDeCostos));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1, DetalleConCentroDeCostosEsperado,
+            SedeConCentroDeCostosDetalle));
+        And<SolicitudProgramacionAggregateRoot, string?>(s => s.Sede!.CentroDeCostos, "CC-100");
+        And<SolicitudProgramacionAggregateRoot, string?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, "CC-100");
+    }
+
+    // Issue #462 CA-4: sede sin CC (campo ausente/null) fluye con null a traves de toda la cadena --
+    // mismo comportamiento que rige el resto de campos de sede cuando no traen dato (#331/#341).
+    [Fact]
+    public async Task SolicitarProgramacionTurno_DejaCentroDeCostosEnNull_CuandoLaSedeNoLoTrae()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1], SedePrincipal));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1],
+            TurnoProgramadoConSedeAplicadaEsperado, SedePrincipal));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
+        And<SolicitudProgramacionAggregateRoot, string?>(s => s.Sede!.CentroDeCostos, null);
+        And<SolicitudProgramacionAggregateRoot, string?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
+    }
+
+    // Issue #462 CA-5: CC vacio o whitespace en el comando se normaliza a null en el punto de
+    // entrada del BC -- la inexistencia de un dato es null, nunca una cadena en blanco. El oraculo
+    // (SedePrincipal/TurnoProgramadoConSedeAplicadaEsperado) se construye a mano, sin derivar de la
+    // normalizacion bajo prueba (MEF-ADR-0002): tras normalizar, "   " y null son indistinguibles.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_NormalizaCentroDeCostosEnBlancoANull_CuandoLaSedeLoTraeVacio()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1], SedeConCentroDeCostosEnBlanco));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1],
+            TurnoProgramadoConSedeAplicadaEsperado, SedePrincipal));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1, DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
+        And<SolicitudProgramacionAggregateRoot, string?>(s => s.Sede!.CentroDeCostos, null);
+        And<SolicitudProgramacionAggregateRoot, string?>(
+            s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
     }
 
     // CA-6: idempotencia - solicitud ya existe lanza excepcion que el endpoint mapea a 409
