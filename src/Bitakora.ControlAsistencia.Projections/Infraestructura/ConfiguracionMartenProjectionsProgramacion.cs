@@ -107,10 +107,8 @@ public static class ConfiguracionMartenProjectionsProgramacion
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
-                // Issue #496 CA-5: primera proyeccion concreta del dominio Programacion -- N1,
-                // SingleStreamProjection<FichaTurno, string> sobre el stream de CatalogoTurnos.
-                // Lifecycle Async, el canonico del worker (MEF-ADR-0034 seccion 3); mismo criterio
-                // que FichaSedeProjection/FichaColaboradorProjection.
+                // Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3). Registrarla
+                // aqui es tambien lo que hace que Marten fije mt_version bigint sobre FichaTurno.
                 opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna

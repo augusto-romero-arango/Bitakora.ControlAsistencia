@@ -1,19 +1,12 @@
-// Issue #496: smoke tests de ListarFichasTurno, GET programacion/turnos -- mismo recurso que
-// CrearTurno (POST), sin ningun filtro server-side (catalogo acotado, decenas por empresa) ni
-// paginacion, con orden estable por Nombre (desempate por Id) como contrato de la respuesta
-// (MEF-ADR-0042 seccion 1, CA-4).
-//
 // Arrange via API, nunca sembrando el event store por fuera de ella: cada turno se crea con POST
-// programacion/turnos -- el mismo comando que la proyeccion consume.
+// programacion/turnos, el mismo comando que la proyeccion consume.
 //
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa FichaTurno DESPUES de que
-// CatalogoTurnos persiste TurnoCreado. Los casos de exito envuelven la consulta en
-// Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling
-// directo en tests".
+// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa FichaTurno DESPUES de persistir
+// TurnoCreado, por eso los casos de exito van envueltos en Polling.WaitUntilAsync -- unica
+// excepcion documentada al "no usar Polling directo en tests".
 //
-// Aislamiento de datos SIN cleanup, en un entorno SIN paginacion que ACUMULA fichas de corridas
-// anteriores: cada test filtra sus propias filas por Id unico (Guid), nunca por conteo total ni
-// posicion/indice.
+// Aislamiento SIN cleanup, contra un entorno sin paginacion que ACUMULA fichas de corridas
+// anteriores: cada test filtra sus propias filas por Id unico, nunca por conteo ni posicion.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -29,15 +22,14 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
     private const string RutaTurnos = "/api/programacion/turnos";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Case-insensitive: la respuesta viaja en camelCase, mientras que las formas locales de este
-    // archivo son PascalCase.
+    // La respuesta viaja en camelCase; las formas locales de este archivo son PascalCase.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    // Forma local DESACOPLADA del read model de produccion (ReadModels.Programacion.FichaTurno):
-    // replica solo el shape JSON de la respuesta HTTP de este endpoint.
+    // Forma local DESACOPLADA del read model de produccion: replica solo el shape JSON de la
+    // respuesta HTTP de este endpoint.
     private sealed record FichaTurnoRespuestaSmoke(
         string Id,
         string Nombre,
@@ -79,9 +71,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         return lista ?? [];
     }
 
-    // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion -- unica
-    // excepcion documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034
-    // seccion 3).
+    // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion.
     private Task<List<FichaTurnoRespuestaSmoke>> ListarHastaQueAsync(
         Func<List<FichaTurnoRespuestaSmoke>, bool> condicion, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>
@@ -100,8 +90,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-4: el turno recien creado aparece en el listado completo (sin filtro), filtrando por su Id
-    // unico -- nunca por posicion/indice, en un entorno que acumula fichas de corridas anteriores.
+    // CA-4
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasTurno_IncluyeLaFichaCreada_CuandoSeConsultaElListadoCompleto()
@@ -119,8 +108,8 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         ficha.EsDescanso.Should().BeFalse();
     }
 
-    // CA-4: orden estable por Nombre -- dos turnos nuevos deben aparecer en el listado en el mismo
-    // orden relativo que sus nombres (comparacion ordinal).
+    // CA-4: orden estable por Nombre, verificado por posicion RELATIVA entre dos fichas nuevas
+    // (el listado acumula fichas de corridas anteriores).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasTurno_OrdenaPorNombre_CuandoHayVariasFichasNuevas()

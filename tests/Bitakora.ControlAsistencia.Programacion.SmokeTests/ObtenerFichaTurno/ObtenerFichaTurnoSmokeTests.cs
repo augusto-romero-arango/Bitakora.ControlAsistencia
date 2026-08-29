@@ -1,19 +1,12 @@
-// Issue #496: smoke tests de ObtenerFichaTurno, GET programacion/turnos/{id}. Function GET
-// read-side sobre la proyeccion FichaTurno (receta N1, MEF-ADR-0034/0035).
-//
 // Arrange via API, nunca sembrando el event store por fuera de ella: el turno se crea con POST
-// programacion/turnos (CrearTurno) -- el mismo comando que la proyeccion consume.
+// programacion/turnos, el mismo comando que la proyeccion consume.
 //
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa FichaTurno DESPUES de que
-// CatalogoTurnos persiste TurnoCreado. El camino feliz envuelve la consulta en
-// Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling
-// directo en tests".
+// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa FichaTurno DESPUES de persistir
+// TurnoCreado, por eso el camino feliz va envuelto en Polling.WaitUntilAsync -- unica excepcion
+// documentada al "no usar Polling directo en tests".
 //
-// No se repite aqui el algoritmo exacto de HorarioResumido/Descripcion ni el mapeo completo de
-// franjas (CA-1/CA-2 del issue): esas reglas ya las cubre el unit test de FichaTurnoProjection
-// (projection-test-writer). Este smoke test es black-box: solo verifica que el endpoint desplegado
-// responde con el shape basico de la vista materializada y que los bordes 404/400 funcionan contra
-// el entorno real.
+// Alcance black-box: el algoritmo de HorarioResumido/Descripcion y el mapeo de franjas ya los cubre
+// el unit test de FichaTurnoProjection; aqui solo el shape basico y los bordes 404/400 contra dev.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -29,16 +22,14 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     private const string RutaTurnos = "/api/programacion/turnos";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Case-insensitive: la respuesta viaja en camelCase, mientras que las formas locales de este
-    // archivo son PascalCase.
+    // La respuesta viaja en camelCase; las formas locales de este archivo son PascalCase.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    // Formas locales DESACOPLADAS del read model de produccion (ReadModels.Programacion.FichaTurno/
-    // FranjaFicha): replican solo el shape JSON de la respuesta HTTP de este endpoint. El smoke test
-    // no referencia ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5).
+    // Formas locales DESACOPLADAS del read model de produccion: replican solo el shape JSON de la
+    // respuesta. El smoke test no referencia ReadModels ni el Function App (MEF-ADR-0034 seccion 5).
     private sealed record FranjaFichaRespuestaSmoke(
         TimeOnly HoraInicio,
         TimeOnly HoraFin,
@@ -91,8 +82,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     }
 
     // Reintenta el GET hasta que la proyeccion asincrona materialice la ficha (404 = el worker
-    // todavia no la aplico). Devuelve un valor no nulo o lanza TimeoutException -- por eso ningun
-    // caller afirma NotBeNull.
+    // todavia no la aplico). Devuelve un valor no nulo o lanza: ningun caller afirma NotBeNull.
     private Task<FichaTurnoRespuestaSmoke> EsperarFichaAsync(Guid turnoId, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>
         {
@@ -115,8 +105,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: un turno con franjas materializa la ficha con Nombre, EsDescanso = false,
-    // HorarioResumido y la franja completa.
+    // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_Retorna200ConElShapeBasico_CuandoElTurnoTieneFranjas()
@@ -143,8 +132,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         franja.Extras.Should().BeEmpty();
     }
 
-    // CA-2: un turno de descanso (factory CrearDescanso) materializa la ficha con
-    // EsDescanso = true y sin franjas.
+    // CA-2
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_RetornaEsDescansoTrueYSinFranjas_CuandoElTurnoEsUnDescanso()
@@ -161,7 +149,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         ficha.Franjas.Should().BeEmpty();
     }
 
-    // CA-3: ficha inexistente -> 404 sin body.
+    // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_Retorna404SinBody_CuandoLaFichaNoExiste()
@@ -174,7 +162,6 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
     }
 
-    // {id} de ruta que no parsea a Guid -> 400 explicito (FunctionEndpoint.Run).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_Retorna400_CuandoElIdDeRutaNoEsUnGuidValido()

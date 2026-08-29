@@ -182,14 +182,9 @@ public class ConfiguracionMartenProjectionsTests
             .AssertEventosPersistidosRegistrados([typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada)]);
     }
 
-    // Issue #496 CA-5: primera proyeccion concreta del dominio Programacion (N1,
-    // SingleStreamProjection<FichaTurno, string> sobre el stream del catalogo de turnos,
-    // CatalogoTurnos). Complementa ConfigurarProgramacion_NoRegistraNingunaProyeccionInline:
-    // aquella prueba que NADA quedo Inline -- una lista vacia la pasaria --, esta prueba que la
-    // proyeccion CONCRETA se registro con lifecycle Async, el canonico del worker (MEF-ADR-0034
-    // seccion 3). El seam (ConfiguracionMartenProjectionsProgramacion.ConfigurarProgramacion) existe
-    // desde el issue #268 sin ninguna proyeccion; este issue le agrega la unica linea
-    // opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async).
+    // CA-5. Complementa ConfigurarProgramacion_NoRegistraNingunaProyeccionInline: aquella prueba
+    // que NADA quedo Inline -- una lista vacia la pasaria --, esta que la proyeccion CONCRETA se
+    // registro con lifecycle Async (MEF-ADR-0034 seccion 3).
     [Fact]
     public void ConfigurarProgramacion_RegistraFichaTurnoProjectionComoAsync()
     {
@@ -199,19 +194,11 @@ public class ConfiguracionMartenProjectionsTests
             .AssertProyeccionAsyncRegistrada("FichaTurno");
     }
 
-    // Issue #496, mismo gotcha de "Numeric Revisioned Documents" que #328/#356/#461 ya cerraron
-    // para TurnoVigente/FichaColaborador/FichaSede: Marten aplica ProjectionDocumentPolicy SOLO a
-    // los documentos target de una proyeccion REGISTRADA en el store (UseNumericRevisions = true,
-    // Metadata.Revision -- mt_version bigint -- habilitada, Metadata.Version -- mt_version uuid --
-    // deshabilitada). Si FichaTurnoProjection dejara de registrarse arriba, este mapping caeria al
-    // default y este test se pondria rojo.
-    //
-    // Este lado NO declara nada para que los valores sean asi: los impone Marten al registrar la
-    // proyeccion. Es el lado que DEFINE la forma fisica de la tabla y el write-side el que debe
-    // replicarla -- por eso el oraculo se congela aqui tambien.
-    //
-    // Espejo de ComposicionServiciosTests (Programacion.Tests)
-    // .AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaTurno.
+    // Marten aplica ProjectionDocumentPolicy ("Numeric Revisioned Documents") SOLO a los documentos
+    // target de una proyeccion REGISTRADA: mt_version bigint. Este lado no declara nada para que sea
+    // asi -- lo impone Marten --, pero DEFINE la forma fisica de la tabla que el write-side debe
+    // replicar, por eso el oraculo se congela aqui tambien. Si FichaTurnoProjection dejara de
+    // registrarse arriba, el mapping caeria al default y este test se pondria rojo.
     [Fact]
     public void ConfigurarProgramacion_MaterializaFichaTurnoConRevisionNumerica()
     {
@@ -225,15 +212,10 @@ public class ConfiguracionMartenProjectionsTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #496, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6): el daemon materializa FichaTurno desde este named store y el Function App de
-    // Programacion la lee, en otro proceso, con session.LoadAsync/Query (ObtenerFichaTurno,
-    // ListarFichasTurno). Que ambos lados converjan en la MISMA tabla fisica, la MISMA tenancy y el
-    // MISMO IdMember no lo garantiza ningun compilador -- una divergencia deja el GET en 404
+    // Mitad worker del par 2 (MEF-ADR-0034 seccion 6): el daemon materializa FichaTurno desde este
+    // named store y el Function App la lee en otro proceso. Que ambos converjan en la MISMA tabla,
+    // tenancy e IdMember no lo garantiza ningun compilador -- una divergencia deja el GET en 404
     // permanente con el daemon funcionando.
-    //
-    // Espejo de ComposicionServiciosTests (Programacion.Tests)
-    // .AgregarServiciosProgramacion_ResuelveFichaTurnoSobreLaTablaQueMaterializaElWorker_....
     [Fact]
     public void ConfigurarProgramacion_MaterializaFichaTurnoSobreLaTablaQueConsultaElWriteSide()
     {

@@ -85,22 +85,13 @@ public static class ComposicionServicios
             // haya poblado (issue #237 seccion "Consecuencia asumida").
             options.Events.AddEventTypes(IdentidadEventosProgramacion.TiposPersistidos);
 
-            // Issue #496 (par 2 de compatibilidad write-side/read-side, MEF-ADR-0034 seccion 6;
-            // mismo patron que #294/#328/#356/#461 dejaron en Colaboradores/ControlHoras/Sedes):
-            // declara del lado LECTURA la forma de mt_version que el worker ya impone del lado
-            // escritura -- la tabla de FichaTurno la posee la proyeccion (FichaTurnoProjection) y
-            // este Function App solo la consulta (ObtenerFichaTurno, ListarFichasTurno).
-            //
-            // Marten aplica ProjectionDocumentPolicy a todo documento target de una proyeccion
-            // registrada en ese store: UseNumericRevisions = true, Metadata.Revision (mt_version
-            // bigint) habilitada y Metadata.Version (mt_version uuid) DESHABILITADA -- incondicional
-            // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents"). Este
-            // store no registra FichaTurnoProjection ni puede hacerlo (vive en el worker,
-            // CA-ADR-0029), asi que sin esta linea esperaria mt_version uuid sobre la MISMA tabla
-            // fisica: Marten intenta "alter column mt_version type uuid" en CADA request, Postgres
-            // lo rechaza con 42804 y los GET responden 500 permanente -- no 404.
-            //
-            // El par de config-tests (este lado y el del worker) congela los mismos literales.
+            // Par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6). Marten aplica
+            // ProjectionDocumentPolicy -- mt_version bigint, incondicional
+            // (https://martendb.io/documents/concurrency) -- a todo documento target de una
+            // proyeccion registrada. FichaTurnoProjection vive en el worker (CA-ADR-0029), asi que
+            // este store no puede registrarla y sin esta linea esperaria mt_version uuid sobre la
+            // MISMA tabla fisica: "alter column" en CADA request, rechazado por Postgres con 42804,
+            // y los GET en 500 permanente. El par de config-tests congela ambos literales.
             options.Schema.For<FichaTurno>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)

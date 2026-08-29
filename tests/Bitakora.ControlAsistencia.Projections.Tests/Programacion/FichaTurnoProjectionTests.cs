@@ -1,24 +1,13 @@
-// Issue #496: primera proyeccion concreta del dominio Programacion. Invocacion DIRECTA de los
-// metodos estaticos de FichaTurnoProjection (N1, MEF-ADR-0035) -- no el DSL Given/When/Then de
-// CommandHandlerTestBase (MEF-ADR-0002, testea command handlers contra el event store): aqui se
-// testea una funcion pura evento -> vista, sin abrir ningun stream.
+// Invocacion DIRECTA de los metodos estaticos de FichaTurnoProjection (N1, MEF-ADR-0035) -- no el
+// DSL Given/When/Then de CommandHandlerTestBase, que testea command handlers contra el event store:
+// aqui se prueba una funcion pura evento -> vista, sin abrir ningun stream.
 //
-// Cada assert compara contra un oraculo armado a mano (MEF-ADR-0002, no-tautologia): nunca se
-// reusa la logica de Create bajo prueba para construir el valor esperado. El texto de Descripcion/
-// FranjaFicha.Descripcion se arma a mano replicando el formato ya VERIFICADO por lectura de
-// codigo fuente de FranjaOrdinaria.ToString()/SubFranja.ToString() (Programacion.DomainEvents) --
-// "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]", con el label
-// "sede" en minuscula (FranjaOrdinariaMensajes.resx) -- nunca ejecutando ese ToString() desde el
-// test para no acoplar el oraculo a una llamada de produccion.
+// El oraculo se arma a mano (MEF-ADR-0002, no-tautologia): el texto esperado de Descripcion replica
+// el formato de FranjaOrdinaria.ToString()/SubFranja.ToString() verificado por lectura del codigo
+// fuente, nunca ejecutando ese ToString() desde el test.
 //
-// CA-1 exige Nombre/EsDescanso/HorarioResumido y las franjas completas (descansos/extras
-// contenidos, sede prearmada); CA-2 exige EsDescanso=true y Franjas vacia para la variante
-// CrearDescanso. Ningun CA fija el algoritmo exacto de HorarioResumido/Descripcion (MEF-ADR-0041:
-// "HorarioResumido... espejo del patron de TurnoVigente", "Descripcion -- desambiguacion humana");
-// el diseno elegido aqui -- HorarioResumido = rango de horas corto ("06:00-14:00"), Descripcion =
-// el detalle completo por franja (mismo texto que FranjaOrdinaria.ToString() produce), "Descanso"
-// para ambos campos en la variante sin franjas -- es la decision de este test-writer, documentada
-// en el resumen del stage bajo "Desviaciones del plan del planner" (regla 6 del agente).
+// BeEquivalentTo, no Be: FichaTurno es un record plano sin igualdad por valor sobre sus colecciones
+// (MEF-ADR-0035) -- Be compararia Franjas por referencia y fallaria con valores identicos.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -30,12 +19,9 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Programacion;
 
 public class FichaTurnoProjectionTests
 {
-    // --- CA-1: Create proyecta un turno normal con Nombre/EsDescanso=false/HorarioResumido y las
-    // franjas completas (descansos/extras contenidos, sede prearmada por franja) ---
-
-    // Create toma IEvent<TurnoCreado>, no el evento a secas: la identidad del documento es el
-    // StreamKey del stream de CatalogoTurnos (turnoId.ToString()), nunca recomputada a mano desde
-    // el payload (skills/projections/modelos-marten.md).
+    // CA-1: turno con franjas -- Nombre, EsDescanso=false, HorarioResumido y la franja completa
+    // (descansos/extras contenidos, sede prearmada). La identidad del documento es el StreamKey del
+    // stream de CatalogoTurnos, nunca recomputada desde el payload.
     [Fact]
     public void Create_ProyectaTurnoConNombreYFranjaCompleta_DesdeTurnoCreado()
     {
@@ -65,7 +51,7 @@ public class FichaTurnoProjectionTests
             "sede-01", "Sede Centro",
             "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]");
 
-        vista.Should().Be(new FichaTurno(
+        vista.Should().BeEquivalentTo(new FichaTurno(
             turnoId.ToString(),
             "Turno Manana",
             false,
@@ -74,9 +60,38 @@ public class FichaTurnoProjectionTests
             "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]"));
     }
 
-    // --- CA-2: Create proyecta la variante descanso (factory CrearDescanso) con EsDescanso=true y
-    // sin franjas ---
+    // Caso borde de CA-1 sin test propio hasta la revision: con varias franjas, HorarioResumido y
+    // Descripcion unen los rangos en el orden de las franjas del evento.
+    [Fact]
+    public void Create_UneLosRangosDeTodasLasFranjas_CuandoElTurnoTieneVariasFranjas()
+    {
+        var turnoId = Guid.Parse("019600b0-0000-7000-8000-000000000003");
+        var turnoCreado = TurnoCreado.Crear(
+            turnoId,
+            "Turno Partido",
+            [
+                new DatosFranja(new TimeOnly(6, 0), new TimeOnly(10, 0), [], [], null),
+                new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [], null)
+            ]);
 
+        var evento = new Event<TurnoCreado>(turnoCreado)
+        {
+            StreamKey = turnoId.ToString(),
+            Version = 1,
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+
+        var vista = FichaTurnoProjection.Create(evento);
+
+        vista.HorarioResumido.Should().Be("06:00-10:00, 14:00-18:00");
+        vista.Descripcion.Should().Be("(06:00-10:00), (14:00-18:00)");
+        vista.Franjas.Should().BeEquivalentTo([
+            new FranjaFicha(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], null, null, "(06:00-10:00)"),
+            new FranjaFicha(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], null, null, "(14:00-18:00)")
+        ], opciones => opciones.WithStrictOrdering());
+    }
+
+    // CA-2: variante descanso (factory CrearDescanso) -- EsDescanso=true y sin franjas.
     [Fact]
     public void Create_ProyectaTurnoDeDescanso_DesdeTurnoCreadoDeDescanso()
     {
@@ -92,7 +107,7 @@ public class FichaTurnoProjectionTests
 
         var vista = FichaTurnoProjection.Create(evento);
 
-        vista.Should().Be(new FichaTurno(
+        vista.Should().BeEquivalentTo(new FichaTurno(
             turnoId.ToString(),
             "Descanso Dominical",
             true,

@@ -214,19 +214,9 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #496: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma idea
-    // que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
-    // FunctionEndpoint en vez de un router de Wolverine. ActivatorUtilities.CreateInstance
-    // reproduce la activacion por tipo que hace el host de Azure Functions isolated worker, sin
-    // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
-    // Functions isolated worker). Precedente exacto: issue #461 (Sedes), ObtenerFichaSede.
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (parsear {id}, session.LoadAsync y el 200/404, CA-3), que es
-    // responsabilidad de projection-implementer y del smoke test. Por eso este test queda en verde
-    // tan pronto exista el FunctionEndpoint stub con el constructor correcto -- no es la guarda que
-    // fuerza el rojo de este issue (esa la dan los unit tests de la proyeccion y el config-test del
-    // worker, en Projections.Tests).
+    // ActivatorUtilities.CreateInstance reproduce la activacion por tipo del host de Azure
+    // Functions isolated worker, para el que no existe un WebApplicationFactory (MEF-ADR-0029,
+    // Alt 1). Solo cubre la RESOLUCION del constructor, no el comportamiento de Run.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerFichaTurno_CuandoElContenedorEstaCompuesto()
     {
@@ -238,9 +228,6 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Hermano del de ObtenerFichaTurno de arriba, para el listado (CA-4). Mismo alcance: solo la
-    // RESOLUCION del constructor, no el orden estable por Nombre/Id ni la ausencia de filtros/
-    // paginacion (MEF-ADR-0042 seccion 1).
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarFichasTurno_CuandoElContenedorEstaCompuesto()
     {
@@ -252,20 +239,11 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #496, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6). Heredada de la guarda que #356/#461 dejaron para FichaColaborador/FichaSede, por
-    // el incidente real del issue #294: este Function App LEE FichaTurno (ObtenerFichaTurno,
-    // ListarFichasTurno) sin registrar la proyeccion, mientras el worker la MATERIALIZA en otro
-    // proceso sobre la misma tabla fisica.
-    //
-    // Sin la declaracion explicita del lado lectura (Schema.For<FichaTurno>().UseNumericRevisions),
-    // este store espera mt_version uuid sobre la tabla que el worker creo como bigint, Marten
-    // intenta "alter column" en CADA request y Postgres responde 42804: GET en 500 permanente con
-    // el daemon funcionando.
-    //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarProgramacion_MaterializaFichaTurnoConRevisionNumerica congela desde el worker, sin
-    // que ningun ensamblado referencie al otro (CA-ADR-0029).
+    // Mitad write-side del par 2 (MEF-ADR-0034 seccion 6): este Function App LEE FichaTurno sin
+    // registrar la proyeccion, mientras el worker la MATERIALIZA en otro proceso sobre la misma
+    // tabla. Sin Schema.For<FichaTurno>().UseNumericRevisions este store espera mt_version uuid
+    // sobre una tabla bigint y los GET quedan en 500 permanente. Oraculo literal espejo del que
+    // congela ConfiguracionMartenProjectionsTests, sin que un ensamblado referencie al otro.
     [Fact]
     public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaTurno()
     {
@@ -280,10 +258,10 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #496, segunda dimension del mismo par 2 (precedente #356/#461): tabla, tenancy e
-    // IdMember tienen que converger entre el worker que materializa y este Function App que
-    // consulta, o el GET responde 404 para siempre con el daemon funcionando. Ningun compilador lo
-    // garantiza -- son dos configuraciones de Marten independientes sobre el mismo schema.
+    // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
+    // worker que materializa y este Function App que consulta, o el GET responde 404 para siempre
+    // con el daemon funcionando. Son dos configuraciones de Marten independientes sobre el mismo
+    // schema: ningun compilador lo garantiza.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveFichaTurnoSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
