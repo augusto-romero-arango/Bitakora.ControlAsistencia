@@ -160,6 +160,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT -- dos o mas codigos de sede
     // distintos entre las fuentes de una franja dejan la decision al Aprobador (#483); la maquina
     // no elige por el, expone las candidatas y se abstiene de sede efectiva.
+    //
+    // Comentario cruzado obligatorio (MEF-ADR-0018, Rule of Three): esta politica se re-deriva por
+    // SEGUNDA vez, simplificada a un booleano, en
+    // Projections.ControlHoras.AsistenciaDiariaProjection.EsConflictoDeSedePendiente (issue #485). Si
+    // esta politica cambia aqui, cambia alla tambien.
     private static (SedeDeFranja? Efectiva, bool EnConflicto, IReadOnlyList<SedeDeFranja> Candidatas)
         DerivarSedeDeFranja(FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
     {

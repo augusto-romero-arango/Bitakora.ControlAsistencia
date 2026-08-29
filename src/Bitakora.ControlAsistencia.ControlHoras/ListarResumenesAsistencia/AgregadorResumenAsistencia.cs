@@ -67,10 +67,7 @@ public static class AgregadorResumenAsistencia
             documentos.Count(d => d.FranjasIncompletas),
             documentos.Count(d => d.VinoEnDescanso),
             documentos.Count(d => d.TrabajoSinProgramacion),
-            // STUB (fase roja, issue #485): el conteo real
-            // (documentos.Count(d => d.ConflictoDeSedePendiente)) lo escribe projection-implementer --
-            // projection-test-writer nunca escribe implementacion real.
-            0,
+            documentos.Count(d => d.ConflictoDeSedePendiente),
             documentos.Count(d => d.Estado == EstadoAsistencia.Aprobado),
             documentos.Count(d => d.Estado == EstadoAsistencia.Provisional),
             diasSinFila,

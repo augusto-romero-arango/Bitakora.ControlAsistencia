@@ -41,10 +41,7 @@ public static class SintesisCalendarioAsistencia
             documento.FranjasIncompletas,
             documento.VinoEnDescanso,
             documento.TrabajoSinProgramacion,
-            // STUB (fase roja, issue #485): la propagacion mecanica real
-            // (documento.ConflictoDeSedePendiente) la escribe projection-implementer --
-            // projection-test-writer nunca escribe implementacion real.
-            false,
+            documento.ConflictoDeSedePendiente,
             documento.HorasPorConcepto);
 
     // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
