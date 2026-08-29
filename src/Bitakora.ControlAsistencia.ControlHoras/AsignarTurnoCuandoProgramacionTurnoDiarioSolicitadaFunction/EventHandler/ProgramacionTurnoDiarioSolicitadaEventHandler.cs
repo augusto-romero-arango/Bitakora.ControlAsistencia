@@ -75,7 +75,7 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
             MapearSede(franja.Sede));
 
     private static SedeProgramada? MapearSede(DetalleSede? sede) =>
-        sede is null ? null : new SedeProgramada(sede.Id, sede.Nombre);
+        sede is null ? null : new SedeProgramada(sede.Id, sede.Nombre, sede.CentroDeCostos);
 
     private static SubFranjaProgramada MapearSubFranja(DetalleSubFranja sub) =>
         new(sub.HoraInicio, sub.HoraFin, sub.DiaOffsetInicio, sub.DiaOffsetFin, sub.Descripcion);
