@@ -235,7 +235,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private List<MarcacionDelDia> CrearMarcacionesCronologicas() =>
         _marcaciones
             .OrderBy(m => m.TimestampNormalizado)
-            .Select(m => new MarcacionDelDia(m.TimestampNormalizado, m.TipoMarcacion))
+            .Select(m => new MarcacionDelDia(
+                m.TimestampNormalizado,
+                m.TipoMarcacion,
+                m.CodigoSede,
+                m.NombreSede,
+                m.CentroDeCostos))
             .ToList();
 
     private static FranjaDepurada CrearFranjaDepurada(ControlFranja controlFranja) =>
@@ -245,7 +250,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             controlFranja.Programada.DiaOffsetFin,
             controlFranja.Entrada,
             controlFranja.Salida,
-            controlFranja.EsAnomala);
+            controlFranja.EsAnomala,
+            controlFranja.Programada.Sede?.Id,
+            controlFranja.Programada.Sede?.Nombre,
+            controlFranja.Programada.Sede?.CentroDeCostos);
 
     // Mapeo campo a campo entre dos islas: vive aqui porque el aggregate esta en el Function App, el
     // unico proyecto que ve las tres (CA-ADR-0029 decision #5). ColaboradorProgramado ya trae la

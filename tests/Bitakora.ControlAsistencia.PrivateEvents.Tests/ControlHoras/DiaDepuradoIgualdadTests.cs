@@ -1,6 +1,8 @@
 // Issue #424: DiaDepurado gana dos colecciones nuevas (Franjas, Marcaciones) -- el record por
 // defecto compararia por referencia (ADR-0015). Equals/GetHashCode propios comparan por valor
 // (SequenceEqual), precedente TurnoDiario/FranjaProgramada/HorasDiscriminadas.
+// Ese SequenceEqual delega en el Equals por valor de cada elemento: sumar campos a
+// FranjaDepurada/MarcacionDelDia NO exige extender este override.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
@@ -21,6 +23,12 @@ public class DiaDepuradoIgualdadTests : IgualdadTestBase<DiaDepurado>
 
     private static MarcacionDelDia Marcacion() =>
         new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA");
+
+    private static FranjaDepurada FranjaConSedeProgramada() =>
+        Franja() with { CodigoSedeProgramada = "001", NombreSedeProgramada = "Sede Principal", CentroDeCostosProgramado = "CC-100" };
+
+    private static MarcacionDelDia MarcacionConSede() =>
+        Marcacion() with { CodigoSede = "001", NombreSede = "Sede Principal", CentroDeCostos = "CC-100" };
 
     private static HorasDiscriminadas Horas() =>
         new(new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 7.00m }, ["nota"]);
@@ -48,6 +56,10 @@ public class DiaDepuradoIgualdadTests : IgualdadTestBase<DiaDepurado>
         yield return ("HorasDiscriminadas",
             new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [Marcacion()],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+        yield return ("Franjas (sede programada)",
+            new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [FranjaConSedeProgramada()], [Marcacion()], Horas()));
+        yield return ("Marcaciones (sede)",
+            new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [MarcacionConSede()], Horas()));
     }
 
     // Cobertura especifica del override: las colecciones se comparan por valor, no por referencia.

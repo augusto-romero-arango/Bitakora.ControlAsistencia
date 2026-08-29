@@ -48,8 +48,10 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         string streamId, DateTime timestampNormalizado, string? centroDeCostos = CentroDeCostos) =>
         new(streamId, timestampNormalizado, DispositivoId, CodigoSede, NombreSede, centroDeCostos);
 
-    // CA-1. Escenario sin turno asignado a proposito: mantiene el DiaDepurado esperado armado a
-    // mano, sin reproducir el calculo de Depurar/Consolidar en el oraculo.
+    // CA-1 (#463) + CA-3 (#464). Escenario sin turno asignado a proposito: mantiene el DiaDepurado
+    // esperado armado a mano, sin reproducir el calculo de Depurar/Consolidar en el oraculo.
+    // La MarcacionDelDia republicada transporta la sede recien estampada: codigo, nombre y centro de
+    // costos de SedeDeMarcacionResuelta -- no la sede programada, que viaja en la Franja (CA-1/CA-2).
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaSedeYRepublicaDiaDepurado_CuandoLaMarcacionYaExisteEnElControlDiario()
     {
@@ -69,7 +71,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             null,
             null,
             [],
-            [new MarcacionDelDia(TimestampFueraDeVentana, "ENTRADA")],
+            [new MarcacionDelDia(TimestampFueraDeVentana, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos)],
             new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
@@ -111,7 +113,8 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampDentroDeVentana).CodigoSede,
             CodigoSede);
 
-        var marcacionNocturna = new MarcacionDelDia(TimestampDentroDeVentana, "ENTRADA");
+        var marcacionNocturna =
+            new MarcacionDelDia(TimestampDentroDeVentana, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos);
         ThenIsPublishedPrivately(
             new DiaDepurado(
                 CodigoColaborador, new DateOnly(2026, 3, 15), null, null, [], [marcacionNocturna],

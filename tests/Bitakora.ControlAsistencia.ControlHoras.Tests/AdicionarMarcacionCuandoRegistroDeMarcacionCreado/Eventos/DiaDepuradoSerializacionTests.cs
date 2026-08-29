@@ -24,10 +24,11 @@ public class DiaDepuradoSerializacionTests
 
     private static readonly FranjaDepurada Franja = new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
-        new DateTime(2026, 3, 15, 7, 0, 0), new DateTime(2026, 3, 15, 15, 0, 0), false);
+        new DateTime(2026, 3, 15, 7, 0, 0), new DateTime(2026, 3, 15, 15, 0, 0), false,
+        "001", "Sede Principal", "CC-100");
 
     private static readonly MarcacionDelDia Marcacion =
-        new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA");
+        new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA", "001", "Sede Principal", "CC-100");
 
     // Payload con datos reales: varias claves de concepto y la clave literal "Retardo", ya en horas
     // liquidables (issue #424).

@@ -65,6 +65,16 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
     private static readonly DetalleFranjaOrdinaria Franja06_14Detalle =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
+    // Gemelo con sede de la franja anterior. Los literales de DetalleSede (bus entrante) y
+    // SedeProgramada (persistida) se mantienen separados a proposito: una permutacion de campos en
+    // el mapeo entre islas se delata aqui (mismo criterio que Colaborador/ColaboradorResumen).
+    private static readonly DetalleSede SedeDetalle = new("001", "Sede Principal", "CC-100");
+    private static readonly SedeProgramada SedeEsperada = new("001", "Sede Principal", "CC-100");
+    private static readonly DetalleFranjaOrdinaria Franja06_14ConSedeDetalle =
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "", SedeDetalle);
+    private static readonly FranjaProgramada Franja06_14ConSede =
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "", SedeEsperada);
+
     // Marcaciones que completan la franja (entrada+salida) -> franja NO anomala (CA-4).
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp15_00 = new(2026, 3, 15, 15, 0, 0);
@@ -197,6 +207,28 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 StreamId,
                 c => c.CrearDiaDepurado().Marcaciones,
                 []);
+        }
+
+        // La sede programada de la franja viaja plana a FranjaDepurada. Marcaciones que completan la
+        // franja (no anomala) para aislar el efecto de la sede del resto del payload.
+        [Fact]
+        public async Task CrearDiaDepurado_LlevaSedeProgramadaEnLaFranja_CuandoLaFranjaTraeSedeConCentroDeCostos()
+        {
+            Given(StreamId,
+                CrearMarcacionAdicionada(Timestamp07_00),
+                CrearMarcacionAdicionada(Timestamp15_00));
+
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14ConSedeDetalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14ConSede], "")));
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(
+                    new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                    Timestamp07_00, Timestamp15_00, false,
+                    "001", "Sede Principal", "CC-100")]);
         }
     }
 
