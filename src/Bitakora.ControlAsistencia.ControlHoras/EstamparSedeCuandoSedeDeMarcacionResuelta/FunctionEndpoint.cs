@@ -7,14 +7,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.EstamparSedeCuandoSedeDeMarcacionResuelta;
 
-// Issue #463: cierre del enriquecimiento coreografiado (MEF-ADR-0046). SedeDeMarcacionResuelta
-// cruza fisicamente el ASB interno del BC (topic "sede-de-marcacion-resuelta", creado por #467).
-// MEF-ADR-0024 decision #3 + #8: se despacha directo al IPrivateEventHandlerAsync via
-// IPrivateEventRouter (PrivateEventEndpointBase) -- sin comando espejo.
-// MEF-ADR-0006: [Function("{Accion}Cuando{Evento}")], feature folder sin sufijo Function para
-// triggers de ServiceBus.
-// La suscripcion nace session-enabled (fan-in dentro del topic, MEF-ADR-0026): el productor
-// (Sedes) publica con PublishOptions.GroupId = CodigoColaborador (#467).
+// IsSessionsEnabled va atado a la infra: la suscripcion se declara session-enabled en Terraform y
+// el productor (Sedes) publica con GroupId = CodigoColaborador. Las tres piezas van juntas -- sin
+// sesion, dos resoluciones del mismo colaborador escriben concurrentemente el mismo cd:
+// (MEF-ADR-0026); sin GroupId, el mensaje se dead-lettera en la suscripcion session-enabled.
 public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<FunctionEndpoint> logger)
     : PrivateEventEndpointBase<SedeDeMarcacionResuelta>(privateEventRouter, logger)
 {

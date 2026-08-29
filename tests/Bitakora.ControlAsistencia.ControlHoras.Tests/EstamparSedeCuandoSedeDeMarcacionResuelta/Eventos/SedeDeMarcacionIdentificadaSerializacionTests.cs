@@ -1,11 +1,6 @@
-// Issue #463: Test de serializacion roundtrip para SedeDeMarcacionIdentificada.
-// Requerido por regla 16: todo evento persistido en Marten debe sobrevivir Serialize -> Deserialize.
-// Mismo patron que MarcacionAdicionadaSerializacionTests (AdicionarMarcacionCuandoRegistroDeMarcacionCreado).
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
-using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.EstamparSedeCuandoSedeDeMarcacionResuelta.Eventos;
 
@@ -14,9 +9,8 @@ public class SedeDeMarcacionIdentificadaSerializacionTests
     private static readonly string StreamId = "cd:EMP-001:20260315";
     private static readonly DateTime Timestamp = new(2026, 3, 15, 8, 9, 0);
 
-    // Regla 16: usa CrearOpcionesMarten(), que debe registrar
-    // SedeDeMarcacionIdentificada.ConfigurarSerializacion en ConfiguracionSerializacionControlHoras
-    // .ConfigurarResolver -- responsabilidad del implementer.
+    // Round-trip con las opciones reales de Marten: el evento solo sobrevive si
+    // ConfiguracionSerializacionControlHoras.ConfigurarResolver lo registra (ctor privado).
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
     {
@@ -36,7 +30,6 @@ public class SedeDeMarcacionIdentificadaSerializacionTests
         deserializado.CentroDeCostos.Should().Be("CC-100");
     }
 
-    // Verifica que el campo opcional CentroDeCostos nulo se preserva correctamente en el roundtrip
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoCentroDeCostosEsNulo()
     {

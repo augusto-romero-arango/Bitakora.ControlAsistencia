@@ -1,8 +1,3 @@
-// Issue #463: Tests del FunctionEndpoint del ServiceBus trigger
-// EstamparSedeCuandoSedeDeMarcacionResuelta. Verifica orquestacion: deserializacion + despacho al
-// private event router + manejo de errores de Service Bus (mismo patron que
-// AdicionarMarcacionCuandoRegistroDeMarcacionCreado/FunctionEndpointTests).
-
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
 using Bitakora.ControlAsistencia.ControlHoras.EstamparSedeCuandoSedeDeMarcacionResuelta;
@@ -30,7 +25,6 @@ public class FunctionEndpointTests
     private static ServiceBusReceivedMessage CrearMensaje()
         => ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString(JsonFormatoWolverine));
 
-    // CA-1: camino feliz - deserializa el JSON, despacha al private event router, completa el mensaje
     [Fact]
     public async Task EstamparSedeCuandoSedeDeMarcacionResuelta_CompletaMensaje_CuandoProcesamientoEsExitoso()
     {
@@ -45,8 +39,8 @@ public class FunctionEndpointTests
         messageActions.MensajeEnDeadLetter.Should().BeFalse();
     }
 
-    // Lock perdido al intentar completar -> log warning, NO dead-letter (regresion del issue #48,
-    // mismo patron que AsignarTurno/AdicionarMarcacion). Service Bus re-entregara el mensaje.
+    // Regresion #48: con el lock perdido no se puede dead-letter -- solo warning; Service Bus
+    // re-entrega el mensaje.
     [Fact]
     public async Task EstamparSedeCuandoSedeDeMarcacionResuelta_LogueaWarning_CuandoSePierdeLockAlCompletar()
     {
@@ -64,10 +58,8 @@ public class FunctionEndpointTests
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // CA-3: error generico durante el procesamiento (p.ej. ControlDiario/marcacion aun no existe) ->
-    // dead-letter el mensaje para inspeccion. El retry real del Service Bus (abandon/redelivery, no
-    // dead-letter inmediato) es responsabilidad de la politica de reintentos de la suscripcion
-    // (infra), no de este endpoint -- aqui solo se verifica el camino de error generico existente.
+    // CA-3: el retry por reentrega lo gobierna max_delivery_count de la suscripcion, no este
+    // endpoint; aqui solo se fija que un error del handler no se traga en silencio.
     [Fact]
     public async Task EstamparSedeCuandoSedeDeMarcacionResuelta_EnviaADeadLetter_CuandoOcurreErrorGenerico()
     {
@@ -83,8 +75,6 @@ public class FunctionEndpointTests
         messageActions.MensajeCompletado.Should().BeFalse();
     }
 }
-
-// ---- Fakes manuales - NO NSubstitute ----
 
 internal class FakePrivateEventRouter : IPrivateEventRouter
 {

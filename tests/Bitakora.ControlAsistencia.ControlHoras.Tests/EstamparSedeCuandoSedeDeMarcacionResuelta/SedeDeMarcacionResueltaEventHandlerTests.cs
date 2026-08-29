@@ -1,10 +1,3 @@
-// Issue #463: cierre del enriquecimiento coreografiado (MEF-ADR-0046). Sedes resolvio
-// dispositivo->sede->CC y lo publico como SedeDeMarcacionResuelta (#467); este handler graba el
-// estampado en el ControlDiario (SedeDeMarcacionIdentificada) y re-publica DiaDepurado si hubo
-// cambios -- mismo patron crear-o-actualizar / huboCambios que RegistroDeMarcacionCreadoEventHandler
-// (AdicionarMarcacionCuandoRegistroDeMarcacionCreado), pero este handler solo ACTUALIZA: nunca crea
-// un ControlDiario nuevo (CA-3).
-
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.EstamparSedeCuandoSedeDeMarcacionResuelta.EventHandler;
@@ -55,10 +48,8 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         string streamId, DateTime timestampNormalizado, string? centroDeCostos = CentroDeCostos) =>
         new(streamId, timestampNormalizado, DispositivoId, CodigoSede, NombreSede, centroDeCostos);
 
-    // CA-1: la marcacion ya existe en el cd: destino -> se persiste SedeDeMarcacionIdentificada con
-    // el estampado tal cual llego y se re-publica DiaDepurado. Escenario sin turno asignado (mismo
-    // que RegistroDeMarcacionCreado_DejaControlesDeFranjaVacios_CuandoNoHayTurnoPrevio): mantiene el
-    // DiaDepurado esperado armado a mano, sin ejecutar Depurar/Consolidar (regla 20).
+    // CA-1. Escenario sin turno asignado a proposito: mantiene el DiaDepurado esperado armado a
+    // mano, sin reproducir el calculo de Depurar/Consolidar en el oraculo.
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaSedeYRepublicaDiaDepurado_CuandoLaMarcacionYaExisteEnElControlDiario()
     {
@@ -82,7 +73,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
-    // CA-1: el estampado viaja tal cual llego, incluido el caso sin centro de costos asignado.
+    // CA-1: el estampado viaja tal cual llego, incluido el caso sin centro de costos.
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaSedeSinCentroDeCostos_CuandoLaSedeNoTieneCentroDeCostosAsignado()
     {
@@ -98,8 +89,8 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             null);
     }
 
-    // CA-2: traslape nocturno heredado -- mismos dias-destino que la marcacion (HoraCorteTraslapeNocturno
-    // del handler vecino): [00:00, 04:00) estampa en el cd: del dia calendario Y el del dia anterior.
+    // CA-2: traslape nocturno -- mismos dias-destino que la marcacion; en [00:00, 04:00) el
+    // estampado va al cd: del dia calendario Y al del dia anterior.
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaEnAmbosControlDiariosYRepublicaAmbosDiaDepurado_CuandoLaMarcacionEstaEnVentanaNocturna()
     {
@@ -130,8 +121,8 @@ public class SedeDeMarcacionResueltaEventHandlerTests
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
-    // CA-3 (problema de orden, carrera A): el ControlDiario destino no existe todavia -- el handler
-    // falla y el retry del Service Bus lo resuelve segundos despues. Sin crear stream vacio.
+    // CA-3 (carrera de orden): el ControlDiario destino no existe todavia -- fallar es deliberado,
+    // el retry del bus lo resuelve; crear un stream vacio inventaria estado.
     [Fact]
     public async Task SedeDeMarcacionResuelta_LanzaInvalidOperationException_CuandoElControlDiarioNoExiste()
     {
@@ -145,8 +136,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         ThenIsPublishedPrivately();
     }
 
-    // CA-3 (problema de orden, carrera A): el ControlDiario existe pero la marcacion especifica
-    // (TimestampNormalizado+DispositivoId) aun no fue adicionada -- misma carrera, mismo retry.
+    // CA-3, segunda precondicion: el ControlDiario existe pero la marcacion aun no fue adicionada.
     [Fact]
     public async Task SedeDeMarcacionResuelta_LanzaInvalidOperationException_CuandoLaMarcacionAunNoFueAdicionada()
     {
@@ -160,11 +150,32 @@ public class SedeDeMarcacionResueltaEventHandlerTests
 
         Then(StreamIdDia15);
         ThenIsPublishedPrivately();
+        And<ControlDiarioAggregateRoot, string?>(
+            StreamIdDia15,
+            c => c.Marcaciones.Single().CodigoSede,
+            null);
     }
 
-    // CA-4: estampado repetido de la misma sede para la misma marcacion -> no-op. El aggregate
-    // decide el no-op consultando su propio estado (Tell-don't-Ask, MEF-ADR-0012); el handler no
-    // inspecciona Marcaciones para esta decision.
+    // Contracara de CA-4: el no-op exige que el estampado sea identico en los tres campos. Una
+    // re-resolucion que cambia NombreSede o CentroDeCostos bajo el mismo CodigoSede si es un hecho
+    // nuevo -- sin este test, reducir la comparacion a CodigoSede pasaria en verde.
+    [Fact]
+    public async Task SedeDeMarcacionResuelta_VuelveAEstampar_CuandoElEstampadoPrevioDifiereEnCentroDeCostos()
+    {
+        Given(StreamIdDia15,
+            CrearMarcacionAdicionada(StreamIdDia15, TimestampFueraDeVentana),
+            CrearSedeDeMarcacionIdentificada(StreamIdDia15, TimestampFueraDeVentana, centroDeCostos: "CC-999"));
+
+        await WhenAsync(CrearSedeDeMarcacionResuelta(TimestampFueraDeVentana));
+
+        Then(StreamIdDia15, CrearSedeDeMarcacionIdentificada(StreamIdDia15, TimestampFueraDeVentana));
+        And<ControlDiarioAggregateRoot, string?>(
+            StreamIdDia15,
+            c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampFueraDeVentana).CentroDeCostos,
+            CentroDeCostos);
+    }
+
+    // CA-4: estampado repetido identico -> no-op, sin evento nuevo ni re-publicacion.
     [Fact]
     public async Task SedeDeMarcacionResuelta_NoEmiteEventoNiRepublica_CuandoLaMismaSedeYaFueEstampada()
     {

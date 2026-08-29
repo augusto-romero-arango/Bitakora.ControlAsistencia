@@ -3,20 +3,17 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// Issue #463: cierre del enriquecimiento coreografiado (MEF-ADR-0046) -- ControlHoras persiste el
-// estampado de sede que Sedes resolvio y publico como SedeDeMarcacionResuelta (#467). Se persiste
-// en el stream de ControlDiarioAggregateRoot (Id = stream ID compuesto), no cruza el bus.
-// ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus. Nombre
-// deliberadamente distinto de SedeDeMarcacionResuelta (PrivateEvents.Sedes): el Function App
-// referencia ambos ensamblados y nombres simples distintos evitan un using equivocado silencioso
-// (mismo criterio del par MarcacionRegistrada/RegistroDeMarcacionCreado, #270).
+// Evento de event sourcing persistido en el stream de ControlDiarioAggregateRoot; no cruza el bus,
+// sin marker (MEF-ADR-0024). El nombre simple difiere a proposito del evento de bus que lo origina
+// (SedeDeMarcacionResuelta, PrivateEvents.Sedes): el Function App ve ambos ensamblados y dos
+// homonimos harian que un using equivocado compile y resuelva mal en silencio (MEF-ADR-0039 #6).
 public sealed class SedeDeMarcacionIdentificada
 {
     // Id es el stream key del ControlDiario, tal como lo computa ControlDiarioAggregateRoot.ComputarStreamId.
     public string Id { get; private set; } = null!;
 
-    // TimestampNormalizado + DispositivoId correlacionan con la marcacion ya adicionada al dia
-    // (MarcacionAdicionada ya guarda ambos campos).
+    // Correlacion con la marcacion ya adicionada al dia: la marcacion no tiene id propio, y este par
+    // es lo unico que MarcacionAdicionada tambien guarda.
     public DateTime TimestampNormalizado { get; private set; }
     public string? DispositivoId { get; private set; }
 
@@ -44,8 +41,8 @@ public sealed class SedeDeMarcacionIdentificada
     // Constructor privado para Marten/serializacion
     private SedeDeMarcacionIdentificada() { }
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver MEF-ADR-0012 y SedeDeMarcacionIdentificadaSerializacionTests.
+    // Deserializacion con ctor privado y propiedades private set: STJ no lo resuelve solo y Marten no
+    // respeta [JsonConstructor] en ctores privados (MEF-ADR-0012).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(SedeDeMarcacionIdentificada)
