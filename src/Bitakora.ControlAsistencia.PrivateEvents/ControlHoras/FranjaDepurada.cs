@@ -4,10 +4,9 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 // plan + realidad. Deliberadamente sin descripcion y sin descansos/extras internos: esos ultimos ya
 // vienen digeridos en HorasDiscriminadas y duplicarlos aqui daria dos fuentes de verdad.
 //
-// Issue #464: la sede PROGRAMADA (plan) viaja plana desde ControlFranja.Programada.Sede -- null
-// cuando la franja no trae sede asignada (mismo criterio aditivo que FranjaProgramada.Sede, #336).
-// Este issue solo transporta; el conflicto contra la sede marcada lo detecta y resuelve el
-// expediente (#482), nunca ControlDiario.
+// La sede que viaja aqui es la PROGRAMADA (el plan), plana y null cuando la franja no trae sede.
+// ControlDiario solo la transporta: confrontarla contra la sede marcada de cada MarcacionDelDia es
+// un juicio que pertenece al expediente (#482), nunca a este payload.
 //
 // Solo primitivos: sumar un campo con coleccion obligaria a escribir Equals/GetHashCode a mano
 // (MEF-ADR-0012, nota sobre equality).

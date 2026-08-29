@@ -2,8 +2,6 @@
 // por defecto ya es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012). Este test
 // congela esa premisa: si el record gana una coleccion, la compararia por referencia y el test rojo
 // lo delata.
-//
-// Issue #464 (CA-6): suma los tres campos planos de sede programada a la matriz de diferencias.
 
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 

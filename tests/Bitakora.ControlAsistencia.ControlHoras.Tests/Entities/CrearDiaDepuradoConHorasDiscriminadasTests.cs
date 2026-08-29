@@ -65,10 +65,9 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
     private static readonly DetalleFranjaOrdinaria Franja06_14Detalle =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
 
-    // Issue #464 (CA-1/CA-2): gemelo de la franja anterior, pero con sede programada -- DetalleSede
-    // (bus, PrivateEvents.Programacion) se mapea a SedeProgramada (ControlHoras.DomainEvents) por
-    // ProgramacionTurnoDiarioSolicitadaEventHandler, que ya lo hace hoy (issue #341). Lo que este
-    // issue transporta es el paso siguiente: de ControlFranja.Programada.Sede a FranjaDepurada.
+    // Gemelo con sede de la franja anterior. Los literales de DetalleSede (bus entrante) y
+    // SedeProgramada (persistida) se mantienen separados a proposito: una permutacion de campos en
+    // el mapeo entre islas se delata aqui (mismo criterio que Colaborador/ColaboradorResumen).
     private static readonly DetalleSede SedeDetalle = new("001", "Sede Principal", "CC-100");
     private static readonly SedeProgramada SedeEsperada = new("001", "Sede Principal", "CC-100");
     private static readonly DetalleFranjaOrdinaria Franja06_14ConSedeDetalle =
@@ -210,9 +209,8 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 []);
         }
 
-        // Issue #464 CA-1: la franja programada trae sede (con centro de costos) -> FranjaDepurada
-        // debe llevar los tres campos planos de sede programada. Marcaciones completan la franja
-        // (no anomala) para aislar el efecto de la sede del resto del payload.
+        // La sede programada de la franja viaja plana a FranjaDepurada. Marcaciones que completan la
+        // franja (no anomala) para aislar el efecto de la sede del resto del payload.
         [Fact]
         public async Task CrearDiaDepurado_LlevaSedeProgramadaEnLaFranja_CuandoLaFranjaTraeSedeConCentroDeCostos()
         {
@@ -231,29 +229,6 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                     new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
                     Timestamp07_00, Timestamp15_00, false,
                     "001", "Sede Principal", "CC-100")]);
-        }
-
-        // Issue #464 CA-2: sin sede programada, los tres campos viajan null y el resto del payload
-        // (horas, entrada/salida, anomalia) es identico al de una franja sin sede -- mismo escenario
-        // que CrearDiaDepurado_LlevaHorasYTrazabilidadReales_CuandoFranjaNoEsAnomala, aqui explicito
-        // sobre la Franja completa para dejar constancia del CA.
-        [Fact]
-        public async Task CrearDiaDepurado_LlevaCamposDeSedeProgramadaEnNull_CuandoLaFranjaNoTraeSede()
-        {
-            Given(StreamId,
-                CrearMarcacionAdicionada(Timestamp07_00),
-                CrearMarcacionAdicionada(Timestamp15_00));
-
-            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14Detalle], "")));
-
-            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")));
-
-            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
-                StreamId,
-                c => c.CrearDiaDepurado().Franjas,
-                [new FranjaDepurada(
-                    new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
-                    Timestamp07_00, Timestamp15_00, false)]);
         }
     }
 
@@ -288,21 +263,6 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 StreamId,
                 c => c.CrearDiaDepurado().NombreTurno,
                 null);
-
-            And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
-                StreamId,
-                c => c.CrearDiaDepurado().Marcaciones,
-                [new MarcacionDelDia(Timestamp07_00, "ENTRADA")]);
-        }
-
-        // Issue #464 CA-4: marcacion cruda, sin estampado de sede (SedeDeMarcacionIdentificada nunca
-        // llego) y sin turno -- los tres campos de sede viajan null y el flujo actual no se altera.
-        [Fact]
-        public async Task CrearDiaDepurado_LlevaCamposDeSedeEnNull_CuandoLaMarcacionNoFueEstampada()
-        {
-            await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
-
-            Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));
 
             And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
                 StreamId,

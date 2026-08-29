@@ -17,9 +17,6 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 ///
 /// Issue #424: el payload se enriquece con NombreTurno, Franjas y Marcaciones; HorasDiscriminadas
 /// habla horas liquidables (decimal), no minutos.
-///
-/// Issue #464 (CA-5): Franja/Marcacion llevan ademas los seis campos planos de sede (programada y
-/// marcada) -- portables por ser primitivos, mismo criterio del resto del payload.
 /// </summary>
 public class DiaDepuradoTests
 {

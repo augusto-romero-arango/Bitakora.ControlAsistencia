@@ -1,8 +1,6 @@
 // Issue #424: todos los campos de MarcacionDelDia son primitivos -- la igualdad por valor del record
 // por defecto ya es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012). Este test
 // congela esa premisa.
-//
-// Issue #464 (CA-6): suma los tres campos planos de sede marcada a la matriz de diferencias.
 
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 

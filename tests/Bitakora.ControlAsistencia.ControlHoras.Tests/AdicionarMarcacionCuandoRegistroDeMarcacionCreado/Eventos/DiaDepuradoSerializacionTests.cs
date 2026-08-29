@@ -6,9 +6,6 @@
 // La asercion es deliberadamente la OPUESTA a la del test legado, que afirmaba que la
 // deserializacion FALLABA sin resolver custom (Retardo tenia ctor privado): si alguien reintroduce
 // un tipo rico al payload, este test se pone rojo.
-//
-// Issue #464 (CA-5): Franja/Marcacion llevan datos de sede (programada y marcada) para que el
-// round-trip cubra tambien esos seis campos planos nuevos.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
