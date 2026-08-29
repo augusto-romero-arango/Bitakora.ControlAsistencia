@@ -27,6 +27,7 @@ public class SintesisCalendarioAsistenciaTests
         bool franjasIncompletas = false,
         bool vinoEnDescanso = false,
         bool trabajoSinProgramacion = false,
+        bool conflictoDeSedePendiente = false,
         IReadOnlyDictionary<string, decimal>? horasPorConcepto = null) =>
         new(
             DiaCalculadoAggregateRoot.ComputarStreamId(CodigoColaborador, fecha),
@@ -39,6 +40,7 @@ public class SintesisCalendarioAsistenciaTests
             franjasIncompletas,
             vinoEnDescanso,
             trabajoSinProgramacion,
+            conflictoDeSedePendiente,
             horasPorConcepto ?? new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
 
     [Fact]
@@ -136,5 +138,28 @@ public class SintesisCalendarioAsistenciaTests
 
         filas.Should().HaveCount(2);
         filas.Should().OnlyContain(f => f.Estado == EstadoAsistenciaPresentado.SinDatos);
+    }
+
+    // CA-5 (issue #485): ConflictoDeSedePendiente se propaga del documento a la fila.
+    [Fact]
+    public void Completar_PropagaConflictoDeSedePendiente_CuandoElDocumentoLoTraeEnTrue()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+        var documento = DocumentoDePrueba(fecha, conflictoDeSedePendiente: true);
+
+        var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, [documento]);
+
+        filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().BeTrue();
+    }
+
+    // CA-5: la fila sintetica de un dia sin documento lleva la bandera en false.
+    [Fact]
+    public void Completar_DejaConflictoDeSedePendienteEnFalse_EnLaFilaSinteticaSinDocumento()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+
+        var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, []);
+
+        filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().BeFalse();
     }
 }

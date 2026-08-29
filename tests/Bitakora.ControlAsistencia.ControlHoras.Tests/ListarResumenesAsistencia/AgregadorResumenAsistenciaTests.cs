@@ -24,6 +24,7 @@ public class AgregadorResumenAsistenciaTests
         bool franjasIncompletas = false,
         bool vinoEnDescanso = false,
         bool trabajoSinProgramacion = false,
+        bool conflictoDeSedePendiente = false,
         IReadOnlyDictionary<string, decimal>? horasPorConcepto = null) =>
         new(
             DiaCalculadoAggregateRoot.ComputarStreamId(codigoColaborador, fecha),
@@ -36,6 +37,7 @@ public class AgregadorResumenAsistenciaTests
             franjasIncompletas,
             vinoEnDescanso,
             trabajoSinProgramacion,
+            conflictoDeSedePendiente,
             horasPorConcepto ?? new Dictionary<string, decimal>());
 
     [Fact]
@@ -228,5 +230,36 @@ public class AgregadorResumenAsistenciaTests
 
         filas.Should().ContainSingle().Which.TotalHorasPorConcepto.Should().BeEquivalentTo(
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 12.00m });
+    }
+
+    // CA-6 (issue #485): el contador ConflictoDeSedePendiente cuenta los dias del rango con la
+    // bandera -- los dias sin fila no aportan (mismo trato que las demas anomalias).
+    [Fact]
+    public void Agregar_CuentaLosDiasConConflictoDeSedePendiente_CuandoAlgunDocumentoLoTraeEnTrue()
+    {
+        const string codigo = "EMP-001";
+        var dia1 = new DateOnly(2026, 8, 1);
+        var dia2 = new DateOnly(2026, 8, 2);
+        var documentos = new[]
+        {
+            DocumentoDePrueba(codigo, dia1, conflictoDeSedePendiente: true),
+            DocumentoDePrueba(codigo, dia2),
+        };
+
+        var filas = AgregadorResumenAsistencia.Agregar(dia1, dia2, null, documentos);
+
+        filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().Be(1);
+    }
+
+    [Fact]
+    public void Agregar_ReportaCeroConflictosDeSedePendientes_CuandoNingunDocumentoLoTrae()
+    {
+        const string codigo = "EMP-001";
+        var dia1 = new DateOnly(2026, 8, 1);
+        var documentos = new[] { DocumentoDePrueba(codigo, dia1) };
+
+        var filas = AgregadorResumenAsistencia.Agregar(dia1, dia1, null, documentos);
+
+        filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().Be(0);
     }
 }

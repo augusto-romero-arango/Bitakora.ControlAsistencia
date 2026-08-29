@@ -41,16 +41,22 @@ public static class SintesisCalendarioAsistencia
             documento.FranjasIncompletas,
             documento.VinoEnDescanso,
             documento.TrabajoSinProgramacion,
+            // STUB (fase roja, issue #485): la propagacion mecanica real
+            // (documento.ConflictoDeSedePendiente) la escribe projection-implementer --
+            // projection-test-writer nunca escribe implementacion real.
+            false,
             documento.HorasPorConcepto);
 
     // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
-    // cuatro banderas van en false -- el vacio se avala, no se aprueba.
+    // cinco banderas van en false -- el vacio se avala, no se aprueba. ConflictoDeSedePendiente
+    // (CA-5, issue #485): un dia sin documento nunca esta en conflicto pendiente.
     private static FilaAsistenciaDiaria FilaSintetica(DateOnly fecha) =>
         new(
             fecha,
             EstadoAsistenciaPresentado.SinDatos,
             PlanDelDia.SinProgramar,
             null,
+            false,
             false,
             false,
             false,

@@ -155,7 +155,7 @@ public class AsistenciaDiariaProjectionTests
         var vistaPrevia = new AsistenciaDiaria(
             StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
             "Turno Manana", NoSePresento: false, FranjasIncompletas: true, VinoEnDescanso: false,
-            TrabajoSinProgramacion: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
             HorasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 4.00m });
 
         // Segunda foto: la anomalia de la franja se corrigio y ahora la jornada quedo completa.
@@ -176,5 +176,95 @@ public class AsistenciaDiariaProjectionTests
         vista.TrabajoSinProgramacion.Should().BeFalse();
         vista.HorasPorConcepto.Should().BeEquivalentTo(
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+    }
+
+    // CA-1..CA-4 (issue #485): ConflictoDeSedePendiente, quinta bandera. Espejo simplificado de los
+    // CAs de #482 -- misma regla de pertenencia (Timestamp == Entrada o Salida) que
+    // DiaCalculadoAggregateRoot.DerivarSedeDeFranja, MEF-ADR-0018.
+
+    [Fact]
+    public void Create_MarcaConflictoDeSedePendiente_CuandoSedeProgramadaYSedeMarcadaDifierenEnUnaFranja()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var marcacion = new EventoMarcacionDelDia(entrada, "ENTRADA", CodigoSede: "SEDE-Y");
+        var evento = CrearEvento("Turno Manana", [franja], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoSoloHayUnaFuenteDeSedeEnLaFranja()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var marcacion = new EventoMarcacionDelDia(entrada, "ENTRADA");
+        var evento = CrearEvento("Turno Manana", [franja], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // Espejo del CA-5 de #482: la misma sede con CC distinto entre fuentes NO es conflicto.
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoLaSedeCoincideYSoloElCentroDeCostosDifiereEntreFuentes()
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X", CentroDeCostosProgramado: "CC-1");
+        var marcacion = new EventoMarcacionDelDia(
+            entrada, "ENTRADA", CodigoSede: "SEDE-X", CentroDeCostos: "CC-2");
+        var evento = CrearEvento("Turno Manana", [franja], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-3: foto pre-#484 -- franjas y marcaciones sin campos de sede (FranjaValida/MarcacionDePrueba
+    // ya los dejan en null por defecto) -- nunca conflicto falso.
+    [Fact]
+    public void Create_DejaConflictoDeSedePendienteEnFalse_CuandoFranjasYMarcacionesNoTraenCamposDeSede()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+    }
+
+    // CA-4: "el ultimo gana" -- espejo del CA-6 de #482.
+    [Fact]
+    public void Apply_ApagaConflictoDeSedePendiente_CuandoLaFotoNuevaYaNoTraeLaDiscrepanciaDeSede()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", NoSePresento: false, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: true,
+            HorasPorConcepto: new Dictionary<string, decimal>());
+
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franjaSinDiscrepancia = new EventoFranjaDepurada(
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, EsAnomala: false,
+            CodigoSedeProgramada: "SEDE-X");
+        var marcacion = new EventoMarcacionDelDia(entrada, "ENTRADA", CodigoSede: "SEDE-X");
+        var segundoEvento = CrearEvento(
+            "Turno Manana", [franjaSinDiscrepancia], [marcacion], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(segundoEvento, vistaPrevia);
+
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
     }
 }

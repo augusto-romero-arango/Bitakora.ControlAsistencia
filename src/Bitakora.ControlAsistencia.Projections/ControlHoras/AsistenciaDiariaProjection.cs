@@ -37,6 +37,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             FranjasIncompletas: EsFranjasIncompletas(plan, evento.Franjas),
             VinoEnDescanso: EsVinoEnDescanso(plan, evento.Marcaciones),
             TrabajoSinProgramacion: EsTrabajoSinProgramacion(plan, evento.Marcaciones),
+            ConflictoDeSedePendiente: EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             evento.HorasDiscriminadas.HorasPorConcepto);
     }
 
@@ -55,6 +56,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             FranjasIncompletas = EsFranjasIncompletas(plan, evento.Franjas),
             VinoEnDescanso = EsVinoEnDescanso(plan, evento.Marcaciones),
             TrabajoSinProgramacion = EsTrabajoSinProgramacion(plan, evento.Marcaciones),
+            ConflictoDeSedePendiente = EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             HorasPorConcepto = evento.HorasDiscriminadas.HorasPorConcepto
         };
     }
@@ -78,4 +80,16 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
 
     private static bool EsTrabajoSinProgramacion(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.SinProgramar && marcaciones.Count > 0;
+
+    // STUB deliberado (fase roja, issue #485): projection-test-writer nunca escribe implementacion
+    // real. La derivacion definitiva es la SEGUNDA aparicion de la politica ya escrita en
+    // DiaCalculadoAggregateRoot.DerivarSedeDeFranja (MEF-ADR-0018, Rule of Three) -- comentario
+    // cruzado obligatorio, si la politica cambia alla, cambia aqui tambien: una marcacion pertenece a
+    // una franja si su Timestamp coincide EXACTAMENTE con Entrada o Salida; candidatas de una franja =
+    // CodigoSedeProgramada (si no es null) + CodigoSede de sus marcaciones asociadas (si no es null);
+    // conflicto = 2+ codigos DISTINTOS entre esas candidatas. projection-implementer reemplaza este
+    // valor fijo por esa derivacion.
+    private static bool EsConflictoDeSedePendiente(
+        IReadOnlyList<EventoFranjaDepurada> franjas, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
+        false;
 }

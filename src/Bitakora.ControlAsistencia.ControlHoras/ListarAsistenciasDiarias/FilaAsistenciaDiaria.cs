@@ -16,4 +16,5 @@ public sealed record FilaAsistenciaDiaria(
     bool FranjasIncompletas,
     bool VinoEnDescanso,
     bool TrabajoSinProgramacion,
+    bool ConflictoDeSedePendiente,
     IReadOnlyDictionary<string, decimal> HorasPorConcepto);
