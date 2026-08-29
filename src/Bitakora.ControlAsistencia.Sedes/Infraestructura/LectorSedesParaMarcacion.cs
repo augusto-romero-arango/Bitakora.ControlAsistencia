@@ -5,11 +5,11 @@ using Marten;
 
 namespace Bitakora.ControlAsistencia.Sedes.Infraestructura;
 
-// Issue #467: implementacion real de ILectorSedesParaMarcacion -- los dos lookups de solo lectura
-// de MEF-ADR-0046 paso 2, sobre el mismo read-side y la misma QuerySession acotada a tenant que
-// ObtenerFichaSede/ListarFichasSede (MEF-ADR-0028/CA-ADR-0027). UbicacionDispositivo.SedeId ya
-// guarda el stream key completo de la sede ("s:{codigo}") -- se carga directo por Id, sin partir ni
-// recomponer strings (MEF-ADR-0037/CA-ADR-0031).
+// Los dos lookups de solo lectura de la reaccion (MEF-ADR-0046 paso 2), sobre el read-side propio
+// de Sedes. La QuerySession se abre siempre acotada al tenant que resuelve ITenantResolver
+// (MEF-ADR-0028/CA-ADR-0027). UbicacionDispositivo.SedeId ya es el stream key completo de la sede
+// ("s:{codigo}"): se carga por Id directo, nunca partiendo ni recomponiendo ese string
+// (MEF-ADR-0037/CA-ADR-0031).
 public class LectorSedesParaMarcacion(IDocumentStore store, ITenantResolver tenantResolver)
     : ILectorSedesParaMarcacion
 {

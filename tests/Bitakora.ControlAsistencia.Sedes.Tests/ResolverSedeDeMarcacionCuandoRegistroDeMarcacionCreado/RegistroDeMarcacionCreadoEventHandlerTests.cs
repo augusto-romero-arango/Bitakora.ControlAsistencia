@@ -1,10 +1,7 @@
-// Issue #467: tests de la reaccion del dueno del dato (MEF-ADR-0046) que resuelve la sede de una
-// marcacion. La reaccion no persiste eventos -- consulta el read-side propio (dos lookups) y
-// publica; no hay aggregate involucrado (Notas tecnicas del issue). Por eso estos tests NO usan
-// Then()/And<>() del harness (que verifican el stream de un AggregateRoot vs EventStore): en su
-// lugar, ThenIsPublishedPrivately() verifica la publicacion y las llamadas al fake
-// ILectorSedesParaMarcacion + el fake ILogger verifican el resto del comportamiento observable
-// (cortocircuito antes de tocar el read model, warning logueado o no).
+// La reaccion no persiste eventos ni tiene aggregate: consulta el read-side propio y publica. Por
+// eso estos tests no usan Then()/And<>() del harness, que reconstruyen un AggregateRoot desde el
+// TestStore y aqui lanzarian: el efecto observable se verifica con ThenIsPublishedPrivately() mas
+// los fakes manuales (warning logueado o no, y si el segundo lookup llego a ocurrir).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
@@ -46,8 +43,8 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     private static SedeDeMarcacionResuelta CrearEventoEsperado(string? centroDeCostos = CentroDeCostos) =>
         new(CodigoColaborador, TimestampNormalizado, DispositivoId, CodigoSede, NombreSede, centroDeCostos);
 
-    // CA-1: dispositivo ubicado, sede activa con CC -> publica con la terna de correlacion tal cual
-    // llego y el estampado vigente de FichaSede, con groupId = CodigoColaborador (fan-in, #463).
+    // El groupId es el CodigoColaborador: las resoluciones de un mismo colaborador convergen al
+    // mismo stream en el consumidor (fan-in con queue de sesion, MEF-ADR-0026).
     [Fact]
     public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_PublicaSedeDeMarcacionResuelta_CuandoDispositivoTieneUbicacionYFichaVigente()
     {
@@ -61,8 +58,8 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         _logger.WarningLogueado.Should().BeFalse();
     }
 
-    // CA-2: la sede resuelta esta inactiva -> se publica igual (Activa es filtro de asignabilidad
-    // para pantallas, no del enriquecimiento -- el estampado registra donde OCURRIO el hecho).
+    // Activa es filtro de asignabilidad para pantallas, no del enriquecimiento: el estampado
+    // registra donde OCURRIO el hecho.
     [Fact]
     public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_PublicaSedeDeMarcacionResuelta_CuandoLaSedeResueltaEstaInactiva()
     {
@@ -76,7 +73,6 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
             CrearEventoEsperado());
     }
 
-    // CA-3: la sede resuelta no tiene centro de costos asignado -> se publica con CentroDeCostos null.
     [Fact]
     public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_PublicaConCentroDeCostosNulo_CuandoLaSedeResueltaNoTieneCentroDeCostos()
     {
@@ -90,8 +86,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
             CrearEventoEsperado(centroDeCostos: null));
     }
 
-    // CA-4: DispositivoId null -> silencio total (dato ausente legitimo, no anomalia): no se
-    // publica nada, no se loguea warning, y ni siquiera se consulta el read model.
+    // Dato ausente legitimo, no anomalia: ni publicacion, ni warning, ni consulta al read model.
     [Fact]
     public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_NoPublicaNiLoguea_CuandoDispositivoIdEsNulo()
     {
@@ -103,8 +98,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         _lector.LlamadasABuscarFichaSede.Should().Be(0);
     }
 
-    // CA-5 (rama 1): DispositivoId presente pero sin UbicacionDispositivo -> maestro incompleto:
-    // no publica, loguea warning, y nunca llega a buscar la FichaSede (cortocircuito).
+    // Maestro incompleto: warning sin publicacion, y sin llegar a buscar la FichaSede.
     [Fact]
     public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_NoPublicaYLogueaWarning_CuandoNoExisteUbicacionDelDispositivo()
     {
@@ -117,8 +111,27 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
         _lector.LlamadasABuscarFichaSede.Should().Be(0);
     }
 
-    // CA-5 (rama 2): la ubicacion resuelve a una sede, pero la FichaSede no se encuentra -> maestro
-    // incompleto: no publica, loguea warning.
+    // El warning sale del .resx (MEF-ADR-0009) y ese recurso solo se resuelve por nombre en
+    // runtime: si el .resx dejara de embeberse con el nombre que espera el ResourceManager,
+    // GetString devolveria null y el warning saldria vacio -- verde en cualquier test que solo mire
+    // el LogLevel. Se afirma el mensaje ya formateado, con los dos valores interpolados.
+    [Fact]
+    public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_LogueaElMensajeDelResxConColaboradorYDispositivo_CuandoNoExisteUbicacionDelDispositivo()
+    {
+        _lector = new FakeLectorSedesParaMarcacion(ubicacion: null);
+
+        await WhenAsync(CrearRegistro());
+
+        _logger.UltimoWarningFormateado.Should()
+            .Be(string.Format(
+                RegistroDeMarcacionCreadoEventHandler.Mensajes.DispositivoDesconocidoMarcando
+                    .Replace("{CodigoColaborador}", "{0}")
+                    .Replace("{DispositivoId}", "{1}"),
+                CodigoColaborador,
+                DispositivoId));
+    }
+
+    // Segunda rama del maestro incompleto: la ubicacion resuelve, pero la sede no tiene ficha.
     [Fact]
     public async Task ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado_NoPublicaYLogueaWarning_CuandoFichaSedeNoSeEncuentra()
     {
@@ -131,7 +144,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// ---- Fakes manuales, nunca NSubstitute ----
 
 internal sealed class FakeLectorSedesParaMarcacion : ILectorSedesParaMarcacion
 {
@@ -164,6 +177,8 @@ internal sealed class FakeLogger : ILogger<RegistroDeMarcacionCreadoEventHandler
 {
     public bool WarningLogueado { get; private set; }
 
+    public string? UltimoWarningFormateado { get; private set; }
+
     public void Log<TState>(
         LogLevel logLevel,
         EventId eventId,
@@ -171,8 +186,11 @@ internal sealed class FakeLogger : ILogger<RegistroDeMarcacionCreadoEventHandler
         Exception? exception,
         Func<TState, Exception?, string> formatter)
     {
-        if (logLevel == LogLevel.Warning)
-            WarningLogueado = true;
+        if (logLevel != LogLevel.Warning)
+            return;
+
+        WarningLogueado = true;
+        UltimoWarningFormateado = formatter(state, exception);
     }
 
     public bool IsEnabled(LogLevel logLevel) => true;

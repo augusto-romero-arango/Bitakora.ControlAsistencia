@@ -107,6 +107,14 @@ public static class ComposicionServicios
             // El par de config-tests (este lado y el del worker) congela los mismos literales.
             options.Schema.For<FichaSede>().UseNumericRevisions(true);
 
+            // Issue #467: misma declaracion del par 2 para UbicacionDispositivo, que este Function
+            // App empieza a consultar aqui (LectorSedesParaMarcacion.BuscarUbicacionAsync, la
+            // reaccion de MEF-ADR-0046). El worker ya la materializa con mt_version bigint via
+            // UbicacionDispositivoProjection; sin esta linea el store esperaria mt_version uuid
+            // sobre la misma tabla y cada lookup dispararia el "alter column" que Postgres rechaza
+            // con 42804 -- la reaccion terminaria siempre en dead-letter.
+            options.Schema.For<UbicacionDispositivo>().UseNumericRevisions(true);
+
             // Issue #456: instala el resolver de serializacion del dominio -- AQUI DENTRO junto a
             // AddEventTypes, nunca en un ConfigureMarten separado (issue #232 CA-5:
             // ComposicionServiciosTests lo verifica sobre el store real del contenedor, y un segundo

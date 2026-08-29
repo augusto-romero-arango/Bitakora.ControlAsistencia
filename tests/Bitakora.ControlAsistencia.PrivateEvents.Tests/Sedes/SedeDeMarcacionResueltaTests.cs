@@ -1,5 +1,3 @@
-// Issue #467 CA-6: guardrail de portabilidad por el bus para SedeDeMarcacionResuelta.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Sedes;
@@ -7,12 +5,10 @@ using Bitakora.ControlAsistencia.PrivateEvents.Sedes;
 namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.Sedes;
 
 /// <summary>
-/// Verifica que SedeDeMarcacionResuelta (IPrivateEvent) sobrevive el cruce fisico del ASB interno
-/// del BC (MEF-ADR-0024 decision #3): el productor (la reaccion de Sedes, via Wolverine) serializa
-/// en camelCase; el consumidor (ControlHoras en #463) deserializa con PropertyNameCaseInsensitive,
-/// sin resolver custom. Distinto de un round-trip de Marten (seccion 6d del test-writer): aqui la
-/// expectativa es que el payload SOBREVIVA sin resolver -- si no sobreviviera, el tipo no seria
-/// portable (MEF-ADR-0023). Mismo patron que RegistroDeMarcacionCreadoTests (ControlHoras).
+/// Guardrail de portabilidad por el bus: el productor (Wolverine) serializa en camelCase y el
+/// consumidor deserializa SIN resolver custom. Al reves que un round-trip de Marten, aqui la
+/// expectativa es que el payload sobreviva sin resolver -- si no lo hiciera, el tipo no seria
+/// portable (MEF-ADR-0023).
 ///
 /// Compila referenciando UNICAMENTE PrivateEvents (CA-ADR-0029 seccion 3): si necesitara mas, el
 /// tipo no seria portable.
@@ -42,11 +38,10 @@ public class SedeDeMarcacionResueltaTests
         var restaurado = JsonSerializer.Deserialize<SedeDeMarcacionResuelta>(json, CrearOpcionesConsumidor());
 
         // La igualdad por valor del record cubre los seis campos: payload plano, sin coleccion ni
-        // VO anidado (MEF-ADR-0012).
+        // VO anidado.
         restaurado.Should().Be(evento);
     }
 
-    // CA-3 del issue: la sede resuelta puede no tener centro de costos asignado.
     [Fact]
     public void RoundTrip_PreservaCentroDeCostosNulo_CuandoLaSedeNoTieneCentroDeCostosAsignado()
     {

@@ -835,10 +835,6 @@ public class ConfiguracionMartenProjectionsTests
     // worker (MEF-ADR-0034 seccion 3). El nombre esperado es el de la VISTA, no el de la clase de
     // proyeccion (Marten nombra la proyeccion por su documento target).
     //
-    // Sin par de config-tests espejo mt_version: ningun proceso del write-side consulta todavia
-    // UbicacionDispositivo. El dia que uno lo haga, ese lado debe declarar
-    // Schema.For<UbicacionDispositivo>().UseNumericRevisions(true) y sumar el par espejo -- si no,
-    // su primera query dispara el ALTER COLUMN que Postgres rechaza (42804).
     [Fact]
     public void ConfigurarSedes_RegistraUbicacionDispositivoProjectionComoAsync()
     {
@@ -846,6 +842,43 @@ public class ConfiguracionMartenProjectionsTests
 
         provider.GetRequiredService<ISedesProjectionStore>()
             .AssertProyeccionAsyncRegistrada("UbicacionDispositivo");
+    }
+
+    // Issue #467: el par espejo de mt_version que este archivo dejaba anotado como pendiente ya
+    // aplica -- el Function App de Sedes consulta UbicacionDispositivo desde la reaccion
+    // ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado. Mismo razonamiento que FichaSede
+    // arriba: este lado NO declara nada, la forma la impone Marten al registrar la proyeccion.
+    //
+    // Espejo de ComposicionServiciosTests (Sedes.Tests)
+    // .AgregarServiciosSedes_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaUbicacionDispositivo.
+    [Fact]
+    public void ConfigurarSedes_MaterializaUbicacionDispositivoConRevisionNumerica()
+    {
+        using var provider = ProviderDeSedes();
+
+        var mapping = provider.GetRequiredService<ISedesProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(UbicacionDispositivo));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del par 2 para UbicacionDispositivo (tabla, tenancy, IdMember).
+    //
+    // Espejo de ComposicionServiciosTests (Sedes.Tests)
+    // .AgregarServiciosSedes_ResuelveUbicacionDispositivoSobreLaTablaQueMaterializaElWorker_...
+    [Fact]
+    public void ConfigurarSedes_MaterializaUbicacionDispositivoSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeSedes();
+
+        var mapping = provider.GetRequiredService<ISedesProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(UbicacionDispositivo));
+
+        mapping.TableName.QualifiedName.Should().Be("sedes.mt_doc_ubicaciondispositivo");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(UbicacionDispositivo.Id));
     }
 
     // --- Seam de nivel BC (CA-4) ---
