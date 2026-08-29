@@ -316,4 +316,89 @@ public class AsistenciaDiariaProjectionTests
 
         vista.ConflictoDeSedePendiente.Should().BeTrue();
     }
+
+    // --- Issue #492: cierre del ciclo Provisional -> Aprobado (DiaAprobado) ---
+
+    [Fact]
+    public void Create_ProyectaElDiaAprobadoSinDatosPrevios_DesdeElAvalDelVacio()
+    {
+        // CA-2: un stream puede NACER con DiaAprobado (dia sin datos, #489 CA-7). Sin franjas ni
+        // marcaciones que clasificar, el plan queda SinProgramar y ninguna bandera se enciende.
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Id.Should().Be(StreamKey);
+        vista.CodigoColaborador.Should().Be(CodigoColaborador);
+        vista.Fecha.Should().Be(Fecha);
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.Plan.Should().Be(PlanDelDia.SinProgramar);
+        vista.NombreTurno.Should().BeNull();
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+        vista.VinoEnDescanso.Should().BeFalse();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+        vista.HorasPorConcepto.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AprueblaLaFilaYApagaConflictoDeSedePendiente_CuandoLlegaDiaAprobado()
+    {
+        // CA-1: DiaAprobado sobre una fila existente en conflicto -- el acto de aprobar resuelve la
+        // discrepancia de sede, asi que la bandera se apaga. El resto de la fila (Plan, banderas de
+        // anomalia ya juzgadas, NombreTurno, HorasPorConcepto) no lo toca este evento.
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", NoSePresento: false, FranjasIncompletas: true, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: true,
+            HorasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+
+        var evento = DiaAprobado.Crear(
+            StreamKey, CodigoColaborador, Fecha,
+            [new SedeDecidida(new TimeOnly(6, 0), "SEDE-X", "Sede Principal", "CC-1")]);
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.Id.Should().Be(StreamKey);
+        vista.CodigoColaborador.Should().Be(CodigoColaborador);
+        vista.Fecha.Should().Be(Fecha);
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+        vista.Plan.Should().Be(PlanDelDia.ConJornada);
+        vista.NombreTurno.Should().Be("Turno Manana");
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeTrue();
+        vista.VinoEnDescanso.Should().BeFalse();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.HorasPorConcepto.Should().BeEquivalentTo(
+            new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+    }
+
+    [Fact]
+    public void Apply_ProyectaLaFilaAprobada_CuandoDiaAprobadoLlegaTrasDepuracionDiaRecibidaEnElMismoStream()
+    {
+        // CA-3: orden real de eventos del stream dc: -- DepuracionDiaRecibida foto la jornada y
+        // DiaAprobado la cierra despues. La foto de depuracion se produce con el metodo Create real
+        // (arrange, no el oraculo): lo que se afirma a mano es el resultado final de Apply.
+        var horas = HorasDePrueba(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+        var eventoDepuracion = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], horas);
+        var vistaTrasDepuracion = AsistenciaDiariaProjection.Create(eventoDepuracion);
+
+        var eventoAprobacion = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Apply(eventoAprobacion, vistaTrasDepuracion);
+
+        vista.Id.Should().Be(StreamKey);
+        vista.CodigoColaborador.Should().Be(CodigoColaborador);
+        vista.Fecha.Should().Be(Fecha);
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.ConflictoDeSedePendiente.Should().BeFalse();
+        vista.Plan.Should().Be(PlanDelDia.ConJornada);
+        vista.NombreTurno.Should().Be("Turno Manana");
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+        vista.HorasPorConcepto.Should().BeEquivalentTo(
+            new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
+    }
 }

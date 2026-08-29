@@ -61,6 +61,24 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
         };
     }
 
+    // Issue #492 CA-2: aval del vacio -- un stream puede NACER con DiaAprobado (dia sin datos,
+    // #489 CA-7). Stub de fase roja: la implementacion real la escribe projection-implementer.
+    public static AsistenciaDiaria Create(DiaAprobado evento) =>
+        throw new NotImplementedException();
+
+    // Issue #492 CA-1/CA-3: cierre del ciclo Provisional -> Aprobado. Estado pasa a Aprobado y
+    // ConflictoDeSedePendiente se apaga (las decisiones de sede se tomaron en el acto de aprobar);
+    // el resto de la fila (Plan, banderas de anomalia ya juzgadas, NombreTurno, HorasPorConcepto)
+    // queda intacto -- la aprobacion no reescribe la historia, la pone en firme. Stub de fase roja:
+    // la implementacion real la escribe projection-implementer.
+    public static AsistenciaDiaria Apply(DiaAprobado evento, AsistenciaDiaria vista) =>
+        throw new NotImplementedException();
+
+    // DepuracionPosAprobacionRecibida (#491) no se consume aqui: sin un metodo Create/Apply que lo
+    // tipe, el source generator no lo dispatchea y el daemon simplemente lo salta -- decision
+    // deliberada del issue #492 (NO depende de #491), no un olvido. El dia aprobado no se mueve en
+    // la vista cuando llega ese evento.
+
     private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<EventoFranjaDepurada> franjas) =>
         nombreTurno switch
         {
