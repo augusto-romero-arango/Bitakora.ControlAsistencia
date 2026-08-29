@@ -130,7 +130,9 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     {
         Id = e.Id;
         Fecha = ExtraerFechaDeStreamId(e.Id);
-        _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
+        // Issue #463: DispositivoId viaja tal cual para que EstamparSede pueda correlacionar esta
+        // marcacion con el SedeDeMarcacionIdentificada que llegue despues (TimestampNormalizado+DispositivoId).
+        _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion, e.DispositivoId));
         Depurar();
         RecalcularDesgloseHoras();
     }
@@ -171,6 +173,17 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // Issue #463: proyecta el estampado de sede sobre la marcacion que coincida por
+    // TimestampNormalizado+DispositivoId. Stub de compilacion -- fase roja del pipeline TDD.
+    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
+    public void Apply(SedeDeMarcacionIdentificada e) => throw new NotImplementedException();
+
+    // Issue #463: decide el no-op (CA-4) consultando su propio estado (Tell-don't-Ask,
+    // MEF-ADR-0012) -- el handler no inspecciona Marcaciones para esa decision. El caso "ninguna
+    // marcacion coincide todavia" lo resuelve el handler ANTES de invocar este metodo (retry del
+    // bus, MEF-ADR-0004): Apply nunca lanza. Stub de compilacion -- fase roja del pipeline TDD.
+    internal void EstamparSede(SedeDeMarcacionIdentificada evento) => throw new NotImplementedException();
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()

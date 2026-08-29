@@ -63,4 +63,13 @@ public class AliasEventosControlHorasTests
 
         AliasDe<DepuracionDiaRecibida>(options).Should().Be("depuracion_dia_recibida");
     }
+
+    // Issue #463 CA-5: congela el alias de SedeDeMarcacionIdentificada antes de desplegarlo.
+    [Fact]
+    public void SedeDeMarcacionIdentificada_TieneAliasSedeDeMarcacionIdentificada()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<SedeDeMarcacionIdentificada>(options).Should().Be("sede_de_marcacion_identificada");
+    }
 }
