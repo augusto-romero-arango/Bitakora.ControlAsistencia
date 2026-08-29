@@ -3,10 +3,10 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// Issue #491: evidencia auditable de una DepuracionDiaRecibida que llego DESPUES de aprobar el
-// dia -- misma forma que DepuracionDiaRecibida porque el valor de la evidencia esta en poder ver
-// QUE decia la foto tardia, no solo que llego. Persistida en el mismo stream que DiaAprobado; el
-// aggregate no la incorpora (Estado y valores decididos permanecen intactos).
+// Evidencia auditable de una DepuracionDiaRecibida que llego DESPUES de aprobar el dia: espejo
+// exacto de esa foto porque la evidencia vale por lo que la foto decia, no solo por haber llegado.
+// Se persiste en el mismo stream que DiaAprobado y el aggregate no la incorpora -- Estado y valores
+// decididos quedan intactos.
 // MEF-ADR-0024: evento del aggregate, sin marker de bus -- consumidores: ninguno todavia.
 public sealed class DepuracionPosAprobacionRecibida
 {
@@ -39,6 +39,12 @@ public sealed class DepuracionPosAprobacionRecibida
         Marcaciones = marcaciones;
         HorasDiscriminadas = horasDiscriminadas;
     }
+
+    // El espejo se arma junto a la declaracion de campos: sumar un campo a la foto obliga a
+    // sumarlo aqui, o la evidencia guardaria menos de lo que llego.
+    public static DepuracionPosAprobacionRecibida Desde(DepuracionDiaRecibida foto) =>
+        new(foto.Id, foto.CodigoColaborador, foto.Fecha, foto.Colaborador, foto.NombreTurno,
+            foto.Franjas, foto.Marcaciones, foto.HorasDiscriminadas);
 
     // Constructor privado para Marten/serializacion
     private DepuracionPosAprobacionRecibida() { }

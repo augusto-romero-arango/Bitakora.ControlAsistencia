@@ -504,8 +504,6 @@ public class DiaCalculadoAggregateRootTests
         franjaVista.CandidatasDeSede.Should().BeEmpty();
     }
 
-    // Issue #491 CA-2/CA-3: Apply(DepuracionPosAprobacionRecibida) es no-op -- el dia aprobado se
-    // rehidrata identico, la evidencia tardia no muta ni Estado ni los valores ya decididos.
     [Fact]
     public void Apply_NoAlteraElDiaAprobado_CuandoLlegaUnaDepuracionPosAprobacionRecibida()
     {

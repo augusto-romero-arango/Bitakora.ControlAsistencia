@@ -10,8 +10,6 @@
 // (estampado de sede sobre una marcacion ya adicionada) y se suma a la lista literal.
 // Issue #489: DiaAprobado se persiste en el stream de DiaCalculadoAggregateRoot (cierre del acto de
 // aprobar) y se suma a la lista literal.
-// Issue #491: DepuracionPosAprobacionRecibida se persiste en el mismo stream (evidencia de una foto
-// tardia sobre un dia ya Aprobado) y se suma a la lista literal.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;

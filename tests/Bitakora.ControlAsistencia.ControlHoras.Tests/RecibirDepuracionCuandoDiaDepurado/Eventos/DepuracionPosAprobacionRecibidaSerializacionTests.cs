@@ -1,7 +1,3 @@
-// Issue #491: test de serializacion roundtrip para DepuracionPosAprobacionRecibida (regla 16 /
-// seccion 6d del test-writer). Misma forma que DepuracionDiaRecibida -- mismo patron de prueba,
-// ver DepuracionDiaRecibidaSerializacionTests.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -29,8 +25,8 @@ public class DepuracionPosAprobacionRecibidaSerializacionTests
         new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 7.00m },
         ["06:00-14:00 OrdinariaDiurna"]);
 
-    // Regla 16: usa CrearOpcionesMarten(), las opciones reales que registra el dominio (no un
-    // resolver armado inline que solo conozca este tipo).
+    // CrearOpcionesMarten() son las opciones reales que registra el dominio: un resolver armado
+    // inline que solo conozca este tipo probaria el resolver del test, no el de produccion.
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
     {
@@ -53,8 +49,6 @@ public class DepuracionPosAprobacionRecibidaSerializacionTests
         deserializado.HorasDiscriminadas.Should().Be(HorasConDatos());
     }
 
-    // CA-1: la evidencia tardia de un dia sin jornada valida -- Colaborador/NombreTurno null,
-    // Franjas y HorasPorConcepto vacios, igual que DepuracionDiaRecibida en el mismo escenario.
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoNoHayJornadaValida()
     {

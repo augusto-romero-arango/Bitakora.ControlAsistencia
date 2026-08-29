@@ -81,16 +81,13 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     }
 
     // CA-2/CA-4: toda foto que llega a un dia ya existente se agrega al mismo stream, siempre.
-    // Issue #491: un dia ya Aprobado no incorpora la foto tardia (Apply(DepuracionDiaRecibida) lo
-    // regresaria a Provisional), pero tampoco la ignora en silencio -- queda como evidencia auditable
-    // en el mismo stream, vease Apply(DepuracionPosAprobacionRecibida) mas abajo.
+    // Un dia ya Aprobado no incorpora la foto tardia -- Apply(DepuracionDiaRecibida) lo regresaria
+    // a Provisional -- pero tampoco la ignora: queda como evidencia auditable en el mismo stream.
     internal void RecibirDepuracion(DepuracionDiaRecibida evento)
     {
         if (Estado == EstadoDiaCalculado.Aprobado)
         {
-            var evidencia = new DepuracionPosAprobacionRecibida(
-                evento.Id, evento.CodigoColaborador, evento.Fecha, evento.Colaborador, evento.NombreTurno,
-                evento.Franjas, evento.Marcaciones, evento.HorasDiscriminadas);
+            var evidencia = DepuracionPosAprobacionRecibida.Desde(evento);
             _uncommittedEvents.Add(evidencia);
             Apply(evidencia);
             return;
@@ -100,10 +97,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // MEF-ADR-0004: Apply no lanza ni muta -- la evidencia tardia se guarda como rastro en el stream,
-    // nunca se incorpora al estado ni a los valores decididos. Rehidratar un stream con este evento
-    // reproduce exactamente el mismo dia Aprobado (CA-3). public: requerido para que
-    // TestStore.ApplyEvent lo encuentre via GetMethods().
+    // MEF-ADR-0004: Apply no lanza ni muta -- rehidratar un stream con este evento reproduce
+    // exactamente el mismo dia Aprobado. public: requerido para que TestStore.ApplyEvent lo
+    // encuentre via GetMethods().
     public void Apply(DepuracionPosAprobacionRecibida e) { }
 
     // Issue #489. MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra

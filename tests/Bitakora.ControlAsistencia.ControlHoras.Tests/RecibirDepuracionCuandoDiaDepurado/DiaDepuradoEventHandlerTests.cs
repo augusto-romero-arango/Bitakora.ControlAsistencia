@@ -224,10 +224,8 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
             StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-1 (#491): DiaDepurado que llega a un dia ya Aprobado -> se persiste
-    // DepuracionPosAprobacionRecibida en el mismo stream con la foto completa de la depuracion
-    // tardia -- reemplaza el test de guarda minima de #489 CA-8 (esta ya no ignora en silencio).
-    // CA-2/CA-3 (Apply no-op, valores decididos intactos) se prueban en DiaCalculadoAggregateRootTests.
+    // CA-1 (#491): reemplaza al test de guarda minima de #489 CA-8 -- un dia Aprobado ya no ignora
+    // la foto tardia en silencio, la persiste completa como evidencia en el mismo stream.
     [Fact]
     public async Task DiaDepurado_PersisteDepuracionPosAprobacionRecibida_CuandoElDiaYaEstaAprobado()
     {
