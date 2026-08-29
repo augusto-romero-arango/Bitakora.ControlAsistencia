@@ -34,7 +34,37 @@ public sealed record FichaTurno(
     bool EsDescanso,
     string HorarioResumido,
     IReadOnlyList<FranjaFicha> Franjas,
-    string Descripcion);
+    string Descripcion)
+{
+    // Igualdad por valor sobre Franjas (SequenceEqual): la igualdad de record por defecto compara
+    // IReadOnlyList<T> por EqualityComparer<T>.Default -- referencia, no valor -- para List<T>/
+    // arrays (ADR-0015, mismo gotcha que motivo el Equals a mano de FranjaProgramada en
+    // Programacion.DomainEvents). Sin este override, dos FichaTurno con las mismas franjas en
+    // instancias de lista distintas no serian iguales para FichaTurnoProjectionTests.
+    public bool Equals(FichaTurno? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Id == other.Id
+            && Nombre == other.Nombre
+            && EsDescanso == other.EsDescanso
+            && HorarioResumido == other.HorarioResumido
+            && Descripcion == other.Descripcion
+            && Franjas.SequenceEqual(other.Franjas);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Id);
+        hash.Add(Nombre);
+        hash.Add(EsDescanso);
+        hash.Add(HorarioResumido);
+        hash.Add(Descripcion);
+        foreach (var franja in Franjas) hash.Add(franja);
+        return hash.ToHashCode();
+    }
+}
 
 /// <summary>
 /// Franja completa de un turno del catalogo -- forma propia de ReadModels, espejo deliberado de
@@ -54,7 +84,38 @@ public sealed record FranjaFicha(
     IReadOnlyList<SubFranjaFicha> Extras,
     string? SedeId,
     string? NombreSede,
-    string Descripcion);
+    string Descripcion)
+{
+    // Mismo gotcha de FichaTurno.Equals: Descansos/Extras necesitan SequenceEqual, no la igualdad
+    // de record por defecto (referencia sobre List<T>/arrays, ADR-0015).
+    public bool Equals(FranjaFicha? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return HoraInicio == other.HoraInicio
+            && HoraFin == other.HoraFin
+            && DiaOffsetFin == other.DiaOffsetFin
+            && SedeId == other.SedeId
+            && NombreSede == other.NombreSede
+            && Descripcion == other.Descripcion
+            && Descansos.SequenceEqual(other.Descansos)
+            && Extras.SequenceEqual(other.Extras);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(HoraInicio);
+        hash.Add(HoraFin);
+        hash.Add(DiaOffsetFin);
+        hash.Add(SedeId);
+        hash.Add(NombreSede);
+        hash.Add(Descripcion);
+        foreach (var descanso in Descansos) hash.Add(descanso);
+        foreach (var extra in Extras) hash.Add(extra);
+        return hash.ToHashCode();
+    }
+}
 
 /// <summary>
 /// Sub-franja (descanso o extra) contenida en una <see cref="FranjaFicha"/> -- forma propia de

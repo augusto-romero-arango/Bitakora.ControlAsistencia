@@ -31,13 +31,56 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 /// Sin Apply/ShouldDelete: TurnoCreado es el UNICO evento que CatalogoTurnos declara hoy -- la
 /// ficha nunca cambia despues de creada.
 ///
-/// STUB de fase roja (projection-test-writer, issue #496): Create lanza NotImplementedException a
-/// proposito. El mapeo real de franjas y la composicion de HorarioResumido/Descripcion son
-/// responsabilidad de projection-implementer -- ver
-/// Bitakora.ControlAsistencia.Projections.Tests.Programacion.FichaTurnoProjectionTests para el
-/// contrato exacto que debe satisfacer.
+/// El mapeo evento -&gt; vista delega en FranjaOrdinaria.ToDetalle()/SubFranja.ToDetalle() -- el DTO
+/// plano ya expuesto por el VO rico (Tell-don't-Ask, MEF-ADR-0012) -- en vez de reabrir campos
+/// privados de FranjaOrdinaria/SubFranja: FranjaProgramada.Descripcion YA es el mismo texto que
+/// FranjaOrdinaria.ToString() produce ("(06:00-14:00)[Descansos:...][Extras:...][sede:...]"), asi
+/// que se reusa tal cual para FichaTurno.Descripcion (y para cada FranjaFicha.Descripcion) en vez
+/// de recomponerlo aqui.
+///
+/// Decision propia de este projection-implementer, sin CA que la fije (issue #496, "Notas
+/// tecnicas": "Ningun CA fija el algoritmo exacto de HorarioResumido/Descripcion"): con una unica
+/// franja HorarioResumido es el rango corto "HH:mm-HH:mm" de esa franja (sin offset de dia, sin
+/// descansos/extras/sede -- es la confirmacion RAPIDA); con varias franjas se unen con ", " en el
+/// mismo formato corto. Multi-franja no tiene test propio en FichaTurnoProjectionTests -- el unico
+/// escenario cubierto (CA-1) trae una sola franja.
 /// </remarks>
 public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaTurno, string>
 {
-    public static FichaTurno Create(IEvent<TurnoCreado> e) => throw new NotImplementedException();
+    public static FichaTurno Create(IEvent<TurnoCreado> e)
+    {
+        var turnoCreado = e.Data;
+
+        // CA-2: variante descanso (factory CrearDescanso) -- sin franjas, EsDescanso = true.
+        if (turnoCreado.FranjasOrdinarias.Count == 0)
+            return new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso");
+
+        var detalles = turnoCreado.FranjasOrdinarias.Select(f => f.ToDetalle()).ToList();
+
+        var horarioResumido = string.Join(", ",
+            detalles.Select(d => $"{d.HoraInicio:HH\\:mm}-{d.HoraFin:HH\\:mm}"));
+        var descripcion = string.Join(", ", detalles.Select(d => d.Descripcion));
+
+        return new FichaTurno(
+            e.StreamKey!,
+            turnoCreado.Nombre,
+            false,
+            horarioResumido,
+            detalles.Select(MapearFranja).ToList(),
+            descripcion);
+    }
+
+    private static FranjaFicha MapearFranja(FranjaProgramada detalle) =>
+        new(
+            detalle.HoraInicio,
+            detalle.HoraFin,
+            detalle.DiaOffsetFin,
+            detalle.Descansos.Select(MapearSubFranja).ToList(),
+            detalle.Extras.Select(MapearSubFranja).ToList(),
+            detalle.Sede?.Id,
+            detalle.Sede?.Nombre,
+            detalle.Descripcion);
+
+    private static SubFranjaFicha MapearSubFranja(SubFranjaProgramada detalle) =>
+        new(detalle.HoraInicio, detalle.HoraFin, detalle.DiaOffsetInicio, detalle.DiaOffsetFin);
 }

@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
 using Marten;
 using Microsoft.AspNetCore.Http;
@@ -11,20 +12,30 @@ namespace Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno;
 // query (skills/projections/read-apis.md). Mismo par (IDocumentStore, ITenantResolver) que
 // ObtenerFichaSede -- precedente exacto del issue #461.
 //
-// STUB de fase roja (projection-test-writer): Run lanza NotImplementedException a proposito. El
-// comportamiento real -- parsear {id} como Guid (MEF-ADR-0037 seccion 2, el TurnoId nace Guid),
-// session.QuerySession(tenantResolver.TenantId) acotada al tenant (MEF-ADR-0028), session.
-// LoadAsync<FichaTurno>(turnoId.ToString()) y el 200/404 (CA-3) -- es responsabilidad de
-// projection-implementer. Este archivo solo fija la forma resoluble por DI que
-// ComposicionServiciosTests.AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerFichaTurno_...
-// (Programacion.Tests) verifica.
+// CA-3: consulta puntual por {id} de ruta -- 404 sin body cuando la ficha no existe.
+//
+// MEF-ADR-0037 seccion 2: el {id} de ruta nace Guid (TurnoId) -- se parsea tipado una unica vez
+// antes de tocar LoadAsync, con 400 explicito si no es un Guid valido, y ToString() sin argumentos
+// como unica salida a string: el stream key del catalogo es exactamente evento.TurnoId.ToString()
+// (Events.StreamIdentity = AsString, documentado en FichaTurnoProjection), y FichaTurno.Id -- el
+// TId del read model N1 -- es ese mismo string.
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     [Function("ObtenerFichaTurno")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "programacion/turnos/{id}")]
         HttpRequest req,
         string id,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!Guid.TryParse(id, out var turnoId))
+            return new BadRequestObjectResult("El id del turno no es un Guid valido");
+
+        // CA-3/MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
+        // ITenantResolver -- nunca a un tenant id que llegara por ruta o query string.
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        var ficha = await session.LoadAsync<FichaTurno>(turnoId.ToString(), ct);
+
+        return ficha is null ? new NotFoundResult() : new OkObjectResult(ficha);
+    }
 }
