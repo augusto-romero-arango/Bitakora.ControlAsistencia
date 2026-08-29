@@ -106,10 +106,8 @@ public static class ConfiguracionMartenProjectionsSedes
                 // el issue correspondiente.
                 opts.Projections.Add<FichaSedeProjection>(ProjectionLifecycle.Async);
 
-                // Issue #475: segunda proyeccion concreta del dominio -- primera receta N2
-                // (MultiStreamProjection<UbicacionDispositivo, string>), correlacion por
-                // DispositivoId: el mismo dispositivo puede aparecer instalado en streams de VARIAS
-                // sedes distintas. Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3).
+                // Receta N2 (MultiStreamProjection): el mismo dispositivo puede aparecer instalado
+                // en streams de VARIAS sedes, asi que correlaciona por DispositivoId, no por stream.
                 opts.Projections.Add<UbicacionDispositivoProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna

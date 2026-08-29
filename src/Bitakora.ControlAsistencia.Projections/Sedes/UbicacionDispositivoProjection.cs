@@ -6,33 +6,19 @@ using Marten.Events.Projections; // MultiStreamProjection<,> vive aqui, NO en Ma
 namespace Bitakora.ControlAsistencia.Projections.Sedes;
 
 /// <summary>
-/// Clase de proyeccion companion de UbicacionDispositivo (issue #475, receta N2 --
-/// MultiStreamProjection, MEF-ADR-0035): el mismo dispositivo puede aparecer instalado en streams
-/// de VARIAS sedes distintas, asi que la correlacion no es "un solo stream" (N1) -- la identidad
-/// del documento es DispositivoId, un campo del payload, no el StreamKey de origen.
-///
-/// partial es obligatorio (skills/projections/modelos-marten.md): el source generator descubre
-/// Create/Apply/ShouldDelete por convencion y emite el dispatcher [GeneratedEvolver]. Sin partial
-/// el build queda limpio pero falla en RUNTIME al registrar la proyeccion
-/// (InvalidProjectionException).
-///
-/// Semantica "solo la vigente" (decidida punto a punto con el experto, sesion 2026-08-29):
-/// - DispositivoInstalado (Create/Apply): la sede sale de IEvent.StreamKey, nunca del payload --
-///   el ultimo evento aplicado gana, reemplazando la sede previa sin merge.
-/// - DispositivoRetirado de la sede VIGENTE (ShouldDelete == true): el documento se elimina, SIN
-///   fallback a instalaciones anteriores no retiradas -- si el maestro retiro el dispositivo de
-///   donde realmente estaba, la instalacion fantasma previa era el error.
-/// - DispositivoRetirado de una sede DISTINTA a la vigente (ShouldDelete == false): se ignora,
-///   documento intacto (limpieza de una instalacion fantasma).
-/// - DispositivoRetirado sin documento existente: se ignora estructuralmente -- esta clase no
-///   declara ningun Create(DispositivoRetirado), asi que Marten no tiene metodo que despachar y
-///   nunca crea el documento (mismo patron que CategoriaDeEtiquetasProjection, issue #357, CA-5:
-///   sin test dedicado -- la garantia es la ausencia del metodo, no comportamiento a ejercer).
-///
-/// Se registra en ConfiguracionMartenProjectionsSedes.ConfigurarSedes junto a FichaSedeProjection
-/// con opts.Projections.Add&lt;UbicacionDispositivoProjection&gt;(ProjectionLifecycle.Async) --
-/// registro pendiente (fase roja de este issue; projection-implementer lo agrega).
+/// Clase de proyeccion companion de UbicacionDispositivo (receta N2, MEF-ADR-0035): el mismo
+/// dispositivo puede aparecer instalado en streams de VARIAS sedes, asi que la identidad del
+/// documento es el DispositivoId del payload, no el StreamKey de origen.
 /// </summary>
+/// <remarks>
+/// partial es obligatorio: el source generator descubre Create/Apply/ShouldDelete por convencion y
+/// emite el dispatcher [GeneratedEvolver]. Sin partial el build queda limpio y falla en RUNTIME al
+/// registrar la proyeccion (InvalidProjectionException).
+///
+/// Semantica "solo la vigente": la sede vigente sale siempre del StreamKey del evento, nunca del
+/// payload (ninguno de los dos eventos la lleva). No declarar ningun Create(DispositivoRetirado):
+/// esa ausencia es lo que hace que un retiro sin documento existente no cree nada.
+/// </remarks>
 public sealed partial class UbicacionDispositivoProjection : MultiStreamProjection<UbicacionDispositivo, string>
 {
     public UbicacionDispositivoProjection()
@@ -41,18 +27,16 @@ public sealed partial class UbicacionDispositivoProjection : MultiStreamProjecti
         Identity<DispositivoRetirado>(e => e.DispositivoId);
     }
 
-    // CA-1: Id = DispositivoId (payload); SedeId = StreamKey del stream de origen (envolvente del
-    // evento, nunca recomputado a mano desde el payload).
     public static UbicacionDispositivo Create(IEvent<DispositivoInstalado> e) =>
         new(e.Data.DispositivoId, e.StreamKey!);
 
-    // CA-2: el ultimo DispositivoInstalado aplicado reemplaza la sede vigente, aun si llega desde
-    // el stream de una sede distinta a la actual.
+    // El ultimo DispositivoInstalado aplicado reemplaza la sede vigente, aun si llega desde el
+    // stream de una sede distinta: sin merge y sin conservar la anterior.
     public static UbicacionDispositivo Apply(IEvent<DispositivoInstalado> e, UbicacionDispositivo view) =>
         view with { SedeId = e.StreamKey! };
 
-    // CA-3/CA-4: elimina SOLO si el retiro es de la sede vigente (e.StreamKey == view.SedeId); un
-    // retiro de una sede distinta se ignora, documento intacto.
+    // El retiro de la sede vigente elimina el documento SIN fallback a instalaciones anteriores no
+    // retiradas; el retiro desde otra sede es limpieza de una instalacion fantasma y se ignora.
     public static bool ShouldDelete(IEvent<DispositivoRetirado> e, UbicacionDispositivo view) =>
         e.StreamKey == view.SedeId;
 }

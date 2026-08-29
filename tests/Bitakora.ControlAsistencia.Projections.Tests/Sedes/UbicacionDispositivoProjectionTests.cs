@@ -1,31 +1,18 @@
-// Issue #475: materializar la ubicacion vigente de un dispositivo de marcacion. Invocacion DIRECTA
-// de los metodos estaticos de UbicacionDispositivoProjection (N2, MEF-ADR-0035,
-// skills/projections/modelos-marten.md) -- no el DSL Given/When/Then de CommandHandlerTestBase
-// (MEF-ADR-0002, testea command handlers contra el event store): aqui se testean funciones puras
-// evento -> vista, sin abrir ningun stream.
+// Invocacion DIRECTA de los metodos estaticos de UbicacionDispositivoProjection -- funciones puras
+// evento -> vista, sin abrir ningun stream (no aplica el DSL Given/When/Then de
+// CommandHandlerTestBase, que testea command handlers contra el event store).
 //
-// Create/Apply toman IEvent<DispositivoInstalado>, no el evento a secas: a diferencia de
-// CategoriaDeEtiquetasProjection (issue #357, la otra receta N2 del BC), aqui la sede que
-// correlaciona la vigencia NO es un campo del payload -- ambos eventos (DispositivoInstalado y
-// DispositivoRetirado) solo llevan DispositivoId; la sede sale del StreamKey de la envolvente del
-// evento (contexto del issue, "Notas tecnicas"). La identidad de correlacion N2
-// (Identity<DispositivoInstalado>(e => e.DispositivoId)) es un dato distinto de la sede: el
-// documento se identifica por DispositivoId, pero su SedeId sale de otra fuente (StreamKey).
+// Create/Apply/ShouldDelete toman IEvent<T>, no el evento a secas: la sede que correlaciona la
+// vigencia NO viaja en el payload de ninguno de los dos eventos -- sale del StreamKey de la
+// envolvente. La identidad de correlacion N2 (DispositivoId) si sale del payload: son dos datos
+// distintos y por eso la firma no puede simplificarse al evento pelado.
 //
-// Cada assert compara contra un oraculo armado a mano (MEF-ADR-0002, no-tautologia): nunca se
-// reusa la logica de Create/Apply/ShouldDelete bajo prueba para construir el valor esperado.
+// Cada oraculo se arma a mano, incluido el de vistaPrevia (el documento que Marten ya habria
+// materializado): nunca se construye invocando la logica bajo prueba (MEF-ADR-0002, no-tautologia).
 //
-// Dato de vistaPrevia en los tests de Apply/ShouldDelete: se construye a mano, simulando el
-// documento que Marten ya habria materializado -- nunca se obtiene invocando Create/Apply, para
-// no encadenar el oraculo de un test con la logica bajo prueba de otro.
-//
-// Nota CA-5 (DispositivoRetirado sin documento existente): no hay un test dedicado -- la garantia
-// es estructural, no de comportamiento. UbicacionDispositivoProjection no declara ningun
-// Create(DispositivoRetirado), asi que Marten no tiene metodo que despachar y nunca crea el
-// documento; un test que solo reflexionara sobre esa ausencia pasaria de una contra el stub (nada
-// que implementar lo pondria en rojo), violando el principio de la fase roja de este agente --
-// mismo criterio documentado en CategoriaDeEtiquetasProjectionTests (issue #357) para su propio
-// CA-5.
+// Sin test para "retiro sin documento existente": esa garantia es estructural -- la clase no declara
+// ningun Create(DispositivoRetirado), y el dispatcher generado ni siquiera invoca ShouldDelete con
+// snapshot nulo. Un test que solo reflexionara sobre esa ausencia seria tautologico.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Sedes;
@@ -37,8 +24,6 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Sedes;
 
 public class UbicacionDispositivoProjectionTests
 {
-    // --- CA-1: Create nace el documento con la sede de instalacion, leida del StreamKey ---
-
     [Fact]
     public void Create_ProyectaLaSedeDeInstalacion_DesdeDispositivoInstalado()
     {
@@ -54,10 +39,9 @@ public class UbicacionDispositivoProjectionTests
         vista.Should().Be(new UbicacionDispositivo("disp-01", "s:001"));
     }
 
-    // --- CA-1 (correlacion N2, obligatoria para MultiStreamProjection): el mismo DispositivoId,
-    // instalado en streams de DOS sedes distintas, correlaciona en el MISMO documento (misma Id) --
-    // asi es exactamente como el daemon de Marten encadena eventos de streams distintos sobre un
-    // documento N2 correlacionado (precedente CategoriaDeEtiquetasProjectionTests, issue #357) ---
+    // Correlacion N2 (test obligatorio para MultiStreamProjection): Create con el primer evento y
+    // Apply con el segundo sobre la vista que dejo el primero es exactamente como el daemon encadena
+    // eventos de streams distintos sobre un mismo documento correlacionado.
 
     [Fact]
     public void Create_y_Apply_CorrelacionanPorDispositivoId_DesdeDosStreamsDeSedeDistintos()
@@ -83,9 +67,6 @@ public class UbicacionDispositivoProjectionTests
         vistaTrasSede002.SedeId.Should().Be("s:002");
     }
 
-    // --- CA-2: DispositivoInstalado posterior, sin retiro previo, reemplaza la sede vigente -- el
-    // ultimo aplicado gana ---
-
     [Fact]
     public void Apply_ReemplazaLaSedeVigente_CuandoDispositivoInstaladoEnOtraSede()
     {
@@ -102,9 +83,6 @@ public class UbicacionDispositivoProjectionTests
         vista.Should().Be(vistaPrevia with { SedeId = "s:002" });
     }
 
-    // --- CA-3: DispositivoRetirado de la sede VIGENTE elimina el documento, sin fallback a
-    // instalaciones anteriores no retiradas ---
-
     [Fact]
     public void ShouldDelete_EliminaElDocumento_CuandoDispositivoRetiradoDeLaSedeVigente()
     {
@@ -120,9 +98,6 @@ public class UbicacionDispositivoProjectionTests
 
         debeEliminarse.Should().BeTrue();
     }
-
-    // --- CA-4: DispositivoRetirado de una sede DISTINTA a la vigente se ignora (limpieza de una
-    // instalacion fantasma) -- el documento no se elimina ---
 
     [Fact]
     public void ShouldDelete_ConservaElDocumento_CuandoDispositivoRetiradoDeUnaSedeDistintaALaVigente()
