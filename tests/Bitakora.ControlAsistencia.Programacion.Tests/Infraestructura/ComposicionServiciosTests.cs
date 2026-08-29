@@ -132,7 +132,8 @@ public class ComposicionServiciosTests
 
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
 
-        store.AssertEventosPersistidosRegistrados([typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada)]);
+        store.AssertEventosPersistidosRegistrados(
+            [typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada), typeof(TurnoRetirado)]);
     }
 
     // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
@@ -150,7 +151,8 @@ public class ComposicionServiciosTests
         store.AssertAliasDeEventosPersistidos(new Dictionary<Type, string>
         {
             [typeof(TurnoCreado)] = "turno_creado",
-            [typeof(ProgramacionTurnoSolicitada)] = "programacion_turno_solicitada"
+            [typeof(ProgramacionTurnoSolicitada)] = "programacion_turno_solicitada",
+            [typeof(TurnoRetirado)] = "turno_retirado"
         });
     }
 

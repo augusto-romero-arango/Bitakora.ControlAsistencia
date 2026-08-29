@@ -20,13 +20,10 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="SolicitudYaExiste" xml:space="preserve">
-    <value>Ya existe una solicitud de programacion con ese Id</value>
-  </data>
   <data name="TurnoNoEncontrado" xml:space="preserve">
     <value>No se encontro el turno con el Id especificado en el catalogo</value>
   </data>
-  <data name="TurnoRetirado" xml:space="preserve">
-    <value>El turno fue retirado del catalogo y ya no es asignable</value>
+  <data name="TurnoYaRetirado" xml:space="preserve">
+    <value>El turno ya fue retirado del catalogo</value>
   </data>
 </root>

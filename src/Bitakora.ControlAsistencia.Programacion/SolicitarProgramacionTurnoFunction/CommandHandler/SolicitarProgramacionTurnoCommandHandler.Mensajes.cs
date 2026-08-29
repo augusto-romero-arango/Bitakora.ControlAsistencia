@@ -15,5 +15,10 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         public static string TurnoNoEncontrado =>
             ResourceManager.GetString(nameof(TurnoNoEncontrado))!;
+
+        // Issue #500: guarda transaccional contra el CatalogoTurnos que este handler ya carga
+        // (CA-ADR-0030) -- turno retirado ya no es asignable a nuevas solicitudes.
+        public static string TurnoRetirado =>
+            ResourceManager.GetString(nameof(TurnoRetirado))!;
     }
 }
