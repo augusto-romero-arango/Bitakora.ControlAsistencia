@@ -140,7 +140,6 @@ public class SintesisCalendarioAsistenciaTests
         filas.Should().OnlyContain(f => f.Estado == EstadoAsistenciaPresentado.SinDatos);
     }
 
-    // CA-5 (issue #485): ConflictoDeSedePendiente se propaga del documento a la fila.
     [Fact]
     public void Completar_PropagaConflictoDeSedePendiente_CuandoElDocumentoLoTraeEnTrue()
     {
@@ -152,7 +151,6 @@ public class SintesisCalendarioAsistenciaTests
         filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().BeTrue();
     }
 
-    // CA-5: la fila sintetica de un dia sin documento lleva la bandera en false.
     [Fact]
     public void Completar_DejaConflictoDeSedePendienteEnFalse_EnLaFilaSinteticaSinDocumento()
     {

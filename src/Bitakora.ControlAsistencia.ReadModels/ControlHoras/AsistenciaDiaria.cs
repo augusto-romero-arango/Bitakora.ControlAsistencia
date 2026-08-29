@@ -34,12 +34,9 @@ public enum PlanDelDia
 /// query-time -- la fila no carga los datos que harian falta para hacerlo. HorasPorConcepto llega ya
 /// filtrada desde el productor (DesgloseHoras.Discriminar): no re-filtrar aqui.
 ///
-/// ConflictoDeSedePendiente (issue #485): quinta bandera, nombrada en el vocabulario del Aprobador
-/// (glosario "Conflicto de sede": mientras este pendiente, el dia no es aprobable). Espejo de
-/// DiaCalculadoAggregateRoot.TieneConflictoDeSedePendiente -- segunda aparicion de la politica
-/// (MEF-ADR-0018, Rule of Three), duplicacion deliberada: un tercer consumidor dispara la extraccion.
-/// Distinta a proposito de EnConflictoDeSede de DepuracionDelDia.FranjaDepurada (vista viva): alli es
-/// por franja, aqui es el dia completo.
+/// ConflictoDeSedePendiente: mientras este en true el dia no es aprobable (glosario "Conflicto de
+/// sede"). Es del DIA completo, a diferencia del homonimo EnConflictoDeSede de
+/// DepuracionDelDia.FranjaDepurada, que es por franja.
 /// </summary>
 public sealed record AsistenciaDiaria(
     string Id,

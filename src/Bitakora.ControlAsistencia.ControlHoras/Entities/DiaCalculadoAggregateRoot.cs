@@ -161,10 +161,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // distintos entre las fuentes de una franja dejan la decision al Aprobador (#483); la maquina
     // no elige por el, expone las candidatas y se abstiene de sede efectiva.
     //
-    // Comentario cruzado obligatorio (MEF-ADR-0018, Rule of Three): esta politica se re-deriva por
-    // SEGUNDA vez, simplificada a un booleano, en
-    // Projections.ControlHoras.AsistenciaDiariaProjection.EsConflictoDeSedePendiente (issue #485). Si
-    // esta politica cambia aqui, cambia alla tambien.
+    // Duplicada a proposito (MEF-ADR-0018): se re-deriva, reducida al booleano, en
+    // Projections.ControlHoras.AsistenciaDiariaProjection.EsConflictoDeSedePendiente. Si cambia
+    // aqui, cambia alla.
     private static (SedeDeFranja? Efectiva, bool EnConflicto, IReadOnlyList<SedeDeFranja> Candidatas)
         DerivarSedeDeFranja(FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
     {

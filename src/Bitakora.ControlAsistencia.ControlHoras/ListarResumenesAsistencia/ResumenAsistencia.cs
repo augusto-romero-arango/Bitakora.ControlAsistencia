@@ -11,9 +11,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 /// - Aprobacion: Aprobados + Pendientes + SinDatos = dias del rango. Un dia vacio se AVALA
 ///   (SinDatos), un provisional se APRUEBA (Pendientes) -- colapsarlos en un solo contador
 ///   descuadraria el drill-down contra la pantalla de detalle, que presenta los tres estados.
-/// - Anomalias: conteo de cada bandera de AsistenciaDiaria (incluida ConflictoDeSedePendiente,
-///   issue #485); los dias sin fila no aportan ninguna (no vino y no debia venir), asi que este eje
-///   NO cierra contra los dias del rango.
+/// - Anomalias: conteo de cada bandera de AsistenciaDiaria; los dias sin fila no aportan ninguna
+///   (no vino y no debia venir), asi que este eje NO cierra contra los dias del rango.
 ///
 /// TotalHorasPorConcepto es la suma sparse (union de claves) de las filas del colaborador.
 /// </summary>

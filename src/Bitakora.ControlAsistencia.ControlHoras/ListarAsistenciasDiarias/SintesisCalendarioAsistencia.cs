@@ -45,8 +45,7 @@ public static class SintesisCalendarioAsistencia
             documento.HorasPorConcepto);
 
     // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
-    // cinco banderas van en false -- el vacio se avala, no se aprueba. ConflictoDeSedePendiente
-    // (CA-5, issue #485): un dia sin documento nunca esta en conflicto pendiente.
+    // cinco banderas van en false -- el vacio se avala, no se aprueba.
     private static FilaAsistenciaDiaria FilaSintetica(DateOnly fecha) =>
         new(
             fecha,

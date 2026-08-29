@@ -232,8 +232,6 @@ public class AgregadorResumenAsistenciaTests
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 12.00m });
     }
 
-    // CA-6 (issue #485): el contador ConflictoDeSedePendiente cuenta los dias del rango con la
-    // bandera -- los dias sin fila no aportan (mismo trato que las demas anomalias).
     [Fact]
     public void Agregar_CuentaLosDiasConConflictoDeSedePendiente_CuandoAlgunDocumentoLoTraeEnTrue()
     {
