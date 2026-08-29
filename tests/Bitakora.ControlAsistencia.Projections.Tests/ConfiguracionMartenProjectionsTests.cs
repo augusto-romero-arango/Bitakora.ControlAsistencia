@@ -830,6 +830,29 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaSede.Id));
     }
 
+    // Issue #475 CA-1..CA-6: segunda proyeccion concreta del dominio Sedes -- la PRIMERA receta N2
+    // de este dominio (MultiStreamProjection<UbicacionDispositivo, string>, correlacion por
+    // DispositivoId: el mismo dispositivo puede aparecer instalado en streams de VARIAS sedes).
+    // Complementa ConfigurarSedes_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo
+    // Inline, esta prueba que la proyeccion CONCRETA se registro con lifecycle Async, el canonico
+    // del worker (MEF-ADR-0034 seccion 3). El seam (ConfiguracionMartenProjectionsSedes.
+    // ConfigurarSedes) ya existe desde el issue #455 y ya registra FichaSedeProjection (#461); este
+    // issue le agrega la unica linea
+    // opts.Projections.Add<UbicacionDispositivoProjection>(ProjectionLifecycle.Async) -- ausente
+    // hoy, por eso este test queda en rojo hasta que projection-implementer la sume.
+    //
+    // Sin par de config-tests espejo mt_version (config-test.md, "Par de config-tests espejo"):
+    // este issue no expone ninguna Function GET ni Schema.For<UbicacionDispositivo>() en el
+    // write-side -- el consumo es interno via QuerySession (issue #467, fuera de este alcance).
+    [Fact]
+    public void ConfigurarSedes_RegistraUbicacionDispositivoProjectionComoAsync()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("UbicacionDispositivo");
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
