@@ -32,10 +32,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
-        // Issue #462 CA-5: el CC vacio/whitespace se normaliza a null en el punto de entrada del BC
-        // -- la inexistencia del dato es null, nunca cadena vacia. Aguas abajo (cascada, evento
-        // persistido, evento de bus) solo transportan la sede ya normalizada.
-        var sedeSolicitada = NormalizarSede(command.Sede);
+        // Unico punto de normalizacion de la sede entrante: aguas abajo (cascada, evento
+        // persistido, evento de bus) solo se transporta el valor ya normalizado.
+        var sedeSolicitada = command.Sede?.ConCentroDeCostosNormalizado();
 
         // La cascada de sede se aplica ANTES de construir cualquier evento: ambos payloads
         // (persistido y de bus) derivan del mismo turno ya resuelto, un solo punto de resolucion.
@@ -96,14 +95,4 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     // Unico punto de mapeo SedeProgramada -> DetalleSede. Opcional: null se conserva.
     private static DetalleSede? MapearSede(SedeProgramada? sede) =>
         sede is null ? null : new DetalleSede(sede.Id, sede.Nombre, sede.CentroDeCostos);
-
-    // Issue #462 CA-5: unico punto de normalizacion vacio/whitespace -> null del CC, en el punto de
-    // entrada del BC. El resto de la cadena (cascada, evento persistido, evento de bus) solo
-    // transporta el valor ya normalizado.
-    private static SedeProgramada? NormalizarSede(SedeProgramada? sede) => sede switch
-    {
-        null => null,
-        _ when string.IsNullOrWhiteSpace(sede.CentroDeCostos) => sede with { CentroDeCostos = null },
-        _ => sede
-    };
 }

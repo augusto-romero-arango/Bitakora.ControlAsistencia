@@ -62,6 +62,24 @@ public class SolicitarProgramacionTurnoSmokeTests(
         }
     };
 
+    // Turno de catalogo de una sola franja, sin sede prearmada: el arrange minimo para que la
+    // cascada aplique la sede de la solicitud a esa unica franja.
+    private static object TurnoSimplePayload(Guid turnoId, string nombre) => new
+    {
+        turnoId,
+        nombre,
+        ordinarias = new[]
+        {
+            new
+            {
+                inicio = "08:00:00",
+                fin = "16:00:00",
+                descansos = Array.Empty<object>(),
+                extras = Array.Empty<object>()
+            }
+        }
+    };
+
     private static object PayloadValido(Guid? id = null, Guid? turnoId = null) => new
     {
         id = id ?? Guid.CreateVersion7(),
@@ -316,9 +334,6 @@ public class SolicitarProgramacionTurnoSmokeTests(
             solicitudId, SuscripcionConsumidor);
     }
 
-    // Issue #462 CA-1/CA-6: el CC viaja dentro de SedeProgramada/DetalleSede tal cual llego por
-    // HTTP, sin validacion contra el maestro -- y la cascada (ConSedePorDefecto) lo propaga junto
-    // con Id/Nombre a la franja sin sede propia (mismo mecanismo que ya cubre CA-1 de sede, #341).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_PropagaElCentroDeCostosEnLaSedeYEnLaFranja_CuandoLaSolicitudLoIncluye()
@@ -331,28 +346,12 @@ public class SolicitarProgramacionTurnoSmokeTests(
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         var turnoId = Guid.CreateVersion7();
-        var turnoPayload = new
-        {
-            turnoId,
-            nombre = "[TEST] Turno Smoke CC",
-            ordinarias = new[]
-            {
-                new
-                {
-                    inicio = "08:00:00",
-                    fin = "16:00:00",
-                    descansos = Array.Empty<object>(),
-                    extras = Array.Empty<object>()
-                }
-            }
-        };
-        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC"), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var solicitudId = Guid.CreateVersion7();
-        var sedeId = "SEDE-CC-01";
-        var sedeNombre = "[TEST] Sede Con Costeo";
-        var centroDeCostos = "CC-100-VENTAS";
+        var sedeEsperada = new DetalleSede("SEDE-CC-01", "[TEST] Sede Con Costeo", "CC-100-VENTAS");
         var payload = new
         {
             id = solicitudId,
@@ -364,7 +363,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
                 nombreCompleto = "[TEST] Smoke Centro De Costos"
             },
             fechas = new[] { "2026-07-01" },
-            sede = new { id = sedeId, nombre = sedeNombre, centroDeCostos }
+            sede = new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = sedeEsperada.CentroDeCostos }
         };
 
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
@@ -373,22 +372,19 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
 
-        var sedeEsperada = new DetalleSede(sedeId, sedeNombre, centroDeCostos);
         evento.Sede.Should().Be(sedeEsperada);
 
-        // La cascada propaga el record COMPLETO (incluido el CC) a la unica franja sin sede propia.
+        // La cascada propaga el record COMPLETO (incluido el centro de costos) a la unica franja
+        // sin sede propia -- no solo Id/Nombre.
         evento.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         evento.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeEsperada);
     }
 
-    // Issue #462 CA-5: la inexistencia del dato es null, nunca cadena vacia -- se normaliza en el
-    // punto de entrada del BC, antes de construir cualquier evento.
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
+    // Vacio y blanco se ejercitan en la misma corrida, sobre el mismo turno de catalogo: son dos
+    // formas de la MISMA ausencia de dato, y separarlas costaria un arrange completo por valor.
+    [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_NormalizaCentroDeCostosANull_CuandoVieneVacioOEnBlanco(
-        string centroDeCostosCrudo)
+    public async Task SolicitarProgramacionTurno_NormalizaCentroDeCostosANull_CuandoVieneVacioOEnBlanco()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
@@ -398,54 +394,44 @@ public class SolicitarProgramacionTurnoSmokeTests(
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         var turnoId = Guid.CreateVersion7();
-        var turnoPayload = new
-        {
-            turnoId,
-            nombre = "[TEST] Turno Smoke CC Normalizacion",
-            ordinarias = new[]
-            {
-                new
-                {
-                    inicio = "08:00:00",
-                    fin = "16:00:00",
-                    descansos = Array.Empty<object>(),
-                    extras = Array.Empty<object>()
-                }
-            }
-        };
-        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos",
+            TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Normalizacion"), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        var solicitudId = Guid.CreateVersion7();
-        var sedeId = "SEDE-CC-02";
-        var sedeNombre = "[TEST] Sede Sin Costeo Real";
-        var payload = new
+        var sedeEsperada = new DetalleSede("SEDE-CC-02", "[TEST] Sede Sin Costeo Real");
+
+        foreach (var centroDeCostosCrudo in new[] { "", "   " })
         {
-            id = solicitudId,
-            turnoId,
-            colaborador = new
+            var solicitudId = Guid.CreateVersion7();
+            var payload = new
             {
-                identificacion = "CC-741852963",
-                codigoColaborador = Guid.CreateVersion7().ToString(),
-                nombreCompleto = "[TEST] Smoke Normalizacion CC"
-            },
-            fechas = new[] { "2026-07-02" },
-            sede = new { id = sedeId, nombre = sedeNombre, centroDeCostos = centroDeCostosCrudo }
-        };
+                id = solicitudId,
+                turnoId,
+                colaborador = new
+                {
+                    identificacion = "CC-741852963",
+                    codigoColaborador = Guid.CreateVersion7().ToString(),
+                    nombreCompleto = "[TEST] Smoke Normalizacion CC"
+                },
+                fechas = new[] { "2026-07-02" },
+                sede = new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = centroDeCostosCrudo }
+            };
 
-        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
-            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+            var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+                TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
 
-        var sedeEsperada = new DetalleSede(sedeId, sedeNombre);
-        evento.Sede.Should().Be(sedeEsperada);
+            evento.Sede.Should().Be(sedeEsperada,
+                "un centro de costos '{0}' debe llegar al bus como null", centroDeCostosCrudo);
+        }
     }
 
-    // Issue #462 CA-1: cierra el riesgo de que el CC llegue bien al bus pero se pierda en el JSON
-    // persistido -- mismo criterio que SolicitarProgramacionTurno_PersisteLaSedeEfectivaDeCadaFranja
-    // (#341), esta vez con el tercer campo del gemelo.
+    // Cierra el riesgo de que el centro de costos llegue bien al bus pero se pierda en el JSON
+    // persistido: un 202 verde no distingue los dos casos (mismo criterio que
+    // SolicitarProgramacionTurno_PersisteLaSedeEfectivaDeCadaFranja).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_PersisteElCentroDeCostosEnLaSedeEfectiva_CuandoLaSolicitudLoIncluye()
@@ -455,22 +441,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var ct = TestContext.Current.CancellationToken;
 
         var turnoId = Guid.CreateVersion7();
-        var turnoPayload = new
-        {
-            turnoId,
-            nombre = "[TEST] Turno Smoke CC Persistencia",
-            ordinarias = new[]
-            {
-                new
-                {
-                    inicio = "08:00:00",
-                    fin = "16:00:00",
-                    descansos = Array.Empty<object>(),
-                    extras = Array.Empty<object>()
-                }
-            }
-        };
-        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos",
+            TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Persistencia"), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var solicitudId = Guid.CreateVersion7();
@@ -501,8 +474,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var eventoPersistido = json.Deserialize<SolicitudMinima>(OpcionesLectura);
         eventoPersistido.Should().NotBeNull();
 
-        // El CC viaja tal cual dentro de SedeProgramada, tanto a nivel de solicitud como en la
-        // unica franja (sin sede propia, adopta la sede por defecto completa via cascada).
+        // La unica franja no trae sede propia: adopta por cascada la sede por defecto COMPLETA.
         eventoPersistido!.Sede.Should().Be(sedeMinima);
         eventoPersistido.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         eventoPersistido.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeMinima);

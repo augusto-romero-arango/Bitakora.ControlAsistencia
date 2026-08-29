@@ -153,8 +153,6 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         restaurado.DetalleTurno.Nombre.Should().Be("Turno Manana");
     }
 
-    // Issue #462 CA-2: el CC dentro de DetalleSede es un string opaco, plano y portable por el
-    // serializador por defecto del bus -- igual que el resto de los campos de sede (#331/#341).
     [Fact]
     public void RoundTrip_PreservaElCentroDeCostosDeLaSede_ConSerializadorPorDefectoDelBus()
     {
@@ -171,10 +169,9 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         restaurado.Sede!.CentroDeCostos.Should().Be("CC-100");
     }
 
-    // Issue #462 CA-4: mensajes publicados antes de este issue no llevan "centroDeCostos" dentro de
-    // "sede" -- STJ deja null en el parametro posicional opcional. Se parte de un evento CON CC para
-    // que la asercion sobre Remove() delate un test vacuo si la clave cambiara de nombre (mismo
-    // patron que JsonSinLaClaveSede/JsonSinLaClaveSedeEnLaFranja).
+    // El JSON se construye quitando la clave a un evento que SI la lleva (mismo patron que
+    // JsonSinLaClaveSede): asi la asercion sobre Remove() delata un test vacuo si la clave se
+    // renombra, cosa que un JSON escrito a mano no haria.
     [Fact]
     public void Deserializar_DejaCentroDeCostosEnNull_CuandoElMensajeNoLlevaEseCampoEnLaSede()
     {

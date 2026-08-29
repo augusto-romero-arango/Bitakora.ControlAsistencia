@@ -107,9 +107,8 @@ public class FranjaOrdinariaSerializacionTests
         restaurado!.ToDetalle().Sede.Should().Be(sede);
     }
 
-    // Issue #462: el CC viaja DENTRO de SedeProgramada -- la propiedad "sede" serializa el record
-    // completo por reflexion (CreateJsonPropertyInfo), asi que el campo aditivo sobrevive sin
-    // tocar ConfigurarSerializacion.
+    // La propiedad "sede" serializa el record COMPLETO por reflexion (CreateJsonPropertyInfo):
+    // un campo nuevo de SedeProgramada sobrevive el round trip sin tocar ConfigurarSerializacion.
     [Fact]
     public void RoundTrip_PreservaElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
     {

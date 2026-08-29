@@ -68,44 +68,6 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     // tipo anonimo local basta para reproducir la FORMA sin referenciar los ensamblados de los
     // tipos reales: lo unico que importa para el guardrail es que las claves JSON coincidan --
     // construirla desde el propio tipo bajo prueba haria el test ciego a un rename.
-    // Issue #462: forma persistida CON sede, pero sin la clave "CentroDeCostos" dentro de ella --
-    // los streams escritos antes de este issue no la llevan. Objeto anonimo deliberadamente sin esa
-    // clave (no se construye desde el tipo bajo prueba).
-    private static string JsonConSedeSinCentroDeCostos()
-    {
-        var forma = new
-        {
-            Id,
-            Colaborador = new
-            {
-                Identificacion = "CC-12345678",
-                CodigoColaborador = "E001",
-                NombreCompleto = "Juan Perez"
-            },
-            Fechas = new[] { Fecha1 },
-            DetalleTurno = new
-            {
-                Nombre = "Turno Manana",
-                FranjasOrdinarias = new[]
-                {
-                    new
-                    {
-                        HoraInicio = new TimeOnly(6, 0),
-                        HoraFin = new TimeOnly(14, 0),
-                        DiaOffsetFin = 0,
-                        Descansos = Array.Empty<object>(),
-                        Extras = Array.Empty<object>(),
-                        Descripcion = "(06:00-14:00)"
-                    }
-                },
-                Descripcion = "Turno Manana (06:00-14:00)"
-            },
-            Sede = new { Id = "SEDE-01", Nombre = "Sede Principal" }
-        };
-
-        return JsonSerializer.Serialize(forma, new JsonSerializerOptions { PropertyNamingPolicy = null });
-    }
-
     private static string JsonConLaFormaPersistidaEnMtEvents()
     {
         var forma = new
@@ -184,6 +146,44 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
                 foreach (var hijo in arreglo) QuitarDescripcion(hijo);
                 break;
         }
+    }
+
+    // Forma persistida CON sede pero sin la clave "CentroDeCostos": la que tienen los streams
+    // anteriores al campo. Objeto anonimo deliberadamente escrito a mano, no derivado del tipo bajo
+    // prueba -- derivarlo haria el test ciego a un rename de la clave.
+    private static string JsonConSedeSinCentroDeCostos()
+    {
+        var forma = new
+        {
+            Id,
+            Colaborador = new
+            {
+                Identificacion = "CC-12345678",
+                CodigoColaborador = "E001",
+                NombreCompleto = "Juan Perez"
+            },
+            Fechas = new[] { Fecha1 },
+            DetalleTurno = new
+            {
+                Nombre = "Turno Manana",
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = new TimeOnly(6, 0),
+                        HoraFin = new TimeOnly(14, 0),
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>(),
+                        Descripcion = "(06:00-14:00)"
+                    }
+                },
+                Descripcion = "Turno Manana (06:00-14:00)"
+            },
+            Sede = new { Id = "SEDE-01", Nombre = "Sede Principal" }
+        };
+
+        return JsonSerializer.Serialize(forma, new JsonSerializerOptions { PropertyNamingPolicy = null });
     }
 
     private static ProgramacionTurnoSolicitada Deserializar(string json)
@@ -316,8 +316,6 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         restaurado.Sede.Should().Be(SedeEsperada);
     }
 
-    // Issue #462 CA-1: el CC dentro de SedeProgramada es un string opaco, sin validacion -- round
-    // trip Marten a nivel del evento cuando la sede lo trae poblado.
     [Fact]
     public void RoundTrip_PreservaElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
     {
@@ -333,9 +331,8 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         restaurado!.Sede!.CentroDeCostos.Should().Be("CC-100");
     }
 
-    // Issue #462 CA-4: streams persistidos antes de este issue traen la sede SIN la clave
-    // "CentroDeCostos" -- STJ deja null en el parametro posicional opcional (mismo mecanismo que
-    // Descripcion/Sede, #288/#331).
+    // El campo es el ULTIMO parametro posicional y opcional del record: por eso STJ lo deja en
+    // null ante un JSON sin la clave. Reordenar los parametros rompe esa compatibilidad.
     [Fact]
     public void Deserializar_DejaCentroDeCostosEnNull_CuandoLaSedePersistidaNoLlevaEseCampo()
     {

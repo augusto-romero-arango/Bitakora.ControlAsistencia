@@ -15,7 +15,5 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// Sin Equals custom: todos los campos son string, la igualdad por valor del record por defecto ya
 /// es correcta (mismo criterio que ColaboradorProgramado, issue #319, y SedeProgramada de
 /// Programacion, #331).
-/// Issue #462: CentroDeCostos es opcional y aditivo -- ControlHoras solo lo transporta y persiste,
-/// nunca lo valida ni lo deriva (mismo criterio que el resto de los campos de sede, #336).
 /// </remarks>
 public record SedeProgramada(string Id, string Nombre, string? CentroDeCostos = null);

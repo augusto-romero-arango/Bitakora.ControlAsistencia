@@ -187,10 +187,6 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, null);
     }
 
-    // Issue #462 CA-3: el CC dentro de la sede efectiva de la franja (ya resuelto por la cascada del
-    // lado de Programacion) se persiste tal cual en TurnoDiarioAsignado -- ControlHoras solo lo
-    // transporta y nunca lo valida ni lo deriva (mismo criterio que el resto de los campos de sede,
-    // issue #336).
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_PropagaElCentroDeCostosDeLaSede_CuandoElEventoLoTrae()
     {
@@ -218,8 +214,6 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, "CC-100");
     }
 
-    // Issue #462 CA-4: la franja sin sede (o con sede sin CC) sigue dejando Sede/CentroDeCostos en
-    // null -- comportamiento actual intacto, sin regla nueva.
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_DejaCentroDeCostosEnNull_CuandoLaSedeDeLaFranjaNoLoTrae()
     {

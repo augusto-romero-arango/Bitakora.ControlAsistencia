@@ -141,11 +141,8 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
     private static readonly DetalleSede SedeSubaDetalle = new("SEDE-SUBA", "Suba");
 
-    // --- Issue #462: Centro de Costos dentro de la sede ---
-    //
-    // El CC lo construye el FRONT (consulta FichaSede, #461) y lo envia tal cual -- el servidor
-    // NUNCA lo valida contra el maestro. SedeConCentroDeCostos comparte Id/Nombre con SedePrincipal
-    // a proposito: el unico eje que varia entre los tests de esta seccion es CentroDeCostos.
+    // SedeConCentroDeCostos comparte Id/Nombre con SedePrincipal a proposito: el unico eje que
+    // varia entre ambas es CentroDeCostos.
     private static readonly SedeProgramada SedeConCentroDeCostos =
         new("SEDE-01", "Sede Principal", "CC-100");
     private static readonly DetalleSede SedeConCentroDeCostosDetalle =
@@ -412,9 +409,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
     }
 
-    // Issue #462 CA-1/CA-2: el CC viaja TAL CUAL desde el comando -- sin validacion contra el
-    // maestro (esa consulta la hizo el front, #461) -- y queda grabado en el evento persistido
-    // (a nivel de evento y de la franja que la cascada resuelve) y en el evento de bus (DetalleSede).
     [Fact]
     public async Task SolicitarProgramacionTurno_PersisteElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
     {
@@ -433,8 +427,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, "CC-100");
     }
 
-    // Issue #462 CA-4: sede sin CC (campo ausente/null) fluye con null a traves de toda la cadena --
-    // mismo comportamiento que rige el resto de campos de sede cuando no traen dato (#331/#341).
     [Fact]
     public async Task SolicitarProgramacionTurno_DejaCentroDeCostosEnNull_CuandoLaSedeNoLoTrae()
     {
@@ -452,10 +444,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
     }
 
-    // Issue #462 CA-5: CC vacio o whitespace en el comando se normaliza a null en el punto de
-    // entrada del BC -- la inexistencia de un dato es null, nunca una cadena en blanco. El oraculo
-    // (SedePrincipal/TurnoProgramadoConSedeAplicadaEsperado) se construye a mano, sin derivar de la
-    // normalizacion bajo prueba (MEF-ADR-0002): tras normalizar, "   " y null son indistinguibles.
+    // El oraculo (SedePrincipal/TurnoProgramadoConSedeAplicadaEsperado) se construye a mano, sin
+    // derivarlo de la normalizacion bajo prueba (MEF-ADR-0002): tras normalizar, "   " y null son
+    // indistinguibles, asi que derivarlo volveria el test vacuo.
     [Fact]
     public async Task SolicitarProgramacionTurno_NormalizaCentroDeCostosEnBlancoANull_CuandoLaSedeLoTraeVacio()
     {

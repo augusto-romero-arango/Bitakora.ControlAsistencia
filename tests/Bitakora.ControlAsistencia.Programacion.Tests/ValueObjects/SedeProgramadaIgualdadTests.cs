@@ -1,8 +1,8 @@
 // Issue #331: Tests de contrato IEquatable para SedeProgramada (record propio de
 // Programacion.DomainEvents). Todos los campos son string: la igualdad por valor del record por
 // defecto ya es correcta, sin Equals/GetHashCode custom -- mismo criterio que Colaborador (issue #319).
-// Issue #462: CrearInstancia/Copia pueblan CentroDeCostos para que el campo nuevo participe
-// realmente de la comparacion (con null en ambos lados, un bug de igualdad pasaria inadvertido).
+// CrearInstancia/Copia pueblan TODOS los campos, incluidos los opcionales: con null en ambos
+// lados de la comparacion, un bug de igualdad sobre ese campo pasaria inadvertido.
 
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 

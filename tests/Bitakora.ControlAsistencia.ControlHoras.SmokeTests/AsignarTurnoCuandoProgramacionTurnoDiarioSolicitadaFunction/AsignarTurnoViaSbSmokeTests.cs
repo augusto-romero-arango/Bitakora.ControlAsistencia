@@ -286,10 +286,6 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             solicitudId, SuscripcionConsumidor);
     }
 
-    // Issue #462 CA-3: el CC viaja dentro de DetalleSede -> el handler solo lo transporta y
-    // persiste (mapeo mecanico DetalleSede -> SedeProgramada, sin validarlo ni derivarlo -- mismo
-    // criterio que el resto de los campos de sede, #336). El assert de dead-letter confirma que el
-    // campo nuevo no rompe el mapeo existente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ProgramacionTurnoDiarioSolicitada_PersisteElCentroDeCostosDeLaSedeDeLaFranja_CuandoElEventoLoTrae()
@@ -363,8 +359,8 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         turnoDiarioPersistido!.FranjasOrdinarias.Should().ContainSingle();
         turnoDiarioPersistido.FranjasOrdinarias[0].Sede.Should().Be(sedeEsperada);
 
-        // Assert: el mapeo DetalleSede -> SedeProgramada del CC no rompe el handler (sin dead
-        // letter de esta corrida en la suscripcion del consumidor real).
+        // Assert: el campo nuevo en el cable no rompe el mapeo DetalleSede -> SedeProgramada del
+        // consumidor real (sin dead letter de esta corrida en su suscripcion).
         var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
             TopicEntrada, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
 

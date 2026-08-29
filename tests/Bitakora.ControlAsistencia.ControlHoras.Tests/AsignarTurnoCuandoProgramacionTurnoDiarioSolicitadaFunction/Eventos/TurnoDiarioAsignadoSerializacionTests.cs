@@ -329,8 +329,6 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado.DetalleTurno.FranjasOrdinarias[1].Sede.Should().Be(sedeChapinero);
     }
 
-    // Issue #462 CA-3: el CC dentro de la sede de la franja es un string opaco, sin validacion --
-    // round trip Marten cuando la sede lo trae poblado.
     [Fact]
     public void Deserializar_ReconstruyeIdentico_ConCentroDeCostosPobladoEnLaSede()
     {
@@ -350,8 +348,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado!.DetalleTurno.FranjasOrdinarias[0].Sede!.CentroDeCostos.Should().Be("CC-100");
     }
 
-    // Issue #462 CA-4: eventos persistidos antes de este issue traen la sede SIN la clave
-    // "CentroDeCostos" -- STJ deja null en el parametro posicional opcional.
+    // El campo es el ULTIMO parametro posicional y opcional del record: por eso STJ lo deja en
+    // null ante un JSON sin la clave. Reordenar los parametros rompe esa compatibilidad.
     [Fact]
     public void Deserializar_DejaCentroDeCostosEnNull_CuandoLaSedePersistidaNoLlevaEseCampo()
     {
