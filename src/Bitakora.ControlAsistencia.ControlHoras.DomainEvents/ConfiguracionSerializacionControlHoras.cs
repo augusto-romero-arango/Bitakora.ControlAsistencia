@@ -29,5 +29,6 @@ public static class ConfiguracionSerializacionControlHoras
         DepuracionDiaRecibida.ConfigurarSerializacion(resolver);
         SedeDeMarcacionIdentificada.ConfigurarSerializacion(resolver);
         DiaAprobado.ConfigurarSerializacion(resolver);
+        DepuracionPosAprobacionRecibida.ConfigurarSerializacion(resolver);
     }
 }

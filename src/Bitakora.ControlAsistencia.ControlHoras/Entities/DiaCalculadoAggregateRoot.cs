@@ -81,18 +81,26 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     }
 
     // CA-2/CA-4: toda foto que llega a un dia ya existente se agrega al mismo stream, siempre.
-    // Issue #489 CA-8: guarda minima -- un dia ya Aprobado ignora en silencio la foto tardia (ni
-    // evento nuevo ni cambio de estado/valores). Apply(DepuracionDiaRecibida) regresaria el dia a
-    // Provisional si se dejara pasar, rompiendo la invariante que este issue introduce. La evidencia
-    // auditable (DepuracionPosAprobacionRecibida) llega con el issue B.
+    // Un dia ya Aprobado no incorpora la foto tardia -- Apply(DepuracionDiaRecibida) lo regresaria
+    // a Provisional -- pero tampoco la ignora: queda como evidencia auditable en el mismo stream.
     internal void RecibirDepuracion(DepuracionDiaRecibida evento)
     {
         if (Estado == EstadoDiaCalculado.Aprobado)
+        {
+            var evidencia = DepuracionPosAprobacionRecibida.Desde(evento);
+            _uncommittedEvents.Add(evidencia);
+            Apply(evidencia);
             return;
+        }
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // MEF-ADR-0004: Apply no lanza ni muta -- rehidratar un stream con este evento reproduce
+    // exactamente el mismo dia Aprobado. public: requerido para que TestStore.ApplyEvent lo
+    // encuentre via GetMethods().
+    public void Apply(DepuracionPosAprobacionRecibida e) { }
 
     // Issue #489. MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
     // el estado previo. public: requerido para que TestStore.ApplyEvent lo encuentre via

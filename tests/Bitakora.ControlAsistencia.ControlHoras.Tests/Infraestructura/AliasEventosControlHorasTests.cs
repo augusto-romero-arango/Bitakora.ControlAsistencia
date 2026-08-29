@@ -81,4 +81,12 @@ public class AliasEventosControlHorasTests
 
         AliasDe<DiaAprobado>(options).Should().Be("dia_aprobado");
     }
+
+    [Fact]
+    public void DepuracionPosAprobacionRecibida_TieneAliasDepuracionPosAprobacionRecibida()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<DepuracionPosAprobacionRecibida>(options).Should().Be("depuracion_pos_aprobacion_recibida");
+    }
 }
