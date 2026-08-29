@@ -22,8 +22,12 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     private static CrearTurno ComandoConUnaFranja(Guid turnoId) =>
         new(turnoId, NombreTurno, [FranjaDiurnaSimple()]);
 
+    // Issue #497: catalogo de nombres vigentes contra FichaTurno, vacio por defecto -- los tests de
+    // duplicado lo reasignan antes de WhenAsync (mismo patron que FakeLectorUbicacionDispositivo, #477).
+    private FakeLectorNombresTurno _lector = new();
+
     protected override ICommandHandlerAsync<CrearTurno> Handler =>
-        new CrearTurnoCommandHandler(EventStore);
+        new CrearTurnoCommandHandler(EventStore, _lector);
 
     // CA-3: handler persiste evento cuando turno no existe
     // CA-1: aggregate aplica TurnoCreado y establece Id (AggregateRoot.Id = turnoId.ToString())
@@ -96,4 +100,82 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, string>(c => c.ToString(), descripcionEsperada);
         And<CatalogoTurnos, string>(c => c.ObtenerDetalle().Descripcion, descripcionEsperada);
     }
+
+    // CA-1: nombre coincide EXACTAMENTE con uno existente en el catalogo -> 409, sin escribir nada.
+    [Fact]
+    public async Task CrearTurno_LanzaInvalidOperationException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
+    {
+        const string nombreExistente = "Limpieza mañana";
+        _lector = new FakeLectorNombresTurno(nombreExistente);
+        var comando = new CrearTurno(GuidAggregateId, nombreExistente, [FranjaDiurnaSimple()]);
+
+        Given();
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
+        Then();
+    }
+
+    // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
+    // existente -> 409, sin escribir nada.
+    [Fact]
+    public async Task CrearTurno_LanzaInvalidOperationException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
+    {
+        const string nombreExistente = "Limpieza mañana";
+        const string nombreConEspaciosYMayusculas = "  limpieza  MAÑANA ";
+        _lector = new FakeLectorNombresTurno(nombreExistente);
+        var comando = new CrearTurno(GuidAggregateId, nombreConEspaciosYMayusculas, [FranjaDiurnaSimple()]);
+
+        Given();
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
+        Then();
+    }
+
+    // CA-3: nombre difiere solo en acentos de uno existente -> se crea normalmente (decision del
+    // experto: normalizar acentos abre falsos positivos, los acentos SON significativos).
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreado_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
+    {
+        const string nombreExistente = "Limpieza mañana";
+        const string nombreSinAcento = "Limpieza manana";
+        _lector = new FakeLectorNombresTurno(nombreExistente);
+        var comando = new CrearTurno(GuidAggregateId, nombreSinAcento, [FranjaDiurnaSimple()]);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
+
+        Given();
+
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
+    }
+
+    // CA-4: nombre libre, sin coincidencia (exacta ni normalizada) en el catalogo -> se crea
+    // normalmente (comportamiento actual intacto).
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreado_CuandoNombreNoCoincideConNingunoDelCatalogo()
+    {
+        _lector = new FakeLectorNombresTurno("Limpieza mañana", "Turno Noche");
+        var comando = ComandoConUnaFranja(GuidAggregateId);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
+
+        Given();
+
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
+    }
+}
+
+internal sealed class FakeLectorNombresTurno(params string[] nombres) : ILectorNombresTurno
+{
+    public Task<IReadOnlyList<string>> ObtenerNombresAsync(CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<string>>(nombres);
 }

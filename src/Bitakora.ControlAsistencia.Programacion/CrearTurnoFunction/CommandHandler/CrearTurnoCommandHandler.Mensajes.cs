@@ -14,5 +14,8 @@ public partial class CrearTurnoCommandHandler
     {
         public static string TurnoYaExiste =>
             ResourceManager.GetString(nameof(TurnoYaExiste))!;
+
+        public static string NombreDuplicado =>
+            ResourceManager.GetString(nameof(NombreDuplicado))!;
     }
 }

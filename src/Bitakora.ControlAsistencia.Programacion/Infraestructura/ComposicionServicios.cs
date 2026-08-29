@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventDriven.CritterStack;
@@ -71,6 +72,9 @@ public static class ComposicionServicios
         services.AddScoped<ITenantResolver, TenantResolverFijo>();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
+        // Issue #497: rechazo best-effort de nombre duplicado en CrearTurno contra FichaTurno
+        // (CA-ADR-0030, precedente ILectorUbicacionDispositivo/#477).
+        services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
 
         // Registrar serializacion custom para tipos con constructores privados.
         // Issue #267: las tres columnas de metadata de evento que exige MEF-ADR-0034 seccion 7

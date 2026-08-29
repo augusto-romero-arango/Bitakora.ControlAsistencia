@@ -13,15 +13,22 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHand
 public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrearTurno>
 {
     private readonly IEventStore _eventStore;
+    private readonly ILectorNombresTurno _lectorNombres;
 
-    public CrearTurnoCommandHandler(IEventStore eventStore) =>
+    public CrearTurnoCommandHandler(IEventStore eventStore, ILectorNombresTurno lectorNombres)
+    {
         _eventStore = eventStore;
+        _lectorNombres = lectorNombres;
+    }
 
     public async Task HandleAsync(ComandoCrearTurno command, CancellationToken ct = default)
     {
         var existe = await _eventStore.ExistsAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (existe)
             throw new InvalidOperationException(Mensajes.TurnoYaExiste);
+
+        // Issue #497: pendiente el rechazo por nombre normalizado duplicado contra FichaTurno
+        // (via _lectorNombres) -- fase roja, implementacion en la fase verde.
 
         var evento = command.EsDescanso
             ? TurnoCreado.CrearDescanso(command.TurnoId, command.Nombre)
