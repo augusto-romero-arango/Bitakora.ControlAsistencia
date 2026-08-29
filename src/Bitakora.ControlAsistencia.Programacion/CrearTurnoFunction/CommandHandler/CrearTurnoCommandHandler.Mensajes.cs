@@ -2,8 +2,7 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
-// ADR-0012: mensajes del handler en .resx separado
-// internal: accesible desde tests via InternalsVisibleTo en el .csproj
+// Mensajes internal, no private: los tests los leen via InternalsVisibleTo del .csproj.
 public partial class CrearTurnoCommandHandler
 {
     private static readonly ResourceManager ResourceManager = new(
@@ -14,5 +13,8 @@ public partial class CrearTurnoCommandHandler
     {
         public static string TurnoYaExiste =>
             ResourceManager.GetString(nameof(TurnoYaExiste))!;
+
+        public static string NombreDuplicado =>
+            ResourceManager.GetString(nameof(NombreDuplicado))!;
     }
 }

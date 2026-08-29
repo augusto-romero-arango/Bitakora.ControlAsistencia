@@ -78,6 +78,90 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
+    // Issue #497: espera a que FichaTurno materialice el turno antes del POST duplicado -- sin
+    // esto, un 202/409 inmediato no distingue "la comparacion contra el catalogo funciono" de "la
+    // proyeccion Async (MEF-ADR-0034 seccion 3) aun no vio nada" (best-effort, CA-ADR-0030).
+    private async Task EsperarTurnoMaterializadoAsync(Guid turnoId, CancellationToken ct) =>
+        await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var response = await _client.GetAsync($"/api/programacion/turnos/{turnoId}", ct);
+            return response.StatusCode == HttpStatusCode.OK;
+        }, Timeout);
+
+    // CA-1: nombre coincide EXACTAMENTE con uno existente en el catalogo -> 409.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_DebeRetornar409_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var nombreExistente = $"[TEST] Limpieza Manana {sufijo}";
+        var turnoExistenteId = Guid.CreateVersion7();
+
+        var arrange = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(turnoExistenteId, nombreExistente), ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que CrearTurno funcione");
+        await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(Guid.CreateVersion7(), nombreExistente), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
+    // existente -> 409.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_DebeRetornar409_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var nombreExistente = $"[TEST] Limpieza Manana {sufijo}";
+        var nombreConEspaciosYMayusculas = $"  [TEST]  limpieza   MANANA {sufijo} ";
+        var turnoExistenteId = Guid.CreateVersion7();
+
+        var arrange = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(turnoExistenteId, nombreExistente), ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que CrearTurno funcione");
+        await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(Guid.CreateVersion7(), nombreConEspaciosYMayusculas), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // CA-3: nombre difiere solo en acentos de uno existente -> se crea normalmente (decision del
+    // experto: normalizar acentos abre falsos positivos, los acentos SON significativos).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_DebeRetornar202_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var nombreConAcento = $"[TEST] Limpieza Mañana {sufijo}";
+        var nombreSinAcento = $"[TEST] Limpieza Manana {sufijo}";
+        var turnoExistenteId = Guid.CreateVersion7();
+
+        var arrange = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(turnoExistenteId, nombreConAcento), ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que CrearTurno funcione");
+        await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
+
+        var turnoSinAcentoId = Guid.CreateVersion7();
+        var response = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(turnoSinAcentoId, nombreSinAcento), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // El 202 solo dice que el comando fue aceptado: el efecto secundario real de este handler
+        // (StartStream -> turno visible en el catalogo) es lo que cierra MEF-ADR-0013.
+        await EsperarTurnoMaterializadoAsync(turnoSinAcentoId, ct);
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_DebeRetornar400_CuandoPayloadEsInvalido()

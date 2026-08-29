@@ -23,4 +23,7 @@
   <data name="TurnoYaExiste" xml:space="preserve">
     <value>Ya existe un turno con ese identificador</value>
   </data>
+  <data name="NombreDuplicado" xml:space="preserve">
+    <value>Ya existe un turno con ese nombre en el catalogo</value>
+  </data>
 </root>
