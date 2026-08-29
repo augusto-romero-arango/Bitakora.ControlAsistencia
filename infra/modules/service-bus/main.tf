@@ -26,6 +26,10 @@ variable "topics_config" {
       name                = string
       correlation_filter  = optional(map(string))
       default_message_ttl = optional(string)
+      # Issue #463 (MEF-ADR-0026): fan-in dentro de un topic -- serializa la convergencia de
+      # varias resoluciones sobre el mismo aggregate. ForceNew en Azure (no se puede alternar
+      # sobre una subscription existente): default false preserva el comportamiento previo.
+      requires_session = optional(bool, false)
     })), [])
   }))
   default = {}
@@ -78,6 +82,7 @@ locals {
         sub_name            = sub.name
         correlation_filter  = sub.correlation_filter
         default_message_ttl = sub.default_message_ttl
+        requires_session    = sub.requires_session
       }
     ]
   ])
@@ -90,6 +95,7 @@ resource "azurerm_servicebus_subscription" "subs" {
   topic_id            = azurerm_servicebus_topic.topics[each.value.topic_name].id
   max_delivery_count  = 10
   default_message_ttl = each.value.default_message_ttl
+  requires_session    = each.value.requires_session
 }
 
 # ADR-0001 / ADR-0027: se removio el escape-hatch SqlFilter. El enrutamiento

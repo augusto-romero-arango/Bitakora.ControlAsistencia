@@ -175,15 +175,44 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     }
 
     // Issue #463: proyecta el estampado de sede sobre la marcacion que coincida por
-    // TimestampNormalizado+DispositivoId. Stub de compilacion -- fase roja del pipeline TDD.
+    // TimestampNormalizado+DispositivoId. Si ninguna coincide (rehidratacion parcial o carrera de
+    // orden ya descartada por el handler antes de persistir, MEF-ADR-0004) no lanza: es un no-op
+    // silencioso, coherente con que Apply solo proyecta estado.
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
-    public void Apply(SedeDeMarcacionIdentificada e) => throw new NotImplementedException();
+    public void Apply(SedeDeMarcacionIdentificada e)
+    {
+        var indice = _marcaciones.FindIndex(m =>
+            m.TimestampNormalizado == e.TimestampNormalizado && m.DispositivoId == e.DispositivoId);
+        if (indice < 0) return;
+
+        _marcaciones[indice] = _marcaciones[indice] with
+        {
+            CodigoSede = e.CodigoSede,
+            NombreSede = e.NombreSede,
+            CentroDeCostos = e.CentroDeCostos
+        };
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
 
     // Issue #463: decide el no-op (CA-4) consultando su propio estado (Tell-don't-Ask,
     // MEF-ADR-0012) -- el handler no inspecciona Marcaciones para esa decision. El caso "ninguna
     // marcacion coincide todavia" lo resuelve el handler ANTES de invocar este metodo (retry del
-    // bus, MEF-ADR-0004): Apply nunca lanza. Stub de compilacion -- fase roja del pipeline TDD.
-    internal void EstamparSede(SedeDeMarcacionIdentificada evento) => throw new NotImplementedException();
+    // bus, MEF-ADR-0004).
+    internal void EstamparSede(SedeDeMarcacionIdentificada evento)
+    {
+        var marcacion = _marcaciones.SingleOrDefault(m =>
+            m.TimestampNormalizado == evento.TimestampNormalizado && m.DispositivoId == evento.DispositivoId);
+
+        var mismaSedeYaEstampada = marcacion is not null
+            && marcacion.CodigoSede == evento.CodigoSede
+            && marcacion.NombreSede == evento.NombreSede
+            && marcacion.CentroDeCostos == evento.CentroDeCostos;
+        if (mismaSedeYaEstampada) return;
+
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
