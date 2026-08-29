@@ -5,6 +5,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.PrivateEvents.Sedes;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
+using Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 using Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -80,7 +81,10 @@ public static class ComposicionServicios
         // (ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado) -- se registra el router de
         // eventos privados (MEF-ADR-0024 decision #8).
         services.AgregarWolverinePrivateEventRouter();
-        services.AddScoped<ILectorSedesParaMarcacion, LectorSedesParaMarcacion>();
+        services.AddScoped<ILectorSedesParaMarcacion, LectorReadSideSedes>();
+        // Puerto segregado del rechazo cross-sede de InstalarDispositivo: mismo lookup, misma
+        // implementacion concreta que ILectorSedesParaMarcacion.
+        services.AddScoped<ILectorUbicacionDispositivo, LectorReadSideSedes>();
 
         services.ConfigureMarten(options =>
         {
@@ -108,7 +112,7 @@ public static class ComposicionServicios
             options.Schema.For<FichaSede>().UseNumericRevisions(true);
 
             // Issue #467: misma declaracion del par 2 para UbicacionDispositivo, que este Function
-            // App empieza a consultar aqui (LectorSedesParaMarcacion.BuscarUbicacionAsync, la
+            // App empieza a consultar aqui (LectorReadSideSedes.BuscarUbicacionAsync, la
             // reaccion de MEF-ADR-0046). El worker ya la materializa con mt_version bigint via
             // UbicacionDispositivoProjection; sin esta linea el store esperaria mt_version uuid
             // sobre la misma tabla y cada lookup dispararia el "alter column" que Postgres rechaza

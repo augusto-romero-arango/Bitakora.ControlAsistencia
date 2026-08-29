@@ -26,4 +26,7 @@
   <data name="DispositivoYaInstalado" xml:space="preserve">
     <value>El dispositivo ya esta instalado en esta sede</value>
   </data>
+  <data name="DispositivoInstaladoEnOtraSede" xml:space="preserve">
+    <value>El dispositivo ya esta instalado en otra sede</value>
+  </data>
 </root>
