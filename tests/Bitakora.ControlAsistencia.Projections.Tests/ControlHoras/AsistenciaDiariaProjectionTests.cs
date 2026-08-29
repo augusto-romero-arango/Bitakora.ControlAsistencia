@@ -317,13 +317,10 @@ public class AsistenciaDiariaProjectionTests
         vista.ConflictoDeSedePendiente.Should().BeTrue();
     }
 
-    // --- Issue #492: cierre del ciclo Provisional -> Aprobado (DiaAprobado) ---
-
+    // Aval del vacio: DiaAprobado como PRIMER evento del stream, sin depuracion previa.
     [Fact]
     public void Create_ProyectaElDiaAprobadoSinDatosPrevios_DesdeElAvalDelVacio()
     {
-        // CA-2: un stream puede NACER con DiaAprobado (dia sin datos, #489 CA-7). Sin franjas ni
-        // marcaciones que clasificar, el plan queda SinProgramar y ninguna bandera se enciende.
         var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
 
         var vista = AsistenciaDiariaProjection.Create(evento);
@@ -343,11 +340,8 @@ public class AsistenciaDiariaProjectionTests
     }
 
     [Fact]
-    public void Apply_AprueblaLaFilaYApagaConflictoDeSedePendiente_CuandoLlegaDiaAprobado()
+    public void Apply_ApruebaLaFilaYApagaConflictoDeSedePendiente_CuandoLlegaDiaAprobado()
     {
-        // CA-1: DiaAprobado sobre una fila existente en conflicto -- el acto de aprobar resuelve la
-        // discrepancia de sede, asi que la bandera se apaga. El resto de la fila (Plan, banderas de
-        // anomalia ya juzgadas, NombreTurno, HorasPorConcepto) no lo toca este evento.
         var vistaPrevia = new AsistenciaDiaria(
             StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
             "Turno Manana", NoSePresento: false, FranjasIncompletas: true, VinoEnDescanso: false,
@@ -378,9 +372,8 @@ public class AsistenciaDiariaProjectionTests
     [Fact]
     public void Apply_ProyectaLaFilaAprobada_CuandoDiaAprobadoLlegaTrasDepuracionDiaRecibidaEnElMismoStream()
     {
-        // CA-3: orden real de eventos del stream dc: -- DepuracionDiaRecibida foto la jornada y
-        // DiaAprobado la cierra despues. La foto de depuracion se produce con el metodo Create real
-        // (arrange, no el oraculo): lo que se afirma a mano es el resultado final de Apply.
+        // Create(DepuracionDiaRecibida) se usa aqui como ARRANGE, no como oraculo: arma el estado
+        // previo realista del stream; lo que se afirma a mano es solo el resultado de Apply.
         var horas = HorasDePrueba(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
         var eventoDepuracion = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], horas);
         var vistaTrasDepuracion = AsistenciaDiariaProjection.Create(eventoDepuracion);

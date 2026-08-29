@@ -260,4 +260,23 @@ public class AgregadorResumenAsistenciaTests
 
         filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().Be(0);
     }
+
+    // El contador cuenta la bandera, nunca el Estado: un dia que estuvo en conflicto y luego se
+    // aprobo llega ya con la bandera apagada desde AsistenciaDiariaProjection.Apply(DiaAprobado).
+    [Fact]
+    public void Agregar_NoCuentaElDiaAprobado_CuandoLaAprobacionYaApagoLaBanderaDeConflicto()
+    {
+        const string codigo = "EMP-001";
+        var dia1 = new DateOnly(2026, 8, 1);
+        var dia2 = new DateOnly(2026, 8, 2);
+        var documentos = new[]
+        {
+            DocumentoDePrueba(codigo, dia1, EstadoAsistencia.Aprobado, conflictoDeSedePendiente: false),
+            DocumentoDePrueba(codigo, dia2, conflictoDeSedePendiente: true),
+        };
+
+        var filas = AgregadorResumenAsistencia.Agregar(dia1, dia2, null, documentos);
+
+        filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().Be(1);
+    }
 }
