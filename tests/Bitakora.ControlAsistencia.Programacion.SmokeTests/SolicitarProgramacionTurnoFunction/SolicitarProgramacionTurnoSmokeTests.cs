@@ -25,7 +25,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
     // CrearTurnoSmokeTests). Solo declaran los campos que este test verifica; leerlas de forma
     // case-insensitive deja la politica de nombres del serializador fuera de la asercion -- lo que
     // se verifica es el DATO que quedo grabado, no como el host llama a la clave.
-    private sealed record SedeMinima(string Id, string Nombre);
+    private sealed record SedeMinima(string Id, string Nombre, string? CentroDeCostos = null);
     private sealed record FranjaMinima(SedeMinima? Sede);
     private sealed record TurnoMinimo(IReadOnlyList<FranjaMinima> FranjasOrdinarias);
     private sealed record SolicitudMinima(TurnoMinimo DetalleTurno, SedeMinima? Sede);
@@ -56,6 +56,24 @@ public class SolicitarProgramacionTurnoSmokeTests(
             {
                 inicio = "14:00:00",
                 fin = "18:00:00",
+                descansos = Array.Empty<object>(),
+                extras = Array.Empty<object>()
+            }
+        }
+    };
+
+    // Turno de catalogo de una sola franja, sin sede prearmada: el arrange minimo para que la
+    // cascada aplique la sede de la solicitud a esa unica franja.
+    private static object TurnoSimplePayload(Guid turnoId, string nombre) => new
+    {
+        turnoId,
+        nombre,
+        ordinarias = new[]
+        {
+            new
+            {
+                inicio = "08:00:00",
+                fin = "16:00:00",
                 descansos = Array.Empty<object>(),
                 extras = Array.Empty<object>()
             }
@@ -314,6 +332,152 @@ public class SolicitarProgramacionTurnoSmokeTests(
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar el evento",
             solicitudId, SuscripcionConsumidor);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_PropagaElCentroDeCostosEnLaSedeYEnLaFranja_CuandoLaSolicitudLoIncluye()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC"), ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var solicitudId = Guid.CreateVersion7();
+        var sedeEsperada = new DetalleSede("SEDE-CC-01", "[TEST] Sede Con Costeo", "CC-100-VENTAS");
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            colaborador = new
+            {
+                identificacion = "CC-321654987",
+                codigoColaborador = Guid.CreateVersion7().ToString(),
+                nombreCompleto = "[TEST] Smoke Centro De Costos"
+            },
+            fechas = new[] { "2026-07-01" },
+            sede = new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = sedeEsperada.CentroDeCostos }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+
+        evento.Sede.Should().Be(sedeEsperada);
+
+        // La cascada propaga el record COMPLETO (incluido el centro de costos) a la unica franja
+        // sin sede propia -- no solo Id/Nombre.
+        evento.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
+        evento.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeEsperada);
+    }
+
+    // Vacio y blanco se ejercitan en la misma corrida, sobre el mismo turno de catalogo: son dos
+    // formas de la MISMA ausencia de dato, y separarlas costaria un arrange completo por valor.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_NormalizaCentroDeCostosANull_CuandoVieneVacioOEnBlanco()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos",
+            TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Normalizacion"), ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var sedeEsperada = new DetalleSede("SEDE-CC-02", "[TEST] Sede Sin Costeo Real");
+
+        foreach (var centroDeCostosCrudo in new[] { "", "   " })
+        {
+            var solicitudId = Guid.CreateVersion7();
+            var payload = new
+            {
+                id = solicitudId,
+                turnoId,
+                colaborador = new
+                {
+                    identificacion = "CC-741852963",
+                    codigoColaborador = Guid.CreateVersion7().ToString(),
+                    nombreCompleto = "[TEST] Smoke Normalizacion CC"
+                },
+                fechas = new[] { "2026-07-02" },
+                sede = new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = centroDeCostosCrudo }
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+            var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+                TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+
+            evento.Sede.Should().Be(sedeEsperada,
+                "un centro de costos '{0}' debe llegar al bus como null", centroDeCostosCrudo);
+        }
+    }
+
+    // Cierra el riesgo de que el centro de costos llegue bien al bus pero se pierda en el JSON
+    // persistido: un 202 verde no distingue los dos casos (mismo criterio que
+    // SolicitarProgramacionTurno_PersisteLaSedeEfectivaDeCadaFranja).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_PersisteElCentroDeCostosEnLaSedeEfectiva_CuandoLaSolicitudLoIncluye()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos",
+            TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Persistencia"), ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var solicitudId = Guid.CreateVersion7();
+        var sedeMinima = new SedeMinima("SEDE-CC-03", "[TEST] Sede Persistencia CC", "CC-200-NOMINA");
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            colaborador = new
+            {
+                identificacion = "CC-159753468",
+                codigoColaborador = Guid.CreateVersion7().ToString(),
+                nombreCompleto = "[TEST] Smoke Persistencia CC"
+            },
+            fechas = new[] { "2026-07-03" },
+            sede = new { id = sedeMinima.Id, nombre = sedeMinima.Nombre, centroDeCostos = sedeMinima.CentroDeCostos }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = solicitudId.ToString();
+
+        var json = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
+            campoJson: "Id", valorJson: streamId, Timeout);
+
+        var eventoPersistido = json.Deserialize<SolicitudMinima>(OpcionesLectura);
+        eventoPersistido.Should().NotBeNull();
+
+        // La unica franja no trae sede propia: adopta por cascada la sede por defecto COMPLETA.
+        eventoPersistido!.Sede.Should().Be(sedeMinima);
+        eventoPersistido.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
+        eventoPersistido.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeMinima);
     }
 
     // El handler tiene DOS efectos secundarios y los tests de arriba solo cubren uno (la

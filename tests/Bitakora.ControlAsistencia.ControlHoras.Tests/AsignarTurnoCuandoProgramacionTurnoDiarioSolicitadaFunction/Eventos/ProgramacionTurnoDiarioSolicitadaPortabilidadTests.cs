@@ -153,6 +153,49 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         restaurado.DetalleTurno.Nombre.Should().Be("Turno Manana");
     }
 
+    [Fact]
+    public void RoundTrip_PreservaElCentroDeCostosDeLaSede_ConSerializadorPorDefectoDelBus()
+    {
+        var detalleTurno = CrearDetalleTurno();
+        var sede = new DetalleSede("SEDE-01", "Sede Principal", "CC-100");
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, detalleTurno, sede);
+
+        var json = JsonSerializer.Serialize(evento, CrearOpcionesProductor());
+
+        var body = BinaryData.FromString(json);
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(body);
+
+        restaurado.Should().NotBeNull();
+        restaurado.Sede!.CentroDeCostos.Should().Be("CC-100");
+    }
+
+    // El JSON se construye quitando la clave a un evento que SI la lleva (mismo patron que
+    // JsonSinLaClaveSede): asi la asercion sobre Remove() delata un test vacuo si la clave se
+    // renombra, cosa que un JSON escrito a mano no haria.
+    [Fact]
+    public void Deserializar_DejaCentroDeCostosEnNull_CuandoElMensajeNoLlevaEseCampoEnLaSede()
+    {
+        var restaurado = ServiceBusDeserializador.Deserializar<ProgramacionTurnoDiarioSolicitada>(
+            BinaryData.FromString(JsonConSedeSinCentroDeCostos()));
+
+        restaurado.Should().NotBeNull();
+        restaurado.Sede.Should().NotBeNull();
+        restaurado.Sede!.CentroDeCostos.Should().BeNull();
+    }
+
+    private static string JsonConSedeSinCentroDeCostos()
+    {
+        var conSede = new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, Colaborador, Fecha, CrearDetalleTurno(),
+            new DetalleSede("SEDE-01", "Sede Principal", "CC-100"));
+
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(conSede, CrearOpcionesProductor()))!;
+        nodo["sede"]!.AsObject().Remove("centroDeCostos").Should().BeTrue(
+            "el JSON del bus debe llevar la clave 'centroDeCostos' en sede para que quitarla represente la forma anterior a #462");
+
+        return nodo.ToJsonString();
+    }
+
     private static string JsonSinLaClaveSedeEnLaFranja()
     {
         var franjaConSede = new DetalleFranjaOrdinaria(

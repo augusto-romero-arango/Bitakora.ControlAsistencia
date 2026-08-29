@@ -10,4 +10,4 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// serializador por defecto del bus (MEF-ADR-0023/0024). Sin Equals custom: la igualdad por valor
 /// del record por defecto ya es correcta (mismo criterio que ResumenColaborador, issue #421).
 /// </remarks>
-public record DetalleSede(string Id, string Nombre);
+public record DetalleSede(string Id, string Nombre, string? CentroDeCostos = null);

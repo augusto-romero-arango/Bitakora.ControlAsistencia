@@ -328,4 +328,66 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeSuba);
         deserializado.DetalleTurno.FranjasOrdinarias[1].Sede.Should().Be(sedeChapinero);
     }
+
+    [Fact]
+    public void Deserializar_ReconstruyeIdentico_ConCentroDeCostosPobladoEnLaSede()
+    {
+        var sedeConCentroDeCostos = new SedeProgramada("SEDE-SUBA", "Suba", "CC-100");
+        var turnoConSede = new TurnoDiario(
+            "Turno Manana",
+            [new FranjaProgramada(
+                new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)", sedeConCentroDeCostos)],
+            "Turno Manana (08:00-16:00)");
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, turnoConSede, SolicitudId);
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.DetalleTurno.FranjasOrdinarias[0].Sede!.CentroDeCostos.Should().Be("CC-100");
+    }
+
+    // El campo es el ULTIMO parametro posicional y opcional del record: por eso STJ lo deja en
+    // null ante un JSON sin la clave. Reordenar los parametros rompe esa compatibilidad.
+    [Fact]
+    public void Deserializar_DejaCentroDeCostosEnNull_CuandoLaSedePersistidaNoLlevaEseCampo()
+    {
+        const string jsonPersistidoSinCentroDeCostos = """
+            {
+              "Id": "cd:EMP-001:20260315",
+              "InformacionColaborador": {
+                "Identificacion": "CC-1234567890",
+                "CodigoColaborador": "EMP-001",
+                "NombreCompleto": "Luis Augusto Barreto"
+              },
+              "Fecha": "2026-03-15",
+              "DetalleTurno": {
+                "Nombre": "Turno Manana",
+                "FranjasOrdinarias": [
+                  {
+                    "HoraInicio": "08:00:00",
+                    "HoraFin": "16:00:00",
+                    "DiaOffsetFin": 0,
+                    "Descansos": [],
+                    "Extras": [],
+                    "Descripcion": "(08:00-16:00)",
+                    "Sede": { "Id": "SEDE-SUBA", "Nombre": "Suba" }
+                  }
+                ],
+                "Descripcion": "Turno Manana (08:00-16:00)"
+              },
+              "SolicitudId": "019600b0-0000-7000-8000-000000000001"
+            }
+            """;
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(
+            jsonPersistidoSinCentroDeCostos, opciones);
+
+        deserializado.Should().NotBeNull();
+        var sede = deserializado!.DetalleTurno.FranjasOrdinarias[0].Sede;
+        sede.Should().NotBeNull();
+        sede!.CentroDeCostos.Should().BeNull();
+    }
 }

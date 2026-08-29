@@ -32,16 +32,20 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
+        // Unico punto de normalizacion de la sede entrante: aguas abajo (cascada, evento
+        // persistido, evento de bus) solo se transporta el valor ya normalizado.
+        var sedeSolicitada = command.Sede?.ConCentroDeCostosNormalizado();
+
         // La cascada de sede se aplica ANTES de construir cualquier evento: ambos payloads
         // (persistido y de bus) derivan del mismo turno ya resuelto, un solo punto de resolucion.
         // Sin ramificar por si la solicitud trae sede -- con command.Sede null la cascada es
         // identidad (Tell-don't-Ask, MEF-ADR-0012).
-        var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(command.Sede);
+        var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(sedeSolicitada);
         var fechas = command.Fechas.AsReadOnly();
 
         var colaboradorDominio = MapearColaboradorProgramado(command.Colaborador);
         var evento = new ProgramacionTurnoSolicitada(
-            command.Id, colaboradorDominio, fechas, turnoProgramado, command.Sede);
+            command.Id, colaboradorDominio, fechas, turnoProgramado, sedeSolicitada);
         var solicitud = SolicitudProgramacionAggregateRoot.Iniciar(evento);
 
         _eventStore.StartStream(solicitud);
@@ -51,7 +55,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // ambos ensamblados (CA-ADR-0029 decision #5, payload por rol).
         var colaborador = MapearResumenColaborador(command.Colaborador);
         var detalleTurno = MapearTurno(turnoProgramado);
-        var sede = MapearSede(command.Sede);
+        var sede = MapearSede(sedeSolicitada);
         var eventosPrivados = command.Fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
                 command.Id, colaborador, fecha, detalleTurno, sede))
@@ -90,5 +94,5 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
     // Unico punto de mapeo SedeProgramada -> DetalleSede. Opcional: null se conserva.
     private static DetalleSede? MapearSede(SedeProgramada? sede) =>
-        sede is null ? null : new DetalleSede(sede.Id, sede.Nombre);
+        sede is null ? null : new DetalleSede(sede.Id, sede.Nombre, sede.CentroDeCostos);
 }

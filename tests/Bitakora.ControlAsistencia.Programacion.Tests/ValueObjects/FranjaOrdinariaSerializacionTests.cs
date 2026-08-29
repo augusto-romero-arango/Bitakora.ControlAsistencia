@@ -106,4 +106,20 @@ public class FranjaOrdinariaSerializacionTests
         restaurado.Should().NotBeNull();
         restaurado!.ToDetalle().Sede.Should().Be(sede);
     }
+
+    // La propiedad "sede" serializa el record COMPLETO por reflexion (CreateJsonPropertyInfo):
+    // un campo nuevo de SedeProgramada sobrevive el round trip sin tocar ConfigurarSerializacion.
+    [Fact]
+    public void RoundTrip_PreservaElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba", "CC-100");
+        var original = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0), sede: sede);
+        var opciones = CrearOpciones();
+
+        var json = JsonSerializer.Serialize(original, opciones);
+        var restaurado = JsonSerializer.Deserialize<FranjaOrdinaria>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.ToDetalle().Sede!.CentroDeCostos.Should().Be("CC-100");
+    }
 }

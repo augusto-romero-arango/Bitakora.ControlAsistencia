@@ -16,4 +16,4 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// es correcta (mismo criterio que ColaboradorProgramado, issue #319, y SedeProgramada de
 /// Programacion, #331).
 /// </remarks>
-public record SedeProgramada(string Id, string Nombre);
+public record SedeProgramada(string Id, string Nombre, string? CentroDeCostos = null);

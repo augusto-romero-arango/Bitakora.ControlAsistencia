@@ -14,8 +14,11 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// El nombre puro "Sede" queda RESERVADO para el concepto rico del futuro maestro de sedes (#338,
 /// direccion/ciudad/dispositivos asociados) -- este record es deliberadamente "Programada" para no
 /// hacer squatting de ese nombre.
+/// CentroDeCostos es opcional: string opaco que el cliente resuelve contra el maestro de sedes y
+/// envia tal cual -- el servidor NUNCA lo valida contra ese maestro, mismo criterio que rige para
+/// Id/Nombre.
 /// </remarks>
-public record SedeProgramada(string Id, string Nombre)
+public record SedeProgramada(string Id, string Nombre, string? CentroDeCostos = null)
 {
     /// <summary>
     /// Una sede referenciada esta completa cuando trae ambos datos: el id opaco del cliente y el
@@ -28,4 +31,16 @@ public record SedeProgramada(string Id, string Nombre)
     /// </remarks>
     public bool EstaCompleta() =>
         !string.IsNullOrWhiteSpace(Id) && !string.IsNullOrWhiteSpace(Nombre);
+
+    /// <summary>
+    /// Copia de esta sede con el centro de costos en su forma canonica: null cuando no hay dato.
+    /// </summary>
+    /// <remarks>
+    /// La inexistencia del centro de costos se representa con null, nunca con cadena vacia o en
+    /// blanco. La regla vive aqui y no en quien recibe la sede (MEF-ADR-0012, Tell-don't-Ask):
+    /// depende solo de datos propios. Se invoca UNA vez, en el punto de entrada del BC; aguas
+    /// abajo (cascada, evento persistido, evento de bus) solo se transporta el valor normalizado.
+    /// </remarks>
+    public SedeProgramada ConCentroDeCostosNormalizado() =>
+        string.IsNullOrWhiteSpace(CentroDeCostos) ? this with { CentroDeCostos = null } : this;
 }
