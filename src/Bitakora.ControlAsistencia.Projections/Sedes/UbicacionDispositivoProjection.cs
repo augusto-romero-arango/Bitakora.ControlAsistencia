@@ -42,17 +42,17 @@ public sealed partial class UbicacionDispositivoProjection : MultiStreamProjecti
     }
 
     // CA-1: Id = DispositivoId (payload); SedeId = StreamKey del stream de origen (envolvente del
-    // evento, nunca recomputado a mano desde el payload). Stub de fase roja.
+    // evento, nunca recomputado a mano desde el payload).
     public static UbicacionDispositivo Create(IEvent<DispositivoInstalado> e) =>
-        throw new NotImplementedException();
+        new(e.Data.DispositivoId, e.StreamKey!);
 
     // CA-2: el ultimo DispositivoInstalado aplicado reemplaza la sede vigente, aun si llega desde
     // el stream de una sede distinta a la actual.
     public static UbicacionDispositivo Apply(IEvent<DispositivoInstalado> e, UbicacionDispositivo view) =>
-        throw new NotImplementedException();
+        view with { SedeId = e.StreamKey! };
 
     // CA-3/CA-4: elimina SOLO si el retiro es de la sede vigente (e.StreamKey == view.SedeId); un
     // retiro de una sede distinta se ignora, documento intacto.
     public static bool ShouldDelete(IEvent<DispositivoRetirado> e, UbicacionDispositivo view) =>
-        throw new NotImplementedException();
+        e.StreamKey == view.SedeId;
 }

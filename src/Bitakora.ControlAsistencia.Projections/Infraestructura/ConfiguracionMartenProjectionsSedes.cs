@@ -105,6 +105,12 @@ public static class ConfiguracionMartenProjectionsSedes
                 // (MEF-ADR-0034 seccion 3); Inline solo seria valido con justificacion explicita en
                 // el issue correspondiente.
                 opts.Projections.Add<FichaSedeProjection>(ProjectionLifecycle.Async);
+
+                // Issue #475: segunda proyeccion concreta del dominio -- primera receta N2
+                // (MultiStreamProjection<UbicacionDispositivo, string>), correlacion por
+                // DispositivoId: el mismo dispositivo puede aparecer instalado en streams de VARIAS
+                // sedes distintas. Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3).
+                opts.Projections.Add<UbicacionDispositivoProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
