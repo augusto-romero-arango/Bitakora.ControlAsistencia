@@ -830,6 +830,24 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaSede.Id));
     }
 
+    // Complementa ConfigurarSedes_NoRegistraNingunaProyeccionInline: aquella prueba que NADA quedo
+    // Inline, esta que la proyeccion CONCRETA quedo registrada con lifecycle Async, el canonico del
+    // worker (MEF-ADR-0034 seccion 3). El nombre esperado es el de la VISTA, no el de la clase de
+    // proyeccion (Marten nombra la proyeccion por su documento target).
+    //
+    // Sin par de config-tests espejo mt_version: ningun proceso del write-side consulta todavia
+    // UbicacionDispositivo. El dia que uno lo haga, ese lado debe declarar
+    // Schema.For<UbicacionDispositivo>().UseNumericRevisions(true) y sumar el par espejo -- si no,
+    // su primera query dispara el ALTER COLUMN que Postgres rechaza (42804).
+    [Fact]
+    public void ConfigurarSedes_RegistraUbicacionDispositivoProjectionComoAsync()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("UbicacionDispositivo");
+    }
+
     // --- Seam de nivel BC (CA-4) ---
 
     // Las guardas de arriba invocan cada Configurar{Dominio} directamente, asi que quedan verdes
