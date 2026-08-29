@@ -206,7 +206,8 @@ public class ComposicionServiciosTests
             typeof(MarcacionRegistrada),
             typeof(MarcacionAdicionada),
             typeof(TurnoDiarioAsignado),
-            typeof(DepuracionDiaRecibida)
+            typeof(DepuracionDiaRecibida),
+            typeof(SedeDeMarcacionIdentificada)
         ]);
     }
 
@@ -245,7 +246,8 @@ public class ComposicionServiciosTests
             [typeof(MarcacionRegistrada)] = "marcacion_registrada",
             [typeof(MarcacionAdicionada)] = "marcacion_adicionada",
             [typeof(TurnoDiarioAsignado)] = "turno_diario_asignado",
-            [typeof(DepuracionDiaRecibida)] = "depuracion_dia_recibida"
+            [typeof(DepuracionDiaRecibida)] = "depuracion_dia_recibida",
+            [typeof(SedeDeMarcacionIdentificada)] = "sede_de_marcacion_identificada"
         });
     }
 

@@ -6,6 +6,8 @@
 // se verifica un dato estatico de configuracion, no el comportamiento de un command handler.
 // Issue #425: DepuracionDiaRecibida se persiste en el stream de DiaCalculadoAggregateRoot (CA-5)
 // y se suma a la lista literal.
+// Issue #463 CA-5: SedeDeMarcacionIdentificada se persiste en el stream de ControlDiarioAggregateRoot
+// (estampado de sede sobre una marcacion ya adicionada) y se suma a la lista literal.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -17,14 +19,15 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class IdentidadEventosControlHorasTests
 {
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosCuatroEventosPersistidosDeControlHoras()
+    public void TiposPersistidos_ContieneExactamenteLosCincoEventosPersistidosDeControlHoras()
     {
         IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
         [
             typeof(MarcacionRegistrada),
             typeof(MarcacionAdicionada),
             typeof(TurnoDiarioAsignado),
-            typeof(DepuracionDiaRecibida)
+            typeof(DepuracionDiaRecibida),
+            typeof(SedeDeMarcacionIdentificada)
         ]);
     }
 

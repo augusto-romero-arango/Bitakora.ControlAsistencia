@@ -119,6 +119,14 @@ module "service_bus" {
     "sede-de-marcacion-resuelta" = {
       subscriptions = [
         {
+          # Issue #463 (MEF-ADR-0026, carrera B "dentro del topic"): dos resoluciones del mismo
+          # colaborador convergen sobre el mismo cd: -- session-enabled serializa el fan-in. El
+          # productor (Sedes) publica con PublishOptions.GroupId = CodigoColaborador (#467).
+          name               = "control-horas-escucha-sede-de-marcacion-resuelta"
+          correlation_filter = null
+          requires_session   = true
+        },
+        {
           name                = "smoke-tests"
           correlation_filter  = null
           default_message_ttl = "PT5M"

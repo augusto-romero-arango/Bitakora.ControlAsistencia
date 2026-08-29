@@ -130,7 +130,9 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     {
         Id = e.Id;
         Fecha = ExtraerFechaDeStreamId(e.Id);
-        _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion));
+        // Issue #463: DispositivoId viaja tal cual para que EstamparSede pueda correlacionar esta
+        // marcacion con el SedeDeMarcacionIdentificada que llegue despues (TimestampNormalizado+DispositivoId).
+        _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion, e.DispositivoId));
         Depurar();
         RecalcularDesgloseHoras();
     }
@@ -171,6 +173,49 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    // Proyecta el estampado sobre la marcacion correlacionada. Sin coincidencia no lanza
+    // (MEF-ADR-0004): Apply solo proyecta estado.
+    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
+    public void Apply(SedeDeMarcacionIdentificada e)
+    {
+        var indice = _marcaciones.FindIndex(m => CorrespondeA(m, e));
+        if (indice < 0) return;
+
+        _marcaciones[indice] = _marcaciones[indice] with
+        {
+            CodigoSede = e.CodigoSede,
+            NombreSede = e.NombreSede,
+            CentroDeCostos = e.CentroDeCostos
+        };
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
+
+    // Declina con resultado (CA-ADR-0030) en vez de que el handler interrogue
+    // Marcaciones para decidir (Tell-don't-Ask, MEF-ADR-0012). El handler traduce
+    // MarcacionNoEncontrada a la excepcion que dispara el retry del bus (CA-3); SedeYaEstampada es
+    // el no-op de CA-4, sin evento nuevo ni re-publicacion.
+    internal ResultadoEstampadoSede EstamparSede(SedeDeMarcacionIdentificada evento)
+    {
+        var marcacion = _marcaciones.Find(m => CorrespondeA(m, evento));
+        if (marcacion is null) return ResultadoEstampadoSede.MarcacionNoEncontrada;
+
+        if (marcacion.CodigoSede == evento.CodigoSede
+            && marcacion.NombreSede == evento.NombreSede
+            && marcacion.CentroDeCostos == evento.CentroDeCostos)
+            return ResultadoEstampadoSede.SedeYaEstampada;
+
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoEstampadoSede.Estampada;
+    }
+
+    // Unica correlacion marcacion <-> estampado: la marcacion no tiene id propio, asi que el par
+    // TimestampNormalizado + DispositivoId es la clave (MarcacionAdicionada ya guarda ambos).
+    private static bool CorrespondeA(MarcacionNormalizada marcacion, SedeDeMarcacionIdentificada evento) =>
+        marcacion.TimestampNormalizado == evento.TimestampNormalizado
+        && marcacion.DispositivoId == evento.DispositivoId;
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
