@@ -59,10 +59,12 @@ public partial class DiaDepuradoEventHandler : IPrivateEventHandlerAsync<DiaDepu
 
     private static DomainEvents.FranjaDepurada MapearFranja(FranjaDepurada franja) =>
         new(franja.HoraInicioProgramada, franja.HoraFinProgramada, franja.DiaOffsetFin,
-            franja.Entrada, franja.Salida, franja.EsAnomala);
+            franja.Entrada, franja.Salida, franja.EsAnomala,
+            franja.CodigoSedeProgramada, franja.NombreSedeProgramada, franja.CentroDeCostosProgramado);
 
     private static DomainEvents.MarcacionDelDia MapearMarcacion(MarcacionDelDia marcacion) =>
-        new(marcacion.Timestamp, marcacion.Tipo);
+        new(marcacion.Timestamp, marcacion.Tipo,
+            marcacion.CodigoSede, marcacion.NombreSede, marcacion.CentroDeCostos);
 
     private static DomainEvents.HorasDiscriminadas MapearHoras(HorasDiscriminadas horas) =>
         new(horas.HorasPorConcepto, horas.Trazabilidad);
