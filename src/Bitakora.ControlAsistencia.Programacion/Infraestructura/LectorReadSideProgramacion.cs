@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
+using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
 using Marten;
 
@@ -10,6 +11,9 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantResolver tenantResolver)
     : ILectorNombresTurno
 {
-    public Task<IReadOnlyList<string>> ObtenerNombresAsync(CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task<IReadOnlyList<string>> ObtenerNombresAsync(CancellationToken ct = default)
+    {
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        return await session.Query<FichaTurno>().Select(f => f.Nombre).ToListAsync(ct);
+    }
 }
