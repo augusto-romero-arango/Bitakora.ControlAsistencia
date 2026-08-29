@@ -62,17 +62,33 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
     }
 
     // Issue #492 CA-2: aval del vacio -- un stream puede NACER con DiaAprobado (dia sin datos,
-    // #489 CA-7). Stub de fase roja: la implementacion real la escribe projection-implementer.
+    // #489 CA-7). Sin franjas ni marcaciones que clasificar, el plan queda SinProgramar y ninguna
+    // bandera se enciende: el dia avalado como "no vino y no debia venir" aparece aprobado y limpio.
     public static AsistenciaDiaria Create(DiaAprobado evento) =>
-        throw new NotImplementedException();
+        new(
+            evento.Id,
+            evento.CodigoColaborador,
+            evento.Fecha,
+            EstadoAsistencia.Aprobado,
+            PlanDelDia.SinProgramar,
+            NombreTurno: null,
+            NoSePresento: false,
+            FranjasIncompletas: false,
+            VinoEnDescanso: false,
+            TrabajoSinProgramacion: false,
+            ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>());
 
     // Issue #492 CA-1/CA-3: cierre del ciclo Provisional -> Aprobado. Estado pasa a Aprobado y
     // ConflictoDeSedePendiente se apaga (las decisiones de sede se tomaron en el acto de aprobar);
     // el resto de la fila (Plan, banderas de anomalia ya juzgadas, NombreTurno, HorasPorConcepto)
-    // queda intacto -- la aprobacion no reescribe la historia, la pone en firme. Stub de fase roja:
-    // la implementacion real la escribe projection-implementer.
+    // queda intacto -- la aprobacion no reescribe la historia, la pone en firme.
     public static AsistenciaDiaria Apply(DiaAprobado evento, AsistenciaDiaria vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            Estado = EstadoAsistencia.Aprobado,
+            ConflictoDeSedePendiente = false
+        };
 
     // DepuracionPosAprobacionRecibida (#491) no se consume aqui: sin un metodo Create/Apply que lo
     // tipe, el source generator no lo dispatchea y el daemon simplemente lo salta -- decision
