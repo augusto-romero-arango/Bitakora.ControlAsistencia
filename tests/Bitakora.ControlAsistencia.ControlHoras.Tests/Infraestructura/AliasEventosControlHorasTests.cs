@@ -81,4 +81,13 @@ public class AliasEventosControlHorasTests
 
         AliasDe<DiaAprobado>(options).Should().Be("dia_aprobado");
     }
+
+    // Issue #491: congela el alias de DepuracionPosAprobacionRecibida antes de desplegarlo.
+    [Fact]
+    public void DepuracionPosAprobacionRecibida_TieneAliasDepuracionPosAprobacionRecibida()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<DepuracionPosAprobacionRecibida>(options).Should().Be("depuracion_pos_aprobacion_recibida");
+    }
 }

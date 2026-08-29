@@ -94,6 +94,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
+    // Issue #491 (stub fase roja): MEF-ADR-0004 -- Apply no debe lanzar ni mutar Estado ni los
+    // valores decididos; la evidencia tardia se guarda como rastro, nunca se incorpora. public:
+    // requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
+    public void Apply(DepuracionPosAprobacionRecibida e) => throw new NotImplementedException();
+
     // Issue #489. MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
     // el estado previo. public: requerido para que TestStore.ApplyEvent lo encuentre via
     // GetMethods(). Es tambien el primer evento del aval del vacio (CA-7): fija Id, colaborador y
