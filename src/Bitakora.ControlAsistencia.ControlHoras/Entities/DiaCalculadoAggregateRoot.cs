@@ -9,6 +9,7 @@ using VistaFranjaDepurada = Bitakora.ControlAsistencia.ReadModels.ControlHoras.F
 using VistaMarcacionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.MarcacionDelDia;
 using EstadoAsistencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.EstadoAsistencia;
 using PlanDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PlanDelDia;
+using SedeDeFranja = Bitakora.ControlAsistencia.ReadModels.ControlHoras.SedeDeFranja;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -21,9 +22,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     public EstadoDiaCalculado Estado { get; private set; }
 
     // Issue #482: senal publica derivada de la ultima foto -- la consumira la invariante de
-    // AprobarDia (aun no existe) y la guarda de resolucion del conflicto (#483). Stub de fase roja:
-    // la derivacion real llega en la fase verde.
-    public bool TieneConflictoDeSedePendiente => throw new NotImplementedException();
+    // AprobarDia (aun no existe) y la guarda de resolucion del conflicto (#483).
+    public bool TieneConflictoDeSedePendiente =>
+        _franjas.Any(franja => DerivarSedeDeFranja(franja, _marcaciones).EnConflicto);
 
     // Valores provisionales de la ultima foto recibida: nunca se exponen como propiedades sueltas
     // (MEF-ADR-0012, Tell-don't-Ask). Solo Apply los reemplaza.
@@ -103,27 +104,29 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
             plan,
             _nombreTurno,
             _franjas
-                .Select(franja => new VistaFranjaDepurada(
-                    franja.HoraInicioProgramada,
-                    franja.HoraFinProgramada,
-                    franja.DiaOffsetFin,
-                    franja.Entrada,
-                    franja.Salida,
-                    franja.EsAnomala,
-                    // Issue #482: placeholder de fase roja -- la derivacion real de candidatas,
-                    // sede efectiva y conflicto llega en la fase verde.
-                    SedeEfectiva: null,
-                    EnConflictoDeSede: false,
-                    CandidatasDeSede: []))
+                .Select(franja =>
+                {
+                    var (efectiva, enConflicto, candidatas) = DerivarSedeDeFranja(franja, _marcaciones);
+                    return new VistaFranjaDepurada(
+                        franja.HoraInicioProgramada,
+                        franja.HoraFinProgramada,
+                        franja.DiaOffsetFin,
+                        franja.Entrada,
+                        franja.Salida,
+                        franja.EsAnomala,
+                        SedeEfectiva: efectiva,
+                        EnConflictoDeSede: enConflicto,
+                        CandidatasDeSede: candidatas);
+                })
                 .ToList(),
             _marcaciones
                 .Select(marcacion => new VistaMarcacionDelDia(
                     marcacion.Timestamp,
                     marcacion.Tipo,
                     EsUsada(marcacion, _franjas),
-                    CodigoSede: null,
-                    NombreSede: null,
-                    CentroDeCostos: null))
+                    marcacion.CodigoSede,
+                    marcacion.NombreSede,
+                    marcacion.CentroDeCostos))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? []);
@@ -147,4 +150,42 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // Igualdad EXACTA de Timestamp, derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
         franjas.Any(franja => franja.Entrada == marcacion.Timestamp || franja.Salida == marcacion.Timestamp);
+
+    // Issue #482: correlacion marcacion <-> franja para el conflicto de sede -- misma igualdad
+    // EXACTA de Timestamp que EsUsada, pero acotada a las marcaciones de ESTA franja (entrada y
+    // salida pueden venir de dispositivos de sedes distintas, CA-3).
+    private static IEnumerable<MarcacionDelDia> MarcacionesUsadasPor(
+        FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones) =>
+        marcaciones.Where(marcacion =>
+            marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida);
+
+    // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT. Candidatas = sede programada
+    // (si existe) + sedes marcadas de las marcaciones usadas por esta franja (si estan estampadas),
+    // deduplicadas por Codigo. Una unica sede entre las fuentes -> sede efectiva, con el CC
+    // estampado en la marcacion prevaleciendo sobre el programado cuando ambos coinciden en sede
+    // (CA-5: la ultima fuente agregada -- marcada -- gana el CC, nunca un lookup al maestro). Dos o
+    // mas codigos distintos -> conflicto, sin sede efectiva, todas las candidatas expuestas (CA-2/CA-3).
+    private static (SedeDeFranja? Efectiva, bool EnConflicto, IReadOnlyList<SedeDeFranja> Candidatas)
+        DerivarSedeDeFranja(FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
+    {
+        var fuentes = new List<SedeDeFranja>();
+        if (franja.CodigoSedeProgramada is not null)
+            fuentes.Add(new SedeDeFranja(
+                franja.CodigoSedeProgramada, franja.NombreSedeProgramada!, franja.CentroDeCostosProgramado));
+
+        fuentes.AddRange(MarcacionesUsadasPor(franja, marcaciones)
+            .Where(marcacion => marcacion.CodigoSede is not null)
+            .Select(marcacion => new SedeDeFranja(
+                marcacion.CodigoSede!, marcacion.NombreSede!, marcacion.CentroDeCostos)));
+
+        var codigosDistintos = fuentes.Select(fuente => fuente.Codigo).Distinct().ToList();
+
+        if (codigosDistintos.Count == 0)
+            return (null, false, []);
+
+        if (codigosDistintos.Count == 1)
+            return (fuentes.Last(fuente => fuente.Codigo == codigosDistintos[0]), false, []);
+
+        return (null, true, fuentes.DistinctBy(fuente => fuente.Codigo).ToList());
+    }
 }
