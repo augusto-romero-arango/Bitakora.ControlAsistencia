@@ -102,6 +102,23 @@ module "service_bus" {
           correlation_filter = null
         },
         {
+          # Issue #467: Sedes (dueno del dato dispositivo->sede->CC, MEF-ADR-0046) se suscribe al
+          # mismo topic para resolver la sede de la marcacion.
+          name               = "sedes-escucha-registro-de-marcacion"
+          correlation_filter = null
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
+    # Issue #467: resultado del enriquecimiento coreografiado que Sedes publica tras resolver la
+    # ubicacion de una marcacion (MEF-ADR-0046). La subscription de ControlHoras la crea #463.
+    "sede-de-marcacion-resuelta" = {
+      subscriptions = [
+        {
           name                = "smoke-tests"
           correlation_filter  = null
           default_message_ttl = "PT5M"

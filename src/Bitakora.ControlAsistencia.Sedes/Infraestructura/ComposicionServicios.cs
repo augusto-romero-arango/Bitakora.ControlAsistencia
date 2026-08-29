@@ -2,8 +2,10 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Azure.Monitor.OpenTelemetry.Exporter;
+using Bitakora.ControlAsistencia.PrivateEvents.Sedes;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
+using Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
@@ -60,10 +62,8 @@ public static class ComposicionServicios
 
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
 
-                // El dominio nace sin ningun evento de bus (issue #455: solo se genera el andamiaje
-                // sobre el que se implementan los issues del desglose #456-#461). Cuando Sedes
-                // publique su primer evento (privado o publico), se registra aqui con
-                // options.PublicarEventoServerless<TEvento>("<topic>") -- ADR-0024 decision #3.
+                // Issue #467: primer evento de bus del dominio (MEF-ADR-0024 decision #3).
+                options.PublicarEventoServerless<SedeDeMarcacionResuelta>("sede-de-marcacion-resuelta");
             });
 
         services.AgregarMartenEventStore();
@@ -76,9 +76,11 @@ public static class ComposicionServicios
         services.AddScoped<ITenantResolver, TenantResolverFijo>();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
-        // Nota: AgregarWolverinePrivateEventRouter() no se registra todavia -- el dominio no
-        // consume ningun evento privado por ahora (mismo criterio que Programacion/Colaboradores).
-        // Se agrega junto con el primer FunctionEndpoint de ServiceBus que este dominio necesite.
+        // Issue #467: primer FunctionEndpoint de ServiceBus de este dominio
+        // (ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado) -- se registra el router de
+        // eventos privados (MEF-ADR-0024 decision #8).
+        services.AgregarWolverinePrivateEventRouter();
+        services.AddScoped<ILectorSedesParaMarcacion, LectorSedesParaMarcacion>();
 
         services.ConfigureMarten(options =>
         {

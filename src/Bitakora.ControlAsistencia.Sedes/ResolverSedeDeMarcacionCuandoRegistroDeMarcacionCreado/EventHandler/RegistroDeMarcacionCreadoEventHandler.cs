@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
+using Bitakora.ControlAsistencia.PrivateEvents.Sedes;
 using Cosmos.EventDriven.Abstractions;
 using Microsoft.Extensions.Logging;
 
@@ -27,6 +28,41 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         _logger = logger;
     }
 
-    public Task HandleAsync(RegistroDeMarcacionCreado @event, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task HandleAsync(RegistroDeMarcacionCreado @event, CancellationToken ct = default)
+    {
+        if (@event.DispositivoId is null)
+            return;
+
+        var ubicacion = await _lector.BuscarUbicacionAsync(@event.DispositivoId, ct);
+        if (ubicacion is null)
+        {
+            _logger.LogWarning(
+                Mensajes.DispositivoDesconocidoMarcando,
+                @event.CodigoColaborador,
+                @event.DispositivoId);
+            return;
+        }
+
+        var fichaSede = await _lector.BuscarFichaSedeAsync(ubicacion.SedeId, ct);
+        if (fichaSede is null)
+        {
+            _logger.LogWarning(
+                Mensajes.DispositivoDesconocidoMarcando,
+                @event.CodigoColaborador,
+                @event.DispositivoId);
+            return;
+        }
+
+        var evento = new SedeDeMarcacionResuelta(
+            @event.CodigoColaborador,
+            @event.TimestampNormalizado,
+            @event.DispositivoId,
+            fichaSede.Codigo,
+            fichaSede.Nombre,
+            fichaSede.CentroDeCostos);
+
+        await _privateEventSender.PublishAsync(
+            new PublishOptions { GroupId = @event.CodigoColaborador },
+            evento);
+    }
 }
