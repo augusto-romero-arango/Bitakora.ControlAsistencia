@@ -32,10 +32,8 @@ public sealed record DepuracionDelDia(
 /// Espejo por rol del homonimo de ControlHoras.DomainEvents (MEF-ADR-0039 decision 6). Ningun campo
 /// tipa contra DomainEvents: ReadModels es la cuarta isla, cero referencias de proyecto.
 ///
-/// Issue #482: SedeEfectiva/EnConflictoDeSede/CandidatasDeSede son la deteccion de conflicto de
-/// sede que el aggregate deriva por franja (Tell-don't-Ask, MEF-ADR-0012). CandidatasDeSede va
-/// vacia cuando no hay conflicto; con conflicto expone TODAS las candidatas (2 o 3) para que el
-/// Aprobador elija entre ellas (#483).
+/// SedeEfectiva y CandidatasDeSede son excluyentes: sin conflicto va la efectiva y la lista vacia;
+/// con conflicto va null y TODAS las candidatas, porque la maquina no elige sede por el Aprobador.
 /// </summary>
 public sealed record FranjaDepurada(
     TimeOnly HoraInicioProgramada,
@@ -49,17 +47,17 @@ public sealed record FranjaDepurada(
     IReadOnlyList<SedeDeFranja> CandidatasDeSede);
 
 /// <summary>
-/// Candidata de sede de una franja: la sede programada o la marcada en alguna de sus marcaciones
-/// usadas, deduplicada por Codigo (issue #482). El CentroDeCostos viaja tal como se estampo en su
-/// fuente -- nunca un lookup al maestro de sedes (la verdad viaja en el evento).
+/// Candidata de sede de una franja: la programada del plan o la marcada en una de sus marcaciones.
+/// Nombre y CentroDeCostos viajan tal como se estamparon en su fuente -- nunca un lookup al maestro
+/// de sedes (la verdad viaja en el evento), de ahi que puedan faltar mientras Codigo no.
 /// </summary>
-public sealed record SedeDeFranja(string Codigo, string Nombre, string? CentroDeCostos);
+public sealed record SedeDeFranja(string Codigo, string? Nombre, string? CentroDeCostos);
 
 /// <summary>
 /// Espejo por rol del homonimo de ControlHoras.DomainEvents, con campos propios de esta isla:
-/// Usada, que deriva el generador y ningun cliente recalcula, y (issue #482) CodigoSede/NombreSede/
-/// CentroDeCostos -- la sede marcada cruda de esta marcacion, para que el Aprobador vea de donde
-/// salio cada candidata de FranjaDepurada.CandidatasDeSede. TODAS las marcaciones del dia viajan
+/// Usada, que deriva el generador y ningun cliente recalcula, y la sede marcada CRUDA de esta
+/// marcacion -- sin confrontar contra el plan, para que el Aprobador vea de donde salio cada
+/// candidata de FranjaDepurada.CandidatasDeSede. TODAS las marcaciones del dia viajan
 /// aqui, en orden cronologico -- las descartadas se muestran igual, para que el Aprobador vea que la
 /// maquina las dejo afuera.
 /// </summary>

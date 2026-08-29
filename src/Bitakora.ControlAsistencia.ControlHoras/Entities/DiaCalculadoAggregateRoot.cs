@@ -21,7 +21,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
 {
     public EstadoDiaCalculado Estado { get; private set; }
 
-    // Issue #482: senal publica derivada de la ultima foto -- la consumira la invariante de
+    // Sin consumidor todavia en este repo -- no es codigo muerto: la consumiran la invariante de
     // AprobarDia (aun no existe) y la guarda de resolucion del conflicto (#483).
     public bool TieneConflictoDeSedePendiente =>
         _franjas.Any(franja => DerivarSedeDeFranja(franja, _marcaciones).EnConflicto);
@@ -147,45 +147,52 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
             _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, null)
         };
 
-    // Igualdad EXACTA de Timestamp, derivada una sola vez aqui: ningun cliente la recalcula.
+    // Una marcacion pertenece a una franja si su Timestamp coincide EXACTAMENTE con la entrada o la
+    // salida de esa franja. Regla unica del expediente: la usan por igual la marca de uso de la
+    // vista y las candidatas de sede.
+    private static bool PerteneceA(MarcacionDelDia marcacion, FranjaDepurada franja) =>
+        marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida;
+
+    // Derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
-        franjas.Any(franja => franja.Entrada == marcacion.Timestamp || franja.Salida == marcacion.Timestamp);
+        franjas.Any(franja => PerteneceA(marcacion, franja));
 
-    // Issue #482: correlacion marcacion <-> franja para el conflicto de sede -- misma igualdad
-    // EXACTA de Timestamp que EsUsada, pero acotada a las marcaciones de ESTA franja (entrada y
-    // salida pueden venir de dispositivos de sedes distintas, CA-3).
-    private static IEnumerable<MarcacionDelDia> MarcacionesUsadasPor(
-        FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones) =>
-        marcaciones.Where(marcacion =>
-            marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida);
-
-    // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT. Candidatas = sede programada
-    // (si existe) + sedes marcadas de las marcaciones usadas por esta franja (si estan estampadas),
-    // deduplicadas por Codigo. Una unica sede entre las fuentes -> sede efectiva, con el CC
-    // estampado en la marcacion prevaleciendo sobre el programado cuando ambos coinciden en sede
-    // (CA-5: la ultima fuente agregada -- marcada -- gana el CC, nunca un lookup al maestro). Dos o
-    // mas codigos distintos -> conflicto, sin sede efectiva, todas las candidatas expuestas (CA-2/CA-3).
+    // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT -- dos o mas codigos de sede
+    // distintos entre las fuentes de una franja dejan la decision al Aprobador (#483); la maquina
+    // no elige por el, expone las candidatas y se abstiene de sede efectiva.
     private static (SedeDeFranja? Efectiva, bool EnConflicto, IReadOnlyList<SedeDeFranja> Candidatas)
         DerivarSedeDeFranja(FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
     {
-        var fuentes = new List<SedeDeFranja>();
+        // Last() por codigo, no First(): el CentroDeCostos estampado en la marcacion prevalece
+        // sobre el programado cuando ambas fuentes coinciden en sede -- tambien dentro del
+        // conflicto, para que la candidata que elija el Aprobador herede el CC correcto.
+        var candidatas = FuentesDeSede(franja, marcaciones)
+            .GroupBy(fuente => fuente.Codigo)
+            .Select(porCodigo => porCodigo.Last())
+            .ToList();
+
+        return candidatas switch
+        {
+            [] => (null, false, []),
+            [var unica] => (unica, false, []),
+            _ => (null, true, candidatas)
+        };
+    }
+
+    // Orden significativo: la programada primero, las marcadas despues -- de ahi sale la precedencia
+    // del CentroDeCostos al deduplicar. Los tres campos de sede son opcionales e independientes en
+    // el evento: una fuente sin codigo no es candidata y una sin nombre se expone tal cual, sin
+    // inventar el dato ausente (MEF-ADR-0004: derivar, nunca lanzar).
+    private static IEnumerable<SedeDeFranja> FuentesDeSede(
+        FranjaDepurada franja, IReadOnlyList<MarcacionDelDia> marcaciones)
+    {
         if (franja.CodigoSedeProgramada is not null)
-            fuentes.Add(new SedeDeFranja(
-                franja.CodigoSedeProgramada, franja.NombreSedeProgramada!, franja.CentroDeCostosProgramado));
+            yield return new SedeDeFranja(
+                franja.CodigoSedeProgramada, franja.NombreSedeProgramada, franja.CentroDeCostosProgramado);
 
-        fuentes.AddRange(MarcacionesUsadasPor(franja, marcaciones)
-            .Where(marcacion => marcacion.CodigoSede is not null)
-            .Select(marcacion => new SedeDeFranja(
-                marcacion.CodigoSede!, marcacion.NombreSede!, marcacion.CentroDeCostos)));
-
-        var codigosDistintos = fuentes.Select(fuente => fuente.Codigo).Distinct().ToList();
-
-        if (codigosDistintos.Count == 0)
-            return (null, false, []);
-
-        if (codigosDistintos.Count == 1)
-            return (fuentes.Last(fuente => fuente.Codigo == codigosDistintos[0]), false, []);
-
-        return (null, true, fuentes.DistinctBy(fuente => fuente.Codigo).ToList());
+        foreach (var marcacion in marcaciones.Where(marcacion => PerteneceA(marcacion, franja)))
+            if (marcacion.CodigoSede is not null)
+                yield return new SedeDeFranja(
+                    marcacion.CodigoSede, marcacion.NombreSede, marcacion.CentroDeCostos);
     }
 }
