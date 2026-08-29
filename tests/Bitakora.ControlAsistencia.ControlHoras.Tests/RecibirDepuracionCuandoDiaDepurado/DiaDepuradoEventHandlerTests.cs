@@ -1,6 +1,8 @@
 // Issue #425: DiaCalculado recibe cada DiaDepurado, mantiene los valores provisionales del dia y
 // nace Provisional. Sin comparacion contra el estado previo, sin deduplicacion de ningun tipo
 // (decision de sesion 2026-08-24): toda entrega se persiste, incluida la del dia sin jornada valida.
+// Issue #484: MapearFranja/MapearMarcacion dejan de descartar la sede programada/marcada al
+// traducir bus -> isla persistida.
 
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -60,6 +62,59 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
 
     private static HorasDiscriminadas HorasEsperadas() => new(
         new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m }, []);
+
+    // ---- Issue #484: datos de entrada y oraculo para la sede programada/marcada ----
+
+    private static readonly EventoBus.FranjaDepurada FranjaConSedeProgramadaRecibida = new(
+        new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+        new DateTime(2026, 3, 15, 6, 0, 0), new DateTime(2026, 3, 15, 14, 0, 0), false,
+        "SEDE-01", "Sede Principal", "CC-100");
+
+    private static readonly EventoBus.MarcacionDelDia MarcacionConSedeMarcadaRecibida = new(
+        new DateTime(2026, 3, 15, 6, 0, 0), "ENTRADA",
+        "SEDE-02", "Sede Norte", "CC-200");
+
+    private static FranjaDepurada FranjaEsperadaConSedeProgramada() => new(
+        new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+        new DateTime(2026, 3, 15, 6, 0, 0), new DateTime(2026, 3, 15, 14, 0, 0), false,
+        "SEDE-01", "Sede Principal", "CC-100");
+
+    private static MarcacionDelDia MarcacionEsperadaConSedeMarcada() => new(
+        new DateTime(2026, 3, 15, 6, 0, 0), "ENTRADA",
+        "SEDE-02", "Sede Norte", "CC-200");
+
+    // CA-1: la franja trae sede programada -> el persistido lleva codigo/nombre/CC programados.
+    // La marcacion sigue sin sede (null), demostrando que el campo opuesto no se contamina (CA-3).
+    [Fact]
+    public async Task DiaDepurado_PersisteLaSedeProgramadaDeLaFranja_CuandoLaFranjaTraeSede()
+    {
+        await WhenAsync(CrearDiaDepurado(
+            ColaboradorRecibido, "Turno Manana",
+            [FranjaConSedeProgramadaRecibida], [MarcacionRecibida], HorasRecibidas()));
+
+        Then(StreamId, new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, ColaboradorEsperado(), "Turno Manana",
+            [FranjaEsperadaConSedeProgramada()], [MarcacionEsperada()], HorasEsperadas()));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
+            StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
+    }
+
+    // CA-2: la marcacion trae sede estampada -> el persistido lleva codigo/nombre/CC de la marcacion.
+    // La franja sigue sin sede programada (null), demostrando que el campo opuesto no se contamina
+    // (CA-3).
+    [Fact]
+    public async Task DiaDepurado_PersisteLaSedeMarcadaDeLaMarcacion_CuandoLaMarcacionTraeSedeEstampada()
+    {
+        await WhenAsync(CrearDiaDepurado(
+            ColaboradorRecibido, "Turno Manana",
+            [FranjaRecibida], [MarcacionConSedeMarcadaRecibida], HorasRecibidas()));
+
+        Then(StreamId, new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, ColaboradorEsperado(), "Turno Manana",
+            [FranjaEsperada()], [MarcacionEsperadaConSedeMarcada()], HorasEsperadas()));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
+            StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
+    }
 
     // CA-1: dia nuevo -> crea el stream dc:{codigo}:{yyyyMMdd} con DepuracionDiaRecibida (foto
     // completa) y el dia queda Provisional.
