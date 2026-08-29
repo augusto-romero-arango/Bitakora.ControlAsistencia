@@ -223,4 +223,24 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
             StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
+
+    // CA-8 (#489): DiaDepurado que llega a un dia ya Aprobado -> guarda minima (decision de
+    // sesion, opcion ii): no se agrega evento al stream, ni el estado ni los valores cambian. La
+    // evidencia auditable (DepuracionPosAprobacionRecibida) llega con el issue B.
+    [Fact]
+    public async Task DiaDepurado_NoAgregaEvento_CuandoElDiaYaEstaAprobado()
+    {
+        Given(StreamId,
+            new DepuracionDiaRecibida(
+                StreamId, CodigoColaborador, Fecha, null, null, [], [],
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])),
+            new DiaAprobado(StreamId, CodigoColaborador, Fecha, []));
+
+        await WhenAsync(CrearDiaDepurado(
+            ColaboradorRecibido, "Turno Manana", [FranjaRecibida], [MarcacionRecibida], HorasRecibidas()));
+
+        Then(StreamId);
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
+            StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
+    }
 }

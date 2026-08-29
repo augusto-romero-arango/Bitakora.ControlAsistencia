@@ -86,6 +86,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
+    // Issue #489. MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
+    // el estado previo. public: requerido para que TestStore.ApplyEvent lo encuentre via
+    // GetMethods().
+    public void Apply(DiaAprobado e) => throw new NotImplementedException();
+
     // Tell-don't-Ask (MEF-ADR-0012): el aggregate produce la vista de lectura desde su estado
     // privado -- ninguna propiedad nueva se expone. Plan sale de la senal estructural del contrato
     // de DiaDepurado (NombreTurno null -> SinProgramar; nombre + cero franjas -> Descanso), no de un
