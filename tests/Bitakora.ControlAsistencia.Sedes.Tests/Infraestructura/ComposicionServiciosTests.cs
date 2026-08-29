@@ -19,6 +19,9 @@ using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
+using Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado;
+using Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +29,8 @@ using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerFichaSedeEndpoint = Bitakora.ControlAsistencia.Sedes.ObtenerFichaSede.FunctionEndpoint;
 using ListarFichasSedeEndpoint = Bitakora.ControlAsistencia.Sedes.ListarFichasSede.FunctionEndpoint;
+using ResolverSedeDeMarcacionEndpoint =
+    Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 
@@ -355,5 +360,107 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("sedes.mt_doc_fichasede");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(FichaSede.Id));
+    }
+
+    // Issue #467: mismo par 2 para UbicacionDispositivo, que este Function App empieza a consultar
+    // con la reaccion ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado. Hasta este issue
+    // ningun proceso del write-side la leia, y el config-test del worker lo dejaba anotado como la
+    // condicion pendiente: el dia que un Function App la consulte, ese lado declara
+    // Schema.For<UbicacionDispositivo>().UseNumericRevisions(true) o su primera query dispara el
+    // 42804 por request.
+    //
+    // Espejo de ConfiguracionMartenProjectionsTests (Projections.Tests)
+    // .ConfigurarSedes_MaterializaUbicacionDispositivoConRevisionNumerica.
+    [Fact]
+    public async Task AgregarServiciosSedes_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaUbicacionDispositivo()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(UbicacionDispositivo));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del mismo par 2 para UbicacionDispositivo: tabla, tenancy e IdMember. Una
+    // divergencia aqui deja el lookup del dispositivo en null permanente con el daemon
+    // materializando, y la reaccion loguearia "dispositivo desconocido" para dispositivos que si
+    // existen.
+    //
+    // Espejo de ConfiguracionMartenProjectionsTests (Projections.Tests)
+    // .ConfigurarSedes_MaterializaUbicacionDispositivoSobreLaTablaQueConsultaElWriteSide.
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveUbicacionDispositivoSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(UbicacionDispositivo));
+
+        mapping.TableName.QualifiedName.Should().Be("sedes.mt_doc_ubicaciondispositivo");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(UbicacionDispositivo.Id));
+    }
+
+    // --- Reaccion de enriquecimiento coreografiado (issue #467, MEF-ADR-0046) ---
+
+    // Primer consumo de evento privado del dominio: sin AgregarWolverinePrivateEventRouter() el
+    // FunctionEndpoint compila igual y revienta al primer mensaje del bus (mismo guardrail que
+    // ControlHoras tiene desde su primer suscriptor -- MEF-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveIPrivateEventRouter_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => scope.ServiceProvider.GetRequiredService<IPrivateEventRouter>();
+
+        act.Should().NotThrow();
+    }
+
+    // El lector del read-side propio (los dos lookups de MEF-ADR-0046 paso 2) depende de
+    // IDocumentStore + ITenantResolver por constructor: si alguno faltara, el hueco solo aparece al
+    // procesar el primer mensaje.
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveElLectorDelReadSide_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => scope.ServiceProvider.GetRequiredService<ILectorSedesParaMarcacion>();
+
+        act.Should().NotThrow();
+    }
+
+    // El handler de la reaccion lo activa el router, no el contenedor: ActivatorUtilities reproduce
+    // esa activacion y valida sus tres dependencias (lector, IPrivateEventSender, ILogger<>).
+    [Fact]
+    public async Task AgregarServiciosSedes_ActivaElHandlerDeLaReaccion_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities
+            .CreateInstance<RegistroDeMarcacionCreadoEventHandler>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // El worker de Functions activa el endpoint de ServiceBus por constructor, igual que los
+    // endpoints HTTP: se valida la misma activacion que arma Program.cs.
+    [Fact]
+    public async Task AgregarServiciosSedes_ResuelveElEndpointDeResolverSedeDeMarcacion_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities
+            .CreateInstance<ResolverSedeDeMarcacionEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }
