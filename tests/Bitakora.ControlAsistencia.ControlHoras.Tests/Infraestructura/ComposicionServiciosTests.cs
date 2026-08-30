@@ -209,7 +209,10 @@ public class ComposicionServiciosTests
             typeof(DepuracionDiaRecibida),
             typeof(SedeDeMarcacionIdentificada),
             typeof(DiaAprobado),
-            typeof(DepuracionPosAprobacionRecibida)
+            typeof(DepuracionPosAprobacionRecibida),
+            // Issue #499: rojo hasta que el implementer sume TurnoDiarioCancelado a
+            // IdentidadEventosControlHoras.TiposPersistidos.
+            typeof(TurnoDiarioCancelado)
         ]);
     }
 
@@ -251,7 +254,10 @@ public class ComposicionServiciosTests
             [typeof(DepuracionDiaRecibida)] = "depuracion_dia_recibida",
             [typeof(SedeDeMarcacionIdentificada)] = "sede_de_marcacion_identificada",
             [typeof(DiaAprobado)] = "dia_aprobado",
-            [typeof(DepuracionPosAprobacionRecibida)] = "depuracion_pos_aprobacion_recibida"
+            [typeof(DepuracionPosAprobacionRecibida)] = "depuracion_pos_aprobacion_recibida",
+            // Issue #499: rojo hasta que el implementer registre el tipo (TiposPersistidos) y su
+            // alias resuelva por convencion (JasperFx.Events.EventTypeExtensions).
+            [typeof(TurnoDiarioCancelado)] = "turno_diario_cancelado"
         });
     }
 

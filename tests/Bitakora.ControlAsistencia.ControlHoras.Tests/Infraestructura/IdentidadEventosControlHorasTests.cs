@@ -10,6 +10,8 @@
 // (estampado de sede sobre una marcacion ya adicionada) y se suma a la lista literal.
 // Issue #489: DiaAprobado se persiste en el stream de DiaCalculadoAggregateRoot (cierre del acto de
 // aprobar) y se suma a la lista literal.
+// Issue #499: TurnoDiarioCancelado se persiste en el stream de ControlDiarioAggregateRoot (quita el
+// plan al recibir la cancelacion de programacion) y se suma a la lista literal.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -21,7 +23,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class IdentidadEventosControlHorasTests
 {
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosSieteEventosPersistidosDeControlHoras()
+    public void TiposPersistidos_ContieneExactamenteLosOchoEventosPersistidosDeControlHoras()
     {
         IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
         [
@@ -31,7 +33,8 @@ public class IdentidadEventosControlHorasTests
             typeof(DepuracionDiaRecibida),
             typeof(SedeDeMarcacionIdentificada),
             typeof(DiaAprobado),
-            typeof(DepuracionPosAprobacionRecibida)
+            typeof(DepuracionPosAprobacionRecibida),
+            typeof(TurnoDiarioCancelado)
         ]);
     }
 

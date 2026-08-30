@@ -89,4 +89,15 @@ public class AliasEventosControlHorasTests
 
         AliasDe<DepuracionPosAprobacionRecibida>(options).Should().Be("depuracion_pos_aprobacion_recibida");
     }
+
+    // Issue #499: congela el alias de TurnoDiarioCancelado antes de desplegarlo. Rojo hasta que el
+    // implementer lo sume a IdentidadEventosControlHoras.TiposPersistidos (options ni siquiera lo
+    // conoce: AliasDe<> devuelve null y Should().Be(...) falla).
+    [Fact]
+    public void TurnoDiarioCancelado_TieneAliasTurnoDiarioCancelado()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<TurnoDiarioCancelado>(options).Should().Be("turno_diario_cancelado");
+    }
 }
