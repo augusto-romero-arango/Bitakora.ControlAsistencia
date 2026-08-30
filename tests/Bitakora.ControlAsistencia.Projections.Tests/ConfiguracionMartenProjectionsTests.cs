@@ -179,7 +179,8 @@ public class ConfiguracionMartenProjectionsTests
         using var provider = ProviderDeProgramacion();
 
         provider.GetRequiredService<IProgramacionProjectionStore>()
-            .AssertEventosPersistidosRegistrados([typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada)]);
+            .AssertEventosPersistidosRegistrados(
+                [typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada), typeof(TurnoRetirado)]);
     }
 
     // CA-5. Complementa ConfigurarProgramacion_NoRegistraNingunaProyeccionInline: aquella prueba

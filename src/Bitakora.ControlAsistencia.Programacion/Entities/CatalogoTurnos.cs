@@ -5,7 +5,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 // HU-4: Aggregate root del catalogo de turnos de trabajo
 // ADR-0015: partial class para soportar clase Mensajes en archivo separado
-// Interfaz publica: Apply(TurnoCreado), ToString()
+// Interfaz publica: Apply(TurnoCreado), Apply(TurnoRetirado), ToString()
 // Estado interno (privado): nombre, franjas ordinarias, activo
 public partial class CatalogoTurnos : AggregateRoot
 {
@@ -22,6 +22,27 @@ public partial class CatalogoTurnos : AggregateRoot
         _franjasOrdinarias = evento.FranjasOrdinarias.ToList();
         _estaActivo = true;
     }
+
+    // MEF-ADR-0004 capa 4: no lanza -- la guarda de "ya retirado" decide en Retirar(), antes de
+    // emitir.
+    public void Apply(TurnoRetirado evento) => _estaActivo = false;
+
+    // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
+    // razon del rechazo y el handler la traduce al status code (409 Conflict).
+    internal ResultadoRetiroTurno Retirar()
+    {
+        if (!_estaActivo)
+            return ResultadoRetiroTurno.YaEstabaRetirado;
+
+        var evento = TurnoRetirado.Crear(Guid.Parse(Id!));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoRetiroTurno.Retirado;
+    }
+
+    // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud -- el
+    // handler no interroga su estado interno para decidir por su cuenta.
+    internal bool PuedeAsignarNuevaSolicitud() => _estaActivo;
 
     // La estructura cero-franjas ES el descanso: sin discriminador en el estado del aggregate.
     public override string ToString() => _franjasOrdinarias.Count == 0

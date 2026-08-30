@@ -489,4 +489,22 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");
     }
+
+    // Issue #500 CA-4: turno retirado del catalogo -- declina con 409, sin escribir la solicitud
+    // (CA-ADR-0030). Sin And<>(): SolicitudProgramacionAggregateRoot nunca se crea en este camino,
+    // y And<>() sobre un stream inexistente lanza ArgumentNullException (TestStore), no una
+    // asercion legible -- mismo motivo por el que DebeLanzarExcepcion_CuandoTurnoNoExisteEnElCatalogo
+    // tampoco lo usa.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LanzaInvalidOperationException_CuandoElTurnoDelCatalogoEstaRetirado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno(), TurnoRetirado.Crear(TurnoId));
+
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
+        Then(GuidAggregateId.ToString());
+    }
 }
