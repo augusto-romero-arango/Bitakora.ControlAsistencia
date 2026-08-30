@@ -302,6 +302,11 @@ exceptions
 | where ExceptionCount > 50
 ```
 
+> **`<prefijo>-projections-exception-spike` eliminada por la actualizacion (2026-08-30, issue #415)
+> al final de este ADR.** Se reemplaza por una alerta generalizada por rol
+> (`<prefijo>-background-exception-spike`) que cubre el mismo hueco para los cuatro roles del BC, no
+> solo el worker. Esta seccion se conserva por trazabilidad del razonamiento original.
+
 **Por que filtrar por `cloud_RoleName` y no correlacionar con `requests` (como la alerta del borde
 HTTP).** El worker no es un host de Azure Functions -- no tiene requests que correlacionar. El valor
 exacto (`"Bitakora.ControlAsistencia.Projections"`) es la constante `NombreServicio` de
@@ -685,5 +690,120 @@ correo por episodio en vez de ~16. No cambia query, umbral ni ventana.
 **Alcance deliberadamente acotado a `ingestion_warning`**, que es donde el defecto se observo. Las
 alertas `exception_spike` y `non_http_failure_spike` comparten el rasgo stateless pero nunca han
 disparado; la alerta generalizada del issue #415 lo evalua por separado.
+
+Capas 1, 2 y 3 sin cambios.
+
+## Actualizacion (2026-08-30, issue #415): la Capa 4 generaliza la alerta del worker a los agentes de fondo, por rol
+
+El experimento de falla inducida del issue #412 (seccion de arriba) dejo un hallazgo sin cerrar:
+"Efecto colateral observado en las alertas hermanas". Durante la caida de Postgres,
+`func-asist-dev-colaboradores` y `func-asist-dev-control-horas` generaron 810 excepciones de
+`Wolverine.RDBMS.DurabilityAgent`/`IAgentCommand` (116-120 por ventana de 5 min, muy por encima de
+cualquier umbral razonable) y **ninguna alerta disparo**: las dos alertas de borde
+(`exception-spike`, `non-http-failure-spike`) se condicionan a `requests`, y un agente de fondo no
+produce ninguno. El worker de proyecciones tenia el mismo hueco estructural, solo que ya cubierto
+por `projections-exception-spike` (issue #398). Total del incidente: ~1000 excepciones en tres
+roles, cero alertas disparadas.
+
+**Decision: generalizar en una sola alerta por rol, no una cuarta alerta de borde (MEF-ADR-0018,
+Rule of Three).** Cuatro roles (tres Function Apps + el worker) y dos familias de agentes de fondo
+(el daemon HotCold de Marten, el `DurabilityAgent`/`IAgentCommand` de Wolverine) comparten el mismo
+modo de falla: excepciones fuera de un request HTTP. `projections-exception-spike` se elimina --
+queda subsumida, el worker es un rol mas bajo la misma alerta.
+
+**Senal distintiva: `isempty(operation_Id)`.** Medido en el #412: las 88 excepciones del daemon y
+las 810 de Wolverine llevan `operation_Id` vacio. Verificado en la sesion de refinamiento (30 dias
+de trafico real de dev, excluyendo la ventana del experimento #412) que el filtro no reintroduce el
+ruido que motivo acotar la Capa 4 por borde (actualizacion 2026-08-15): las excepciones nacidas de
+un request HTTP -- incluidas las que generan los smoke tests ejercitando rutas de fallo
+(`InvalidOperationException`/`KeyNotFoundException` en colaboradores, sedes, control-horas) --
+llevan `operation_Id` poblado. El filtro reduce el ruido de colaboradores de 7277 a 74 excepciones
+en 30 dias. No hizo falta excluir smoke tests de forma explicita.
+
+**Umbral medido, no heredado.** Con `isempty(operation_Id)`, ventanas de 5 min con >15 excepciones
+en 30 dias: solo 6, repartidas en 2 incidentes reales (`ServiceBusException` 2026-08-21;
+`PostgresException`/`WolverineHasNotStartedException` durante el deploy del issue #414,
+2026-08-27). El unico caso de 2 ventanas consecutivas es el worker en el incidente del 08-27 (54,
+38) -- el verdadero positivo que la alerta debia capturar. Maximos por rol en esos 30 dias:
+control-horas 78, worker 54, colaboradores 30, programacion 6, sedes 6 (todos en la misma ventana
+del incidente 08-27). Margen sobre el umbral elegido (`>15`, persistencia 2/2): el peor caso
+realista del worker (caida total de Postgres, ajustado +40% post-#414) serian ~35-42 excepciones
+por ventana, 2.3-2.8x el umbral; las Function Apps, 116-120, 7-8x. Cero disparos falsos en 30 dias
+de historial retrospectivo con este umbral -- el unico disparo habria sido el incidente real del
+08-27.
+
+**Implementacion.** `azurerm_monitor_scheduled_query_rules_alert_v2.background_exception_spike`
+(`infra/modules/monitoring/main.tf`), con la dimension `cloud_RoleName` para que el motor evalue
+los failing periods por rol de forma independiente:
+
+```kql
+exceptions
+| where timestamp > ago(10m)
+| where isempty(operation_Id)
+| summarize N = count() by cloud_RoleName, TimeGenerated = bin(timestamp, 5m)
+```
+
+```hcl
+criteria {
+  query                    = <<-QUERY ... QUERY
+  time_aggregation_method = "Maximum"
+  operator                = "GreaterThan"
+  threshold               = 15
+  metric_measure_column   = "N"
+
+  dimension {
+    name     = "cloud_RoleName"
+    operator = "Include"
+    values   = ["*"]
+  }
+
+  failing_periods {
+    minimum_failing_periods_to_trigger_alert = 2
+    number_of_evaluation_periods             = 2
+  }
+}
+```
+
+**Por que el umbral vive en `criteria` y no embebido en la query (a diferencia de las tres alertas
+hermanas).** Las alertas de borde escriben `| where ExceptionCount > 50` dentro de la propia query
+KQL y usan `time_aggregation_method = "Count"` con `threshold = 0` -- una comparacion booleana
+disfrazada de conteo, valida porque evaluan un unico numero agregado sin dimensiones. Con
+`dimension`, eso deja de alcanzar: el motor necesita el valor numerico crudo por cada valor de
+`cloud_RoleName` para decidir, independientemente por combinacion, si esa ventana es una "failing
+period". Por eso la query solo agrega (`summarize ... by cloud_RoleName, TimeGenerated`) y el
+umbral se declara en `criteria.threshold` (15) contra `metric_measure_column = "N"`. Confirmado
+contra la documentacion del provider (Terraform Registry, recurso
+`azurerm_monitor_scheduled_query_rules_alert_v2`, bloques `criteria`/`dimension`): `Count` prohibe
+`metric_measure_column`, asi que separar el umbral de la query no fue una preferencia de estilo sino
+la unica combinacion valida junto con `dimension`.
+
+**Por que `time_aggregation_method = "Maximum"` y no `"Total"` o `"Count"`.** `Count` esta descartado
+por lo anterior (prohibe `metric_measure_column`, y ademas contaria FILAS del resultado -- que tras
+el `summarize` es siempre 1 por combinacion rol/bin -- no la magnitud real de `N`). Con
+`window_duration = PT5M` igual al tamano del bin (`bin(timestamp, 5m)`), cada periodo de evaluacion
+contiene como maximo una fila por rol, asi que `Maximum` y `Total` son equivalentes en este caso;
+se elige `Maximum` por ser el patron documentado en el ejemplo oficial del provider para alertas con
+`dimension` (conteo pre-agregado en KQL, agregado de nuevo por el motor sobre esa columna).
+
+**Por que `TimeGenerated = bin(timestamp, 5m)` explicito.** La documentacion del provider (nota de
+`number_of_evaluation_periods`) exige que la query proyecte una columna de tiempo cuando
+`number_of_evaluation_periods > 1` -- necesario para la persistencia 2/2 de este issue. Las tres
+alertas hermanas no lo necesitan porque usan `number_of_evaluation_periods = 1`.
+
+**Statefulness: `auto_mitigation_enabled = true`.** Mismo defecto que motivo la actualizacion
+anterior de este ADR (`ingestion-warning`, issue #514, 16 disparos por un unico episodio): sin esto,
+una caida sostenida notificaria cada 5 minutos mientras dure en vez de una vez por episodio con
+auto-resolucion. No se detecto interaccion adversa con `dimension` en la documentacion del
+provider ni en la del recurso subyacente de Azure Monitor: cada combinacion de valores de dimension
+se seguiria de forma independiente, igual que en la evaluacion de failing periods.
+
+**Se conservan `exception-spike` y `non-http-failure-spike`** (miden fallos correlacionados a
+`requests`, un eje distinto). **Se elimina `projections-exception-spike`**, unica destruccion
+esperada en el plan de este cambio.
+
+**Verificacion de ruido cero pendiente de confirmar en vivo (CA-5).** La medicion retrospectiva de
+30 dias predice cero falsos positivos; queda pendiente confirmar sobre trafico real post-despliegue
+(>=3 dias sin disparos falsos, o cada disparo justificado como verdadero positivo). La verificacion
+de **deteccion** (falla inducida, protocolo #412) se delega al issue #413, que depende de este.
 
 Capas 1, 2 y 3 sin cambios.
