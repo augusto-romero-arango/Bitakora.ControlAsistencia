@@ -28,21 +28,28 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     private readonly HttpClient _client = api.Client;
 
-    private static object PayloadValido(Guid? turnoId = null, string nombre = "[TEST] Turno Diurno") => new
+    // El nombre es unico en el catalogo (invariante del dominio): sufijar el default con el turnoId
+    // mantiene estos smoke tests re-ejecutables contra el mismo entorno dev. Los tests de la propia
+    // invariante pasan su nombre explicito, que si debe repetirse entre dos turnos distintos.
+    private static object PayloadValido(Guid? turnoId = null, string? nombre = null)
     {
-        turnoId = turnoId ?? Guid.CreateVersion7(),
-        nombre,
-        ordinarias = new[]
+        var id = turnoId ?? Guid.CreateVersion7();
+        return new
         {
-            new
+            turnoId = id,
+            nombre = nombre ?? $"[TEST] Turno Diurno {id}",
+            ordinarias = new[]
             {
-                inicio = "08:00:00",
-                fin = "16:00:00",
-                descansos = Array.Empty<object>(),
-                extras = Array.Empty<object>()
+                new
+                {
+                    inicio = "08:00:00",
+                    fin = "16:00:00",
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
             }
-        }
-    };
+        };
+    }
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -194,7 +201,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var ct = TestContext.Current.CancellationToken;
         var turnoId = Guid.CreateVersion7();
-        const string nombreTurno = "[TEST] Vigilante Partido";
+        var nombreTurno = $"[TEST] Vigilante Partido {turnoId}";
         var payload = new
         {
             turnoId,
@@ -265,10 +272,11 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     public async Task CrearTurno_Retorna400_CuandoSedeDeFranjaTieneIdVacio()
     {
         var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
         var payload = new
         {
-            turnoId = Guid.CreateVersion7(),
-            nombre = "[TEST] Turno Sede Incompleta",
+            turnoId,
+            nombre = $"[TEST] Turno Sede Incompleta {turnoId}",
             ordinarias = new object[]
             {
                 new
@@ -293,10 +301,11 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     public async Task CrearTurno_Retorna400_CuandoSedeDeFranjaTieneNombreEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
         var payload = new
         {
-            turnoId = Guid.CreateVersion7(),
-            nombre = "[TEST] Turno Sede Incompleta",
+            turnoId,
+            nombre = $"[TEST] Turno Sede Incompleta {turnoId}",
             ordinarias = new object[]
             {
                 new
@@ -325,7 +334,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var ct = TestContext.Current.CancellationToken;
         var turnoId = Guid.CreateVersion7();
-        const string nombreTurno = "[TEST] Descanso Dominical";
+        var nombreTurno = $"[TEST] Descanso Dominical {turnoId}";
         var payload = new
         {
             turnoId,
@@ -352,10 +361,11 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     public async Task CrearTurno_Retorna400_CuandoEsDescansoConFranjas()
     {
         var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
         var payload = new
         {
-            turnoId = Guid.CreateVersion7(),
-            nombre = "[TEST] Descanso Contradictorio",
+            turnoId,
+            nombre = $"[TEST] Descanso Contradictorio {turnoId}",
             ordinarias = new[]
             {
                 new

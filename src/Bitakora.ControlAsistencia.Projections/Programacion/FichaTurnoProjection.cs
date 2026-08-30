@@ -22,11 +22,9 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 /// exactamente el StreamKey del stream de CatalogoTurnos (StreamIdentity = AsString), nunca
 /// recomputada a mano desde el payload.
 ///
-/// Issue #501: ShouldDelete(TurnoRetirado) borra la ficha del catalogo cuando el turno se retira
-/// -- se borra (no se marca): la auditoria vive en el event store y el nombre queda libre para el
-/// patron "modificar = retirar + crear" y la invariante de nombre unico (#497). Sin TView: el
-/// borrado no depende del estado previo de la ficha (estilo canonico, modelos-marten.md). Sin
-/// Apply: TurnoCreado/TurnoRetirado son los unicos dos eventos que CatalogoTurnos declara hoy.
+/// El retiro BORRA la ficha, no la marca: la auditoria vive en el event store y el nombre debe
+/// quedar libre para el patron "modificar = retirar + crear" y para la invariante de nombre unico
+/// del catalogo.
 /// </remarks>
 public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaTurno, string>
 {
@@ -34,7 +32,7 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     {
         var turnoCreado = e.Data;
 
-        // CA-2: variante descanso (factory CrearDescanso) -- sin franjas.
+        // Cero franjas ordinarias es la variante descanso (TurnoCreado.CrearDescanso).
         if (turnoCreado.FranjasOrdinarias.Count == 0)
             return new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso");
 
@@ -56,6 +54,8 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             descripcion);
     }
 
+    public static bool ShouldDelete(TurnoRetirado e) => true;
+
     private static FranjaFicha MapearFranja(FranjaProgramada detalle) =>
         new(
             detalle.HoraInicio,
@@ -69,6 +69,4 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
 
     private static SubFranjaFicha MapearSubFranja(SubFranjaProgramada detalle) =>
         new(detalle.HoraInicio, detalle.HoraFin, detalle.DiaOffsetInicio, detalle.DiaOffsetFin);
-
-    public static bool ShouldDelete(TurnoRetirado e) => true;
 }
