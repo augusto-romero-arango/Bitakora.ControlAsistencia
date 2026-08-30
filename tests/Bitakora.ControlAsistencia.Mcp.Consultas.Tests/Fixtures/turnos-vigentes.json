@@ -1,0 +1,82 @@
+{
+ "desdeAplicado": "2026-07-01",
+ "hastaAplicado": "2026-07-31",
+ "rangoRecortado": false,
+ "turnos": [
+  {
+   "id": "cd:01a04dd1-0db3-7178-92ec-d6a7fd362255:20260703",
+   "codigoColaborador": "01a04dd1-0db3-7178-92ec-d6a7fd362255",
+   "nombreCompleto": "[TEST] Smoke Persistencia CC",
+   "fecha": "2026-07-03",
+   "nombreTurno": "[TEST] Turno Smoke CC Persistencia",
+   "horarioResumido": "[TEST] Turno Smoke CC Persistencia (08:00-16:00)",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-07-03T08:00:00",
+     "fin": "2026-07-03T16:00:00",
+     "sedeId": "SEDE-CC-03",
+     "nombreSede": "[TEST] Sede Persistencia CC"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04458-37d4-7b5d-9476-0635b63ace65:20260706",
+   "codigoColaborador": "01a04458-37d4-7b5d-9476-0635b63ace65",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-07-06",
+   "nombreTurno": "[TEST] Turno Vigente Fuera De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-07-06T08:00:00",
+     "fin": "2026-07-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a0-b019-7f72-af18-13ec9c774880:20260706",
+   "codigoColaborador": "01a043a0-b019-7f72-af18-13ec9c774880",
+   "nombreCompleto": null,
+   "fecha": "2026-07-06",
+   "nombreTurno": "[TEST] Turno Vigente Fuera De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-07-06T08:00:00",
+     "fin": "2026-07-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a0-bdbe-7d41-8b96-f77c008f4386:20260605",
+   "codigoColaborador": "01a043a0-bdbe-7d41-8b96-f77c008f4386",
+   "nombreCompleto": null,
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a043a0-bdbe-7e0f-a77a-4cee4d759eea",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a043a0-bdbe-75f0-9772-c15d9635556e",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  }
+ ]
+}

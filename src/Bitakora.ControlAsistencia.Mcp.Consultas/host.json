@@ -1,0 +1,18 @@
+{
+    "version": "2.0",
+    "telemetryMode": "OpenTelemetry",
+    "logging": {
+        "logLevel": {
+            "default": "Warning",
+            "Function": "Information",
+            "Host.Results": "Information"
+        }
+    },
+    "extensions": {
+        "mcp": {
+            "serverName": "ControlAsistencias Consultas",
+            "serverVersion": "1.0.0",
+            "instructions": "Servidor MCP de consultas (solo lectura) del bounded context ControlAsistencias. Expone el catalogo de turnos, las sedes y la programacion vigente de los colaboradores. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
+        }
+    }
+}

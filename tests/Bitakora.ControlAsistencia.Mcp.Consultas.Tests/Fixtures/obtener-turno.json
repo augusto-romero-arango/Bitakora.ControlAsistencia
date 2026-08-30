@@ -1,0 +1,19 @@
+{
+ "id": "019fdaab-92b6-7b57-8408-cef0e48e1a46",
+ "nombre": "[TEST] Turno Con Sede Prearmada",
+ "esDescanso": false,
+ "horarioResumido": "08:00-16:00",
+ "franjas": [
+  {
+   "horaInicio": "08:00:00",
+   "horaFin": "16:00:00",
+   "diaOffsetFin": 0,
+   "descansos": [],
+   "extras": [],
+   "sedeId": "SEDE-CENTRO",
+   "nombreSede": "[TEST] Centro",
+   "descripcion": "(08:00-16:00)[sede:[TEST] Centro]"
+  }
+ ],
+ "descripcion": "(08:00-16:00)[sede:[TEST] Centro]"
+}

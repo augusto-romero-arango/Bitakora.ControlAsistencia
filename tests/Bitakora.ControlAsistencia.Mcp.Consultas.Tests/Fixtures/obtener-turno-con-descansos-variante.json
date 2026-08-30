@@ -1,0 +1,43 @@
+{
+ "id": "019fdaab-5eca-719a-9125-7541f0f07087",
+ "nombre": "[TEST] Turno Mixto Cascada",
+ "esDescanso": false,
+ "horarioResumido": "06:00-10:00, 14:00-18:00",
+ "franjas": [
+  {
+   "horaInicio": "06:00:00",
+   "horaFin": "10:00:00",
+   "diaOffsetFin": 0,
+   "descansos": [
+    {
+     "horaInicio": "12:00:00",
+     "horaFin": "13:00:00",
+     "diaOffsetInicio": 0,
+     "diaOffsetFin": 0
+    }
+   ],
+   "extras": [
+    {
+     "horaInicio": "16:00:00",
+     "horaFin": "18:00:00",
+     "diaOffsetInicio": 0,
+     "diaOffsetFin": 0
+    }
+   ],
+   "sedeId": "SEDE-SUBA",
+   "nombreSede": "[TEST] Suba",
+   "descripcion": "(06:00-10:00)[sede:[TEST] Suba]"
+  },
+  {
+   "horaInicio": "14:00:00",
+   "horaFin": "18:00:00",
+   "diaOffsetFin": 0,
+   "descansos": [],
+   "extras": [],
+   "sedeId": null,
+   "nombreSede": null,
+   "descripcion": "(14:00-18:00)"
+  }
+ ],
+ "descripcion": "(06:00-10:00)[sede:[TEST] Suba], (14:00-18:00)"
+}
