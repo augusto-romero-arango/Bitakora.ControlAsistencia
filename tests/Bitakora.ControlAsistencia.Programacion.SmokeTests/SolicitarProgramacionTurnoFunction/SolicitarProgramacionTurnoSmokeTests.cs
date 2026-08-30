@@ -674,6 +674,45 @@ public class SolicitarProgramacionTurnoSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    // Issue #500 CA-4: un turno retirado del catalogo ya no es asignable a nuevas solicitudes.
+    // Guarda transaccional contra el CatalogoTurnos que el handler ya carga (Tell-don't-Ask,
+    // MEF-ADR-0012) -- no consulta la vista FichaTurno, asi que no hay consistencia eventual que
+    // esperar entre el DELETE y este POST.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebeRetornar409_CuandoElTurnoDelCatalogoEstaRetirado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var turnoPayload = new
+        {
+            turnoId,
+            nombre = "[TEST] Turno Retirado Para Solicitar",
+            ordinarias = new[]
+            {
+                new
+                {
+                    inicio = "08:00:00",
+                    fin = "16:00:00",
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
+            }
+        };
+        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que CrearTurno funcione");
+
+        var retirarTurnoResponse = await _client.DeleteAsync($"/api/programacion/turnos/{turnoId}", ct);
+        retirarTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que RetirarTurno funcione");
+
+        var payload = PayloadValido(turnoId: turnoId);
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoIdEsGuidVacio()
