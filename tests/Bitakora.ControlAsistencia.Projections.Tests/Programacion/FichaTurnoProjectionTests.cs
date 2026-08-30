@@ -19,9 +19,8 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Programacion;
 
 public class FichaTurnoProjectionTests
 {
-    // CA-1: turno con franjas -- Nombre, EsDescanso=false, HorarioResumido y la franja completa
-    // (descansos/extras contenidos, sede prearmada). La identidad del documento es el StreamKey del
-    // stream de CatalogoTurnos, nunca recomputada desde el payload.
+    // La identidad del documento es el StreamKey del stream de CatalogoTurnos, nunca recomputada
+    // desde el payload.
     [Fact]
     public void Create_ProyectaTurnoConNombreYFranjaCompleta_DesdeTurnoCreado()
     {
@@ -60,8 +59,7 @@ public class FichaTurnoProjectionTests
             "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]"));
     }
 
-    // Caso borde de CA-1 sin test propio hasta la revision: con varias franjas, HorarioResumido y
-    // Descripcion unen los rangos en el orden de las franjas del evento.
+    // Con varias franjas, HorarioResumido y Descripcion unen los rangos en el orden del evento.
     [Fact]
     public void Create_UneLosRangosDeTodasLasFranjas_CuandoElTurnoTieneVariasFranjas()
     {
@@ -91,7 +89,6 @@ public class FichaTurnoProjectionTests
         ], opciones => opciones.WithStrictOrdering());
     }
 
-    // CA-2: variante descanso (factory CrearDescanso) -- EsDescanso=true y sin franjas.
     [Fact]
     public void Create_ProyectaTurnoDeDescanso_DesdeTurnoCreadoDeDescanso()
     {
@@ -114,5 +111,17 @@ public class FichaTurnoProjectionTests
             "Descanso",
             [],
             "Descanso"));
+    }
+
+    // Un turno sin ficha materializada no necesita test propio: sin Create(TurnoRetirado), Marten
+    // no llega a invocar ShouldDelete cuando el stream no tiene documento previo.
+    [Fact]
+    public void ShouldDelete_BorraLaFicha_CuandoTurnoRetirado()
+    {
+        var turnoRetirado = TurnoRetirado.Crear(Guid.Parse("019600b0-0000-7000-8000-000000000004"));
+
+        var debeBorrarse = FichaTurnoProjection.ShouldDelete(turnoRetirado);
+
+        debeBorrarse.Should().BeTrue();
     }
 }

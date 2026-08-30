@@ -50,6 +50,8 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
 
     private static string Ruta(Guid turnoId) => $"{RutaTurnos}/{turnoId}";
 
+    // El nombre es unico en el catalogo (invariante del dominio): cada caller lo sufija con el
+    // turnoId para que estos smoke tests sean re-ejecutables contra el mismo entorno dev.
     private static object PayloadTurnoConFranja(Guid turnoId, string nombre) => new
     {
         turnoId,
@@ -112,7 +114,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     {
         var ct = TestContext.Current.CancellationToken;
         var turnoId = Guid.CreateVersion7();
-        const string nombre = "[TEST] Turno Diurno Ficha";
+        var nombre = $"[TEST] Turno Diurno Ficha {turnoId}";
 
         await CrearTurnoAsync(PayloadTurnoConFranja(turnoId, nombre), ct);
 
@@ -139,7 +141,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     {
         var ct = TestContext.Current.CancellationToken;
         var turnoId = Guid.CreateVersion7();
-        const string nombre = "[TEST] Descanso Ficha";
+        var nombre = $"[TEST] Descanso Ficha {turnoId}";
 
         await CrearTurnoAsync(PayloadDescanso(turnoId, nombre), ct);
 

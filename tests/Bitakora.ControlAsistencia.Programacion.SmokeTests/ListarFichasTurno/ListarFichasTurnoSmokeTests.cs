@@ -97,7 +97,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
     {
         var ct = TestContext.Current.CancellationToken;
         var turnoId = Guid.CreateVersion7();
-        const string nombre = "[TEST] Turno Listado Ficha";
+        var nombre = $"[TEST] Turno Listado Ficha {turnoId}";
 
         await CrearTurnoAsync(turnoId, nombre, ct);
 
