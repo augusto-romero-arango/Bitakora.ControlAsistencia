@@ -21,6 +21,7 @@ public static class IdentidadEventosProgramacion
     public static IReadOnlyList<Type> TiposPersistidos { get; } =
     [
         typeof(TurnoCreado),
-        typeof(ProgramacionTurnoSolicitada)
+        typeof(ProgramacionTurnoSolicitada),
+        typeof(TurnoRetirado)
     ];
 }
