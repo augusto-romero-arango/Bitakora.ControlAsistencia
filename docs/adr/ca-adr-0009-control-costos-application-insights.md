@@ -474,3 +474,114 @@ Capas 1 y 3 sin cambios. La Capa 2 (sampling de trazas, `TELEMETRY_SAMPLING_RATI
 este desacople es exclusivamente del pipeline de logs -- las trazas siguen su propio sampler
 (`SamplerQueDescartaPollingDelDaemon` envolviendo `ParentBasedSampler{TraceIdRatioBasedSampler}`),
 sin tocar.
+
+## Actualizacion (2026-08-30, issue #515): se suprime la exportacion de metricas OTel en las tres Function Apps
+
+Investigacion del episodio de `ingestion-warning`: **`AppMetrics` consume 0.103 GB/dia (~23% del
+daily cap de 0.5 GB)** en `customMetrics` que nadie consulta -- verificado por grep contra el repo
+y el plugin `mefisto`: ni `/health-check`, ni `bug-investigator`, ni ninguna alerta de las tres de
+la Capa 4 las lee (todas usan `exceptions`/`requests`). Origen medido (24h, por rol): las tres
+Function Apps que ya adoptaron el exporter completo (Colaboradores, ControlHoras, Sedes) emiten
+~76.000 metricas/dia cada una, activadas automaticamente por `UseAzureMonitorExporter()` -- en
+`ComposicionServicios.cs` de cada dominio solo estaba configurado `.WithTracing(...)`, sin ningun
+`.WithMetrics(...)` explicito. Familias observadas: `_APPRESOURCEPREVIEW_` (latido del propio
+exporter OTel, identificado por `customDimensions.telemetry.sdk.name: opentelemetry`),
+`dotnet.gc.*`, `http.server.active_requests`, `kestrel.*`, `azure.functions.health_check.reports`,
+`*.cpu.time`. Es telemetria de capacidad -- valiosa en procesos de larga vida bajo carga real, ruido
+caro en Function Apps de dev que escalan a cero. `Programacion` (sin exporter todavia) queda fuera
+de alcance; cuando lo adopte, debe nacer ya con este recorte.
+
+**Decision: recortar TODO, no una familia puntual.** El daily cap (Capa 3) se mantiene en 0.5 GB --
+con el recorte, el peor dia medido (0.454 GB) habria quedado en ~0.35 GB, bajo el umbral del 80% de
+la Capa 4.
+
+**Mecanismo: `AddView` con wildcard, no un opt-out del exporter.** `UseAzureMonitorExporter()`
+(`Azure.Monitor.OpenTelemetry.Exporter` 1.8.1) no tiene overload ni opcion para excluir la senal de
+metricas -- su xmldoc es explicito: "adding the Azure Monitor exporter for logging, distributed
+tracing, and metrics" siempre las tres juntas. La supresion se implementa con un segundo
+`.WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop))`
+encadenado tras `.UseAzureMonitorExporter()` en el mismo seam de cada `ComposicionServicios.cs`. El
+wildcard cubre cualquier instrumento, incluidos los que un futuro upgrade del exporter agregue sin
+que nadie lo anticipe -- verificado que `WildcardHelper` (usado por `AddView` para el matching de
+`instrumentName`) esta presente en `OpenTelemetry` 1.16.0 por grep de strings sobre el ensamblado.
+
+**Hallazgo no anticipado: el reader de metricas de Azure Monitor exige connection string de forma
+sincronica y sin tolerancia, a diferencia del de trazas.** Decompilando
+`OpenTelemetryBuilderExtensions.UseAzureMonitorExporter` (`ilspycmd` sobre el ensamblado 1.8.1) se
+confirma que el exporter de TRAZAS se agrega via un `ExporterRegistrationHostedService` -- diferido
+al arranque real del host (`IHost.StartAsync`/`RunAsync`), que nunca corre al solo construir un
+`ServiceProvider` de prueba, asi que su ausencia de connection string pasa inadvertida en ese
+escenario. El reader de METRICAS, en cambio, se agrega de forma SINCRONICA dentro del callback de
+`ConfigureOpenTelemetryMeterProvider` que arma la `MeterProviderSdk`: construye
+`new AzureMonitorMetricExporter(options)` inmediatamente al resolver `MeterProvider`, y su
+constructor (via `AzureMonitorTransmitter.InitializeConnectionVars`) lanza
+`InvalidOperationException("A connection string was not found...")` si no hay connection string
+resoluble -- verificado empiricamente con un proyecto de consola aislado que reproduce el wiring
+exacto del proyecto (incluyendo `UseFunctionsWorkerDefaults()`). El `AddView` de arriba filtra
+MEDICIONES, no evita esta construccion: el reader se arma igual, con o sin vistas.
+
+Sin manejo adicional, esto significa que un arranque en frio con la Key Vault reference de
+`APPLICATIONINSIGHTS_CONNECTION_STRING` aun sin resolver tumbaria el Function App entero al
+resolver `MeterProvider` -- un modo de fallo mas severo que el que ya se acepta para trazas (que
+"solo falla al exportar", actualizacion 2026-06-18 de este ADR) y que existia igual antes de este
+cambio, solo que enmascarado porque nadie resolvia `MeterProvider` explicitamente hasta ahora.
+Se agrega un `services.PostConfigure<AzureMonitorExporterOptions>(...)` que rellena
+`ConnectionString` con un valor sintacticamente valido pero inerte
+(`InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://dummy...`)
+**solo si sigue vacio** tras todas las demas fuentes de configuracion (`PostConfigure` corre
+siempre despues de `Configure` en el pipeline de `Microsoft.Extensions.Options`) -- si la variable
+de entorno real esta presente, este relleno nunca se activa. Es seguro precisamente porque el
+`AddView` de arriba droppea toda medicion: el reader nunca tiene nada que exportar, asi que nunca
+abre una conexion HTTP real con ese valor inerte (verificado: `ForceFlush()` retorna en
+milisegundos, sin intentos de red).
+
+**Verificacion de CA-2 (guardrail de composicion).** El patron de `ConfiguracionObservabilidadProjectionsTests`
+(issue #414, "lee las opciones/providers EFECTIVOS del contenedor, no la intencion del codigo") se
+replica con `SupresionMetricasOTelTests` en cada uno de los tres dominios: compone el contenedor
+real, agrega un `ConfigureOpenTelemetryMeterProvider` adicional con un `Meter` arbitrario (no
+anticipado por el codigo de produccion) y un `InMemoryExporter`, y afirma que la coleccion
+exportada queda vacia tras `ForceFlush()`. Verifica el efecto observable, no el mecanismo -- un
+upgrade del exporter que reactive metricas por otra via haria fallar el test igual.
+
+**Hallazgo de la revision: el seam pasa al overload con callback para desacoplar los logs de error
+del sampler de trazas.** Al tocar el wiring de OTel de los tres dominios, la revision constato que
+`EnableTraceBasedLogsSampler` seguia en su default (`true`) en las tres Function Apps -- MEF-ADR-0038
+seccion 9 lo declara **mecanismo del marco, no opt-in**, extendido al write-side por harness #700, y
+solo estaba aplicado en el worker de proyecciones (`ConfiguracionObservabilidadProjections`, issue
+#414). Con ese default, el exporter instala `LogFilteringProcessor` en vez de un
+`BatchLogRecordExportProcessor` plano, y ese processor descarta en silencio todo `LogRecord` emitido
+dentro de un span que no quedo `Recorded`. En el write-side no hay ningun filtro estructural de spans
+(la seccion 5 de ese ADR es exclusiva del worker): la perdida es directamente proporcional al ratio
+de muestreo, y los tres dominios corren con `TELEMETRY_SAMPLING_RATIO` en su default **0.2** -- o sea
+que ~80% de los `LogError` de handlers, Wolverine y Marten emitidos dentro de un span no muestreado
+nunca llegaban a `exceptions`, que es justo la tabla que la alerta `exception_spike` (Capa 4) mira.
+El seam pasa de `.UseAzureMonitorExporter()` a `.UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)`.
+
+Ese cambio de overload tiene una consecuencia documentada en MEF-ADR-0038 seccion 9: la forma sin
+argumentos registra `DefaultAzureMonitorExporterOptions` (que lee `APPLICATIONINSIGHTS_CONNECTION_STRING`
+directo del entorno) y la forma con callback no, dejando la resolucion de la connection string
+unicamente en manos de `Configure<IConfiguration>`. Verificado por ejecucion que ese camino sigue
+resolviendola (el SDK de OpenTelemetry registra un `IConfiguration` con proveedor de variables de
+entorno cuando no hay host detras, y `FunctionsApplication.CreateBuilder` lo incluye en produccion) --
+MEF-ADR-0025 intacto: el seam sigue sin leer ni recibir el secreto.
+
+**Guardrails agregados en la revision** (`ComposicionServiciosTests` de los tres dominios, mismo
+patron de contenedor real):
+
+1. `AgregarServicios{Dominio}_DeshabilitaElSamplerDeLogsBasadoEnTrazas` -- resuelve
+   `IOptions<AzureMonitorExporterOptions>` del `ServiceProvider` real y afirma
+   `EnableTraceBasedLogsSampler == false`. Verificada su no-vacuidad: rojo al revertir el flip,
+   verde con el.
+2. `AgregarServicios{Dominio}_ConservaLaConnectionStringReal_CuandoLaVariableDeEntornoEstaPresente` --
+   cierra el riesgo que introduce el `PostConfigure` de arriba. Ese fallback es seguro **solo**
+   mientras corra despues de la fuente real y no la pise; si algun dia la pisara, trazas y logs
+   (que comparten `AzureMonitorExporterOptions`) se exportarian a un endpoint inexistente en
+   silencio y de forma permanente -- un modo de fallo peor que el `InvalidOperationException` que el
+   fallback vino a evitar, porque no se manifiesta como error sino como ausencia total de
+   telemetria. El orden `Configure` -> `PostConfigure` es hoy correcto, pero nada en el codigo lo
+   garantizaba frente a un upgrade del exporter: este test es esa garantia.
+
+Capas 1 y 3 sin cambios (Capa 3 se mantiene en 0.5 GB, ver "Decision" arriba). La Capa 2 (sampling
+de trazas) y su sampler no cambian: el recorte de metricas es exclusivamente del pipeline de
+metricas, y el flip de `EnableTraceBasedLogsSampler` no altera la decision de muestreo de trazas --
+solo deja de propagarla a los logs.

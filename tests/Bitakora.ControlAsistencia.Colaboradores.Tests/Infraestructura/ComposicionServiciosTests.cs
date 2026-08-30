@@ -27,6 +27,8 @@ using FluentValidation;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using OpenTelemetry.Trace;
 using Wolverine;
 using ObtenerFichaColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador.FunctionEndpoint;
@@ -48,6 +50,11 @@ public class ComposicionServiciosTests
     // diferencia de Projections, este dominio no declara InternalsVisibleTo hacia su proyecto de
     // tests -- por eso se fijan aqui una sola vez para no repetirlos en cada test.
     private const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
+    // Issue #515: la variable que el exporter lee para su ConnectionString. El seam nunca la lee
+    // (MEF-ADR-0025: el secreto no pasa por el codigo del dominio); se nombra aqui solo para que el
+    // guardrail del PostConfigure pueda simular su presencia.
+    private const string VariableConnectionStringAppInsights = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+
     private const double RatioSamplingPorDefecto = 0.2;
 
     private static ServiceProvider ComponerServiceProvider()
@@ -535,5 +542,48 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ReadyCheck>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    // --- Issue #515 / MEF-ADR-0038 seccion 9 (write-side, harness #700) ---
+
+    // La garantia no es el comentario del seam: es este test, que resuelve el valor EFECTIVO que el
+    // exporter usara. Con el flip en su default (true) el exporter instala LogFilteringProcessor y
+    // descarta todo LogRecord emitido dentro de un span no muestreado; con
+    // TELEMETRY_SAMPLING_RATIO fraccionario (0.2 por defecto en este dominio) eso pierde en silencio
+    // los LogError que alimentan la alerta exception_spike (CA-ADR-0009 Capa 4).
+    [Fact]
+    public void AgregarServiciosColaboradores_DeshabilitaElSamplerDeLogsBasadoEnTrazas()
+    {
+        using var provider = ComponerServiceProvider();
+
+        var opciones = provider.GetRequiredService<IOptions<AzureMonitorExporterOptions>>().Value;
+
+        opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
+    }
+
+    // Issue #515: el seam agrega un PostConfigure que rellena ConnectionString con un valor inerte
+    // cuando queda vacia, para que el reader de metricas de Azure Monitor (que se construye de forma
+    // sincronica y exige una connection string) no tumbe el arranque en frio con la Key Vault
+    // reference aun sin resolver. Ese fallback es seguro SOLO mientras no pise una connection string
+    // real -- si la pisara, trazas y logs (que comparten AzureMonitorExporterOptions) se exportarian
+    // a un endpoint inexistente, en silencio y de forma permanente: el peor modo de fallo posible
+    // para telemetria. Nada en el codigo garantiza el orden Configure -> PostConfigure frente a un
+    // upgrade del exporter que mueva la lectura de la variable a otro punto del pipeline; este test
+    // es esa garantia.
+    [Fact]
+    public void AgregarServiciosColaboradores_ConservaLaConnectionStringReal_CuandoLaVariableDeEntornoEstaPresente()
+    {
+        const string connectionStringReal =
+            "InstrumentationKey=11111111-2222-3333-4444-555555555555;" +
+            "IngestionEndpoint=https://real.in.applicationinsights.azure.com/";
+
+        ConVariableDeEntorno(VariableConnectionStringAppInsights, connectionStringReal, () =>
+        {
+            using var provider = ComponerServiceProvider();
+
+            var opciones = provider.GetRequiredService<IOptions<AzureMonitorExporterOptions>>().Value;
+
+            opciones.ConnectionString.Should().Be(connectionStringReal);
+        });
     }
 }

@@ -17,6 +17,7 @@ using Marten;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Sedes.Infraestructura;
@@ -165,9 +166,37 @@ public static class ComposicionServicios
                 .AddSource("Npgsql")
                 .AddSource("Bitakora.ControlAsistencia.Sedes.*"))
             .UseFunctionsWorkerDefaults()
-            .UseAzureMonitorExporter()
+            // MEF-ADR-0038 seccion 9 (extendida al write-side, harness #700): con el flip en su
+            // default (true) el exporter instala LogFilteringProcessor, que descarta todo LogRecord
+            // emitido dentro de un span no muestreado. Con TELEMETRY_SAMPLING_RATIO fraccionario
+            // (default 0.2 aqui) eso pierde en silencio los LogError de los handlers, Wolverine y
+            // Marten -- justo la senal que la alerta exception_spike (CA-ADR-0009 Capa 4) mira.
+            .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
-                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))));
+                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))))
+            // Issue #515 (CA-ADR-0009): UseAzureMonitorExporter() activa el pipeline de metricas sin
+            // opt-out por senal (WithMetrics interno) -- ~76.000 metricas/dia de runtime/ASP.NET Core
+            // (dotnet.gc.*, kestrel.*, etc.) que nadie consulta, medidas en el episodio de
+            // ingestion-warning. El wildcard cubre cualquier instrumento, incluso uno que aparezca en
+            // un futuro upgrade del exporter.
+            .WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop));
+
+        // El View de arriba filtra MEDICIONES, no evita que UseAzureMonitorExporter() construya su
+        // reader de metricas: a diferencia del de trazas (diferido a un hosted service), ese se
+        // construye de forma SINCRONICA al resolver MeterProvider y su ctor exige una connection
+        // string o lanza (decompilado de Azure.Monitor.OpenTelemetry.Exporter 1.8.1). Sin este
+        // fallback, un arranque en frio con la Key Vault reference aun sin resolver tumbaria el
+        // Function App entero -- el mismo escenario que el TracerProvider ya tolera (CA-ADR-0009,
+        // actualizacion 2026-06-18). El valor es inerte: con todas las metricas dropeadas, el reader
+        // nunca tiene nada que exportar. Que nunca pise una connection string real no es una promesa
+        // de este comentario sino de AgregarServicios*_ConservaLaConnectionStringReal.
+        services.PostConfigure<AzureMonitorExporterOptions>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+                options.ConnectionString =
+                    "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
+                    "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
+        });
 
         // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
         services.Configure<JsonSerializerOptions>(options =>
