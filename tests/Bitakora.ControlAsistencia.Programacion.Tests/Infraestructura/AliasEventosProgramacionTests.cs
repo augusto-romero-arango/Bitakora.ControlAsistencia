@@ -55,4 +55,13 @@ public class AliasEventosProgramacionTests
 
         AliasDe<TurnoRetirado>(options).Should().Be("turno_retirado");
     }
+
+    [Fact]
+    public void CancelacionProgramacionSolicitada_TieneAliasCancelacionProgramacionSolicitada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<CancelacionProgramacionSolicitada>(options)
+            .Should().Be("cancelacion_programacion_solicitada");
+    }
 }
