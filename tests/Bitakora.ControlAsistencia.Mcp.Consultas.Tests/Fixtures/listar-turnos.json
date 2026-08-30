@@ -1,0 +1,77 @@
+[
+ {
+  "id": "01a04fd9-8876-77e1-9aa8-8853dc72191e",
+  "nombre": "  [TEST]  limpieza   MANANA 01a04fd9-811b-7c71-be0c-fb5b28ce62b1 ",
+  "esDescanso": false,
+  "horarioResumido": "08:00-16:00",
+  "franjas": [
+   {
+    "horaInicio": "08:00:00",
+    "horaFin": "16:00:00",
+    "diaOffsetFin": 0,
+    "descansos": [],
+    "extras": [],
+    "sedeId": null,
+    "nombreSede": null,
+    "descripcion": "(08:00-16:00)"
+   }
+  ],
+  "descripcion": "(08:00-16:00)"
+ },
+ {
+  "id": "019fdaab-92b6-7b57-8408-cef0e48e1a46",
+  "nombre": "[TEST] Turno Con Sede Prearmada",
+  "esDescanso": false,
+  "horarioResumido": "08:00-16:00",
+  "franjas": [
+   {
+    "horaInicio": "08:00:00",
+    "horaFin": "16:00:00",
+    "diaOffsetFin": 0,
+    "descansos": [],
+    "extras": [],
+    "sedeId": "SEDE-CENTRO",
+    "nombreSede": "[TEST] Centro",
+    "descripcion": "(08:00-16:00)[sede:[TEST] Centro]"
+   }
+  ],
+  "descripcion": "(08:00-16:00)[sede:[TEST] Centro]"
+ },
+ {
+  "id": "01a05010-30d0-7875-abdc-80287f548a00",
+  "nombre": "[TEST] Descanso A Retirar 01a05010-30d0-7875-abdc-80287f548a00",
+  "esDescanso": true,
+  "horarioResumido": "Descanso",
+  "franjas": [],
+  "descripcion": "Descanso"
+ },
+ {
+  "id": "019fdaab-5eca-719a-9125-7541f0f07087",
+  "nombre": "[TEST] Turno Mixto Cascada",
+  "esDescanso": false,
+  "horarioResumido": "06:00-10:00, 14:00-18:00",
+  "franjas": [
+   {
+    "horaInicio": "06:00:00",
+    "horaFin": "10:00:00",
+    "diaOffsetFin": 0,
+    "descansos": [],
+    "extras": [],
+    "sedeId": "SEDE-SUBA",
+    "nombreSede": "[TEST] Suba",
+    "descripcion": "(06:00-10:00)[sede:[TEST] Suba]"
+   },
+   {
+    "horaInicio": "14:00:00",
+    "horaFin": "18:00:00",
+    "diaOffsetFin": 0,
+    "descansos": [],
+    "extras": [],
+    "sedeId": null,
+    "nombreSede": null,
+    "descripcion": "(14:00-18:00)"
+   }
+  ],
+  "descripcion": "(06:00-10:00)[sede:[TEST] Suba], (14:00-18:00)"
+ }
+]

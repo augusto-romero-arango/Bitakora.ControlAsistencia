@@ -1,0 +1,1125 @@
+{
+ "desdeAplicado": "2026-06-01",
+ "hastaAplicado": "2026-06-30",
+ "rangoRecortado": false,
+ "turnos": [
+  {
+   "id": "cd:01a043a0-b019-7f72-af18-13ec9c774880:20260601",
+   "codigoColaborador": "01a043a0-b019-7f72-af18-13ec9c774880",
+   "nombreCompleto": null,
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a0-bdbe-7d41-8b96-f77c008f4386:20260605",
+   "codigoColaborador": "01a043a0-bdbe-7d41-8b96-f77c008f4386",
+   "nombreCompleto": null,
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a043a0-bdbe-7e0f-a77a-4cee4d759eea",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a043a0-bdbe-75f0-9772-c15d9635556e",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a0-c613-7276-bc3a-2956c04bf07d:20260606",
+   "codigoColaborador": "01a043a0-c613-7276-bc3a-2956c04bf07d",
+   "nombreCompleto": null,
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a0-d87f-74ad-bdc8-a9a9b0851a40:20260607",
+   "codigoColaborador": "01a043a0-d87f-74ad-bdc8-a9a9b0851a40",
+   "nombreCompleto": null,
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a043a0-d87f-7102-be50-e4e0168bae3a",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a0-d87f-7b13-8a91-8baf60a245db:20260607",
+   "codigoColaborador": "01a043a0-d87f-7b13-8a91-8baf60a245db",
+   "nombreCompleto": null,
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a043a0-d87f-7102-be50-e4e0168bae3a",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a9-3427-7245-a2ab-fe2fdb7e7ff0:20260601",
+   "codigoColaborador": "01a043a9-3427-7245-a2ab-fe2fdb7e7ff0",
+   "nombreCompleto": null,
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a9-3cba-7a6a-a0f9-222f6781c9dd:20260605",
+   "codigoColaborador": "01a043a9-3cba-7a6a-a0f9-222f6781c9dd",
+   "nombreCompleto": null,
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a043a9-3cba-7a61-9e5d-23988a45e438",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a043a9-3cba-78d4-8752-008c63ac3b64",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a9-4523-71da-95b9-3d82731da797:20260606",
+   "codigoColaborador": "01a043a9-4523-71da-95b9-3d82731da797",
+   "nombreCompleto": null,
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a9-5382-7202-a841-ed6ce11a256f:20260607",
+   "codigoColaborador": "01a043a9-5382-7202-a841-ed6ce11a256f",
+   "nombreCompleto": null,
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a043a9-5382-72a4-bc1b-c59dc35f7c23",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a043a9-5382-7748-856b-03164089430f:20260607",
+   "codigoColaborador": "01a043a9-5382-7748-856b-03164089430f",
+   "nombreCompleto": null,
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a043a9-5382-72a4-bc1b-c59dc35f7c23",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04458-37d4-7b5d-9476-0635b63ace65:20260601",
+   "codigoColaborador": "01a04458-37d4-7b5d-9476-0635b63ace65",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04458-41ae-716f-93b7-557241f43381:20260605",
+   "codigoColaborador": "01a04458-41ae-716f-93b7-557241f43381",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a04458-41ae-70a5-85b2-50533ca6a1f7",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a04458-41ae-7d8c-8b22-35844428590b",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04458-4a2c-779f-8af0-88e1ebf14821:20260606",
+   "codigoColaborador": "01a04458-4a2c-779f-8af0-88e1ebf14821",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04458-57f1-732d-9e20-8d67393bf6ea:20260607",
+   "codigoColaborador": "01a04458-57f1-732d-9e20-8d67393bf6ea",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04458-57f1-787e-a99e-d3a617e8fdc7",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04458-57f1-7ec2-97c1-8e3497e592a1:20260607",
+   "codigoColaborador": "01a04458-57f1-7ec2-97c1-8e3497e592a1",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04458-57f1-787e-a99e-d3a617e8fdc7",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0445a-0ecd-765e-b1ab-ae7262343a14:20260601",
+   "codigoColaborador": "01a0445a-0ecd-765e-b1ab-ae7262343a14",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0445a-17eb-75f6-87a2-10823c25a35c:20260605",
+   "codigoColaborador": "01a0445a-17eb-75f6-87a2-10823c25a35c",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a0445a-17eb-7ab8-8568-6ef6ab0bdb57",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a0445a-17eb-7538-a3df-8ed44d191165",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0445a-2271-739d-8bcb-8f593e98b06e:20260606",
+   "codigoColaborador": "01a0445a-2271-739d-8bcb-8f593e98b06e",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0445a-330c-70b3-8442-fd5786457100:20260607",
+   "codigoColaborador": "01a0445a-330c-70b3-8442-fd5786457100",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a0445a-330c-76e4-9313-ce7fab0d6232",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0445a-330c-766a-870c-218dcd4591c4:20260607",
+   "codigoColaborador": "01a0445a-330c-766a-870c-218dcd4591c4",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a0445a-330c-76e4-9313-ce7fab0d6232",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04634-d69a-7b44-b39d-76cad24c4582:20260601",
+   "codigoColaborador": "01a04634-d69a-7b44-b39d-76cad24c4582",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04634-e50d-76cf-8c2b-924c5a9b6243:20260605",
+   "codigoColaborador": "01a04634-e50d-76cf-8c2b-924c5a9b6243",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a04634-e50d-72d3-9d15-aae510cf1011",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a04634-e50d-7c20-aa58-5f5265c1ae3e",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04634-ede3-7a09-8885-38fe73cf56f9:20260606",
+   "codigoColaborador": "01a04634-ede3-7a09-8885-38fe73cf56f9",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04635-066f-7af1-a0bb-1e4e732e73df:20260607",
+   "codigoColaborador": "01a04635-066f-7af1-a0bb-1e4e732e73df",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04635-066f-7992-991f-f0d7df3261de",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04635-066f-7f3b-a7d7-0c819ee566ba:20260607",
+   "codigoColaborador": "01a04635-066f-7f3b-a7d7-0c819ee566ba",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04635-066f-7992-991f-f0d7df3261de",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463b-0398-71f0-85eb-70bd3ce6b5fd:20260603",
+   "codigoColaborador": "01a0463b-0398-71f0-85eb-70bd3ce6b5fd",
+   "nombreCompleto": "[TEST] Smoke Persistencia Cascada",
+   "fecha": "2026-06-03",
+   "nombreTurno": "[TEST] Turno Mixto Cascada",
+   "horarioResumido": "[TEST] Turno Mixto Cascada (06:00-10:00)[sede:[TEST] Suba](14:00-18:00)",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-03T06:00:00",
+     "fin": "2026-06-03T10:00:00",
+     "sedeId": "SEDE-SUBA",
+     "nombreSede": "[TEST] Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-03T14:00:00",
+     "fin": "2026-06-03T18:00:00",
+     "sedeId": "SEDE-01",
+     "nombreSede": "[TEST] Sede Principal"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463b-299c-79b9-96f6-826b2784299c:20260602",
+   "codigoColaborador": "01a0463b-299c-79b9-96f6-826b2784299c",
+   "nombreCompleto": "[TEST] Smoke Prearmada Publicacion",
+   "fecha": "2026-06-02",
+   "nombreTurno": "[TEST] Turno Con Sede Prearmada",
+   "horarioResumido": "[TEST] Turno Con Sede Prearmada (08:00-16:00)[sede:[TEST] Centro]",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-02T08:00:00",
+     "fin": "2026-06-02T16:00:00",
+     "sedeId": "SEDE-CENTRO",
+     "nombreSede": "[TEST] Centro"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463b-34f9-7edc-a7df-5c1cd499c1d3:20260601",
+   "codigoColaborador": "01a0463b-34f9-7edc-a7df-5c1cd499c1d3",
+   "nombreCompleto": "[TEST] Smoke Cascada Publicacion",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Mixto Cascada",
+   "horarioResumido": "[TEST] Turno Mixto Cascada (06:00-10:00)[sede:[TEST] Suba](14:00-18:00)",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T06:00:00",
+     "fin": "2026-06-01T10:00:00",
+     "sedeId": "SEDE-SUBA",
+     "nombreSede": "[TEST] Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T14:00:00",
+     "fin": "2026-06-01T18:00:00",
+     "sedeId": "SEDE-01",
+     "nombreSede": "[TEST] Sede Principal"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463c-c346-7354-8e25-3603cbc71bd7:20260601",
+   "codigoColaborador": "01a0463c-c346-7354-8e25-3603cbc71bd7",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463c-cd15-752d-ad5a-febfe014e36c:20260605",
+   "codigoColaborador": "01a0463c-cd15-752d-ad5a-febfe014e36c",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a0463c-cd15-7dad-b61a-dd64554be11f",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a0463c-cd15-7c33-a586-7273d1075eb8",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463c-d693-7159-bcb1-f48649eec0e7:20260606",
+   "codigoColaborador": "01a0463c-d693-7159-bcb1-f48649eec0e7",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463c-e5b2-713b-b1cb-e8276d9d3748:20260607",
+   "codigoColaborador": "01a0463c-e5b2-713b-b1cb-e8276d9d3748",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a0463c-e5b2-7904-9e06-3430e5570361",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a0463c-e5b2-76cd-bdee-e71a21ac913e:20260607",
+   "codigoColaborador": "01a0463c-e5b2-76cd-bdee-e71a21ac913e",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a0463c-e5b2-7904-9e06-3430e5570361",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04651-6239-765b-8a75-a9c2dbf4ce44:20260601",
+   "codigoColaborador": "01a04651-6239-765b-8a75-a9c2dbf4ce44",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04651-6ced-7b30-86cb-fd17a37029b0:20260605",
+   "codigoColaborador": "01a04651-6ced-7b30-86cb-fd17a37029b0",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a04651-6ced-771f-8fd4-328c436c74a1",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a04651-6ced-7ecc-85c6-878f496fe8e8",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04651-794d-7a13-b500-20732fd27723:20260606",
+   "codigoColaborador": "01a04651-794d-7a13-b500-20732fd27723",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04651-8cde-74ce-ae6e-651a33b9f436:20260607",
+   "codigoColaborador": "01a04651-8cde-74ce-ae6e-651a33b9f436",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04651-8cde-7e81-a585-803489b7713a",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04651-8cde-7ec5-81cf-8435627d5796:20260607",
+   "codigoColaborador": "01a04651-8cde-7ec5-81cf-8435627d5796",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04651-8cde-7e81-a585-803489b7713a",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04672-e126-7e84-91fe-909d98755433:20260601",
+   "codigoColaborador": "01a04672-e126-7e84-91fe-909d98755433",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04672-eef7-7b49-bcdb-f2b77e42267c:20260605",
+   "codigoColaborador": "01a04672-eef7-7b49-bcdb-f2b77e42267c",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a04672-eef7-7603-90db-e1bdf986516d",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a04672-eef7-759e-b952-f2fb609dda10",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04672-f72c-7f35-af98-2dcb0673b388:20260606",
+   "codigoColaborador": "01a04672-f72c-7f35-af98-2dcb0673b388",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04673-0a7a-7658-be37-a3a8a0eba269:20260607",
+   "codigoColaborador": "01a04673-0a7a-7658-be37-a3a8a0eba269",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04673-0a7a-7329-8806-ac9f6a475a9e",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04673-0a7a-783e-bb05-45dadd41582c:20260607",
+   "codigoColaborador": "01a04673-0a7a-783e-bb05-45dadd41582c",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04673-0a7a-7329-8806-ac9f6a475a9e",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04690-2326-7ce5-a723-a6aef433c8a3:20260601",
+   "codigoColaborador": "01a04690-2326-7ce5-a723-a6aef433c8a3",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04690-293a-72a6-a0c2-b7160d7363ed:20260605",
+   "codigoColaborador": "01a04690-293a-72a6-a0c2-b7160d7363ed",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a04690-293a-7229-ba85-2c156744df7b",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a04690-293a-744f-b48d-dad05c276f0c",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04690-355f-7322-9505-30770fb945ed:20260606",
+   "codigoColaborador": "01a04690-355f-7322-9505-30770fb945ed",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04690-4524-7090-a9f9-068da43127a8:20260607",
+   "codigoColaborador": "01a04690-4524-7090-a9f9-068da43127a8",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04690-4524-775a-a80d-96dfdd619251",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a04690-4524-733d-bf8e-08208cb14160:20260607",
+   "codigoColaborador": "01a04690-4524-733d-bf8e-08208cb14160",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a04690-4524-775a-a80d-96dfdd619251",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046a7-80ea-72d0-8490-df7f681d2c8b:20260601",
+   "codigoColaborador": "01a046a7-80ea-72d0-8490-df7f681d2c8b",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046a7-883e-7ec5-b46e-aeb7d2802895:20260605",
+   "codigoColaborador": "01a046a7-883e-7ec5-b46e-aeb7d2802895",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a046a7-883e-7c48-a8fd-7df37aa9d023",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a046a7-883e-7886-868f-1ad6d9d84133",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046a7-8f9c-743e-a5dc-e84add676a50:20260606",
+   "codigoColaborador": "01a046a7-8f9c-743e-a5dc-e84add676a50",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046a7-a1b7-7031-b956-4986d0fb51de:20260607",
+   "codigoColaborador": "01a046a7-a1b7-7031-b956-4986d0fb51de",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a046a7-a1b7-7f8f-9499-7e08c2452415",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046a7-a1b7-7443-8a22-39fd5024db1b:20260607",
+   "codigoColaborador": "01a046a7-a1b7-7443-8a22-39fd5024db1b",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a046a7-a1b7-7f8f-9499-7e08c2452415",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046c7-2349-745e-b56e-07a38bd8088d:20260601",
+   "codigoColaborador": "01a046c7-2349-745e-b56e-07a38bd8088d",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046c7-2c11-79d1-a49e-9ff27bd932c1:20260605",
+   "codigoColaborador": "01a046c7-2c11-79d1-a49e-9ff27bd932c1",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a046c7-2c11-75c7-bb54-88ee1db3bfbb",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a046c7-2c11-70df-aab3-c2096ed8361f",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046c7-361c-7aef-8ed1-1488d6598ca3:20260606",
+   "codigoColaborador": "01a046c7-361c-7aef-8ed1-1488d6598ca3",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-06",
+   "nombreTurno": "[TEST] Turno Sin Sede",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-06T08:00:00",
+     "fin": "2026-06-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046c7-44ad-7782-b90f-3ec3d77be2e4:20260607",
+   "codigoColaborador": "01a046c7-44ad-7782-b90f-3ec3d77be2e4",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado B",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado B",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a046c7-44ad-7ac1-ae9d-3b6f5d40eb10",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046c7-44ad-7921-88e6-366cf49d728e:20260607",
+   "codigoColaborador": "01a046c7-44ad-7921-88e6-366cf49d728e",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-07",
+   "nombreTurno": "[TEST] Turno Combinado A",
+   "horarioResumido": "[TEST] [TEST] Turno Combinado A",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-07T08:00:00",
+     "fin": "2026-06-07T16:00:00",
+     "sedeId": "01a046c7-44ad-7ac1-ae9d-3b6f5d40eb10",
+     "nombreSede": "[TEST] Sede Combinada"
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046e6-5408-750f-9655-fd9c629dfd3f:20260601",
+   "codigoColaborador": "01a046e6-5408-750f-9655-fd9c629dfd3f",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-01",
+   "nombreTurno": "[TEST] Turno Vigente Dentro De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-01T08:00:00",
+     "fin": "2026-06-01T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  },
+  {
+   "id": "cd:01a046e6-5b2e-71a3-9154-fb6ff44e2b3c:20260605",
+   "codigoColaborador": "01a046e6-5b2e-71a3-9154-fb6ff44e2b3c",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": "01a046e6-5b2e-7b78-9c87-bbd372d01bf4",
+     "nombreSede": "[TEST] Sede Suba"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T14:00:00",
+     "fin": "2026-06-05T18:00:00",
+     "sedeId": "01a046e6-5b2e-78b1-8e96-29f80602d5ac",
+     "nombreSede": "[TEST] Sede Chapinero"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,54 @@
+[
+ {
+  "id": "s:TEST-01a04653-70e8-77bd-8f99-342a693076ab",
+  "codigo": "TEST-01a04653-70e8-77bd-8f99-342a693076ab",
+  "nombre": "[TEST] Sede Norte",
+  "ciudad": "Bogota",
+  "direccion": "Calle 1 # 2-3",
+  "centroDeCostos": null,
+  "activa": true,
+  "dispositivos": []
+ },
+ {
+  "id": "s:TEST-01a04653-4180-775f-abde-46d45cfa252f",
+  "codigo": "TEST-01a04653-4180-775f-abde-46d45cfa252f",
+  "nombre": "[TEST] Sede Original",
+  "ciudad": null,
+  "direccion": null,
+  "centroDeCostos": null,
+  "activa": true,
+  "dispositivos": []
+ },
+ {
+  "id": "s:TEST-01a046a9-44b4-7eca-a323-5e5256cbd3f2",
+  "codigo": "TEST-01a046a9-44b4-7eca-a323-5e5256cbd3f2",
+  "nombre": "[TEST] Sede Original",
+  "ciudad": null,
+  "direccion": null,
+  "centroDeCostos": null,
+  "activa": false,
+  "dispositivos": []
+ },
+ {
+  "id": "s:TEST-01a0468f-9a10-71d1-aef8-ed0f04e1b860",
+  "codigo": "TEST-01a0468f-9a10-71d1-aef8-ed0f04e1b860",
+  "nombre": "[TEST] Sede Original",
+  "ciudad": null,
+  "direccion": null,
+  "centroDeCostos": "CC-REEMPLAZO",
+  "activa": true,
+  "dispositivos": []
+ },
+ {
+  "id": "s:TEST-01a046c6-33b4-7ec4-8835-1c2ea419e0a4",
+  "codigo": "TEST-01a046c6-33b4-7ec4-8835-1c2ea419e0a4",
+  "nombre": "[TEST] Sede Original",
+  "ciudad": null,
+  "direccion": null,
+  "centroDeCostos": null,
+  "activa": true,
+  "dispositivos": [
+   "TEST-DISPOSITIVO-01a046c6-3462-790c-ad14-4676ec86bebd"
+  ]
+ }
+]

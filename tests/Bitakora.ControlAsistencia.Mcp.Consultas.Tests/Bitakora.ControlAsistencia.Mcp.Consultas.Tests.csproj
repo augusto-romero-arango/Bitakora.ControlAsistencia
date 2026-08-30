@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="*" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.Mcp.Consultas\Bitakora.ControlAsistencia.Mcp.Consultas.csproj" />
+  </ItemGroup>
+
+  <!-- CA-4 (issue #502): los fixtures son respuestas JSON reales de los endpoints de dev
+       (capturadas 2026-08-30); los archivos "-variante" derivan de una respuesta real con el caso
+       que dev no tenia materializado (descansos/extras de franja, bloques no ordinarios, recorte
+       de rango). -->
+  <ItemGroup>
+    <Content Include="Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
