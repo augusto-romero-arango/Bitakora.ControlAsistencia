@@ -209,7 +209,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "non_http_failure_spik
 # Alerta 4: excepciones de agentes de fondo (sin operation_Id) por rol, generalizada
 # (issue #415, reemplaza projections_exception_spike -- MEF-ADR-0018 Rule of Three: 4
 # roles y 2 familias de agentes de fondo -- daemon HotCold de Marten, DurabilityAgent/
-# IAgentCommand de Wolverine -- comparten el mismo modo de falla sin requests. Ver
+# IAgentCommand de Wolverine -- comparten el mismo modo de falla sin requests). Ver
 # CA-ADR-0009, actualizacion 2026-08-30 issue #415.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "background_exception_spike" {
   name                = "${var.name}-background-exception-spike"
@@ -231,7 +231,15 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "background_exception_
     # incluidas las de smoke tests, lo llevan poblado). TimeGenerated se proyecta
     # explicito porque number_of_evaluation_periods > 1 requiere que la query exponga
     # una columna de tiempo (Terraform Registry, azurerm_monitor_scheduled_query_rules_alert_v2,
-    # nota de `number_of_evaluation_periods`). El umbral vive en el bloque `criteria`
+    # nota de `number_of_evaluation_periods`). El `ago(10m)` es exactamente el rango
+    # que el motor ya aplica por si mismo -- por default la query corre sobre
+    # windowSize * numberOfEvaluationPeriods = PT5M * 2 (Azure Monitor,
+    # Microsoft.Insights/scheduledQueryRules, propiedad `overrideQueryTimeRange`:
+    # "If specified then overrides the query time range (default is
+    # WindowSize*NumberOfEvaluationPeriods)"): es redundante, no trunca nada. OJO:
+    # si algun dia cambia `number_of_evaluation_periods`, hay que mover ese `ago()`
+    # con el, o los bins extra quedan fuera del rango y la alerta deja de disparar
+    # en silencio. El umbral vive en el bloque `criteria`
     # (metric_measure_column + dimension), no embebido en la query con `| where N > 15`
     # como en las alertas hermanas: el motor necesita evaluar los failing periods por
     # cada valor de cloud_RoleName de forma independiente. Ver CA-ADR-0009.
