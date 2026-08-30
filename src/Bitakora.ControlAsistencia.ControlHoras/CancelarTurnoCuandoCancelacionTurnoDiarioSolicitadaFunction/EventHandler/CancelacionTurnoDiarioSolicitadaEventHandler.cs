@@ -29,8 +29,31 @@ public partial class CancelacionTurnoDiarioSolicitadaEventHandler
         _privateEventSender = privateEventSender;
     }
 
-    public Task HandleAsync(CancelacionTurnoDiarioSolicitada @event, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(CancelacionTurnoDiarioSolicitada @event, CancellationToken ct = default)
+    {
+        var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
+            @event.Colaborador.CodigoColaborador, @event.Fecha);
+
+        var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
+        if (!existe) return;
+
+        var control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
+
+        // El evento llega con los tipos de PrivateEvents y TurnoDiarioCancelado persiste los de
+        // ControlHoras.DomainEvents. El mapeo vive aqui porque esta Function App es el unico
+        // proyecto que ve las tres islas de eventos (CA-ADR-0029 decision #5, payload por rol).
+        // Crear() en vez de new: el ctor parametrizado es internal (solo ControlHoras.Tests tiene
+        // InternalsVisibleTo sobre este ensamblado), asi que este Function App usa la puerta publica.
+        var evento = TurnoDiarioCancelado.Crear(
+            streamId, MapearColaboradorProgramado(@event.Colaborador), @event.Fecha, @event.SolicitudId);
+
+        var resultado = control.CancelarTurno(evento);
+        if (resultado == ResultadoCancelacionTurno.SinTurnoAsignado) return;
+
+        // CrearDiaDepurado() debe invocarse DESPUES del Apply: lee el desglose que el Apply
+        // recalcula.
+        await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+    }
 
     private static ColaboradorProgramado MapearColaboradorProgramado(ResumenColaborador colaborador) =>
         new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);

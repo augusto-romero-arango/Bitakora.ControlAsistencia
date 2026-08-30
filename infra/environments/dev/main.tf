@@ -83,6 +83,10 @@ module "service_bus" {
     "cancelacion-turno-diario-solicitada" = {
       subscriptions = [
         {
+          name               = "control-horas-escucha-cancelacion"
+          correlation_filter = null
+        },
+        {
           name                = "smoke-tests"
           correlation_filter  = null
           default_message_ttl = "PT5M"

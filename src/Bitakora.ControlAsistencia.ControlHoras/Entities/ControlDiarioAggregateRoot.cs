@@ -218,15 +218,26 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         && marcacion.DispositivoId == evento.DispositivoId;
 
     // Issue #499: quita el plan (DetalleTurno -> null) sin borrar marcaciones ni sedes estampadas.
-    // Stub de compilacion: la implementacion real la escribe el implementer.
+    // Sin plan no hay depuracion: Depurar()/RecalcularDesgloseHoras() ya resuelven ese camino via
+    // DetalleTurno null (reversion del extinto #422), sin regla nueva.
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
-    public void Apply(TurnoDiarioCancelado e) => throw new NotImplementedException();
+    public void Apply(TurnoDiarioCancelado e)
+    {
+        DetalleTurno = null;
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
 
     // Declina con resultado (CA-ADR-0030) -- Tell-don't-Ask (MEF-ADR-0012): el handler no
     // interroga DetalleTurno antes de decidir el no-op de un stream sin turno asignado.
-    // Stub de compilacion: la implementacion real la escribe el implementer.
-    internal ResultadoCancelacionTurno CancelarTurno(TurnoDiarioCancelado evento) =>
-        throw new NotImplementedException();
+    internal ResultadoCancelacionTurno CancelarTurno(TurnoDiarioCancelado evento)
+    {
+        if (DetalleTurno is null) return ResultadoCancelacionTurno.SinTurnoAsignado;
+
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoCancelacionTurno.Cancelado;
+    }
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
