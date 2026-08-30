@@ -70,7 +70,5 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     private static SubFranjaFicha MapearSubFranja(SubFranjaProgramada detalle) =>
         new(detalle.HoraInicio, detalle.HoraFin, detalle.DiaOffsetInicio, detalle.DiaOffsetFin);
 
-    // Stub de fase roja (projection-test-writer): implementacion real la escribe
-    // projection-implementer.
-    public static bool ShouldDelete(TurnoRetirado e) => throw new NotImplementedException();
+    public static bool ShouldDelete(TurnoRetirado e) => true;
 }
