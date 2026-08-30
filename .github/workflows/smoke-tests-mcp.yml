@@ -1,0 +1,158 @@
+name: Smoke Tests (MCP)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL base de la Function App MCP'
+        required: false
+        default: 'https://func-asist-dev-mcp-consultas.azurewebsites.net'
+      test_project:
+        description: 'Ruta al proyecto de smoke tests'
+        required: false
+        default: 'tests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests/'
+      app_name:
+        description: 'Nombre de la Function App (para listar la key mcp_extension)'
+        required: false
+        default: 'func-asist-dev-mcp-consultas'
+      resource_group:
+        description: 'Resource group de la Function App'
+        required: false
+        default: 'rg-controlasistencias-dev'
+      expected_sha:
+        description: 'SHA de commit esperado en /api/version (vacio = solo esperar /api/ready 200)'
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      base_url:
+        type: string
+        required: false
+        default: 'https://func-asist-dev-mcp-consultas.azurewebsites.net'
+      test_project:
+        type: string
+        required: false
+        default: 'tests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests/'
+      app_name:
+        type: string
+        required: false
+        default: 'func-asist-dev-mcp-consultas'
+      resource_group:
+        type: string
+        required: false
+        default: 'rg-controlasistencias-dev'
+      expected_sha:
+        type: string
+        required: false
+        default: ''
+    secrets:
+      # Los tres del OIDC de MEF-ADR-0022 -- los mismos que usa el job deploy del caller, cero
+      # secrets nuevos. Se necesitan aqui porque la key mcp_extension NO se versiona (doctrina del
+      # issue #509): se obtiene en runtime con 'az functionapp keys list'.
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+
+# Exclusion deliberada frente a smoke-tests-dominio.yml: SIN grupo de concurrencia
+# 'smoke-tests-dev' (decision 1 del refinamiento del issue #516). La razon de ser de ese grupo es
+# que dos suites consumiendo la unica suscripcion 'smoke-tests' del Service Bus de dev se roban
+# mutuamente los mensajes (cada CompleteMessageAsync de una destruye el que la otra esperaba).
+# Esta suite es fase 1: solo lectura + error paths -- no consume mensajes de Service Bus ni
+# compite con las otras suites por ningun recurso. Si algun dia gana una fase de siembra e2e
+# ([TEST] + polling via MCP), ESE issue la mete al grupo.
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      # Declarar 'permissions' pone en 'none' todo scope no listado; 'contents: read' es
+      # obligatorio para que actions/checkout siga clonando.
+      contents: read
+      # Emite el token federado que azure/login canjea por OIDC (MEF-ADR-0022). OJO: un workflow
+      # llamado no puede exceder los permisos del invocador -- el job del caller que hace 'uses'
+      # de este reusable tambien debe conceder 'id-token: write' (misma trampa ya documentada para
+      # 'actions: read' en deploy-programacion.yml, run 31516294884).
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      # Duplica a proposito el warmup version+ready de smoke-tests-dominio.yml (MEF-ADR-0018,
+      # Rule of Three: esta es la segunda aparicion; Mcp.Comandos sera la tercera y ahi se
+      # extrae). Extender el reusable de dominios contaminaria con permisos OIDC y ramas MCP a un
+      # workflow que 4 invocadores usan sin eso. Diferencia deliberada con el de dominios: el
+      # fallback con expected_sha vacio espera /api/ready y no /api/health -- este app no expone
+      # /api/health, y su ready es trivial "worker arriba" (no abre event store: es cliente HTTP
+      # puro, ver ReadyCheck.cs).
+      - name: Warmup Function App
+        run: |
+          expected_sha="${{ inputs.expected_sha }}"
+          if [ -n "$expected_sha" ]; then
+            echo "Esperando que ${{ inputs.base_url }}/api/version reporte el SHA ${expected_sha}..."
+            version_ok=0
+            for i in $(seq 1 60); do
+              body=$(curl -s "${{ inputs.base_url }}/api/version" || echo "")
+              if [[ "$body" == *"$expected_sha"* ]]; then
+                echo "Version OK tras ${i} intento(s) (~$((i*2))s): ${body}"
+                version_ok=1
+                break
+              fi
+              echo "Intento ${i}: version desplegada '${body}' no coincide con '${expected_sha}'. Reintentando en 2s..."
+              sleep 2
+            done
+            if [ "$version_ok" -eq 0 ]; then
+              echo "Timeout: /api/version no reporto el SHA esperado (${expected_sha}) en 120s"
+              exit 1
+            fi
+          fi
+
+          echo "Esperando que ${{ inputs.base_url }}/api/ready responda 200..."
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${{ inputs.base_url }}/api/ready" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "Ready OK tras ${i} intento(s) (~$((i*2))s)."
+              exit 0
+            fi
+            echo "Intento ${i}: /api/ready respondio HTTP ${code}. Reintentando en 2s..."
+            sleep 2
+          done
+          echo "Timeout: /api/ready no respondio 200 en 120s"
+          exit 1
+
+      - name: Azure Authentication
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # La key mcp_extension no se versiona ni vive como GitHub secret (rotacion manual y copia
+      # persistida contradicen la doctrina del issue #509): se lista en runtime con el mismo SP
+      # del deploy (Contributor incluye Microsoft.Web/sites/host/listkeys/action) y se enmascara
+      # ANTES de exportarla para que ningun log posterior la muestre.
+      - name: Obtener la key mcp_extension
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          RESOURCE_GROUP: ${{ inputs.resource_group }}
+        run: |
+          key=$(az functionapp keys list \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$APP_NAME" \
+            --query systemKeys.mcp_extension -o tsv)
+          if [ -z "$key" ]; then
+            echo "::error::La app ${APP_NAME} no expone la system key mcp_extension."
+            exit 1
+          fi
+          echo "::add-mask::$key"
+          echo "MCP_FUNCTIONS_KEY=$key" >> "$GITHUB_ENV"
+
+      - name: Smoke tests
+        env:
+          Mcp__BaseUrl: ${{ inputs.base_url }}
+          Mcp__FunctionsKey: ${{ env.MCP_FUNCTIONS_KEY }}
+        run: dotnet test --project ${{ inputs.test_project }} --configuration Release

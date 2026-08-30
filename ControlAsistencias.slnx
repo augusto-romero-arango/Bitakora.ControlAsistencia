@@ -15,6 +15,7 @@
     <Project Path="src/Bitakora.ControlAsistencia.Sedes/Bitakora.ControlAsistencia.Sedes.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Consultas.Tests/Bitakora.ControlAsistencia.Mcp.Consultas.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.PrivateEvents.Tests/Bitakora.ControlAsistencia.PrivateEvents.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.Tests/Bitakora.ControlAsistencia.Programacion.Tests.csproj" />
