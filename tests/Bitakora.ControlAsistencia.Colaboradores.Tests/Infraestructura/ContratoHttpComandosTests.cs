@@ -25,6 +25,8 @@ using IniciarVinculacionEndpoint =
     Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction.FunctionEndpoint;
 using RegistrarColaboradorEndpoint =
     Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.FunctionEndpoint;
+using AsignarSedeEndpoint =
+    Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -70,5 +72,24 @@ public class ContratoHttpComandosTests
 
         trigger.Methods.Should().Equal("post");
         trigger.Route.Should().Be("colaboradores");
+    }
+
+    // Issue #465 (MEF-ADR-0043 paso 2): PUT, reemplazo completo del VO atomico "sede del
+    // colaborador" -- precedente exacto AsignarEtiqueta, simplificado (el codigo viaja en el body,
+    // sin segmento adicional de ruta).
+    [Fact]
+    public void AsignarSede_ExponeElVerboYLaRutaPactadosEnElIssue()
+    {
+        var trigger = TriggerDe<AsignarSedeEndpoint>();
+
+        trigger.Methods.Should().Equal("put");
+        trigger.Route.Should().Be("colaboradores/{id}/sede");
+    }
+
+    // MEF-ADR-0006: el nombre de la Function es el verbo infinitivo + sustantivo del comando.
+    [Fact]
+    public void AsignarSede_SeRegistraConElNombreDelComando()
+    {
+        NombreDeLaFunction<AsignarSedeEndpoint>().Should().Be("AsignarSede");
     }
 }

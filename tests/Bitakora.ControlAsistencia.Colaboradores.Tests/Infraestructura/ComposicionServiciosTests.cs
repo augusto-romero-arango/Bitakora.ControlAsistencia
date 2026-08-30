@@ -244,6 +244,9 @@ public class ComposicionServiciosTests
     // asignar/retirar una etiqueta dinamica) a la lista esperada.
     // Rojo esperado (fase roja, issue #355): TiposPersistidos todavia no incluye ninguno de los
     // dos.
+    // Issue #465: agrega SedeAsignada (noveno evento persistido, asignar/reasignar la sede del
+    // colaborador) a la lista esperada.
+    // Rojo esperado (fase roja, issue #465): TiposPersistidos todavia no incluye SedeAsignada.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -261,7 +264,8 @@ public class ComposicionServiciosTests
                 typeof(FechaInicioVinculacionCorregida),
                 typeof(TerminacionAnulada),
                 typeof(EtiquetaAsignada),
-                typeof(EtiquetaRetirada)
+                typeof(EtiquetaRetirada),
+                typeof(SedeAsignada)
             ]);
     }
 
@@ -279,6 +283,7 @@ public class ComposicionServiciosTests
     // Issue #354: agrega TerminacionAnulada -> "terminacion_anulada" al diccionario esperado.
     // Issue #355: agrega EtiquetaAsignada -> "etiqueta_asignada" y EtiquetaRetirada ->
     // "etiqueta_retirada" al diccionario esperado.
+    // Issue #465: agrega SedeAsignada -> "sede_asignada" al diccionario esperado.
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -296,7 +301,8 @@ public class ComposicionServiciosTests
             [typeof(FechaInicioVinculacionCorregida)] = "fecha_inicio_vinculacion_corregida",
             [typeof(TerminacionAnulada)] = "terminacion_anulada",
             [typeof(EtiquetaAsignada)] = "etiqueta_asignada",
-            [typeof(EtiquetaRetirada)] = "etiqueta_retirada"
+            [typeof(EtiquetaRetirada)] = "etiqueta_retirada",
+            [typeof(SedeAsignada)] = "sede_asignada"
         });
     }
 

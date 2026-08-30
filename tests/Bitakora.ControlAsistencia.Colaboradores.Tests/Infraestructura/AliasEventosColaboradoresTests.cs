@@ -121,4 +121,17 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<EtiquetaRetirada>(options).Should().Be("etiqueta_retirada");
     }
+
+    // Issue #465 (gemela de las ocho pruebas anteriores): congela el alias de SedeAsignada, noveno
+    // evento persistido de ColaboradorAggregateRoot (asignar/reasignar la sede del colaborador).
+    // Rojo esperado (fase roja, issue #465): IdentidadEventosColaboradores.TiposPersistidos sigue
+    // sin SedeAsignada hasta que el implementer lo registre -- el implementer lo agrega ahi (no
+    // aqui, MEF-ADR-0002).
+    [Fact]
+    public void SedeAsignada_TieneAliasSedeAsignada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<SedeAsignada>(options).Should().Be("sede_asignada");
+    }
 }
