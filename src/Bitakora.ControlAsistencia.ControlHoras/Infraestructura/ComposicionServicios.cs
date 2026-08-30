@@ -13,6 +13,7 @@ using Marten;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
@@ -185,7 +186,33 @@ public static class ComposicionServicios
             .UseFunctionsWorkerDefaults()
             .UseAzureMonitorExporter()
             .WithTracing(tracing => tracing
-                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))));
+                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))))
+            // Issue #515 (CA-ADR-0009): UseAzureMonitorExporter() activa el pipeline de metricas sin
+            // opt-out por senal (WithMetrics interno) -- ~76.000 metricas/dia de runtime/ASP.NET Core
+            // (dotnet.gc.*, kestrel.*, etc.) que nadie consulta, medidas en el episodio de
+            // ingestion-warning. El wildcard cubre cualquier instrumento, incluso uno que aparezca en
+            // un futuro upgrade del exporter.
+            .WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop));
+
+        // El View de arriba filtra MEDICIONES, no evita que UseAzureMonitorExporter() construya su
+        // propio reader de metricas -- a diferencia del trace exporter (diferido a un hosted service
+        // que solo corre si el host arranca), ese reader se construye de forma SINCRONICA al resolver
+        // MeterProvider y su constructor exige una connection string, o lanza
+        // InvalidOperationException (verificado por decompilacion de
+        // Azure.Monitor.OpenTelemetry.Exporter 1.8.1). Sin este fallback, un arranque en frio con la
+        // Key Vault reference de APPLICATIONINSIGHTS_CONNECTION_STRING aun sin resolver tumbaria el
+        // Function App entero al resolver MeterProvider -- el mismo escenario que el TracerProvider ya
+        // tolera (CA-ADR-0009, actualizacion 2026-06-18). El valor es inerte: con todas las metricas
+        // dropeadas arriba, el reader nunca tiene nada que exportar y nunca abre una conexion real; si
+        // la variable de entorno real esta presente, este PostConfigure no la pisa (solo actua si el
+        // valor sigue vacio tras las demas fuentes de configuracion).
+        services.PostConfigure<AzureMonitorExporterOptions>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+                options.ConnectionString =
+                    "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
+                    "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
+        });
 
         // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
         services.Configure<JsonSerializerOptions>(options =>

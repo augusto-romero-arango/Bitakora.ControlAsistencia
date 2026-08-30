@@ -474,3 +474,74 @@ Capas 1 y 3 sin cambios. La Capa 2 (sampling de trazas, `TELEMETRY_SAMPLING_RATI
 este desacople es exclusivamente del pipeline de logs -- las trazas siguen su propio sampler
 (`SamplerQueDescartaPollingDelDaemon` envolviendo `ParentBasedSampler{TraceIdRatioBasedSampler}`),
 sin tocar.
+
+## Actualizacion (2026-08-30, issue #515): se suprime la exportacion de metricas OTel en las tres Function Apps
+
+Investigacion del episodio de `ingestion-warning`: **`AppMetrics` consume 0.103 GB/dia (~23% del
+daily cap de 0.5 GB)** en `customMetrics` que nadie consulta -- verificado por grep contra el repo
+y el plugin `mefisto`: ni `/health-check`, ni `bug-investigator`, ni ninguna alerta de las tres de
+la Capa 4 las lee (todas usan `exceptions`/`requests`). Origen medido (24h, por rol): las tres
+Function Apps que ya adoptaron el exporter completo (Colaboradores, ControlHoras, Sedes) emiten
+~76.000 metricas/dia cada una, activadas automaticamente por `UseAzureMonitorExporter()` -- en
+`ComposicionServicios.cs` de cada dominio solo estaba configurado `.WithTracing(...)`, sin ningun
+`.WithMetrics(...)` explicito. Familias observadas: `_APPRESOURCEPREVIEW_` (latido del propio
+exporter OTel, identificado por `customDimensions.telemetry.sdk.name: opentelemetry`),
+`dotnet.gc.*`, `http.server.active_requests`, `kestrel.*`, `azure.functions.health_check.reports`,
+`*.cpu.time`. Es telemetria de capacidad -- valiosa en procesos de larga vida bajo carga real, ruido
+caro en Function Apps de dev que escalan a cero. `Programacion` (sin exporter todavia) queda fuera
+de alcance; cuando lo adopte, debe nacer ya con este recorte.
+
+**Decision: recortar TODO, no una familia puntual.** El daily cap (Capa 3) se mantiene en 0.5 GB --
+con el recorte, el peor dia medido (0.454 GB) habria quedado en ~0.35 GB, bajo el umbral del 80% de
+la Capa 4.
+
+**Mecanismo: `AddView` con wildcard, no un opt-out del exporter.** `UseAzureMonitorExporter()`
+(`Azure.Monitor.OpenTelemetry.Exporter` 1.8.1) no tiene overload ni opcion para excluir la senal de
+metricas -- su xmldoc es explicito: "adding the Azure Monitor exporter for logging, distributed
+tracing, and metrics" siempre las tres juntas. La supresion se implementa con un segundo
+`.WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop))`
+encadenado tras `.UseAzureMonitorExporter()` en el mismo seam de cada `ComposicionServicios.cs`. El
+wildcard cubre cualquier instrumento, incluidos los que un futuro upgrade del exporter agregue sin
+que nadie lo anticipe -- verificado que `WildcardHelper` (usado por `AddView` para el matching de
+`instrumentName`) esta presente en `OpenTelemetry` 1.16.0 por grep de strings sobre el ensamblado.
+
+**Hallazgo no anticipado: el reader de metricas de Azure Monitor exige connection string de forma
+sincronica y sin tolerancia, a diferencia del de trazas.** Decompilando
+`OpenTelemetryBuilderExtensions.UseAzureMonitorExporter` (`ilspycmd` sobre el ensamblado 1.8.1) se
+confirma que el exporter de TRAZAS se agrega via un `ExporterRegistrationHostedService` -- diferido
+al arranque real del host (`IHost.StartAsync`/`RunAsync`), que nunca corre al solo construir un
+`ServiceProvider` de prueba, asi que su ausencia de connection string pasa inadvertida en ese
+escenario. El reader de METRICAS, en cambio, se agrega de forma SINCRONICA dentro del callback de
+`ConfigureOpenTelemetryMeterProvider` que arma la `MeterProviderSdk`: construye
+`new AzureMonitorMetricExporter(options)` inmediatamente al resolver `MeterProvider`, y su
+constructor (via `AzureMonitorTransmitter.InitializeConnectionVars`) lanza
+`InvalidOperationException("A connection string was not found...")` si no hay connection string
+resoluble -- verificado empiricamente con un proyecto de consola aislado que reproduce el wiring
+exacto del proyecto (incluyendo `UseFunctionsWorkerDefaults()`). El `AddView` de arriba filtra
+MEDICIONES, no evita esta construccion: el reader se arma igual, con o sin vistas.
+
+Sin manejo adicional, esto significa que un arranque en frio con la Key Vault reference de
+`APPLICATIONINSIGHTS_CONNECTION_STRING` aun sin resolver tumbaria el Function App entero al
+resolver `MeterProvider` -- un modo de fallo mas severo que el que ya se acepta para trazas (que
+"solo falla al exportar", actualizacion 2026-06-18 de este ADR) y que existia igual antes de este
+cambio, solo que enmascarado porque nadie resolvia `MeterProvider` explicitamente hasta ahora.
+Se agrega un `services.PostConfigure<AzureMonitorExporterOptions>(...)` que rellena
+`ConnectionString` con un valor sintacticamente valido pero inerte
+(`InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://dummy...`)
+**solo si sigue vacio** tras todas las demas fuentes de configuracion (`PostConfigure` corre
+siempre despues de `Configure` en el pipeline de `Microsoft.Extensions.Options`) -- si la variable
+de entorno real esta presente, este relleno nunca se activa. Es seguro precisamente porque el
+`AddView` de arriba droppea toda medicion: el reader nunca tiene nada que exportar, asi que nunca
+abre una conexion HTTP real con ese valor inerte (verificado: `ForceFlush()` retorna en
+milisegundos, sin intentos de red).
+
+**Verificacion de CA-2 (guardrail de composicion).** El patron de `ConfiguracionObservabilidadProjectionsTests`
+(issue #414, "lee las opciones/providers EFECTIVOS del contenedor, no la intencion del codigo") se
+replica con `SupresionMetricasOTelTests` en cada uno de los tres dominios: compone el contenedor
+real, agrega un `ConfigureOpenTelemetryMeterProvider` adicional con un `Meter` arbitrario (no
+anticipado por el codigo de produccion) y un `InMemoryExporter`, y afirma que la coleccion
+exportada queda vacia tras `ForceFlush()`. Verifica el efecto observable, no el mecanismo -- un
+upgrade del exporter que reactive metricas por otra via haria fallar el test igual.
+
+Capas 1 y 3 sin cambios (Capa 3 se mantiene en 0.5 GB, ver "Decision" arriba). La Capa 2 (sampling
+de trazas) y su sampler no cambian -- este recorte es exclusivamente del pipeline de metricas.
