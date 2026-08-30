@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Cosmos.EventSourcing.Testing.Utilities" Version="2.3.1" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.16.0" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
   </ItemGroup>
 
