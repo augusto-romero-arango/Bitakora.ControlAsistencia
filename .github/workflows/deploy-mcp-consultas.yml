@@ -190,10 +190,24 @@ jobs:
           app-name: func-asist-dev-mcp-consultas
           package: ./publish
 
-  # Exclusion deliberada frente a los workflows de los dominios: SIN job de smoke tests
-  # (decision del issue #509, excepcion registrada a MEF-ADR-0013). El reusable
-  # smoke-tests-dominio.yml exige GET /api/version para esperar el deploy del commit, y el
-  # servidor MCP no expone endpoints HTTP propios -- solo /runtime/webhooks/mcp del host. La
-  # verificacion del piloto es manual via el README de onboarding
-  # (src/Bitakora.ControlAsistencia.Mcp.Consultas/README.md); si el piloto se consolida, un
-  # issue futuro agrega el proyecto SmokeTests + /api/version y este job vuelve.
+  # Salda la excepcion a MEF-ADR-0013 registrada por el issue #509 (issue #516): el app ya expone
+  # /api/version y /api/ready propios y la suite SmokeTests ejercita el catalogo vivo de tools/list
+  # via el SDK oficial de cliente MCP. Se usa el reusable propio smoke-tests-mcp.yml y no
+  # smoke-tests-dominio.yml: este necesita OIDC para listar la key mcp_extension en runtime y NO
+  # entra al grupo de concurrencia smoke-tests-dev (fase 1 solo lectura, no consume Service Bus --
+  # decision 1 del refinamiento del #516).
+  smoke-tests:
+    needs: [determinar-alcance, deploy]
+    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    permissions:
+      contents: read
+      # El reusable declara 'id-token: write' para el azure/login del listkeys, pero un workflow
+      # llamado no puede exceder los permisos del invocador: hay que concederlo tambien aqui.
+      id-token: write
+    uses: ./.github/workflows/smoke-tests-mcp.yml
+    with:
+      expected_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
