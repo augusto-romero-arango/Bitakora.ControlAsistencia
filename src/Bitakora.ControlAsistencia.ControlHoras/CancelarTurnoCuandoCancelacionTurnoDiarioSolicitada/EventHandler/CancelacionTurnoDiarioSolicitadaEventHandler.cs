@@ -7,15 +7,13 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 // homonimo del que trae el bus: el alias fija cual de los dos entra por el evento privado (CS0104).
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaFunction.EventHandler;
+namespace Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada.EventHandler;
 
-// Issue #499, lado ControlHoras de "Cancelar Programacion" (#498). El evento privado es espejo
-// directo del hecho a registrar, asi que se consume sin comando intermedio (MEF-ADR-0024
-// decision #8), mismo criterio que ProgramacionTurnoDiarioSolicitadaEventHandler.
-// A diferencia de aquel, el ramal "stream no existe" NO inicia stream: es no-op silencioso
-// (sin evento de constancia -- la auditoria del acto quedo en Programacion).
-// partial para admitir una clase Mensajes en archivo separado (MEF-ADR-0009), si llega a hacer falta.
-public partial class CancelacionTurnoDiarioSolicitadaEventHandler
+// El evento privado es espejo directo del hecho a registrar: se consume sin comando intermedio
+// (MEF-ADR-0024 decision #8). A diferencia del handler de asignacion, el ramal "stream no existe"
+// NO inicia stream -- es no-op silencioso, sin evento de constancia: la auditoria del acto quedo
+// en Programacion.
+public class CancelacionTurnoDiarioSolicitadaEventHandler
     : IPrivateEventHandlerAsync<CancelacionTurnoDiarioSolicitada>
 {
     private readonly IEventStore _eventStore;
@@ -42,8 +40,6 @@ public partial class CancelacionTurnoDiarioSolicitadaEventHandler
         // El evento llega con los tipos de PrivateEvents y TurnoDiarioCancelado persiste los de
         // ControlHoras.DomainEvents. El mapeo vive aqui porque esta Function App es el unico
         // proyecto que ve las tres islas de eventos (CA-ADR-0029 decision #5, payload por rol).
-        // Crear() en vez de new: el ctor parametrizado es internal (solo ControlHoras.Tests tiene
-        // InternalsVisibleTo sobre este ensamblado), asi que este Function App usa la puerta publica.
         var evento = TurnoDiarioCancelado.Crear(
             streamId, MapearColaboradorProgramado(@event.Colaborador), @event.Fecha, @event.SolicitudId);
 

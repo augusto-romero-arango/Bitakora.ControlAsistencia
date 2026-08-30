@@ -90,9 +90,8 @@ public class AliasEventosControlHorasTests
         AliasDe<DepuracionPosAprobacionRecibida>(options).Should().Be("depuracion_pos_aprobacion_recibida");
     }
 
-    // Issue #499: congela el alias de TurnoDiarioCancelado antes de desplegarlo. Rojo hasta que el
-    // implementer lo sume a IdentidadEventosControlHoras.TiposPersistidos (options ni siquiera lo
-    // conoce: AliasDe<> devuelve null y Should().Be(...) falla).
+    // Congela el alias de TurnoDiarioCancelado: cambiarlo rompe la lectura de los streams ya escritos
+    // (MEF-ADR-0036).
     [Fact]
     public void TurnoDiarioCancelado_TieneAliasTurnoDiarioCancelado()
     {

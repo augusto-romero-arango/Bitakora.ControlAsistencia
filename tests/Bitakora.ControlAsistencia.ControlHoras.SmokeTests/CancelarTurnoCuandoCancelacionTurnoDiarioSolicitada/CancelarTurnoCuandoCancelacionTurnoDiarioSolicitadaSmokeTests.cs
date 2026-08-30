@@ -10,15 +10,13 @@ using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 // PrivateEvents.
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaFunction;
+namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada;
 
-// Issue #499: lado ControlHoras de "Cancelar Programacion" (#498). Consumidor puro
-// (ServiceBusTrigger, sin comando espejo, MEF-ADR-0024 decision #8): el arrange siembra el
-// ControlDiario publicando programacion-turno-diario-solicitada (mismo patron que
-// AsignarTurnoViaSbSmokeTests) y, cuando el escenario lo pide, registra una marcacion via POST.
-// El Act publica cancelacion-turno-diario-solicitada y se verifican los efectos del handler
-// (persistencia de TurnoDiarioCancelado + republicacion de DiaDepurado) o su ausencia en los
-// ramales de no-op (CA-3/CA-4).
+// Consumidor puro (ServiceBusTrigger, sin comando espejo): el arrange siembra el ControlDiario
+// publicando programacion-turno-diario-solicitada -- el mismo camino que recorre el productor real
+// -- y, cuando el escenario lo pide, registra una marcacion via POST. El Act publica
+// cancelacion-turno-diario-solicitada y se verifican los dos efectos del handler (persistencia de
+// TurnoDiarioCancelado + republicacion de DiaDepurado) o su ausencia en los ramales de no-op.
 public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
     ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
@@ -65,7 +63,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         }, TestContext.Current.CancellationToken);
 
     // Arrange compartido: siembra TurnoDiarioAsignado publicando al topic de Programacion, tal
-    // como lo hace el productor real en produccion (mismo camino que AsignarTurnoViaSbSmokeTests).
+    // como lo hace el productor real en produccion.
     private async Task AsignarTurnoAsync(
         ResumenColaborador colaborador, DateOnly fecha, string nombreTurno)
     {
@@ -105,8 +103,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
     }
 
     // CA-1: dia con turno asignado y con marcaciones -> se persiste TurnoDiarioCancelado,
-    // DetalleTurno queda null y se publica DiaDepurado con las marcaciones crudas sin desglose
-    // (sin plan no hay depuracion -- reversion del extinto #422).
+    // DetalleTurno queda null y se publica DiaDepurado con las marcaciones crudas sin desglose.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_CancelaElTurnoYRepublicaConMarcacionesCrudas_CuandoElDiaTieneTurnoYMarcaciones()
@@ -231,7 +228,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
     }
 
     // CA-3: no-op silencioso -- el stream nunca existio (ni turno ni marcaciones para este
-    // colaborador+fecha). Sin evento de constancia: la auditoria del acto quedo en Programacion.
+    // colaborador+fecha), asi que no debe quedar evento de constancia.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElStreamNoExiste()
@@ -268,8 +265,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
     }
 
     // CA-4: no-op identico a CA-3, pero el stream SI existe (nacio solo por marcaciones, sin turno
-    // asignado nunca). El aggregate declina con resultado (Tell-don't-Ask, MEF-ADR-0012): las
-    // marcaciones existentes quedan intactas.
+    // asignado nunca): las marcaciones existentes quedan intactas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElDiaExisteSinTurnoAsignado()

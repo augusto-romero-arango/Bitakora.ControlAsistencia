@@ -5,13 +5,13 @@ using Cosmos.EventDriven.Abstractions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaFunction;
+namespace Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada;
 
-// Issue #499: ServiceBusTrigger que consume CancelacionTurnoDiarioSolicitada desde el ASB interno
-// del BC (topic creado en #498). MEF-ADR-0024 decision #8: sin comando espejo, se despacha directo
-// al IPrivateEventHandlerAsync via IPrivateEventRouter (PrivateEventEndpointBase).
-// Nombre de subscription y topologia final a juicio del implementer/infra-writer (MEF-ADR-0026:
-// riesgo declarado en #498 -- este handler y AsignarTurno... escriben sobre los mismos streams cd:).
+// MEF-ADR-0024 decision #8: sin comando espejo, se despacha directo al IPrivateEventHandlerAsync
+// via IPrivateEventRouter (PrivateEventEndpointBase).
+// MEF-ADR-0026: esta subscription y control-horas-escucha-programacion escriben sobre los mismos
+// streams cd: sin serializacion por clave -- dos mensajes concurrentes del mismo colaborador+fecha
+// pueden colisionar en el append.
 public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<FunctionEndpoint> logger)
     : PrivateEventEndpointBase<CancelacionTurnoDiarioSolicitada>(privateEventRouter, logger)
 {

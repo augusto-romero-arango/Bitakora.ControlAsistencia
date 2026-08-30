@@ -217,9 +217,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         marcacion.TimestampNormalizado == evento.TimestampNormalizado
         && marcacion.DispositivoId == evento.DispositivoId;
 
-    // Issue #499: quita el plan (DetalleTurno -> null) sin borrar marcaciones ni sedes estampadas.
-    // Sin plan no hay depuracion: Depurar()/RecalcularDesgloseHoras() ya resuelven ese camino via
-    // DetalleTurno null (reversion del extinto #422), sin regla nueva.
+    // Quita el plan sin borrar marcaciones ni sedes estampadas: sin DetalleTurno, Depurar() deja
+    // las franjas vacias y las marcaciones quedan crudas, sin desglose.
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
     public void Apply(TurnoDiarioCancelado e)
     {
@@ -228,8 +227,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // Declina con resultado (CA-ADR-0030) -- Tell-don't-Ask (MEF-ADR-0012): el handler no
-    // interroga DetalleTurno antes de decidir el no-op de un stream sin turno asignado.
+    // Declina con resultado (CA-ADR-0030) en vez de que el handler interrogue DetalleTurno para
+    // decidir el no-op de un stream sin turno asignado (Tell-don't-Ask, MEF-ADR-0012).
     internal ResultadoCancelacionTurno CancelarTurno(TurnoDiarioCancelado evento)
     {
         if (DetalleTurno is null) return ResultadoCancelacionTurno.SinTurnoAsignado;

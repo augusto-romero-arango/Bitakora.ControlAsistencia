@@ -1,13 +1,12 @@
-// Issue #499 CA-5: el payload de CancelacionTurnoDiarioSolicitada (evento nacido en #498) debe
-// deserializar desde el bus con el serializador por defecto del consumidor -- mismo camino que
-// ProgramacionTurnoDiarioSolicitadaDeserializacionTests para el evento hermano de asignacion.
+// CA-5: el payload de CancelacionTurnoDiarioSolicitada debe deserializar desde el bus con el
+// serializador por defecto del consumidor -- sin resolver custom (MEF-ADR-0012).
 
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaFunction;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada;
 
 public class CancelacionTurnoDiarioSolicitadaDeserializacionTests
 {

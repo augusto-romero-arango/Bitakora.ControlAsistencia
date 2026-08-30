@@ -4,18 +4,12 @@ using System.Text.Json.Serialization.Metadata;
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
-/// Evento de event sourcing que registra la cancelacion del turno diario asignado a un ControlDiario.
-/// Se persiste en el stream de ControlDiarioAggregateRoot y no cruza el bus.
-/// Issue #499: simetrico de TurnoDiarioAsignado -- misma terna de identidad del colaborador, mismo
-/// patron de ConfigurarSerializacion para STJ/Marten (MEF-ADR-0012).
+/// Registra la cancelacion del turno diario asignado a un ControlDiario. Se persiste en el stream
+/// de ControlDiarioAggregateRoot y no cruza el bus. Simetrico de TurnoDiarioAsignado.
 /// </summary>
-// El ctor parametrizado es internal, no public ni private: STJ vanilla (sin ConfigurarSerializacion)
-// solo auto-selecciona un ctor PUBLICO -- volverlo internal es lo que fuerza NotSupportedException
-// en Deserializar_Falla_CuandoResolverNoTieneRegistroDeTurnoDiarioCancelado, verificado por
-// decompilacion de STJ 10 (constructor selection). Full-private rompe la construccion directa que
-// usan los tests de este dominio (InternalsVisibleTo ya cubre ControlHoras.Tests); Crear() es la
-// puerta publica para el resto del Function App (CancelacionTurnoDiarioSolicitadaEventHandler), que
-// no tiene ese InternalsVisibleTo.
+// Forma canonica de MEF-ADR-0012: ctor parametrizado privado + ctor vacio privado + factory Crear.
+// Que ningun ctor sea publico es lo que hace fallar a STJ vanilla sin ConfigurarSerializacion --
+// la regresion que vigila Deserializar_Falla_CuandoResolverNoTieneRegistroDeTurnoDiarioCancelado.
 public sealed class TurnoDiarioCancelado
 {
     public string Id { get; private set; } = null!;
@@ -23,7 +17,7 @@ public sealed class TurnoDiarioCancelado
     public DateOnly Fecha { get; private set; }
     public Guid SolicitudCancelacionId { get; private set; }
 
-    internal TurnoDiarioCancelado(
+    private TurnoDiarioCancelado(
         string id,
         ColaboradorProgramado colaborador,
         DateOnly fecha,

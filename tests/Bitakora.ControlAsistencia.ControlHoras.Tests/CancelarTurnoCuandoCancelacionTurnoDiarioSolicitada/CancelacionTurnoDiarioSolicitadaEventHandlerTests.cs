@@ -1,9 +1,8 @@
-// Issue #499: Cancelar el turno diario del control diario al recibir la cancelacion de programacion.
-// Lado ControlHoras de la cadena de "Cancelar Programacion" (#498): el dia queda sin plan para
-// efectos de calculo (DetalleTurno = null); la memoria del acto vive en el stream y en la solicitud
-// de Programacion -- por eso no hay evento de constancia en el no-op (CA-3/CA-4).
+// Al cancelar, el dia queda sin plan para efectos de calculo (DetalleTurno = null); la memoria del
+// acto vive en el stream y en la solicitud de Programacion -- por eso el no-op de CA-3/CA-4 no deja
+// evento de constancia.
 
-using Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaFunction.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
@@ -20,7 +19,7 @@ using DiaDepurado = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.DiaDep
 using MarcacionDelDia = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.MarcacionDelDia;
 using HorasDiscriminadas = Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.HorasDiscriminadas;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaFunction;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada;
 
 public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
     : PrivateEventHandlerAsyncTest<CancelacionTurnoDiarioSolicitada>
@@ -44,7 +43,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
 
     private static readonly DateOnly Fecha = new(2026, 3, 15);
 
-    // CA-7 (heredado de #322/#420): stream ID determinista que el handler debe computar internamente.
+    // Stream ID determinista que el handler debe computar internamente a partir del evento.
     private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
     private static readonly TurnoDiario TurnoDiarioTest = new(
@@ -62,15 +61,13 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
         new(StreamId, Colaborador, Fecha, TurnoDiarioTest, SolicitudAsignacionId);
 
     private static TurnoDiarioCancelado CrearTurnoDiarioCancelado() =>
-        new(StreamId, Colaborador, Fecha, SolicitudCancelacionId);
+        TurnoDiarioCancelado.Crear(StreamId, Colaborador, Fecha, SolicitudCancelacionId);
 
     private static MarcacionAdicionada CrearMarcacionAdicionada(DateTime timestampNormalizado) =>
         new(StreamId, Colaborador.CodigoColaborador, timestampNormalizado, "ENTRADA", "DEV-001");
 
     // CA-1: dia con turno asignado y con marcaciones -> se persiste TurnoDiarioCancelado,
-    // DetalleTurno queda null y se publica DiaDepurado con las marcaciones crudas sin desglose
-    // (sin plan no hay depuracion -- reversion del extinto #422, ya resuelta por
-    // Depurar/RecalcularDesgloseHoras via DetalleTurno null).
+    // DetalleTurno queda null y se publica DiaDepurado con las marcaciones crudas sin desglose.
     [Fact]
     public async Task CancelacionTurnoDiarioSolicitada_CancelaElTurnoYRepublicaConMarcacionesCrudas_CuandoElDiaTieneTurnoYMarcaciones()
     {
@@ -119,12 +116,11 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
             new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
-    // CA-3: no-op silencioso acordado con el experto -- el stream no existe (nunca hubo
-    // TurnoDiarioAsignado ni MarcacionAdicionada para este colaborador+fecha). Sin evento de
-    // constancia: la auditoria del acto quedo en Programacion. Precedente en este mismo proyecto
-    // (SedeDeMarcacionResuelta_LanzaInvalidOperationException_CuandoElControlDiarioNoExiste): un
-    // aggregate que nunca existio no se puede reconstruir con And<>() (ArgumentNullException,
-    // TestStore.cs), asi que este test se apoya solo en Then/ThenIsPublishedPrivately vacios.
+    // CA-3: no-op silencioso -- el stream no existe (nunca hubo TurnoDiarioAsignado ni
+    // MarcacionAdicionada para este colaborador+fecha).
+    // Sin And<>(): un aggregate que nunca existio no se puede reconstruir desde el TestStore
+    // (ArgumentNullException), asi que la asercion de estado se apoya en Then/ThenIsPublishedPrivately
+    // vacios.
     [Fact]
     public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElStreamNoExiste()
     {
@@ -136,9 +132,25 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
         ThenIsPublishedPrivately();
     }
 
+    // Redelivery del mismo mensaje (Service Bus entrega at-least-once): el dia ya quedo sin plan
+    // por una cancelacion previa, asi que la segunda pasada cae en el mismo no-op que CA-4 -- sin
+    // segundo TurnoDiarioCancelado en el stream ni republicacion de DiaDepurado.
+    [Fact]
+    public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElTurnoYaFueCancelado()
+    {
+        Given(StreamId,
+            CrearTurnoDiarioAsignado(),
+            CrearTurnoDiarioCancelado());
+
+        await WhenAsync(CrearEvento());
+
+        Then(StreamId);
+        ThenIsPublishedPrivately();
+        And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
+    }
+
     // CA-4: no-op identico a CA-3, pero el stream SI existe (nacio solo por marcaciones, sin turno
-    // asignado nunca). El aggregate declina con resultado (Tell-don't-Ask, MEF-ADR-0012): el handler
-    // no interroga DetalleTurno antes de decidir. Las marcaciones existentes quedan intactas.
+    // asignado nunca). Las marcaciones existentes quedan intactas.
     [Fact]
     public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElDiaExisteSinTurnoAsignado()
     {

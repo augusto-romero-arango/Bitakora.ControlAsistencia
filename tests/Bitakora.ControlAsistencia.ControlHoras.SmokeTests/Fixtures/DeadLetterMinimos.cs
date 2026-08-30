@@ -10,6 +10,5 @@ public sealed record ProgramacionTurnoDiarioSolicitadaMinimo(Guid SolicitudId);
 // necesita anidar el colaborador.
 public sealed record DiaDepuradoMinimo(string CodigoColaborador);
 
-// Issue #499: forma minima de CancelacionTurnoDiarioSolicitada para el DLQ de
-// control-horas-escucha-cancelacion.
+// Forma minima de CancelacionTurnoDiarioSolicitada para el DLQ de control-horas-escucha-cancelacion.
 public sealed record CancelacionTurnoDiarioSolicitadaMinimo(Guid SolicitudId);
