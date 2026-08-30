@@ -21,7 +21,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 public class IdentidadEventosControlHorasTests
 {
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosSieteEventosPersistidosDeControlHoras()
+    public void TiposPersistidos_ContieneExactamenteLosOchoEventosPersistidosDeControlHoras()
     {
         IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
         [
@@ -31,7 +31,8 @@ public class IdentidadEventosControlHorasTests
             typeof(DepuracionDiaRecibida),
             typeof(SedeDeMarcacionIdentificada),
             typeof(DiaAprobado),
-            typeof(DepuracionPosAprobacionRecibida)
+            typeof(DepuracionPosAprobacionRecibida),
+            typeof(TurnoDiarioCancelado)
         ]);
     }
 

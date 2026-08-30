@@ -209,7 +209,8 @@ public class ComposicionServiciosTests
             typeof(DepuracionDiaRecibida),
             typeof(SedeDeMarcacionIdentificada),
             typeof(DiaAprobado),
-            typeof(DepuracionPosAprobacionRecibida)
+            typeof(DepuracionPosAprobacionRecibida),
+            typeof(TurnoDiarioCancelado)
         ]);
     }
 
@@ -251,7 +252,8 @@ public class ComposicionServiciosTests
             [typeof(DepuracionDiaRecibida)] = "depuracion_dia_recibida",
             [typeof(SedeDeMarcacionIdentificada)] = "sede_de_marcacion_identificada",
             [typeof(DiaAprobado)] = "dia_aprobado",
-            [typeof(DepuracionPosAprobacionRecibida)] = "depuracion_pos_aprobacion_recibida"
+            [typeof(DepuracionPosAprobacionRecibida)] = "depuracion_pos_aprobacion_recibida",
+            [typeof(TurnoDiarioCancelado)] = "turno_diario_cancelado"
         });
     }
 

@@ -89,4 +89,14 @@ public class AliasEventosControlHorasTests
 
         AliasDe<DepuracionPosAprobacionRecibida>(options).Should().Be("depuracion_pos_aprobacion_recibida");
     }
+
+    // Congela el alias de TurnoDiarioCancelado: cambiarlo rompe la lectura de los streams ya escritos
+    // (MEF-ADR-0036).
+    [Fact]
+    public void TurnoDiarioCancelado_TieneAliasTurnoDiarioCancelado()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<TurnoDiarioCancelado>(options).Should().Be("turno_diario_cancelado");
+    }
 }

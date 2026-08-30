@@ -9,3 +9,6 @@ public sealed record ProgramacionTurnoDiarioSolicitadaMinimo(Guid SolicitudId);
 // DiaDepurado trae CodigoColaborador top-level y siempre presente, asi que la forma minima no
 // necesita anidar el colaborador.
 public sealed record DiaDepuradoMinimo(string CodigoColaborador);
+
+// Forma minima de CancelacionTurnoDiarioSolicitada para el DLQ de control-horas-escucha-cancelacion.
+public sealed record CancelacionTurnoDiarioSolicitadaMinimo(Guid SolicitudId);
