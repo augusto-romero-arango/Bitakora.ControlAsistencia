@@ -1,7 +1,9 @@
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using OpenTelemetry;
 using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -44,6 +46,8 @@ public static class ConfiguracionObservabilidadProjections
     // para que ambas constantes no puedan divergir -- fijado por guardrail en
     // ConfiguracionObservabilidadProjectionsTests.
     internal const string PatronFuentePropia = NombreServicio + "*";
+
+    private const string PrefijoInstrumentosFamiliaGC = "dotnet.gc.";
 
     // Prefijos de categoria ILogger del daemon HotCold, que emite Information cada pocos segundos
     // 24/7 (min_replicas = 1). Son los que el filtro de abajo acota; el resto del worker conserva
@@ -101,7 +105,35 @@ public static class ConfiguracionObservabilidadProjections
                 // los spans Postgres del worker. Se envuelve el sampler de ratio para descartar esa
                 // actividad puntual sin afectar al resto de la fuente Marten.
                 .SetSampler(new SamplerQueDescartaPollingDelDaemon(
-                    new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))));
+                    new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))))
+            // UseAzureMonitorExporter() activa tambien el pipeline de metricas (llama WithMetrics
+            // por dentro) aunque este seam solo pida trazas: sin esta vista el worker exporta
+            // metricas que nadie consume contra el daily cap (CA-ADR-0009). No se dropea TODO como
+            // en las Function Apps: este worker corre 24/7 (min_replicas = 1, MEF-ADR-0034 seccion
+            // 8) y la serie de heap es el unico dato que expone con antelacion un memory leak del
+            // daemon de proyecciones.
+            //
+            // Una UNICA vista func-based, no dos vistas por patron de nombre: un instrumento que
+            // matchea varias vistas produce un MetricStream POR CADA una (fan-out), asi que
+            // AddView("dotnet.gc.*", ...) + AddView("*", Drop) dropearia tambien la familia GC.
+            .WithMetrics(metrics => metrics.AddView(SuprimirSalvoFamiliaGC));
+
+        // El AddView de arriba filtra MEDICIONES, no evita que UseAzureMonitorExporter() construya
+        // su reader de metricas: a diferencia del de trazas (diferido a un hosted service), ese se
+        // construye de forma SINCRONICA al resolver MeterProvider y su ctor exige una connection
+        // string o lanza (decompilado de Azure.Monitor.OpenTelemetry.Exporter 1.8.1). Sin este
+        // fallback, un arranque en frio con la Key Vault reference aun sin resolver (MEF-ADR-0034
+        // seccion 8) tumbaria el worker entero. El valor es inerte: salvo la familia GC todo queda
+        // dropeado, y el reader nunca tiene nada que exportar. Que no pise una connection string
+        // real no es promesa de este comentario sino de
+        // ConfigurarObservabilidad_ResuelveLaConnectionStringDelEntorno_EnLasOpcionesDelExporter.
+        services.PostConfigure<AzureMonitorExporterOptions>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+                options.ConnectionString =
+                    "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
+                    "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
+        });
 
         // Contrapeso del flip de arriba, que por si solo dejaria pasar tambien los Information
         // rutinarios del daemon contra el daily cap (CA-ADR-0009 Capa 3). El filtro va sobre el
@@ -152,4 +184,13 @@ public static class ConfiguracionObservabilidadProjections
     // en este metodo, no la variable de entorno.
     internal static void ConfigurarRecurso(ResourceBuilder recurso) =>
         recurso.AddService(NombreServicio, autoGenerateServiceInstanceId: false);
+
+    // El null NO es "sin configuracion": devolver una MetricStreamConfiguration invalida hace que
+    // AddView IGNORE la vista para ese instrumento, que asi cae al agregado por defecto y sobrevive
+    // (xmldoc de OpenTelemetry 1.16.0, MeterProviderBuilderExtensions.AddView). Es el mecanismo por
+    // el que se conserva la familia GC.
+    private static MetricStreamConfiguration? SuprimirSalvoFamiliaGC(Instrument instrumento) =>
+        instrumento.Name.StartsWith(PrefijoInstrumentosFamiliaGC, StringComparison.Ordinal)
+            ? null
+            : MetricStreamConfiguration.Drop;
 }
