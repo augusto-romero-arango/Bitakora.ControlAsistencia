@@ -1,7 +1,9 @@
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using OpenTelemetry;
 using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -44,6 +46,10 @@ public static class ConfiguracionObservabilidadProjections
     // para que ambas constantes no puedan divergir -- fijado por guardrail en
     // ConfiguracionObservabilidadProjectionsTests.
     internal const string PatronFuentePropia = NombreServicio + "*";
+
+    // Issue #517 (CA-1, CA-ADR-0009): prefijo de la unica familia de metricas OTel que este worker
+    // conserva. El resto se suprime -- ver SuprimirSalvoFamiliaGC mas abajo.
+    internal const string PrefijoInstrumentosFamiliaGC = "dotnet.gc.";
 
     // Prefijos de categoria ILogger del daemon HotCold, que emite Information cada pocos segundos
     // 24/7 (min_replicas = 1). Son los que el filtro de abajo acota; el resto del worker conserva
@@ -101,7 +107,47 @@ public static class ConfiguracionObservabilidadProjections
                 // los spans Postgres del worker. Se envuelve el sampler de ratio para descartar esa
                 // actividad puntual sin afectar al resto de la fuente Marten.
                 .SetSampler(new SamplerQueDescartaPollingDelDaemon(
-                    new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))));
+                    new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))))
+            // Issue #517 (CA-1, CA-ADR-0009): UseAzureMonitorExporter() activa el pipeline de
+            // metricas (WithMetrics interno) aunque este seam solo pida trazas -- mismo hallazgo que
+            // el hermano #515 (Function Apps; descompilado alli: OpenTelemetryBuilderExtensions.
+            // UseAzureMonitorExporter llama WithMetrics(WithTracing(...)) por dentro). A diferencia
+            // de #515 (procesos efimeros que escalan a cero: se dropea TODO con
+            // AddView("*", MetricStreamConfiguration.Drop)), este worker corre 24/7
+            // (min_replicas = 1, MEF-ADR-0034 seccion 8) hospedando el daemon de proyecciones: un
+            // memory leak en una proyeccion es un riesgo real y silencioso que solo la serie de heap
+            // (`dotnet.gc.*`) puede diagnosticar -- decision de producto del refinamiento,
+            // CA-ADR-0009.
+            //
+            // Se usa el overload func-based (Func<Instrument, MetricStreamConfiguration>, XML doc de
+            // OpenTelemetry.dll 1.16.0, MeterProviderBuilderExtensions.AddView) en vez de dos AddView
+            // por patron de nombre ("dotnet.gc.*" + "*"): "las vistas se aplican en el orden en que
+            // se agregan" y un instrumento que matchea VARIAS vistas produce un MetricStream POR CADA
+            // una (fan-out, no "la primera gana") -- con dos vistas name-based, un instrumento GC
+            // calzaria con ambas y el wildcard "*" seguiria generando un segundo stream dropeado para
+            // el mismo instrumento. El overload func-based registra una UNICA vista que decide por
+            // instrumento: esa misma doc XML documenta que una MetricStreamConfiguration invalida
+            // (incluido null) devuelta por la funcion "causara que la vista se ignore para ese
+            // instrumento, sin error en runtime" -- cae al agregado por defecto (se conserva), igual
+            // que si ninguna vista existiera para el.
+            .WithMetrics(metrics => metrics.AddView(SuprimirSalvoFamiliaGC));
+
+        // Contrapeso obligado del AddView de arriba (issue #517, por analogia con el #515): el
+        // reader de metricas que UseAzureMonitorExporter() instala se construye de forma SINCRONICA
+        // al resolver MeterProvider y exige una connection string, o lanza
+        // InvalidOperationException (verificado por decompilacion en el #515) -- sin importar que
+        // las vistas dropeen todo despues. Sin este fallback, un arranque en frio con la Key Vault
+        // reference de APPLICATIONINSIGHTS_CONNECTION_STRING aun sin resolver (MEF-ADR-0034
+        // seccion 8) tumbaria el worker entero al resolver MeterProvider. El valor es inerte para los
+        // instrumentos suprimidos (esa combinacion nunca abre una conexion real); si la variable de
+        // entorno real esta presente, este PostConfigure no la pisa.
+        services.PostConfigure<AzureMonitorExporterOptions>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+                options.ConnectionString =
+                    "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
+                    "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
+        });
 
         // Contrapeso del flip de arriba, que por si solo dejaria pasar tambien los Information
         // rutinarios del daemon contra el daily cap (CA-ADR-0009 Capa 3). El filtro va sobre el
@@ -152,4 +198,16 @@ public static class ConfiguracionObservabilidadProjections
     // en este metodo, no la variable de entorno.
     internal static void ConfigurarRecurso(ResourceBuilder recurso) =>
         recurso.AddService(NombreServicio, autoGenerateServiceInstanceId: false);
+
+    // Issue #517 (CA-1, CA-2): vista func-based para MeterProviderBuilder.AddView. Para un
+    // instrumento de la familia GC devuelve null -- la doc XML de OpenTelemetry 1.16.0 documenta que
+    // una MetricStreamConfiguration invalida hace que "la vista se ignore para ese instrumento", asi
+    // que cae al agregado por defecto (se conserva sin intervencion). Para cualquier otro instrumento
+    // devuelve Drop. Extraido como metodo internal -- mismo criterio que ResolverRatioDeSampling y
+    // ConfigurarRecurso arriba -- para que el guardrail de composicion pueda ejercitarlo end-to-end
+    // via el contenedor real sin duplicar la lista de nombres GC en el test.
+    internal static MetricStreamConfiguration? SuprimirSalvoFamiliaGC(Instrument instrumento) =>
+        instrumento.Name.StartsWith(PrefijoInstrumentosFamiliaGC, StringComparison.Ordinal)
+            ? null
+            : MetricStreamConfiguration.Drop;
 }

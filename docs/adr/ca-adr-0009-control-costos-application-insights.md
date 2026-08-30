@@ -585,3 +585,69 @@ Capas 1 y 3 sin cambios (Capa 3 se mantiene en 0.5 GB, ver "Decision" arriba). L
 de trazas) y su sampler no cambian: el recorte de metricas es exclusivamente del pipeline de
 metricas, y el flip de `EnableTraceBasedLogsSampler` no altera la decision de muestreo de trazas --
 solo deja de propagarla a los logs.
+
+## Actualizacion (2026-08-30, issue #517): el worker de proyecciones conserva la familia `dotnet.gc.*`
+
+Mismo diagnostico que el #515 (mismo episodio de `ingestion-warning`, mismo hallazgo de que
+`UseAzureMonitorExporter()` activa el pipeline de metricas sin opt-out por senal), pero decision de
+producto distinta para `Bitakora.ControlAsistencia.Projections`: **se recorta todo salvo la familia
+GC**, no todo sin excepcion.
+
+**Por que este proceso es la excepcion.** Las tres Function Apps del #515 son procesos efimeros que
+escalan a cero; este worker corre 24/7 (`min_replicas = 1`, MEF-ADR-0034 seccion 8) hospedando el
+daemon de proyecciones de los cuatro dominios. Un memory leak en una proyeccion es un riesgo real y
+silencioso -- el unico dato que lo expone con antelacion es la serie de heap
+(`dotnet.gc.last_collection.heap.size`, `dotnet.gc.last_collection.heap.fragmentation.size`,
+`dotnet.gc.collections`), que a ~10-12k items/dia (~0.005 GB, ~1% del daily cap de 0.5 GB) es
+estructuralmente barata frente al 23% que consumia la exportacion sin filtrar.
+
+**Mecanismo: `AddView` func-based, no dos `AddView` por patron de nombre.** La primera aproximacion
+considerada -- `AddView("dotnet.gc.*", MetricStreamConfiguration.Default)` seguido de
+`AddView("*", MetricStreamConfiguration.Drop)` -- se descarto tras leer la xmldoc de
+`MeterProviderBuilderExtensions.AddView` embebida en el paquete `OpenTelemetry` 1.16.0: "las vistas
+se aplican en el orden en que se agregan", que en la especificacion de OpenTelemetry Metrics
+significa que un instrumento que matchea **varias** vistas produce un `MetricStream` **por cada
+una** (fan-out), no que "la primera vista que matchea gana". Con las dos vistas name-based, un
+instrumento `dotnet.gc.*` calzaria con ambos patrones y el wildcard `"*"` seguiria generando un
+segundo stream dropeado para el mismo instrumento -- ambiguo y dependiente de un detalle de
+implementacion no verificado (si ese segundo stream "dropeado" convive sin efecto con el primero, o
+si interfiere).
+
+Se usa en cambio el overload `AddView(Func<Instrument, MetricStreamConfiguration>)`, que registra
+una **unica** vista que decide por instrumento (`ConfiguracionObservabilidadProjections.SuprimirSalvoFamiliaGC`):
+para un instrumento cuyo nombre empieza por `dotnet.gc.` devuelve `null`, y para cualquier otro
+devuelve `MetricStreamConfiguration.Drop`. La misma xmldoc documenta el efecto de `null`: "una
+`MetricStreamConfiguration` invalida devuelta por `viewConfig` causara que la vista se ignore para
+ese instrumento, sin error en runtime" -- es decir, sin ninguna vista aplicable el instrumento cae al
+agregado por defecto (se conserva sin intervencion), exactamente como si el `AddView` no existiera
+para el. Sin fan-out, sin dos registros que puedan divergir, y sin necesidad de descompilar el
+exporter (a diferencia del hallazgo del reader sincronico del #515, este mecanismo esta documentado
+en la xmldoc publica del paquete -- gate del planner resuelto sin necesitar MCP de docs).
+
+**Mismo hallazgo del #515 sobre el reader sincronico, mismo mitigante.** El reader de metricas de
+Azure Monitor exige connection string de forma sincronica al resolver `MeterProvider`
+(`InvalidOperationException` si falta), sin importar que las vistas droppeen casi todo despues. Se
+replica el mismo `services.PostConfigure<AzureMonitorExporterOptions>(...)` que rellena
+`ConnectionString` con el valor sintactico inerte del #515 **solo si sigue vacio** tras las demas
+fuentes de configuracion -- inerte tambien aqui porque, salvo la familia GC (volumen minimo), el
+resto sigue dropeado y el reader no abre conexion real por los instrumentos suprimidos.
+
+**Verificacion de CA-2 (guardrail de composicion).** Mismo patron que `SupresionMetricasOTelTests`
+del #515 (contenedor real + `ConfigureOpenTelemetryMeterProvider` adicional con un `Meter` y un
+`InMemoryExporter` propios), pero con una asercion mas fina: un instrumento arbitrario y uno de la
+familia GC emitidos **en la misma composicion** -- el arbitrario se suprime, el GC sobrevive. Un test
+que solo emitiera el instrumento GC (sin el arbitrario) pasaria en verde incluso con una
+implementacion que no suprimiera nada; la combinacion es lo que demuestra que el recorte es
+selectivo, no binario.
+
+**CA-4 (medicion post-deploy) queda pendiente, no resuelto por este cambio.** El gate que dejo el
+planner -- si `_APPRESOURCEPREVIEW_` (latido propio del exporter OTel) es suprimible por `AddView`
+o si sobrevive por viajar fuera del pipeline de vistas del proyecto -- no se pudo verificar sin un
+Application Insights real: la xmldoc del paquete documenta el mecanismo de `AddView` en general, no
+el instrumento especifico de ese latido. Si el residuo aparece en la medicion KQL de CA-4, este ADR
+debe actualizarse con el hallazgo (mismo criterio que el hallazgo del reader sincronico en el #515:
+un mecanismo documentado puede tener excepciones no documentadas en la practica).
+
+Capas 1 y 3 sin cambios (Capa 3 se mantiene en 0.5 GB). La Capa 2 (sampling de trazas) no cambia: el
+recorte de metricas es exclusivamente del pipeline de metricas del worker, que ya tenia su propio
+tracing configurado (issues #308/#414) sin tocar.
