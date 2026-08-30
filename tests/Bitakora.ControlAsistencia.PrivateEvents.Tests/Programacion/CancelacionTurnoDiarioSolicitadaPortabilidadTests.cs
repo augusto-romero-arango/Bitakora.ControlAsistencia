@@ -1,8 +1,6 @@
-// Issue #498 CA-4: CancelacionTurnoDiarioSolicitada es IPrivateEvent (cruza el ASB interno del BC).
-// Todo su payload es plano (Guid, ResumenColaborador, DateOnly) -- portable por el serializador POR
-// DEFECTO del bus, sin resolver custom. Vive en PrivateEvents.Tests (no en el proyecto de tests del
-// dominio ni en el del futuro consumidor): este proyecto solo referencia PrivateEvents (MEF-ADR-0039
-// decision 7), asi que el test replica exactamente lo que vera cualquier consumidor futuro.
+// CA-4: el evento cruza el bus, donde el destino deserializa SIN el resolver del productor -- de ahi
+// el serializador por defecto. Vive en PrivateEvents.Tests porque este proyecto solo referencia
+// PrivateEvents (MEF-ADR-0039 decision 7): replica lo que vera cualquier consumidor futuro.
 
 using System.Text.Json;
 using AwesomeAssertions;

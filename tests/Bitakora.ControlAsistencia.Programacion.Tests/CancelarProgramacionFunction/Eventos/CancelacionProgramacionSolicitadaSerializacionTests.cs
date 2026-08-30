@@ -1,7 +1,5 @@
-// Issue #498: round-trip de serializacion con Marten (CrearOpcionesMarten()) para el evento
-// persistido en el stream de SolicitudCancelacionAggregateRoot. Su ctor publico (sin VOs con ctor
-// privado) es el unico -- igual que su gemela ProgramacionTurnoSolicitada -- asi que STJ lo
-// resuelve sin ayuda y no necesita ConfigurarSerializacion.
+// El evento no lleva VOs con ctor privado, asi que STJ resuelve su unico ctor publico sin ayuda:
+// no se registra en ConfigurarSerializacion (igual que su gemela ProgramacionTurnoSolicitada).
 
 using System.Text.Json;
 using AwesomeAssertions;

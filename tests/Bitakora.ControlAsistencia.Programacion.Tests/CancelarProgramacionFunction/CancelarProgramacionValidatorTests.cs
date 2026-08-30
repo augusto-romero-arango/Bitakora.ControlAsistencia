@@ -1,6 +1,3 @@
-// Issue #498: tests del validator de CancelarProgramacion - espejo de
-// SolicitarProgramacionTurnoValidatorTests, sin TurnoId ni Sede.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction;
 using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction.CommandHandler;
@@ -116,8 +113,7 @@ public class CancelarProgramacionValidatorTests
             e.PropertyName == nameof(CancelarProgramacion.Fechas));
     }
 
-    // Notas tecnicas del issue: fechas duplicadas dentro de la misma solicitud se rechazan -- barato
-    // aqui y evita doble evento de bus por el mismo dia.
+    // Fechas duplicadas se rechazan en el borde: evitan publicar dos veces el mismo dia al bus.
     [Fact]
     public async Task DebeTenerError_CuandoFechasContieneDuplicados()
     {

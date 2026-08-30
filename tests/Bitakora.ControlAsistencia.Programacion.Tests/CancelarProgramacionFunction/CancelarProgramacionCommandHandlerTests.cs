@@ -1,7 +1,3 @@
-// Issue #498: Cancelar la programacion de dias especificos de un colaborador. Espejo estructural
-// de SolicitarProgramacionTurnoCommandHandlerTests: mismo patron de idempotencia (Id duplicado ->
-// 409) y de N eventos de bus (uno por fecha), sin cascada de sede ni consulta al catalogo.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -20,14 +16,13 @@ public class CancelarProgramacionCommandHandlerTests
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
-    // La terna de identidad tal como llega en el body: Identificacion ya compuesta como
-    // "{Tipo}-{Numero}" y NombreCompleto ya concatenado por el cliente (mismo contrato que
-    // SolicitarProgramacionTurno, #436).
+    // Identificacion llega ya compuesta como "{Tipo}-{Numero}" y NombreCompleto ya concatenado:
+    // los compone el cliente contra el maestro Colaboradores, nunca este servidor.
     private static readonly ColaboradorSolicitado Colaborador =
         new("CC-12345678", "E001", "Juan Perez");
 
-    // Los mismos tres valores en los otros dos roles de payload (tres islas, MEF-ADR-0039 decision
-    // 2): el del bus (PrivateEvents) y el del evento persistido (Programacion.DomainEvents).
+    // Los mismos tres valores en los otros dos roles de payload -- bus (PrivateEvents) y evento
+    // persistido (Programacion.DomainEvents): tres islas, un tipo por rol (MEF-ADR-0039 decision 2).
     private static readonly ResumenColaborador ColaboradorResumen =
         new("CC-12345678", "E001", "Juan Perez");
 
@@ -37,8 +32,7 @@ public class CancelarProgramacionCommandHandlerTests
     protected override ICommandHandlerAsync<CancelarProgramacion> Handler =>
         new CancelarProgramacionCommandHandler(EventStore, PrivateEventSender);
 
-    // CA-1: una solicitud valida persiste CancelacionProgramacionSolicitada en un stream nuevo y
-    // publica una CancelacionTurnoDiarioSolicitada por la fecha.
+    // CA-1
     [Fact]
     public async Task CancelarProgramacion_EmiteCancelacionSolicitadaYPublicaEvento_CuandoDatosValidos()
     {
@@ -52,7 +46,7 @@ public class CancelarProgramacionCommandHandlerTests
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
-    // CA-1: N fechas producen N eventos de bus, uno por fecha.
+    // CA-1
     [Fact]
     public async Task CancelarProgramacion_PublicaUnEventoPorCadaFecha_CuandoHayMultiplesFechas()
     {
@@ -67,8 +61,7 @@ public class CancelarProgramacionCommandHandlerTests
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 
-    // CA-1: la terna de identidad fluye TAL CUAL a los dos payloads (persistido y de bus), sin
-    // componer ni permutar ningun campo.
+    // CA-1: delata que alguno de los dos mapeos componga o permute un campo de la terna.
     [Fact]
     public async Task CancelarProgramacion_PersisteLaTernaDeIdentidadDelColaborador_CuandoDatosValidos()
     {
@@ -83,8 +76,8 @@ public class CancelarProgramacionCommandHandlerTests
             s => s.Colaborador, ColaboradorProgramadoEsperado);
     }
 
-    // CA-2: idempotencia -- solicitud ya existente (mismo Id) lanza excepcion que el endpoint mapea
-    // a 409 (CA-ADR-0030, mismo trato que SolicitudYaExiste en programar).
+    // CA-2: el aggregate declina con excepcion que el endpoint traduce a 409, sin evento de fallo
+    // persistido -- no hay consumidor downstream que reaccione (CA-ADR-0030).
     [Fact]
     public async Task CancelarProgramacion_LanzaInvalidOperationException_CuandoSolicitudYaExiste()
     {

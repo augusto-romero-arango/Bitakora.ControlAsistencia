@@ -5,10 +5,9 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// No se publica al Service Bus.
 /// </summary>
 /// <remarks>
-/// Issue #498: espejo de ProgramacionTurnoSolicitada para la operacion inversa -- cancelar dias
-/// especificos ya programados de un colaborador. Colaborador tipa con el record propio de este
-/// ensamblado (ColaboradorProgramado), igual que su gemela: sin sede ni turno, cancelar no
-/// transporta plan.
+/// Colaborador tipa con el record propio de este ensamblado (ColaboradorProgramado), nunca con el de
+/// PublicEvents ni PrivateEvents: tres islas sin referencias cruzadas (MEF-ADR-0039 decision 2).
+/// Sin turno ni sede: cancelar no transporta plan.
 /// </remarks>
 public sealed class CancelacionProgramacionSolicitada
 {

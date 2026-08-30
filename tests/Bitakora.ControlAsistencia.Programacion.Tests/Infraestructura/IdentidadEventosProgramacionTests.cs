@@ -14,8 +14,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 public class IdentidadEventosProgramacionTests
 {
     // Issue #500: TurnoRetirado se persiste en el mismo stream de CatalogoTurnos -- debe listarse
-    // aqui igual que TurnoCreado. Issue #498: CancelacionProgramacionSolicitada es el cuarto evento
-    // persistido, en el stream propio de SolicitudCancelacionAggregateRoot.
+    // aqui igual que TurnoCreado.
     [Fact]
     public void TiposPersistidos_ContieneExactamenteLosCuatroEventosPersistidosDeProgramacion()
     {

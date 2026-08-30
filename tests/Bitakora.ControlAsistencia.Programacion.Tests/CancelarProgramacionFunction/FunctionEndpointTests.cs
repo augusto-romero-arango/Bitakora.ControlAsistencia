@@ -1,9 +1,3 @@
-// Issue #498: tests del endpoint HTTP POST /programacion/cancelaciones.
-// Verifica el mapeo de excepciones del handler a respuestas HTTP:
-// - InvalidOperationException -> 409 (solicitud duplicada)
-// - Exito -> 202 Accepted
-// - Error de validacion -> 400 Bad Request
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;

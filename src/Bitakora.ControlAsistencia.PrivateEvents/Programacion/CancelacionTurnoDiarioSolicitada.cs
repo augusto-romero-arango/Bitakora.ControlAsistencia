@@ -5,8 +5,9 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 /// <summary>
 /// Su unico consumidor, ControlHoras, vive en este mismo Bounded Context: es IPrivateEvent y no
-/// IPublicEvent (mismo criterio que su gemela ProgramacionTurnoDiarioSolicitada). Payload propio de
-/// PrivateEvents -- sin detalle de turno: cancelar no necesita transportar plan.
+/// IPublicEvent. Todo su payload es propio de PrivateEvents y plano -- portable con el serializador
+/// por defecto del bus (MEF-ADR-0039 decision 2, MEF-ADR-0012). Sin detalle de turno: cancelar no
+/// transporta plan.
 /// </summary>
 public sealed class CancelacionTurnoDiarioSolicitada : IPrivateEvent
 {

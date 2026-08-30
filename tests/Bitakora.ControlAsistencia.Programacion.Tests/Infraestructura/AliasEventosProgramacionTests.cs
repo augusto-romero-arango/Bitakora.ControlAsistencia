@@ -56,7 +56,6 @@ public class AliasEventosProgramacionTests
         AliasDe<TurnoRetirado>(options).Should().Be("turno_retirado");
     }
 
-    // Issue #498
     [Fact]
     public void CancelacionProgramacionSolicitada_TieneAliasCancelacionProgramacionSolicitada()
     {

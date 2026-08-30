@@ -19,8 +19,8 @@ public class CancelarProgramacionSmokeTests(
     private const string TipoEventoCancelacionSolicitada = "cancelacion_programacion_solicitada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Forma minima del evento persistido: solo los campos que este test verifica, leidos de forma
-    // case-insensitive (mismo criterio que SolicitarProgramacionTurnoSmokeTests).
+    // Forma minima del evento persistido: evita referenciar Programacion.DomainEvents desde los
+    // smoke tests. Lectura case-insensitive -- se verifica el DATO grabado, no el nombre de la clave.
     private sealed record ColaboradorMinimo(string Identificacion, string CodigoColaborador, string NombreCompleto);
     private sealed record CancelacionMinima(Guid Id, ColaboradorMinimo Colaborador, IReadOnlyList<DateOnly> Fechas);
 
