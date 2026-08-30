@@ -543,5 +543,45 @@ anticipado por el codigo de produccion) y un `InMemoryExporter`, y afirma que la
 exportada queda vacia tras `ForceFlush()`. Verifica el efecto observable, no el mecanismo -- un
 upgrade del exporter que reactive metricas por otra via haria fallar el test igual.
 
+**Hallazgo de la revision: el seam pasa al overload con callback para desacoplar los logs de error
+del sampler de trazas.** Al tocar el wiring de OTel de los tres dominios, la revision constato que
+`EnableTraceBasedLogsSampler` seguia en su default (`true`) en las tres Function Apps -- MEF-ADR-0038
+seccion 9 lo declara **mecanismo del marco, no opt-in**, extendido al write-side por harness #700, y
+solo estaba aplicado en el worker de proyecciones (`ConfiguracionObservabilidadProjections`, issue
+#414). Con ese default, el exporter instala `LogFilteringProcessor` en vez de un
+`BatchLogRecordExportProcessor` plano, y ese processor descarta en silencio todo `LogRecord` emitido
+dentro de un span que no quedo `Recorded`. En el write-side no hay ningun filtro estructural de spans
+(la seccion 5 de ese ADR es exclusiva del worker): la perdida es directamente proporcional al ratio
+de muestreo, y los tres dominios corren con `TELEMETRY_SAMPLING_RATIO` en su default **0.2** -- o sea
+que ~80% de los `LogError` de handlers, Wolverine y Marten emitidos dentro de un span no muestreado
+nunca llegaban a `exceptions`, que es justo la tabla que la alerta `exception_spike` (Capa 4) mira.
+El seam pasa de `.UseAzureMonitorExporter()` a `.UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)`.
+
+Ese cambio de overload tiene una consecuencia documentada en MEF-ADR-0038 seccion 9: la forma sin
+argumentos registra `DefaultAzureMonitorExporterOptions` (que lee `APPLICATIONINSIGHTS_CONNECTION_STRING`
+directo del entorno) y la forma con callback no, dejando la resolucion de la connection string
+unicamente en manos de `Configure<IConfiguration>`. Verificado por ejecucion que ese camino sigue
+resolviendola (el SDK de OpenTelemetry registra un `IConfiguration` con proveedor de variables de
+entorno cuando no hay host detras, y `FunctionsApplication.CreateBuilder` lo incluye en produccion) --
+MEF-ADR-0025 intacto: el seam sigue sin leer ni recibir el secreto.
+
+**Guardrails agregados en la revision** (`ComposicionServiciosTests` de los tres dominios, mismo
+patron de contenedor real):
+
+1. `AgregarServicios{Dominio}_DeshabilitaElSamplerDeLogsBasadoEnTrazas` -- resuelve
+   `IOptions<AzureMonitorExporterOptions>` del `ServiceProvider` real y afirma
+   `EnableTraceBasedLogsSampler == false`. Verificada su no-vacuidad: rojo al revertir el flip,
+   verde con el.
+2. `AgregarServicios{Dominio}_ConservaLaConnectionStringReal_CuandoLaVariableDeEntornoEstaPresente` --
+   cierra el riesgo que introduce el `PostConfigure` de arriba. Ese fallback es seguro **solo**
+   mientras corra despues de la fuente real y no la pise; si algun dia la pisara, trazas y logs
+   (que comparten `AzureMonitorExporterOptions`) se exportarian a un endpoint inexistente en
+   silencio y de forma permanente -- un modo de fallo peor que el `InvalidOperationException` que el
+   fallback vino a evitar, porque no se manifiesta como error sino como ausencia total de
+   telemetria. El orden `Configure` -> `PostConfigure` es hoy correcto, pero nada en el codigo lo
+   garantizaba frente a un upgrade del exporter: este test es esa garantia.
+
 Capas 1 y 3 sin cambios (Capa 3 se mantiene en 0.5 GB, ver "Decision" arriba). La Capa 2 (sampling
-de trazas) y su sampler no cambian -- este recorte es exclusivamente del pipeline de metricas.
+de trazas) y su sampler no cambian: el recorte de metricas es exclusivamente del pipeline de
+metricas, y el flip de `EnableTraceBasedLogsSampler` no altera la decision de muestreo de trazas --
+solo deja de propagarla a los logs.

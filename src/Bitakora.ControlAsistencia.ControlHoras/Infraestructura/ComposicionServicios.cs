@@ -184,7 +184,12 @@ public static class ComposicionServicios
                 .AddSource("Npgsql")
                 .AddSource("Bitakora.ControlAsistencia.ControlHoras.*"))
             .UseFunctionsWorkerDefaults()
-            .UseAzureMonitorExporter()
+            // MEF-ADR-0038 seccion 9 (extendida al write-side, harness #700): con el flip en su
+            // default (true) el exporter instala LogFilteringProcessor, que descarta todo LogRecord
+            // emitido dentro de un span no muestreado. Con TELEMETRY_SAMPLING_RATIO fraccionario
+            // (default 0.2 aqui) eso pierde en silencio los LogError de los handlers, Wolverine y
+            // Marten -- justo la senal que la alerta exception_spike (CA-ADR-0009 Capa 4) mira.
+            .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))))
             // Issue #515 (CA-ADR-0009): UseAzureMonitorExporter() activa el pipeline de metricas sin
@@ -195,17 +200,14 @@ public static class ComposicionServicios
             .WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop));
 
         // El View de arriba filtra MEDICIONES, no evita que UseAzureMonitorExporter() construya su
-        // propio reader de metricas -- a diferencia del trace exporter (diferido a un hosted service
-        // que solo corre si el host arranca), ese reader se construye de forma SINCRONICA al resolver
-        // MeterProvider y su constructor exige una connection string, o lanza
-        // InvalidOperationException (verificado por decompilacion de
-        // Azure.Monitor.OpenTelemetry.Exporter 1.8.1). Sin este fallback, un arranque en frio con la
-        // Key Vault reference de APPLICATIONINSIGHTS_CONNECTION_STRING aun sin resolver tumbaria el
-        // Function App entero al resolver MeterProvider -- el mismo escenario que el TracerProvider ya
-        // tolera (CA-ADR-0009, actualizacion 2026-06-18). El valor es inerte: con todas las metricas
-        // dropeadas arriba, el reader nunca tiene nada que exportar y nunca abre una conexion real; si
-        // la variable de entorno real esta presente, este PostConfigure no la pisa (solo actua si el
-        // valor sigue vacio tras las demas fuentes de configuracion).
+        // reader de metricas: a diferencia del de trazas (diferido a un hosted service), ese se
+        // construye de forma SINCRONICA al resolver MeterProvider y su ctor exige una connection
+        // string o lanza (decompilado de Azure.Monitor.OpenTelemetry.Exporter 1.8.1). Sin este
+        // fallback, un arranque en frio con la Key Vault reference aun sin resolver tumbaria el
+        // Function App entero -- el mismo escenario que el TracerProvider ya tolera (CA-ADR-0009,
+        // actualizacion 2026-06-18). El valor es inerte: con todas las metricas dropeadas, el reader
+        // nunca tiene nada que exportar. Que nunca pise una connection string real no es una promesa
+        // de este comentario sino de AgregarServicios*_ConservaLaConnectionStringReal.
         services.PostConfigure<AzureMonitorExporterOptions>(options =>
         {
             if (string.IsNullOrWhiteSpace(options.ConnectionString))

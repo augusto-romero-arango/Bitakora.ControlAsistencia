@@ -5,18 +5,15 @@
 // ~76.000 metricas/dia medidas por app (CA-ADR-0009, actualizacion del episodio de
 // ingestion-warning). Decision de producto: recortar TODO, no una familia puntual.
 //
-// El guardrail no asume el mecanismo exacto de supresion (AddView con wildcard, o cualquier otro):
-// verifica el efecto observable -- que NINGUNA metrica, ni siquiera una arbitraria que nadie
-// anticipo, llega al exporter -- componiendo el contenedor real y sumando un
-// ConfigureOpenTelemetryMeterProvider adicional (se acumulan, no se pisan) que registra un
-// InMemoryExporter como segundo reader, sin tocar el reader real de Azure Monitor ni requerir red.
+// El guardrail no asume el mecanismo de supresion (AddView wildcard, o cualquier otro): verifica el
+// efecto observable -- que NINGUNA metrica, ni siquiera una arbitraria que nadie anticipo, llega al
+// exporter -- sumando al contenedor real un ConfigureOpenTelemetryMeterProvider adicional (se
+// acumulan, no se pisan) con un InMemoryExporter como segundo reader, sin red ni Azure Monitor.
 //
-// El Meter de prueba se agrega EXPLICITAMENTE via AddMeter para simular un instrumento cualquiera
-// que SI esta siendo escuchado por el MeterProviderBuilder -- igual que los meters reales del
-// runtime/ASP.NET Core que el exporter engancha por su cuenta y que este test no puede nombrar sin
-// acoplarse a nombres que .NET/ASP.NET Core podrian renombrar entre versiones (dotnet.gc.*,
-// kestrel.*, etc. -- ver CA-ADR-0009). Si el instrumento arbitrario de prueba sigue llegando al
-// exporter, la supresion no cubre "TODO" como exige la decision de producto.
+// El Meter de prueba se registra EXPLICITAMENTE via AddMeter porque el MeterProviderBuilder solo
+// escucha los meters suscritos: sin esa linea el test pasaria en verde aun sin supresion alguna. Se
+// usa un meter propio, y no los reales del runtime, para no acoplar el guardrail a nombres que .NET
+// puede renombrar entre versiones (dotnet.gc.*, kestrel.*, etc. -- ver CA-ADR-0009).
 
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
