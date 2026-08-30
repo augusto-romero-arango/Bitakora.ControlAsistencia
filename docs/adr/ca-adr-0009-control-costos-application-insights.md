@@ -664,3 +664,26 @@ un mecanismo documentado puede tener excepciones no documentadas en la practica)
 Capas 1 y 3 sin cambios (Capa 3 se mantiene en 0.5 GB). La Capa 2 (sampling de trazas) no cambia: el
 recorte de metricas es exclusivamente del pipeline de metricas del worker, que ya tenia su propio
 tracing configurado (issues #308/#414) sin tocar.
+
+## Actualizacion (2026-08-30, issue #514): `ingestion-warning` pasa a ser stateful
+
+La noche del 2026-08-29/30 la alerta `<prefijo>-ingestion-warning` disparo **16 veces
+consecutivas, una por hora**, por un unico episodio real: la ingestion del 2026-08-29 cerro en
+0.454 GB (linea base 0.13-0.27), cruzando el 80% del daily cap (0.4 GB sobre el cap de 0.5 GB) a
+las 22:56Z por trafico legitimo de pipelines/smoke tests. La deteccion fue correcta (verdadero
+positivo); el defecto era de **repeticion**: la alerta evalua una ventana rodante de 1 dia cada
+hora y era stateless (`auto_mitigation_enabled` sin setear, default `false`), asi que mientras las
+24h hacia atras contuvieran el burst -- toda la noche, incluso con trafico cero entre 03:00 y
+12:00 UTC -- cada evaluacion positiva generaba una notificacion nueva.
+
+**Decision.** Se agrega `auto_mitigation_enabled = true` a
+`azurerm_monitor_scheduled_query_rules_alert_v2.ingestion_warning` en
+`infra/modules/monitoring/main.tf`. La alerta pasa a ser stateful: dispara una vez por episodio,
+queda en estado `Fired`, y Azure Monitor la auto-resuelve cuando la condicion deja de cumplirse. Un
+correo por episodio en vez de ~16. No cambia query, umbral ni ventana.
+
+**Alcance deliberadamente acotado a `ingestion_warning`**, que es donde el defecto se observo. Las
+alertas `exception_spike` y `non_http_failure_spike` comparten el rasgo stateless pero nunca han
+disparado; la alerta generalizada del issue #415 lo evalua por separado.
+
+Capas 1, 2 y 3 sin cambios.
