@@ -56,9 +56,12 @@ public class ConfiguracionObservabilidadProjectionsTests
 {
     private const string VariableConnectionString = "APPLICATIONINSIGHTS_CONNECTION_STRING";
 
+    // Debe DIFERIR del valor inerte con el que el seam rellena ConnectionString cuando queda vacia:
+    // si coincidiera, ResuelveLaConnectionStringDelEntorno pasaria en verde aunque el PostConfigure
+    // pisara la connection string real -- exactamente el modo de fallo que ese test vigila.
     private const string ConnectionStringAppInsightsDummy =
-        "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
-        "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
+        "InstrumentationKey=11111111-2222-3333-4444-555555555555;" +
+        "IngestionEndpoint=https://presente.in.applicationinsights.azure.com/";
 
     private const string MartenConnectionStringDummy = "Host=localhost;Database=dummy";
 
@@ -461,30 +464,19 @@ public class ConfiguracionObservabilidadProjectionsTests
         logger.IsEnabled(LogLevel.Warning).Should().BeTrue();
     }
 
-    // --- Supresion de metricas OTel salvo la familia GC (issue #517, CA-1 y CA-2) ---
+    // --- Supresion de metricas OTel salvo la familia GC (CA-ADR-0009) ---
     //
-    // Mismo diagnostico y misma tecnica que el issue hermano #515 (Function Apps,
-    // SupresionMetricasOTelTests): UseAzureMonitorExporter() activa el pipeline de metricas
-    // automaticamente (WithMetrics interno) aunque este seam solo invoque WithTracing(...) --
-    // verificado descompilando Azure.Monitor.OpenTelemetry.Exporter 1.8.1 en el #515. A diferencia
-    // de #515 (que corta TODO con AddView("*", Drop) porque las Function Apps son procesos efimeros
-    // que escalan a cero), aqui la decision de producto conserva la familia `dotnet.gc.*`
-    // (CA-ADR-0009, actualizacion de este issue): el worker corre 24/7 (min_replicas = 1,
-    // MEF-ADR-0034 seccion 8) hospedando el daemon de proyecciones, y un memory leak en una
-    // proyeccion es un riesgo real y silencioso que solo la serie de heap puede diagnosticar.
+    // El guardrail no asume el mecanismo de supresion: fija el efecto observable, sumando al
+    // contenedor real un ConfigureOpenTelemetryMeterProvider adicional con un InMemoryExporter como
+    // segundo reader (se acumulan, no se pisan), sin red ni Azure Monitor. Un upgrade del exporter
+    // que reactive metricas por otra via lo rompe igual.
     //
-    // El guardrail no asume el mecanismo de supresion selectiva (AddView por patron, registro
-    // selectivo de meters, o cualquier otro -- ver "Investigacion del planner" del issue #517, gate
-    // pendiente de verificacion contra doc oficial): fija el efecto observable -- un instrumento
-    // arbitrario que nadie anticipo se suprime, y los tres instrumentos de la familia GC que CA-1
-    // nombra explicitamente sobreviven -- sumando al contenedor real un
-    // ConfigureOpenTelemetryMeterProvider adicional con un InMemoryExporter como segundo reader, sin
-    // red ni Azure Monitor real (mismo patron que #515).
+    // El Meter de prueba se registra EXPLICITAMENTE via AddMeter: el MeterProviderBuilder solo
+    // escucha meters suscritos, y sin esa linea los tests pasarian en verde aun sin supresion.
     //
-    // A diferencia del comentario de #515 ("no acoplar el guardrail a nombres que .NET puede
-    // renombrar entre versiones"), aqui SI se ancla a los tres nombres literales `dotnet.gc.*`: es el
-    // propio contrato de CA-1, no un detalle interno de implementacion -- el issue los nombra
-    // explicitamente como lo que debe sobrevivir.
+    // Los tres nombres GC van literales -- a diferencia del guardrail hermano de las Function Apps,
+    // que evita acoplarse a nombres que .NET puede renombrar: aqui esa familia ES el contrato que se
+    // conserva, no un detalle de implementacion.
     private const string NombreMeterDePrueba =
         "Bitakora.ControlAsistencia.Projections.Tests.MeterArbitrarioDePrueba";
 
@@ -508,16 +500,22 @@ public class ConfiguracionObservabilidadProjectionsTests
         metricasExportadas.Should().BeEmpty();
     }
 
-    // Emite el instrumento arbitrario JUNTO al de la familia GC en la misma composicion: es lo que
-    // demuestra que la supresion es SELECTIVA (no "todo o nada"), que es lo que CA-1 exige. Un test
-    // que solo emitiera el instrumento GC (sin el arbitrario) pasaria en verde incluso con una
-    // implementacion que no suprimiera nada -- no seria un rojo genuino contra el stub de hoy.
-    [Theory]
-    [InlineData(InstrumentoGcCollections)]
-    [InlineData(InstrumentoGcHeapSize)]
-    [InlineData(InstrumentoGcHeapFragmentation)]
-    public void ConfigurarObservabilidad_ExportaSoloElInstrumentoDeLaFamiliaGC_CuandoConviveConUnoArbitrario(
-        string instrumentoGc)
+    [Fact]
+    public void ConfigurarObservabilidad_ExportaSoloElInstrumentoDeLaFamiliaGC_CuandoElInstrumentoCuentaColecciones() =>
+        VerificarQueSoloSobreviveElInstrumentoGc(InstrumentoGcCollections);
+
+    [Fact]
+    public void ConfigurarObservabilidad_ExportaSoloElInstrumentoDeLaFamiliaGC_CuandoElInstrumentoMideElHeap() =>
+        VerificarQueSoloSobreviveElInstrumentoGc(InstrumentoGcHeapSize);
+
+    [Fact]
+    public void ConfigurarObservabilidad_ExportaSoloElInstrumentoDeLaFamiliaGC_CuandoElInstrumentoMideLaFragmentacionDelHeap() =>
+        VerificarQueSoloSobreviveElInstrumentoGc(InstrumentoGcHeapFragmentation);
+
+    // El instrumento arbitrario se emite JUNTO al de la familia GC en la misma composicion: es lo
+    // que demuestra que la supresion es SELECTIVA. Emitir solo el GC pasaria en verde tambien con
+    // una implementacion que no suprimiera nada.
+    private static void VerificarQueSoloSobreviveElInstrumentoGc(string instrumentoGc)
     {
         var metricasExportadas = new List<Metric>();
         using var provider = ComponerServiceProviderConGuardrailDeMetricas(metricasExportadas);
@@ -531,11 +529,9 @@ public class ConfiguracionObservabilidadProjectionsTests
         metricasExportadas.Select(m => m.Name).Should().BeEquivalentTo([instrumentoGc]);
     }
 
-    // CA-3 (por analogia con el CA-3 de #515): la supresion selectiva de metricas no debe tocar el
-    // tracing (Capa 2, CA-ADR-0009) como efecto colateral -- el TracerProvider sigue siendo parte del
-    // mismo seam de observabilidad. Complementa (no reemplaza) los tests de TracerProvider de mas
-    // arriba: aquellos componen el seam solo: este lo compone junto al
-    // ConfigureOpenTelemetryMeterProvider adicional del guardrail de metricas.
+    // La supresion de metricas no debe apagar el tracing (CA-ADR-0009 Capa 2) como efecto
+    // colateral. Complementa a los tests de TracerProvider de mas arriba, que componen el seam solo:
+    // este lo compone junto al ConfigureOpenTelemetryMeterProvider del guardrail de metricas.
     [Fact]
     public void ConfigurarObservabilidad_ConservaElTracerProviderDelContenedor_CuandoSeAgregaElGuardrailDeMetricas()
     {

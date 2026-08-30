@@ -640,6 +640,19 @@ que solo emitiera el instrumento GC (sin el arbitrario) pasaria en verde incluso
 implementacion que no suprimiera nada; la combinacion es lo que demuestra que el recorte es
 selectivo, no binario.
 
+**Hallazgo de la revision: la constante de prueba colisionaba con el valor inerte del fallback.**
+El `PostConfigure` de arriba tiene el mismo modo de fallo que cerro la revision del #515 -- si
+llegara a pisar una connection string real, trazas y logs (que comparten
+`AzureMonitorExporterOptions`) se exportarian a un endpoint inexistente en silencio y de forma
+permanente. En el worker esa garantia ya existia: el test
+`ConfigurarObservabilidad_ResuelveLaConnectionStringDelEntorno_EnLasOpcionesDelExporter` (issue
+#414) afirma que la connection string del entorno sobrevive en las opciones efectivas. Pero su
+constante `ConnectionStringAppInsightsDummy` era **byte a byte identica** al valor inerte que este
+issue introdujo en el fallback, asi que el test habria pasado en verde aunque el `PostConfigure`
+pisara la variable real: el guardrail quedaba vacuo justo al introducirse el riesgo que vigila. La
+revision cambio el valor de esa constante a uno distinto del fallback y verifico la no-vacuidad
+(rojo al neutralizar la guarda `IsNullOrWhiteSpace`, verde con ella).
+
 **CA-4 (medicion post-deploy) queda pendiente, no resuelto por este cambio.** El gate que dejo el
 planner -- si `_APPRESOURCEPREVIEW_` (latido propio del exporter OTel) es suprimible por `AddView`
 o si sobrevive por viajar fuera del pipeline de vistas del proyecto -- no se pudo verificar sin un
