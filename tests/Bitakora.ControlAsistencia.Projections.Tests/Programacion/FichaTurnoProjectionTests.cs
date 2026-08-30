@@ -115,4 +115,25 @@ public class FichaTurnoProjectionTests
             [],
             "Descanso"));
     }
+
+    // Issue #501 CA-1: TurnoRetirado sobre un turno materializado borra su FichaTurno de la vista
+    // -- se borra (no se marca): la auditoria vive en el event store, y el nombre queda libre para
+    // el patron "modificar = retirar + crear" y la invariante de nombre unico que verifica #497
+    // contra esta misma vista. Estilo canonico del Skill (modelos-marten.md): ShouldDelete(TEvento)
+    // a secas, sin IEvent<T> ni TView -- el borrado no depende de ningun dato de metadata del
+    // evento ni del estado previo de la ficha.
+    //
+    // "Turno no materializado -> sin efecto" (nota de la capa de tests del issue) no tiene test
+    // propio a este nivel: es consecuencia intrinseca del lifecycle de SingleStreamProjection sin
+    // Create(TurnoRetirado) -- si Marten no tiene ya un documento para ese stream, no hay Apply ni
+    // ShouldDelete que invocar antes. No es logica de FichaTurnoProjection que quepa testear aqui.
+    [Fact]
+    public void ShouldDelete_BorraLaFicha_CuandoTurnoRetirado()
+    {
+        var turnoRetirado = TurnoRetirado.Crear(Guid.Parse("019600b0-0000-7000-8000-000000000004"));
+
+        var debeBorrarse = FichaTurnoProjection.ShouldDelete(turnoRetirado);
+
+        debeBorrarse.Should().BeTrue();
+    }
 }
