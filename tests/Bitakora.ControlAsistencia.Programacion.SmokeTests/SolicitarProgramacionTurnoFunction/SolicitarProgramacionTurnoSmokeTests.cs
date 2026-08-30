@@ -687,7 +687,8 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Retirado Para Solicitar",
+            // Nombre unico por corrida (#497): sin sufijo, el segundo run choca con 409.
+            nombre = $"[TEST] Turno Retirado Para Solicitar {turnoId}",
             ordinarias = new[]
             {
                 new

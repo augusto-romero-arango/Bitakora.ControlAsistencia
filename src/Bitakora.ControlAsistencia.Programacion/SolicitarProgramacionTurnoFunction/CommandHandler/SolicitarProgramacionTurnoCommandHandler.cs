@@ -32,8 +32,8 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
-        // Issue #500 CA-4: guarda transaccional contra el aggregate ya cargado (Tell-don't-Ask,
-        // MEF-ADR-0012) -- un turno retirado ya no es asignable a nuevas solicitudes.
+        // Guarda transaccional contra el aggregate ya cargado (Tell-don't-Ask, MEF-ADR-0012): un
+        // turno retirado ya no es asignable a nuevas solicitudes.
         if (!catalogo.PuedeAsignarNuevaSolicitud())
             throw new InvalidOperationException(Mensajes.TurnoRetirado);
 

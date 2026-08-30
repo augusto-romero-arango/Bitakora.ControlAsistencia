@@ -23,15 +23,9 @@ public partial class CatalogoTurnos : AggregateRoot
         _estaActivo = true;
     }
 
-    // Issue #500: primer consumidor real de _estaActivo -- apaga el turno, ya no asignable a
-    // nuevas solicitudes. Nunca lanza (MEF-ADR-0004 capa 4): la guarda de "ya retirado" decide en
-    // Retirar(), antes de emitir.
+    // MEF-ADR-0004 capa 4: no lanza -- la guarda de "ya retirado" decide en Retirar(), antes de
+    // emitir.
     public void Apply(TurnoRetirado evento) => _estaActivo = false;
-
-    // Estado observable internal (Tell-don't-Ask, MEF-ADR-0012): existe para que el DSL de tests
-    // lo verifique, no para consumo externo al ensamblado -- ninguna propiedad PUBLICA expone
-    // _estaActivo.
-    internal bool EstaActivo => _estaActivo;
 
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
@@ -46,9 +40,8 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoRetiroTurno.Retirado;
     }
 
-    // Decision de negocio (Tell-don't-Ask, MEF-ADR-0012): el catalogo decide si puede aceptar una
-    // nueva solicitud de programacion -- el handler no lee _estaActivo (via EstaActivo, reservada
-    // a verificacion de tests) para decidir por su cuenta.
+    // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud -- el
+    // handler no interroga su estado interno para decidir por su cuenta.
     internal bool PuedeAsignarNuevaSolicitud() => _estaActivo;
 
     // La estructura cero-franjas ES el descanso: sin discriminador en el estado del aggregate.
