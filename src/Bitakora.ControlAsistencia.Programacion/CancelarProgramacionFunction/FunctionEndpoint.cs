@@ -9,9 +9,24 @@ namespace Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function(nameof(CancelarProgramacion))]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/cancelaciones")]
         HttpRequest req,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<CancelarProgramacion>(req, ct);
+        if (error is not null)
+            return error;
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }

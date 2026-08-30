@@ -77,6 +77,18 @@ module "service_bus" {
         }
       ]
     }
+    # Issue #498: espejo de "programacion-turno-diario-solicitada" para la operacion inversa.
+    # El consumidor real (ControlHoras) llega en issue posterior -- publicar sin consumidor es
+    # valido (MEF-ADR-0013); la subscription smoke-tests cubre la publicacion mientras tanto.
+    "cancelacion-turno-diario-solicitada" = {
+      subscriptions = [
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
     "dia-depurado" = {
       subscriptions = [
         {
