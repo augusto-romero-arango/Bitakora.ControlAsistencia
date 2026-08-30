@@ -101,6 +101,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
         _etiquetas.Clear();
+        _codigoSede = null;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -128,10 +129,10 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // (MEF-ADR-0004 capa 4).
     public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
 
-    // Issue #465 (fase roja): stub pendiente de implementacion -- el implementer asienta
-    // _codigoSede = e.CodigoSede (reemplazo puro, sin evento de retiro). Nunca lanza (MEF-ADR-0004
-    // capa 4).
-    public void Apply(SedeAsignada e) => throw new NotImplementedException();
+    // Issue #465: asienta el reemplazo puro de la sede -- el mismo evento sirve tanto para la
+    // primera asignacion como para una reasignacion (sin evento de retiro). Nunca lanza
+    // (MEF-ADR-0004 capa 4).
+    public void Apply(SedeAsignada e) => _codigoSede = e.CodigoSede;
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro
@@ -353,15 +354,28 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoRetiroEtiqueta.Exitosa;
     }
 
-    // Issue #465 (fase roja): stub pendiente de implementacion. Mecanismo combinado (CA-ADR-0030),
-    // precedente exacto AsignarEtiqueta (#355): "declinar con resultado" para VinculacionTerminada
-    // (_fechaTerminacionVinculacionVigente is not null, incluye un preaviso sin vencer -- la sede
-    // describe la relacion laboral ACTIVA) y "declinar en silencio" para SinCambios (codigoSede ==
-    // _codigoSede, comparacion EXACTA case-sensitive, precedente #387). Exito: appendea
-    // SedeAsignada a _uncommittedEvents y lo aplica.
+    // Issue #465: mecanismo combinado (CA-ADR-0030), precedente exacto AsignarEtiqueta (#355):
+    // "declinar con resultado" para VinculacionTerminada (_fechaTerminacionVinculacionVigente is
+    // not null, incluye un preaviso sin vencer -- la sede describe la relacion laboral ACTIVA) y
+    // "declinar en silencio" para SinCambios (codigoSede == _codigoSede, comparacion EXACTA
+    // case-sensitive, precedente #387). Exito: appendea SedeAsignada a _uncommittedEvents y lo
+    // aplica.
     // internal: mismo criterio de visibilidad que los metodos de comando hermanos -- el unico
     // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
-    internal ResultadoAsignacionSede AsignarSede(string codigoSede) => throw new NotImplementedException();
+    internal ResultadoAsignacionSede AsignarSede(string codigoSede)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoAsignacionSede.VinculacionTerminada;
+
+        if (codigoSede == _codigoSede)
+            return ResultadoAsignacionSede.SinCambios;
+
+        var evento = new SedeAsignada(codigoSede);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoAsignacionSede.Exitosa;
+    }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
