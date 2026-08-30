@@ -37,6 +37,7 @@
 // implementacion interna del exporter. De ahi que el guardrail deje de asumir que ese limite es
 // permanente.
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using AwesomeAssertions;
 using Azure.Monitor.OpenTelemetry.Exporter;
@@ -45,6 +46,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -458,4 +460,95 @@ public class ConfiguracionObservabilidadProjectionsTests
         logger.IsEnabled(LogLevel.Information).Should().BeFalse();
         logger.IsEnabled(LogLevel.Warning).Should().BeTrue();
     }
+
+    // --- Supresion de metricas OTel salvo la familia GC (issue #517, CA-1 y CA-2) ---
+    //
+    // Mismo diagnostico y misma tecnica que el issue hermano #515 (Function Apps,
+    // SupresionMetricasOTelTests): UseAzureMonitorExporter() activa el pipeline de metricas
+    // automaticamente (WithMetrics interno) aunque este seam solo invoque WithTracing(...) --
+    // verificado descompilando Azure.Monitor.OpenTelemetry.Exporter 1.8.1 en el #515. A diferencia
+    // de #515 (que corta TODO con AddView("*", Drop) porque las Function Apps son procesos efimeros
+    // que escalan a cero), aqui la decision de producto conserva la familia `dotnet.gc.*`
+    // (CA-ADR-0009, actualizacion de este issue): el worker corre 24/7 (min_replicas = 1,
+    // MEF-ADR-0034 seccion 8) hospedando el daemon de proyecciones, y un memory leak en una
+    // proyeccion es un riesgo real y silencioso que solo la serie de heap puede diagnosticar.
+    //
+    // El guardrail no asume el mecanismo de supresion selectiva (AddView por patron, registro
+    // selectivo de meters, o cualquier otro -- ver "Investigacion del planner" del issue #517, gate
+    // pendiente de verificacion contra doc oficial): fija el efecto observable -- un instrumento
+    // arbitrario que nadie anticipo se suprime, y los tres instrumentos de la familia GC que CA-1
+    // nombra explicitamente sobreviven -- sumando al contenedor real un
+    // ConfigureOpenTelemetryMeterProvider adicional con un InMemoryExporter como segundo reader, sin
+    // red ni Azure Monitor real (mismo patron que #515).
+    //
+    // A diferencia del comentario de #515 ("no acoplar el guardrail a nombres que .NET puede
+    // renombrar entre versiones"), aqui SI se ancla a los tres nombres literales `dotnet.gc.*`: es el
+    // propio contrato de CA-1, no un detalle interno de implementacion -- el issue los nombra
+    // explicitamente como lo que debe sobrevivir.
+    private const string NombreMeterDePrueba =
+        "Bitakora.ControlAsistencia.Projections.Tests.MeterArbitrarioDePrueba";
+
+    private const string InstrumentoGcCollections = "dotnet.gc.collections";
+    private const string InstrumentoGcHeapSize = "dotnet.gc.last_collection.heap.size";
+    private const string InstrumentoGcHeapFragmentation =
+        "dotnet.gc.last_collection.heap.fragmentation.size";
+
+    [Fact]
+    public void ConfigurarObservabilidad_SuprimeLaExportacionDeMetricas_ParaUnInstrumentoArbitrario()
+    {
+        var metricasExportadas = new List<Metric>();
+        using var provider = ComponerServiceProviderConGuardrailDeMetricas(metricasExportadas);
+        var meterProvider = provider.GetRequiredService<MeterProvider>();
+
+        using var meter = new Meter(NombreMeterDePrueba);
+        var contador = meter.CreateCounter<long>("cualquier.instrumento.de.prueba");
+        contador.Add(1);
+        meterProvider.ForceFlush();
+
+        metricasExportadas.Should().BeEmpty();
+    }
+
+    // Emite el instrumento arbitrario JUNTO al de la familia GC en la misma composicion: es lo que
+    // demuestra que la supresion es SELECTIVA (no "todo o nada"), que es lo que CA-1 exige. Un test
+    // que solo emitiera el instrumento GC (sin el arbitrario) pasaria en verde incluso con una
+    // implementacion que no suprimiera nada -- no seria un rojo genuino contra el stub de hoy.
+    [Theory]
+    [InlineData(InstrumentoGcCollections)]
+    [InlineData(InstrumentoGcHeapSize)]
+    [InlineData(InstrumentoGcHeapFragmentation)]
+    public void ConfigurarObservabilidad_ExportaSoloElInstrumentoDeLaFamiliaGC_CuandoConviveConUnoArbitrario(
+        string instrumentoGc)
+    {
+        var metricasExportadas = new List<Metric>();
+        using var provider = ComponerServiceProviderConGuardrailDeMetricas(metricasExportadas);
+        var meterProvider = provider.GetRequiredService<MeterProvider>();
+
+        using var meter = new Meter(NombreMeterDePrueba);
+        meter.CreateCounter<long>("cualquier.instrumento.de.prueba").Add(1);
+        meter.CreateCounter<long>(instrumentoGc).Add(1);
+        meterProvider.ForceFlush();
+
+        metricasExportadas.Select(m => m.Name).Should().BeEquivalentTo([instrumentoGc]);
+    }
+
+    // CA-3 (por analogia con el CA-3 de #515): la supresion selectiva de metricas no debe tocar el
+    // tracing (Capa 2, CA-ADR-0009) como efecto colateral -- el TracerProvider sigue siendo parte del
+    // mismo seam de observabilidad. Complementa (no reemplaza) los tests de TracerProvider de mas
+    // arriba: aquellos componen el seam solo: este lo compone junto al
+    // ConfigureOpenTelemetryMeterProvider adicional del guardrail de metricas.
+    [Fact]
+    public void ConfigurarObservabilidad_ConservaElTracerProviderDelContenedor_CuandoSeAgregaElGuardrailDeMetricas()
+    {
+        var metricasExportadas = new List<Metric>();
+        using var provider = ComponerServiceProviderConGuardrailDeMetricas(metricasExportadas);
+
+        provider.GetService<TracerProvider>().Should().NotBeNull();
+    }
+
+    private static ServiceProvider ComponerServiceProviderConGuardrailDeMetricas(
+        ICollection<Metric> metricasExportadas) =>
+        ComponerServiceProvider(services => services
+            .ConfigureOpenTelemetryMeterProvider(builder => builder
+                .AddMeter(NombreMeterDePrueba)
+                .AddInMemoryExporter(metricasExportadas)));
 }
