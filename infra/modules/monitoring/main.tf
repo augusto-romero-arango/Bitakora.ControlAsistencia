@@ -206,38 +206,56 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "non_http_failure_spik
   tags = var.tags
 }
 
-# Alerta 4: pico de excepciones >50 en 5 minutos en el worker de proyecciones
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "projections_exception_spike" {
-  name                = "${var.name}-projections-exception-spike"
+# Alerta 4: excepciones de agentes de fondo (sin operation_Id) por rol, generalizada
+# (issue #415, reemplaza projections_exception_spike -- MEF-ADR-0018 Rule of Three: 4
+# roles y 2 familias de agentes de fondo -- daemon HotCold de Marten, DurabilityAgent/
+# IAgentCommand de Wolverine -- comparten el mismo modo de falla sin requests. Ver
+# CA-ADR-0009, actualizacion 2026-08-30 issue #415.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "background_exception_spike" {
+  name                = "${var.name}-background-exception-spike"
   resource_group_name = var.resource_group_name
   location            = var.location
-  description         = "Pico de excepciones en el worker de proyecciones - posible proyeccion atascada en loop de reintentos generando costos"
+  description         = "Pico de excepciones de agentes de fondo (daemon de Marten, DurabilityAgent de Wolverine) por rol - las dos alertas de borde HTTP son ciegas a este modo de falla porque se condicionan a requests"
   severity            = 1
   enabled             = true
 
-  scopes               = [azurerm_application_insights.this.id]
-  evaluation_frequency = "PT5M"
-  window_duration      = "PT5M"
+  scopes                  = [azurerm_application_insights.this.id]
+  evaluation_frequency    = "PT5M"
+  window_duration         = "PT5M"
+  auto_mitigation_enabled = true
 
   criteria {
-    # cloud_RoleName fijo a "Bitakora.ControlAsistencia.Projections" (constante
-    # NombreServicio, guardrail issue #263). No filtra trafico de smoke tests: ver
-    # CA-ADR-0009.
+    # operation_Id vacio es la senal distintiva de una excepcion nacida fuera de un
+    # request HTTP (verificado en el experimento del issue #412: las 88 del daemon y
+    # las 810 de Wolverine llevan operation_Id vacio; las excepciones de rutas HTTP,
+    # incluidas las de smoke tests, lo llevan poblado). TimeGenerated se proyecta
+    # explicito porque number_of_evaluation_periods > 1 requiere que la query exponga
+    # una columna de tiempo (Terraform Registry, azurerm_monitor_scheduled_query_rules_alert_v2,
+    # nota de `number_of_evaluation_periods`). El umbral vive en el bloque `criteria`
+    # (metric_measure_column + dimension), no embebido en la query con `| where N > 15`
+    # como en las alertas hermanas: el motor necesita evaluar los failing periods por
+    # cada valor de cloud_RoleName de forma independiente. Ver CA-ADR-0009.
     query = <<-QUERY
       exceptions
-      | where timestamp > ago(5m)
-      | where cloud_RoleName == "Bitakora.ControlAsistencia.Projections"
-      | summarize ExceptionCount = count()
-      | where ExceptionCount > 50
+      | where timestamp > ago(10m)
+      | where isempty(operation_Id)
+      | summarize N = count() by cloud_RoleName, TimeGenerated = bin(timestamp, 5m)
     QUERY
 
-    time_aggregation_method = "Count"
+    time_aggregation_method = "Maximum"
     operator                = "GreaterThan"
-    threshold               = 0
+    threshold               = 15
+    metric_measure_column   = "N"
+
+    dimension {
+      name     = "cloud_RoleName"
+      operator = "Include"
+      values   = ["*"]
+    }
 
     failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
+      minimum_failing_periods_to_trigger_alert = 2
+      number_of_evaluation_periods             = 2
     }
   }
 
