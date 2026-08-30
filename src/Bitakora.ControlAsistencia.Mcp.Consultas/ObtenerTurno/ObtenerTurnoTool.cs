@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.ObtenerTurno;
 // compacta ("06:00-10:00, descanso 12:00-13:00, sede: Norte") en vez del arbol
 // franjas/descansos/extras del endpoint. El 404 upstream se traduce a un mensaje en español: para
 // el asistente "no existe" es una respuesta util, no un error.
-public class ObtenerTurnoTool(ProgramacionApi api)
+public partial class ObtenerTurnoTool(ProgramacionApi api)
 {
     internal const string NombreTool = "obtener_turno";
 
@@ -34,7 +34,7 @@ public class ObtenerTurnoTool(ProgramacionApi api)
         var respuesta = await api.ObtenerTurno(id, ct);
 
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
-            return $"No existe un turno con id '{id}' en el catalogo.";
+            return string.Format(Mensajes.TurnoNoExiste, id);
 
         respuesta.EnsureSuccessStatusCode();
 

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="FechaInvalida" xml:space="preserve">
+    <value>'{0}' debe ser una fecha con formato yyyy-MM-dd; llego '{1}'.</value>
+  </data>
+  <data name="DesdePosteriorAHasta" xml:space="preserve">
+    <value>'desde' no puede ser posterior a 'hasta'.</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la consulta: {0}</value>
+  </data>
+  <data name="NotaRecorte" xml:space="preserve">
+    <value>El rango pedido excedia la cota del servidor y fue recortado al rango aplicado.</value>
+  </data>
+  <data name="NotaTruncado" xml:space="preserve">
+    <value>Mostrando {0} de {1} dias programados; refina el rango o los filtros.</value>
+  </data>
+</root>

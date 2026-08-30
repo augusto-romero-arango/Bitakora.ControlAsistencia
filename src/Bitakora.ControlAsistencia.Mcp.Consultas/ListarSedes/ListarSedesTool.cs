@@ -5,22 +5,21 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.ListarSedes;
 
-// Tool de solo lectura sobre GET sedes/fichas. Remodelado (issue #502): se podan el Id tecnico
+// Tool de solo lectura sobre GET sedes/fichas?activa=true (decisiones de revision del PR #512:
+// solo sedes activas, sin tope de truncado). Remodelado (issue #502): se podan el Id tecnico
 // (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el vocabulario del consumidor), los
-// dispositivos y el centro de costos, que no participan en la conversacion de programar turnos.
-// filtro_nombre: misma desviacion documentada que en listar_turnos.
+// dispositivos, el centro de costos y la bandera Activa (siempre true tras el filtro upstream:
+// seria ruido de tokens). filtro_nombre se conserva como economia de tokens, no como alcance.
 public class ListarSedesTool(SedesApi api)
 {
     internal const string NombreTool = "listar_sedes";
-    internal const int MaximoSedes = 50;
 
     [Function("ListarSedes")]
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Lista las sedes de la empresa: codigo, nombre, ciudad, direccion y si esta activa "
-            + "para asignacion. La lista se trunca cuando es larga; usa filtro_nombre para "
-            + "encontrar una sede especifica.")]
+            "Lista las sedes activas de la empresa: codigo, nombre, ciudad y direccion. "
+            + "Usa filtro_nombre para encontrar una sede especifica sin traer el catalogo completo.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -29,7 +28,7 @@ public class ListarSedesTool(SedesApi api)
         string? filtroNombre,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarFichas(ct);
+        var respuesta = await api.ListarFichasActivas(ct);
         respuesta.EnsureSuccessStatusCode();
 
         var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaSede>>(ct)
@@ -38,28 +37,21 @@ public class ListarSedesTool(SedesApi api)
         if (!string.IsNullOrWhiteSpace(filtroNombre))
             fichas = [.. fichas.Where(f => FiltroDeNombre.Contiene(f.Nombre, filtroNombre))];
 
-        var visibles = fichas.Take(MaximoSedes)
-            .Select(f => new SedeResumida(f.Codigo, f.Nombre, f.Ciudad, f.Direccion, f.Activa))
+        var sedes = fichas
+            .Select(f => new SedeResumida(f.Codigo, f.Nombre, f.Ciudad, f.Direccion))
             .ToList();
 
-        var nota = fichas.Count > visibles.Count
-            ? $"Mostrando {visibles.Count} de {fichas.Count} sedes; usa filtro_nombre para refinar."
-            : null;
-
-        return RespuestaJson.Serializar(new CatalogoDeSedes(fichas.Count, visibles.Count, nota, visibles));
+        return RespuestaJson.Serializar(new CatalogoDeSedes(sedes.Count, sedes));
     }
 }
 
 /// <summary>Contrato de respuesta de listar_sedes hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeSedes(
     int Total,
-    int Mostrando,
-    string? Nota,
     IReadOnlyList<SedeResumida> Sedes);
 
 public sealed record SedeResumida(
     string Codigo,
     string Nombre,
     string? Ciudad,
-    string? Direccion,
-    bool Activa);
+    string? Direccion);

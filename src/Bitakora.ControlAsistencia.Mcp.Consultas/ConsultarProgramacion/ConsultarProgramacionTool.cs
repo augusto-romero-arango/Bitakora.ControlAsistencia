@@ -16,7 +16,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.ConsultarProgramacion;
 // la forma canonica y traen la sede); las fechas invalidas y el rango invertido se responden como
 // mensaje sin llamar al dominio; el 422 upstream (rango que el propio dominio rechaza) se traduce
 // pasando su mensaje.
-public class ConsultarProgramacionTool(ControlHorasApi api)
+public partial class ConsultarProgramacionTool(ControlHorasApi api)
 {
     internal const string NombreTool = "consultar_programacion";
     internal const int MaximoDias = 50;
@@ -45,19 +45,19 @@ public class ConsultarProgramacionTool(ControlHorasApi api)
         CancellationToken ct)
     {
         if (!TryParseFecha(desde, out var desdeFecha))
-            return $"'desde' debe ser una fecha con formato yyyy-MM-dd; llego '{desde}'.";
+            return string.Format(Mensajes.FechaInvalida, "desde", desde);
 
         if (!TryParseFecha(hasta, out var hastaFecha))
-            return $"'hasta' debe ser una fecha con formato yyyy-MM-dd; llego '{hasta}'.";
+            return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
 
         if (desdeFecha > hastaFecha)
-            return "'desde' no puede ser posterior a 'hasta'.";
+            return Mensajes.DesdePosteriorAHasta;
 
         var respuesta = await api.ConsultarTurnosVigentes(
             desdeFecha, hastaFecha, Normalizar(codigoColaborador), Normalizar(sedeId), ct);
 
         if (respuesta.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest)
-            return $"El dominio rechazo la consulta: {await respuesta.Content.ReadAsStringAsync(ct)}";
+            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
 
         respuesta.EnsureSuccessStatusCode();
 
@@ -86,10 +86,10 @@ public class ConsultarProgramacionTool(ControlHorasApi api)
         var partes = new List<string>();
 
         if (lista.RangoRecortado)
-            partes.Add("El rango pedido excedia la cota del servidor y fue recortado al rango aplicado.");
+            partes.Add(Mensajes.NotaRecorte);
 
         if (lista.Turnos.Count > visibles)
-            partes.Add($"Mostrando {visibles} de {lista.Turnos.Count} dias programados; refina el rango o los filtros.");
+            partes.Add(string.Format(Mensajes.NotaTruncado, visibles, lista.Turnos.Count));
 
         return partes.Count > 0 ? string.Join(" ", partes) : null;
     }

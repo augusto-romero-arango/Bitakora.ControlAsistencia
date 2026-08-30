@@ -10,7 +10,10 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.ListarTurnos;
 // (ese detalle es de obtener_turno), y la lista se trunca con senal. filtro_nombre es una
 // desviacion documentada del alcance original ("sin parametros"): con un catalogo de miles el
 // truncado sin filtro dejaria turnos inalcanzables para el asistente.
-public class ListarTurnosTool(ProgramacionApi api)
+//
+// El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado
+// (ShouldDelete), asi que no hay estado que filtrar aqui (revision del PR #512).
+public partial class ListarTurnosTool(ProgramacionApi api)
 {
     internal const string NombreTool = "listar_turnos";
     internal const int MaximoTurnos = 50;
@@ -48,7 +51,7 @@ public class ListarTurnosTool(ProgramacionApi api)
             .ToList();
 
         var nota = fichas.Count > visibles.Count
-            ? $"Mostrando {visibles.Count} de {fichas.Count} turnos; usa filtro_nombre para refinar."
+            ? string.Format(Mensajes.NotaTruncado, visibles.Count, fichas.Count)
             : null;
 
         return RespuestaJson.Serializar(new CatalogoDeTurnos(fichas.Count, visibles.Count, nota, visibles));
