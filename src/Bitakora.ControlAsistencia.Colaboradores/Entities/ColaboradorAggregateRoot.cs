@@ -90,9 +90,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // no hereda las de la anterior (las etiquetas describen la relacion laboral vigente). Se vacia
     // incondicionalmente, tambien en la primera vinculacion (donde ya esta vacio): Apply nunca
     // ramifica por logica de negocio, solo asienta estado (MEF-ADR-0004 capa 4).
-    // Issue #520 (fase roja): e.CodigoSede ya viaja en el evento, pero esta linea aun NO lo asienta
-    // -- sigue limpiando incondicionalmente. Asentar e.CodigoSede es el cambio que pone la feature
-    // en verde.
+    // Issue #520: la vinculacion nace con su sede (o sin ella, null) -- asienta e.CodigoSede en vez
+    // de limpiar incondicionalmente. "Reingreso nace limpio" sigue siendo el default: cuando el
+    // comando no trae sede, e.CodigoSede ya es null (CA-4).
     public void Apply(VinculacionIniciada e)
     {
         _fechaTerminacionVinculacionAnterior = _fechaTerminacionVinculacionVigente;
@@ -100,7 +100,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
         _etiquetas.Clear();
-        _codigoSede = null;
+        _codigoSede = e.CodigoSede;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
