@@ -6,10 +6,10 @@
   "terraformStateStorage": "stcatfstatedev",
   "githubServicePrincipalName": "github-controlasistencias-ci",
   "appInsightsApp": "controlasistencias-dev-ai",
-  "domainLabels": ["asistencia", "programacion", "contracts", "control-horas"],
+  "domainLabels": ["asistencia", "programacion", "contracts", "control-horas", "colaboradores", "sedes"],
   "boundedContext": {
     "name": "ControlAsistencias",
-    "domains": ["programacion", "control-horas"]
+    "domains": ["programacion", "control-horas", "colaboradores", "sedes"]
   },
   "projections": {
     "enabled": true
