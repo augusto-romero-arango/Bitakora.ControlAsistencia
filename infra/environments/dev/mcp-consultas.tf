@@ -31,7 +31,8 @@ module "storage_mcp_consultas" {
 }
 
 # Mismo patron que los hermanos (Linux, SKU B1, always_on = true -- ver el comentario extendido
-# junto a module.service_plan_programacion en main.tf). Se descarto consumption para el piloto:
+# junto a module.service_plan_programacion en dominio-programacion.tf). Se descarto consumption
+# para el piloto:
 # las restricciones de la extension MCP por plan de hosting no estan declaradas en la doc de
 # Learn (gate no verificado, anotado en el issue) y B1 es la ruta ya probada por los hermanos.
 module "service_plan_mcp_consultas" {
