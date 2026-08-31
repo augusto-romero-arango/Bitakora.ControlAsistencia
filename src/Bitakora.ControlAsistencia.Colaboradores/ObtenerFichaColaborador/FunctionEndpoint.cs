@@ -68,6 +68,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 // estructura INTERNA de filtrado/indexacion del read model y jamas debe salir por la API (CA-6,
 // "el centinela jamas aparece en la API"). Vive en el namespace del endpoint, no en ReadModels: el
 // read model no conoce su presentacion HTTP.
+// Issue #519 CA-3: CodigoSede se copia tal cual desde la vista -- a diferencia de VigenteHasta no
+// hay centinela que ocultar, asi que no requiere traduccion. Va al final del record (opcional) para
+// no correr las posiciones de los llamadores existentes.
 public sealed record FichaColaboradorRespuesta(
     string Id,
     string NombreCompleto,
@@ -75,7 +78,8 @@ public sealed record FichaColaboradorRespuesta(
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
-    IReadOnlyDictionary<string, string> EtiquetasNormalizadas)
+    IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
+    string? CodigoSede = null)
 {
     // El centinela se lee de la propia vista (FichaColaborador.CentinelaVigenciaAbierta), nunca de
     // un literal repetido aqui: quien lo escribe es el worker, en otro proceso, y ReadModels es el
@@ -89,5 +93,6 @@ public sealed record FichaColaboradorRespuesta(
             ficha.VigenteDesde,
             ficha.VigenteHasta == FichaColaborador.CentinelaVigenciaAbierta ? null : ficha.VigenteHasta,
             ficha.Etiquetas,
-            ficha.EtiquetasNormalizadas);
+            ficha.EtiquetasNormalizadas,
+            ficha.CodigoSede);
 }

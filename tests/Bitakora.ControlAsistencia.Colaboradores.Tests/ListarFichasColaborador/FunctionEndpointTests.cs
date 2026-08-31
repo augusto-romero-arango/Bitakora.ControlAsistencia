@@ -159,6 +159,24 @@ public class FunctionEndpointTests
         unprocessable.Value.Should().BeOfType<string>();
     }
 
+    // Agregado en la revision (issue #519 CA-4): el filtro por sede es opcional -- ausente/null no
+    // filtra -- pero presente y en blanco no es una consulta legitima: ninguna ficha puede llevar
+    // sede en blanco (AsignarSedeBodyValidator exige NotEmpty del lado comando), asi que responder
+    // 200 con lista vacia esconderia un error del cliente. Misma rama 422 que una etiqueta invalida.
+    [Fact]
+    public async Task ListarFichasColaborador_Retorna422_CuandoElCodigoSedeDelFiltroEstaEnBlanco()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","codigoSede":"   "}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
+        unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+        unprocessable.Value.Should().BeOfType<string>();
+    }
+
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoElCursorTraeUnSoloCampo()
     {

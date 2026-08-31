@@ -79,7 +79,8 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         DateOnly VigenteDesde,
         DateOnly? VigenteHasta,
         IReadOnlyList<EtiquetaFichaSmoke> Etiquetas,
-        IReadOnlyDictionary<string, string> EtiquetasNormalizadas);
+        IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
+        string? CodigoSede = null);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
     // identidad del stream (y por lo tanto el Id de la ficha) es Identificacion.ToString()
@@ -107,7 +108,7 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         $"/api/colaboradores/fichas/{tipoIdentificacion}/{numero}";
 
     private static object PayloadRegistro(
-        string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador) => new
+        string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador, string? codigoSede = null) => new
         {
             tipoIdentificacion = TipoIdentificacionCc,
             numeroIdentificacion,
@@ -116,19 +117,49 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
             primerApellido = "Smoke",
             segundoApellido = (string?)null,
             codigoColaborador,
-            fechaInicio
+            fechaInicio,
+            codigoSede
         };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
+    // origina (#330), nunca sembrando el event store por fuera del API. codigoSede es opcional
+    // (issue #519): RegistrarColaborador lo reenvia tal cual al VinculacionIniciada inicial.
     private async Task RegistrarColaboradorAsync(
-        string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador, CancellationToken ct)
+        string numeroIdentificacion, DateOnly fechaInicio, string codigoColaborador, CancellationToken ct,
+        string? codigoSede = null)
     {
         var response = await _client.PostAsJsonAsync(
-            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigoColaborador), ct);
+            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigoColaborador, codigoSede), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
+    }
+
+    // Arrange (issue #519 CA-1): asigna/reasigna la sede vigente -- via el comando que la origina
+    // (#465), nunca sembrando el event store por fuera del API. Reemplazo completo: la misma ruta
+    // sirve para la primera asignacion y la reasignacion.
+    private async Task AsignarSedeAsync(string id, string codigoSede, CancellationToken ct)
+    {
+        var response = await _client.PutAsJsonAsync(
+            $"/api/colaboradores/{id}/sede", new { codigoSede }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que AsignarSede funcione");
+    }
+
+    // Arrange (issue #519 CA-2): reingreso -- vinculacion nueva sobre un colaborador cuya
+    // vinculacion anterior ya termino. codigoSede opcional: null es el caso "reingreso nace limpio"
+    // (#520), espejo de RegistrarColaborador.
+    private async Task IniciarVinculacionAsync(
+        string id, string codigoColaborador, DateOnly fechaInicio, CancellationToken ct, string? codigoSede = null)
+    {
+        var response = await _client.PostAsJsonAsync(
+            $"/api/colaboradores/{id}/vinculaciones",
+            new { codigoColaborador, fechaInicio, codigoSede },
+            ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
     // Arrange comun (CA-6, "INCLUYE no-vigentes"): cierra la vinculacion vigente -- via el comando
@@ -204,6 +235,8 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
             "el centinela de vigencia abierta (9999-12-31) jamas debe salir por la API (CA-6)");
         respuesta.Etiquetas.Should().BeEmpty();
         respuesta.EtiquetasNormalizadas.Should().BeEmpty();
+        respuesta.CodigoSede.Should().BeNull(
+            "issue #519 CA-2: RegistrarColaborador sin codigoSede deja la ficha sin sede");
     }
 
     // CA-2/CA-6 (INCLUYE no-vigentes): tras terminar la vinculacion, la consulta puntual sigue
@@ -232,6 +265,76 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
 
         respuesta.Id.Should().Be(ComputarStreamId(numeroIdentificacion));
         respuesta.VigenteHasta.Should().Be(fechaEfectiva);
+    }
+
+    // Issue #519 CA-2/CA-3: RegistrarColaborador con codigoSede materializa la ficha con esa sede
+    // desde la primera vinculacion -- Apply(VinculacionIniciada) asienta e.CodigoSede tal cual.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_ExponeCodigoSede_CuandoElRegistroIncluyeSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+
+        await RegistrarColaboradorAsync(
+            numeroIdentificacion, new DateOnly(2026, 4, 15), NuevoCodigoColaborador(), ct, codigoSede: "BOG");
+
+        var respuesta = await EsperarFichaAsync(
+            IdDeRuta(numeroIdentificacion), ct, hasta: ficha => ficha.CodigoSede is not null);
+
+        respuesta.CodigoSede.Should().Be("BOG");
+    }
+
+    // Issue #519 CA-1/CA-3: asignar sede sobre un colaborador que nace sin ella (Apply(SedeAsignada))
+    // y luego reasignarla verifica el reemplazo completo -- primera asignacion y reasignacion
+    // emiten el mismo evento (sin evento de retiro intermedio).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_ExponeCodigoSedeReemplazada_CuandoSeAsignaYLuegoSeReasignaLaSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = IdDeRuta(numeroIdentificacion);
+
+        await RegistrarColaboradorAsync(
+            numeroIdentificacion, new DateOnly(2026, 4, 20), NuevoCodigoColaborador(), ct);
+        await EsperarFichaAsync(id, ct);
+
+        await AsignarSedeAsync(id, "BOG", ct);
+        await EsperarFichaAsync(id, ct, hasta: ficha => ficha.CodigoSede == "BOG");
+
+        await AsignarSedeAsync(id, "MED", ct);
+        var respuesta = await EsperarFichaAsync(id, ct, hasta: ficha => ficha.CodigoSede == "MED");
+
+        respuesta.CodigoSede.Should().Be("MED");
+    }
+
+    // Issue #519 CA-2: "reingreso nace limpio" -- un reingreso (IniciarVinculacion) sin codigoSede
+    // LIMPIA la sede que traia la vinculacion anterior, espejo de Apply(VinculacionIniciada) del
+    // aggregate (#520). Se distingue del registro inicial (arriba) porque aqui SI hay una sede
+    // previa que perder.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_QuedaSinCodigoSede_CuandoElReingresoNoTraeSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = IdDeRuta(numeroIdentificacion);
+        var codigoColaborador = NuevoCodigoColaborador();
+        var fechaReingreso = new DateOnly(2026, 7, 1);
+
+        await RegistrarColaboradorAsync(
+            numeroIdentificacion, new DateOnly(2026, 4, 25), codigoColaborador, ct, codigoSede: "BOG");
+        await EsperarFichaAsync(id, ct, hasta: ficha => ficha.CodigoSede is not null);
+
+        await TerminarVinculacionAsync(id, codigoColaborador, new DateOnly(2026, 6, 30), ct);
+        await EsperarFichaAsync(id, ct, hasta: ficha => ficha.VigenteHasta is not null);
+
+        await IniciarVinculacionAsync(id, NuevoCodigoColaborador(), fechaReingreso, ct);
+        var respuesta = await EsperarFichaAsync(id, ct, hasta: ficha => ficha.VigenteDesde == fechaReingreso);
+
+        respuesta.CodigoSede.Should().BeNull(
+            "el reingreso sin codigoSede debe limpiar la sede de la vinculacion anterior");
     }
 
     // CA-4 (issue #386): el {id} en minusculas resuelve la MISMA ficha que su forma canonica --

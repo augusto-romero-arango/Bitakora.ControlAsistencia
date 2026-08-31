@@ -74,7 +74,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         DateOnly VigenteDesde,
         DateOnly? VigenteHasta,
         IReadOnlyList<EtiquetaFichaSmoke> Etiquetas,
-        IReadOnlyDictionary<string, string> EtiquetasNormalizadas);
+        IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
+        string? CodigoSede = null);
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
@@ -100,12 +101,14 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
     // posiciona el listado exactamente en cursorNombre (con cursorId vacio, que ordena antes que
     // cualquier Id real no vacio), aislando la fila de interes del resto del dataset acumulado.
     private static object FiltroPorCursor(
-        DateOnly fechaReferencia, string cursorNombre, string cursorId, int take = 1) => new
+        DateOnly fechaReferencia, string cursorNombre, string cursorId, int take = 1,
+        string? codigoSede = null) => new
         {
             fechaReferencia,
             etiquetas = (object?)null,
             cursor = new { nombreCompleto = cursorNombre, id = cursorId },
-            take
+            take,
+            codigoSede
         };
 
     // Filtro AND por etiquetas, sin cursor (mecanismo de aislamiento (2) del encabezado: al menos
@@ -119,11 +122,27 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             take = 50
         };
 
+    // Filtro combinado (issue #519 CA-4): una etiqueta discriminadora de la corrida MAS la sede
+    // opcional -- ejercita el AND real entre el containment JSONB de etiquetas y la igualdad plana
+    // por sede. Con codigoSede null el filtro es exactamente el de antes de #519 (no filtra por
+    // sede), que es la segunda mitad de CA-4.
+    private static object FiltroPorEtiquetaYSede(
+        DateOnly fechaReferencia, (string Categoria, string Valor) etiqueta, string? codigoSede) => new
+        {
+            fechaReferencia,
+            etiquetas = new[] { new { categoria = etiqueta.Categoria, valor = etiqueta.Valor } },
+            cursor = (object?)null,
+            take = 50,
+            codigoSede
+        };
+
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
+    // origina (#330), nunca sembrando el event store por fuera del API. codigoSede es opcional
+    // (issue #519): RegistrarColaborador lo reenvia tal cual al VinculacionIniciada inicial, que la
+    // proyeccion asienta en FichaColaborador.CodigoSede.
     private async Task RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, string primerApellido,
-        string codigoColaborador, CancellationToken ct)
+        string codigoColaborador, CancellationToken ct, string? codigoSede = null)
     {
         var response = await _client.PostAsJsonAsync(RutaRegistrar, new
         {
@@ -134,7 +153,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             primerApellido,
             segundoApellido = (string?)null,
             codigoColaborador,
-            fechaInicio
+            fechaInicio,
+            codigoSede
         }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
@@ -510,4 +530,100 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             JsonOptions, cancellationToken: ct);
         (lista ?? []).Should().BeEmpty();
     }
+
+    // Issue #519 CA-4: el filtro por sede es un Where mas del mismo AND -- con la MISMA etiqueta
+    // discriminadora de la corrida, agregar la sede deja solo al colaborador de esa sede; quitarla
+    // devuelve a los dos (el comportamiento previo a #519 no cambia). El codigo de sede lleva un
+    // Guid embebido: nadie mas, en ninguna corrida pasada o futura, puede tener esa sede exacta.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasColaborador_DevuelveSoloLasFichasDeEsaSede_CuandoElFiltroTraeCodigoSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fechaReferencia = new DateOnly(2026, 5, 15);
+        var categoriaCorrida = "SmokeCorrida519";
+        var corridaId = Guid.CreateVersion7().ToString("N");
+        var codigoSede = $"SEDE-519-{Guid.CreateVersion7():N}";
+
+        var numeroConSede = NuevoNumeroIdentificacion();
+        var numeroSinSede = NuevoNumeroIdentificacion();
+        var idConSede = ComputarStreamId(numeroConSede);
+        var idSinSede = ComputarStreamId(numeroSinSede);
+
+        await RegistrarColaboradorAsync(
+            numeroConSede, new DateOnly(2026, 1, 1), NuevoApellidoUnico("ConSede519"),
+            NuevoCodigoColaborador(), ct, codigoSede);
+        await RegistrarColaboradorAsync(
+            numeroSinSede, new DateOnly(2026, 1, 1), NuevoApellidoUnico("SinSede519"),
+            NuevoCodigoColaborador(), ct);
+        await AsignarEtiquetaAsync(numeroConSede, categoriaCorrida, corridaId, ct);
+        await AsignarEtiquetaAsync(numeroSinSede, categoriaCorrida, corridaId, ct);
+
+        // Sin filtro de sede: los dos colaboradores de esta corrida (el comportamiento de antes de
+        // #519). Es ademas el punto de sincronizacion -- confirma que la proyeccion ya materializo
+        // ambas fichas antes de afirmar sobre la exclusion de abajo.
+        var sinFiltroDeSede = await ConsultarHastaQueAsync(
+            FiltroPorEtiquetaYSede(fechaReferencia, (categoriaCorrida, corridaId), codigoSede: null),
+            lista => lista.Any(f => f.Id == idConSede) && lista.Any(f => f.Id == idSinSede),
+            ct);
+
+        sinFiltroDeSede.Should().HaveCount(2, "sin CodigoSede el filtro no cambia respecto de #373");
+
+        // Con filtro de sede: solo el colaborador de esa sede. La sincronizacion ya la garantizo el
+        // assert anterior, asi que un resultado incompleto aqui seria un fallo real del filtro.
+        var conFiltroDeSede = await ConsultarHastaQueAsync(
+            FiltroPorEtiquetaYSede(fechaReferencia, (categoriaCorrida, corridaId), codigoSede),
+            lista => lista.Any(f => f.Id == idConSede),
+            ct);
+
+        conFiltroDeSede.Should().ContainSingle(f => f.Id == idConSede,
+            "el AND entre la etiqueta de la corrida y la sede deberia dejar solo al colaborador de esa sede");
+        conFiltroDeSede.Should().NotContain(f => f.Id == idSinSede,
+            "el colaborador sin sede no puede colarse en un filtro por sede");
+        conFiltroDeSede.Single().CodigoSede.Should().Be(codigoSede,
+            "la respuesta expone el codigo de sede de la ficha (issue #519 CA-3)");
+    }
+
+    // Issue #519 CA-5: el filtro por sede convive con el cursor keyset y el Take sin alterar el
+    // contrato de paginacion -- dos colaboradores de la MISMA sede unica se recorren de a uno, en
+    // orden (NombreCompleto, Id), sin saltar ni repetir.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasColaborador_PaginaDentroDelFiltroPorSede_CuandoSeCombinaConCursorYTake()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fechaReferencia = new DateOnly(2026, 5, 20);
+        var codigoSede = $"SEDE-519-{Guid.CreateVersion7():N}";
+        var apellidoBase = NuevoApellidoUnico("PaginacionSede519");
+        var apellidoA = $"{apellidoBase}-A";
+        var apellidoB = $"{apellidoBase}-B";
+        var nombreA = NombreCompletoDe(apellidoA);
+
+        var numeroA = NuevoNumeroIdentificacion();
+        var numeroB = NuevoNumeroIdentificacion();
+        var idA = ComputarStreamId(numeroA);
+        var idB = ComputarStreamId(numeroB);
+
+        await RegistrarColaboradorAsync(
+            numeroA, new DateOnly(2026, 1, 1), apellidoA, NuevoCodigoColaborador(), ct, codigoSede);
+        await RegistrarColaboradorAsync(
+            numeroB, new DateOnly(2026, 1, 1), apellidoB, NuevoCodigoColaborador(), ct, codigoSede);
+
+        var pagina1 = await ConsultarHastaQueAsync(
+            FiltroPorCursor(fechaReferencia, nombreA, cursorId: "", take: 1, codigoSede: codigoSede),
+            lista => lista.Any(f => f.Id == idA),
+            ct);
+
+        pagina1.Should().ContainSingle(f => f.Id == idA,
+            "el Take: 1 sigue acotando la pagina cuando el filtro por sede esta presente");
+
+        var pagina2 = await ConsultarHastaQueAsync(
+            FiltroPorCursor(fechaReferencia, nombreA, cursorId: idA, take: 1, codigoSede: codigoSede),
+            lista => lista.Any(f => f.Id == idB),
+            ct);
+
+        pagina2.Should().ContainSingle(f => f.Id == idB,
+            "el cursor (NombreCompleto, Id) de A deberia continuar en B DENTRO del filtro por sede, sin saltar ni repetir");
+    }
+
 }

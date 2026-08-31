@@ -49,6 +49,15 @@ public sealed record EtiquetaFicha(string Categoria, string Valor);
 /// hermano de listado; Etiquetas son las formas ORIGINALES para presentacion. Ambas se mantienen en
 /// paralelo (upsert/retiro por categoria normalizada, un valor por categoria -- espejo de la
 /// invariante que #355 fijo en el aggregate).
+///
+/// CodigoSede (issue #519) refleja la sede de la VINCULACION vigente -- solo el codigo, referencia
+/// pura al maestro de Sedes (decision de refinamiento, opcion a): el nombre lo resuelve el
+/// consumidor contra FichaSede, un rename de sede no toca esta ficha. null = la vinculacion vigente
+/// no tiene sede asignada. Se asienta desde SedeAsignada (reemplazo completo, primera asignacion y
+/// reasignacion) y desde VinculacionIniciada.CodigoSede (un reingreso sin sede LIMPIA el valor
+/// anterior -- "reingreso nace limpio", espejo de ColaboradorAggregateRoot.Apply(VinculacionIniciada),
+/// #520). Parametro opcional al final del record para no romper la posicion de los constructores
+/// posicionales existentes (mismo criterio que VinculacionIniciada.CodigoSede).
 /// </remarks>
 public sealed record FichaColaborador(
     string Id,
@@ -57,7 +66,8 @@ public sealed record FichaColaborador(
     DateOnly VigenteDesde,
     DateOnly VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
-    IReadOnlyDictionary<string, string> EtiquetasNormalizadas)
+    IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
+    string? CodigoSede = null)
 {
     /// <summary>
     /// Valor de <see cref="VigenteHasta"/> que significa "vinculacion abierta" (sin terminacion

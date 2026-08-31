@@ -55,6 +55,10 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
     // estructuras de etiquetas vaciadas -- "reingreso nace limpio" (espejo de Apply(VinculacionIniciada)
     // en ColaboradorAggregateRoot, #355 CA-6). En el registro inicial (mismo commit que
     // ColaboradorRegistrado) el vaciado es inocuo: la ficha todavia no tiene etiquetas.
+    // Issue #519 CA-2: e.CodigoSede se asienta tal cual, sin ramificar -- null deja la ficha sin
+    // sede (reingreso nace limpio, espejo de ColaboradorAggregateRoot.Apply(VinculacionIniciada),
+    // #520). La sede tampoco se hereda entre vinculaciones: es un reemplazo incondicional, igual
+    // que el resto de los campos de este Apply.
     public static FichaColaborador Apply(VinculacionIniciada e, FichaColaborador vista) =>
         vista with
         {
@@ -62,7 +66,8 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
             VigenteDesde = e.FechaInicio,
             VigenteHasta = FichaColaborador.CentinelaVigenciaAbierta,
             Etiquetas = [],
-            EtiquetasNormalizadas = new Dictionary<string, string>()
+            EtiquetasNormalizadas = new Dictionary<string, string>(),
+            CodigoSede = e.CodigoSede
         };
 
     // CA-2 (primera mitad): VigenteHasta = FechaEfectiva.
@@ -114,4 +119,10 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
 
         return vista with { Etiquetas = etiquetas, EtiquetasNormalizadas = normalizadas };
     }
+
+    // Issue #519 CA-1: SedeAsignada representa siempre el reemplazo completo de la sede -- primera
+    // asignacion y reasignacion emiten el mismo evento, y no hay evento de retiro (DomainEvents/
+    // SedeAsignada.cs).
+    public static FichaColaborador Apply(SedeAsignada e, FichaColaborador vista) =>
+        vista with { CodigoSede = e.CodigoSede };
 }
