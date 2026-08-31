@@ -21,8 +21,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
 // (codigo + fecha, la identificacion viaja en la ruta), decision heredada de #350.
 // FechaInicio es REQUERIDA (DateOnly, sin default del servidor) -- doctrina bitemporal del BC: el
 // tiempo de los hechos viene del cliente, nunca del reloj del servidor (CA-1).
-// Issue #520: CodigoSede OPCIONAL -- mismo campo que IniciarVinculacionBody, se compone desde alli
-// en el FunctionEndpoint. null = sin sede.
 public record IniciarVinculacion(
     string TipoIdentificacion,
     string NumeroIdentificacion,

@@ -90,9 +90,8 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // no hereda las de la anterior (las etiquetas describen la relacion laboral vigente). Se vacia
     // incondicionalmente, tambien en la primera vinculacion (donde ya esta vacio): Apply nunca
     // ramifica por logica de negocio, solo asienta estado (MEF-ADR-0004 capa 4).
-    // Issue #520: la vinculacion nace con su sede (o sin ella, null) -- asienta e.CodigoSede en vez
-    // de limpiar incondicionalmente. "Reingreso nace limpio" sigue siendo el default: cuando el
-    // comando no trae sede, e.CodigoSede ya es null (CA-4).
+    // La sede tampoco se hereda: se asienta la del evento sin ramificar (null cuando la vinculacion
+    // nace sin sede, que es exactamente la limpieza que exige "reingreso nace limpio").
     public void Apply(VinculacionIniciada e)
     {
         _fechaTerminacionVinculacionAnterior = _fechaTerminacionVinculacionVigente;
@@ -182,8 +181,6 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
     // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
-    // Issue #520: codigoSede opcional, se pasa tal cual al evento (null = sin sede, "reingreso nace
-    // limpio" sigue siendo el default).
     internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio, string? codigoSede)
     {
         if (_fechaTerminacionVinculacionVigente is null)
@@ -373,7 +370,6 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
-    // Issue #520: codigoSede opcional, se pasa tal cual a VinculacionIniciada (null = sin sede).
     internal static ColaboradorAggregateRoot Registrar(
         Identificacion identificacion, NombreColaborador nombre, string codigo, DateOnly fechaInicio,
         string? codigoSede)

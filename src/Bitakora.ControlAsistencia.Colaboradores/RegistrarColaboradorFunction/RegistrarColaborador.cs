@@ -9,8 +9,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 // FechaInicio es REQUERIDA (DateOnly, sin default del servidor) -- doctrina bitemporal del BC: el
 // tiempo de los hechos viene del cliente, nunca del reloj del servidor (la migracion trae fechas
 // pasadas).
-// Issue #520: CodigoSede OPCIONAL -- si ya se conoce la sede al ingreso, evita una segunda peticion
-// a AsignarSede. null = sin sede (mismo default que antes de este issue).
 public record RegistrarColaborador(
     string TipoIdentificacion,
     string NumeroIdentificacion,

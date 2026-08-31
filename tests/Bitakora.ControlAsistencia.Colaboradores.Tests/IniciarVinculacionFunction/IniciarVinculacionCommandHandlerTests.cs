@@ -36,7 +36,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     private static readonly DateOnly FechaInicioReingresoValida =
         FechaEfectivaTerminacionOriginal.AddDays(1);
 
-    // Issue #520: CodigoSede opcional en el body del reingreso.
     private const string CodigoSedeAnterior = "MED";
     private const string CodigoSedeNueva = "BOG";
 
@@ -263,6 +262,44 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
 
         Then(StreamIdEsperado, new VinculacionIniciada(CodigoReingreso, FechaInicioReingresoValida, null));
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
+    }
+
+    // CA-7: la sede en el comando no agrega ni quita razones de rechazo -- vinculacion abierta
+    // sigue en 409 sin eventos nuevos, y la sede vigente NO absorbe la del comando rechazado.
+    [Fact]
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoLaVinculacionVigenteEstaAbiertaYElComandoTraeSede()
+    {
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaOriginal(),
+            new SedeAsignada(CodigoSedeAnterior));
+
+        var act = async () => await WhenAsync(ComandoValido() with { CodigoSede = CodigoSedeNueva });
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeAnterior);
+    }
+
+    // CA-7 (segunda razon de rechazo): el solape con la vinculacion anterior sigue en 409 aunque el
+    // comando traiga sede, y la sede vigente queda intacta.
+    [Fact]
+    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaSolapaYElComandoTraeSede()
+    {
+        DadoUnColaboradorConVinculacionTerminadaYSedeAsignada(
+            FechaEfectivaTerminacionOriginal, CodigoSedeAnterior);
+
+        var act = async () => await WhenAsync(ComandoValido() with
+        {
+            FechaInicio = FechaEfectivaTerminacionOriginal,
+            CodigoSede = CodigoSedeNueva
+        });
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
+        Then(StreamIdEsperado);
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeAnterior);
     }
 
     // CA-3: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event

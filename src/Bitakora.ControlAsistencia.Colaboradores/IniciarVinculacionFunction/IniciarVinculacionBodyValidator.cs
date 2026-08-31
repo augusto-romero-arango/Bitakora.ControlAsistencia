@@ -27,8 +27,6 @@ public class IniciarVinculacionBodyValidator : AbstractValidator<IniciarVinculac
         // (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).
         RuleFor(x => x.FechaInicio).NotEqual(default(DateOnly));
 
-        // CA-6: CodigoSede es opcional -- ausente (null) es valido; presente exige un valor no
-        // vacio/blanco (NotEmpty tambien rechaza whitespace-only en FluentValidation).
         RuleFor(x => x.CodigoSede).NotEmpty().When(x => x.CodigoSede is not null);
     }
 }

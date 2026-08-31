@@ -98,12 +98,10 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             fechaInicio
         };
 
-    // Issue #520: variante con CodigoSede en el body -- tipo anonimo distinto de PayloadRegistro a
-    // proposito, para que CA-2 (compatibilidad) siga ejercitando el body SIN el campo declarado, no
-    // uno con el campo en null explicito.
+    // Tipo anonimo separado de PayloadRegistro a proposito: CA-2 exige un body donde el campo
+    // codigoSede este AUSENTE, no presente en null.
     private static object PayloadRegistroConSede(
-        string numeroIdentificacion, DateOnly fechaInicio, string? codigoSede,
-        string? codigoColaborador = null) => new
+        string numeroIdentificacion, DateOnly fechaInicio, string? codigoSede) => new
         {
             tipoIdentificacion = TipoIdentificacionCc,
             numeroIdentificacion,
@@ -111,7 +109,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             segundoNombre = (string?)null,
             primerApellido = "Smoke",
             segundoApellido = (string?)null,
-            codigoColaborador = codigoColaborador ?? NuevoCodigoColaborador(),
+            codigoColaborador = NuevoCodigoColaborador(),
             fechaInicio,
             codigoSede
         };

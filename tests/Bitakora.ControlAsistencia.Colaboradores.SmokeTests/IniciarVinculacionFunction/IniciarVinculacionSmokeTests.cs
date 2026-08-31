@@ -118,16 +118,15 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         fechaInicio
     };
 
-    // Issue #520: variante con CodigoSede en el body -- tipo anonimo distinto de
-    // PayloadIniciarVinculacion a proposito, para que CA-4 (compatibilidad) siga ejercitando el body
-    // SIN el campo declarado, no uno con el campo en null explicito.
+    // Tipo anonimo separado de PayloadIniciarVinculacion a proposito: CA-4 exige un body donde el
+    // campo codigoSede este AUSENTE, no presente en null.
     private static object PayloadIniciarVinculacionConSede(
         string codigoColaborador, DateOnly fechaInicio, string? codigoSede) => new
-    {
-        codigoColaborador,
-        fechaInicio,
-        codigoSede
-    };
+        {
+            codigoColaborador,
+            fechaInicio,
+            codigoSede
+        };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
     // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
