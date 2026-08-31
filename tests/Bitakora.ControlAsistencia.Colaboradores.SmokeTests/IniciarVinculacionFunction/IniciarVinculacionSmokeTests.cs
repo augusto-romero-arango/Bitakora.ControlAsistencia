@@ -46,6 +46,13 @@
 // Issue #387 (CodigoColaborador URL-safe, invariante heredada sin cambios): CA-1 con caracteres
 // unreserved no alfanumericos (. _ ~) -> 202; CA-2/CA-3 con ":" (separador de accion reservado,
 // MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
+//
+// Issue #520 (CodigoSede opcional en el reingreso): la vinculacion nueva nace con su sede -- viaja
+// DENTRO de VinculacionIniciada, nunca como un SedeAsignada adicional en el commit. CA-3 (con
+// CodigoSede): 202 y VinculacionIniciada.CodigoSede queda asentado con la sede nueva, aunque la
+// vinculacion anterior tuviera otra. CA-4 (sin el campo): 202 y CodigoSede null -- "reingreso nace
+// limpio" sigue siendo el default. CA-6: CodigoSede presente pero vacio/blanco -> 400. CA-7: los
+// rechazos existentes (VinculacionAbierta) se conservan intactos aunque el body traiga sede.
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -111,6 +118,17 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         fechaInicio
     };
 
+    // Issue #520: variante con CodigoSede en el body -- tipo anonimo distinto de
+    // PayloadIniciarVinculacion a proposito, para que CA-4 (compatibilidad) siga ejercitando el body
+    // SIN el campo declarado, no uno con el campo en null explicito.
+    private static object PayloadIniciarVinculacionConSede(
+        string codigoColaborador, DateOnly fechaInicio, string? codigoSede) => new
+    {
+        codigoColaborador,
+        fechaInicio,
+        codigoSede
+    };
+
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
     // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
     // vinculacion inicial (== CodigoColaborador del comando, verificado en
@@ -150,6 +168,13 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         _client.PostAsJsonAsync(
             $"/api/colaboradores/{id}/vinculaciones",
             PayloadIniciarVinculacion(codigoColaborador, fechaInicio),
+            ct);
+
+    private Task<HttpResponseMessage> IniciarVinculacionConSedeAsync(
+        string id, string codigoColaborador, DateOnly fechaInicio, string? codigoSede, CancellationToken ct) =>
+        _client.PostAsJsonAsync(
+            $"/api/colaboradores/{id}/vinculaciones",
+            PayloadIniciarVinculacionConSede(codigoColaborador, fechaInicio, codigoSede),
             ct);
 
     [Fact]
@@ -537,5 +562,118 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             IdDeRuta(NuevoNumeroIdentificacion()), codigoColaborador, new DateOnly(2025, 3, 1), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-3 (#520): reingreso CON CodigoSede -> 202 y VinculacionIniciada.CodigoSede queda asentado
+    // con la sede nueva, aunque la vinculacion anterior tuviera otra (no se verifica aqui la sede
+    // anterior: el dominio no expone una vista de la sede vigente, ver AsignarSedeSmokeTests).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task IniciarVinculacion_Retorna202YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var fechaEfectivaTerminacion = new DateOnly(2026, 1, 30);
+        var fechaNuevaVinculacion = new DateOnly(2026, 2, 1);
+        var codigoNuevo = NuevoCodigoColaborador();
+
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
+
+        var response = await IniciarVinculacionConSedeAsync(
+            IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, codigoSede: "MED", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaColaboradores, streamId, TipoEventoVinculacionIniciada,
+            campoJson: "Codigo", valorJson: codigoNuevo, Timeout);
+
+        eventoPersistido.GetProperty("CodigoSede").GetString().Should().Be("MED");
+    }
+
+    // CA-4 (#520): reingreso SIN CodigoSede (body actual, sin cambios) -> 202 y CodigoSede null --
+    // "reingreso nace limpio" sigue siendo el default.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task IniciarVinculacion_Retorna202YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var fechaEfectivaTerminacion = new DateOnly(2026, 2, 27);
+        var fechaNuevaVinculacion = new DateOnly(2026, 3, 1);
+        var codigoNuevo = NuevoCodigoColaborador();
+
+        var codigoVigente = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 2, 1), ct);
+        await TerminarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoVigente, fechaEfectivaTerminacion, ct);
+
+        var response = await IniciarVinculacionAsync(
+            IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaColaboradores, streamId, TipoEventoVinculacionIniciada,
+            campoJson: "Codigo", valorJson: codigoNuevo, Timeout);
+
+        eventoPersistido.GetProperty("CodigoSede").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    // CA-6: CodigoSede presente pero vacio -> 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task IniciarVinculacion_Retorna400_CuandoCodigoSedeEsVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await IniciarVinculacionConSedeAsync(
+            IdDeRuta(NuevoNumeroIdentificacion()), NuevoCodigoColaborador(), new DateOnly(2025, 3, 1),
+            codigoSede: "", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-6: CodigoSede presente pero blanco (solo espacios) -> 400 -- NotEmpty tambien rechaza
+    // whitespace-only en FluentValidation.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task IniciarVinculacion_Retorna400_CuandoCodigoSedeEsBlanco()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await IniciarVinculacionConSedeAsync(
+            IdDeRuta(NuevoNumeroIdentificacion()), NuevoCodigoColaborador(), new DateOnly(2025, 3, 1),
+            codigoSede: "   ", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-7: los rechazos existentes se conservan intactos aunque el body traiga sede -- regresion
+    // directa de que la sede opcional no agrega ni quita razones de rechazo (mismo escenario que
+    // IniciarVinculacion_Retorna409_CuandoVinculacionNuncaFueTerminada, con CodigoSede en el body).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task IniciarVinculacion_Retorna409_CuandoVinculacionNuncaFueTerminadaYBodyTraeCodigoSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+
+        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2025, 3, 1), ct);
+
+        var response = await IniciarVinculacionConSedeAsync(
+            IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), new DateOnly(2025, 4, 1),
+            codigoSede: "BOG", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }
