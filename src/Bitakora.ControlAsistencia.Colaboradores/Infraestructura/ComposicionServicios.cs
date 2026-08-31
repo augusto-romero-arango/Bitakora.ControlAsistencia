@@ -68,13 +68,10 @@ public static class ComposicionServicios
             });
 
         services.AgregarMartenEventStore();
-        // Issue #219: Cosmos.Event* 2.x dejo de auto-registrar un ITenantResolver por defecto (se
-        // movio a Cosmos.MultiTenancy.CritterStack), pero los routers/senders de Wolverine lo
-        // siguen exigiendo por constructor. La infraestructura de este proyecto es multi-tenant
-        // conjoined (CA-ADR-0027) pero opera con un unico tenant logico: se registra un resolver de
-        // valores fijos en vez de los resolvers header-based de 2.x.
-        // Ver docs/adr/ca-adr-0027-tenancy-conjoined-con-tenant-unico.md.
-        services.AddScoped<ITenantResolver, TenantResolverFijo>();
+        // TODO(tenancy etapa b): resolver mono-tenant transitorio (MEF-ADR-0028 seccion 2,
+        // CA-ADR-0027). Al instalar autenticacion con TenantContext, este registro pasa a
+        // services.AgregarTenantResolverHibrido().
+        services.AddScoped<ITenantResolver, TenantResolverMonoTenantPorDefecto>();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
         // Nota: AgregarWolverinePrivateEventRouter() no se registra todavia -- el dominio no
