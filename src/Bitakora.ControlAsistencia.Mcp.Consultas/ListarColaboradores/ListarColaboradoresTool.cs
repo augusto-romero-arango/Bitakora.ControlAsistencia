@@ -8,9 +8,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.ListarColaboradores;
 
 // Tool de solo lectura sobre QUERY colaboradores/fichas (listado) y GET colaboradores/fichas/{id}
-// (consulta puntual) -- issue #530, cierre de la cadena colaborador+sede que #502 dejo fuera de
-// alcance. Tool consolidada (decision de refinamiento del issue): identificacion? decide la ruta,
-// no hay tool separada para el caso puntual.
+// (consulta puntual) -- issue #530. Tool consolidada (decision de refinamiento del issue):
+// identificacion? decide la ruta, no hay tool separada para el caso puntual.
 //
 // Sin enriquecimiento del nombre de sede (MEF-ADR-0018): codigoSede viaja tal cual. TimeProvider
 // resuelve fecha_referencia a "hoy" en America/Bogota cuando el parametro llega ausente -- el back
@@ -27,10 +26,12 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Lista los colaboradores vinculados: identificacion, nombre, sede y etiquetas de cada "
-            + "uno. Filtra opcionalmente por sede o por etiquetas (pares categoria:valor, AND entre "
-            + "ellos). Si envias identificacion consultas la ficha puntual de ese colaborador y los "
-            + "demas filtros no aplican. Sin fecha_referencia se usa el dia de hoy.")]
+            "Lista los colaboradores vinculados: identificacion, codigo, nombre, sede y etiquetas "
+            + "de cada uno. Filtra opcionalmente por sede o por etiquetas (pares categoria:valor, "
+            + "AND entre ellos). Si envias identificacion consultas la ficha puntual de ese "
+            + "colaborador y los demas filtros no aplican. Sin fecha_referencia se usa el dia de "
+            + "hoy. Para ver que turno le rige a alguno, pasa su codigoColaborador a "
+            + "consultar_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -52,15 +53,19 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         string? fechaReferencia,
         CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(identificacion))
-            return await ConsultarPuntual(identificacion, ct);
+        if (Normalizar(identificacion) is { } identificacionPedida)
+            return await ConsultarPuntual(identificacionPedida, ct);
 
         var (fecha, error) = ResolverFecha(fechaReferencia);
         if (error is not null)
             return error;
 
         var respuesta = await api.ListarFichas(
-            fecha, sede, ParsearEtiquetas(etiquetas), TakeUpstream, ct);
+            fecha, Normalizar(sede), ParsearEtiquetas(etiquetas), TakeUpstream, ct);
+
+        if (await TraducirRechazo(respuesta, ct) is { } rechazo)
+            return rechazo;
+
         respuesta.EnsureSuccessStatusCode();
 
         var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaColaborador>>(ct)
@@ -82,6 +87,9 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
             return string.Format(Mensajes.ColaboradorNoExiste, identificacion);
 
+        if (await TraducirRechazo(respuesta, ct) is { } rechazo)
+            return rechazo;
+
         respuesta.EnsureSuccessStatusCode();
 
         var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaColaborador>(ct))!;
@@ -89,40 +97,54 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         return RespuestaJson.Serializar(Remodelar(ficha));
     }
 
+    // Lo que el dominio rechaza por la forma del dato (una identificacion sin el prefijo de tipo,
+    // un filtro en blanco) es una respuesta util para el asistente, no una excepcion: viaja como
+    // mensaje con la razon del dominio -- mismo criterio que ConsultarProgramacionTool.
+    private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
+        respuesta.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity
+            ? string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct))
+            : null;
+
     private (DateOnly Fecha, string? Error) ResolverFecha(string? fechaReferencia)
     {
         if (string.IsNullOrWhiteSpace(fechaReferencia))
             return (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime), null);
 
         return DateOnly.TryParseExact(
-            fechaReferencia, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha)
+            fechaReferencia.Trim(), FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha)
             ? (fecha, null)
             : (default, string.Format(Mensajes.FechaInvalida, fechaReferencia));
     }
 
+    // Un par mal escrito por el asistente (sin ':', o con categoria/valor vacios) se descarta en vez
+    // de viajar al dominio, que lo responderia con 422 y perderia los pares que si eran validos.
     private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
         string.IsNullOrWhiteSpace(etiquetas)
             ? []
             : [.. etiquetas
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(par => par.Split(':', 2))
-                .Where(partes => partes.Length == 2)
+                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
+                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
                 .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 
     private static ColaboradorFicha Remodelar(FichaColaborador ficha)
     {
-        var etiquetas = ficha.EtiquetasNormalizadas.Count > 0
-            ? (IReadOnlyList<string>)[.. ficha.EtiquetasNormalizadas.Select(par => $"{par.Key}:{par.Value}")]
+        IReadOnlyList<string>? etiquetas = ficha.Etiquetas.Count > 0
+            ? [.. ficha.Etiquetas.Select(e => $"{e.Categoria}:{e.Valor}")]
             : null;
 
         return new ColaboradorFicha(
             ficha.Id,
             ficha.NombreCompleto.Trim(),
+            Normalizar(ficha.CodigoColaborador),
             ficha.CodigoSede,
             ficha.VigenteDesde,
             ficha.VigenteHasta,
             etiquetas);
     }
+
+    private static string? Normalizar(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
 }
 
 /// <summary>Contrato de respuesta de listar_colaboradores hacia el asistente (remodelado, issue #530).</summary>
@@ -133,12 +155,16 @@ public sealed record CatalogoDeColaboradores(
     IReadOnlyList<ColaboradorFicha> Colaboradores);
 
 /// <summary>
-/// Colaborador remodelado token-eficiente: sin EtiquetasNormalizadas ni centinela de vigencia
-/// abierta (VigenteHasta null = vinculacion abierta), codigoSede tal cual (sin nombre resuelto).
+/// Colaborador remodelado token-eficiente: etiquetas en su forma original de presentacion (nunca
+/// la normalizada, que es estructura interna de filtrado), sin centinela de vigencia abierta
+/// (VigenteHasta ausente = vinculacion abierta) y codigoSede tal cual, sin nombre resuelto.
+/// CodigoColaborador viaja porque es la llave con que consultar_programacion filtra: sin el, el
+/// asistente encuentra al colaborador pero no puede encadenar la consulta siguiente.
 /// </summary>
 public sealed record ColaboradorFicha(
     string Identificacion,
     string Nombre,
+    string? CodigoColaborador,
     string? CodigoSede,
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,

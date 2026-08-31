@@ -26,6 +26,9 @@
   <data name="FechaInvalida" xml:space="preserve">
     <value>'fecha_referencia' debe tener formato yyyy-MM-dd; llego '{0}'.</value>
   </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la consulta: {0}</value>
+  </data>
   <data name="NotaTruncado" xml:space="preserve">
     <value>Mostrando {0} de {1} colaboradores; refina el filtro.</value>
   </data>

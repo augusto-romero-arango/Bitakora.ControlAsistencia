@@ -19,8 +19,8 @@ builder.Services.AddHttpClient<SedesApi>(c => c.BaseAddress = LeerBaseUrl("Sedes
 builder.Services.AddHttpClient<ControlHorasApi>(c => c.BaseAddress = LeerBaseUrl("ControlHoras"));
 builder.Services.AddHttpClient<ColaboradoresApi>(c => c.BaseAddress = LeerBaseUrl("Colaboradores"));
 
-// TimeProvider.System resuelve "hoy" para listar_colaboradores (issue #530); RelojFalso lo
-// sustituye en tests.
+// El back jamas resuelve "hoy" (decision #373): quien lo hace es listar_colaboradores, con este
+// reloj, en la zona del BC.
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Observabilidad con el mismo control de costos que los dominios (CA-ADR-0009): sampling ratio

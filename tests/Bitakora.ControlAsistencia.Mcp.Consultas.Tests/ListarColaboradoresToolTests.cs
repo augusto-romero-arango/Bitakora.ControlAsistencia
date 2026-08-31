@@ -69,8 +69,10 @@ public class ListarColaboradoresToolTests
         primero["codigoSede"]!.GetValue<string>().Should().Be("SEDE-NORTE", "sin nombre resuelto (MEF-ADR-0018)");
         primero["vigenteDesde"]!.GetValue<string>().Should().Be("2024-01-15");
         primero.ContainsKey("vigenteHasta").Should().BeFalse("vinculacion abierta = campo ausente, sin centinela");
+        primero["codigoColaborador"]!.GetValue<string>().Should()
+            .Be("COL-1", "es la llave con que consultar_programacion filtra");
         primero["etiquetas"]!.AsArray().Select(e => e!.GetValue<string>()).Should()
-            .Equal("area:tecnologia", "turno:diurno");
+            .Equal("Area:Tecnologia", "Turno:Diurno");
         primero.ContainsKey("etiquetasNormalizadas").Should().BeFalse("estructura interna de filtrado, no viaja");
 
         var segundo = json["colaboradores"]![1]!.AsObject();
@@ -122,6 +124,35 @@ public class ListarColaboradoresToolTests
             null!, "CC-999999", null, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be("No existe un colaborador con identificacion 'CC-999999'.");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_RespondeElRechazoDelDominio_CuandoLaIdentificacionTieneFormatoInvalido()
+    {
+        var (cliente, _) = ClienteFalso.Con(
+            "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}",
+            HttpStatusCode.BadRequest);
+
+        var resultado = await Tool(cliente).Run(
+            null!, "1098765432", null, null, null, TestContext.Current.CancellationToken);
+
+        resultado.Should().StartWith("El dominio rechazo la consulta:")
+            .And.Contain("{Tipo}-{Numero}", "el asistente necesita saber que forma corregir");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_OmiteLosFiltrosEnBlanco_CuandoElAsistenteEnviaCadenasVacias()
+    {
+        var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("listar-colaboradores.json"));
+
+        await Tool(cliente).Run(null!, "  ", "  ", "area:,  ,sin-separador", null,
+            TestContext.Current.CancellationToken);
+
+        handler.UltimaRequest!.Method.Method.Should().Be("QUERY", "identificacion en blanco no es una ficha puntual");
+
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
+        body["codigoSede"].Should().BeNull("una sede en blanco es 422 upstream, no un filtro");
+        body["etiquetas"].Should().BeNull("ningun par quedo completo tras el parseo");
     }
 
     [Fact]

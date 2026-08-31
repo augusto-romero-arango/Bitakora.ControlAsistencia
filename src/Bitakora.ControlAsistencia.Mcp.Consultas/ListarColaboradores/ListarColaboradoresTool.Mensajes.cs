@@ -20,6 +20,10 @@ public partial class ListarColaboradoresTool
         public static string FechaInvalida =>
             ResourceManager.GetString(nameof(FechaInvalida))!;
 
+        /// <summary>{0}: cuerpo de la respuesta 400/422 del dominio.</summary>
+        public static string RechazoDelDominio =>
+            ResourceManager.GetString(nameof(RechazoDelDominio))!;
+
         /// <summary>{0}: colaboradores mostrados, {1}: total recibido del dominio.</summary>
         public static string NotaTruncado =>
             ResourceManager.GetString(nameof(NotaTruncado))!;

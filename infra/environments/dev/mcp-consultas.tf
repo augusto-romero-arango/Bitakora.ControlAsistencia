@@ -57,9 +57,10 @@ module "function_app_mcp_consultas" {
   # codigo del servidor MCP (#502) consume estos settings; si cambian los nombres, cambiar en
   # ambos lados.
   app_settings = {
-    Api__Programacion__BaseUrl = "https://${module.function_app_programacion.default_hostname}"
-    Api__Sedes__BaseUrl        = "https://${module.function_app_sedes.default_hostname}"
-    Api__ControlHoras__BaseUrl = "https://${module.function_app_control_horas.default_hostname}"
+    Api__Programacion__BaseUrl  = "https://${module.function_app_programacion.default_hostname}"
+    Api__Sedes__BaseUrl         = "https://${module.function_app_sedes.default_hostname}"
+    Api__ControlHoras__BaseUrl  = "https://${module.function_app_control_horas.default_hostname}"
+    Api__Colaboradores__BaseUrl = "https://${module.function_app_colaboradores.default_hostname}"
   }
   tags = local.tags
 }
