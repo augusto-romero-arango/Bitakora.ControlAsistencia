@@ -34,6 +34,9 @@ public class FichaColaboradorRespuestaTests
             [new EtiquetaFicha("Área", "Tecnología")],
             new Dictionary<string, string> { ["area"] = "tecnologia" });
 
+    private static FichaColaborador FichaConCodigoSede(string? codigoSede) =>
+        FichaConVigenteHasta(CentinelaVigenciaAbierta) with { CodigoSede = codigoSede };
+
     [Fact]
     public void DesdeVista_DejaVigenteHastaVacio_CuandoLaVinculacionEstaAbierta()
     {
@@ -70,5 +73,16 @@ public class FichaColaboradorRespuestaTests
         respuesta.Etiquetas.Should().BeEquivalentTo([new EtiquetaFicha("Área", "Tecnología")]);
         respuesta.EtiquetasNormalizadas.Should().BeEquivalentTo(
             new Dictionary<string, string> { ["area"] = "tecnologia" });
+    }
+
+    // --- Issue #519 CA-3: la respuesta expone CodigoSede tal cual viene de la vista -- sin
+    // traduccion (a diferencia de VigenteHasta, aqui no hay centinela que ocultar). ---
+
+    [Fact]
+    public void DesdeVista_CopiaElCodigoSede_CuandoLaFichaTieneSede()
+    {
+        var respuesta = FichaColaboradorRespuesta.DesdeVista(FichaConCodigoSede("SEDE-BOG-01"));
+
+        respuesta.CodigoSede.Should().Be("SEDE-BOG-01");
     }
 }

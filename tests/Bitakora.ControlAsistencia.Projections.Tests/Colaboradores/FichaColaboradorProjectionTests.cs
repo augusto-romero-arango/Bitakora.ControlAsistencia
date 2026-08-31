@@ -15,6 +15,11 @@
 // Dato de vistaPrevia en los tests de Apply: se construye a mano, simulando el documento que Marten
 // ya habria materializado -- nunca se obtiene invocando Create/Apply, para no encadenar el oraculo
 // de un test con la logica bajo prueba de otro.
+//
+// Issue #519 (esta revision): CA-1/CA-2 suman Apply(SedeAsignada) -- metodo nuevo, stub -- y amplian
+// la cobertura de Apply(VinculacionIniciada) con CodigoSede (VinculacionIniciada.CodigoSede, #520).
+// El nuevo campo FichaColaborador.CodigoSede es opcional al final del record (no reordena las
+// llamadas posicionales existentes de este archivo).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -245,5 +250,93 @@ public class FichaColaboradorProjectionTests
         vista.VigenteHasta.Should().Be(CentinelaVigenciaAbierta);
         vista.Etiquetas.Should().BeEmpty();
         vista.EtiquetasNormalizadas.Should().BeEmpty();
+    }
+
+    // --- Issue #519 CA-1: Apply(SedeAsignada) asienta CodigoSede -- SedeAsignada representa
+    // siempre el reemplazo completo de la sede (DomainEvents/SedeAsignada.cs: "no existe evento de
+    // retiro"), tanto para la primera asignacion como para una reasignacion. ---
+
+    [Fact]
+    public void Apply_AsignaCodigoSede_CuandoSedeAsignadaEsLaPrimeraAsignacion()
+    {
+        var vistaPrevia = new FichaColaborador(
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            [], new Dictionary<string, string>());
+        var evento = new SedeAsignada("SEDE-BOG-01");
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        vista.CodigoSede.Should().Be("SEDE-BOG-01");
+        // El resto de la ficha no cambia con la asignacion de sede.
+        vista.Id.Should().Be("CC-123456");
+        vista.CodigoColaborador.Should().Be("EMP-001");
+        vista.VigenteDesde.Should().Be(new DateOnly(2026, 8, 1));
+    }
+
+    [Fact]
+    public void Apply_ReemplazaCodigoSede_CuandoSedeAsignadaEsUnaReasignacion()
+    {
+        var vistaPrevia = new FichaColaborador(
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), CentinelaVigenciaAbierta,
+            [], new Dictionary<string, string>(), CodigoSede: "SEDE-BOG-01");
+        var evento = new SedeAsignada("SEDE-MED-02");
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        // Reemplazo completo: la sede anterior no sobrevive junto a la nueva.
+        vista.CodigoSede.Should().Be("SEDE-MED-02");
+    }
+
+    // --- Issue #519 CA-2: Apply(VinculacionIniciada) se amplia para asentar e.CodigoSede tal cual
+    // -- null deja la ficha sin sede. "Reingreso nace limpio" (espejo de
+    // ColaboradorAggregateRoot.Apply(VinculacionIniciada), #520): la sede tampoco se hereda entre
+    // vinculaciones. ---
+
+    [Fact]
+    public void Apply_AsignaCodigoSede_CuandoVinculacionIniciadaTraeSede()
+    {
+        var vistaPrevia = new FichaColaborador(
+            "CC-123456", "Ana Ramirez", string.Empty, default, CentinelaVigenciaAbierta,
+            [], new Dictionary<string, string>());
+        var fechaInicio = new DateOnly(2026, 8, 1);
+        var evento = new VinculacionIniciada("EMP-001", fechaInicio, "SEDE-BOG-01");
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        vista.CodigoSede.Should().Be("SEDE-BOG-01");
+        vista.CodigoColaborador.Should().Be("EMP-001");
+    }
+
+    // El caso base (reingreso que ya nacia sin sede) es contracara de la limpieza: si vistaPrevia
+    // ya esta sin sede, el reingreso sin sede debe DEJARLA sin sede -- no es un no-op trivial, es
+    // la misma asignacion incondicional (e.CodigoSede, sin ramificar) que el caso con sede previa
+    // de abajo ejercita con un valor no-null.
+    [Fact]
+    public void Apply_DejaLaFichaSinSede_CuandoVinculacionIniciadaNoTraeSedeYLaFichaYaEstabaSinSede()
+    {
+        var vistaPrevia = new FichaColaborador(
+            "CC-123456", "Ana Ramirez", string.Empty, default, CentinelaVigenciaAbierta,
+            [], new Dictionary<string, string>());
+        var evento = new VinculacionIniciada("EMP-001", new DateOnly(2026, 8, 1), CodigoSede: null);
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        vista.CodigoSede.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_LimpiaLaSedeAnterior_CuandoVinculacionIniciadaEsUnReingresoSinSede()
+    {
+        var vistaPrevia = new FichaColaborador(
+            "CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2025, 1, 1), new DateOnly(2025, 12, 31),
+            [], new Dictionary<string, string>(), CodigoSede: "SEDE-BOG-01");
+        var nuevaFechaInicio = new DateOnly(2026, 3, 1);
+        var evento = new VinculacionIniciada("EMP-002", nuevaFechaInicio, CodigoSede: null);
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        // El reingreso sin sede LIMPIA la sede de la vinculacion anterior -- no la hereda.
+        vista.CodigoSede.Should().BeNull();
+        vista.CodigoColaborador.Should().Be("EMP-002");
     }
 }

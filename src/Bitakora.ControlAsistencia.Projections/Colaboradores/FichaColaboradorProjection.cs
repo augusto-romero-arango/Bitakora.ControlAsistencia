@@ -114,4 +114,11 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
 
         return vista with { Etiquetas = etiquetas, EtiquetasNormalizadas = normalizadas };
     }
+
+    // Issue #519 CA-1: asienta CodigoSede -- SedeAsignada representa siempre el reemplazo completo
+    // de la sede (primera asignacion y reasignacion emiten el mismo evento, DomainEvents/
+    // SedeAsignada.cs). Stub de fase roja (projection-test-writer, MEF-ADR-0033): la asignacion real
+    // es responsabilidad de projection-implementer.
+    public static FichaColaborador Apply(SedeAsignada e, FichaColaborador vista) =>
+        throw new NotImplementedException();
 }
