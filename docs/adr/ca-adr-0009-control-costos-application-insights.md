@@ -807,3 +807,83 @@ esperada en el plan de este cambio.
 de **deteccion** (falla inducida, protocolo #412) se delega al issue #413, que depende de este.
 
 Capas 1, 2 y 3 sin cambios.
+
+## Actualizacion (2026-08-31, issue #413): verificacion empirica de la alerta generalizada y cierre de las mediciones delegadas por el #414
+
+Se ejecuto la falla inducida sobre dev en sesion supervisada, mismo protocolo del #412, contra la
+alerta generalizada `background-exception-spike` del #415 y las dos mediciones que el #414 delego
+aqui (ratio de llegada del `HighWaterAgent` y volumen exportado vs daily cap).
+
+**Protocolo (CA-1).** `az postgres flexible-server stop` sobre `psql-asist-dev`: comando emitido
+01:15:12Z, confirmado `Stopped` a las 01:20:05Z. Se sostuvo la caida 21 minutos (mas del doble del
+minimo de 15 requerido para cubrir >=2 ventanas consecutivas). `az postgres flexible-server start`
+emitido 01:39:34Z, confirmado `Ready` a las 01:41:41Z. `TELEMETRY_SAMPLING_RATIO` y la connection
+string no se tocaron (mismo criterio del #412: el provider `azurerm` no modela power state, sin
+drift de Terraform).
+
+**Resultado CA-4 -- la alerta generalizada dispara, y rapido.** Verificado contra
+`Microsoft.AlertsManagement/alerts`: `controlasistencias-dev-background-exception-spike` disparo
+**4 veces** (una instancia independiente por valor de `cloud_RoleName`, consecuencia esperada de la
+`dimension` del criterio) a las **01:25:52Z** -- 5 minutos 47 segundos despues del stop, dentro de la
+primera ventana de evaluacion en la que la persistencia 2/2 podia cumplirse. Contraste directo con el
+#412: la alerta anterior (umbral >50, sin `dimension`) nunca disparo ante ~1000 excepciones en tres
+roles; la generalizada (umbral >15 por rol, persistencia 2/2) cierra ese hueco de deteccion.
+
+**Resultado CA-5 -- conteo real por rol y ventana, confirma el umbral sin ajustarlo.** Query exacta
+de la alerta (`isempty(operation_Id)`, `summarize ... by cloud_RoleName, bin(timestamp, 5m)`) sobre
+la ventana completa de la caida:
+
+| Ventana (UTC) | control-horas | colaboradores | sedes | worker (Projections) |
+|---|---|---|---|---|
+| 01:15 | 96 | 96 | 96 | 28 |
+| 01:20 | 120 | 120 | 120 | 54 |
+| 01:25 | 120 | 120 | 120 | 51 |
+| 01:30 | 120 | 120 | 36 | 51 |
+| 01:35 | 84 | 82 | 3 | 38 |
+
+Las tres Function Apps saturan en **120** excepciones por ventana durante la caida total (coincide
+con el rango 116-120 medido en el #412 para el incidente real del 08-27) -- 8x el umbral de 15. El
+worker alcanza un maximo de **54**, por encima del estimado del #415 (+40% post-#414, ~35-42), pero
+con margen sobre el umbral **mayor** al proyectado (3.6x medido vs 2.3-2.8x estimado): el estimado
+fue conservador a la baja, no al alza, asi que no compromete la deteccion. **El umbral (>15,
+persistencia 2/2) se confirma sin ajuste** -- no hace falta un issue de infra ni tocar
+`infra/modules/monitoring/main.tf`.
+
+**Resultado CA-2 -- el desacople del #414 cierra el 0% medido en el #412.** Familia
+`"Failed while trying to detect high water statistics for database {Name}"` (`HighWaterAgent` de
+JasperFx), contraste consola del Container App (`ContainerAppConsoleLogs_CL`) vs `exceptions` sobre
+la ventana completa de la caida:
+
+| Familia de error del daemon | Consola | `exceptions` | Ratio |
+|---|---|---|---|
+| `Failed while trying to detect high water statistics for database {Name}` | 196 | 196 | **1:1 (100%)** |
+
+Cierra decisivamente el 0% del #412: con `EnableTraceBasedLogsSampler = false` (issue #414), los
+`LogError` del `HighWaterAgent` -- emitidos dentro del span de polling que el sampler del #308
+descarta -- llegan integros a `exceptions`. El filtro de nivel por proveedor (`JasperFx*`/`Marten*`
+a `Warning`) tampoco los suprime, como se esperaba: son `Error`, no `Information`.
+
+**Resultado CA-3 -- el volumen de la falla no amenaza el daily cap.** Ingestion de las ultimas 24h
+(tabla `Usage`, `IsBillable == true`): **0.338 GB**, 67.7% del daily cap de 0.5 GB (Capa 3), bajo el
+80% que dispara `ingestion-warning`. La hora que contiene la caida (01:00-02:00Z) ingesto 0.051 GB,
+en linea con las horas vecinas (0.036, 0.016 GB) pese a los cientos de excepciones adicionales -- el
+payload de una excepcion es pequeno frente al presupuesto diario. El volumen exportado por el
+`HighWaterAgent` rescatado por el #414 (196 excepciones en 21 minutos) no representa un riesgo de
+costo medible.
+
+**Reversion (verificada).** Postgres `Ready` a las 01:41:41Z; la replica del worker
+(`ca-asist-dev--0000072`, creada 00:47:13Z, **antes** del stop) nunca re-arranco, confirmando otra
+vez la premisa del mecanismo elegido (el provider no modela power state). Post-recuperacion: 0
+excepciones sin `operation_Id` en los 2 minutos siguientes a `Ready`, dependencias Postgres 100%
+exitosas (13/13 control-horas, 9/9 colaboradores, 10/10 worker, 0 fallidas), y las cinco Function
+Apps (`programacion`, `control-horas`, `colaboradores`, `sedes`, `mcp-consultas`) en estado
+`Running`.
+
+**CA-6 (esta seccion).** Cierra los seis criterios de aceptacion del issue #413: CA-1 (protocolo
+ejecutado, timestamps arriba), CA-2 (ratio 1:1, cierre del 0% del #412), CA-3 (0.338 GB/dia, sin
+riesgo de cap), CA-4 (la alerta generalizada dispara en 5m47s), CA-5 (umbral confirmado sin ajuste),
+CA-6 (esta seccion). No hay cambios a Terraform derivados de esta verificacion.
+
+Capas 1, 2 y 3 sin cambios. La Capa 4 no cambia su configuracion; lo que cambia es la evidencia
+empirica de que las tres mediciones pendientes (deteccion del #415, ratio del #414, volumen del
+#414) se cumplen.
