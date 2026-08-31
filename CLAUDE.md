@@ -20,18 +20,8 @@ Sistema de control de asistencias y cálculo de horas según legislación labora
 Este proyecto consume el plugin `mefisto@augusto-romero-arango-harness` desde el marketplace privado registrado en `.claude/settings.json`. Los skills, agentes, scripts y ADRs del marco arquitectónico vienen del plugin, no del repo del proyecto.
 
 - **Repositorio del harness**: https://github.com/augusto-romero-arango/eda-evsourcing-azure-harness
-- **Skills disponibles**: `/mefisto:implement`, `:scaffold`, `:scaffold-projections`, `:infra`, `:tooling`, `:bug`, `:draft`, `:merge`, `:parallel`, `:sequential`, `:show-flow`, `:work-status`, `:health-check`, `:eraser-diagram`, `:fix-review`.
 - **Actualizar**: `/plugin update mefisto`.
-
-#### Setup para nuevos desarrolladores
-
-El marketplace y el plugin ya están declarados en `.claude/settings.json` (commiteado al repo), así que la instalación es prácticamente automática:
-
-1. **Acceso al repo del harness**: asegúrate de poder leer `augusto-romero-arango/eda-evsourcing-azure-harness`. Si es privado, autentica con `gh auth login` con permisos de lectura.
-2. **Abre Claude Code en el repo**: detectará el marketplace y el plugin habilitado. Si no lo instala solo, corre `/plugin` y confirma la instalación de `mefisto`.
-3. **Recarga** con `/reload-plugins` para activar skills y agentes sin reiniciar la sesión.
-
-Para verificar que quedó: corre `/mefisto:health-check` o invoca cualquier skill `/mefisto:*` desde el prompt. Para traer cambios publicados en el harness: `/plugin update mefisto`.
+- **Setup para nuevos desarrolladores**: ver `docs/setup-desarrolladores.md`.
 
 ### Tokens del harness (resolución para agentes y skills)
 
@@ -57,60 +47,11 @@ Estos valores los consumen los agentes/skills del harness cuando ven los placeho
 - `docs/ddd/` — glosario de lenguaje ubicuo (`ubiquitous-language.yaml`)
 - `docs/eda/` — modelo de dominio (catálogo, flujos, aggregates)
 
-## Comandos dotnet
+## Skills y agentes
 
-```bash
-dotnet build
-dotnet test
-dotnet test tests/Bitakora.ControlAsistencia.{Dominio}.Tests/
-dotnet test --filter "NombreTest"
-```
-
-## Catálogo de skills
-
-Los skills son comandos `/…` que orquestan trabajo. Cada uno documenta su propio uso; aquí solo los listo para que sepas cuál invocar.
-
-| Skill | Propósito |
-|---|---|
-| `/draft` | Captura una idea como issue `estado:borrador`, sin fricción |
-| `/implement` | Lanza el pipeline TDD para un issue `estado:listo` |
-| `/tooling` | Pipeline de tooling (scripts, fixtures, config, agentes) — sin ciclo rojo/verde |
-| `/infra` | Pipeline IaC con Terraform (write → review → apply) |
-| `/parallel` | Corre varios issues en worktrees aislados sin merge automático |
-| `/sequential` | Cadena de issues con merge automático entre PRs |
-| `/scaffold` | Crea el scaffold de un nuevo dominio (proyecto + tests + Terraform + workflow) |
-| `/scaffold-projections` | Genera el worker de proyecciones, `ReadModels` y su config-test base (opt-in vía `projections.enabled`) |
-| `/bug` | Investiga un síntoma; enruta a `bug-investigator` o `tooling-investigator` |
-| `/fix-review` | Resuelve comentarios pendientes de un PR en revisión |
-| `/health-check` | Dashboard del entorno desplegado (excepciones, dead letters, requests) |
-| `/work-status` | Progreso de los pipelines activos en tmux |
-| `/show-flow` | Renderiza un flujo de `docs/eda/flows/` |
-| `/eraser-diagram` | Genera diagrama para Eraser a partir de un flujo |
+Los skills (`/mefisto:*`) y los agentes vienen del plugin y se autodescriben; el detalle de cada uno vive en `.claude/commands/<skill>.md` y `.claude/agents/<agente>.md`. Los agentes son invocables directamente con `claude --agent <nombre>` cuando necesites iterar fuera de un pipeline.
 
 Flujo típico: `/draft` → planner (modo refinar) → `/implement` → PR → cierre del issue.
-
-## Agentes disponibles
-
-Invocables directamente con `claude --agent <nombre>` cuando necesites iterar fuera de un pipeline.
-
-| Agente | Cuándo usarlo |
-|---|---|
-| `planner` | Knowledge crunching, crear/refinar/descartar issues, organizar backlog |
-| `event-stormer` | Sesión de descubrimiento de dominio (genera field notes) |
-| `eda-modeler` | Formaliza flujos y aggregates en `docs/eda/` |
-| `historiador` | Consolida field notes en la bitácora del día |
-| `domain-scaffolder` | Crea scaffold de un nuevo dominio (invocado por `/scaffold`) |
-| `projections-scaffolder` | Crea el worker de proyecciones read-side (invocado por `/scaffold-projections`) |
-| `test-writer` | Fase roja del pipeline TDD (invocado por `/implement`) |
-| `implementer` | Fase verde del pipeline TDD (invocado por `/implement`) |
-| `projection-test-writer` | Fase roja del pipeline TDD read-side: tests de proyecciones Marten |
-| `projection-implementer` | Fase verde del pipeline TDD read-side: proyecciones Marten y Functions de consulta |
-| `reviewer` | Revisión antes de crear PR |
-| `smoke-test-writer` | Smoke tests contra entorno dev |
-| `infra-writer` / `infra-reviewer` / `infra-applier` / `infra-bootstrap` | Etapas del pipeline IaC |
-| `pr-sync` | Integra PRs de un batch paralelo en el orden pedido |
-| `bug-investigator` | Investiga errores del entorno desplegado (App Insights) |
-| `tooling-investigator` | Investiga errores del tooling local (pipelines, skills, agentes) |
 
 ## Convenciones del proyecto
 

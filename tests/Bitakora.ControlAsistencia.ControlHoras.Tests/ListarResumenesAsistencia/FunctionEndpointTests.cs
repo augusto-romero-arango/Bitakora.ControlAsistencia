@@ -20,7 +20,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ListarResumenesAsistenci
 
 public class FunctionEndpointTests
 {
-    private static FunctionEndpoint Endpoint() => new(null!, new TenantResolverFijo());
+    private static FunctionEndpoint Endpoint() => new(null!, new TenantResolverMonoTenantPorDefecto());
 
     private static HttpRequest Request(string? contentType, string body)
     {
