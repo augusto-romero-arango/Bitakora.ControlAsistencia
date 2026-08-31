@@ -6,8 +6,20 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
+    // Issue #538: claves de wire verificadas por decompilacion (ilspycmd) de los ensamblados vigentes
+    // -- Wolverine.dll 6.16.0 (EnvelopeMapper<>: MapPropertyToHeader(x => x.TenantId, "tenant-id"),
+    // sin prefijo) y Cosmos.MultiTenancy.CritterStack.dll 2.3.0 (WolverineMessageContextTenantResolver
+    // lee UserId de envelope.Headers["user_id"]). NO son los headers HTTP X-Tenant-Id/X-User-Id de
+    // MEF-ADR-0028: son planos distintos (ApplicationProperties del mensaje vs headers HTTP).
+    private const string TenantIdApplicationProperty = "tenant-id";
+    private const string UserIdApplicationProperty = "user_id";
+    private const string TenantIdPorDefecto = "tenant-smoke";
+    private const string UserIdPorDefecto = "smoke@bitakora.dev";
+
     private ServiceBusClient? _client;
     private JsonSerializerOptions _jsonOptions = null!;
+    private string _tenantId = TenantIdPorDefecto;
+    private string _userId = UserIdPorDefecto;
 
     public bool IsConfigured { get; private set; }
 
@@ -30,6 +42,9 @@ public class ServiceBusFixture : IAsyncLifetime
             .AddJsonFile("appsettings.local.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
+
+        _tenantId = configuration["Tenant:Id"] ?? TenantIdPorDefecto;
+        _userId = configuration["Tenant:UserId"] ?? UserIdPorDefecto;
 
         var connectionString = configuration["ServiceBus:ConnectionString"];
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -68,6 +83,8 @@ public class ServiceBusFixture : IAsyncLifetime
         {
             ContentType = "application/json"
         };
+        sbMessage.ApplicationProperties[TenantIdApplicationProperty] = _tenantId;
+        sbMessage.ApplicationProperties[UserIdApplicationProperty] = _userId;
 
         if (correlationId is not null)
             sbMessage.CorrelationId = correlationId;

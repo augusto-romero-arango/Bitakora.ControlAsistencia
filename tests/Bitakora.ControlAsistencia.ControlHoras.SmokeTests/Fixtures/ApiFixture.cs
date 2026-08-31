@@ -5,6 +5,12 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ApiFixture : IAsyncLifetime
 {
+    // Issue #538: etapa (b) de tenancy (MEF-ADR-0028 seccion 4) exige X-Tenant-Id/X-User-Id en todo
+    // request -- TrustedHeadersTenantResolver los lee y lanza si faltan. En la etapa (a) vigente
+    // (TenantResolverFijo) declararlos es inocuo, asi que el fixture ya los manda por adelantado.
+    private const string TenantIdPorDefecto = "tenant-smoke";
+    private const string UserIdPorDefecto = "smoke@bitakora.dev";
+
     public HttpClient Client { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
@@ -21,6 +27,8 @@ public class ApiFixture : IAsyncLifetime
                 "Api:BaseUrl no esta configurado. Usa appsettings.json, appsettings.local.json o la variable de entorno Api__BaseUrl.");
 
         Client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+        Client.DefaultRequestHeaders.Add("X-Tenant-Id", configuration["Tenant:Id"] ?? TenantIdPorDefecto);
+        Client.DefaultRequestHeaders.Add("X-User-Id", configuration["Tenant:UserId"] ?? UserIdPorDefecto);
 
         var response = await Client.GetAsync("/api/health");
         if (response.StatusCode != HttpStatusCode.OK)
