@@ -2,7 +2,7 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
-public partial class ConfiguracionIdentidadTenant
+public static partial class ConfiguracionIdentidadTenant
 {
     private static readonly ResourceManager ResourceManager = new(
         "Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura.ConfiguracionIdentidadTenantMensajes",

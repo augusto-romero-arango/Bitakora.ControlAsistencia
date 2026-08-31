@@ -1,10 +1,9 @@
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 /// <summary>
-/// DelegatingHandler compartido entre los HttpClients tipados del servidor: agrega
-/// X-Tenant-Id/X-User-Id a toda request saliente hacia una Function App del BC.
-/// Forward-compatible con la etapa (b) de tenancy (MEF-ADR-0028 seccion 4) -- en etapa (a) el
-/// TenantResolverFijo de cada dominio no lee estos headers, asi que enviarlos hoy es inocuo.
+/// Estampa X-Tenant-Id/X-User-Id en toda request saliente hacia una Function App del BC. Inocuo en
+/// la etapa (a) de tenancy (el TenantResolverFijo de cada dominio no lee estos headers) y
+/// obligatorio en la (b) (MEF-ADR-0028 seccion 4).
 /// </summary>
 public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) : DelegatingHandler
 {

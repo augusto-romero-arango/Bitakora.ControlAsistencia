@@ -1,9 +1,10 @@
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 /// <summary>
-/// Identidad interina que el servidor envia en cada request saliente: hoy un tenant fijo de
-/// operacion leido de app settings, no el usuario real conectado (issue de seguimiento sobre
-/// autenticacion por cliente MCP). Forward-compatible con la etapa (b) de tenancy (MEF-ADR-0028
-/// seccion 4).
+/// Identidad que el servidor estampa en cada request saliente: un tenant fijo de operacion, NO el
+/// usuario real conectado. Sus valores deben coincidir con los de <c>TenantResolverFijo</c> de los
+/// dominios (CA-ADR-0027, <c>*DEFAULT*</c>/<c>sin-identificar</c>): al pasar a la etapa (b) de
+/// tenancy (MEF-ADR-0028 seccion 4) los Function Apps resuelven el tenant desde estos headers, y
+/// un valor distinto consultaria un tenant sin ninguno de los datos ya persistidos.
 /// </summary>
 public sealed record IdentidadTenant(string TenantId, string UserId);

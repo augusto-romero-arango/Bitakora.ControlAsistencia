@@ -11,13 +11,11 @@ using OpenTelemetry.Trace;
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
 
-// Identidad interina de tenant (issue #539): forward-compatible con la etapa (b) de tenancy
-// (MEF-ADR-0028 seccion 4). El fallo por app setting ausente es en el arranque, no en la primera
-// tool call -- mismo criterio fail-fast que LeerBaseUrl.
-var identidadTenant = ConfiguracionIdentidadTenant.Leer(
-    builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]);
-builder.Services.AddSingleton(identidadTenant);
-builder.Services.AddTransient(_ => new PropagadorIdentidadTenantHandler(identidadTenant));
+builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
+    builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));
+// Transient, no Singleton: HttpClientFactory desecha la cadena de handlers cada vez que rota el
+// pipeline de un cliente, asi que un Singleton quedaria desechado para los pipelines siguientes.
+builder.Services.AddTransient<PropagadorIdentidadTenantHandler>();
 
 // Un HttpClient tipado por dominio consumido (issue #502). Las base URLs llegan por app setting
 // (Api__{Dominio}__BaseUrl), fijadas por Terraform en el provisionamiento (#508); el fallo por

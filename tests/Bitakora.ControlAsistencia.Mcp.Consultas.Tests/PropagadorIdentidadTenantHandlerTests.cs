@@ -8,7 +8,7 @@ public class PropagadorIdentidadTenantHandlerTests
 {
     private static readonly IdentidadTenant Identidad = new("tenant-fijo-01", "usuario-mcp");
 
-    private static void AserirHeadersDeIdentidad(HandlerEnlatado handler)
+    private static void AfirmarHeadersDeIdentidad(HandlerEnlatado handler)
     {
         handler.UltimaRequest!.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderTenantId)
             .Should().ContainSingle().Which.Should().Be(Identidad.TenantId);
@@ -23,7 +23,25 @@ public class PropagadorIdentidadTenantHandlerTests
 
         await cliente.GetAsync("api/cualquier-ruta", TestContext.Current.CancellationToken);
 
-        AserirHeadersDeIdentidad(handler);
+        AfirmarHeadersDeIdentidad(handler);
+    }
+
+    // Los valores del tenant fijo de operacion que Terraform siembra en dev llevan asteriscos
+    // ("*DEFAULT*", el literal de JasperFx.StorageConstants.DefaultTenantId que replica el
+    // TenantResolverFijo de los dominios): este test fija que HttpRequestMessage.Headers.Add los
+    // acepta, porque valida el formato del valor y lanza FormatException si lo rechaza.
+    [Fact]
+    public async Task PropagadorIdentidadTenant_AgregaAmbosHeaders_CuandoLaIdentidadEsLaDelTenantFijoDeOperacion()
+    {
+        var identidadDeOperacion = new IdentidadTenant("*DEFAULT*", "sin-identificar");
+        var (cliente, handler) = ClienteFalso.ConIdentidadTenant("{}", identidadDeOperacion);
+
+        await cliente.GetAsync("api/cualquier-ruta", TestContext.Current.CancellationToken);
+
+        handler.UltimaRequest!.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderTenantId)
+            .Should().ContainSingle().Which.Should().Be("*DEFAULT*");
+        handler.UltimaRequest.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderUserId)
+            .Should().ContainSingle().Which.Should().Be("sin-identificar");
     }
 
     [Fact]
@@ -34,7 +52,7 @@ public class PropagadorIdentidadTenantHandlerTests
 
         await api.ListarTurnos(TestContext.Current.CancellationToken);
 
-        AserirHeadersDeIdentidad(handler);
+        AfirmarHeadersDeIdentidad(handler);
     }
 
     [Fact]
@@ -45,7 +63,7 @@ public class PropagadorIdentidadTenantHandlerTests
 
         await api.ListarFichasActivas(TestContext.Current.CancellationToken);
 
-        AserirHeadersDeIdentidad(handler);
+        AfirmarHeadersDeIdentidad(handler);
     }
 
     [Fact]
@@ -57,7 +75,7 @@ public class PropagadorIdentidadTenantHandlerTests
 
         await api.ConsultarTurnosVigentes(hoy, hoy, null, null, TestContext.Current.CancellationToken);
 
-        AserirHeadersDeIdentidad(handler);
+        AfirmarHeadersDeIdentidad(handler);
     }
 
     [Fact]
@@ -69,6 +87,6 @@ public class PropagadorIdentidadTenantHandlerTests
 
         await api.ListarFichas(hoy, null, [], 10, TestContext.Current.CancellationToken);
 
-        AserirHeadersDeIdentidad(handler);
+        AfirmarHeadersDeIdentidad(handler);
     }
 }

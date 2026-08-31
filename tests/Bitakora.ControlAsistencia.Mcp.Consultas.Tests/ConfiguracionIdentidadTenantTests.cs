@@ -40,4 +40,13 @@ public class ConfiguracionIdentidadTenantTests
         act.Should().ThrowExactly<InvalidOperationException>()
             .WithMessage($"*{ConfiguracionIdentidadTenant.Mensajes.UserIdAusente}*");
     }
+
+    [Fact]
+    public void Leer_LanzaInvalidOperationException_CuandoUserIdEsBlanco()
+    {
+        var act = () => ConfiguracionIdentidadTenant.Leer("tenant-fijo-01", "   ");
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage($"*{ConfiguracionIdentidadTenant.Mensajes.UserIdAusente}*");
+    }
 }
