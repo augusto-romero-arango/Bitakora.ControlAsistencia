@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Net;
+using System.Net.Http.Json;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -17,9 +20,11 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
     internal const string NombreTool = "listar_colaboradores";
     internal const int MaximoColaboradores = 20;
     internal const int TakeUpstream = 200;
+    private const string FormatoFecha = "yyyy-MM-dd";
+    private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
 
     [Function("ListarColaboradores")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Lista los colaboradores vinculados: identificacion, nombre, sede y etiquetas de cada "
@@ -46,7 +51,78 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             + "America/Bogota.")]
         string? fechaReferencia,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (!string.IsNullOrWhiteSpace(identificacion))
+            return await ConsultarPuntual(identificacion, ct);
+
+        var (fecha, error) = ResolverFecha(fechaReferencia);
+        if (error is not null)
+            return error;
+
+        var respuesta = await api.ListarFichas(
+            fecha, sede, ParsearEtiquetas(etiquetas), TakeUpstream, ct);
+        respuesta.EnsureSuccessStatusCode();
+
+        var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaColaborador>>(ct)
+            ?? [];
+
+        var visibles = fichas.Take(MaximoColaboradores).Select(Remodelar).ToList();
+
+        var nota = fichas.Count > visibles.Count
+            ? string.Format(Mensajes.NotaTruncado, visibles.Count, fichas.Count)
+            : null;
+
+        return RespuestaJson.Serializar(new CatalogoDeColaboradores(fichas.Count, visibles.Count, nota, visibles));
+    }
+
+    private async Task<string> ConsultarPuntual(string identificacion, CancellationToken ct)
+    {
+        var respuesta = await api.ObtenerFicha(identificacion, ct);
+
+        if (respuesta.StatusCode == HttpStatusCode.NotFound)
+            return string.Format(Mensajes.ColaboradorNoExiste, identificacion);
+
+        respuesta.EnsureSuccessStatusCode();
+
+        var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaColaborador>(ct))!;
+
+        return RespuestaJson.Serializar(Remodelar(ficha));
+    }
+
+    private (DateOnly Fecha, string? Error) ResolverFecha(string? fechaReferencia)
+    {
+        if (string.IsNullOrWhiteSpace(fechaReferencia))
+            return (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime), null);
+
+        return DateOnly.TryParseExact(
+            fechaReferencia, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha)
+            ? (fecha, null)
+            : (default, string.Format(Mensajes.FechaInvalida, fechaReferencia));
+    }
+
+    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
+        string.IsNullOrWhiteSpace(etiquetas)
+            ? []
+            : [.. etiquetas
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(par => par.Split(':', 2))
+                .Where(partes => partes.Length == 2)
+                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
+
+    private static ColaboradorFicha Remodelar(FichaColaborador ficha)
+    {
+        var etiquetas = ficha.EtiquetasNormalizadas.Count > 0
+            ? (IReadOnlyList<string>)[.. ficha.EtiquetasNormalizadas.Select(par => $"{par.Key}:{par.Value}")]
+            : null;
+
+        return new ColaboradorFicha(
+            ficha.Id,
+            ficha.NombreCompleto.Trim(),
+            ficha.CodigoSede,
+            ficha.VigenteDesde,
+            ficha.VigenteHasta,
+            etiquetas);
+    }
 }
 
 /// <summary>Contrato de respuesta de listar_colaboradores hacia el asistente (remodelado, issue #530).</summary>
@@ -66,4 +142,4 @@ public sealed record ColaboradorFicha(
     string? CodigoSede,
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
-    IReadOnlyList<string> Etiquetas);
+    IReadOnlyList<string>? Etiquetas);

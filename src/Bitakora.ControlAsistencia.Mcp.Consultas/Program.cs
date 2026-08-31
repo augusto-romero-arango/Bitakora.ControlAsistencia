@@ -3,7 +3,6 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry;
@@ -18,6 +17,11 @@ builder.ConfigureFunctionsWebApplication();
 builder.Services.AddHttpClient<ProgramacionApi>(c => c.BaseAddress = LeerBaseUrl("Programacion"));
 builder.Services.AddHttpClient<SedesApi>(c => c.BaseAddress = LeerBaseUrl("Sedes"));
 builder.Services.AddHttpClient<ControlHorasApi>(c => c.BaseAddress = LeerBaseUrl("ControlHoras"));
+builder.Services.AddHttpClient<ColaboradoresApi>(c => c.BaseAddress = LeerBaseUrl("Colaboradores"));
+
+// TimeProvider.System resuelve "hoy" para listar_colaboradores (issue #530); RelojFalso lo
+// sustituye en tests.
+builder.Services.AddSingleton(TimeProvider.System);
 
 // Observabilidad con el mismo control de costos que los dominios (CA-ADR-0009): sampling ratio
 // configurable, y el SetSampler propio va DESPUES de UseAzureMonitorExporter() porque el exporter
