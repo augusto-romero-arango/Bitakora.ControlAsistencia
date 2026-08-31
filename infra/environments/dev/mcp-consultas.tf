@@ -61,6 +61,20 @@ module "function_app_mcp_consultas" {
     Api__Sedes__BaseUrl         = "https://${module.function_app_sedes.default_hostname}"
     Api__ControlHoras__BaseUrl  = "https://${module.function_app_control_horas.default_hostname}"
     Api__Colaboradores__BaseUrl = "https://${module.function_app_colaboradores.default_hostname}"
+
+    # Identidad interina que el servidor MCP estampa como X-Tenant-Id/X-User-Id en cada request
+    # saliente hacia los Function Apps (issue #539). Son settings obligatorios: sin ellos el
+    # arranque del worker falla (fail-fast de ConfiguracionIdentidadTenant, mismo criterio que
+    # Api__*__BaseUrl).
+    #
+    # Los valores NO son arbitrarios: replican los del TenantResolverFijo de los 4 dominios
+    # (CA-ADR-0027 -- JasperFx.StorageConstants.DefaultTenantId es el literal "*DEFAULT*", y
+    # "sin-identificar" el UserId). En la etapa (a) de tenancy los dominios ignoran estos headers,
+    # pero al pasar a la etapa (b) (MEF-ADR-0028 seccion 4) el TrustedHeadersTenantResolver los
+    # convierte en el tenant efectivo de cada consulta: cualquier otro valor apuntaria a un tenant
+    # sin ninguno de los datos ya persistidos, y las tools responderian vacio en silencio.
+    Tenant__Id     = "*DEFAULT*"
+    Tenant__UserId = "sin-identificar"
   }
   tags = local.tags
 }

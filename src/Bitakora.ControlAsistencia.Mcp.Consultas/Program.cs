@@ -11,13 +11,23 @@ using OpenTelemetry.Trace;
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
 
+builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
+    builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));
+// Transient, no Singleton: HttpClientFactory desecha la cadena de handlers cada vez que rota el
+// pipeline de un cliente, asi que un Singleton quedaria desechado para los pipelines siguientes.
+builder.Services.AddTransient<PropagadorIdentidadTenantHandler>();
+
 // Un HttpClient tipado por dominio consumido (issue #502). Las base URLs llegan por app setting
 // (Api__{Dominio}__BaseUrl), fijadas por Terraform en el provisionamiento (#508); el fallo por
 // setting ausente es en el arranque, no en la primera tool call.
-builder.Services.AddHttpClient<ProgramacionApi>(c => c.BaseAddress = LeerBaseUrl("Programacion"));
-builder.Services.AddHttpClient<SedesApi>(c => c.BaseAddress = LeerBaseUrl("Sedes"));
-builder.Services.AddHttpClient<ControlHorasApi>(c => c.BaseAddress = LeerBaseUrl("ControlHoras"));
-builder.Services.AddHttpClient<ColaboradoresApi>(c => c.BaseAddress = LeerBaseUrl("Colaboradores"));
+builder.Services.AddHttpClient<ProgramacionApi>(c => c.BaseAddress = LeerBaseUrl("Programacion"))
+    .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
+builder.Services.AddHttpClient<SedesApi>(c => c.BaseAddress = LeerBaseUrl("Sedes"))
+    .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
+builder.Services.AddHttpClient<ControlHorasApi>(c => c.BaseAddress = LeerBaseUrl("ControlHoras"))
+    .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
+builder.Services.AddHttpClient<ColaboradoresApi>(c => c.BaseAddress = LeerBaseUrl("Colaboradores"))
+    .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
 
 // El back jamas resuelve "hoy" (decision #373): quien lo hace es listar_colaboradores, con este
 // reloj, en la zona del BC.
