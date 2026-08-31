@@ -261,7 +261,8 @@ public class ComposicionServiciosTests
                 typeof(FechaInicioVinculacionCorregida),
                 typeof(TerminacionAnulada),
                 typeof(EtiquetaAsignada),
-                typeof(EtiquetaRetirada)
+                typeof(EtiquetaRetirada),
+                typeof(SedeAsignada)
             ]);
     }
 
@@ -296,7 +297,8 @@ public class ComposicionServiciosTests
             [typeof(FechaInicioVinculacionCorregida)] = "fecha_inicio_vinculacion_corregida",
             [typeof(TerminacionAnulada)] = "terminacion_anulada",
             [typeof(EtiquetaAsignada)] = "etiqueta_asignada",
-            [typeof(EtiquetaRetirada)] = "etiqueta_retirada"
+            [typeof(EtiquetaRetirada)] = "etiqueta_retirada",
+            [typeof(SedeAsignada)] = "sede_asignada"
         });
     }
 

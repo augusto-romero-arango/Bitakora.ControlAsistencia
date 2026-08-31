@@ -25,6 +25,8 @@ using IniciarVinculacionEndpoint =
     Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction.FunctionEndpoint;
 using RegistrarColaboradorEndpoint =
     Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.FunctionEndpoint;
+using AsignarSedeEndpoint =
+    Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -70,5 +72,20 @@ public class ContratoHttpComandosTests
 
         trigger.Methods.Should().Equal("post");
         trigger.Route.Should().Be("colaboradores");
+    }
+
+    [Fact]
+    public void AsignarSede_ExponeElVerboYLaRutaPactadosEnElIssue()
+    {
+        var trigger = TriggerDe<AsignarSedeEndpoint>();
+
+        trigger.Methods.Should().Equal("put");
+        trigger.Route.Should().Be("colaboradores/{id}/sede");
+    }
+
+    [Fact]
+    public void AsignarSede_SeRegistraConElNombreDelComando()
+    {
+        NombreDeLaFunction<AsignarSedeEndpoint>().Should().Be("AsignarSede");
     }
 }

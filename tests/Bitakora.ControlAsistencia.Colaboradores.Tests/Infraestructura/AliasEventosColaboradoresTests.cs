@@ -121,4 +121,12 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<EtiquetaRetirada>(options).Should().Be("etiqueta_retirada");
     }
+
+    [Fact]
+    public void SedeAsignada_TieneAliasSedeAsignada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<SedeAsignada>(options).Should().Be("sede_asignada");
+    }
 }

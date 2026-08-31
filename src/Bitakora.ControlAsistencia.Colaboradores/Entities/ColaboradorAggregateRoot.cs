@@ -45,7 +45,14 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // clase.
     private readonly Dictionary<string, Etiqueta> _etiquetas = new();
 
+    // Codigo de la UNICA sede del colaborador -- de la VINCULACION, no de la persona: null en el
+    // estado inicial y tras un reingreso. Solo el codigo (referencia al maestro de Sedes,
+    // CA-ADR-0029 islas), nunca su nombre ni su centro de costos.
+    private string? _codigoSede;
+
     internal IReadOnlyDictionary<string, Etiqueta> Etiquetas => _etiquetas;
+
+    internal string? CodigoSede => _codigoSede;
 
     internal Identificacion Identificacion => _identificacion!;
     internal NombreColaborador Nombre => _nombre!;
@@ -90,6 +97,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
         _etiquetas.Clear();
+        _codigoSede = null;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -116,6 +124,8 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #355: retira la etiqueta de esa categoria normalizada del diccionario. Nunca lanza
     // (MEF-ADR-0004 capa 4).
     public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
+
+    public void Apply(SedeAsignada e) => _codigoSede = e.CodigoSede;
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
     // evento de fallo persistido. Issue #379 (MEF-ADR-0043 paso 4, CA-5): gana el parametro
@@ -335,6 +345,25 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         Apply(evento);
 
         return ResultadoRetiroEtiqueta.Exitosa;
+    }
+
+    // Mecanismo combinado (CA-ADR-0030): rechaza si la vinculacion tiene terminacion registrada --
+    // un preaviso sin vencer bloquea igual, la sede describe la relacion laboral ACTIVA -- y declina
+    // en silencio si el codigo es identico (comparacion exacta, case-sensitive: dos codigos que solo
+    // difieren en mayusculas son sedes distintas para el maestro).
+    internal ResultadoAsignacionSede AsignarSede(string codigoSede)
+    {
+        if (_fechaTerminacionVinculacionVigente is not null)
+            return ResultadoAsignacionSede.VinculacionTerminada;
+
+        if (codigoSede == _codigoSede)
+            return ResultadoAsignacionSede.SinCambios;
+
+        var evento = new SedeAsignada(codigoSede);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+
+        return ResultadoAsignacionSede.Exitosa;
     }
 
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron

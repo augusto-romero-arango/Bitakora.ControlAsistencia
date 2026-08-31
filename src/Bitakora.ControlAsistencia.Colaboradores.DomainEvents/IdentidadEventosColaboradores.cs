@@ -23,5 +23,6 @@ public static class IdentidadEventosColaboradores
         typeof(TerminacionAnulada),
         typeof(EtiquetaAsignada),
         typeof(EtiquetaRetirada),
+        typeof(SedeAsignada),
     ];
 }
