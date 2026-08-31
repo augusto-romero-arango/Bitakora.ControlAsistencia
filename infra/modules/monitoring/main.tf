@@ -228,10 +228,15 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "background_exception_
     # operation_Id vacio es la senal distintiva de una excepcion nacida fuera de un
     # request HTTP (verificado en el experimento del issue #412: las 88 del daemon y
     # las 810 de Wolverine llevan operation_Id vacio; las excepciones de rutas HTTP,
-    # incluidas las de smoke tests, lo llevan poblado). TimeGenerated se proyecta
-    # explicito porque number_of_evaluation_periods > 1 requiere que la query exponga
-    # una columna de tiempo (Terraform Registry, azurerm_monitor_scheduled_query_rules_alert_v2,
-    # nota de `number_of_evaluation_periods`). El `ago(10m)` es exactamente el rango
+    # incluidas las de smoke tests, lo llevan poblado). La columna de tiempo se
+    # proyecta explicitamente con el nombre literal `timestamp` (no vale otro alias
+    # como `TimeGenerated`) porque number_of_evaluation_periods > 1 exige que la query
+    # exponga una columna llamada asi, de tipo datetime (comprobado en produccion,
+    # issue #527: con `TimeGenerated = bin(timestamp, 5m)` el apply fallo con 400
+    # "Number of evaluation periods must be 1 for queries that do not project the
+    # 'timestamp' column of type 'datetime'"; ver tambien Terraform Registry,
+    # azurerm_monitor_scheduled_query_rules_alert_v2, nota de
+    # `number_of_evaluation_periods`). El `ago(10m)` es exactamente el rango
     # que el motor ya aplica por si mismo -- por default la query corre sobre
     # windowSize * numberOfEvaluationPeriods = PT5M * 2 (Azure Monitor,
     # Microsoft.Insights/scheduledQueryRules, propiedad `overrideQueryTimeRange`:
@@ -247,7 +252,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "background_exception_
       exceptions
       | where timestamp > ago(10m)
       | where isempty(operation_Id)
-      | summarize N = count() by cloud_RoleName, TimeGenerated = bin(timestamp, 5m)
+      | summarize N = count() by cloud_RoleName, timestamp = bin(timestamp, 5m)
     QUERY
 
     time_aggregation_method = "Maximum"
