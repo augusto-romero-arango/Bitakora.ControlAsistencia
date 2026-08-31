@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests.Soporte;
 
@@ -34,6 +35,19 @@ public static class ClienteFalso
     {
         var handler = new HandlerEnlatado(status, json);
         var cliente = new HttpClient(handler) { BaseAddress = new Uri("https://dominio.falso.local") };
+        return (cliente, handler);
+    }
+
+    /// <summary>
+    /// Igual que <see cref="Con"/>, pero intercalando <see cref="PropagadorIdentidadTenantHandler"/>
+    /// en la cadena -- replica el pipeline real de un HttpClient tipado del servidor.
+    /// </summary>
+    public static (HttpClient Cliente, HandlerEnlatado Handler) ConIdentidadTenant(
+        string json, IdentidadTenant identidad, HttpStatusCode status = HttpStatusCode.OK)
+    {
+        var handler = new HandlerEnlatado(status, json);
+        var propagador = new PropagadorIdentidadTenantHandler(identidad) { InnerHandler = handler };
+        var cliente = new HttpClient(propagador) { BaseAddress = new Uri("https://dominio.falso.local") };
         return (cliente, handler);
     }
 }
