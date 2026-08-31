@@ -13,5 +13,8 @@
   },
   "projections": {
     "enabled": true
+  },
+  "tenancy": {
+    "strategy": "multi-tenant-header"
   }
 }

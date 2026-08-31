@@ -11,7 +11,7 @@ using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
 using Cosmos.EventSourcing.CritterStack;
 using Cosmos.EventSourcing.CritterStack.Commands;
-using Cosmos.MultiTenancy;
+using Cosmos.MultiTenancy.CritterStack;
 using FluentValidation;
 using Marten;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
@@ -69,10 +69,14 @@ public static class ComposicionServicios
             });
 
         services.AgregarMartenEventStore();
-        // TODO(tenancy etapa b): resolver mono-tenant transitorio (MEF-ADR-0028 seccion 2,
-        // CA-ADR-0027). Al instalar autenticacion con TenantContext, este registro pasa a
-        // services.AgregarTenantResolverHibrido().
-        services.AddScoped<ITenantResolver, TenantResolverMonoTenantPorDefecto>();
+        // Tenancy (MEF-ADR-0028 etapa b, migrado por /install-apim -- issue #337/#340): resolver real
+        // basado en TenantContext (header-based via HttpContext, o WolverineMessageContextTenantResolver
+        // dentro de handlers de Wolverine sin HttpContext). El mapping claim -> header (user_email ->
+        // X-User-Id, tenant_id -> X-Tenant-Id) ya lo normaliza la politica global del gateway APIM
+        // (MEF-ADR-0032 seccion 4/5) -- a diferencia del auto-cableo generico de domain-scaffolder,
+        // esta migracion NO deja ningun TODO de mapping de claims por dominio: queda resuelto por
+        // construccion (MEF-ADR-0028 seccion 4).
+        services.AgregarTenantResolverHibrido();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
         // Issue #467: primer FunctionEndpoint de ServiceBus de este dominio
