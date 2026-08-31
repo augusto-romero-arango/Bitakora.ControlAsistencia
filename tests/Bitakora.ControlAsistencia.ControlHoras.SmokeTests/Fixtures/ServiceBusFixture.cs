@@ -7,19 +7,23 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 public class ServiceBusFixture : IAsyncLifetime
 {
     // Issue #538: claves de wire verificadas por decompilacion (ilspycmd) de los ensamblados vigentes
-    // -- Wolverine.dll 6.16.0 (EnvelopeMapper<>: MapPropertyToHeader(x => x.TenantId, "tenant-id"),
-    // sin prefijo) y Cosmos.MultiTenancy.CritterStack.dll 2.3.0 (WolverineMessageContextTenantResolver
-    // lee UserId de envelope.Headers["user_id"]). NO son los headers HTTP X-Tenant-Id/X-User-Id de
-    // MEF-ADR-0028: son planos distintos (ApplicationProperties del mensaje vs headers HTTP).
+    // -- Wolverine 6.16.0 (EnvelopeMapper<> mapea Envelope.TenantId al header "tenant-id" sin prefijo,
+    // y AzureServiceBusEnvelopeMapper copia cada ApplicationProperty a Envelope.Headers tal cual) y
+    // Cosmos.MultiTenancy.CritterStack 2.3.0 (WolverineMessageContextTenantResolver lee UserId de
+    // Envelope.Headers["user_id"]). Son otro plano que los headers HTTP X-Tenant-Id/X-User-Id de
+    // MEF-ADR-0028: viajan en ApplicationProperties del mensaje, no en la request.
+    //
+    // Advertencia para el flip a etapa (b): hoy los dominios NO montan un listener de Wolverine. Cada
+    // evento entra por [ServiceBusTrigger] de Azure Functions y se despacha con IPrivateEventRouter,
+    // que arma DeliveryOptions desde el ITenantResolver del proceso -- nadie lee estas claves del
+    // mensaje entrante, asi que la metadata queda declarada pero inerte. Sirve para no romper la
+    // ventana el dia que exista ese puente; verificarlo al correr /install-auth.
     private const string TenantIdApplicationProperty = "tenant-id";
     private const string UserIdApplicationProperty = "user_id";
-    private const string TenantIdPorDefecto = "tenant-smoke";
-    private const string UserIdPorDefecto = "smoke@bitakora.dev";
 
     private ServiceBusClient? _client;
     private JsonSerializerOptions _jsonOptions = null!;
-    private string _tenantId = TenantIdPorDefecto;
-    private string _userId = UserIdPorDefecto;
+    private IdentidadDePrueba _identidad = null!;
 
     public bool IsConfigured { get; private set; }
 
@@ -43,8 +47,7 @@ public class ServiceBusFixture : IAsyncLifetime
             .AddEnvironmentVariables()
             .Build();
 
-        _tenantId = configuration["Tenant:Id"] ?? TenantIdPorDefecto;
-        _userId = configuration["Tenant:UserId"] ?? UserIdPorDefecto;
+        _identidad = IdentidadDePrueba.Desde(configuration);
 
         var connectionString = configuration["ServiceBus:ConnectionString"];
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -83,8 +86,8 @@ public class ServiceBusFixture : IAsyncLifetime
         {
             ContentType = "application/json"
         };
-        sbMessage.ApplicationProperties[TenantIdApplicationProperty] = _tenantId;
-        sbMessage.ApplicationProperties[UserIdApplicationProperty] = _userId;
+        sbMessage.ApplicationProperties[TenantIdApplicationProperty] = _identidad.TenantId;
+        sbMessage.ApplicationProperties[UserIdApplicationProperty] = _identidad.UserId;
 
         if (correlationId is not null)
             sbMessage.CorrelationId = correlationId;
