@@ -74,9 +74,6 @@ public class ContratoHttpComandosTests
         trigger.Route.Should().Be("colaboradores");
     }
 
-    // Issue #465 (MEF-ADR-0043 paso 2): PUT, reemplazo completo del VO atomico "sede del
-    // colaborador" -- precedente exacto AsignarEtiqueta, simplificado (el codigo viaja en el body,
-    // sin segmento adicional de ruta).
     [Fact]
     public void AsignarSede_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -86,7 +83,6 @@ public class ContratoHttpComandosTests
         trigger.Route.Should().Be("colaboradores/{id}/sede");
     }
 
-    // MEF-ADR-0006: el nombre de la Function es el verbo infinitivo + sustantivo del comando.
     [Fact]
     public void AsignarSede_SeRegistraConElNombreDelComando()
     {

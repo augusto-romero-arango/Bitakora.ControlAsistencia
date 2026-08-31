@@ -1,33 +1,8 @@
-// Issue #465 (MEF-ADR-0043 paso 2): smoke tests del endpoint PUT colaboradores/{id}/sede --
-// reemplazo completo del VO atomico "sede del colaborador" (referencia pura al maestro de Sedes,
-// solo CodigoSede -- CA-ADR-0029, islas: el servidor NUNCA consulta el maestro). Molde:
-// AsignarEtiquetaSmokeTests (#376) -- mismo comando event-sourcing puro sin consumidores downstream
-// (CA-ADR-0030): sin ServiceBusFixture, la unica verificacion black-box de los efectos del handler
-// es leer mt_events via PostgresFixture. Aqui no hay equivalente a {categoria}: el codigo de sede
-// viaja unicamente en el body.
-//
-// Arrange: AsignarSede exige un ColaboradorAggregateRoot existente -- el arrange de cada test
-// registra el colaborador y, cuando aplica, termina su vinculacion o inicia una vinculacion nueva
-// (reingreso) via los mismos comandos que los originan, nunca sembrando datos por fuera del API.
-//
-// CA-1 (ruta de exito): 202 + el stream recibe sede_asignada con el CodigoSede del comando.
-// CA-2 (ruta de exito): reasignar una sede DISTINTA a la vigente agrega un evento nuevo (conteo
-// pasa de 1 a 2) -- reemplazo puro, sin evento de retiro.
-// CA-3 (ruta de exito): asignar la MISMA sede vigente (comparacion exacta, case-sensitive) no
-// agrega evento nuevo -- idempotencia silenciosa, el conteo se mantiene en 1.
-// CA-4 (rutas de rechazo): la ultima vinculacion tiene terminacion registrada -- pasada o un
-// preaviso cuya fecha no ha llegado, sin distincion -> 409, sin evento.
-// CA-5 (ruta de exito, reingreso nace sin sede): tras un reingreso, asignar la MISMA sede que tenia
-// la vinculacion anterior SI agrega un evento nuevo (conteo pasa de 1 a 2) -- prueba indirecta de
-// que el estado se limpio (si no se hubiera limpiado, la comparacion exacta habria disparado
-// SinCambios y el conteo se habria quedado en 1). Este dominio no expone todavia una vista de la
-// sede vigente (#519, hermano read-side): el efecto solo es observable black-box a traves de este
-// mecanismo de idempotencia.
-// CA-6: colaborador inexistente -> 404.
-// Body invalido (CodigoSede vacio) -> 400 via AsignarSedeBodyValidator.
-// {id} de ruta invalido -> 400 (guarda compartida IdentificacionDeRuta, ya cubierta exhaustivamente
-// por AsignarEtiquetaSmokeTests y otros smoke tests del dominio; aqui solo un caso de sanity para
-// confirmar que este endpoint tambien la invoca).
+// Sin ServiceBusFixture: el comando es event-sourcing puro, sin consumidores downstream -- la unica
+// verificacion black-box de sus efectos es leer mt_events via PostgresFixture.
+// El arrange registra el colaborador (y termina o reinicia su vinculacion cuando aplica) via los
+// mismos comandos HTTP que originan esos hechos, nunca sembrando el event store por fuera del API.
+
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -47,17 +22,15 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Segunda lectura del mismo evento que ExisteEventoAsync ya espero: si el primer polling
-    // termino, el evento esta -- no hay nada mas que esperar.
+    // Segunda lectura de un evento que ExisteEventoAsync ya espero: no hay nada mas que esperar.
     private static readonly TimeSpan TimeoutLecturaConfirmada = TimeSpan.FromSeconds(5);
 
-    // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
-    // llamada.
+    // Numero unico por test: la identidad del stream es la identificacion, no un Guid por llamada,
+    // asi que sin esto dos corridas colisionarian sobre el mismo stream.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
-    // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
+    // Oraculo independiente (MEF-ADR-0002): se recompone a mano, no se deriva de
+    // Identificacion.ToString(), para que un cambio de formato del VO no se auto-valide.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
@@ -83,9 +56,8 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     private static object PayloadCodigoSede(string codigoSede) => new { codigoSede };
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina, nunca sembrando el event store por fuera del API. Devuelve el codigo de la
-    // vinculacion inicial para que el arrange lo use como {codigo} de ruta al terminar.
+    // Devuelve el codigo de la vinculacion inicial, que el arrange usa como {codigo} de ruta al
+    // terminarla.
     private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -100,8 +72,6 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         return codigo;
     }
 
-    // Arrange comun (CA-4): cierra la vinculacion vigente -- via el comando que la origina, nunca
-    // sembrando el event store por fuera del API.
     private async Task TerminarVinculacionAsync(
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -114,9 +84,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-5): inicia una vinculacion nueva sobre el colaborador tras una terminacion
-    // -- escenario de negocio de reingreso -- via el comando que lo origina, nunca sembrando el
-    // event store por fuera del API.
+    // Reingreso: vinculacion nueva sobre un colaborador cuya vinculacion anterior ya termino.
     private async Task IniciarVinculacionAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -142,9 +110,6 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- colaborador con vinculacion abierta y sin sede -> 202 y el stream
-    // recibe sede_asignada con el codigo enviado. Sin Service Bus (event-sourcing puro): mt_events
-    // es la unica ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna202YPersisteSedeAsignada_CuandoColaboradorNoTieneSede()
@@ -167,8 +132,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         eventoPersistido.GetProperty("CodigoSede").GetString().Should().Be("BOG");
     }
 
-    // CA-2: reasignar una sede DISTINTA a la vigente agrega un evento nuevo -- reemplazo puro, sin
-    // evento de retiro. El conteo pasa de 1 a 2 y el evento nuevo lleva el codigo reasignado.
+    // Reemplazo puro: el conteo pasa de 1 a 2, sin evento de retiro intermedio.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna202YAgregaOtroEvento_CuandoSedeEsDistintaALaVigente()
@@ -206,8 +170,6 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         eventoConSedeNueva.GetProperty("CodigoSede").GetString().Should().Be("MED");
     }
 
-    // CA-3: el codigo del comando es IGUAL (comparacion exacta, case-sensitive) al ya asignado ->
-    // idempotencia silenciosa: ningun evento nuevo, el conteo se mantiene en 1.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna202SinNuevoEvento_CuandoSedeEsIdenticaALaVigente()
@@ -240,9 +202,6 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             "asignar la misma sede ya vigente no deberia persistir un evento nuevo (idempotencia silenciosa)");
     }
 
-    // CA-4 (regla de apertura estricta): la ULTIMA vinculacion tiene terminacion registrada -> 409,
-    // sin evento nuevo (CA-ADR-0030; MEF-ADR-0043 seccion 2 paso 2: el 409 de un PUT es una
-    // instancia mas de "declinar con resultado", RFC 9110 §9.3.4).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna409_CuandoUltimaVinculacionTieneTerminacionRegistrada()
@@ -260,8 +219,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-4 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual -- la
-    // sede describe la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
+    // La terminacion bloquea aunque su fecha efectiva no haya llegado: no se consulta el reloj.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna409_CuandoTerminacionEsUnPreavisoConFechaFutura()
@@ -279,11 +237,9 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-5 (reingreso nace sin sede): tras un reingreso, asignar la MISMA sede que tenia la
-    // vinculacion anterior SI agrega un evento nuevo -- si el estado no se hubiera limpiado, la
-    // comparacion exacta de CA-3 habria disparado SinCambios y el conteo se habria quedado en 1.
-    // Este dominio no expone todavia una vista de la sede vigente (#519): esta es la unica forma
-    // black-box de observar que el reingreso limpio el estado.
+    // Prueba indirecta de que el reingreso deja al colaborador sin sede: sin esa limpieza, asignar
+    // el mismo codigo de antes seria idempotencia y el conteo se quedaria en 1. Es la unica lectura
+    // black-box disponible mientras el dominio no exponga una vista de la sede vigente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna202YAgregaOtroEvento_CuandoVinculacionEsUnReingresoConLaMismaSedeQueTeniaAntesDeTerminar()
@@ -315,9 +271,6 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el reingreso deberia dejar al colaborador sin sede: asignar el mismo codigo de antes de terminar no deberia tratarse como SinCambios");
     }
 
-    // CA-6: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
-    // consultar: la ausencia de escritura la garantiza el propio 404 -- el handler lanza antes de
-    // llegar al aggregate).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna404_CuandoColaboradorNoExiste()
@@ -331,7 +284,6 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // Body invalido: CodigoSede vacio -> 400 via AsignarSedeBodyValidator.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna400_CuandoCodigoSedeDelBodyEsVacio()
@@ -344,9 +296,8 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // {id} de ruta sin guion -> 400. Guarda compartida (IdentificacionDeRuta), ya cubierta
-    // exhaustivamente por AsignarEtiquetaSmokeTests -- este es solo un caso de sanity para
-    // confirmar que este endpoint tambien la invoca.
+    // Sanity de que este endpoint invoca la guarda compartida IdentificacionDeRuta, ya cubierta
+    // exhaustivamente por AsignarEtiquetaSmokeTests.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSede_Retorna400_CuandoIdDeRutaNoTraeGuion()

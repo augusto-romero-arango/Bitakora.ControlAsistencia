@@ -1,6 +1,3 @@
-// Issue #465: validacion de forma del body { "codigoSede": "..." } en el borde (400 via
-// RequestValidator). Patron de referencia: AsignarEtiquetaBodyValidatorTests.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;
 using FluentValidation.Results;
@@ -16,7 +13,6 @@ public class AsignarSedeBodyValidatorTests
     private Task<ValidationResult> Validar(AsignarSedeBody body) =>
         _validator.ValidateAsync(body, TestContext.Current.CancellationToken);
 
-    // Camino feliz -- CodigoSede no vacio
     [Fact]
     public async Task Validar_Aprueba_CuandoCodigoSedeNoEsVacio()
     {
@@ -25,7 +21,6 @@ public class AsignarSedeBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CodigoSede vacio produce 400
     [Fact]
     public async Task Validar_RechazaCodigoSede_CuandoEstaVacio()
     {
@@ -36,9 +31,8 @@ public class AsignarSedeBodyValidatorTests
             e.PropertyName == nameof(AsignarSedeBody.CodigoSede));
     }
 
-    // NotEmpty de FluentValidation rechaza tambien whitespace, no solo la cadena vacia -- unica
-    // guarda de forma que le queda a CodigoSede (no se valida charset ni existencia contra el
-    // maestro de sedes, decision de refinamiento: el filtro de sedes activas es del cliente).
+    // NotEmpty rechaza tambien whitespace: es la unica guarda de forma que le queda a CodigoSede,
+    // porque deliberadamente no se valida charset ni existencia contra el maestro de sedes.
     [Fact]
     public async Task Validar_RechazaCodigoSede_CuandoEsSoloEspacios()
     {

@@ -1,6 +1,3 @@
-// Issue #465. Requerido por regla 16: todo evento persistido en Marten debe sobrevivir
-// Serialize -> Deserialize con las opciones REALES de Marten del dominio (regla 6d).
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -8,18 +5,14 @@ using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarSedeFunction.Eventos;
 
 /// <summary>
-/// Verifica que SedeAsignada (payload plano: string, sin VOs anidados -- solo la referencia por
-/// codigo al maestro de Sedes, CA-ADR-0029 islas) sobrevive un roundtrip de serializacion STJ con
-/// las opciones reales de Marten del dominio. No necesita ConfigurarSerializacion propio (ctor
-/// publico, tipo primitivo) -- no hay un test "sin registro falla": no hay ningun registro que
-/// proteger (mismo criterio que VinculacionTerminadaSerializacionTests).
+/// Roundtrip con las opciones reales de Marten del dominio. Sin test "sin registro falla": el
+/// payload es plano (string) y no depende de ningun resolver que proteger.
 /// </summary>
 public class SedeAsignadaSerializacionTests
 {
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionColaboradores.CrearOpcionesMarten();
 
-    // CA-1: SedeAsignada persiste CodigoSede tal como llego y sobrevive el roundtrip completo.
     [Fact]
     public void RoundTrip_ReconstruyeEvento_ConDatosCompletos()
     {
@@ -33,8 +26,7 @@ public class SedeAsignadaSerializacionTests
         deserializado!.CodigoSede.Should().Be("BOG");
     }
 
-    // CA-3: el codigo se persiste preservando el case original (comparacion exacta case-sensitive,
-    // precedente #387) -- un lower-case no se normaliza en el evento.
+    // El evento nunca normaliza el codigo: la idempotencia del aggregate compara case-sensitive.
     [Fact]
     public void RoundTrip_PreservaElCaseOriginalDelCodigo()
     {

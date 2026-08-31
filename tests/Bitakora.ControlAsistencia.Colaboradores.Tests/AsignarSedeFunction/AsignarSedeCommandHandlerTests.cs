@@ -1,8 +1,3 @@
-// Issue #465: asignar (o reasignar) la sede del colaborador -- reemplazo completo de un VO atomico
-// direccionable (MEF-ADR-0043 paso 2), mismo mecanismo combinado que AsignarEtiqueta (#355):
-// "declinar con resultado" para la regla de apertura estricta (VinculacionTerminada) y "declinar en
-// silencio" para la idempotencia (SinCambios, comparacion EXACTA case-sensitive del codigo).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction.CommandHandler;
@@ -13,15 +8,14 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarSedeFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que AsignarEtiquetaCommandHandlerTests).
+// El aggregate usa stream ID de texto (Identificacion.ToString()), no el GuidAggregateId del
+// harness: Given/Then/And exigen los overloads que reciben el streamId explicito.
 public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSede>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente (MEF-ADR-0002): literal, nunca derivado de ComputarStreamId -- si se
+    // derivara, un cambio de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
@@ -53,28 +47,21 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
     private static VinculacionIniciada VinculacionIniciadaVigente() =>
         new(CodigoVinculacionVigente, FechaInicioVinculacionVigente);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta (sin terminacion) y SIN
-    // sede asignada -- base de CA-1.
     private void DadoUnColaboradorConVinculacionAbiertaSinSede() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaVigente());
 
-    // Precondicion (CA-2/CA-3): el colaborador ya tiene una sede asignada sobre la vinculacion vigente.
     private void DadoUnColaboradorConSedeAsignada(string codigoSede) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new SedeAsignada(codigoSede));
 
-    // Precondicion (CA-4): la vinculacion vigente ya tiene una terminacion registrada -- incluye un
-    // preaviso con fecha futura, que bloquea igual sin distincion de estado.
     private void DadoUnColaboradorConTerminacionRegistrada(DateOnly fechaEfectiva) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new VinculacionTerminada(fechaEfectiva));
 
-    // CA-1: vinculacion vigente sin sede -> el stream recibe SedeAsignada con el codigo del
-    // comando; el aggregate rehidratado refleja la sede.
     [Fact]
     public async Task AsignarSede_EmiteSedeAsignada_CuandoElColaboradorNoTieneSede()
     {
@@ -86,9 +73,7 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
     }
 
-    // CA-2: reasignar una sede DISTINTA sobre un colaborador que ya tiene sede -> reemplazo puro,
-    // el mismo evento SedeAsignada con el codigo nuevo (sin evento de retiro, decision de
-    // refinamiento).
+    // Reemplazo puro: el mismo tipo de evento con el codigo nuevo, sin evento de retiro previo.
     [Fact]
     public async Task AsignarSede_EmiteSedeAsignada_CuandoReasignaUnaSedeDistintaALaVigente()
     {
@@ -100,8 +85,6 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeMedellin);
     }
 
-    // CA-3: el codigo del comando es IGUAL (comparacion exacta, case-sensitive) a la sede ya
-    // asignada -> idempotencia silenciosa: ningun evento nuevo, el estado conserva la sede original.
     [Fact]
     public async Task AsignarSede_NoEmiteEvento_CuandoElCodigoEsIgualAlVigente()
     {
@@ -113,8 +96,7 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
     }
 
-    // CA-3 (comparacion case-sensitive, precedente #387): el mismo codigo con distinto case NO es
-    // el mismo valor -> emite SedeAsignada (reemplazo), no idempotencia.
+    // Dos codigos que solo difieren en mayusculas son sedes distintas: no hay normalizacion.
     [Fact]
     public async Task AsignarSede_EmiteSedeAsignada_CuandoElCodigoDifiereSoloEnMayusculas()
     {
@@ -126,8 +108,6 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, "bog");
     }
 
-    // CA-4: la ULTIMA vinculacion tiene terminacion registrada -> 409, ningun evento nuevo, la sede
-    // (ausente en este escenario) queda intacta.
     [Fact]
     public async Task AsignarSede_LanzaInvalidOperationException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
@@ -141,8 +121,7 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
     }
 
-    // CA-4 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual -- la
-    // sede describe la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
+    // La terminacion bloquea aunque su fecha efectiva no haya llegado: no se consulta el reloj.
     [Fact]
     public async Task AsignarSede_LanzaInvalidOperationException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
@@ -157,9 +136,8 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
     }
 
-    // CA-4 x CA-3 (cruce, mismo criterio que AsignarEtiqueta #355): la vinculacion tiene
-    // terminacion registrada Y el codigo del comando es identico al ya asignado. La regla de
-    // apertura es incondicional -- gana sobre la idempotencia silenciosa.
+    // Cruce de las dos guardas: el rechazo por terminacion gana sobre la idempotencia silenciosa,
+    // asi que el orden de las guardas en AsignarSede no es intercambiable.
     [Fact]
     public async Task AsignarSede_LanzaInvalidOperationException_CuandoElCodigoEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
     {
@@ -177,10 +155,8 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
     }
 
-    // CA-5 (reingreso nace sin sede): tras un reingreso, la vinculacion nueva no hereda la sede de
-    // la anterior -- si el aggregate NO limpiara _codigoSede en Apply(VinculacionIniciada), asignar
-    // el MISMO codigo que tenia la vinculacion anterior seria SinCambios (ningun evento); como la
-    // sede nace limpia, el comando emite SedeAsignada de todos modos.
+    // Prueba indirecta de que Apply(VinculacionIniciada) limpia la sede: si no la limpiara, asignar
+    // el mismo codigo de la vinculacion anterior seria SinCambios y no habria evento.
     [Fact]
     public async Task AsignarSede_EmiteSedeAsignada_CuandoLaVinculacionEsUnReingresoTrasUnaTerminacionConSedeAsignada()
     {
@@ -197,8 +173,23 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
     }
 
-    // CA-6: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
-    // store. Sin Given: el stream no existe.
+    // Anular la terminacion reabre la vinculacion: la guarda lee el estado rehidratado, no un flag
+    // que quede pegado tras el primer VinculacionTerminada.
+    [Fact]
+    public async Task AsignarSede_EmiteSedeAsignada_CuandoLaTerminacionDeLaVinculacionFueAnulada()
+    {
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaVigente(),
+            new VinculacionTerminada(FechaEfectivaTerminacion),
+            new TerminacionAnulada());
+
+        await WhenAsync(ComandoValido());
+
+        Then(StreamIdEsperado, new SedeAsignada(CodigoSedeBogota));
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
+    }
+
     [Fact]
     public async Task AsignarSede_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
     {

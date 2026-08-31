@@ -1,8 +1,3 @@
-// Issue #465 (MEF-ADR-0043 paso 2): tests del endpoint HTTP PUT colaboradores/{id}/sede (asignar o
-// reasignar la sede del colaborador). CA-1: 202; id de ruta invalido -> 400 (parseo tipado unico,
-// precedente ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: InvalidOperationException -> 409,
-// KeyNotFoundException -> 404.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
@@ -25,7 +20,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 202 Accepted
     [Fact]
     public async Task AsignarSede_Retorna202_CuandoIdDeRutaYBodySonValidos()
     {
@@ -38,9 +32,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<AcceptedResult>();
     }
 
-    // CA-1: el endpoint compone el comando interno AsignarSede desde {id} + CodigoSede del body --
-    // el router debe recibir exactamente esos 3 campos primitivos (MEF-ADR-0039 decision 6), tipo y
-    // numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task AsignarSede_ComponeElComando_DesdeIdDeRutaYCodigoSedeDelBody()
     {
@@ -56,8 +47,7 @@ public class FunctionEndpointTests
             CodigoSede: CodigoSedeValido));
     }
 
-    // id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el unico
-    // punto de traduccion, precedente ObtenerFichaColaborador.FunctionEndpoint).
+    // El parseo del {id} corta antes de despachar: un id invalido nunca llega al router.
     [Fact]
     public async Task AsignarSede_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -71,7 +61,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // tipo fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task AsignarSede_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -84,7 +73,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CodigoSede vacio en el body -> 400 Bad Request
     [Fact]
     public async Task AsignarSede_Retorna400_CuandoElBodyEsInvalido()
     {
@@ -98,9 +86,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-4: violacion de la regla de apertura (vinculacion con terminacion registrada) retorna 409
-    // Conflict (MEF-ADR-0043 seccion 2 paso 2: el 409 de un PUT es una instancia mas de "declinar
-    // con resultado").
     [Fact]
     public async Task AsignarSede_Retorna409_CuandoLaVinculacionTieneTerminacionRegistrada()
     {
@@ -115,7 +100,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-6: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task AsignarSede_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -130,12 +114,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator para el body reducido (AsignarSedeBody). Retorna un body
-/// pre-configurado o un error segun lo que se le pase en el constructor.
-/// </summary>
 internal class FakeAsignarSedeBodyRequestValidator : IRequestValidator
 {
     private readonly AsignarSedeBody? _body;
@@ -162,11 +140,6 @@ internal class FakeAsignarSedeBodyRequestValidator : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada (InvalidOperationException -> 409, KeyNotFoundException -> 404).
-/// </summary>
 internal class FakeAsignarSedeCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

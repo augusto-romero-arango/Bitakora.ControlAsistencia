@@ -45,17 +45,13 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // clase.
     private readonly Dictionary<string, Etiqueta> _etiquetas = new();
 
-    // Issue #465: codigo de la UNICA sede a la que esta asignado el colaborador -- de la
-    // VINCULACION, no de la persona (null en el estado inicial y tras un reingreso; #520
-    // generalizara Apply(VinculacionIniciada) para asentar la sede de nacimiento). Solo el codigo
-    // (referencia pura al maestro de Sedes, CA-ADR-0029 islas): sin nombre ni centro de costos --
-    // esos se estampan en los hechos operativos (DiaAprobado, #489), nunca aqui.
+    // Codigo de la UNICA sede del colaborador -- de la VINCULACION, no de la persona: null en el
+    // estado inicial y tras un reingreso. Solo el codigo (referencia al maestro de Sedes,
+    // CA-ADR-0029 islas), nunca su nombre ni su centro de costos.
     private string? _codigoSede;
 
     internal IReadOnlyDictionary<string, Etiqueta> Etiquetas => _etiquetas;
 
-    // internal solo para el DSL de tests (And<>), mismo criterio que los demas observables
-    // internos de esta clase (Tell-don't-Ask, MEF-ADR-0012).
     internal string? CodigoSede => _codigoSede;
 
     internal Identificacion Identificacion => _identificacion!;
@@ -129,9 +125,6 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // (MEF-ADR-0004 capa 4).
     public void Apply(EtiquetaRetirada e) => _etiquetas.Remove(e.CategoriaNormalizada);
 
-    // Issue #465: asienta el reemplazo puro de la sede -- el mismo evento sirve tanto para la
-    // primera asignacion como para una reasignacion (sin evento de retiro). Nunca lanza
-    // (MEF-ADR-0004 capa 4).
     public void Apply(SedeAsignada e) => _codigoSede = e.CodigoSede;
 
     // Issue #349: mecanismo "declinar con resultado" (CA-ADR-0030) -- nunca lanza, nunca emite un
@@ -354,14 +347,10 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoRetiroEtiqueta.Exitosa;
     }
 
-    // Issue #465: mecanismo combinado (CA-ADR-0030), precedente exacto AsignarEtiqueta (#355):
-    // "declinar con resultado" para VinculacionTerminada (_fechaTerminacionVinculacionVigente is
-    // not null, incluye un preaviso sin vencer -- la sede describe la relacion laboral ACTIVA) y
-    // "declinar en silencio" para SinCambios (codigoSede == _codigoSede, comparacion EXACTA
-    // case-sensitive, precedente #387). Exito: appendea SedeAsignada a _uncommittedEvents y lo
-    // aplica.
-    // internal: mismo criterio de visibilidad que los metodos de comando hermanos -- el unico
-    // llamador es el handler del mismo ensamblado (los tests lo alcanzan via InternalsVisibleTo).
+    // Mecanismo combinado (CA-ADR-0030): rechaza si la vinculacion tiene terminacion registrada --
+    // un preaviso sin vencer bloquea igual, la sede describe la relacion laboral ACTIVA -- y declina
+    // en silencio si el codigo es identico (comparacion exacta, case-sensitive: dos codigos que solo
+    // difieren en mayusculas son sedes distintas para el maestro).
     internal ResultadoAsignacionSede AsignarSede(string codigoSede)
     {
         if (_fechaTerminacionVinculacionVigente is not null)

@@ -1,11 +1,6 @@
-// Issue #465: guardrail de resolucion del .resx del handler (MEF-ADR-0009), gemelo del que
-// AsignarEtiquetaCommandHandlerMensajesTests.cs aplica.
-//
-// Por que existe: AsignarSedeCommandHandler.Mensajes devuelve ResourceManager.GetString(...)! -- el
-// "!" es supresion del compilador, no garantia de runtime. Si la CLAVE desaparece del .resx (rename,
-// merge que la pierde) GetString retorna null en silencio y los tests del handler pasan en FALSO:
-// sus aserciones son WithMessage($"*{Mensajes.X}*"), que con X == null se vuelve "**" y matchea
-// cualquier excepcion.
+// Sin este guardrail, una clave perdida del .resx haria que GetString(...)! retorne null y los
+// tests del handler pasarian en FALSO: su WithMessage($"*{Mensajes.X}*") se vuelve "**" con X null,
+// que matchea cualquier excepcion.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction.CommandHandler;
