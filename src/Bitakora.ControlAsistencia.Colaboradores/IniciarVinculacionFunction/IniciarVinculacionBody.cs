@@ -7,4 +7,4 @@ namespace Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
 // Identificacion.Parsear(id). Vive en el namespace del endpoint, no junto al comando: es forma de
 // transporte del borde HTTP, no el comando interno (mismo criterio que CorregirNombresBody,
 // issue #377).
-public record IniciarVinculacionBody(string CodigoColaborador, DateOnly FechaInicio);
+public record IniciarVinculacionBody(string CodigoColaborador, DateOnly FechaInicio, string? CodigoSede = null);

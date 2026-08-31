@@ -17,4 +17,5 @@ public record RegistrarColaborador(
     string PrimerApellido,
     string? SegundoApellido,
     string CodigoColaborador,
-    DateOnly FechaInicio);
+    DateOnly FechaInicio,
+    string? CodigoSede = null);

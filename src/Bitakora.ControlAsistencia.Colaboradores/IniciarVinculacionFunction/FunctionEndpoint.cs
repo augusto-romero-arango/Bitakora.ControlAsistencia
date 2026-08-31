@@ -46,7 +46,8 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             identificacion.Tipo.ToString(),
             identificacion.Numero,
             body!.CodigoColaborador,
-            body.FechaInicio);
+            body.FechaInicio,
+            body.CodigoSede);
 
         try
         {

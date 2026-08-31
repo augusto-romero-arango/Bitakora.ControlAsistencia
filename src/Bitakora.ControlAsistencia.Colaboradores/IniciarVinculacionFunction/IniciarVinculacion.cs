@@ -25,4 +25,5 @@ public record IniciarVinculacion(
     string TipoIdentificacion,
     string NumeroIdentificacion,
     string CodigoColaborador,
-    DateOnly FechaInicio);
+    DateOnly FechaInicio,
+    string? CodigoSede = null);

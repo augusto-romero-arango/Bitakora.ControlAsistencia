@@ -68,6 +68,26 @@ public class FunctionEndpointTests
             FechaInicio: new DateOnly(2026, 6, 2)));
     }
 
+    // Issue #520 (CA-3): el endpoint compone el comando interno con el CodigoSede del body cuando
+    // llega -- opcional, se forwardea tal cual (null si el body no lo trae).
+    [Fact]
+    public async Task IniciarVinculacion_ComponeElComando_ConCodigoSedeDesdeElBody()
+    {
+        var validator = new FakeIniciarVinculacionBodyRequestValidator(
+            BodyValido() with { CodigoSede = "BOG" });
+        var router = new FakeIniciarVinculacionCommandRouter();
+        var function = new FunctionEndpoint(validator, router);
+
+        await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
+
+        router.ComandoRecibido.Should().Be(new IniciarVinculacion(
+            TipoIdentificacion: "CC",
+            NumeroIdentificacion: "79543210",
+            CodigoColaborador: "COL-002",
+            FechaInicio: new DateOnly(2026, 6, 2),
+            CodigoSede: "BOG"));
+    }
+
     // CA-3: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
     // unico punto de traduccion, precedente CorregirNombresFunction.FunctionEndpoint post-#377).
     [Fact]

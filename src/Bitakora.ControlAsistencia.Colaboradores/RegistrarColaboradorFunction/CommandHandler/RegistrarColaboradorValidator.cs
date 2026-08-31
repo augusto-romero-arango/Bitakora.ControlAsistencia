@@ -40,6 +40,8 @@ public class RegistrarColaboradorValidator : AbstractValidator<RegistrarColabora
         // FechaInicio es REQUERIDA -- el default de DateOnly (0001-01-01) equivale a "no llego"
         // (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).
         RuleFor(x => x.FechaInicio).NotEqual(default(DateOnly));
+
+        RuleFor(x => x.CodigoSede).NotEmpty().When(x => x.CodigoSede is not null);
     }
 
     // Consulta la lista cerrada (#348) sin propagar la excepcion de dominio al boundary de

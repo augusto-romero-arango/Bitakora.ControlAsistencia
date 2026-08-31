@@ -90,6 +90,8 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // no hereda las de la anterior (las etiquetas describen la relacion laboral vigente). Se vacia
     // incondicionalmente, tambien en la primera vinculacion (donde ya esta vacio): Apply nunca
     // ramifica por logica de negocio, solo asienta estado (MEF-ADR-0004 capa 4).
+    // La sede tampoco se hereda: se asienta la del evento sin ramificar (null cuando la vinculacion
+    // nace sin sede, que es exactamente la limpieza que exige "reingreso nace limpio").
     public void Apply(VinculacionIniciada e)
     {
         _fechaTerminacionVinculacionAnterior = _fechaTerminacionVinculacionVigente;
@@ -97,7 +99,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _fechaInicioVinculacionVigente = e.FechaInicio;
         _fechaTerminacionVinculacionVigente = null;
         _etiquetas.Clear();
-        _codigoSede = null;
+        _codigoSede = e.CodigoSede;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004
@@ -179,7 +181,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // ese Apply reabre la vinculacion (limpia _fechaTerminacionVinculacionVigente), de modo que el
     // ciclo registro-terminacion-reingreso-terminacion es encadenable sin estado residual.
     // internal: mismo criterio de visibilidad que TerminarVinculacion y Registrar.
-    internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio)
+    internal ResultadoInicioVinculacion IniciarVinculacion(string codigo, DateOnly fechaInicio, string? codigoSede)
     {
         if (_fechaTerminacionVinculacionVigente is null)
             return ResultadoInicioVinculacion.VinculacionAbierta;
@@ -187,7 +189,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         if (fechaInicio <= _fechaTerminacionVinculacionVigente.Value)
             return ResultadoInicioVinculacion.FechaSolapaVinculacionAnterior;
 
-        var evento = new VinculacionIniciada(codigo, fechaInicio);
+        var evento = new VinculacionIniciada(codigo, fechaInicio, codigoSede);
         _uncommittedEvents.Add(evento);
         Apply(evento);
 
@@ -369,7 +371,8 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Factory interno: agrega los DOS eventos del commit a _uncommittedEvents y los aplica -- patron
     // RegistroDeMarcacionAggregateRoot.Iniciar, generalizado a dos eventos en el mismo commit.
     internal static ColaboradorAggregateRoot Registrar(
-        Identificacion identificacion, NombreColaborador nombre, string codigo, DateOnly fechaInicio)
+        Identificacion identificacion, NombreColaborador nombre, string codigo, DateOnly fechaInicio,
+        string? codigoSede)
     {
         var colaborador = new ColaboradorAggregateRoot();
 
@@ -377,7 +380,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         colaborador._uncommittedEvents.Add(colaboradorRegistrado);
         colaborador.Apply(colaboradorRegistrado);
 
-        var vinculacionIniciada = new VinculacionIniciada(codigo, fechaInicio);
+        var vinculacionIniciada = new VinculacionIniciada(codigo, fechaInicio, codigoSede);
         colaborador._uncommittedEvents.Add(vinculacionIniciada);
         colaborador.Apply(vinculacionIniciada);
 

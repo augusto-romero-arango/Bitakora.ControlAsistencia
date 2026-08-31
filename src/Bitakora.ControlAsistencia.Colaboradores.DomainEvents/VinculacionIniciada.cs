@@ -12,5 +12,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 /// comando (CA-ADR-0029): el reingreso (#350) reutilizara este mismo evento.
 /// No necesita ConfigurarSerializacion: tipos primitivos (string, DateOnly), STJ lo reconstruye sin
 /// ayuda -- mismo criterio que ProgramacionTurnoSolicitada.
+/// El default null de CodigoSede es lo que hace compatible la evolucion aditiva (MEF-ADR-0005): sin
+/// el, los eventos ya persistidos sin ese campo no deserializan.
 /// </remarks>
-public sealed record VinculacionIniciada(string Codigo, DateOnly FechaInicio);
+public sealed record VinculacionIniciada(string Codigo, DateOnly FechaInicio, string? CodigoSede = null);

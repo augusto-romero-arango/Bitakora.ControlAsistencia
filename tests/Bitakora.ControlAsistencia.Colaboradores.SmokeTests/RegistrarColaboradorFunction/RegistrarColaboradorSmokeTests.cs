@@ -33,6 +33,13 @@
 // -> 202 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
 // accion reservado, MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
 //
+// Issue #520 (CodigoSede opcional en el ingreso): la vinculacion nace con su sede -- el dato viaja
+// DENTRO de VinculacionIniciada, nunca como un SedeAsignada adicional en el commit. CA-1 (con
+// CodigoSede): 202 y VinculacionIniciada.CodigoSede queda asentado. CA-2 (sin el campo, body
+// existente): 202 y VinculacionIniciada.CodigoSede es null -- compatibilidad con clientes actuales.
+// CA-6: CodigoSede presente pero vacio/blanco -> 400 (opcional = ausente valido; presente exige
+// valor).
+//
 // Issue #378 (CA-5): la ruta paso de "Colaboradores" (PascalCase) a "colaboradores" (kebab-case
 // minusculo, MEF-ADR-0043 seccion 3) -- sin cambio de verbo ni forma. RutaRegistrar se actualiza a
 // la ruta nueva para reflejar el contrato vigente; no se agrega un assert de "la ruta vieja
@@ -43,6 +50,7 @@
 // host, no una verificacion de este cambio.
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
 using static Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures.DatosDePrueba;
@@ -88,6 +96,22 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             segundoApellido = (string?)null,
             codigoColaborador = codigoColaborador ?? NuevoCodigoColaborador(),
             fechaInicio
+        };
+
+    // Tipo anonimo separado de PayloadRegistro a proposito: CA-2 exige un body donde el campo
+    // codigoSede este AUSENTE, no presente en null.
+    private static object PayloadRegistroConSede(
+        string numeroIdentificacion, DateOnly fechaInicio, string? codigoSede) => new
+        {
+            tipoIdentificacion = TipoIdentificacionCc,
+            numeroIdentificacion,
+            primerNombre = "[TEST]",
+            segundoNombre = (string?)null,
+            primerApellido = "Smoke",
+            segundoApellido = (string?)null,
+            codigoColaborador = NuevoCodigoColaborador(),
+            fechaInicio,
+            codigoSede
         };
 
     [Fact]
@@ -355,6 +379,87 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         var codigoColaborador = $"COL {Guid.CreateVersion7()}";
         var payload = PayloadRegistro(
             NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador);
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-1 (#520): la vinculacion nace con su sede -- CodigoSede viaja DENTRO de VinculacionIniciada,
+    // nunca como un SedeAsignada adicional en el commit. 202 y el evento persistido trae la sede.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna202YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var fechaInicio = new DateOnly(2026, 4, 9);
+
+        var response = await _client.PostAsJsonAsync(
+            RutaRegistrar,
+            PayloadRegistroConSede(numeroIdentificacion, fechaInicio, codigoSede: "BOG"),
+            ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaColaboradores, streamId, TipoEventoVinculacionIniciada, Timeout);
+
+        eventoPersistido.GetProperty("CodigoSede").GetString().Should().Be("BOG");
+    }
+
+    // CA-2 (#520): body SIN el campo CodigoSede (clientes actuales, sin cambios) -> 202 y
+    // VinculacionIniciada.CodigoSede queda null -- evolucion aditiva compatible.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna202YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var fechaInicio = new DateOnly(2026, 4, 10);
+
+        var response = await _client.PostAsJsonAsync(
+            RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
+
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaColaboradores, streamId, TipoEventoVinculacionIniciada, Timeout);
+
+        eventoPersistido.GetProperty("CodigoSede").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    // CA-6: CodigoSede presente pero vacio -> 400 (opcional = ausente valido; presente exige valor).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna400_CuandoCodigoSedeEsVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = PayloadRegistroConSede(
+            NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 11), codigoSede: "");
+
+        var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-6: CodigoSede presente pero blanco (solo espacios) -> 400 -- NotEmpty tambien rechaza
+    // whitespace-only en FluentValidation.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_Retorna400_CuandoCodigoSedeEsBlanco()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = PayloadRegistroConSede(
+            NuevoNumeroIdentificacion(), new DateOnly(2026, 4, 11), codigoSede: "   ");
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
 
