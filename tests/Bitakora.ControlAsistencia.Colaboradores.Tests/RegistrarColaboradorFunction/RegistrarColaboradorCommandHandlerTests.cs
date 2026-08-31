@@ -19,6 +19,9 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
     private const string CodigoColaborador = "COL-001";
     private static readonly DateOnly FechaInicioValida = new(2026, 1, 15);
 
+    // Issue #520: CodigoSede opcional en el body del ingreso.
+    private const string CodigoSedeBogota = "BOG";
+
     // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037: el formato de la
     // identidad de stream es contrato de datos, no estilo). Se declara como literal y NO como
     // ColaboradorAggregateRoot.ComputarStreamId(...): derivarlo del propio codigo bajo prueba haria
@@ -59,7 +62,9 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
 
     // CA-1: nace el stream con clave "CC-79543210" conteniendo ColaboradorRegistrado +
     // VinculacionIniciada persistidos en un solo commit, en ese orden.
-    // CA-5: VinculacionIniciada persiste Codigo/FechaInicio tal como llegaron del request.
+    // CA-2/CA-5: VinculacionIniciada persiste Codigo/FechaInicio tal como llegaron del request, y
+    // sin CodigoSede en el comando queda con sede null (compatibilidad: los clientes actuales no
+    // cambian).
     [Fact]
     public async Task RegistrarColaborador_EmiteColaboradorRegistradoYVinculacionIniciada_CuandoIdentificacionNoExiste()
     {
@@ -68,7 +73,7 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
 
         Then(StreamIdEsperado,
             new ColaboradorRegistrado(IdentificacionValida(), NombreValido()),
-            new VinculacionIniciada(CodigoColaborador, FechaInicioValida));
+            new VinculacionIniciada(CodigoColaborador, FechaInicioValida, null));
         And<ColaboradorAggregateRoot, string>(StreamIdEsperado, c => c.Id, StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.Identificacion.ToString(), StreamIdEsperado);
@@ -78,6 +83,21 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoColaborador);
         And<ColaboradorAggregateRoot, DateOnly>(
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioValida);
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
+    }
+
+    // CA-1: registrar CON CodigoSede emite VinculacionIniciada con la sede DENTRO del evento (nunca
+    // un SedeAsignada adicional en el commit); rehidratado, la sede queda asentada.
+    [Fact]
+    public async Task RegistrarColaborador_EmiteVinculacionIniciadaConSede_CuandoCodigoSedeLlegaEnElComando()
+    {
+        Given();
+        await WhenAsync(ComandoValido() with { CodigoSede = CodigoSedeBogota });
+
+        Then(StreamIdEsperado,
+            new ColaboradorRegistrado(IdentificacionValida(), NombreValido()),
+            new VinculacionIniciada(CodigoColaborador, FechaInicioValida, CodigoSedeBogota));
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
     }
 
     // CA-2: identificacion ya registrada -> 409 Conflict (InvalidOperationException, no evento de

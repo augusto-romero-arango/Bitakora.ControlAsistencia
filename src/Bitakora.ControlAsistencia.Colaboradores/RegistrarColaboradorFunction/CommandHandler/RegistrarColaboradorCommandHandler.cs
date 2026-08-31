@@ -33,7 +33,7 @@ public partial class RegistrarColaboradorCommandHandler : ICommandHandlerAsync<R
             command.PrimerNombre, command.SegundoNombre, command.PrimerApellido, command.SegundoApellido);
 
         var colaborador = ColaboradorAggregateRoot.Registrar(
-            identificacion, nombre, command.CodigoColaborador, command.FechaInicio);
+            identificacion, nombre, command.CodigoColaborador, command.FechaInicio, command.CodigoSede);
 
         _eventStore.StartStream(colaborador);
     }

@@ -36,6 +36,10 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     private static readonly DateOnly FechaInicioReingresoValida =
         FechaEfectivaTerminacionOriginal.AddDays(1);
 
+    // Issue #520: CodigoSede opcional en el body del reingreso.
+    private const string CodigoSedeAnterior = "MED";
+    private const string CodigoSedeNueva = "BOG";
+
     protected override ICommandHandlerAsync<IniciarVinculacion> Handler =>
         new IniciarVinculacionCommandHandler(EventStore);
 
@@ -68,6 +72,17 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaOriginal(),
+            new VinculacionTerminada(fechaEfectiva));
+
+    // Precondicion de CA-3/CA-4: la vinculacion anterior tenia una sede asignada -- distinta de la
+    // que trae el reingreso, para que el And posterior distinga "sede nueva asentada" de "sede
+    // heredada por accidente".
+    private void DadoUnColaboradorConVinculacionTerminadaYSedeAsignada(
+        DateOnly fechaEfectiva, string codigoSedeAnterior) =>
+        Given(StreamIdEsperado,
+            ColaboradorRegistradoValido(),
+            VinculacionIniciadaOriginal(),
+            new SedeAsignada(codigoSedeAnterior),
             new VinculacionTerminada(fechaEfectiva));
 
     // CA-1: colaborador con la ultima vinculacion terminada + FechaInicio estrictamente posterior
@@ -218,6 +233,36 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoReingreso);
         And<ColaboradorAggregateRoot, DateOnly?>(
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
+    }
+
+    // CA-3: reingreso CON CodigoSede emite VinculacionIniciada con la sede DENTRO del evento;
+    // rehidratado, el colaborador queda con la sede nueva aunque la vinculacion anterior tuviera
+    // otra.
+    [Fact]
+    public async Task IniciarVinculacion_EmiteVinculacionIniciadaConSede_CuandoCodigoSedeLlegaEnElComando()
+    {
+        DadoUnColaboradorConVinculacionTerminadaYSedeAsignada(
+            FechaEfectivaTerminacionOriginal, CodigoSedeAnterior);
+
+        await WhenAsync(ComandoValido() with { CodigoSede = CodigoSedeNueva });
+
+        Then(StreamIdEsperado,
+            new VinculacionIniciada(CodigoReingreso, FechaInicioReingresoValida, CodigoSedeNueva));
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeNueva);
+    }
+
+    // CA-4: reingreso SIN CodigoSede deja la vinculacion nueva sin sede -- "reingreso nace limpio"
+    // sigue siendo el default, aunque la vinculacion anterior tuviera una sede asignada.
+    [Fact]
+    public async Task IniciarVinculacion_EmiteVinculacionIniciadaSinSede_CuandoCodigoSedeNoLlegaAunqueLaAnteriorTeniaSede()
+    {
+        DadoUnColaboradorConVinculacionTerminadaYSedeAsignada(
+            FechaEfectivaTerminacionOriginal, CodigoSedeAnterior);
+
+        await WhenAsync(ComandoValido());
+
+        Then(StreamIdEsperado, new VinculacionIniciada(CodigoReingreso, FechaInicioReingresoValida, null));
+        And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
     }
 
     // CA-3: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event

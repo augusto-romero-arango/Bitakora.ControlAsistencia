@@ -150,6 +150,48 @@ public class RegistrarColaboradorValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
+    // CA-2/CA-6: CodigoSede es opcional -- ausente (null) es valido, mismo default que antes de
+    // este issue.
+    [Fact]
+    public async Task Validar_Aprueba_CuandoCodigoSedeEsNull()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoSede = null });
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    // CA-1: CodigoSede con un valor presente y no vacio es valido.
+    [Fact]
+    public async Task Validar_Aprueba_CuandoCodigoSedeTieneUnValorPresente()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoSede = "BOG" });
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    // CA-6: CodigoSede presente pero vacio produce 400 -- opcional = ausente valido; presente exige
+    // valor.
+    [Fact]
+    public async Task Validar_RechazaCodigoSede_CuandoEstaVacio()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoSede = "" });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(RegistrarColaborador.CodigoSede));
+    }
+
+    // CA-6: CodigoSede presente pero solo espacios produce 400 -- mismo criterio que el vacio.
+    [Fact]
+    public async Task Validar_RechazaCodigoSede_CuandoEsSoloEspacios()
+    {
+        var resultado = await Validar(ComandoValido() with { CodigoSede = "   " });
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(RegistrarColaborador.CodigoSede));
+    }
+
     // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~ -) sigue siendo valido --
     // el set permitido no se limita a alfanumericos.
     [Fact]

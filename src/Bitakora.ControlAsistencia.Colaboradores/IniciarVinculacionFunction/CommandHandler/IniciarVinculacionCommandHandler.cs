@@ -30,7 +30,8 @@ public partial class IniciarVinculacionCommandHandler : ICommandHandlerAsync<Ini
         if (colaborador is null)
             throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
 
-        var resultado = colaborador.IniciarVinculacion(command.CodigoColaborador, command.FechaInicio);
+        var resultado = colaborador.IniciarVinculacion(
+            command.CodigoColaborador, command.FechaInicio, command.CodigoSede);
         switch (resultado)
         {
             case ResultadoInicioVinculacion.VinculacionAbierta:
