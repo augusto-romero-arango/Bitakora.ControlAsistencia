@@ -12,6 +12,10 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
     internal const string HeaderUserId = "X-User-Id";
 
     protected override Task<HttpResponseMessage> SendAsync(
-        HttpRequestMessage request, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        request.Headers.Add(HeaderTenantId, identidad.TenantId);
+        request.Headers.Add(HeaderUserId, identidad.UserId);
+        return base.SendAsync(request, cancellationToken);
+    }
 }
