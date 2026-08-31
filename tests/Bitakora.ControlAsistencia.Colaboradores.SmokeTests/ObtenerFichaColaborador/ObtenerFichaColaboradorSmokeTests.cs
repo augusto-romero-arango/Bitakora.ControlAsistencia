@@ -72,8 +72,6 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
 
     private sealed record EtiquetaFichaSmoke(string Categoria, string Valor);
 
-    // Issue #519 CA-3: CodigoSede al final, con default null -- mismo criterio posicional que
-    // FichaColaboradorRespuesta de produccion (no correr las posiciones existentes).
     private sealed record FichaColaboradorRespuestaSmoke(
         string Id,
         string NombreCompleto,

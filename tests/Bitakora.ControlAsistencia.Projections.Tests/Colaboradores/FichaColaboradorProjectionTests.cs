@@ -16,10 +16,8 @@
 // ya habria materializado -- nunca se obtiene invocando Create/Apply, para no encadenar el oraculo
 // de un test con la logica bajo prueba de otro.
 //
-// Issue #519 (esta revision): CA-1/CA-2 suman Apply(SedeAsignada) -- metodo nuevo, stub -- y amplian
-// la cobertura de Apply(VinculacionIniciada) con CodigoSede (VinculacionIniciada.CodigoSede, #520).
-// El nuevo campo FichaColaborador.CodigoSede es opcional al final del record (no reordena las
-// llamadas posicionales existentes de este archivo).
+// Issue #519: CodigoSede es opcional al final de FichaColaborador -- por eso las llamadas
+// posicionales de este archivo que no lo nombran siguen valiendo.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;

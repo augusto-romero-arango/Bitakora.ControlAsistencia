@@ -73,6 +73,16 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
             && (cursorRecibido.NombreCompleto is null || cursorRecibido.Id is null))
             return NoProcesable("El cursor debe traer NombreCompleto e Id, o ninguno de los dos");
 
+        // Issue #519 CA-4: el filtro por sede es igualdad plana y OPCIONAL -- ausente/null no
+        // filtra, y el comportamiento previo a este issue no cambia. Presente pero en blanco es 422
+        // por simetria con el resto del endpoint (una etiqueta con categoria o valor vacios) y con
+        // AsignarSedeBodyValidator del lado comando (NotEmpty): ninguna ficha puede llevar sede en
+        // blanco, asi que ese filtro solo puede ser un error del cliente, no una consulta legitima
+        // que deba responder 200 con lista vacia. Se valida ANTES de abrir la QuerySession, igual
+        // que las demas validaciones del borde.
+        if (filtro.CodigoSede is { } codigoSedeEnBlanco && string.IsNullOrWhiteSpace(codigoSedeEnBlanco))
+            return NoProcesable("CodigoSede, si viene, no puede estar en blanco");
+
         // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012), ver NormalizarEtiquetas.
         var etiquetasNormalizadas = NormalizarEtiquetas(filtro.Etiquetas);
         if (etiquetasNormalizadas is null)
@@ -121,6 +131,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
             var etiquetasJson = JsonSerializer.Serialize(etiquetasNormalizadas);
             query = query.Where(f => f.MatchesSql(SqlContenimientoEtiquetas, etiquetasJson));
         }
+
+        // Issue #519 CA-4/CA-5: igualdad EXACTA (case-sensitive) contra el codigo que asento la
+        // proyeccion -- SedeAsignada y VinculacionIniciada lo persisten tal cual, sin normalizar
+        // (ColaboradorAggregateRoot.AsignarSede compara con ==), asi que el filtro no puede
+        // normalizar lo que el otro lado no normalizo. Es un Where mas del mismo AND: convive con
+        // la vigencia, el containment de etiquetas y el cursor keyset sin tocar el orden ni el Take.
+        if (filtro.CodigoSede is { } codigoSede)
+            query = query.Where(f => f.CodigoSede == codigoSede);
 
         // CA-3: paginacion keyset -- orden OrderBy(NombreCompleto).ThenBy(Id), predicado compuesto
         // "nombre > cursor.NombreCompleto OR (nombre == cursor.NombreCompleto AND id >
@@ -203,11 +221,15 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 // la vista (MEF-ADR-0041 -- el DTO de filtro de MEF-ADR-0042 no reabre la excepcion del DTO de
 // RESPUESTA). FechaReferencia es OBLIGATORIA -- el back jamas resuelve "hoy" (decision de
 // refinamiento del issue): el "hoy" lo resuelve quien consulta, en su propia zona horaria.
+// Issue #519: CodigoSede (opcional, al final para no correr las posiciones existentes) filtra por
+// la sede de la vinculacion vigente -- solo el codigo, igualdad plana: el nombre de la sede lo
+// resuelve el consumidor contra FichaSede (decision de refinamiento del issue, opcion a).
 public sealed record FiltroListarFichasColaborador(
     DateOnly FechaReferencia,
     IReadOnlyList<FiltroEtiqueta>? Etiquetas,
     CursorFicha? Cursor,
-    int Take = 50);
+    int Take = 50,
+    string? CodigoSede = null);
 
 // Par categoria:valor SIN normalizar -- el endpoint construye Etiqueta.Crear(Categoria, Valor) con
 // cada par (Tell-don't-Ask, MEF-ADR-0012: un solo algoritmo de normalizacion, el del VO). Si

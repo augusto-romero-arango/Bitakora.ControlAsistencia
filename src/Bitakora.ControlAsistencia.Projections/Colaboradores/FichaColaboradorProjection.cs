@@ -120,9 +120,9 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
         return vista with { Etiquetas = etiquetas, EtiquetasNormalizadas = normalizadas };
     }
 
-    // Issue #519 CA-1: asienta CodigoSede -- SedeAsignada representa siempre el reemplazo completo
-    // de la sede (primera asignacion y reasignacion emiten el mismo evento, DomainEvents/
-    // SedeAsignada.cs). El resto de la ficha no cambia con la asignacion de sede.
+    // Issue #519 CA-1: SedeAsignada representa siempre el reemplazo completo de la sede -- primera
+    // asignacion y reasignacion emiten el mismo evento, y no hay evento de retiro (DomainEvents/
+    // SedeAsignada.cs).
     public static FichaColaborador Apply(SedeAsignada e, FichaColaborador vista) =>
         vista with { CodigoSede = e.CodigoSede };
 }
