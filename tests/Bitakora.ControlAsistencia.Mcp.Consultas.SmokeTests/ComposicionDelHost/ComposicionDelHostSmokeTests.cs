@@ -12,13 +12,14 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasCuatroToolsDeConsulta_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasCincoToolsDeConsulta_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
         tools.Select(t => t.Name).Should().BeEquivalentTo(
-            "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion");
+            "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
+            "listar_colaboradores");
     }
 
     [Fact]
@@ -61,6 +62,30 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         }
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarColaboradores_NoDeclaraParametrosObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Requeridas(tools.Single(t => t.Name == "listar_colaboradores")).Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarColaboradores_DeclaraLosCuatroParametrosDelDiseno_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Propiedades(tools.Single(t => t.Name == "listar_colaboradores")).Should().BeEquivalentTo(
+            "identificacion", "sede", "etiquetas", "fecha_referencia");
+    }
+
     private static List<string?> Requeridas(McpClientTool tool) =>
         [.. tool.JsonSchema.GetProperty("required").EnumerateArray().Select(e => e.GetString())];
+
+    private static List<string> Propiedades(McpClientTool tool) =>
+        [.. tool.JsonSchema.GetProperty("properties").EnumerateObject().Select(p => p.Name)];
 }

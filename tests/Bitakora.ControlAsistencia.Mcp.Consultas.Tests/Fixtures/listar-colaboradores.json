@@ -1,0 +1,37 @@
+[
+  {
+    "id": "CC-1098765432",
+    "nombreCompleto": "[TEST] Luis Augusto Barreto",
+    "codigoColaborador": "COL-1",
+    "vigenteDesde": "2024-01-15",
+    "vigenteHasta": null,
+    "etiquetas": [
+      { "categoria": "Area", "valor": "Tecnologia" },
+      { "categoria": "Turno", "valor": "Diurno" }
+    ],
+    "etiquetasNormalizadas": { "area": "tecnologia", "turno": "diurno" },
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CE-887766",
+    "nombreCompleto": "[TEST] Maria Fernanda Rios",
+    "codigoColaborador": "COL-2",
+    "vigenteDesde": "2023-06-01",
+    "vigenteHasta": "2026-12-31",
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-556677",
+    "nombreCompleto": "[TEST] Jorge Ivan Ospina",
+    "codigoColaborador": "COL-3",
+    "vigenteDesde": "2025-03-10",
+    "vigenteHasta": null,
+    "etiquetas": [
+      { "categoria": "Area", "valor": "Operaciones" }
+    ],
+    "etiquetasNormalizadas": { "area": "operaciones" },
+    "codigoSede": "SEDE-SUR"
+  }
+]

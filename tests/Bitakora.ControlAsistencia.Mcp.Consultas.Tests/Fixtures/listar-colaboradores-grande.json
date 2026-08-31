@@ -1,0 +1,252 @@
+[
+  {
+    "id": "CC-1000000001",
+    "nombreCompleto": "[TEST] Colaborador Grande 01",
+    "codigoColaborador": "COL-1",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000002",
+    "nombreCompleto": "[TEST] Colaborador Grande 02",
+    "codigoColaborador": "COL-2",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000003",
+    "nombreCompleto": "[TEST] Colaborador Grande 03",
+    "codigoColaborador": "COL-3",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000004",
+    "nombreCompleto": "[TEST] Colaborador Grande 04",
+    "codigoColaborador": "COL-4",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000005",
+    "nombreCompleto": "[TEST] Colaborador Grande 05",
+    "codigoColaborador": "COL-5",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000006",
+    "nombreCompleto": "[TEST] Colaborador Grande 06",
+    "codigoColaborador": "COL-6",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000007",
+    "nombreCompleto": "[TEST] Colaborador Grande 07",
+    "codigoColaborador": "COL-7",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000008",
+    "nombreCompleto": "[TEST] Colaborador Grande 08",
+    "codigoColaborador": "COL-8",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000009",
+    "nombreCompleto": "[TEST] Colaborador Grande 09",
+    "codigoColaborador": "COL-9",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000010",
+    "nombreCompleto": "[TEST] Colaborador Grande 10",
+    "codigoColaborador": "COL-10",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000011",
+    "nombreCompleto": "[TEST] Colaborador Grande 11",
+    "codigoColaborador": "COL-11",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000012",
+    "nombreCompleto": "[TEST] Colaborador Grande 12",
+    "codigoColaborador": "COL-12",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000013",
+    "nombreCompleto": "[TEST] Colaborador Grande 13",
+    "codigoColaborador": "COL-13",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000014",
+    "nombreCompleto": "[TEST] Colaborador Grande 14",
+    "codigoColaborador": "COL-14",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000015",
+    "nombreCompleto": "[TEST] Colaborador Grande 15",
+    "codigoColaborador": "COL-15",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000016",
+    "nombreCompleto": "[TEST] Colaborador Grande 16",
+    "codigoColaborador": "COL-16",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000017",
+    "nombreCompleto": "[TEST] Colaborador Grande 17",
+    "codigoColaborador": "COL-17",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000018",
+    "nombreCompleto": "[TEST] Colaborador Grande 18",
+    "codigoColaborador": "COL-18",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000019",
+    "nombreCompleto": "[TEST] Colaborador Grande 19",
+    "codigoColaborador": "COL-19",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000020",
+    "nombreCompleto": "[TEST] Colaborador Grande 20",
+    "codigoColaborador": "COL-20",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000021",
+    "nombreCompleto": "[TEST] Colaborador Grande 21",
+    "codigoColaborador": "COL-21",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000022",
+    "nombreCompleto": "[TEST] Colaborador Grande 22",
+    "codigoColaborador": "COL-22",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000023",
+    "nombreCompleto": "[TEST] Colaborador Grande 23",
+    "codigoColaborador": "COL-23",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  },
+  {
+    "id": "CC-1000000024",
+    "nombreCompleto": "[TEST] Colaborador Grande 24",
+    "codigoColaborador": "COL-24",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": "SEDE-NORTE"
+  },
+  {
+    "id": "CC-1000000025",
+    "nombreCompleto": "[TEST] Colaborador Grande 25",
+    "codigoColaborador": "COL-25",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null,
+    "etiquetas": [],
+    "etiquetasNormalizadas": {},
+    "codigoSede": null
+  }
+]
