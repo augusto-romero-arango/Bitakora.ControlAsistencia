@@ -70,8 +70,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 // read model no conoce su presentacion HTTP.
 // Issue #519 CA-3: CodigoSede se suma al final del record posicional (parametro opcional, default
 // null) para no correr las posiciones de los constructores posicionales existentes -- mismo criterio
-// que FichaColaborador.CodigoSede en ReadModels. La copia real desde la vista (DesdeVista) es fase
-// roja: queda pendiente de projection-implementer (stub minimo de compilacion, MEF-ADR-0033).
+// que FichaColaborador.CodigoSede en ReadModels. Se copia tal cual desde la vista: a diferencia de
+// VigenteHasta no hay centinela que ocultar, asi que no requiere traduccion.
 public sealed record FichaColaboradorRespuesta(
     string Id,
     string NombreCompleto,
@@ -94,5 +94,6 @@ public sealed record FichaColaboradorRespuesta(
             ficha.VigenteDesde,
             ficha.VigenteHasta == FichaColaborador.CentinelaVigenciaAbierta ? null : ficha.VigenteHasta,
             ficha.Etiquetas,
-            ficha.EtiquetasNormalizadas);
+            ficha.EtiquetasNormalizadas,
+            ficha.CodigoSede);
 }
