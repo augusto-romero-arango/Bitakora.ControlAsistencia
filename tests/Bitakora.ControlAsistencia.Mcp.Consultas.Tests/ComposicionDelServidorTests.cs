@@ -35,13 +35,14 @@ public class ComposicionDelServidorTests
             .FirstOrDefault(p => p.GetCustomAttribute<McpToolTriggerAttribute>() is not null);
 
     [Fact]
-    public void ServidorMcp_ExponeLasCuatroToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasCincoToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
 
         nombres.Should().BeEquivalentTo(
-            "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion");
+            "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
+            "listar_colaboradores");
     }
 
     [Fact]
@@ -102,6 +103,22 @@ public class ComposicionDelServidorTests
                 == "obtener_turno");
 
         Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("id", true));
+    }
+
+    [Fact]
+    public void ListarColaboradores_DeclaraLosCuatroParametrosOpcionales_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == "listar_colaboradores");
+
+        Propiedades(metodo).Should().BeEquivalentTo(
+        [
+            ("identificacion", false),
+            ("sede", false),
+            ("etiquetas", false),
+            ("fecha_referencia", false)
+        ], opciones => opciones.WithoutStrictOrdering(), "los 4 parametros del diseno son opcionales (CA-1)");
     }
 
     private static List<(string Nombre, bool Obligatoria, string? Descripcion)> PropiedadesConDescripcion(
