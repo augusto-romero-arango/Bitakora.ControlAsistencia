@@ -42,9 +42,11 @@ module "apim_mcp_consultas" {
   name         = local.mcp_consultas_path
   display_name = "MCP Consultas"
 
-  function_app_id                  = module.function_app_mcp_consultas.id
-  function_app_name                = module.function_app_mcp_consultas.name
-  function_app_resource_group_name = module.resource_group.name
+  function_app_id = module.function_app_mcp_consultas.id
+  # Hostname COMPUTADO por Azure, no "func-<name>.azurewebsites.net" armado a mano: los apps
+  # nuevos reciben hostnames regionalizados y el backend de APIM apuntaria a un host inexistente
+  # (revision infra-reviewer; el modulo function-app ya documenta esta regla en su output).
+  function_app_default_hostname = module.function_app_mcp_consultas.default_hostname
 
   resource_audience = local.mcp_consultas_resource_uri
   prm_path          = local.mcp_consultas_prm_path

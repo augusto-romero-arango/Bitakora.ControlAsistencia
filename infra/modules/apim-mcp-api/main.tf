@@ -63,20 +63,16 @@ variable "function_app_id" {
   type        = string
 }
 
-variable "function_app_name" {
-  description = "Nombre del Function App backend (module.function_app_*.name)"
+# Revision infra-reviewer: el hostname llega COMPUTADO desde el caller
+# (module.function_app_*.default_hostname), no concatenado como "<name>.azurewebsites.net". El
+# propio modulo function-app lo documenta asi ("usarlo en vez de concatenar name +
+# .azurewebsites.net protege contra hostnames regionalizados"): Azure ya asigna hostnames
+# regionalizados del tipo <name>-<hash>.<region>-01.azurewebsites.net a apps nuevas, y con el
+# hostname adivinado el backend apuntaria a un host inexistente -- un fallo que ni
+# `terraform validate` ni el plan detectan, solo el 404 en runtime de CA-4/CA-6.
+variable "function_app_default_hostname" {
+  description = "Hostname publico COMPUTADO del Function App backend (module.function_app_*.default_hostname, sin esquema). No lo construyas concatenando el nombre con 'azurewebsites.net': Azure asigna hostnames regionalizados."
   type        = string
-}
-
-variable "function_app_resource_group_name" {
-  description = "Resource group del Function App backend"
-  type        = string
-}
-
-variable "function_app_hostname_suffix" {
-  description = "Sufijo del hostname publico por defecto del Function App. 'azurewebsites.net' en Azure publico global."
-  type        = string
-  default     = "azurewebsites.net"
 }
 
 variable "resource_audience" {
@@ -114,7 +110,9 @@ variable "tags" {
 }
 
 locals {
-  function_app_default_hostname = "${var.function_app_name}.${var.function_app_hostname_suffix}"
+  # Raiz del backend: base-url SIN path. El path lo aporta <rewrite-uri> en cada politica (ver el
+  # comentario de azurerm_api_management_backend.protocol).
+  function_app_base_url = "https://${var.function_app_default_hostname}"
 
   workos_issuer            = "https://api.workos.com/user_management/${var.authorization_server_client_id}"
   workos_openid_config_url = "${local.workos_issuer}/.well-known/openid-configuration"
@@ -154,12 +152,20 @@ resource "azurerm_api_management_named_value" "mcp_extension_key" {
 
 # ---- API del PROTOCOLO MCP: valida el token Connect y reenvia a /runtime/webhooks/mcp ----
 
+# Revision infra-reviewer: la url del backend es la RAIZ del host, sin "/runtime/webhooks/mcp".
+# set-backend-service "changes the backend service BASE URL of the incoming request"
+# (learn.microsoft.com/azure/api-management/set-backend-service-policy) y el template de
+# <rewrite-uri> es el path que se le anexa a esa base (rewrite-uri-policy, ejemplos 1-3). Con la
+# base terminando en /runtime/webhooks/mcp Y el rewrite del mismo path, el backend habria
+# recibido /runtime/webhooks/mcp/runtime/webhooks/mcp -> 404 en toda tool call autenticada
+# (CA-6), un fallo invisible para terraform validate y para el plan. El path vive en UN solo
+# lugar: el <rewrite-uri> de la politica.
 resource "azurerm_api_management_backend" "protocol" {
   name                = "${var.name}-protocol-backend"
   resource_group_name = var.resource_group_name
   api_management_name = var.api_management_name
   protocol            = "http"
-  url                 = "https://${local.function_app_default_hostname}/runtime/webhooks/mcp"
+  url                 = local.function_app_base_url
 
   credentials {
     header = {
@@ -241,12 +247,15 @@ XML
 # documento). El Function endpoint YA es AuthorizationLevel.Anonymous del lado del worker
 # (FunctionEndpoint.cs) -- este backend tampoco inyecta la system key, no hace falta.
 
+# Misma forma que el backend del protocolo (raiz + <rewrite-uri> en la politica): con la base
+# terminando en el path del PRM y la operacion declarada como "/", el backend habria recibido el
+# path con una barra final pegada. El rewrite explicito hace la ruta determinista.
 resource "azurerm_api_management_backend" "prm" {
   name                = "${var.name}-prm-backend"
   resource_group_name = var.resource_group_name
   api_management_name = var.api_management_name
   protocol            = "http"
-  url                 = "https://${local.function_app_default_hostname}/${var.prm_path}"
+  url                 = local.function_app_base_url
 }
 
 resource "azurerm_api_management_api" "prm" {
@@ -278,6 +287,7 @@ resource "azurerm_api_management_api_policy" "prm" {
   xml_content = <<XML
 <policies>
   <inbound>
+    <rewrite-uri template="/${var.prm_path}" copy-unmatched-params="false" />
     <set-backend-service backend-id="${azurerm_api_management_backend.prm.name}" />
   </inbound>
   <backend>
@@ -291,18 +301,25 @@ resource "azurerm_api_management_api_policy" "prm" {
 XML
 }
 
+# Ningun output expone la system key mcp_extension (MEF-ADR-0025): vive solo en el named value
+# secreto y en el state, nunca en una salida legible.
+
 output "protocol_api_id" {
-  value = azurerm_api_management_api.protocol.id
+  description = "ID de la API APIM del endpoint del protocolo MCP"
+  value       = azurerm_api_management_api.protocol.id
 }
 
 output "protocol_api_name" {
-  value = azurerm_api_management_api.protocol.name
+  description = "Nombre de la API APIM del endpoint del protocolo MCP"
+  value       = azurerm_api_management_api.protocol.name
 }
 
 output "prm_api_id" {
-  value = azurerm_api_management_api.prm.id
+  description = "ID de la API APIM del documento PRM anonimo (RFC 9728)"
+  value       = azurerm_api_management_api.prm.id
 }
 
 output "prm_api_name" {
-  value = azurerm_api_management_api.prm.name
+  description = "Nombre de la API APIM del documento PRM anonimo (RFC 9728)"
+  value       = azurerm_api_management_api.prm.name
 }
