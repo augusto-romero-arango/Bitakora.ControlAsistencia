@@ -13,6 +13,7 @@
     <Project Path="src/Bitakora.ControlAsistencia.ReadModels/Bitakora.ControlAsistencia.ReadModels.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Sedes.DomainEvents/Bitakora.ControlAsistencia.Sedes.DomainEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Sedes/Bitakora.ControlAsistencia.Sedes.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.TenantResolver/Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.csproj" />
@@ -28,5 +29,6 @@
     <Project Path="tests/Bitakora.ControlAsistencia.PublicEvents.Tests/Bitakora.ControlAsistencia.PublicEvents.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Sedes.SmokeTests/Bitakora.ControlAsistencia.Sedes.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Sedes.Tests/Bitakora.ControlAsistencia.Sedes.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.TenantResolver.Tests/Bitakora.ControlAsistencia.TenantResolver.Tests.csproj" />
   </Folder>
 </Solution>

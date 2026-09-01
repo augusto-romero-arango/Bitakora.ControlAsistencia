@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.51.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.*" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
@@ -20,7 +20,6 @@
     <PackageReference Include="Cosmos.EventDriven.CritterStack.AzureServiceBus" Version="2.3.1" />
     <PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="2.3.1" />
     <PackageReference Include="Cosmos.EventSourcing.CritterStack" Version="2.3.1" />
-    <PackageReference Include="Cosmos.MultiTenancy.CritterStack" Version="2.3.0" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.4.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
   </ItemGroup>
@@ -32,6 +31,7 @@
          necesita el read model FichaTurno para consultarlo via Marten (session.LoadAsync/Query).
          Mismo precedente que Sedes.csproj desde el issue #461. -->
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.TenantResolver\Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </ItemGroup>
 
   <ItemGroup>

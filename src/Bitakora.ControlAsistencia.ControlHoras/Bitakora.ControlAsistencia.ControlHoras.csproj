@@ -22,7 +22,6 @@
     <PackageReference Include="Cosmos.EventDriven.CritterStack.AzureServiceBus" Version="2.3.1" />
     <PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="2.3.1" />
     <PackageReference Include="Cosmos.EventSourcing.CritterStack" Version="2.3.1" />
-    <PackageReference Include="Cosmos.MultiTenancy.CritterStack" Version="2.3.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
   </ItemGroup>
@@ -37,6 +36,7 @@
          registro explicito adicional (investigacion del planner, issue #289, punto 1:
          FindOrResolveDocumentType converge con el mapping del worker). -->
     <ProjectReference Include="..\Bitakora.ControlAsistencia.ReadModels\Bitakora.ControlAsistencia.ReadModels.csproj" />
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.TenantResolver\Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </ItemGroup>
 
 </Project>
