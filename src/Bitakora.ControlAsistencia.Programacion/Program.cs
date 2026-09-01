@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Hosting;
 
@@ -12,5 +13,9 @@ builder.Services.AgregarServiciosProgramacion(
     martenConnectionString,
     serviceBusConnectionString,
     builder.Environment.IsDevelopment());
+
+// Middleware del worker: no es IServiceCollection, asi que no puede vivir en el seam.
+// UsarTenantContextMiddleware puebla la identidad que el ITenantResolver del seam luego lee.
+builder.UsarTenantContextMiddleware();
 
 await builder.Build().RunAsync();

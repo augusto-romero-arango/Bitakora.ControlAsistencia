@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Los setters de identidad son internal (solo los puebla el middleware); el proyecto de tests
+       ejercita ese contrato interno. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bitakora.ControlAsistencia.TenantResolver.Tests" />
+  </ItemGroup>
+
+  <!-- HttpContext/HttpRequest que lee el middleware en la rama HTTP. Los dominios (Functions apps) ya
+       traen ASP.NET Core via ConfigureFunctionsWebApplication; aqui se declara explicitamente porque
+       esta biblioteca lo usa directamente. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Contrato ITenantResolver + TenancyHeaders (UserId). Version alineada con la que
+         Cosmos.EventSourcing.CritterStack 2.3.1 trae transitiva a los dominios. -->
+    <PackageReference Include="Cosmos.MultiTenancy" Version="2.3.1" />
+    <!-- Worker aislado: IFunctionsWorkerMiddleware, IFunctionsWorkerApplicationBuilder, UseMiddleware,
+         FunctionContext y BindInputAsync. Version alineada con los dominios. -->
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
+    <!-- FunctionContext.GetHttpContext() (rama HTTP). -->
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
+    <!-- Tipo ServiceBusReceivedMessage para BindInputAsync (rama Service Bus). Version alineada con los dominios. -->
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.*" />
+  </ItemGroup>
+
+</Project>
