@@ -38,7 +38,9 @@ public class ValidadorTokenAuthKitTests
             issuer: issuer,
             audience: null,
             subject: new ClaimsIdentity([new Claim("sub", "usuario-mcp")]),
-            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            // Relativo a `expira`, nunca a UtcNow: el escenario "token vencido" pasa un `expira`
+            // ya pasado, y un notBefore fijo en UtcNow-5min caeria despues (IDX12401 al construir).
+            notBefore: expira.AddMinutes(-15),
             expires: expira,
             issuedAt: DateTime.UtcNow,
             signingCredentials: new SigningCredentials(llaveDeFirma, SecurityAlgorithms.RsaSha256));

@@ -25,10 +25,8 @@ var authorizationServerUri = new Uri(AuthorizationServerAuthKit);
 var resourceUri = new Uri(
     builder.Configuration["Mcp:ResourceUri"]
     ?? throw new InvalidOperationException("Falta el app setting Mcp__ResourceUri"));
-var prmUri = new Uri(resourceUri, "/api/.well-known/oauth-protected-resource");
-
 builder.Services.AddSingleton(new ConstructorMetadataRecursoProtegido(resourceUri, authorizationServerUri));
-builder.Services.AddSingleton(prmUri);
+builder.Services.AddSingleton(new UriMetadataRecursoProtegido(resourceUri));
 
 // ConfigurationManager<OpenIdConnectConfiguration> cachea el discovery doc/JWKS y los refresca
 // periodicamente -- nunca se asume un issuer/llave fijos (MEF-ADR-0032 B5).

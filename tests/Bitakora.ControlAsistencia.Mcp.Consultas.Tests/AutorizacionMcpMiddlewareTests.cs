@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Consultas.MetadataRecursoProtegido;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Tests.Soporte;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
@@ -13,16 +14,19 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 // falso, sin red real" que MEF-ADR-0048 seccion 1 fija para el nivel 1.
 public class AutorizacionMcpMiddlewareTests
 {
-    private static readonly Uri PrmUri = new("https://mcp-consultas.controlasistencia.example.com/.well-known/oauth-protected-resource");
+    private static readonly UriMetadataRecursoProtegido PrmUri =
+        new(new Uri("https://mcp-consultas.controlasistencia.example.com"));
 
-    private static DefaultHttpContext ContextoConBearer(string? token)
+    private static DefaultHttpContext ContextoConEncabezado(string? encabezado)
     {
         var contexto = new DefaultHttpContext();
-        if (token is not null)
-            contexto.Request.Headers[AutorizacionMcpMiddleware.EncabezadoAutorizacion] =
-                $"{AutorizacionMcpMiddleware.EsquemaBearer}{token}";
+        if (encabezado is not null)
+            contexto.Request.Headers[AutorizacionMcpMiddleware.EncabezadoAutorizacion] = encabezado;
         return contexto;
     }
+
+    private static DefaultHttpContext ContextoConBearer(string? token) =>
+        ContextoConEncabezado(token is null ? null : $"{AutorizacionMcpMiddleware.EsquemaBearer}{token}");
 
     [Fact]
     public async Task AutorizarAsync_RetornaElPrincipalSinTocarLaRespuesta_CuandoElTokenEsValido()
@@ -84,5 +88,35 @@ public class AutorizacionMcpMiddlewareTests
         contexto.Response.Headers[AutorizacionMcpMiddleware.EncabezadoWwwAuthenticate].ToString().Should()
             .Contain($"resource_metadata=\"{PrmUri}\"")
             .And.Contain(AutorizacionMcpMiddleware.Mensajes.TokenInvalido);
+    }
+
+    [Fact]
+    public async Task AutorizarAsync_RetornaElPrincipal_CuandoElNombreDelEsquemaVieneEnMinusculas()
+    {
+        var principalEsperado = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "usuario-mcp")]));
+        var middleware = new AutorizacionMcpMiddleware(ValidadorTokenFalso.QueAutoriza(principalEsperado), PrmUri);
+        var contexto = ContextoConEncabezado("bearer token-valido");
+
+        var resultado = await middleware.AutorizarAsync(contexto, TestContext.Current.CancellationToken);
+
+        resultado.Should().BeSameAs(principalEsperado);
+        contexto.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+    }
+
+    [Fact]
+    public async Task AutorizarAsync_Retorna401ConWwwAuthenticateHaciaElPrm_CuandoElEsquemaBearerLlegaSinToken()
+    {
+        var middleware = new AutorizacionMcpMiddleware(
+            ValidadorTokenFalso.QueFalla(new InvalidOperationException("no deberia invocarse con un token vacio")),
+            PrmUri);
+        var contexto = ContextoConBearer("   ");
+
+        var resultado = await middleware.AutorizarAsync(contexto, TestContext.Current.CancellationToken);
+
+        resultado.Should().BeNull();
+        contexto.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        contexto.Response.Headers[AutorizacionMcpMiddleware.EncabezadoWwwAuthenticate].ToString().Should()
+            .Contain($"resource_metadata=\"{PrmUri}\"")
+            .And.Contain(AutorizacionMcpMiddleware.Mensajes.TokenAusente);
     }
 }

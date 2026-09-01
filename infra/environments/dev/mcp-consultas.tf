@@ -76,6 +76,12 @@ module "function_app_mcp_consultas" {
     # sin ninguno de los datos ya persistidos, y las tools responderian vacio en silencio.
     Tenant__Id     = "*DEFAULT*"
     Tenant__UserId = "sin-identificar"
+
+    # Identidad publica de este servidor como OAuth protected resource (issue #554): alimenta el
+    # documento PRM y el parametro resource_metadata del WWW-Authenticate. Setting obligatorio --
+    # sin el, el arranque del worker falla (mismo fail-fast que Api__*__BaseUrl). Se arma con el
+    # nombre del propio app en vez de su default_hostname para no ciclar el modulo consigo mismo.
+    Mcp__ResourceUri = "https://func-${local.prefix_short}-mcp-consultas.azurewebsites.net"
   }
   tags = local.tags
 }
