@@ -21,6 +21,10 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Mcp" Version="1.6.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.OpenTelemetry" Version="1.2.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
+    <!-- Bearer JWT de AuthKit (issue #554). Trae transitivamente Microsoft.IdentityModel.Tokens
+         y System.IdentityModel.Tokens.Jwt, asi que alcanza tambien a Mcp.Consultas.Tests via el
+         ProjectReference. -->
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.19.1" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
   </ItemGroup>
 
