@@ -14,10 +14,14 @@ using OpenTelemetry.Trace;
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
 
-// AuthKit protege este servidor MCP (issue #554): mismo issuer client-specific verificado en vivo
-// para el gateway de APIM (MEF-ADR-0032 B5) -- nunca el generico "https://api.workos.com".
-const string AuthorizationServerAuthKit =
-    "https://api.workos.com/user_management/client_01M1CKPECJ5DBRMS3ZVFRQW8GW";
+// AuthKit protege este servidor MCP (issue #554). Es el dominio AuthKit del entorno WorkOS, NO el
+// issuer client-specific de LOGIN que valida el gateway de APIM
+// (https://api.workos.com/user_management/{client_id}): son dos authorization servers distintos
+// del mismo proyecto y el flujo MCP/Connect emite tokens con este (issue #560). No lo "corrijas"
+// de vuelta al de login: ese solo expone /.well-known/openid-configuration -- el cliente MCP pide
+// /.well-known/oauth-authorization-server, que ahi responde 404 y aborta el registro automatico
+// (CIMD/DCR) por falta de registration_endpoint. Guia: workos.com/docs/authkit/mcp, "Metadata".
+const string AuthorizationServerAuthKit = "https://marvelous-polaroid-97-staging.authkit.app";
 var authorizationServerUri = new Uri(AuthorizationServerAuthKit);
 
 // La identidad publica de este servidor (para el documento PRM y el WWW-Authenticate) llega por
@@ -29,10 +33,12 @@ builder.Services.AddSingleton(new ConstructorMetadataRecursoProtegido(resourceUr
 builder.Services.AddSingleton(new UriMetadataRecursoProtegido(resourceUri));
 
 // ConfigurationManager<OpenIdConnectConfiguration> cachea el discovery doc/JWKS y los refresca
-// periodicamente -- nunca se asume un issuer/llave fijos (MEF-ADR-0032 B5).
+// periodicamente -- nunca se asume un issuer/llave fijos (MEF-ADR-0032 B5). La URL se compone con
+// new Uri(base, relativo) y no interpolando: Uri normaliza un authority sin path a ".../", asi que
+// la interpolacion produciria un "//.well-known" que el discovery no resuelve.
 builder.Services.AddSingleton<IConfigurationManager<OpenIdConnectConfiguration>>(
     new ConfigurationManager<OpenIdConnectConfiguration>(
-        $"{authorizationServerUri}/.well-known/openid-configuration",
+        new Uri(authorizationServerUri, "/.well-known/openid-configuration").ToString(),
         new OpenIdConnectConfigurationRetriever()));
 builder.Services.AddSingleton<IValidadorTokenAuthKit, ValidadorTokenAuthKit>();
 

@@ -10,8 +10,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 public class MetadataRecursoProtegidoEndpointTests
 {
     private static readonly Uri Recurso = new("https://mcp-consultas.controlasistencia.example.com");
-    private static readonly Uri AuthorizationServer =
-        new("https://api.workos.com/user_management/client_01M1CKPECJ5DBRMS3ZVFRQW8GW");
+    private const string DominioAuthKit = "https://marvelous-polaroid-97-staging.authkit.app";
+    private static readonly Uri AuthorizationServer = new(DominioAuthKit);
 
     private static HttpRequest FakeHttpRequestAnonima() => new DefaultHttpContext().Request;
 
@@ -24,7 +24,7 @@ public class MetadataRecursoProtegidoEndpointTests
 
         var objectResult = resultado.Should().BeOfType<OkObjectResult>().Which;
         var documento = objectResult.Value.Should().BeOfType<DocumentoRecursoProtegido>().Which;
-        documento.Resource.Should().Be(Recurso.ToString());
-        documento.AuthorizationServers.Should().ContainSingle().Which.Should().Be(AuthorizationServer.ToString());
+        documento.Resource.Should().Be(Recurso.OriginalString);
+        documento.AuthorizationServers.Should().ContainSingle().Which.Should().Be(DominioAuthKit);
     }
 }
