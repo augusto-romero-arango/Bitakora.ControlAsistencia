@@ -13,5 +13,5 @@ public class FunctionEndpoint(ConstructorMetadataRecursoProtegido constructor)
     [Function("MetadataRecursoProtegido")]
     public IActionResult Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ".well-known/oauth-protected-resource")]
-        HttpRequest req) => throw new NotImplementedException();
+        HttpRequest req) => new OkObjectResult(constructor.Construir());
 }

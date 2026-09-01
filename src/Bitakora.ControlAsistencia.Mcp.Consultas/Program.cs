@@ -1,15 +1,46 @@
 using System.Globalization;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Consultas.MetadataRecursoProtegido;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
+
+// AuthKit protege este servidor MCP (issue #554): mismo issuer client-specific verificado en vivo
+// para el gateway de APIM (MEF-ADR-0032 B5) -- nunca el generico "https://api.workos.com".
+const string AuthorizationServerAuthKit =
+    "https://api.workos.com/user_management/client_01M1CKPECJ5DBRMS3ZVFRQW8GW";
+var authorizationServerUri = new Uri(AuthorizationServerAuthKit);
+
+// La identidad publica de este servidor (para el documento PRM y el WWW-Authenticate) llega por
+// app setting: Azure Functions no expone su propia URL publica en tiempo de arranque.
+var resourceUri = new Uri(
+    builder.Configuration["Mcp:ResourceUri"]
+    ?? throw new InvalidOperationException("Falta el app setting Mcp__ResourceUri"));
+var prmUri = new Uri(resourceUri, "/api/.well-known/oauth-protected-resource");
+
+builder.Services.AddSingleton(new ConstructorMetadataRecursoProtegido(resourceUri, authorizationServerUri));
+builder.Services.AddSingleton(prmUri);
+
+// ConfigurationManager<OpenIdConnectConfiguration> cachea el discovery doc/JWKS y los refresca
+// periodicamente -- nunca se asume un issuer/llave fijos (MEF-ADR-0032 B5).
+builder.Services.AddSingleton<IConfigurationManager<OpenIdConnectConfiguration>>(
+    new ConfigurationManager<OpenIdConnectConfiguration>(
+        $"{authorizationServerUri}/.well-known/openid-configuration",
+        new OpenIdConnectConfigurationRetriever()));
+builder.Services.AddSingleton<IValidadorTokenAuthKit, ValidadorTokenAuthKit>();
+
+// El middleware conserva la system key mcp_extension (defensa en profundidad, MEF-ADR-0047):
+// desviacion documentada en el resumen del pipeline (seguimiento harness#797).
+builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
 builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
     builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));
