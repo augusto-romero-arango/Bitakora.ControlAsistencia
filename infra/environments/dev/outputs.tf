@@ -59,3 +59,16 @@ output "container_app_name" {
   description = "Nombre del Container App del worker de proyecciones. Lo consume el pipeline de CI de imagen para actualizar la revision (ej. az containerapp update --image ...) tras publicar una imagen nueva"
   value       = module.container_app.name
 }
+
+# Servidor MCP detras de APIM (issue #558): valores que el operador necesita para los pasos
+# manuales post-apply (dashboard WorkOS, conectar Claude) y para verificar CA-4/CA-5.
+
+output "mcp_consultas_resource_uri" {
+  description = "URL publica de APIM del endpoint del protocolo MCP (streamable HTTP). Debe coincidir byte a byte con el Resource Indicator que se configura en el dashboard WorkOS y con el campo 'resource' del PRM (mcp_consultas_prm_url)."
+  value       = local.mcp_consultas_resource_uri
+}
+
+output "mcp_consultas_prm_url" {
+  description = "URL publica de APIM del documento PRM (RFC 9728), alcanzable anonimamente. Su campo 'resource' debe coincidir byte a byte con mcp_consultas_resource_uri (CA-5)."
+  value       = local.mcp_consultas_prm_url
+}

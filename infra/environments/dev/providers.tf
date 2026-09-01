@@ -10,6 +10,14 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+
+    # Issue #558: azapi_resource_action lee la system key mcp_extension via el listkeys nativo
+    # de ARM (Microsoft.Web/sites/host/default/listkeys) -- azurerm_function_app_host_keys no
+    # expone esa key (ver el comentario de infra/modules/apim-mcp-api/main.tf).
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.0"
+    }
   }
 
   backend "azurerm" {
@@ -89,3 +97,7 @@ provider "azurerm" {
     }
   }
 }
+
+# Sin argumentos propios: azapi respeta las mismas variables ARM_* que ya autentican al provider
+# azurerm en este workflow (issue #297 MEF-ADR-0022), no hace falta duplicar subscription_id aca.
+provider "azapi" {}
