@@ -83,9 +83,15 @@ module "function_app_mcp_consultas" {
 
     # Identidad publica de este servidor como OAuth protected resource (issue #554): alimenta el
     # documento PRM y el parametro resource_metadata del WWW-Authenticate. Setting obligatorio --
-    # sin el, el arranque del worker falla (mismo fail-fast que Api__*__BaseUrl). Se arma con el
-    # nombre del propio app en vez de su default_hostname para no ciclar el modulo consigo mismo.
-    Mcp__ResourceUri = "https://func-${local.prefix_short}-mcp-consultas.azurewebsites.net"
+    # sin el, el arranque del worker falla (mismo fail-fast que Api__*__BaseUrl).
+    #
+    # Issue #558: deja de ser la URL propia de la Function App (el host de Functions no puede
+    # gatear las tool calls de McpToolTrigger, ver AutorizacionMcpMiddleware.cs) y pasa a ser la
+    # URL de APIM del endpoint del protocolo -- el mismo local que arma <audience> en la politica
+    # de module.apim_mcp_consultas (apim-mcp-consultas.tf). Los tres valores (este setting, el
+    # campo "resource" del PRM y el Resource Indicator del dashboard WorkOS) deben coincidir
+    # byte a byte (MEF-ADR-0032, decision #4 del issue).
+    Mcp__ResourceUri = local.mcp_consultas_resource_uri
   }
   tags = local.tags
 }
