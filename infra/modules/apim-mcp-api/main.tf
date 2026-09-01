@@ -207,6 +207,12 @@ resource "azurerm_api_management_api_operation" "protocol" {
 # (decision #2) sin condicionar por status code -- esta API solo hace dos cosas (validar el JWT y
 # reenviar al backend del protocolo), asi que cualquier error que llegue a on-error es, en la
 # practica, un rechazo de validate-jwt (que ya fijo el 401 via failed-validation-httpcode).
+# Orden de hijos de <validate-jwt> (XSD de APIM, learn.microsoft.com/azure/api-management/
+# validate-jwt-policy: "set the policy's elements and child elements in the order provided"):
+# openid-config -> issuer-signing-keys -> decryption-keys -> audiences -> issuers -> required-claims.
+# <audiences> va ANTES de <issuers>. La nota B6 del modulo api-management omite audiences porque
+# AuthKit no emite `aud` (B4); aqui si hay `aud` (token Connect) y el orden invertido hizo fallar
+# el apply con un 400 ValidationError sin detalle (run 33566692118) que ni validate ni plan detectan.
 resource "azurerm_api_management_api_policy" "protocol" {
   api_name            = azurerm_api_management_api.protocol.name
   api_management_name = var.api_management_name
@@ -217,12 +223,12 @@ resource "azurerm_api_management_api_policy" "protocol" {
   <inbound>
     <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized." output-token-variable-name="jwt">
       <openid-config url="${local.workos_openid_config_url}" />
-      <issuers>
-        <issuer>${local.workos_issuer}</issuer>
-      </issuers>
       <audiences>
         <audience>${var.resource_audience}</audience>
       </audiences>
+      <issuers>
+        <issuer>${local.workos_issuer}</issuer>
+      </issuers>
     </validate-jwt>
     <rewrite-uri template="/runtime/webhooks/mcp" copy-unmatched-params="true" />
     <set-backend-service backend-id="${azurerm_api_management_backend.protocol.name}" />
