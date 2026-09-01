@@ -8,7 +8,6 @@
 
 using System.Text;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +16,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ListarAsistenciasDiarias
 
 public class FunctionEndpointTests
 {
-    private static FunctionEndpoint Endpoint() => new(null!, new TenantResolverMonoTenantPorDefecto());
+    private static FunctionEndpoint Endpoint() => new(null!, null!);
 
     private static HttpRequest Request(string? contentType, string body)
     {

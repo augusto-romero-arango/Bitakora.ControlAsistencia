@@ -1,13 +1,13 @@
 # Terraform del dominio Sedes (issue #455).
 #
-# Archivo propio y no main.tf: los demas bloques de dominio (Programacion, ControlHoras) siguen
-# viviendo en main.tf porque asi se scaffoldearon originalmente, pero un archivo aparte por
-# dominio nuevo evita que dos scaffolds concurrentes choquen editando el mismo archivo. Terraform
-# evalua todos los .tf del directorio del entorno como un unico root module (no hay
-# subdirectorios que recorrer), asi que este archivo comparte sin cambios las referencias a
-# locals/modules ya declarados en main.tf (module.resource_group, module.key_vault,
-# module.monitoring, local.prefix_short, local.tags, local.storage_data_roles,
-# local.service_bus_connection_kv_ref, local.marten_connection_kv_ref).
+# Archivo propio y no main.tf: un archivo aparte por dominio evita que dos scaffolds concurrentes
+# choquen editando el mismo archivo -- convencion que tambien adoptaron Programacion/ControlHoras
+# (dominio-programacion.tf, dominio-control-horas.tf) al extraerse de main.tf. Terraform evalua
+# todos los .tf del directorio del entorno como un unico root module (no hay subdirectorios que
+# recorrer), asi que este archivo comparte sin cambios las referencias a locals/modules ya
+# declarados en main.tf (module.resource_group, module.key_vault, module.monitoring,
+# local.prefix_short, local.tags, local.storage_data_roles, local.service_bus_connection_kv_ref,
+# local.marten_connection_kv_ref).
 #
 # Divergencias deliberadas frente a la plantilla generica del harness (documentadas en
 # CA-ADR-0026, "Custodia de secretos"): este proyecto usa un UNICO namespace de Service Bus y un
@@ -37,8 +37,8 @@ module "storage_sedes" {
 # Programacion/ControlHoras/Colaboradores (Linux, SKU B1 -- el default del modulo).
 #
 # always_on = true (issue #400): ver el comentario extendido junto a
-# module.service_plan_programacion en main.tf -- mismo razonamiento, un plan Basic dedicado
-# factura la VM 24/7 independientemente de Always On.
+# module.service_plan_programacion en dominio-programacion.tf -- mismo razonamiento, un plan
+# Basic dedicado factura la VM 24/7 independientemente de Always On.
 module "service_plan_sedes" {
   source              = "../../modules/service-plan"
   name                = "asp-${local.prefix_short}-sedes"
