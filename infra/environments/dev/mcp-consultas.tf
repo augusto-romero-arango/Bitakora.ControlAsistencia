@@ -68,14 +68,18 @@ module "function_app_mcp_consultas" {
     # arranque del worker falla (fail-fast de ConfiguracionIdentidadTenant, mismo criterio que
     # Api__*__BaseUrl).
     #
-    # Los valores NO son arbitrarios: replican los del TenantResolverFijo de los 4 dominios
-    # (CA-ADR-0027 -- JasperFx.StorageConstants.DefaultTenantId es el literal "*DEFAULT*", y
-    # "sin-identificar" el UserId). En la etapa (a) de tenancy los dominios ignoran estos headers,
-    # pero al pasar a la etapa (b) (MEF-ADR-0028 seccion 4) el TrustedHeadersTenantResolver los
-    # convierte en el tenant efectivo de cada consulta: cualquier otro valor apuntaria a un tenant
-    # sin ninguno de los datos ya persistidos, y las tools responderian vacio en silencio.
-    Tenant__Id     = "*DEFAULT*"
-    Tenant__UserId = "sin-identificar"
+    # Los valores NO son arbitrarios: apuntan a la particion donde de verdad hay datos tras el
+    # flip a multi-tenancy (PR #545) y la purga de dev -- el tenant "tenant-smoke" que siembran
+    # los smoke de dominio (issue #538), con el UserId de IdentidadDePrueba de ese mismo issue
+    # (issue #556). El literal "*DEFAULT*" (JasperFx.StorageConstants.DefaultTenantId,
+    # CA-ADR-0027) quedo vacio tras la purga: ya nadie escribe ahi. En la etapa (a) de tenancy
+    # los dominios ignoran estos headers, pero al pasar a la etapa (b) (MEF-ADR-0028 seccion 4)
+    # el TrustedHeadersTenantResolver los convierte en el tenant efectivo de cada consulta:
+    # cualquier otro valor apuntaria a un tenant sin datos y las tools responderian vacio en
+    # silencio. Interino consciente: #540 (tenant por usuario autenticado) reemplaza este valor
+    # fijo.
+    Tenant__Id     = "tenant-smoke"
+    Tenant__UserId = "smoke@bitakora.dev"
 
     # Identidad publica de este servidor como OAuth protected resource (issue #554): alimenta el
     # documento PRM y el parametro resource_metadata del WWW-Authenticate. Setting obligatorio --
