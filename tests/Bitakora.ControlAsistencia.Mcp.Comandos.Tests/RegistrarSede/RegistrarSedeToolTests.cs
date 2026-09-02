@@ -12,16 +12,16 @@ public class RegistrarSedeToolTests
     [Fact]
     public async Task RegistrarSede_EnviaElBodyCamelCaseYDevuelveElEcoCompacto_Cuando202()
     {
-        var cliente = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted, out var handler);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
             null!, "NORTE", "Sede Norte", "Bogota", "Calle 1", TestContext.Current.CancellationToken);
 
-        handler.UltimaSolicitud!.Method.Should().Be(HttpMethod.Post);
-        handler.UltimaSolicitud.RequestUri!.AbsolutePath.Should().Be("/api/sedes");
+        handler.UltimaRequest!.Method.Should().Be(HttpMethod.Post);
+        handler.UltimaRequest.RequestUri!.AbsolutePath.Should().Be("/api/sedes");
 
-        var body = JsonNode.Parse(handler.UltimoBody!)!;
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!;
         body["codigo"]!.GetValue<string>().Should().Be("NORTE");
         body["nombre"]!.GetValue<string>().Should().Be("Sede Norte");
         body["ciudad"]!.GetValue<string>().Should().Be("Bogota");
@@ -39,7 +39,7 @@ public class RegistrarSedeToolTests
     [Fact]
     public async Task RegistrarSede_OmiteCiudadYDireccionEnElEco_CuandoNoSeEnvian()
     {
-        var cliente = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, _) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
@@ -54,7 +54,7 @@ public class RegistrarSedeToolTests
     public async Task RegistrarSede_TraduceElRechazoDelDominio_Cuando400()
     {
         var fixture = Fixtures.Leer("RegistrarSede", "validacion-400.json");
-        var cliente = ClienteFalso.Con(fixture, HttpStatusCode.BadRequest);
+        var (cliente, _) = ClienteFalso.Con(fixture, HttpStatusCode.BadRequest);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
@@ -67,7 +67,7 @@ public class RegistrarSedeToolTests
     public async Task RegistrarSede_TraduceElRechazoDelDominio_Cuando409()
     {
         const string cuerpo = "La sede ya esta registrada con este codigo";
-        var cliente = ClienteFalso.Con(cuerpo, HttpStatusCode.Conflict);
+        var (cliente, _) = ClienteFalso.Con(cuerpo, HttpStatusCode.Conflict);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
@@ -77,28 +77,28 @@ public class RegistrarSedeToolTests
     }
 
     [Fact]
-    public async Task RegistrarSede_RechazaCodigoEnBlancoSinLlamarAlDominio()
+    public async Task RegistrarSede_RechazaSinLlamarAlDominio_CuandoElCodigoEstaEnBlanco()
     {
-        var cliente = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted, out var handler);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
             null!, "   ", "Sede Norte", null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(RegistrarSedeTool.Mensajes.CampoObligatorio, "codigo"));
-        handler.UltimaSolicitud.Should().BeNull("un codigo en blanco no debe llegar al dominio");
+        handler.UltimaRequest.Should().BeNull("un codigo en blanco no debe llegar al dominio");
     }
 
     [Fact]
-    public async Task RegistrarSede_RechazaNombreEnBlancoSinLlamarAlDominio()
+    public async Task RegistrarSede_RechazaSinLlamarAlDominio_CuandoElNombreEstaEnBlanco()
     {
-        var cliente = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted, out var handler);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
             null!, "NORTE", "", null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(RegistrarSedeTool.Mensajes.CampoObligatorio, "nombre"));
-        handler.UltimaSolicitud.Should().BeNull("un nombre en blanco no debe llegar al dominio");
+        handler.UltimaRequest.Should().BeNull("un nombre en blanco no debe llegar al dominio");
     }
 }

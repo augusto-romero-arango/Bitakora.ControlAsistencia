@@ -12,7 +12,7 @@
         "mcp": {
             "serverName": "ControlAsistencias Comandos",
             "serverVersion": "1.0.0",
-            "instructions": "Servidor MCP de comandos (escritura) del bounded context ControlAsistencias. Cada tool registra un hecho de negocio en el BC y, cuando el dominio lo rechaza, devuelve ese rechazo como texto. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
+            "instructions": "Servidor MCP de comandos (escritura) del bounded context ControlAsistencias. Hoy expone el registro de sedes (lugares de trabajo) con registrar_sede. Cada tool registra un hecho de negocio en el BC y, cuando el dominio lo rechaza, devuelve ese rechazo como texto. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
         }
     }
 }

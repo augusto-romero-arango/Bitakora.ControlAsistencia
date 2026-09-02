@@ -35,9 +35,7 @@ public class ComposicionDelServidorTests
                 $"{metodo.DeclaringType!.Name}.{metodo.Name} debe ser una Function para que el host la registre");
     }
 
-    // Issue #573: registrar_sede escribe (no es una consulta), asi que invierte el hint heredado
-    // del scaffold de ejemplo -- readOnlyHint pasa de true a false y suma destructiveHint: false
-    // (registrar no destruye datos existentes; idempotentHint se omite: repetir el codigo da 409).
+    // idempotentHint se omite a proposito: repetir el mismo codigo no es idempotente, da 409.
     [Fact]
     public void ServidorMcp_DeclaraHintsDeEscrituraEnCadaTool_CuandoSeInspeccionaElEnsamblado()
     {

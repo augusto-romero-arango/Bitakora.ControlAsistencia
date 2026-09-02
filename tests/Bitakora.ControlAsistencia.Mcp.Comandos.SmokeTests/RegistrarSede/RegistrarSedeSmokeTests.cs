@@ -44,4 +44,29 @@ public class RegistrarSedeSmokeTests(McpFixture mcp)
         resultado.Content.OfType<TextContentBlock>().Single().Text
             .Should().Be("'codigo' es obligatorio.");
     }
+
+    // CA-2 end-to-end: el 409 del dominio (SedeYaRegistrada) tiene que llegar al asistente como
+    // TEXTO traducido, nunca como error del protocolo -- es la decision de CA-ADR-0030, y el
+    // unit test con handler falso no puede probar que el dominio real responda ese status.
+    // Autocontenido (registra y repite el MISMO codigo) para no depender del orden de los tests
+    // ni sembrar una sede extra.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarSede_DevuelveElRechazoComoTexto_CuandoElCodigoYaEstaRegistrado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigo = $"TEST-{Guid.CreateVersion7()}";
+        var argumentos = new Dictionary<string, object?>
+        {
+            ["codigo"] = codigo,
+            ["nombre"] = "[TEST] Sede MCP duplicada"
+        };
+
+        await mcp.Cliente.CallToolAsync("registrar_sede", argumentos, cancellationToken: ct);
+        var reintento = await mcp.Cliente.CallToolAsync("registrar_sede", argumentos, cancellationToken: ct);
+
+        reintento.IsError.Should().NotBeTrue("un rechazo de negocio no es un error del protocolo");
+        reintento.Content.OfType<TextContentBlock>().Single().Text
+            .Should().Contain("La sede ya esta registrada con este codigo");
+    }
 }

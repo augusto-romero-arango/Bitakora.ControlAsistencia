@@ -5,10 +5,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
 
-// Issue #573: primera tool real del servidor de Comandos, reemplaza la tool de ejemplo del
-// scaffold. Consume RegistrarSede (POST /api/sedes, #456). El aggregate no cambia (MEF-ADR-0004);
-// esta tool solo traduce el contrato HTTP vigente (MEF-ADR-0043) al remodelado token-eficiente
-// (MEF-ADR-0047 decision 4).
+// Cliente HTTP puro del comando RegistrarSede (POST /api/sedes): esta tool no decide ninguna
+// regla de negocio -- traduce el contrato HTTP vigente (MEF-ADR-0043) al remodelado
+// token-eficiente de MEF-ADR-0047 decision 4, y devuelve el rechazo del dominio como texto en vez
+// de excepcion (CA-ADR-0030).
 public partial class RegistrarSedeTool(SedesApi api)
 {
     internal const string NombreTool = "registrar_sede";
@@ -52,7 +52,8 @@ public partial class RegistrarSedeTool(SedesApi api)
         respuesta.EnsureSuccessStatusCode();
 
         return RespuestaJson.Serializar(new SedeRegistradaResumen(
-            "Sede registrada", codigo, nombre, ciudad, direccion, Mensajes.NotaVisibilidadEventual));
+            Mensajes.ResultadoSedeRegistrada, codigo, nombre, ciudad, direccion,
+            Mensajes.NotaVisibilidadEventual));
     }
 
     private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
@@ -61,7 +62,11 @@ public partial class RegistrarSedeTool(SedesApi api)
             : null;
 }
 
-/// <summary>Eco compacto de registrar_sede hacia el asistente (remodelado, issue #573).</summary>
+/// <summary>
+/// Eco compacto de registrar_sede hacia el asistente: el 202 del dominio no trae body y la
+/// ficha se materializa asincronicamente, asi que el hecho registrado se reconstruye con lo
+/// que entro a la tool.
+/// </summary>
 public sealed record SedeRegistradaResumen(
     string Resultado,
     string Codigo,

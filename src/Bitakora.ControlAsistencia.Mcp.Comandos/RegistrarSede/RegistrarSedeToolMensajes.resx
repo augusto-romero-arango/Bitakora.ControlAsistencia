@@ -20,6 +20,9 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="ResultadoSedeRegistrada" xml:space="preserve">
+    <value>Sede registrada</value>
+  </data>
   <data name="CampoObligatorio" xml:space="preserve">
     <value>'{0}' es obligatorio.</value>
   </data>

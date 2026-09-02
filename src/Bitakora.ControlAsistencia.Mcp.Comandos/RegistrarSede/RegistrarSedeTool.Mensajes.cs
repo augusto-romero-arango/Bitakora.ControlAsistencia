@@ -12,6 +12,9 @@ public partial class RegistrarSedeTool
 
     internal static class Mensajes
     {
+        public static string ResultadoSedeRegistrada =>
+            ResourceManager.GetString(nameof(ResultadoSedeRegistrada))!;
+
         /// <summary>{0}: nombre del campo obligatorio en blanco.</summary>
         public static string CampoObligatorio =>
             ResourceManager.GetString(nameof(CampoObligatorio))!;
