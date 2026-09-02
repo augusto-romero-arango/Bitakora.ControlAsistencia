@@ -120,3 +120,11 @@ valores fijos, en vez de adoptar los resolvers header-based de 2.x.**
   decision #4 se reformulo porque la forma canonica expresa los dos valores directamente en los
   getters, sin constantes `private` intermedias: el invariante que ese punto protege -- cero
   superficie publica mas alla de la interfaz (MEF-ADR-0012) -- se conserva igual.
+
+- **2026-09-01 (issue #552, hotfix 66e7a80)**: el resolver de la etapa (b) que sucede a
+  `TenantResolverMonoTenantPorDefecto` tras la migracion del issue #536/#545 no es
+  `AgregarTenantResolverHibrido()`/`ProxyTenantResolver` (MEF-ADR-0028 seccion 4 del marco), sino
+  una biblioteca propia con identidad ambiente `AsyncLocal` -- `ProxyTenantResolver` decide su rama
+  en el constructor segun `IHttpContextAccessor.HttpContext`, `null` en el worker aislado al momento
+  de construirse, y toda request HTTP fallaba. Detalle completo, causa raiz y consecuencias en
+  **CA-ADR-0032**, que sucede a este ADR para la etapa (b) vigente del proyecto.

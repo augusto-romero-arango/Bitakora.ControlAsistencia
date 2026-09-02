@@ -109,6 +109,7 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | El modelo de dominio rico vive en el dominio y no cruza el bus; lo que cruza es plano | CA-ADR-0025 |
 | Custodia de secretos: connection strings en Key Vault, referencias `@Microsoft.KeyVault(...)`, `AzureWebJobsStorage` por identidad administrada | CA-ADR-0026 |
 | Tenancy conjoined operando con un unico tenant, `ITenantResolver` de valores fijos | CA-ADR-0027 |
+| **Identidad ambiente AsyncLocal (`TenantExecutionContext`/`TenantContextMiddleware`) que reemplaza a `AgregarTenantResolverHibrido()`/`ProxyTenantResolver` en el worker aislado; por que ese resolver del marco falla ahi** | CA-ADR-0032 (desviacion de MEF-ADR-0028 seccion 4; propuesto al marco) |
 | ~~Biblioteca `{Dominio}.Dominio` como frontera write/read~~ — superado por CA-ADR-0029; se conserva su prohibición de que el worker referencie un Function App | CA-ADR-0028 |
 | ~~`Contracts` para eventos públicos y value objects compartidos~~ — superado por CA-ADR-0029; el proyecto fue eliminado | CA-ADR-0002 |
 
