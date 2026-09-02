@@ -15,8 +15,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 // client-specific replica el confirmado en vivo para el gateway (MEF-ADR-0032 B5).
 public class ValidadorTokenAuthKitTests
 {
-    private const string IssuerAuthKit =
-        "https://api.workos.com/user_management/client_01M1CKPECJ5DBRMS3ZVFRQW8GW";
+    private const string IssuerAuthKit = "https://marvelous-polaroid-97-staging.authkit.app";
 
     private static IConfigurationManager<OpenIdConnectConfiguration> ConfiguracionCon(RsaSecurityKey llave)
     {

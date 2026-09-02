@@ -10,8 +10,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 public class ConstructorMetadataRecursoProtegidoTests
 {
     private static readonly Uri Recurso = new("https://mcp-consultas.controlasistencia.example.com");
-    private static readonly Uri AuthorizationServer =
-        new("https://api.workos.com/user_management/client_01M1CKPECJ5DBRMS3ZVFRQW8GW");
+    // Dominio AuthKit del entorno, no el issuer de LOGIN del gateway (issue #560).
+    private const string DominioAuthKit = "https://marvelous-polaroid-97-staging.authkit.app";
+    private static readonly Uri AuthorizationServer = new(DominioAuthKit);
 
     [Fact]
     public void Construir_DeclaraElRecursoYAuthKitComoUnicoAuthorizationServer()
@@ -20,8 +21,19 @@ public class ConstructorMetadataRecursoProtegidoTests
 
         var documento = constructor.Construir();
 
-        documento.Resource.Should().Be(Recurso.ToString());
-        documento.AuthorizationServers.Should().ContainSingle().Which.Should().Be(AuthorizationServer.ToString());
+        documento.Resource.Should().Be(Recurso.OriginalString);
+        documento.AuthorizationServers.Should().ContainSingle().Which.Should().Be(DominioAuthKit);
+    }
+
+    // El dominio AuthKit no tiene path: Uri lo normalizaria a ".../" y el issuer dejaria de
+    // coincidir byte a byte con el del discovery doc (RFC 8414).
+    [Fact]
+    public void Construir_EmiteElAuthorizationServerSinBarraFinal_CuandoEsUnDominioSinPath()
+    {
+        var documento = new ConstructorMetadataRecursoProtegido(Recurso, AuthorizationServer).Construir();
+
+        documento.AuthorizationServers.Should().ContainSingle()
+            .Which.Should().Be(DominioAuthKit).And.NotEndWith("/");
     }
 
     [Fact]
