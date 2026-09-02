@@ -91,11 +91,16 @@ variable "prm_url" {
   type        = string
 }
 
-variable "authorization_server_client_id" {
-  description = "Client ID de AuthKit contra el que se arma el issuer/openid-config de esta politica (MEF-ADR-0032 seccion 8, B5: issuer client-specific, NUNCA 'https://api.workos.com' a secas). Default = el mismo valor YA verificado en vivo y hardcodeado en Program.cs de Bitakora.ControlAsistencia.Mcp.Consultas (AuthorizationServerAuthKit, issue #554) -- no el var.workos_client_id de LOGIN del modulo api-management, que es un proyecto/uso distinto."
+variable "authorization_server_url" {
+  description = "Dominio AuthKit del entorno contra el que se arma el issuer/openid-config de esta politica (issue #561, misma causa raiz que #560 en el app-side: los tokens del flujo MCP/Connect se emiten con issuer = dominio AuthKit, NO 'https://api.workos.com/user_management/{client_id}' -- ese es el issuer de LOGIN, MEF-ADR-0032 seccion 6). Verificado en vivo 2026-09-01: '/.well-known/openid-configuration' de este dominio responde 200 con issuer = el dominio y jwks en '/oauth2/jwks'. Sin default: el caller lo fija explicitamente al dominio AuthKit del entorno (ej. 'https://marvelous-polaroid-97-staging.authkit.app' en dev), sin barra final -- ver local.workos_openid_config_url."
   type        = string
-  default     = "client_01M1CKPECJ5DBRMS3ZVFRQW8GW"
 }
+
+# Retirada (issue #561): var.authorization_server_client_id (client_01M1CKPECJ5DBRMS3ZVFRQW8GW).
+# Derivaba el issuer de LOGIN (user_management + client_id), causa raiz del rechazo de TODO token
+# valido del flujo MCP/Connect -- ese issuer nunca fue el correcto para esta politica. No queda
+# ningun caller que la use (unico consumo era el local de abajo); no se deja como deprecada
+# porque no deriva nada y mantenerla solo invitaria a que alguien la vuelva a cablear por error.
 
 variable "protocol_methods" {
   description = "Verbos HTTP wildcard del endpoint del protocolo MCP (streamable HTTP): POST para las llamadas RPC, GET para streams servidor-iniciados, DELETE para terminacion de sesion (issue #558 decision #5, opcional pero incluido: costo marginal bajo)."
@@ -114,7 +119,10 @@ locals {
   # comentario de azurerm_api_management_backend.protocol).
   function_app_base_url = "https://${var.function_app_default_hostname}"
 
-  workos_issuer            = "https://api.workos.com/user_management/${var.authorization_server_client_id}"
+  # trimsuffix defiende contra que el caller pase el dominio con "/" final (mismo patron que
+  # local.apim_gateway_host en apim-mcp-consultas.tf): el issuer debe coincidir byte a byte con
+  # el que emite el discovery doc en vivo (RFC 8414 / MEF-ADR-0032 seccion 8), sin barra.
+  workos_issuer            = trimsuffix(var.authorization_server_url, "/")
   workos_openid_config_url = "${local.workos_issuer}/.well-known/openid-configuration"
 }
 

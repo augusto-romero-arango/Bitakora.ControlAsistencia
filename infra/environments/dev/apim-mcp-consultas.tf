@@ -31,6 +31,15 @@ locals {
   # mcp_consultas_path (son dos APIs de gateway hermanas, no anidadas -- ver el modulo).
   mcp_consultas_prm_path = "api/.well-known/oauth-protected-resource"
   mcp_consultas_prm_url  = "${local.apim_gateway_host}/${local.mcp_consultas_prm_path}"
+
+  # Issue #561 (hermano de #560, app-side): dominio AuthKit del entorno contra el que
+  # module.apim_mcp_consultas arma workos_issuer/workos_openid_config_url. Mismo valor,
+  # verificado en vivo 2026-09-01, que AuthorizationServerAuthKit en Program.cs de
+  # Bitakora.ControlAsistencia.Mcp.Consultas (issue #560) -- si diverge, el validate-jwt de esta
+  # politica y el validador del propio Function App quedan mirando issuers distintos. Sin barra
+  # final (local.workos_issuer del modulo la recorta de todos modos, pero se fija asi por
+  # consistencia byte a byte con el discovery doc).
+  mcp_consultas_authorization_server_url = "https://marvelous-polaroid-97-staging.authkit.app"
 }
 
 module "apim_mcp_consultas" {
@@ -51,6 +60,8 @@ module "apim_mcp_consultas" {
   resource_audience = local.mcp_consultas_resource_uri
   prm_path          = local.mcp_consultas_prm_path
   prm_url           = local.mcp_consultas_prm_url
+
+  authorization_server_url = local.mcp_consultas_authorization_server_url
 
   tags = local.tags
 }
