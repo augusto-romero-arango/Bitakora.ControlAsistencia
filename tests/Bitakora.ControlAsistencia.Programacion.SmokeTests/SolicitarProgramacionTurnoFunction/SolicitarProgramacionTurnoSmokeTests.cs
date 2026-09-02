@@ -41,7 +41,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
     private static object TurnoConFranjasMixtasPayload(Guid turnoId, string sedeId, string sedeNombre) => new
     {
         turnoId,
-        nombre = "[TEST] Turno Mixto Cascada",
+        // Nombre unico por corrida (#497): sin sufijo, una FichaTurno materializada de una corrida
+        // anterior choca con 409 en el arrange.
+        nombre = $"[TEST] Turno Mixto Cascada {turnoId}",
         ordinarias = new object[]
         {
             new
@@ -107,10 +109,11 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Arrange: crear turno en catalogo
         var turnoId = Guid.CreateVersion7();
+        var nombreTurno = $"[TEST] Turno Smoke SB {turnoId}";
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Smoke SB",
+            nombre = nombreTurno,
             ordinarias = new[]
             {
                 new
@@ -168,7 +171,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         evento1.Colaborador.Should().Be(colaboradorEsperado);
 
         evento1.DetalleTurno.Should().NotBeNull();
-        evento1.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
+        evento1.DetalleTurno.Nombre.Should().Be(nombreTurno);
         evento1.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
 
         // Issue #331 CA-2: la solicitud no incluye sede -> el comportamiento actual (anterior al
@@ -206,7 +209,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Smoke Sede",
+            nombre = $"[TEST] Turno Smoke Sede {turnoId}",
             ordinarias = new[]
             {
                 new
@@ -347,7 +350,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         var turnoId = Guid.CreateVersion7();
         var crearTurnoResponse = await _client.PostAsJsonAsync(
-            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC"), ct);
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, $"[TEST] Turno Smoke CC {turnoId}"), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var solicitudId = Guid.CreateVersion7();
@@ -396,7 +399,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoId = Guid.CreateVersion7();
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos",
-            TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Normalizacion"), ct);
+            TurnoSimplePayload(turnoId, $"[TEST] Turno Smoke CC Normalizacion {turnoId}"), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var sedeEsperada = new DetalleSede("SEDE-CC-02", "[TEST] Sede Sin Costeo Real");
@@ -443,7 +446,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoId = Guid.CreateVersion7();
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos",
-            TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Persistencia"), ct);
+            TurnoSimplePayload(turnoId, $"[TEST] Turno Smoke CC Persistencia {turnoId}"), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
         var solicitudId = Guid.CreateVersion7();
@@ -561,7 +564,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Con Sede Prearmada",
+            nombre = $"[TEST] Turno Con Sede Prearmada {turnoId}",
             ordinarias = new[]
             {
                 new
@@ -625,7 +628,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno para Duplicado",
+            nombre = $"[TEST] Turno para Duplicado {turnoId}",
             ordinarias = new[]
             {
                 new
