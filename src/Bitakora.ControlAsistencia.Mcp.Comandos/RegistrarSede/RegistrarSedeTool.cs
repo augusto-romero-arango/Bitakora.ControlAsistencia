@@ -1,3 +1,4 @@
+using System.Net;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -13,7 +14,7 @@ public partial class RegistrarSedeTool(SedesApi api)
     internal const string NombreTool = "registrar_sede";
 
     [Function("RegistrarSede")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Registra una sede (lugar de trabajo) nueva de la empresa. Codigo y nombre son "
@@ -35,8 +36,29 @@ public partial class RegistrarSedeTool(SedesApi api)
         string? ciudad,
         [McpToolProperty("direccion", "Direccion de la sede (informativo).")]
         string? direccion,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(codigo))
+            return string.Format(Mensajes.CampoObligatorio, "codigo");
+
+        if (string.IsNullOrWhiteSpace(nombre))
+            return string.Format(Mensajes.CampoObligatorio, "nombre");
+
+        var respuesta = await api.Registrar(codigo, nombre, ciudad, direccion, ct);
+
+        if (await TraducirRechazo(respuesta, ct) is { } rechazo)
+            return rechazo;
+
+        respuesta.EnsureSuccessStatusCode();
+
+        return RespuestaJson.Serializar(new SedeRegistradaResumen(
+            "Sede registrada", codigo, nombre, ciudad, direccion, Mensajes.NotaVisibilidadEventual));
+    }
+
+    private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
+        respuesta.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict
+            ? string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct))
+            : null;
 }
 
 /// <summary>Eco compacto de registrar_sede hacia el asistente (remodelado, issue #573).</summary>

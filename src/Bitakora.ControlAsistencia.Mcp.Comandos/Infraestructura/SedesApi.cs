@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
 /// <summary>
@@ -9,5 +11,5 @@ public sealed class SedesApi(HttpClient http)
 {
     public Task<HttpResponseMessage> Registrar(
         string codigo, string nombre, string? ciudad, string? direccion, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync("api/sedes", new { codigo, nombre, ciudad, direccion }, ct);
 }
