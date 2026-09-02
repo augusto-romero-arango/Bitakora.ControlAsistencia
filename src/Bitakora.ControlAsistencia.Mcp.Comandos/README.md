@@ -60,21 +60,25 @@ deploy.
   `appsettings.local.json` (ignorado por git) o las variables de entorno
   `Mcp__BaseUrl`/`Mcp__FunctionsKey`. La key nunca vive en un archivo versionado: en CI se lista en
   runtime con `az functionapp keys list` (MEF-ADR-0047 decision 5, MEF-ADR-0048 seccion 4).
-- La tool de ejemplo (`ejemplo_listar`) consume el catalogo real de turnos de Programacion
-  (`GET api/programacion/turnos`), no un endpoint ficticio: sus smoke tests ya ejercitan un camino
-  vivo desde el primer deploy, aunque el catalogo este vacio en un tenant sin datos. Al reemplazar
-  `ejemplo_listar` por las tools reales de Comandos, actualiza los asserts **pinneados** de
-  `ComposicionDelHost/` y `Ejemplo/`: el catalogo exacto de `tools/list` y el error path del
-  `.resx` son contrato, no muestreo (MEF-ADR-0048 seccion 2, verificaciones 2 y 4).
+- `registrar_sede` consume el Function App de Sedes (`POST api/sedes`, #456): sus asserts
+  **pinneados** de `ComposicionDelHost/` y `RegistrarSede/` son contrato, no muestreo (MEF-ADR-0048
+  seccion 2, verificaciones 2 y 4) -- toda tool nueva actualiza el catalogo exacto de `tools/list`
+  y su error path del `.resx`.
 
 ## Tools
 
-| Tool | Que responde | Parametros |
+| Tool | Que registra | Parametros |
 |---|---|---|
-| `ejemplo_listar` | **EJEMPLO** -- catalogo de turnos de Programacion: id, nombre | `filtro_nombre?` |
+| `registrar_sede` | Sede nueva de la empresa (`POST api/sedes`) | `codigo`, `nombre`, `ciudad?`, `direccion?` |
 
-Reemplaza `ejemplo_listar` por las tools reales de Comandos (lenguaje ubicuo, MEF-ADR-0040) antes
-de publicar este servidor.
+## Limitacion conocida: `resource` ausente en la tool call (#571)
+
+El descubrimiento OAuth de este servidor y el de `Mcp.Consultas` comparten el mismo Authorization
+Server (AuthKit). Si el cliente MCP omite el parametro `resource` al pedir el token -- en vez de
+usar el PRM de **este** servidor (`Mcp.Comandos`) -- AuthKit puede emitir un token con `aud` de
+Consultas. `AutorizacionMcpMiddleware`/`ValidadorTokenAuthKit` de Comandos rechazan ese token: la
+audiencia no calza con la de este recurso. No hay workaround del lado del servidor; el cliente
+debe declarar `resource` apuntando al PRM de Comandos en cada tool call.
 
 ## Onboarding de un cliente MCP (una vez desplegado)
 
@@ -104,4 +108,4 @@ claude mcp add --transport http comandos \
 ### 3. Verificar
 
 En una conversacion nueva: el servidor aparece conectado (`/mcp`) y lista las tools de la tabla
-de arriba; una consulta real debe invocar `ejemplo_listar` y devolver datos del entorno.
+de arriba; un pedido real debe invocar `registrar_sede` y devolver el eco de la sede registrada.

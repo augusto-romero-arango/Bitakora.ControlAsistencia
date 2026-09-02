@@ -14,14 +14,14 @@ public static class ConfiguracionClientesHttp
 {
     public static IServiceCollection ConfigurarClientesHttp(this IServiceCollection services, IConfiguration configuration)
     {
-        var baseUrlProgramacion = LeerBaseUrl(configuration, "Programacion");
-        services.AddHttpClient<ProgramacionApi>(c => c.BaseAddress = baseUrlProgramacion)
+        var baseUrlSedes = LeerBaseUrl(configuration, "Sedes");
+        services.AddHttpClient<SedesApi>(c => c.BaseAddress = baseUrlSedes)
             .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
 
         // Extension point: cada tool nueva que consuma otro dominio del BC agrega aqui su propio
         // par LeerBaseUrl(...) + AddHttpClient<{Dominio}Api>(...).AddHttpMessageHandler<PropagadorIdentidadTenantHandler>(),
         // siguiendo el mismo patron -- el propagador de identidad (MEF-ADR-0047 decision 6) es
-        // obligatorio en todo HttpClient tipado nuevo, no solo en el de Programacion.
+        // obligatorio en todo HttpClient tipado nuevo, no solo en el de Sedes.
 
         return services;
     }

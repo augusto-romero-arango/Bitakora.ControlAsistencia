@@ -1,6 +1,6 @@
 using System.Reflection;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Mcp.Comandos.Ejemplo;
+using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
@@ -9,7 +9,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Tests;
 public class ComposicionDelServidorTests
 {
     private static readonly IReadOnlyList<MethodInfo> MetodosDeTool =
-        [.. typeof(EjemploListarTool).Assembly
+        [.. typeof(RegistrarSedeTool).Assembly
             .GetTypes()
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance))
             .Where(m => ParametroTrigger(m) is not null)];
@@ -19,12 +19,12 @@ public class ComposicionDelServidorTests
             .FirstOrDefault(p => p.GetCustomAttribute<McpToolTriggerAttribute>() is not null);
 
     [Fact]
-    public void ServidorMcp_ExponeLaToolDeEjemplo_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLaToolRegistrarSede_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
 
-        nombres.Should().ContainSingle().Which.Should().Be(EjemploListarTool.NombreTool);
+        nombres.Should().ContainSingle().Which.Should().Be(RegistrarSedeTool.NombreTool);
     }
 
     [Fact]
@@ -35,16 +35,18 @@ public class ComposicionDelServidorTests
                 $"{metodo.DeclaringType!.Name}.{metodo.Name} debe ser una Function para que el host la registre");
     }
 
+    // idempotentHint se omite a proposito: repetir el mismo codigo no es idempotente, da 409.
     [Fact]
-    public void ServidorMcp_DeclaraReadOnlyHintEnCadaTool_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_DeclaraHintsDeEscrituraEnCadaTool_CuandoSeInspeccionaElEnsamblado()
     {
         foreach (var metodo in MetodosDeTool)
         {
             var metadata = ParametroTrigger(metodo)!.GetCustomAttribute<McpMetadataAttribute>();
 
             metadata.Should().NotBeNull(
-                $"la tool de {metodo.DeclaringType!.Name} debe declarar su hint de solo lectura");
-            metadata!.Json.Should().Contain("\"readOnlyHint\": true");
+                $"la tool de {metodo.DeclaringType!.Name} debe declarar sus hints de escritura");
+            metadata!.Json.Should().Contain("\"readOnlyHint\": false");
+            metadata.Json.Should().Contain("\"destructiveHint\": false");
         }
     }
 
@@ -64,16 +66,20 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
-    public void EjemploListar_DeclaraFiltroNombreComoOpcional_CuandoSeInspeccionaLaTool()
+    public void RegistrarSede_DeclaraCodigoYNombreComoRequeridosYCiudadDireccionComoOpcionales_CuandoSeInspeccionaLaTool()
     {
         var metodo = MetodosDeTool.Single(m =>
-            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == EjemploListarTool.NombreTool);
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == RegistrarSedeTool.NombreTool);
 
         var propiedades = metodo.GetParameters()
             .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
             .Where(a => a is not null)
             .Select(a => (a!.PropertyName, a.IsRequired));
 
-        propiedades.Should().ContainSingle().Which.Should().Be(("filtro_nombre", false));
+        propiedades.Should().Equal(
+            ("codigo", true),
+            ("nombre", true),
+            ("ciudad", false),
+            ("direccion", false));
     }
 }
