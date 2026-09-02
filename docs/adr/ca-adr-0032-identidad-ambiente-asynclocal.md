@@ -22,17 +22,17 @@ Wolverine y lanzaba `InvalidOperationException` ("El `IMessageContext` actual no
 que el catch de los `FunctionEndpoints` de comandos (CA-ADR-0030) convertia en un 409 enganoso; las
 queries GET, sin ese catch, devolvian 500 sin traducir.
 
-Este fallo **no es nuevo**: MEF-ADR-0028 seccion 4 documenta que la migracion (a)->(b) via
-`/install-apim` auto-cablea `AgregarTenantResolverHibrido()` confiando en que todo dominio del
-marco corre handlers de Wolverine, apto para el hibrido HTTP + daemon. Lo que esa seccion no
-verifico -- porque el marco no corre production real en un worker aislado con este patron todavia
--- es que la decision de rama de `ProxyTenantResolver` ocurre en tiempo de **construccion** del
-objeto (el constructor), no en tiempo de **invocacion** (cuando `HttpContext` ya existiria). El
-worker aislado de Azure Functions construye el grafo de DI antes de que el pipeline de la funcion
-puebla ese contexto, asi que la premisa de la seccion 4 -- "todo dominio del marco corre handlers
-de Wolverine, apto para el hibrido" -- resulta cierta pero insuficiente: el hibrido nunca llega a
-evaluar el `HttpContext` de la invocacion en curso, evalua el que existia (ninguno) al momento de
-construirse.
+Este fallo **no es nuevo**: MEF-ADR-0028 seccion 4 fija la migracion (a)->(b) via `/install-apim`
+como el auto-cableo de `AgregarTenantResolverHibrido()` sobre todos los dominios ya scaffoldeados,
+apoyandose en la justificacion que su seccion 3 da para la rama (b): el hibrido HTTP + daemon es
+"apto porque todo dominio del marco corre handlers de Wolverine". Lo que ninguna de las dos
+secciones registra -- la decompilacion de su "Contexto" describe *en que* delega
+`ProxyTenantResolver`, no *cuando* lo decide -- es que esa decision de rama ocurre en tiempo de
+**construccion** del objeto (el constructor), no en tiempo de **invocacion** (cuando `HttpContext`
+ya existiria). El worker aislado de Azure Functions construye el grafo de DI antes de que el
+pipeline de la funcion puebla ese contexto, asi que la premisa de aptitud resulta cierta pero
+insuficiente: el hibrido nunca llega a evaluar el `HttpContext` de la invocacion en curso, evalua
+el que existia (ninguno) al momento de construirse.
 
 **Cosmos.ControlPlane** (implementacion de referencia de MEF-ADR-0032 del marco) ya habia
 descartado `AgregarTenantResolverHibrido()` por esta misma razon y resuelto el problema con una
@@ -106,7 +106,7 @@ Los que no la reciben la derivan de su payload ya verificado y la pueblan con
 
 - `TenancyServiceCollectionExtensions.AgregarTenantResolverControlAsistencia()`: registra
   `TenantExecutionContext` como `ITenantResolver` (`RemoveAll` + `AddSingleton`) dentro del seam
-  `ComposicionServicios{Dominio}` de cada dominio (MEF-ADR-0029 del marco).
+  `Infraestructura/ComposicionServicios.cs` de cada dominio (MEF-ADR-0029 del marco).
 - `TenancyBuilderExtensions.UsarTenantContextMiddleware()`: registra `TenantContextMiddleware` en
   el `IFunctionsWorkerApplicationBuilder` de cada `Program.cs`.
 
@@ -123,14 +123,15 @@ dominio (ya sin uso tras retirar `AgregarTenantResolverHibrido()`/`ProxyTenantRe
 
 **Mantener `AgregarTenantResolverHibrido()` y envolver el `HttpContext` en un accessor que se
 resuelva de forma perezosa.** Descartada: el problema no es que `IHttpContextAccessor` este mal
-configurado, es que `ProxyTenantResolver` decide la rama en el constructor -- ningun wrapper alrededor
-del accessor cambia *cuando* se evalua esa decision. Habria que parchear o reimplementar el propio
-`ProxyTenantResolver`, que es codigo de un paquete privado del marco sin superficie de extension.
+configurado, es que `ProxyTenantResolver` decide la rama en el constructor -- ningun wrapper
+alrededor del accessor cambia *cuando* se evalua esa decision. Habria que parchear o reimplementar
+el propio `ProxyTenantResolver`, que es codigo de un paquete privado del marco sin superficie de
+extension.
 
 **Volver a `TenantResolverMonoTenantPorDefecto` (etapa a, CA-ADR-0027) y no adoptar WorkOS+APIM.**
-Descartada: WorkOS+APIM (MEF-ADR-0032 del marco) ya esta en produccion (#545) y resuelve un problema
-real (identidad de usuario/tenant real en vez de valores fijos); revertir la etapa perderia esa
-capacidad, no solo el bug.
+Descartada: WorkOS+APIM (MEF-ADR-0032 del marco) ya esta desplegado y en uso en dev (#545) y
+resuelve un problema real (identidad de usuario/tenant real en vez de valores fijos); revertir la
+etapa perderia esa capacidad, no solo el bug.
 
 ## Consecuencias
 
@@ -146,18 +147,23 @@ capacidad, no solo el bug.
   puede retirarse en favor del paquete del marco, o si se mantiene por alguna diferencia de
   comportamiento no cubierta por la enmienda (por ejemplo, `SetDerivedIdentity` para triggers sin
   JWT, que `ProxyTenantResolver` no contempla).
-- **Un dominio nuevo scaffoldeado por `domain-scaffolder`** (MEF-ADR-0028 seccion 3, etapa b) seguira
-  generando `AgregarTenantResolverHibrido()` por defecto hasta que el marco enmiende su canon: quien
-  scaffoldee un dominio nuevo en este proyecto debe migrarlo manualmente a
-  `AgregarTenantResolverControlAsistencia()` + `UsarTenantContextMiddleware()`, siguiendo este ADR
-  en vez del scaffold generado.
-- **Tests**: la biblioteca nueva trae 7 tests propios (portados de `Cosmos.ControlPlane.TenantResolver`),
-  que cubren el cruce del scope async (identidad puesta en el middleware, leida dentro un handler en
-  un `IServiceScope` hijo) y el fallo ruidoso sin identidad poblada.
-- **Reporte al marco**: la brecha de MEF-ADR-0028 seccion 4 (el auto-cableo asume que decidir la rama
-  en el constructor es equivalente a decidirla por invocacion) se reporto como draft al harness --
-  el marco decide si enmienda su canon o si documenta el patron AsyncLocal como alternativa
-  verificada para workers aislados.
+- **Un dominio nuevo scaffoldeado por `domain-scaffolder`** nacera con el resolver roto hasta que el
+  marco enmiende su canon. El scaffolder rama por el token `tenancy.strategy` de
+  `.claude/harness.config.json` (MEF-ADR-0028 seccion 3), que `/install-apim` ya dejo en
+  `"multi-tenant-header"` en este proyecto -- la rama etapa (b), que genera
+  `AgregarTenantResolverHibrido()` en el seam de composicion que produce. Quien
+  scaffoldee un dominio nuevo aqui debe migrarlo a `AgregarTenantResolverControlAsistencia()` +
+  `UsarTenantContextMiddleware()`, siguiendo este ADR en vez del scaffold generado. El gate de
+  composicion DI (MEF-ADR-0029) no lo detecta: `ProxyTenantResolver` **se construye** sin error, y
+  es justamente al invocarlo cuando falla.
+- **Tests**: la biblioteca nueva trae su propia suite (portada de
+  `Cosmos.ControlPlane.TenantResolver`), que cubre el cruce del scope async (identidad puesta en el
+  middleware, leida dentro de un handler en un `IServiceScope` hijo) y el fallo ruidoso sin
+  identidad poblada.
+- **Reporte al marco**: la brecha de MEF-ADR-0028 seccion 4 (el auto-cableo asume que decidir la
+  rama en el constructor es equivalente a decidirla por invocacion) se reporto como draft al
+  harness -- el marco decide si enmienda su canon o si documenta el patron AsyncLocal como
+  alternativa verificada para workers aislados.
 
 ## Referencias
 
