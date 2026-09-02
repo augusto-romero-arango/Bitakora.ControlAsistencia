@@ -17,7 +17,12 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
     private const string TipoEventoSedeRegistrada = "sede_registrada";
     private const string TipoEventoDispositivoInstalado = "dispositivo_instalado";
     private const string TipoEventoDispositivoRetirado = "dispositivo_retirado";
+    private const string TablaUbicacionDispositivo = "mt_doc_ubicaciondispositivo";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+
+    // UbicacionDispositivo materializa via el daemon Async (MEF-ADR-0034 seccion 3): ventana propia,
+    // mas holgada que Timeout, para no acoplar la espera del daemon a la de los efectos inline.
+    private static readonly TimeSpan TimeoutProyeccion = TimeSpan.FromSeconds(120);
 
     // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
     // del que "[", "]" y el espacio quedan fuera.
@@ -127,14 +132,12 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
     }
 
     // Rechazo cross-sede. UbicacionDispositivo materializa de forma ASINCRONA (MEF-ADR-0034 seccion
-    // 3) y no expone GET: la unica espera black-box es reintentar el propio POST. Mientras la vista
-    // no materialice SedeId=origen el intento en destino puede colarse (202) -- ventana best-effort
-    // conocida --, y esa instalacion fantasma se retira antes de reintentar, o el siguiente 409
-    // vendria de YaInstalado y no del cruce.
-    //
-    // Polling.WaitUntilTrueAsync TRAGA las excepciones de su lambda y reintenta: toda asercion del
-    // CA va fuera del bucle. Dentro, un conteo que no cuadre se reintentaria hasta cuadrar y el
-    // test pasaria en verde ocultando el defecto.
+    // 3): la espera de infraestructura -- si el daemon ya materializo -- va separada de la asercion
+    // de negocio. Se espera el documento mt_doc_ubicaciondispositivo directo via PostgresFixture -- no
+    // hay Function GET sobre esta vista (issue #549) -- y solo despues se ejercita el POST al
+    // destino UNA sola vez. Sin loop con side-effects: reintentar el POST mientras la vista no
+    // materializa instalaria y retiraria un dispositivo fantasma en cada iteracion, agregando
+    // eventos reales al stream destino.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna409YNoInstalaEnDestino_CuandoDispositivoYaEstaInstaladoEnOtraSede()
@@ -159,35 +162,22 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         existeEnOrigen.Should().BeTrue(
             $"el evento {TipoEventoDispositivoInstalado} deberia estar en el stream {streamOrigen} antes de intentar el cruce");
 
-        HttpStatusCode? ultimoStatus = null;
-        var eventosAntesDelRechazo = 0;
+        var proyeccionMaterializada = await postgres.ExisteDocumentoAsync(
+            SchemaSedes, TablaUbicacionDispositivo, dispositivoId, TimeoutProyeccion,
+            campoJson: "SedeId", valorJson: streamOrigen);
+        proyeccionMaterializada.Should().BeTrue(
+            $"UbicacionDispositivo deberia materializar la sede origen {streamOrigen} para {dispositivoId} " +
+            $"(tabla {SchemaSedes}.{TablaUbicacionDispositivo}, tenant {postgres.TenantId}) antes de ejercitar el cruce");
 
-        var resuelto = await Polling.WaitUntilTrueAsync(async () =>
-        {
-            eventosAntesDelRechazo = await postgres.ContarEventosAsync(
-                SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
+        var intento = await _client.PostAsJsonAsync(
+            RutaDispositivos(codigoDestino), new { dispositivoId }, ct);
 
-            var intento = await _client.PostAsJsonAsync(
-                RutaDispositivos(codigoDestino), new { dispositivoId }, ct);
-            ultimoStatus = intento.StatusCode;
+        intento.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-            if (intento.StatusCode != HttpStatusCode.Accepted)
-                return true;
-
-            var retiro = await _client.DeleteAsync(RutaDispositivo(codigoDestino, dispositivoId), ct);
-            retiro.StatusCode.Should().Be(HttpStatusCode.Accepted,
-                "el reintento solo es valido si la instalacion fantasma quedo retirada del destino");
-            return false;
-        }, Timeout);
-
-        resuelto.Should().BeTrue(
-            "la instalacion cross-sede deberia dejar de aceptarse una vez que UbicacionDispositivo materialice la sede origen");
-        ultimoStatus.Should().Be(HttpStatusCode.Conflict);
-
-        var eventosDespuesDelRechazo = await postgres.ContarEventosAsync(
+        var registrosEnDestino = await postgres.ContarEventosAsync(
             SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
-        eventosDespuesDelRechazo.Should().Be(eventosAntesDelRechazo,
-            "el rechazo cross-sede ocurre antes de cargar el aggregate destino: no debe agregar un nuevo dispositivo_instalado");
+        registrosEnDestino.Should().Be(0,
+            "el rechazo cross-sede ocurre antes de cargar el aggregate destino: el stream de la sede destino no debe recibir ningun dispositivo_instalado");
     }
 
     // CA-6: reinstalar un dispositivo previamente retirado de esta sede procede -- no es la misma
