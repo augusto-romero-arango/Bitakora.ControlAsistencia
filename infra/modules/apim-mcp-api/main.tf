@@ -22,13 +22,13 @@
 #
 # El PRM (RFC 9728) SI adopta la forma de Mefisto (issue #575, decision nueva frente a #558): deja
 # de ser una API propia por servidor y pasa a ser UNA operacion "GET /{path}" mas sobre la API
-# COMPARTIDA var.mcp_prm_api_name (".well-known/oauth-protected-resource", declarada una sola vez
-# en infra/environments/dev/apim-mcp-prm.tf) -- RFC 9728 seccion 3.1 "Example with path
-# component". La version del pionero (#558) declaraba un azurerm_api_management_api propio por
-# servidor con path "api/.well-known/oauth-protected-resource": colisiona si un segundo servidor
-# MCP (Comandos, #570/#571) intenta declarar el mismo path de nuevo, porque el path de gateway
-# ".well-known/oauth-protected-resource" (sin el prefijo "api/" per-servidor) es UNICO por
-# instancia APIM, no por servidor. Consistencia byte a byte (issue #558 decision #4, vigente):
+# COMPARTIDA var.mcp_prm_api_name ("well-known/oauth-protected-resource" -- SIN punto inicial,
+# APIM lo rechaza con 400, ver el comentario CA-4 de infra/environments/dev/apim-mcp-prm.tf donde
+# se declara una sola vez) -- RFC 9728 seccion 3.1 "Example with path component". La version del
+# pionero (#558) declaraba un azurerm_api_management_api propio por servidor con path
+# "api/.well-known/oauth-protected-resource": colisiona si un segundo servidor MCP (Comandos,
+# #570/#571) intenta declarar el mismo path de nuevo, porque el path de gateway del PRM (sin el
+# prefijo "api/" per-servidor) es UNICO por instancia APIM, no por servidor. Consistencia byte a byte (issue #558 decision #4, vigente):
 # local.resource_uri y local.prm_url se arman DENTRO de este modulo a partir del MISMO
 # var.gateway_url que alimenta Mcp__ResourceUri en el Function App (var.gateway_url = siempre
 # module.api_management.gateway_url) -- el modulo nunca vuelve a reconstruir esos strings por
@@ -131,12 +131,16 @@ locals {
   # Unica fuente de verdad de las tres piezas que MEF-ADR-0032/issue #558 (decision #4) exige que
   # coincidan byte a byte: <audience> de la politica del protocolo, campo "resource" del
   # documento PRM y Resource Indicator del dashboard WorkOS (manual, checklist del PR).
-  # trimsuffix defiende contra que var.gateway_url venga con o sin "/" final. Formula exacta del
-  # issue #575 (forma canonica de Mefisto Paso 2b, layout con PRM compartido bajo
-  # ".well-known/oauth-protected-resource/{path}", RFC 9728 seccion 3.1).
+  # trimsuffix defiende contra que var.gateway_url venga con o sin "/" final. Formula del issue
+  # #575 (forma canonica de Mefisto Paso 2b, PRM compartido bajo "{prm}/{path}", RFC 9728 seccion
+  # 3.1) con UNA desviacion: el segmento del PRM va SIN punto inicial ("well-known/..."), porque
+  # APIM rechaza un path de API que empiece con punto (400 ValidationError, CA-4 de #575
+  # verificado en rojo en el apply -- ver infra/environments/dev/apim-mcp-prm.tf). Debe coincidir
+  # byte a byte con el `path` de azurerm_api_management_api.mcp_prm: es la URL que viaja en el
+  # WWW-Authenticate resource_metadata del 401 (RFC 9728 seccion 5.1) y el output prm_url.
   gateway_url_trimmed = trimsuffix(var.gateway_url, "/")
   resource_uri        = "${local.gateway_url_trimmed}/${var.path}"
-  prm_url             = "${local.gateway_url_trimmed}/.well-known/oauth-protected-resource/${var.path}"
+  prm_url             = "${local.gateway_url_trimmed}/well-known/oauth-protected-resource/${var.path}"
 
   # trimsuffix defiende contra que el caller pase el dominio con "/" final (mismo patron que
   # local.gateway_url_trimmed): el issuer debe coincidir byte a byte con el que emite el
@@ -283,8 +287,8 @@ XML
 #
 # Forma de Mefisto (issue #575): el PRM deja de ser una API propia por servidor (version #558) y
 # pasa a ser una operacion mas ("GET /{var.path}") de la API compartida
-# ".well-known/oauth-protected-resource" (declarada una sola vez en apim-mcp-prm.tf) -- RFC 9728
-# seccion 3.1 "Example with path component". Sin validate-jwt (spec de autorizacion MCP: un
+# "well-known/oauth-protected-resource" (declarada una sola vez en apim-mcp-prm.tf; sin punto
+# inicial, ver su comentario CA-4) -- RFC 9728 seccion 3.1 "Example with path component". Sin validate-jwt (spec de autorizacion MCP: un
 # cliente sin token todavia debe poder leer este documento); la API compartida ya es anonima
 # (azurerm_api_management_api.mcp_prm, subscription_required = false) y su politica de API NO
 # lleva <base/> (reemplaza la global, igual que la politica del protocolo de arriba) -- la

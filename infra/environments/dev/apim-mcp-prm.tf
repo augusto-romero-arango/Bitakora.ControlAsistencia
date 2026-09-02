@@ -2,7 +2,7 @@
 # del BC (issue #575, forma canonica de Mefisto 0.35.0 Paso 3c.2 -- harness#820 CA-2).
 #
 # Se declara UNA sola vez por entorno, igual que module.api_management en apim.tf: el path de
-# gateway ".well-known/oauth-protected-resource" es UNICO por instancia APIM (no por servidor),
+# gateway "well-known/oauth-protected-resource" es UNICO por instancia APIM (no por servidor),
 # asi que un segundo servidor MCP (Comandos, #570/#571) NO puede declarar su propia API de PRM
 # con ese mismo path -- colisionaria con la de Consultas. Cada servidor MCP agrega su PROPIA
 # operacion "GET /{path}" sobre esta API compartida (RFC 9728 seccion 3.1, "Example with path
@@ -20,21 +20,27 @@ variable "mcp_authorization_server_url" {
   type        = string
 }
 
-# CA-4 (issue #575) -- gate NO VERIFICADO declarado por Mefisto: no esta confirmado que APIM
-# acepte un path de gateway con punto inicial (".well-known/..."). `terraform validate`/`plan` NO
-# lo detectan (un path invalido para APIM sigue siendo una cadena valida para el provider); solo
-# el `apply` lo confirmaria (`az apim api show --api-id mcp-prm`, CA-4). Si APIM lo rechazara, la
-# salida documentada es un path SIN el punto inicial (ej. "well-known/oauth-protected-resource")
-# mas un <rewrite-uri> equivalente en la politica de abajo que reescriba a la ruta con punto que
-# el codigo si expone -- NUNCA anidar el PRM bajo el path de un servidor (ver el comentario de
-# cabecera: el path es unico por instancia APIM, no por servidor).
+# CA-4 (issue #575) -- gate VERIFICADO en rojo: APIM rechaza un path de API que EMPIEZA con punto.
+# El apply de CI (Infra CD run 33662634923, 2026-09-02) fallo creando esta API con
+# path = ".well-known/oauth-protected-resource": `400 ValidationError: One or more fields contain
+# incorrect values`, sin nombrar el campo. La misma forma de recurso con "api/.well-known/..."
+# (punto a MITAD de path, version #558) siempre aplico bien, y la doc REST de Api - Create Or
+# Update solo declara minLength 0 / maxLength 400 para `path`: la regla es server-side y no esta
+# documentada. `terraform validate`/`plan` no la detectan. Salida adoptada (la que este comentario
+# ya anticipaba): path SIN el punto inicial. El <rewrite-uri> de cada operacion por servidor
+# (infra/modules/apim-mcp-api) sigue reescribiendo al "/api/.well-known/oauth-protected-resource"
+# con punto que el codigo expone, asi que el backend no cambia. El PRM deja la ubicacion
+# well-known de RFC 9728 seccion 3; los clientes MCP lo descubren por el WWW-Authenticate
+# resource_metadata del 401 (RFC 9728 seccion 5.1), que local.prm_url del modulo arma con ESTE
+# mismo segmento -- deben coincidir byte a byte. NUNCA anidar el PRM bajo el path de un servidor
+# (ver cabecera). Desviacion frente a la forma canonica de Mefisto reportada en harness#827.
 resource "azurerm_api_management_api" "mcp_prm" {
   name                  = "mcp-prm"
   resource_group_name   = module.resource_group.name
   api_management_name   = module.api_management.name
   revision              = "1"
   display_name          = "MCP - Protected Resource Metadata"
-  path                  = ".well-known/oauth-protected-resource"
+  path                  = "well-known/oauth-protected-resource"
   protocols             = ["https"]
   subscription_required = false
 }
