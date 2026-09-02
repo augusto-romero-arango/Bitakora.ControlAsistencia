@@ -87,11 +87,12 @@ module "function_app_mcp_consultas" {
     #
     # Issue #558: deja de ser la URL propia de la Function App (el host de Functions no puede
     # gatear las tool calls de McpToolTrigger, ver AutorizacionMcpMiddleware.cs) y pasa a ser la
-    # URL de APIM del endpoint del protocolo -- el mismo local que arma <audience> en la politica
-    # de module.apim_mcp_consultas (apim-mcp-consultas.tf). Los tres valores (este setting, el
+    # URL de APIM del endpoint del protocolo -- el mismo output que arma <audience> en la politica
+    # de module.apim_mcp_consultas (issue #575: el modulo arma resource_uri internamente a partir
+    # de gateway_url + path, ya no un local de este entorno). Los tres valores (este setting, el
     # campo "resource" del PRM y el Resource Indicator del dashboard WorkOS) deben coincidir
-    # byte a byte (MEF-ADR-0032, decision #4 del issue).
-    Mcp__ResourceUri = local.mcp_consultas_resource_uri
+    # byte a byte (MEF-ADR-0032, decision #4 del issue #558).
+    Mcp__ResourceUri = module.apim_mcp_consultas.resource_uri
   }
   tags = local.tags
 }
