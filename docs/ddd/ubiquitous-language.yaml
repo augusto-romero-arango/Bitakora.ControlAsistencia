@@ -4,7 +4,132 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-08-24 (sesion planner: refinamiento de #426 -- AsistenciaDiaria
+# Ultima actualizacion: 2026-09-02 (sesion planner, servidor MCP de Comandos: nace la entrada
+#   "Servidor MCP de Comandos" (par de escritura de Consultas, Bitakora.ControlAsistencia.Mcp.Comandos,
+#   segundo Function App + segunda API APIM + segundo Resource Indicator: servidor == credencial,
+#   MEF-ADR-0047). Decisiones del experto: fecha_inicio OBLIGATORIA en registrar_colaborador (hecho
+#   persistido, la migracion trae fechas pasadas -- distinto de fecha_referencia en lectura); 409 se
+#   devuelve como rechazo del dominio, SIN consolidar reingreso (IniciarVinculacion es otra intencion);
+#   eco compacto tras el 202 sin polling a la ficha (Async); capa de identidad AuthKit DUPLICADA de
+#   Consultas (Rule of Three, 2a aparicion; senal de extraccion: tercer servidor o primer bug doble).
+#   Hallazgo: colision del path PRM en el gateway compartido -> Comandos usa
+#   api/.well-known/oauth-protected-resource/mcp-comandos (RFC 9728 s.3). Verificado en doc WorkOS:
+#   multiples Resource Indicators por entorno. Nacen #570 (scaffold, tooling), #571 (APIM, infra),
+#   #572 (identidad), #573 (registrar_sede), #574 (registrar_colaborador) -- cadena secuencial.
+#   Correccion misma sesion: el plugin paso de 0.34.0 a 0.35.0 entre la planificacion y el
+#   scaffold; 0.35.0 ya genera la identidad app-side (propagador con tenant interino fijo,
+#   validador AuthKit, middleware log-only, PRM; harness#819, MEF-ADR-0047 d.6-7). #570/#571
+#   realineados, #572 encogido a la derivacion org_id/sub (la parte #540), #573/#574 ajustados
+#   al seam ConfiguracionClientesHttp. Leccion: pinnear la version del plugin en issues que
+#   dependan del alcance de un scaffold. Segunda correccion: Mefisto 0.35.0 tambien absorbio el
+#   modulo apim-mcp-api con PRM compartido por servidor (RFC 9728 s.3.1) -- resuelve la colision del
+#   PRM entre Consultas y Comandos, pero regresiona 4 trampas verificadas por el pionero. Nace #575
+#   (reconciliar modulo + migrar Consultas), #571 re-alcanzado a la forma canonica, #576 borrador
+#   (worker de Consultas apunta al PRM nuevo); drafts harness#826 y harness#827.)
+# Actualizacion previa: 2026-09-01 (sesion planner, adopcion WorkOS + multi-tenancy: se acuna
+#   Tenant = empresa cliente = organizacion WorkOS (fuente del claim tenant_id del JWT y particion
+#   conjoined del event store, MEF-ADR-0028 etapa b). Nace el actor Administrador: unico usuario
+#   que se autentica (WorkOS AuthKit); el Colaborador NO es usuario (no se autentica). Decisiones:
+#   onboarding de organizaciones manual por dashboard; dispositivos de marcacion = sistemas
+#   externos con M2M futuro (#537); autenticacion mixta transitoria (JWT via APIM para humanos;
+#   function key + headers para sistemas trusted: smoke y MCP interino); el MCP se protege con
+#   OAuth AuthKit (#554) y derivara tenant por usuario (#540). Flip a etapa (b) ejecutado
+#   (PR #545 + hotfix 66e7a80 identidad ambiente AsyncLocal, CA-ADR pendiente #552).)
+# Actualizacion previa: 2026-08-30 (sesion planner, cierre de la cadena colaborador+sede en el
+#   read-side: #519 refinado a listo -- se RESUELVE la pregunta abierta de la correlacion
+#   cross-store por la opcion (a): la ficha expone SOLO CodigoSede y el nombre lo resuelve el
+#   consumidor contra FichaSede (join del cliente/MCP; la opcion b -- evento privado de Sedes --
+#   se descarta: reintroduciria la sincronizacion que #465 evito y la correlacion cross-store no
+#   es N2 directa, MEF-ADR-0034). Filtro por sede: campo plano aditivo al QUERY existente, UN solo
+#   codigo (sin lista, no hay caso). Nace #530 (tool listar_colaboradores del servidor MCP,
+#   listo+bloqueado por #519): tool CONSOLIDADA (identificacion? opcional enruta al GET puntual,
+#   sin tool aparte), fecha_referencia? default "hoy" America/Bogota resuelto por la tool (el back
+#   sigue sin resolver "hoy", #373), SIN enriquecimiento del nombre de sede (sin evidencia todavia,
+#   MEF-ADR-0018). Contexto: #465/#520 mergeados hoy (PRs #525/#526). Tocados: Ficha de
+#   colaborador (gana CodigoSede), Sede del colaborador.)
+# Actualizacion previa: 2026-08-30 (sesion planner: refinamiento de #465 -- se acuna "Sede del
+#   colaborador" y se DESCARTA "sede natural" (nunca cristalizo en codigo; #331 lo uso solo en
+#   conversacion). Decisiones: una sola sede por colaborador ("principal" rechazado, no existe
+#   caso multi-sede); la sede es DE LA VINCULACION (reingreso nace sin sede, espejo etiquetas
+#   #355); sin retiro (no hay caso de negocio); SedeAsignada lleva SOLO CodigoSede -- referencia
+#   pura al maestro, sin snapshot de nombre/CC (el CC se estampa en los hechos operativos,
+#   DiaAprobado #489; snapshot en la asignacion quedaria obsoleto ante movimientos de la sede y
+#   exigiria sincronizacion); el servidor nunca consulta el maestro (filtro de sedes activas es
+#   del cliente). #465 re-titulado "Asignar la sede del colaborador", estado:listo. Nace #519
+#   (proyeccion de la sede en la ficha, borrador) con pregunta abierta: correlacion cross-store
+#   Colaboradores/Sedes para el nombre. Extension misma sesion (correccion del experto): la
+#   vinculacion NACE con su sede -- VinculacionIniciada gana campo CodigoSede opcional (evolucion
+#   aditiva, historicos deserializan null); SedeAsignada RESERVADO para asignaciones posteriores
+#   (#520, listo+bloqueado por #465; secuencial, mismo aggregate).)
+# Actualizacion previa: 2026-08-29 (sesion planner: arquitectura MCP de la solucion, refinamiento
+#   de #502 -- investigacion verificada (NuGet, Learn, spec MCP, Anthropic): ruta Azure Functions +
+#   extension Microsoft.Azure.Functions.Worker.Extensions.Mcp 1.6.0 GA, Streamable HTTP, key
+#   mcp_extension. Decisiones: un servidor MCP por BC y por PROPOSITO (nunca por dominio);
+#   particion Consultas/Comandos (CQS Meyer/CQRS Greg Young -- "Operaciones" rechazado por no
+#   tener fuente); tools 100% stateless (la tool fijar_ventana_de_trabajo se ELIMINA del servidor:
+#   en serverless el estado de sesion no es confiable, la ventana vive en la conversacion del
+#   cliente); listar_colaboradores aplazada hasta terminar colaborador+sede (#465 + proyeccion);
+#   contrato de consultar_programacion abierto (rango vs puntual). Sin CA-ADR: la doctrina se
+#   deriva a Mefisto como MEF-ADR + scaffold tras verificar el piloto (draft harness#761). Nacen
+#   #508 (infra func-asist-dev-mcp-consultas, listo) y #509 (deploy + onboarding, borrador);
+#   #502 re-titulado "Crear el servidor MCP de consultas con las tools de lectura del BC".
+#   Nuevos: Servidor MCP de Consultas, Servidor MCP de Comandos. Tocados: Ventana de trabajo.)
+# Actualizacion previa: 2026-08-29 (sesion planner: retoma del dominio Programacion desde la vision
+#   de composicion asistida -- el Turno es el atomo; mallas/rotaciones NO son conceptos del dominio
+#   sino recetas del cliente (asistente MCP); la ventana de trabajo es contexto efimero de sesion,
+#   nunca un periodo persistido (idea de Periodo de Programacion rechazada por el experto). Nacen
+#   #496 (vista FichaTurno, N1 sobre TurnoCreado, GET sin filtro), #497 (nombre unico de turno,
+#   409 best-effort precedente #477, acentos significativos), #498/#499 (Cancelacion de
+#   Programacion: dias especificos, NO deshacer; TurnoDiarioCancelado con no-op silencioso),
+#   #500/#501 (Retiro de turno: ya no asignable, el snapshot deja los dias intactos, la ficha se
+#   borra y el nombre queda libre, "modificar = retirar + crear"; reutiliza _estaActivo
+#   vestigial), #502 borrador (servidor MCP solo lectura, piloto Claude Desktop, este repo).
+#   #339 cerrado not planned. Draft harness#753 (acceso MCP oficiales para el planner).
+#   Nuevos: Cancelacion de Programacion, FichaTurno, Retiro de turno, Ventana de trabajo.
+#   Tocados: Turno Diario, Programador de turnos (actor).)
+# Actualizacion previa: 2026-08-29 (sesion planner: refinamiento de #489 y nacimiento de la
+#   trilogia de aprobacion -- #489 AprobarDia a listo (un solo DiaAprobado con las sedes decididas
+#   adentro; el acto aprueba el DIA COMPLETO y la decision explicita es solo para franjas en
+#   conflicto, referenciadas por HoraInicioProgramada; 4 declines 409 CA-ADR-0030 incluido
+#   re-aprobar; sin identidad del aprobador hasta que exista autenticacion real; evento solo
+#   persistido, sin bus); #491 DepuracionPosAprobacionRecibida (evidencia auditable de fotos
+#   tardias, Apply no-mutante); #492 la vista AsistenciaDiaria refleja Aprobado y apaga la
+#   bandera. Nuevos: DepuracionPosAprobacionRecibida. Tocados: Aprobado, Conflicto de sede.)
+# Actualizacion previa: 2026-08-29 (sesion planner: refinamiento de #485 -- AsistenciaDiaria
+#   gana la quinta bandera ConflictoDeSedePendiente (bool por dia) y el resumen su contador;
+#   la proyeccion RE-DERIVA solo el booleano desde DepuracionDiaRecibida (segunda aparicion de
+#   la politica, duplicacion deliberada MEF-ADR-0018 con comentario cruzado -- extraerla al
+#   payload contradiria el juicio-del-expediente de #482); sin filtro server-side (pospuesto a
+#   issue propio si el volumen lo exige). Tocados: AsistenciaDiaria, Conflicto de sede.)
+# Actualizacion previa: 2026-08-29 (sesion planner: cadena de sedes cerrada -- #462 fusiona a
+#   #466 (los guardrails de paridad de gemelos hacen imposible el corte) y sale a listo; nacen
+#   #475 (vista UbicacionDispositivo: solo la ubicacion vigente, sin fecha, retiro de la vigente
+#   borra sin fallback) y #477 (invariante cross-sede best-effort en InstalarDispositivo, 409);
+#   #467 refinado (payload plano de SedeDeMarcacionResuelta, silencio+warning ante maestro
+#   incompleto, publica con groupId=CodigoColaborador) y #463 refinado (estampa SOLO en cd: con
+#   traslape heredado, retry+no-op idempotente, fan-in con sesion, re-publica DiaDepurado;
+#   evento persistido SedeDeMarcacionIdentificada). Ciclo de vida dispositivo-sede ratificado:
+#   desactivar no retira, sede inactiva editable y resoluble, sin comando de traslado.
+#   MEF-ADR-0046 ya es canon del marco (harness#747 cerrado). Nuevos: UbicacionDispositivo.
+#   Tocados: Sede, Estampado, Enriquecimiento coreografiado por el dueno.)
+# Actualizacion previa: 2026-08-27 (sesion planner, refinamiento de sedes: #455-#461 a listo;
+#   REVERSION del experto sobre el estampado del CC -- en programacion lo construye el FRONT
+#   (consultando FichaSede) y se envia sin validacion interna; en marcacion no hay front y se
+#   adopta el enriquecimiento coreografiado por el dueno (Content Enricher) tras DESCARTAR la
+#   replica local de estado ajeno por su maquinaria de sincronizacion. Nacen #466/#467; #462/#463
+#   reescritos; vista FichaSede acunada (#461, sin paginacion); draft harness#747 propone la
+#   doctrina al marco. Nuevos: FichaSede, Enriquecimiento coreografiado por el dueno.
+#   Tocados: Estampado.)
+# Actualizacion previa: 2026-08-27 (sesion planner: gran planning de sedes -- nace el dominio
+#   Sedes y su aggregate Sede (se reclama el nombre puro reservado en #331/#336): stream por
+#   CodigoSede del cliente, nacimiento minimo codigo+nombre, ciudad/direccion informativas,
+#   CC string opaco retirable que rige desde que se asigna, bandera Activa como filtro de
+#   asignabilidad sin rechazo server, dispositivos como entidades internas (no AR). Doctrina
+#   de estampado: en los hechos de entrada del API (programar/marcar), nunca al depurar;
+#   el servidor enriquece sin validar (enmienda a #331). Issues #455-#465; #338 cerrado
+#   superseded por #460. Nuevos: Sede, CodigoSede, Centro de costos, Estampado.
+#   Tocados: DispositivoId.)
+# Actualizacion previa: 2026-08-24 (sesion planner: refinamiento de #426 -- AsistenciaDiaria
 #   toma forma final en dos ejes: Plan (ConJornada/Descanso/SinProgramar + NombreTurno) y
 #   anomalias ya juzgadas (NoSePresento, FranjasIncompletas, VinoEnDescanso,
 #   TrabajoSinProgramacion, esta ultima ratificada como bandera propia); UltimaDepuracion
@@ -48,6 +173,27 @@
 # VOCABULARIO DEL DOMINIO
 # -------------------------
 terms:
+  - name: Sede del colaborador
+    definition: >
+      La unica sede a la que un colaborador esta asignado. Pertenece a la VINCULACION, no a la
+      persona: el reingreso nace sin sede (espejo de las etiquetas #355) y asignar sobre una
+      vinculacion terminada rechaza. Es el default que el cliente usa al programar (cascada de
+      resolucion #331) -- NO es el ancla de costos: la sede efectiva del dia viaja estampada en
+      los hechos operativos (DiaAprobado #489). El hecho es SedeAsignada(CodigoSede), referencia
+      pura al maestro de sedes sin snapshot de nombre/CC; el servidor nunca consulta el maestro
+      (ni existencia ni bandera Activa -- el filtro de sedes activas es del cliente/UI). Sin
+      retiro: los unicos estados "sin sede" son el inicial y el post-reingreso. La vinculacion
+      NACE con su sede: el ingreso (RegistrarColaborador) y el reingreso (IniciarVinculacion)
+      aceptan CodigoSede OPCIONAL que viaja DENTRO de VinculacionIniciada (campo opcional nuevo,
+      #520) -- nunca como SedeAsignada adicional en el commit. SedeAsignada queda RESERVADO para
+      asignaciones/reasignaciones POSTERIORES a la creacion (#465, PUT). "Reingreso nace limpio"
+      sigue siendo el default (campo ausente = null). Vista en #519 (lee la sede de ambos eventos).
+    context: Colaboradores
+    rejected_synonyms: [sede natural, sede principal]
+    rejection_reason: >
+      "sede natural" fue el nombre de trabajo en #331/#465 pero nunca cristalizo en codigo y no
+      es lenguaje del negocio; "principal" implica sedes secundarias y el negocio confirmo que
+      el colaborador tiene UNA sola sede (2026-08-30).
   - name: Marcacion
     definition: Acto de capturar el instante de entrada o salida de un empleado en un dispositivo. Concepto puro del sistema de marcacion, con toda su riqueza (huella, PIN, foto). Le pertenece al dispositivo, no a nuestro sistema.
     context: Externo
@@ -79,10 +225,15 @@ terms:
     rejection_reason: "direccion es ambiguo (puede sonar a direccion postal); sentido y movimiento son menos naturales que tipo"
 
   - name: DispositivoId
-    definition: Identificador alfanumerico del dispositivo que capturo la marcacion. Opcional en el Registro de Marcacion. El cliente le asocia metadata (centro de costos, sede, ciudad, etc.) en configuracion.
+    definition: >
+      Identificador alfanumerico del dispositivo que capturo la marcacion. Opcional en el
+      Registro de Marcacion. El dispositivo en si sigue siendo ajeno al sistema (id opaco,
+      externo), pero la asociacion dispositivo -> sede ya no es configuracion del cliente:
+      vive en el maestro de sedes (aggregate Sede, DispositivoInstalado/Retirado, #460).
     context: ControlHoras
     rejected_synonyms: [ubicacion, origen, fuente, sede, lugar, punto de marcacion]
-    rejection_reason: "ubicacion/sede/lugar insinuan un concepto geografico; lo que recibimos es un ID de dispositivo. La geografia es metadata del dispositivo en configuracion. Origen/fuente suenan a metadata tecnica de integracion."
+    rejection_reason: "ubicacion/sede/lugar insinuan un concepto geografico; lo que recibimos es un ID de dispositivo. Origen/fuente suenan a metadata tecnica de integracion."
+    date_updated: 2026-08-27
 
   - name: Normalizacion de marcacion
     definition: >
@@ -133,7 +284,7 @@ terms:
       Diario siempre refleja la asignacion vigente, nunca el historial de reprogramaciones.
     context: ControlHoras
     date_added: 2026-08-03
-    note: "Diferenciado de 'Turno' (context: Programacion), la plantilla del catalogo. Turno es la plantilla reutilizable; Turno Diario es su aplicacion concreta a un empleado y una fecha."
+    note: "Diferenciado de 'Turno' (context: Programacion), la plantilla del catalogo. Turno es la plantilla reutilizable; Turno Diario es su aplicacion concreta a un empleado y una fecha. Ampliacion 2026-08-29 (#499): cancelable via Cancelacion de Programacion -- TurnoDiarioCancelado deja el dia sin plan; el stream conserva la memoria."
 
   - name: Franja Ordinaria
     definition: Segmento continuo de trabajo dentro de un turno. Es la franja principal que recibe marcaciones. Puede contener franjas de descanso y/o franjas de extra.
@@ -180,6 +331,116 @@ terms:
       identico al aggregate; renombrarla habria acunado un tercer nombre para el mismo concepto
       (#380 cerrado not planned, la ruta ya cumplia MEF-ADR-0043).
     date_added: 2026-08-14
+
+  - name: Cancelacion de Programacion
+    definition: >
+      Acto de cancelar la programacion de uno o varios dias ESPECIFICOS de un colaborador,
+      dejandolos sin plan para efectos de calculo (marcaciones posteriores caen en
+      TrabajoSinProgramacion). Aggregate propio espejo de la solicitud de programacion: emite
+      CancelacionProgramacionSolicitada y dispara CancelacionTurnoDiarioSolicitada por fecha
+      hacia ControlHoras, donde el ControlDiario persiste TurnoDiarioCancelado (o hace no-op
+      silencioso si el dia no tenia turno). La memoria del acto queda en los streams.
+    context: Programacion
+    rejected_synonyms: [desprogramar, liberar el dia, retirar el turno del dia, anular, revocar]
+    rejection_reason: >
+      "Desprogramar" fue elegido primero (simetria con SinProgramar) y revertido por el experto
+      a favor de "cancelar programacion" (2026-08-29, #498). "Liberar el dia" es ambiguo con dia
+      libre = descanso, que aqui es un turno de pleno derecho. "Retirar el turno del dia"
+      colisiona con Retiro de turno (catalogo). NO es deshacer una solicitud previa: esa
+      capacidad la compondra el asistente encima de este atomo.
+    date_added: 2026-08-29
+
+  - name: FichaTurno
+    definition: >
+      Vista del catalogo de turnos (primera vista read-side del dominio Programacion, familia
+      Ficha*): Id, Nombre, EsDescanso, HorarioResumido, franjas completas y descripcion. La usa
+      el Programador (front o asistente) para resolver nombre -> TurnoId y para saber si el
+      turno que necesita ya existe. Se BORRA al retirarse el turno: el catalogo visible solo
+      muestra lo asignable; la auditoria vive en el event store.
+    context: Programacion
+    date_added: 2026-08-29
+    note: "Nacida en #496; la invariante de nombre unico (#497, trim + case-insensitive, acentos significativos) se verifica best-effort contra esta vista."
+
+  - name: Retiro de turno
+    definition: >
+      Retirar un turno del catalogo = ya no asignable a nuevas solicitudes (TurnoRetirado apaga
+      el _estaActivo del aggregate, campo vestigial de HU-4 que gana su primer consumidor). Los
+      dias ya programados quedan intactos: la solicitud copia el detalle del turno (snapshot),
+      asi que ni pasado ni futuro dependen del catalogo. La ficha se borra de la vista y el
+      nombre queda libre. Consecuencia deliberada: "modificar turno" no se construye -- retirar
+      + crear de nuevo cubre el caso sin versionado.
+    context: Programacion
+    date_added: 2026-08-29
+    note: "Contrato DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043, primer DELETE del repo). Quitar dias futuros ya programados es Cancelacion de Programacion, decision separada del Programador."
+
+  - name: Ventana de trabajo
+    definition: >
+      Marco temporal que el Programador fija para una sesion de programacion ("voy a programar
+      agosto", "semana 35"). Es contexto EFIMERO del cliente (front o asistente MCP): se fija
+      una vez u obligatoriamente al iniciar, enmarca las demas interacciones de la sesion y
+      muere con ella. NO es un concepto del dominio: no se persiste, no tiene identidad,
+      ninguna solicitud la referencia. El dominio sigue recibiendo fechas concretas.
+      Refuerzo 2026-08-29 (arquitectura MCP): tampoco es estado del servidor MCP -- en
+      serverless (scale-to-zero, multiples instancias) la memoria de sesion no es confiable;
+      la tool fijar_ventana_de_trabajo se elimino y la ventana vive en la conversacion del
+      asistente, que la traduce a fechas concretas en cada tool.
+    context: Programacion
+    rejected_synonyms: [periodo de programacion persistido, franja temporal]
+    rejection_reason: >
+      El experto rechazo explicitamente el periodo persistido con tipos y estados (2026-08-29):
+      "es algo abierto y efimero... esa decision no se persiste". "Franja temporal" ya esta
+      tomado por FranjaTemporal (rango de horas intra-dia en Programacion.DomainEvents). Sin
+      guardia de ventana en la solicitud: el enmarcado es responsabilidad del cliente.
+    date_added: 2026-08-29
+
+  - name: Servidor MCP de Consultas
+    definition: >
+      Superficie MCP remota y serverless del BC para el asistente de composicion asistida:
+      tools de SOLO LECTURA, fachadas delgadas y stateless sobre los endpoints HTTP de los
+      dominios (cliente HTTP puro, cero referencias a ensamblados del dominio). Un servidor
+      MCP se define por BC y por PROPOSITO, nunca por dominio: las recetas del asistente
+      cruzan dominios siempre. Su par futuro es el Servidor MCP de Comandos (escritura,
+      incrementos 5b/5c), con app y credencial propias: en Azure Functions la system key es
+      por app, asi que servidor == credencial == least privilege real (las ToolAnnotations
+      del spec son hints, jamas mecanismo de seguridad). Proyecto:
+      Bitakora.ControlAsistencia.Mcp.Consultas (#502); infra #508; deploy #509.
+    context: Transversal (BC completo)
+    rejected_synonyms: [servidor MCP por dominio, Mcp.Operaciones, servidor mixto lectura+escritura]
+    rejection_reason: >
+      Por dominio: obligaria al cliente a 4 conexiones para cualquier receta util sin reducir
+      el tool count. "Operaciones": sin fuente en la literatura; el par canonico es
+      Command/Query (CQS de Meyer, CQRS de Greg Young). Mixto: una sola key daria acceso de
+      escritura a todo piloto de lectura.
+    date_added: 2026-08-29
+
+  - name: Servidor MCP de Comandos
+    definition: >
+      Par de ESCRITURA del Servidor MCP de Consultas: superficie MCP remota y serverless del BC
+      cuyas tools mutan estado invocando los comandos HTTP ya existentes de los dominios
+      (cliente HTTP puro, cero referencias a ensamblados del BC; MEF-ADR-0047). Es un Function
+      App propio (Bitakora.ControlAsistencia.Mcp.Comandos, func-asist-dev-mcp-comandos) con su
+      propia system key, su propia API en APIM ({gateway}/mcp-comandos, validate-jwt del flujo
+      Connect de AuthKit) y su propio Resource Indicator en WorkOS: servidor == credencial ==
+      least privilege real. Quien lo usa es Claude actuando por un Administrador autenticado; el
+      tenant se deriva de org_id/sub del token. Cada tool toma el nombre snake_case del comando
+      que envuelve (registrar_sede, registrar_colaborador), publica _meta readOnlyHint:false /
+      destructiveHint:false, devuelve un eco compacto del hecho registrado tras el 202 y traduce
+      los rechazos 400/409 del dominio a texto util para el asistente (nunca excepcion). Su PRM
+      vive en api/.well-known/oauth-protected-resource/mcp-comandos (RFC 9728 s.3) porque el
+      path plano ya lo ocupa Consultas en el gateway compartido.
+    context: Transversal (BC completo)
+    rejected_synonyms: [servidor mixto lectura+escritura, tool que consolida registro y reingreso, fecha_inicio con default "hoy"]
+    rejection_reason: >
+      Mixto: una sola key daria escritura a todo piloto de lectura. Consolidar reingreso: el
+      reingreso (IniciarVinculacion) tiene reglas propias -- fecha posterior a la ultima
+      terminacion -- y es otra intencion de negocio; el adaptador no la adivina. Default "hoy":
+      es la fecha de un hecho persistido y la migracion trae fechas pasadas; el asistente la pide.
+    note: >
+      Acunado 2026-09-02 (sesion planner). Cadena de issues: #570 scaffold -> #571 APIM -> #572
+      identidad AuthKit (duplicada de Consultas, Rule of Three) -> #573 registrar_sede -> #574
+      registrar_colaborador. Limitacion conocida: un cliente MCP que omita el parametro resource
+      recibe aud del default (Consultas) y Comandos lo rechaza con 401.
+    date_added: 2026-09-02
 
   - name: Depuracion
     definition: >
@@ -538,6 +799,44 @@ terms:
       Cadena de naming: Aprobador -> AprobarDia -> DiaAprobado -> Aprobado (MEF-ADR-0005).
       "En firme" sobrevive como prosa, no como nombre de estado. El ciclo no termina aqui:
       hay al menos un estado posterior a la transmision, deliberadamente sin bautizar.
+      Principio (2026-08-29): las aprobaciones son DEFINITIVAS — lo aprobado paso por
+      juicio humano y no se revisa; toda decision que exija juicio (ej. conflicto de
+      sede) se toma EN el acto de aprobar, nunca antes sobre datos provisionales.
+      Refinamiento #489 (2026-08-29): el acto aprueba el DIA COMPLETO; la decision
+      explicita solo aplica a franjas en conflicto (el resto se avala implicito, como
+      el aval del vacio avala la ausencia). Re-aprobar declina (409): la definitividad
+      hace del segundo acto un error, no un retry. Sin identidad del aprobador (endpoints
+      anonimos: un campo autoafirmado seria evidencia debil; se versionara el evento con
+      autenticacion real, MEF-ADR-0005). Fotos tardias: no mueven el dia -- #489 las
+      ignora (guarda minima) y #491 las archiva como DepuracionPosAprobacionRecibida.
+
+  - name: Conflicto de sede
+    definition: >
+      Discrepancia por franja entre la sede programada (estampada por la programacion)
+      y la sede marcada (resuelta desde el dispositivo de la marcacion). Sin default:
+      el Aprobador decide cual vale, eligiendo solo entre las dos candidatas. Mientras
+      este pendiente, el dia no es aprobable. El CC sigue automatico a la sede elegida.
+    context: ControlHoras
+    date_added: 2026-08-29
+    note: >
+      Granularidad por franja: un colaborador puede trabajar en dos sedes el mismo dia.
+      Solo una fuente presente no es conflicto: se hereda la unica disponible.
+      Candidatas (decision 2026-08-29): programada + sede de entrada + sede de salida
+      (la entrada y la salida pueden venir de sedes distintas) -- el Aprobador elige
+      entre TODAS las presentes (2 o 3). Misma sede con CC distinto entre fuentes NO
+      es conflicto: prevalece el CC estampado en la marcacion, nunca lookup al maestro.
+      Deteccion: estado derivado de la ultima foto en el expediente (#482, no evento
+      persistido). Resolucion (decision 2026-08-29, aprobaciones definitivas): NO es
+      comando independiente — la sede elegida viaja en el payload de AprobarDia (#489),
+      en el mismo acto que quita el estatus Provisional; aprobar con conflictos sin
+      decidir declina. #483 cerrado not planned por este principio.
+      Refinamiento #489 (2026-08-29): la franja se referencia por HoraInicioProgramada
+      (clave natural, unica dentro del dia); el comando trae solo el codigo elegido y el
+      aggregate lo resuelve a la candidata completa (nombre + CC del estampado de su
+      fuente) que persiste dentro de DiaAprobado -- nunca evento de resolucion aparte.
+      Declinan 409: sede no candidata, y decision para franja sin conflicto o inexistente
+      (protege contra front desincronizado). La vista apaga ConflictoDeSedePendiente al
+      proyectar DiaAprobado (#492).
 
   - name: DiaDepurado
     definition: >
@@ -583,12 +882,27 @@ terms:
     context: ControlHoras
     date_added: 2026-08-17
 
+  - name: DepuracionPosAprobacionRecibida
+    definition: >
+      Evento persistido del aggregate DiaCalculado: una depuracion (DiaDepurado) que llego
+      DESPUES de aprobar el dia, archivada como evidencia en el mismo stream dc:. Carga la
+      foto completa (franjas, marcaciones, horas) para que la auditoria vea QUE decia la
+      depuracion que no se incorporo. Su Apply no muta nada: el dia aprobado no se mueve.
+    context: ControlHoras
+    date_added: 2026-08-29
+    rejected_synonyms: [DepuracionDescartada]
+    rejection_reason: >
+      No se descarta: se archiva como evidencia. Es el insumo natural de la conciliacion
+      futura ("conciliar" y "reabrir" siguen sin disenar). Issue #491; la proyeccion
+      AsistenciaDiaria lo ignora deliberadamente (#492).
+
   - name: AsistenciaDiaria
     definition: >
       Vista (read model) del Aprobador: una fila liviana por colaborador+dia con la
       superficie de DECISION en dos ejes -- Plan (ConJornada/Descanso/SinProgramar +
       NombreTurno) y anomalias ya juzgadas (NoSePresento, FranjasIncompletas,
-      VinoEnDescanso, TrabajoSinProgramacion) -- mas Estado y HorasPorConcepto sparse.
+      VinoEnDescanso, TrabajoSinProgramacion, ConflictoDeSedePendiente) -- mas Estado y
+      HorasPorConcepto sparse.
       La superficie de INVESTIGACION (franjas, marcaciones) NO se materializa: se lee
       en vivo hidratando el aggregate DiaCalculado. Proyeccion N1 sobre el stream dc:.
     context: ControlHoras
@@ -601,6 +915,10 @@ terms:
       los dos ejes del Aprobador -- la derivacion vive una sola vez en la proyeccion
       (MEF-ADR-0041); UltimaDepuracion retirado (ninguna decision del Aprobador lo
       justifica); NumeroMarcaciones descartado (el contexto de investigacion es #429).
+      Refinamiento 2026-08-29 (#485): quinta bandera ConflictoDeSedePendiente -- la proyeccion
+      re-deriva SOLO el booleano desde la foto (segunda aparicion de la politica de conflicto,
+      MEF-ADR-0018); el detalle por franja (candidatas, sede efectiva) sigue siendo superficie
+      de investigacion en vivo (#482).
 
   - name: Dia sin programar
     definition: >
@@ -650,6 +968,144 @@ terms:
       revela un error de programacion, la correccion legitima es reprogramar (el
       recalculo es automatico, "el ultimo gana").
 
+  - name: Sede
+    definition: >
+      Lugar de trabajo. Distribuye a los colaboradores geoespacialmente (cadenas de
+      restaurantes/comercio) y, opcionalmente, define el centro de costos de las horas
+      trabajadas alli. Aggregate del dominio Sedes (Function App hermana de Colaboradores,
+      dentro del BC -- no un BC aparte); stream por CodigoSede. Nace solo con codigo y
+      nombre obligatorios; ciudad y direccion son opcionales e informativas (sin impacto
+      en calculos). Bandera Activa: gobierna unicamente la asignabilidad (a un turno o a
+      un colaborador) via filtro del read model -- sin rechazo en el servidor; la sede
+      inactiva sigue siendo editable. Los dispositivos de marcacion son entidades internas
+      del aggregate (un dispositivo no existe sin sede -> no es aggregate root):
+      DispositivoInstalado / DispositivoRetirado; el traslado entre sedes se resuelve
+      con esos dos hechos -- sin comando de traslado (ratificado 2026-08-29); la
+      exclusividad cross-sede es invariante best-effort del command handler contra
+      UbicacionDispositivo (#477: 409 al instalar donde ya esta en otra sede; la carrera
+      residual la tolera la recencia de #475). Desactivar una sede NO retira sus
+      dispositivos (retirar es decision operativa separada y explicita) y en una sede
+      inactiva se puede instalar y retirar. El nombre puro estaba reservado desde #331/#336 (anti-squatting de
+      SedeProgramada); esta sesion lo reclama para el concepto rico.
+    context: Sedes
+    date_added: 2026-08-27
+    date_updated: 2026-08-29
+    note: >
+      NombreSedeModificado y no 'Corregido': el nombre de una sede cambia legitimamente
+      (rebranding), no solo por error. Issues #455-#461 (sesion 2026-08-27).
+
+  - name: CodigoSede
+    definition: >
+      Identidad de la sede: la trae el cliente (nunca un Guid nuestro), hermana de
+      CodigoColaborador, con la misma invariante URL-safe cuando sea segmento de ruta
+      (sedes/{codigo}). Es el stream id del aggregate Sede y debe poder casar con los
+      ids opacos que ya circulan en SedeProgramada.Id (#331).
+    context: Sedes
+    date_added: 2026-08-27
+
+  - name: Centro de costos
+    definition: >
+      String opaco dado por el cliente (mismo trato que DispositivoId): nosotros
+      estampamos, el sistema contable del cliente interpreta. Opcional en la sede -- no
+      todos los negocios costean por lugar de trabajo. Rige desde que se asigna (sin
+      vigencias programadas ni retroactivas: problema del futuro) y es retirable (la sede
+      vuelve a 'sin CC' y sus liquidaciones futuras salen sin el). Las modificaciones al
+      maestro nunca cambian los hechos ya estampados.
+    context: Sedes
+    date_added: 2026-08-27
+
+  - name: Estampado
+    definition: >
+      Doctrina (sesion 2026-08-27, revisada el mismo dia en el refinamiento): la verdad
+      viaja en el evento y el maestro es la referencia para el estampado. El estampado
+      ocurre en cada hecho de entrada desde el API -- NUNCA al depurar: depurar es un
+      resultado que hereda lo estampado aguas arriba. Al PROGRAMAR, la sede y su CC los
+      construye el FRONT (consultando FichaSede) y los envia; el servidor los graba SIN
+      validacion interna (fiel a #331: el cliente resuelve, el servidor graba el snapshot).
+      Al MARCAR no hay front (el biometrico solo manda DispositivoId): el dato llega por
+      enriquecimiento coreografiado por el dueno (ver termino) y ControlHoras lo graba como
+      hecho propio, segundos despues. Las modificaciones al maestro nunca cambian hechos ya
+      estampados.
+    context: General
+    date_added: 2026-08-27
+    date_updated: 2026-08-29
+    note: >
+      Revision del experto: se descarto que el servidor resolviera el CC via vista local
+      del maestro (version inicial de la sesion) -- en programacion el CC viaja desde el
+      front como campo aditivo de SedeProgramada (#462, que absorbio a #466); en marcacion
+      resuelve el dueno (#467/#463). Refinamiento 2026-08-29 (#463): el estampado de
+      marcacion va SOLO al stream cd: (la depuracion es su consumidor y solo ve el
+      ControlDiario) con traslape nocturno heredado, como SedeDeMarcacionIdentificada;
+      rdm: descartado (sin consumidor de costeo, y su clave usa el timestamp crudo que
+      no viaja por el bus).
+
+  - name: FichaSede
+    definition: >
+      Vista materializada del maestro de sedes (read model, #461): Codigo, Nombre, Ciudad,
+      Direccion, CentroDeCostos vigente (null si retirado), Activa y la lista de
+      Dispositivos instalados. Consumidores: el administrador del maestro y las pantallas
+      de asignacion (solo activas); ademas es la fuente del FRONT para construir el CC al
+      programar (#462) y el read model que el resolver de marcaciones consulta (#467).
+      Receta N1, lifecycle Async, SIN paginacion (coleccion acotada, decision del experto).
+      Espejo nominal del precedente FichaColaborador.
+    context: Sedes
+    date_added: 2026-08-27
+
+  - name: UbicacionDispositivo
+    definition: >
+      Vista materializada minima (read model, #475): Id = DispositivoId, SedeId. Responde
+      "en que sede esta instalado este dispositivo" para el resolver de marcaciones (#467).
+      Solo la ubicacion VIGENTE: el ultimo DispositivoInstalado aplicado gana (la recencia
+      la da el orden de la secuencia global del event store, sin fecha persistida -- el
+      experto descarto InstaladoEl); el retiro de la sede vigente borra el documento SIN
+      fallback a instalaciones fantasma anteriores (la correccion es arreglar el maestro);
+      el retiro de una sede no vigente se ignora. SedeId es el stream key (s:{codigo}) para
+      cargar FichaSede por Id sin partir strings (MEF-ADR-0037/CA-ADR-0031). Receta N2
+      (MultiStreamProjection por DispositivoId: correlaciona streams de varias sedes),
+      lifecycle Async, sin Function GET (consumo interno, YAGNI).
+    context: Sedes
+    date_added: 2026-08-29
+
+  - name: Enriquecimiento coreografiado por el dueno
+    definition: >
+      Patron adoptado (sesion 2026-08-27) para cuando un dominio necesita datos cuya
+      verdad pertenece a otro y no hay front que los resuelva (la marcacion del biometrico
+      necesita sede/CC del dispositivo). El hecho crudo del consumidor ya cruza el bus
+      (RegistroDeMarcacionCreado); el DUENO (Sedes) reacciona, consulta su propio read
+      model (FichaSede) y publica el resultado autocontenido (SedeDeMarcacionResuelta); el
+      consumidor lo graba como hecho propio en su stream (SedeDeMarcacionIdentificada).
+      Es el patron Content Enricher (Hohpe & Woolf, Enterprise Integration Patterns),
+      aplicado con el dueno del dato como estacion de enriquecimiento.
+    context: General
+    rejected_synonyms: [replica local de estado ajeno, vista local de datos ajenos]
+    rejection_reason: >
+      La replica local (Event-Carried State Transfer, Fowler 2017) se descarto
+      explicitamente: exige maquinaria de sincronizacion permanente (reconciliacion
+      periodica, backfill, tombstones, monitoreo de drift -- Kleppmann DDIA cap. 5) y su
+      modo de falla es una replica desactualizada en silencio; la coreografia consulta la
+      verdad viva del dueno y falla de forma visible (retries/DLQ). Queda como ultimo
+      recurso con costo declarado.
+    date_added: 2026-08-27
+    date_updated: 2026-08-29
+    note: >
+      Opcion preferida para casos futuros; YA es canon del marco: MEF-ADR-0046
+      (harness#747 cerrado 2026-08-28) -- #467 lo referencia en vez de un CA-ADR local.
+      Refinamiento 2026-08-29: SedeDeMarcacionResuelta viaja plano (6 campos top-level,
+      terna de correlacion + estampado) y se publica con groupId=CodigoColaborador
+      (fan-in con queue de sesion en el consumidor, MEF-ADR-0026); entre topics
+      distintos la mitigacion es concurrencia optimista + retry.
+
+  - term: Tenant (empresa cliente)
+    definition: >
+      Cada empresa cliente del producto. Se materializa como una organizacion de WorkOS
+      (fuente del claim tenant_id del JWT) y como la particion conjoined del event store:
+      todo dato vive acotado a su tenant (MEF-ADR-0028 etapa b). Los administradores de la
+      empresa son miembros de su organizacion WorkOS.
+    note: >
+      Acunado 2026-08-31 (sesion planner, adopcion WorkOS + multi-tenancy). El tenant
+      sintetico "tenant-smoke" es operativo (smoke tests), no un tenant de negocio. El MCP
+      opera interino bajo un tenant fijo hasta #540.
+
 # -------------------------
 # ACTORES DEL SISTEMA
 # Los roles son del sistema, no cargos organizacionales.
@@ -665,6 +1121,13 @@ actors:
       - Garantizar cobertura operativa del sitio
       - Cumplir limites legales de jornada laboral maxima y trabajo suplementario
     interacts_with: [Programacion]
+    note: >
+      Ampliacion 2026-08-29 (sesion planner): el rol puede ser un departamento centralizado
+      especializado o federado en cada sede, con personas asignadas o flotantes. Su
+      responsabilidad de fondo es optimizar las necesidades de los servicios con los
+      colaboradores en los distintos puntos de trabajo -- la demanda (necesidades por punto
+      de trabajo) y la oferta (disponibilidad de colaboradores) aun NO son conceptos del
+      sistema; se exploraran despues de resolver la operacion basica (decision del experto).
 
   - name: Aprobador
     type: user
@@ -692,6 +1155,19 @@ actors:
     interacts_with: []
     open_questions:
       - "Que datos del colaborador nos importan para el control de asistencia?"
+
+  - name: Administrador
+    type: user
+    definition: >
+      Persona de una empresa cliente que se autentica con WorkOS (miembro de su organizacion)
+      y opera el producto; mientras no existan dispositivos, tambien carga marcaciones. Es hoy
+      el UNICO tipo de usuario autenticado del sistema.
+    interacts_with: [Programacion, ControlHoras, Sedes, Colaboradores]
+    note: >
+      Acunado 2026-08-31 (sesion planner). El Colaborador NO se autentica: es la persona cuya
+      asistencia se controla, no un usuario del sistema (decision de producto). Los roles finos
+      (Programador de turnos, Aprobador) siguen vigentes: Administrador es la identidad
+      autenticada que los porta.
 
 # -------------------------
 # SISTEMAS EXTERNOS
@@ -749,11 +1225,6 @@ open_questions:
     date: 2026-04-05
     priority: medium
 
-  - question: "Donde vive la configuracion de dispositivos y la tabla de homologacion DispositivoId -> Centro de costos?"
-    context: Arquitectura
-    date: 2026-04-14
-    priority: medium
-
   - question: "Marcaciones huerfanas (EmpleadoId sin match): como se presentan al cliente para que las resuelva?"
     context: ControlHoras
     date: 2026-04-14
@@ -796,11 +1267,37 @@ open_questions:
     priority: low
     note: "El sistema clasifica tiempo, no calcula dinero. Los porcentajes son del sistema de nomina. Pero la gradualidad podria afectar si hubiera conceptos distintos por porcentaje."
 
+  - question: "Precedencia de centros de costos: si algun dia el CC viene del colaborador y no del lugar, el del colaborador superpone al de la sede en la depuracion. Problema del futuro (anotado al aparcar #465)."
+    context: General
+    date: 2026-08-27
+    priority: low
+
 # -------------------------
 # PREGUNTAS RESUELTAS
 # Movidas aqui para trazabilidad
 # -------------------------
 resolved_questions:
+  - question: "Politica de conflicto en la depuracion: si programacion y marcacion difieren en sede, quien decide cual vale?"
+    context: ControlHoras
+    date_asked: 2026-08-27
+    date_resolved: 2026-08-29
+    resolution: >
+      SIN DEFAULT: ni la programacion ni la marcacion ganan solas. El conflicto se
+      detecta por franja en el expediente (DiaCalculado) y el Aprobador decide entre
+      las dos sedes en conflicto (elegir una tercera seria correccion, otra operacion).
+      El CC sigue automatico a la sede elegida. Un dia con conflicto pendiente no es
+      aprobable. Desglose: #464 (transporte), #482 (deteccion), #483 (resolucion).
+
+  - question: "Donde vive la configuracion de dispositivos y la tabla de homologacion DispositivoId -> Centro de costos?"
+    context: Arquitectura
+    date_asked: 2026-04-14
+    date_resolved: 2026-08-27
+    resolution: >
+      En el maestro de sedes: la asociacion dispositivo -> sede vive en el aggregate Sede
+      (DispositivoInstalado/Retirado, #460) y el centro de costos es de la sede (#458).
+      La cadena DispositivoId -> sede -> CC se resuelve server-side al estampar la
+      marcacion (#463).
+
   - question: "Los dominios del sistema siguen siendo correctos? Donde viven la Depuracion, la Discriminacion de horas, la Programacion?"
     context: Arquitectura
     date_asked: 2026-04-04
