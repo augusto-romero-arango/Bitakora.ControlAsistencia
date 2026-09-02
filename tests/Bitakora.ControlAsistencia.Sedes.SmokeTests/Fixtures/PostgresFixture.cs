@@ -8,6 +8,7 @@ namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 public class PostgresFixture : IAsyncLifetime
 {
     private string _connectionString = null!;
+    private string _tenantId = null!;
 
     public bool IsConfigured { get; private set; }
 
@@ -21,6 +22,8 @@ public class PostgresFixture : IAsyncLifetime
             .AddJsonFile("appsettings.local.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
+
+        _tenantId = IdentidadDePrueba.Desde(configuration).TenantId;
 
         var connectionString = configuration["Postgres:ConnectionString"];
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -77,6 +80,31 @@ public class PostgresFixture : IAsyncLifetime
         (await ObtenerEventosInternoAsync(schema, streamId, tipoEvento)).Count;
 
     /// <summary>
+    /// Espera a que el daemon de proyecciones (MEF-ADR-0034 seccion 3) materialice un documento
+    /// Marten -- lifecycle Async, efecto del worker, no del write-side inline. Filtra por tenant_id
+    /// porque el named store del worker declara <c>Policies.AllDocumentsAreMultiTenanted()</c>
+    /// (tenancy conjoined, CA-ADR-0027): sin ese filtro un documento de otro tenant con el mismo id
+    /// daria un falso positivo.
+    /// </summary>
+    public Task<bool> ExisteDocumentoAsync(
+        string schema, string tabla, string id, TimeSpan timeout,
+        string? campoJson = null, string? valorJson = null)
+    {
+        return Polling.WaitUntilTrueAsync(async () =>
+        {
+            var data = await ObtenerDocumentoInternoAsync(schema, tabla, id);
+            if (data is null)
+                return false;
+
+            if (campoJson is null || valorJson is null)
+                return true;
+
+            return data.Value.TryGetProperty(campoJson, out var prop) &&
+                prop.ToString() == valorJson;
+        }, timeout);
+    }
+
+    /// <summary>
     /// Obtiene el primer evento del tipo indicado en el stream, sin filtrar por contenido.
     /// </summary>
     /// <remarks>
@@ -131,7 +159,7 @@ public class PostgresFixture : IAsyncLifetime
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             SELECT data
-            FROM {EscaparSchema(schema)}.mt_events
+            FROM {EscaparIdentificador(schema)}.mt_events
             WHERE stream_id = @streamId
               AND type = @tipoEvento
             ORDER BY seq_id
@@ -151,13 +179,36 @@ public class PostgresFixture : IAsyncLifetime
         return eventos;
     }
 
+    private async Task<JsonElement?> ObtenerDocumentoInternoAsync(string schema, string tabla, string id)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT data
+            FROM {EscaparIdentificador(schema)}.{EscaparIdentificador(tabla)}
+            WHERE id = @id
+              AND tenant_id = @tenantId
+            """;
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("tenantId", _tenantId);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+            return null;
+
+        var json = reader.GetString(0);
+        return JsonSerializer.Deserialize<JsonElement>(json);
+    }
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    private static string EscaparSchema(string schema)
+    private static string EscaparIdentificador(string identificador)
     {
         // Solo permitir caracteres alfanumericos y guion bajo para prevenir SQL injection
-        if (!System.Text.RegularExpressions.Regex.IsMatch(schema, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
-            throw new ArgumentException($"Nombre de schema invalido: {schema}");
-        return schema;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(identificador, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
+            throw new ArgumentException($"Identificador SQL invalido: {identificador}");
+        return identificador;
     }
 }
