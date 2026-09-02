@@ -4,7 +4,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.MetadataRecursoProtegido;
 // parametro resource_metadata del WWW-Authenticate. Se deriva de la misma constante de ruta que
 // declara el HttpTrigger: un literal paralelo dejaria el challenge apuntando a un 404 sin que
 // ningun test lo notara.
-public sealed record UriMetadataRecursoProtegido(Uri Recurso)
+public sealed partial record UriMetadataRecursoProtegido(Uri Recurso)
 {
     private Uri Valor { get; } = new(Recurso, $"/api/{FunctionEndpoint.Ruta}");
 
