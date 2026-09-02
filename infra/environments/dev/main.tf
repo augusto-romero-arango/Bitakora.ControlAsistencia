@@ -247,7 +247,7 @@ locals {
 
 module "container_app" {
   source                       = "../../modules/container-app"
-  name                         = "ca-${local.prefix_short}"
+  name                         = "ca-projections-${local.prefix_short}"
   resource_group_name          = module.resource_group.name
   container_app_environment_id = module.container_app_environment.id
   image                        = var.projections_worker_image
