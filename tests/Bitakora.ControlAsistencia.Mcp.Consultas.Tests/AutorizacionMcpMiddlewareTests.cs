@@ -14,8 +14,10 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 // falso, sin red real" que MEF-ADR-0048 seccion 1 fija para el nivel 1.
 public class AutorizacionMcpMiddlewareTests
 {
+    // Con segmento de ruta: bajo la derivacion nueva (issue #576) un recurso sin path
+    // (".../mcp-consultas" faltante) deja de ser un recurso valido y la construccion falla.
     private static readonly UriMetadataRecursoProtegido PrmUri =
-        new(new Uri("https://mcp-consultas.controlasistencia.example.com"));
+        new(new Uri("https://gateway.controlasistencia.example.com/mcp-consultas"));
 
     private static DefaultHttpContext ContextoConEncabezado(string? encabezado)
     {
