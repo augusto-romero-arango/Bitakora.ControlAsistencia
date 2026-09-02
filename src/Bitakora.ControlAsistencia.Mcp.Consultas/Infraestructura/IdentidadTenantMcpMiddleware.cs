@@ -1,4 +1,6 @@
+using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 using Microsoft.Azure.Functions.Worker.Middleware;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
@@ -21,8 +23,31 @@ public sealed partial class IdentidadTenantMcpMiddleware(
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";
 
-    public Task Invoke(FunctionContext context, FunctionExecutionDelegate next) =>
-        throw new NotImplementedException();
+    // Valor real de Microsoft.Azure.Functions.Worker.Extensions.Mcp.Constants.McpToolTriggerBindingType
+    // (internal a ese ensamblado, ver "GATE NO VERIFICADO" arriba): mismo patron que
+    // TenantContextMiddleware usa para localizar el binding de Service Bus por su Type.
+    private const string McpToolTriggerBindingType = "mcpToolTrigger";
+
+    public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
+    {
+        string? encabezadoAutorizacion = null;
+
+        if (context.FunctionDefinition.InputBindings.Values
+                .FirstOrDefault(b => b.Type == McpToolTriggerBindingType) is { } bindingMcp)
+        {
+            var invocacion = (await context.BindInputAsync<ToolInvocationContext>(bindingMcp)).Value;
+            if (invocacion is not null &&
+                invocacion.TryGetHttpTransport(out var transport) &&
+                transport is not null &&
+                transport.Headers.TryGetValue(EncabezadoAutorizacion, out var valor))
+            {
+                encabezadoAutorizacion = valor;
+            }
+        }
+
+        await PoblarIdentidadAmbienteAsync(encabezadoAutorizacion, context.CancellationToken);
+        await next(context);
+    }
 
     // Nucleo testable (mismo patron que AutorizacionMcpMiddleware.AutorizarAsync): opera sobre el
     // encabezado ya extraido, nunca sobre FunctionContext/ToolInvocationContext -- inalcanzables en
@@ -30,7 +55,30 @@ public sealed partial class IdentidadTenantMcpMiddleware(
     // ambiente con TenantId=org_id/UserId=sub. CA-2: bearer sin org_id -> propaga el rechazo del
     // derivador. CA-3: sin bearer -> no toca el ambiente (el propagador cae al fallback fijo de
     // ConfiguracionIdentidadTenant).
+    //
+    // Deliberadamente SIN "async"/"await": TenantExecutionContext respalda su estado en un
+    // AsyncLocal, y el CLR aisla las mutaciones de AsyncLocal hechas dentro de un metodo "async"
+    // de quien lo invoca -- ExecutionContextSwitcher restaura el contexto previo al retornar de
+    // CADA invocacion del state machine, incluso cuando el await interno resuelve de forma
+    // sincronica (verificado empiricamente: un Task.FromResult ya completado igual pierde la
+    // mutacion). Bloquear con GetAwaiter().GetResult() evita ese boundary -- el metodo corre
+    // enteramente en el marco de pila de quien lo llama (Invoke, o el test), sin punto de
+    // suspension propio, asi que la mutacion queda visible tanto en el continuation de Invoke
+    // (await next(context)) como en el llamador del unit test. Es seguro bloquear aqui: el worker
+    // aislado no tiene SynchronizationContext que serialice continuaciones (a diferencia de
+    // ASP.NET Core clasico), asi que no hay riesgo de deadlock.
     internal Task PoblarIdentidadAmbienteAsync(
-        string? encabezadoAutorizacion, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        string? encabezadoAutorizacion, CancellationToken cancellationToken = default)
+    {
+        if (encabezadoAutorizacion is null ||
+            !encabezadoAutorizacion.StartsWith(EsquemaBearer, StringComparison.OrdinalIgnoreCase))
+            return Task.CompletedTask;
+
+        var token = encabezadoAutorizacion[EsquemaBearer.Length..];
+        var principal = validador.ValidarAsync(token, cancellationToken).GetAwaiter().GetResult();
+        var identidad = derivador.Derivar(principal);
+
+        TenantExecutionContext.SetDerivedIdentity(identidad.TenantId, identidad.UserId);
+        return Task.CompletedTask;
+    }
 }

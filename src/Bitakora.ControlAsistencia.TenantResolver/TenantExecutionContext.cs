@@ -84,7 +84,16 @@ public sealed class TenantExecutionContext : ITenantResolver
     /// </summary>
     public static bool TryObtener(out string? tenantId, out string? userId)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(_tenantId.Value) || string.IsNullOrWhiteSpace(_userId.Value))
+        {
+            tenantId = null;
+            userId = null;
+            return false;
+        }
+
+        tenantId = _tenantId.Value;
+        userId = _userId.Value;
+        return true;
     }
 
     private static string AssertValue(string? value, string contextField)

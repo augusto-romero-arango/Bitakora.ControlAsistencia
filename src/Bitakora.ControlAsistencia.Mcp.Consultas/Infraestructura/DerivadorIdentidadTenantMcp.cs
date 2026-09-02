@@ -18,5 +18,13 @@ public sealed partial class DerivadorIdentidadTenantMcp : IDerivadorIdentidadTen
     internal const string ClaimOrganizacion = "org_id";
     internal const string ClaimUsuario = "sub";
 
-    public IdentidadTenant Derivar(ClaimsPrincipal principal) => throw new NotImplementedException();
+    public IdentidadTenant Derivar(ClaimsPrincipal principal)
+    {
+        var organizacion = principal.FindFirstValue(ClaimOrganizacion);
+        if (string.IsNullOrWhiteSpace(organizacion))
+            throw new InvalidOperationException(Mensajes.OrganizacionAusente);
+
+        var usuario = principal.FindFirstValue(ClaimUsuario);
+        return new IdentidadTenant(organizacion, usuario!);
+    }
 }

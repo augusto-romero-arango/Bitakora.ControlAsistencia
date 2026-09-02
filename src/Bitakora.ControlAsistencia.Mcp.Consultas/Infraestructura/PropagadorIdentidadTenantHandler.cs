@@ -1,9 +1,12 @@
+using Bitakora.ControlAsistencia.TenantResolver;
+
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 /// <summary>
-/// Estampa X-Tenant-Id/X-User-Id en toda request saliente hacia una Function App del BC. Inocuo en
-/// la etapa (a) de tenancy (el TenantResolverFijo de cada dominio no lee estos headers) y
-/// obligatorio en la (b) (MEF-ADR-0028 seccion 4).
+/// Estampa X-Tenant-Id/X-User-Id en toda request saliente hacia una Function App del BC. Prefiere
+/// la identidad ambiente que <see cref="IdentidadTenantMcpMiddleware"/> deriva del token del usuario
+/// autenticado (issue #540); si ninguna tool call la poblo (llamada directa con system key: smoke,
+/// desarrollo local), cae al tenant fijo interino de <see cref="ConfiguracionIdentidadTenant"/>.
 /// </summary>
 public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) : DelegatingHandler
 {
@@ -13,8 +16,12 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        request.Headers.Add(HeaderTenantId, identidad.TenantId);
-        request.Headers.Add(HeaderUserId, identidad.UserId);
+        var (tenantId, userId) = TenantExecutionContext.TryObtener(out var tenantAmbiente, out var userAmbiente)
+            ? (tenantAmbiente!, userAmbiente!)
+            : (identidad.TenantId, identidad.UserId);
+
+        request.Headers.Add(HeaderTenantId, tenantId);
+        request.Headers.Add(HeaderUserId, userId);
         return base.SendAsync(request, cancellationToken);
     }
 }
