@@ -25,7 +25,7 @@ public static class ConfiguracionClientesHttp
         // Extension point: cada tool nueva que consuma otro dominio del BC agrega aqui su propio
         // par LeerBaseUrl(...) + AddHttpClient<{Dominio}Api>(...).AddHttpMessageHandler<PropagadorIdentidadTenantHandler>(),
         // siguiendo el mismo patron -- el propagador de identidad (MEF-ADR-0047 decision 6) es
-        // obligatorio en todo HttpClient tipado nuevo, no solo en el de Sedes.
+        // obligatorio en todo HttpClient tipado, sin excepcion.
 
         return services;
     }

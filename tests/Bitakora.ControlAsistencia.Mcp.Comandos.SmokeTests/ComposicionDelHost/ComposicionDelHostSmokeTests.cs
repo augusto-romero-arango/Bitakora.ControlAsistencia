@@ -47,17 +47,22 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations
     // del spec; cuando la extension exponga annotations.readOnlyHint, este test migra alli.
+    // Recorre TODO el catalogo, no una tool por nombre: MEF-ADR-0048 seccion 2 (verificacion 2,
+    // componente 3) exige el pin del hint para toda tool, y la seccion 6 cuenta con que una tool
+    // nueva lo hereda por esta via -- acotar el assert a un nombre rompe esa herencia en silencio.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_PublicaElHintDeEscrituraEnLaTool_CuandoSeListanLasTools()
+    public async Task ServidorMcp_PublicaElHintDeEscrituraEnCadaTool_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
-        var tool = tools.Single(t => t.Name == "registrar_sede");
 
-        var meta = tool.ProtocolTool.Meta;
-        meta.Should().NotBeNull("la tool debe publicar su _meta con los hints");
-        meta!["readOnlyHint"]?.GetValue<bool>().Should().BeFalse("registrar_sede escribe en el dominio");
-        meta["destructiveHint"]?.GetValue<bool>().Should().BeFalse("registrar_sede no destruye datos");
+        foreach (var tool in tools)
+        {
+            var meta = tool.ProtocolTool.Meta;
+            meta.Should().NotBeNull($"{tool.Name} debe publicar su _meta con los hints");
+            meta!["readOnlyHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} escribe en el dominio");
+            meta["destructiveHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} no destruye datos");
+        }
     }
 }
