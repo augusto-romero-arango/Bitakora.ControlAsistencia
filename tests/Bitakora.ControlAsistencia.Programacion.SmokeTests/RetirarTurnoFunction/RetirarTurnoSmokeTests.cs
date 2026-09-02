@@ -16,10 +16,10 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     // El nombre es unico en el catalogo (#497): sufijarlo con el turnoId mantiene estos smoke
     // tests re-ejecutables contra el mismo entorno dev.
-    private static object PayloadTurnoConFranja(Guid turnoId, string nombre) => new
+    private static object PayloadTurnoConFranja(Guid turnoId, string nombreBase) => new
     {
         turnoId,
-        nombre = $"{nombre} {turnoId}",
+        nombre = $"{nombreBase} {turnoId}",
         ordinarias = new[]
         {
             new
@@ -32,10 +32,10 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         }
     };
 
-    private static object PayloadDescanso(Guid turnoId, string nombre) => new
+    private static object PayloadDescanso(Guid turnoId, string nombreBase) => new
     {
         turnoId,
-        nombre = $"{nombre} {turnoId}",
+        nombre = $"{nombreBase} {turnoId}",
         ordinarias = Array.Empty<object>(),
         esDescanso = true
     };
