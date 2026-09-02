@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Cero ProjectReference (MEF-ADR-0047 decision 3, MEF-ADR-0048 seccion 1): esta suite
+       ejercita el contrato DESPLEGADO con el SDK oficial de cliente MCP, nunca los tipos del
+       worker. Se referencia ModelContextProtocol.Core (no el paquete sombrilla
+       ModelContextProtocol, que solo agrega servidor + DI). Version en comodin: misma convencion
+       ya establecida por Mcp.Consultas.SmokeTests, no el pin exacto del harness. -->
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.*" />
+    <PackageReference Include="ModelContextProtocol.Core" Version="2.2.0" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="appsettings.local.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('appsettings.local.json')" />
+  </ItemGroup>
+
+</Project>
