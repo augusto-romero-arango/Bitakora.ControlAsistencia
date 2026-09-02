@@ -20,10 +20,13 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="NotaTruncado" xml:space="preserve">
-    <value>Mostrando {0} de {1} elementos; usa filtro_nombre para refinar.</value>
+  <data name="CampoObligatorio" xml:space="preserve">
+    <value>'{0}' es obligatorio.</value>
   </data>
-  <data name="ErrorFiltroDemasiadoLargo" xml:space="preserve">
-    <value>El filtro no puede superar {0} caracteres.</value>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo el registro: {0}</value>
+  </data>
+  <data name="NotaVisibilidadEventual" xml:space="preserve">
+    <value>La sede aparece en listar_sedes en unos segundos.</value>
   </data>
 </root>

@@ -28,7 +28,7 @@
   <!-- Fixtures JSON reales/sinteticas para los tests de remodelado (nivel 1 de la piramide,
        MEF-ADR-0048 seccion 1). -->
   <ItemGroup>
-    <Content Include="Ejemplo\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="RegistrarSede\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
