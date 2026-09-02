@@ -17,6 +17,9 @@ builder.Services.ConfigurarObservabilidadMcp();
 // que ninguna tool puede responder, esta solo apaga una defensa secundaria.
 builder.Services.AddSingleton(
     ValidadorTokenAuthKit.ParaAuthorizationServer(builder.Configuration["Mcp:AuthorizationServer"]));
+// IdentidadTenantMcpMiddleware depende de la interfaz (para sustituirla en tests); la misma
+// instancia singleton se expone tambien bajo IValidadorTokenAuthKit.
+builder.Services.AddSingleton<IValidadorTokenAuthKit>(sp => sp.GetRequiredService<ValidadorTokenAuthKit>());
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
 // Deriva la identidad del usuario autenticado (org_id/sub) para cada tool call y la puebla en el
