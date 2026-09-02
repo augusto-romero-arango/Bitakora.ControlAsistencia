@@ -19,8 +19,10 @@
 // downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
 // -> MetadataConfig (IReadonlyMetadataConfig).
 
+using System.Linq;
 using System.Text;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -30,6 +32,7 @@ using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.Mult
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
+using Wolverine.Runtime;
 using ObtenerFichaTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno.FunctionEndpoint;
 using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ListarFichasTurno.FunctionEndpoint;
 
@@ -260,6 +263,29 @@ public class ComposicionServiciosTests
         mapping.Metadata.Revision.Enabled.Should().BeTrue();
         mapping.Metadata.Revision.Type.Should().Be("bigint");
         mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #548: sin PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(...) en el wiring,
+    // Wolverine no tiene ruta de salida para el evento -- PublishAsync (linea 44 de
+    // CancelarProgramacionCommandHandler) no lanza excepcion, el 202 sale, y el evento nunca cruza
+    // el ASB interno del BC. Se inspecciona el routing YA COMPILADO del runtime real (mismo
+    // contenedor que las guardas de arriba) sin abrir conexion al broker: la Uri de
+    // AzureServiceBusTopic se arma en memoria a partir del nombre de topic declarado en
+    // PublicarEventoServerless (protocolo "asb", Wolverine.AzureServiceBus 6.16.0,
+    // AzureServiceBusTopic.ctor), y IWolverineRuntime.RoutingFor solo recorre
+    // WolverineOptions.RouteSources() -- ninguna llamada de red. IMessageRoute no expone Uri
+    // publicamente (solo la implementacion concreta interna la tiene); Describe() es la vista de
+    // diagnostico que Wolverine expone para inspeccionar el endpoint sin ese downcast.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_MapeaCancelacionTurnoDiarioSolicitadaAlTopicDeAzureServiceBus_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+
+        var runtime = provider.GetRequiredService<IWolverineRuntime>();
+        var router = runtime.RoutingFor(typeof(CancelacionTurnoDiarioSolicitada));
+
+        router.Routes.Select(route => route.Describe().Endpoint).Should()
+            .Contain(new Uri("asb://topic/cancelacion-turno-diario-solicitada"));
     }
 
     // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
