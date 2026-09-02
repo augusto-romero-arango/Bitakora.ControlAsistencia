@@ -11,11 +11,10 @@ public static class ConfiguracionIdentidadTenant
 {
     public static IServiceCollection ConfigurarIdentidadTenant(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO(tenancy etapa b / identidad derivada del token, MEF-ADR-0047 decision 6): el
-        // worker no recibe el Authorization de una tool call (decision 7), asi que el tenant y el
-        // usuario son un valor FIJO por despliegue, leido de app settings -- nunca derivado del
-        // cliente MCP conectado. Reemplazarlo por identidad derivada del token es evolucion fuera
-        // de alcance de este scaffold.
+        // Fallback, ya no interino en el camino con Bearer (issue #572): IdentidadTenantMcpMiddleware
+        // deriva tenant y usuario del token del usuario autenticado. Este valor fijo por despliegue
+        // solo se usa cuando la invocacion no trae Bearer -- llamada directa con system key: smoke,
+        // desarrollo local.
         var identidad = new IdentidadTenant(
             TenantId: configuration["Identidad:TenantIdInterino"] ?? "tenant-interino-sin-configurar",
             UserId: configuration["Identidad:UserIdInterino"] ?? "mcp-sin-usuario-autenticado");

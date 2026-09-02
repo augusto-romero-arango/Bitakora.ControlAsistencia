@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 // ToolInvocationContext y no de FunctionContext.GetHttpContext(): una invocacion por
 // McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo sirve el
 // paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
-public sealed class IdentidadTenantMcpMiddleware(
+public sealed partial class IdentidadTenantMcpMiddleware(
     IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
@@ -46,8 +46,15 @@ public sealed class IdentidadTenantMcpMiddleware(
             return null;
 
         var token = encabezadoAutorizacion[EsquemaBearer.Length..];
-        var principal = await validador.ValidarAsync(token, cancellationToken);
-        return principal is null ? null : derivador.Derivar(principal);
+        // Bearer presente pero no validable (firma invalida, expirado, discovery doc inalcanzable,
+        // authorization server sin configurar) NO es el caso de "sin Bearer" de arriba: hay un
+        // usuario detras y no sabemos cual. Caer al tenant fijo aqui escribiria sus hechos de
+        // negocio en la empresa equivocada, en silencio -- mismo criterio que el rechazo de
+        // DerivadorIdentidadTenantMcp cuando falta org_id.
+        var principal = await validador.ValidarAsync(token, cancellationToken)
+                        ?? throw new InvalidOperationException(Mensajes.TokenNoValidado);
+
+        return derivador.Derivar(principal);
     }
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)

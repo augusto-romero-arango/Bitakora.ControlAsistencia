@@ -14,16 +14,21 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 /// </summary>
 public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) : DelegatingHandler
 {
+    internal const string HeaderTenantId = "X-Tenant-Id";
+    internal const string HeaderUserId = "X-User-Id";
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var (tenantId, userId) = TenantExecutionContext.TryObtener(out var tenantAmbiente, out var userAmbiente)
             ? (tenantAmbiente!, userAmbiente!)
             : (identidad.TenantId, identidad.UserId);
 
-        request.Headers.Remove("X-Tenant-Id");
-        request.Headers.TryAddWithoutValidation("X-Tenant-Id", tenantId);
-        request.Headers.Remove("X-User-Id");
-        request.Headers.TryAddWithoutValidation("X-User-Id", userId);
+        // Remove antes de agregar: el pipeline de HttpClientFactory reusa el HttpRequestMessage en
+        // un reintento, y un header repetido llegaria al BC como dos valores.
+        request.Headers.Remove(HeaderTenantId);
+        request.Headers.TryAddWithoutValidation(HeaderTenantId, tenantId);
+        request.Headers.Remove(HeaderUserId);
+        request.Headers.TryAddWithoutValidation(HeaderUserId, userId);
 
         return base.SendAsync(request, cancellationToken);
     }

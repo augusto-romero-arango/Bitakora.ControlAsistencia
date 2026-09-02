@@ -15,11 +15,8 @@ builder.Services.ConfigurarObservabilidadMcp();
 // Sin Mcp__AuthorizationServer resoluble el validador degrada a "todo token es invalido"; no
 // fail-fast de arranque, a diferencia de las base URLs de los clientes tipados: aquellas sin las
 // que ninguna tool puede responder, esta solo apaga una defensa secundaria.
-builder.Services.AddSingleton(
+builder.Services.AddSingleton<IValidadorTokenAuthKit>(
     ValidadorTokenAuthKit.ParaAuthorizationServer(builder.Configuration["Mcp:AuthorizationServer"]));
-// IdentidadTenantMcpMiddleware depende de la interfaz (para sustituirla en tests); la misma
-// instancia singleton se expone tambien bajo IValidadorTokenAuthKit.
-builder.Services.AddSingleton<IValidadorTokenAuthKit>(sp => sp.GetRequiredService<ValidadorTokenAuthKit>());
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
 // Deriva la identidad del usuario autenticado (org_id/sub) para cada tool call y la puebla en el

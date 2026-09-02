@@ -47,6 +47,25 @@ public class IdentidadTenantMcpMiddlewareTests
             .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.OrganizacionAusente}*");
     }
 
+    // Distinto de "sin Bearer": aqui hay un usuario detras y no sabemos cual. Caer al tenant fijo
+    // escribiria sus hechos de negocio en la empresa equivocada, en silencio -- mismo criterio de
+    // rechazo que cuando el token no trae org_id.
+    [Fact]
+    public async Task DerivarIdentidad_RechazaLaToolCall_CuandoElBearerNoSeValida()
+    {
+        var middleware = new IdentidadTenantMcpMiddleware(
+            ValidadorTokenFalso.QueRechaza(),
+            DerivadorIdentidadTenantMcpFalso.QueFalla(
+                new InvalidOperationException("no deberia invocarse con un token no validado")));
+
+        var act = async () => await middleware.DerivarIdentidadAsync(
+            $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-no-validable",
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{IdentidadTenantMcpMiddleware.Mensajes.TokenNoValidado}*");
+    }
+
     // Sin identidad derivada el middleware no puebla el ambiente, y el propagador cae al tenant fijo
     // interino de ConfiguracionIdentidadTenant (llamada directa con system key: smoke, local).
     [Fact]

@@ -23,6 +23,12 @@ public sealed class ValidadorTokenFalso : IValidadorTokenAuthKit
 
     public static ValidadorTokenFalso QueFalla(Exception excepcion) => new(null, excepcion);
 
+    /// <summary>
+    /// El validador real nunca lanza: degrada a "no valido" devolviendo <c>null</c> (firma
+    /// invalida, token expirado, discovery doc inalcanzable, authorization server sin configurar).
+    /// </summary>
+    public static ValidadorTokenFalso QueRechaza() => new(null, null);
+
     public Task<bool> EsValidoAsync(string token, CancellationToken ct) =>
         Task.FromResult(_excepcion is null);
 
