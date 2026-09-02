@@ -4,6 +4,7 @@
     <Project Path="src/Bitakora.ControlAsistencia.Colaboradores.DomainEvents/Bitakora.ControlAsistencia.Colaboradores.DomainEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Colaboradores/Bitakora.ControlAsistencia.Colaboradores.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.ControlHoras.DomainEvents/Bitakora.ControlAsistencia.ControlHoras.DomainEvents.csproj" />
+    <Project Path="src/Bitakora.ControlAsistencia.Mcp.Comandos/Bitakora.ControlAsistencia.Mcp.Comandos.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Mcp.Consultas/Bitakora.ControlAsistencia.Mcp.Consultas.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.PrivateEvents/Bitakora.ControlAsistencia.PrivateEvents.csproj" />
     <Project Path="src/Bitakora.ControlAsistencia.Programacion/Bitakora.ControlAsistencia.Programacion.csproj" />
@@ -16,6 +17,8 @@
     <Project Path="src/Bitakora.ControlAsistencia.TenantResolver/Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests/Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Comandos.Tests/Bitakora.ControlAsistencia.Mcp.Comandos.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests/Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Mcp.Consultas.Tests/Bitakora.ControlAsistencia.Mcp.Consultas.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.PrivateEvents.Tests/Bitakora.ControlAsistencia.PrivateEvents.Tests.csproj" />
