@@ -11,7 +11,10 @@
 
   <!-- Cero ProjectReference (MEF-ADR-0047 decision 3): este servidor es un cliente HTTP puro de
        las Function Apps del BC. Los contratos upstream se redeclaran en Infraestructura/ como
-       una isla propia: la verdad viaja en el JSON del endpoint, no en un tipo compartido. -->
+       una isla propia: la verdad viaja en el JSON del endpoint, no en un tipo compartido.
+       Excepcion deliberada mas abajo: TenantResolver (issue #540/#572) es infraestructura
+       transversal de identidad, no codigo de dominio, mismo reuso legitimo que ya tiene
+       Mcp.Consultas. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.8.3" />
@@ -29,6 +32,11 @@
        superficie publica del servidor. -->
   <ItemGroup>
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Mcp.Comandos.Tests" />
+  </ItemGroup>
+
+  <!-- Unica excepcion al "cero ProjectReference" de arriba: ver comentario junto a FrameworkReference. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.TenantResolver\Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -22,6 +22,7 @@ public static class ConfiguracionIdentidadTenant
 
         services.AddSingleton(identidad);
         services.AddTransient<PropagadorIdentidadTenantHandler>();
+        services.AddSingleton<IDerivadorIdentidadTenantMcp, DerivadorIdentidadTenantMcp>();
 
         return services;
     }

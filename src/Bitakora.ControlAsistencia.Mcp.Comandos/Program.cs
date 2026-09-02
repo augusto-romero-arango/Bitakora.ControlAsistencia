@@ -19,4 +19,9 @@ builder.Services.AddSingleton(
     ValidadorTokenAuthKit.ParaAuthorizationServer(builder.Configuration["Mcp:AuthorizationServer"]));
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
+// Deriva la identidad del usuario autenticado (org_id/sub) para cada tool call y la puebla en el
+// ambiente (TenantExecutionContext); PropagadorIdentidadTenantHandler la prefiere sobre el tenant
+// fijo interino (MEF-ADR-0047 decision 6, issue #572).
+builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
+
 await builder.Build().RunAsync();
