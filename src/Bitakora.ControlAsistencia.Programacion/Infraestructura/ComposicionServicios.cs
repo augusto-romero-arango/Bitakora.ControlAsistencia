@@ -61,6 +61,10 @@ public static class ComposicionServicios
                 // que el mismo mapeo aplica ya sea que se publique via IPublicEventSender o IPrivateEventSender.
                 options.PublicarEventoServerless<ProgramacionTurnoDiarioSolicitada>(
                     "programacion-turno-diario-solicitada");
+                // Issue #548: mismo criterio de ADR-0024 decision #3 -- CancelacionTurnoDiarioSolicitada
+                // (IPrivateEvent) cruza fisicamente el ASB interno del BC y necesita su propio mapeo de topic.
+                options.PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(
+                    "cancelacion-turno-diario-solicitada");
             });
 
         services.AgregarMartenEventStore();
