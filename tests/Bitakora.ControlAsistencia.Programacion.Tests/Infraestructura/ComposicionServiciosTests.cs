@@ -19,11 +19,9 @@
 // downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
 // -> MetadataConfig (IReadonlyMetadataConfig).
 
-using System.Linq;
 using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
-using Bitakora.ControlAsistencia.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -265,17 +263,11 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #548: sin PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(...) en el wiring,
-    // Wolverine no tiene ruta de salida para el evento -- PublishAsync (linea 44 de
-    // CancelarProgramacionCommandHandler) no lanza excepcion, el 202 sale, y el evento nunca cruza
-    // el ASB interno del BC. Se inspecciona el routing YA COMPILADO del runtime real (mismo
-    // contenedor que las guardas de arriba) sin abrir conexion al broker: la Uri de
-    // AzureServiceBusTopic se arma en memoria a partir del nombre de topic declarado en
-    // PublicarEventoServerless (protocolo "asb", Wolverine.AzureServiceBus 6.16.0,
-    // AzureServiceBusTopic.ctor), y IWolverineRuntime.RoutingFor solo recorre
-    // WolverineOptions.RouteSources() -- ninguna llamada de red. IMessageRoute no expone Uri
-    // publicamente (solo la implementacion concreta interna la tiene); Describe() es la vista de
-    // diagnostico que Wolverine expone para inspeccionar el endpoint sin ese downcast.
+    // Sin PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(...) en el wiring, Wolverine se
+    // queda sin ruta de salida y PublishAsync no lanza: el POST responde 202 y el evento nunca cruza
+    // el ASB interno del BC. RoutingFor solo recorre WolverineOptions.RouteSources() y la Uri de
+    // AzureServiceBusTopic se arma en memoria ("asb://topic/{topic}") -- ninguna llamada de red.
+    // Describe().Endpoint porque IMessageRoute no expone Uri: solo la implementacion interna la tiene.
     [Fact]
     public async Task AgregarServiciosProgramacion_MapeaCancelacionTurnoDiarioSolicitadaAlTopicDeAzureServiceBus_CuandoElContenedorEstaCompuesto()
     {
