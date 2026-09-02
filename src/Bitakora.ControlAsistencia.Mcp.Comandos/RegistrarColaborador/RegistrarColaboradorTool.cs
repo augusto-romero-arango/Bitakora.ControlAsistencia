@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Net;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -16,7 +18,7 @@ public partial class RegistrarColaboradorTool(ColaboradoresApi api)
     internal const string NombreTool = "registrar_colaborador";
 
     [Function("RegistrarColaborador")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Pone a una persona bajo control de asistencia: crea el colaborador y abre su "
@@ -60,8 +62,60 @@ public partial class RegistrarColaboradorTool(ColaboradoresApi api)
             "codigo_sede",
             "Codigo de la sede donde queda vinculado (opcional, obtenlo con listar_sedes).")]
         string? codigoSede,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tipoIdentificacion))
+            return string.Format(Mensajes.CampoObligatorio, "tipo_identificacion");
+
+        if (string.IsNullOrWhiteSpace(numeroIdentificacion))
+            return string.Format(Mensajes.CampoObligatorio, "numero_identificacion");
+
+        if (string.IsNullOrWhiteSpace(primerNombre))
+            return string.Format(Mensajes.CampoObligatorio, "primer_nombre");
+
+        if (string.IsNullOrWhiteSpace(primerApellido))
+            return string.Format(Mensajes.CampoObligatorio, "primer_apellido");
+
+        if (string.IsNullOrWhiteSpace(codigoColaborador))
+            return string.Format(Mensajes.CampoObligatorio, "codigo_colaborador");
+
+        if (string.IsNullOrWhiteSpace(fechaInicio))
+            return string.Format(Mensajes.CampoObligatorio, "fecha_inicio");
+
+        if (!DateOnly.TryParseExact(
+            fechaInicio, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
+            return string.Format(Mensajes.FechaInvalida, fechaInicio);
+
+        var respuesta = await api.Registrar(
+            new RegistroColaboradorSolicitado(
+                tipoIdentificacion, numeroIdentificacion, primerNombre, segundoNombre,
+                primerApellido, segundoApellido, codigoColaborador, fecha, codigoSede),
+            ct);
+
+        if (await TraducirRechazo(respuesta, ct) is { } rechazo)
+            return rechazo;
+
+        respuesta.EnsureSuccessStatusCode();
+
+        var nombre = string.Join(
+            " ",
+            new[] { primerNombre, segundoNombre, primerApellido, segundoApellido }
+                .Where(p => !string.IsNullOrWhiteSpace(p)));
+
+        return RespuestaJson.Serializar(new ColaboradorRegistradoResumen(
+            Mensajes.ResultadoColaboradorRegistrado,
+            $"{tipoIdentificacion}-{numeroIdentificacion}",
+            nombre,
+            codigoColaborador,
+            fechaInicio,
+            codigoSede,
+            Mensajes.NotaVisibilidadEventual));
+    }
+
+    private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
+        respuesta.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict
+            ? string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct))
+            : null;
 }
 
 /// <summary>

@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
 /// <summary>
@@ -8,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 public sealed class ColaboradoresApi(HttpClient http)
 {
     public Task<HttpResponseMessage> Registrar(RegistroColaboradorSolicitado datos, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync("api/colaboradores", datos, ct);
 }
 
 /// <summary>

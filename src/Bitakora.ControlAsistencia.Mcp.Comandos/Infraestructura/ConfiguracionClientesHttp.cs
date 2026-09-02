@@ -18,6 +18,10 @@ public static class ConfiguracionClientesHttp
         services.AddHttpClient<SedesApi>(c => c.BaseAddress = baseUrlSedes)
             .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
 
+        var baseUrlColaboradores = LeerBaseUrl(configuration, "Colaboradores");
+        services.AddHttpClient<ColaboradoresApi>(c => c.BaseAddress = baseUrlColaboradores)
+            .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
+
         // Extension point: cada tool nueva que consuma otro dominio del BC agrega aqui su propio
         // par LeerBaseUrl(...) + AddHttpClient<{Dominio}Api>(...).AddHttpMessageHandler<PropagadorIdentidadTenantHandler>(),
         // siguiendo el mismo patron -- el propagador de identidad (MEF-ADR-0047 decision 6) es
