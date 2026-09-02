@@ -43,6 +43,12 @@ jobs:
       # Terraform decodifica TF_VAR_<x> segun el type constraint de la variable (list(string)).
       TF_VAR_workos_client_id: ${{ vars.WORKOS_CLIENT_ID }}
       TF_VAR_cors_allowed_origins: ${{ vars.CORS_ALLOWED_ORIGINS }}
+      # PRM compartido de los servidores MCP (issue #575, Mefisto Paso 3c.3): dominio AuthKit del
+      # entorno, publico (MEF-ADR-0032 seccion 6) -- GitHub "variable", no secret. Requiere que el
+      # operador corra `gh variable set WORKOS_AUTHORIZATION_SERVER_URL --body "https://<dominio>.authkit.app"`
+      # antes de mergear (paso manual del issue #575); sin esto, terraform apply falla por
+      # variable requerida faltante (apim-mcp-prm.tf no le da default).
+      TF_VAR_mcp_authorization_server_url: ${{ vars.WORKOS_AUTHORIZATION_SERVER_URL }}
 
     steps:
       - name: Checkout

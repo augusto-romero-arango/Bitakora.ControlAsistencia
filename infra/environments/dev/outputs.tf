@@ -60,15 +60,18 @@ output "container_app_name" {
   value       = module.container_app.name
 }
 
-# Servidor MCP detras de APIM (issue #558): valores que el operador necesita para los pasos
-# manuales post-apply (dashboard WorkOS, conectar Claude) y para verificar CA-4/CA-5.
+# Servidor MCP detras de APIM (issue #558, migrado a la interfaz canonica de Mefisto por issue
+# #575): valores que el operador necesita para los pasos manuales post-apply (dashboard WorkOS,
+# conectar Claude) y para verificar CA-4/CA-5. Ambos ahora vienen del modulo (resource_uri/prm_url
+# se arman DENTRO de infra/modules/apim-mcp-api a partir de gateway_url + path), no de locals de
+# este archivo.
 
 output "mcp_consultas_resource_uri" {
   description = "URL publica de APIM del endpoint del protocolo MCP (streamable HTTP). Debe coincidir byte a byte con el Resource Indicator que se configura en el dashboard WorkOS y con el campo 'resource' del PRM (mcp_consultas_prm_url)."
-  value       = local.mcp_consultas_resource_uri
+  value       = module.apim_mcp_consultas.resource_uri
 }
 
 output "mcp_consultas_prm_url" {
-  description = "URL publica de APIM del documento PRM (RFC 9728), alcanzable anonimamente. Su campo 'resource' debe coincidir byte a byte con mcp_consultas_resource_uri (CA-5)."
-  value       = local.mcp_consultas_prm_url
+  description = "URL publica de APIM del documento PRM (RFC 9728) de este servidor sobre la API compartida (issue #575), alcanzable anonimamente. Su campo 'resource' debe coincidir byte a byte con mcp_consultas_resource_uri (CA-5)."
+  value       = module.apim_mcp_consultas.prm_url
 }
