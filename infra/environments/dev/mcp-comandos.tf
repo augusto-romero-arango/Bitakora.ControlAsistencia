@@ -60,10 +60,11 @@ module "function_app_mcp_comandos" {
   # silencio.
   # Mcp__* (MEF-ADR-0047 decision 7, MEF-ADR-0032 seccion 9): AuthorizationServer es el dominio
   # AuthKit real de este entorno WorkOS (el mismo que usa Mcp.Consultas, ver su Program.cs) -- un
-  # unico AuthKit por organizacion, no por servidor MCP. ResourceUri SI sigue en placeholder: la
-  # URL de APIM de ESTE servidor la provisiona el modulo apim-mcp-comandos (analogo a
-  # apim-mcp-consultas.tf), que este agente no scaffoldea. Mientras siga en PENDIENTE-... el PRM
-  # responde 503 (degradacion deliberada, nunca fallo de arranque).
+  # unico AuthKit por organizacion, no por servidor MCP, por eso viene de la misma
+  # var.mcp_authorization_server_url y nunca de un literal (issue #571, Mefisto Paso 4b). ResourceUri
+  # ya NO esta en placeholder: la URL de APIM de este servidor la provisiona
+  # module.apim_mcp_comandos (infra/environments/dev/apim-mcp-comandos.tf, issue #571), analogo a
+  # apim-mcp-consultas.tf.
   app_settings = {
     Api__Programacion__BaseUrl  = "https://${module.function_app_programacion.default_hostname}"
     Api__Sedes__BaseUrl         = "https://${module.function_app_sedes.default_hostname}"
@@ -73,8 +74,8 @@ module "function_app_mcp_comandos" {
     Identidad__TenantIdInterino = "tenant-smoke"
     Identidad__UserIdInterino   = "smoke@bitakora.dev"
 
-    Mcp__ResourceUri         = "PENDIENTE-URL-APIM-DEL-SERVIDOR-MCP-COMANDOS"
-    Mcp__AuthorizationServer = "https://marvelous-polaroid-97-staging.authkit.app"
+    Mcp__ResourceUri         = module.apim_mcp_comandos.resource_uri
+    Mcp__AuthorizationServer = var.mcp_authorization_server_url
   }
   tags = local.tags
 }
