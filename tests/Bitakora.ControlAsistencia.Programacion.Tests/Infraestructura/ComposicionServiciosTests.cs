@@ -21,7 +21,7 @@
 
 using System.Text;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Programacion;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -30,6 +30,7 @@ using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.Mult
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
+using Wolverine.Runtime;
 using ObtenerFichaTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno.FunctionEndpoint;
 using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ListarFichasTurno.FunctionEndpoint;
 
@@ -260,6 +261,23 @@ public class ComposicionServiciosTests
         mapping.Metadata.Revision.Enabled.Should().BeTrue();
         mapping.Metadata.Revision.Type.Should().Be("bigint");
         mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Sin PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(...) en el wiring, Wolverine se
+    // queda sin ruta de salida y PublishAsync no lanza: el POST responde 202 y el evento nunca cruza
+    // el ASB interno del BC. RoutingFor solo recorre WolverineOptions.RouteSources() y la Uri de
+    // AzureServiceBusTopic se arma en memoria ("asb://topic/{topic}") -- ninguna llamada de red.
+    // Describe().Endpoint porque IMessageRoute no expone Uri: solo la implementacion interna la tiene.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_MapeaCancelacionTurnoDiarioSolicitadaAlTopicDeAzureServiceBus_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+
+        var runtime = provider.GetRequiredService<IWolverineRuntime>();
+        var router = runtime.RoutingFor(typeof(CancelacionTurnoDiarioSolicitada));
+
+        router.Routes.Select(route => route.Describe().Endpoint).Should()
+            .Contain(new Uri("asb://topic/cancelacion-turno-diario-solicitada"));
     }
 
     // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
