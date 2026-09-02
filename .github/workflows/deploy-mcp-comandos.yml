@@ -1,0 +1,200 @@
+name: Deploy MCP Comandos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/Bitakora.ControlAsistencia.Mcp.Comandos/**'
+      # Exclusion deliberada frente a los workflows de los dominios: aqui NO van los ensamblados
+      # de eventos (DomainEvents/PrivateEvents/PublicEvents). El servidor MCP es cliente HTTP puro
+      # de los Function Apps del BC -- su .csproj no referencia ninguno (MEF-ADR-0047 decision 3)
+      # -- asi que un cambio en esos ensamblados no altera este binario.
+      #
+      # global.json: quien lo lee NO es actions/setup-dotnet -- los jobs de abajo le pasan
+      # 'dotnet-version' explicito, no 'global-json-file', asi que la action solo instala el SDK
+      # del canal pedido. Lo leen el muxer del CLI y el resolver de SDK de MSBuild al correr
+      # 'dotnet restore/build', y por eso su 'version' + 'rollForward' deciden con cual SDK
+      # instalado se compila este proyecto. El modo de fallo no es rotura -- eso lo atrapa el CI
+      # del PR antes del merge -- sino staleness silenciosa: sin esta ruta, un push a main que
+      # solo toque global.json no dispara nada y la Function App sigue sirviendo el binario
+      # construido con el SDK anterior, sin aviso.
+      - 'global.json'
+      # Este propio workflow: sin esta ruta, un cambio en como se construye/despliega este
+      # servidor nunca dispara solo -- hay que lanzarlo a mano con workflow_dispatch cada vez.
+      - '.github/workflows/deploy-mcp-comandos.yml'
+      # Exclusiones deliberadas de esta lista -- no las agregues buscando simetria con un dominio:
+      # - ControlAsistencias.slnx: lo usa build-and-test (el gate de test), no el job deploy, que
+      #   compila el .csproj de este proyecto directo.
+      # - infra/**: su trigger vive en infra-cd.yml y este workflow se encadena detras via el
+      #   workflow_run de abajo, para que el codigo nunca se despliegue antes del apply de infra
+      #   (MEF-ADR-0022). Devolverlo aqui rompe ese orden.
+      # - tests/**: un cambio de tests no altera el binario publicado.
+  workflow_run:
+    # 'Infra CD - Terraform Apply' es el nombre real del workflow en este repo
+    # (.github/workflows/infra-cd.yml) -- mismo encadenado que deploy-mcp-consultas.yml y los
+    # dominios: el orden infra -> deploy de codigo lo garantiza workflow_run, no un trigger de
+    # push compartido (MEF-ADR-0022).
+    workflows: ['Infra CD - Terraform Apply']
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  # El apply de infra (infra-cd.yml, MEF-ADR-0022) y el deploy de codigo pueden correr en el
+  # mismo push a main. Encadenar por workflow_run (en vez de un 'push' que dispare ambos)
+  # garantiza el orden infra -> deploy. Pero workflow_run por si solo redesplegaria este servidor
+  # tras CADA apply de infra (seguro por idempotencia, pero costoso); este job filtra por si el
+  # PR que se acabo de mergear toco src/Bitakora.ControlAsistencia.Mcp.Comandos/** y salta el
+  # redeploy si no. Se resuelve via la API de PRs asociados al commit (no depende de la estrategia
+  # de merge).
+  determinar-alcance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      debe_desplegar: ${{ steps.check.outputs.debe_desplegar }}
+    steps:
+      - id: check
+        name: Decidir si corresponde desplegar el servidor MCP
+        # Los datos del evento entran por 'env' y NO interpolados como ${{ }} dentro del 'run':
+        # un ${{ }} en el cuerpo del script se sustituye como TEXTO antes de que bash lo parsee,
+        # asi que un dato controlable por quien dispara la corrida se vuelve codigo. 'head_branch'
+        # es justamente eso: git acepta ", $, ;, & y ` en un nombre de rama (solo prohibe espacio,
+        # ~, ^, :, ?, * y \), asi que una rama valida pero adversaria ejecutaria codigo con el
+        # token de escritura y los secrets que este disparador expone. Pasarlo por 'env' lo
+        # mantiene siempre como valor, nunca como sintaxis -- mitigacion prescrita por el
+        # hardening de GitHub Actions para datos del evento.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENTO: ${{ github.event_name }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_RAMA: ${{ github.event.workflow_run.head_branch }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          # push directo (src/**) o workflow_dispatch: siempre despliega.
+          if [ "$EVENTO" != "workflow_run" ]; then
+            echo "debe_desplegar=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # ...y la corrida de 'Infra CD - Terraform Apply' fue un apply exitoso sobre main.
+          if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ]; then
+            echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # ...y el PR mergeado toco este servidor.
+          PR_NUM=$(gh api "repos/${REPO}/commits/${RUN_SHA}/pulls" --jq '.[0].number // empty')
+          if [ -z "$PR_NUM" ]; then
+            echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh api "repos/${REPO}/pulls/${PR_NUM}/files" --paginate --jq '.[].filename' | grep -qE '^src/Bitakora\.ControlAsistencia\.Mcp\.Comandos/'; then
+            echo "debe_desplegar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-test:
+    needs: determinar-alcance
+    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore ControlAsistencias.slnx
+
+      - name: Build
+        run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: |
+          for proj in tests/Bitakora.ControlAsistencia.*.Tests/; do
+            dotnet test --project "$proj" --no-build --configuration Release --ignore-exit-code 8
+          done
+
+  deploy:
+    needs: [determinar-alcance, build-and-test]
+    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # requerido para el login OIDC de azure/login (sin secret) - MEF-ADR-0022
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore src/Bitakora.ControlAsistencia.Mcp.Comandos/ -r linux-x64
+
+      - name: Build
+        run: |
+          dotnet build src/Bitakora.ControlAsistencia.Mcp.Comandos/ \
+            --configuration Release \
+            --no-restore \
+            -r linux-x64 \
+            -p:SourceRevisionId=${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Publish
+        run: |
+          dotnet publish src/Bitakora.ControlAsistencia.Mcp.Comandos/ \
+            --configuration Release \
+            --no-build \
+            -r linux-x64 \
+            --self-contained false \
+            --output ./publish
+
+      - name: Validar artefacto de publicacion
+        run: |
+          test -f ./publish/host.json
+          test -f ./publish/functions.metadata
+          test -f ./publish/Bitakora.ControlAsistencia.Mcp.Comandos.dll
+
+      - name: Azure Authentication
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: func-asist-dev-mcp-comandos
+          package: ./publish
+
+  # Mismo camino que deploy-mcp-consultas.yml (issue #509/#516): el app ya expone /api/version y
+  # /api/ready propios y la suite SmokeTests ejercita el catalogo vivo de tools/list via el SDK
+  # oficial de cliente MCP. Reusa smoke-tests-mcp.yml -- sus defaults apuntan hoy a Mcp.Consultas
+  # (unico consumidor hasta ahora), por eso los cuatro inputs de abajo se pasan EXPLICITOS: sin
+  # ellos este job desplegaria smoke tests contra la app equivocada.
+  smoke-tests:
+    needs: [determinar-alcance, deploy]
+    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    permissions:
+      contents: read
+      # El reusable declara 'id-token: write' para el azure/login del listkeys, pero un workflow
+      # llamado no puede exceder los permisos del invocador: hay que concederlo tambien aqui.
+      id-token: write
+    uses: ./.github/workflows/smoke-tests-mcp.yml
+    with:
+      base_url: 'https://func-asist-dev-mcp-comandos.azurewebsites.net'
+      test_project: 'tests/Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests/'
+      app_name: 'func-asist-dev-mcp-comandos'
+      resource_group: 'rg-controlasistencias-dev'
+      expected_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}

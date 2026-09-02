@@ -1,0 +1,18 @@
+{
+    "version": "2.0",
+    "telemetryMode": "OpenTelemetry",
+    "logging": {
+        "logLevel": {
+            "default": "Warning",
+            "Function": "Information",
+            "Host.Results": "Information"
+        }
+    },
+    "extensions": {
+        "mcp": {
+            "serverName": "ControlAsistencias Comandos",
+            "serverVersion": "1.0.0",
+            "instructions": "Servidor MCP de comandos (escritura) del bounded context ControlAsistencias. Cada tool registra un hecho de negocio en el BC y, cuando el dominio lo rechaza, devuelve ese rechazo como texto. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
+        }
+    }
+}

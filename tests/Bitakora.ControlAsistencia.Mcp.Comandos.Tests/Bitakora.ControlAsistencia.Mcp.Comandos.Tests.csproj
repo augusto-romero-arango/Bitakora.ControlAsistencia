@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Version en comodin ("*"/"3.*"): convencion ya establecida en todo el repo (Mcp.Consultas.Tests
+       y el resto de los proyectos *.Tests), no el pin exacto que documenta el harness para sus
+       propios templates. Diverge a proposito para no introducir una segunda politica de
+       versionado de paquetes de test en este consumidor. -->
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="*" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bitakora.ControlAsistencia.Mcp.Comandos\Bitakora.ControlAsistencia.Mcp.Comandos.csproj" />
+  </ItemGroup>
+
+  <!-- Fixtures JSON reales/sinteticas para los tests de remodelado (nivel 1 de la piramide,
+       MEF-ADR-0048 seccion 1). -->
+  <ItemGroup>
+    <Content Include="Ejemplo\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
