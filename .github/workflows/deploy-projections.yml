@@ -16,7 +16,7 @@
 # `lifecycle { ignore_changes = [template[0].container[0].image] }` al Container App), asi que
 # revertir jamas se hace tocando HCL ni corriendo `terraform apply`. Se hace re-publicando el
 # tag anterior:
-#   az containerapp update -n ca-asist-dev -g rg-controlasistencias-dev --image <loginServer>/<repo>:<sha-anterior>
+#   az containerapp update -n ca-projections-asist-dev -g rg-controlasistencias-dev --image <loginServer>/<repo>:<sha-anterior>
 # El tag por SHA sigue en el ACR, asi que este comando no necesita reconstruir nada.
 # `az containerapp revision activate` NO es un camino de rollback valido aqui: el Container App
 # corre en revision_mode = "Single" (infra/modules/container-app), y en ese modo solo una
@@ -71,7 +71,7 @@ on:
 
 env:
   RESOURCE_GROUP: rg-controlasistencias-dev
-  CONTAINER_APP_NAME: ca-asist-dev
+  CONTAINER_APP_NAME: ca-projections-asist-dev
   IMAGE_REPOSITORY: projections
 
 jobs:
@@ -206,7 +206,7 @@ jobs:
           # Nota operativa: un fallo de arranque del worker (secreto sin resolver, credenciales
           # de Postgres, permisos DDL sobre el schema) NO lo detecta este job -- la revision se
           # aprovisiona igual. Verlo requiere los logs del contenedor:
-          #   az containerapp logs show -n ca-asist-dev -g rg-controlasistencias-dev --follow
+          #   az containerapp logs show -n ca-projections-asist-dev -g rg-controlasistencias-dev --follow
 
   smoke-tests:
     # (issue #314) 'Verificar la revision activa' comprueba el CONTRATO DE DESPLIEGUE -- que la
