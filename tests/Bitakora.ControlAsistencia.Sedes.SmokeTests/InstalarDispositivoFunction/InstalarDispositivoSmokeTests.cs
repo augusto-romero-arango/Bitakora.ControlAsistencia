@@ -132,8 +132,8 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
     }
 
     // Rechazo cross-sede. UbicacionDispositivo materializa de forma ASINCRONA (MEF-ADR-0034 seccion
-    // 3): la espera de infraestructura (¿ya materializo el daemon?) va separada de la asercion de
-    // negocio. Se espera el documento mt_doc_ubicaciondispositivo directo via PostgresFixture -- no
+    // 3): la espera de infraestructura -- si el daemon ya materializo -- va separada de la asercion
+    // de negocio. Se espera el documento mt_doc_ubicaciondispositivo directo via PostgresFixture -- no
     // hay Function GET sobre esta vista (issue #549) -- y solo despues se ejercita el POST al
     // destino UNA sola vez. Sin loop con side-effects: reintentar el POST mientras la vista no
     // materializa instalaria y retiraria un dispositivo fantasma en cada iteracion, agregando
@@ -166,20 +166,18 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             SchemaSedes, TablaUbicacionDispositivo, dispositivoId, TimeoutProyeccion,
             campoJson: "SedeId", valorJson: streamOrigen);
         proyeccionMaterializada.Should().BeTrue(
-            $"UbicacionDispositivo deberia materializar la sede origen {streamOrigen} para {dispositivoId} antes de ejercitar el cruce");
-
-        var eventosAntesDelIntento = await postgres.ContarEventosAsync(
-            SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
+            $"UbicacionDispositivo deberia materializar la sede origen {streamOrigen} para {dispositivoId} " +
+            $"(tabla {SchemaSedes}.{TablaUbicacionDispositivo}, tenant {postgres.TenantId}) antes de ejercitar el cruce");
 
         var intento = await _client.PostAsJsonAsync(
             RutaDispositivos(codigoDestino), new { dispositivoId }, ct);
 
         intento.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        var eventosDespuesDelIntento = await postgres.ContarEventosAsync(
+        var registrosEnDestino = await postgres.ContarEventosAsync(
             SchemaSedes, streamDestino, TipoEventoDispositivoInstalado);
-        eventosDespuesDelIntento.Should().Be(eventosAntesDelIntento,
-            "el rechazo cross-sede ocurre antes de cargar el aggregate destino: no debe agregar un nuevo dispositivo_instalado");
+        registrosEnDestino.Should().Be(0,
+            "el rechazo cross-sede ocurre antes de cargar el aggregate destino: el stream de la sede destino no debe recibir ningun dispositivo_instalado");
     }
 
     // CA-6: reinstalar un dispositivo previamente retirado de esta sede procede -- no es la misma

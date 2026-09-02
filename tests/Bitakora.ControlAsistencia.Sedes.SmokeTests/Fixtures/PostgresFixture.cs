@@ -8,7 +8,13 @@ namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 public class PostgresFixture : IAsyncLifetime
 {
     private string _connectionString = null!;
-    private string _tenantId = null!;
+
+    /// <summary>
+    /// Tenant por el que este fixture acota las consultas al read model. Lo expone para que la
+    /// asercion que falla pueda nombrarlo: una espera de materializacion agotada se ve igual con
+    /// el daemon lento que con el tenant equivocado, y sin este dato no se distinguen.
+    /// </summary>
+    public string TenantId { get; private set; } = null!;
 
     public bool IsConfigured { get; private set; }
 
@@ -23,7 +29,7 @@ public class PostgresFixture : IAsyncLifetime
             .AddEnvironmentVariables()
             .Build();
 
-        _tenantId = IdentidadDePrueba.Desde(configuration).TenantId;
+        TenantId = IdentidadDePrueba.Desde(configuration).TenantId;
 
         var connectionString = configuration["Postgres:ConnectionString"];
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -87,12 +93,12 @@ public class PostgresFixture : IAsyncLifetime
     /// daria un falso positivo.
     /// </summary>
     public Task<bool> ExisteDocumentoAsync(
-        string schema, string tabla, string id, TimeSpan timeout,
+        string schema, string tabla, string documentoId, TimeSpan timeout,
         string? campoJson = null, string? valorJson = null)
     {
         return Polling.WaitUntilTrueAsync(async () =>
         {
-            var data = await ObtenerDocumentoInternoAsync(schema, tabla, id);
+            var data = await ObtenerDocumentoInternoAsync(schema, tabla, documentoId);
             if (data is null)
                 return false;
 
@@ -179,7 +185,7 @@ public class PostgresFixture : IAsyncLifetime
         return eventos;
     }
 
-    private async Task<JsonElement?> ObtenerDocumentoInternoAsync(string schema, string tabla, string id)
+    private async Task<JsonElement?> ObtenerDocumentoInternoAsync(string schema, string tabla, string documentoId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
@@ -188,11 +194,11 @@ public class PostgresFixture : IAsyncLifetime
         cmd.CommandText = $"""
             SELECT data
             FROM {EscaparIdentificador(schema)}.{EscaparIdentificador(tabla)}
-            WHERE id = @id
+            WHERE id = @documentoId
               AND tenant_id = @tenantId
             """;
-        cmd.Parameters.AddWithValue("id", id);
-        cmd.Parameters.AddWithValue("tenantId", _tenantId);
+        cmd.Parameters.AddWithValue("documentoId", documentoId);
+        cmd.Parameters.AddWithValue("tenantId", TenantId);
 
         await using var reader = await cmd.ExecuteReaderAsync();
         if (!await reader.ReadAsync())
