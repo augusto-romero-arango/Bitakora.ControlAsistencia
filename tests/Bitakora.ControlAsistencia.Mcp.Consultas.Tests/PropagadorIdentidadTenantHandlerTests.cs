@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Tests.Soporte;
+using Bitakora.ControlAsistencia.TenantResolver;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 
@@ -88,5 +89,23 @@ public class PropagadorIdentidadTenantHandlerTests
         await api.ListarFichas(hoy, null, [], 10, TestContext.Current.CancellationToken);
 
         AfirmarHeadersDeIdentidad(handler);
+    }
+
+    // CA-1/CA-4 (issue #540): con identidad ambiente poblada (el middleware MCP ya la deriva del
+    // token), el propagador debe preferirla sobre el tenant fijo inyectado en el constructor -- el
+    // tenant fijo interino deja de usarse en este camino. El fallback al tenant fijo (CA-3, sin
+    // identidad ambiente) ya queda cubierto por los tests de arriba, que no pueblan el ambiente.
+    [Fact]
+    public async Task PropagadorIdentidadTenant_PrefiereLaIdentidadAmbiente_CuandoElMiddlewareMcpLaPoblo()
+    {
+        TenantExecutionContext.SetDerivedIdentity("org_acme", "usuario_123");
+        var (cliente, handler) = ClienteFalso.ConIdentidadTenant("{}", Identidad);
+
+        await cliente.GetAsync("api/cualquier-ruta", TestContext.Current.CancellationToken);
+
+        handler.UltimaRequest!.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderTenantId)
+            .Should().ContainSingle().Which.Should().Be("org_acme");
+        handler.UltimaRequest.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderUserId)
+            .Should().ContainSingle().Which.Should().Be("usuario_123");
     }
 }
