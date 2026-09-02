@@ -35,13 +35,17 @@ public class SolicitarProgramacionTurnoSmokeTests(
         PropertyNameCaseInsensitive = true
     };
 
+    // El nombre es unico en el catalogo (#497): todo payload de turno de este archivo lo sufija con
+    // el turnoId para que el arrange no choque con 409 contra la FichaTurno que dejo materializada
+    // una corrida anterior (MEF-ADR-0013: el smoke convive con sus propios residuos en dev).
+
     // Turno de catalogo con DOS franjas: la primera trae sede prearmada, la segunda no -- el
     // arrange que ejercita la cascada franja por franja (CA-1). Horarios sin solapamiento
     // (TurnoCreado.Crear valida solapamiento entre ordinarias).
     private static object TurnoConFranjasMixtasPayload(Guid turnoId, string sedeId, string sedeNombre) => new
     {
         turnoId,
-        nombre = "[TEST] Turno Mixto Cascada",
+        nombre = $"[TEST] Turno Mixto Cascada {turnoId}",
         ordinarias = new object[]
         {
             new
@@ -64,10 +68,10 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
     // Turno de catalogo de una sola franja, sin sede prearmada: el arrange minimo para que la
     // cascada aplique la sede de la solicitud a esa unica franja.
-    private static object TurnoSimplePayload(Guid turnoId, string nombre) => new
+    private static object TurnoSimplePayload(Guid turnoId, string nombreBase) => new
     {
         turnoId,
-        nombre,
+        nombre = $"{nombreBase} {turnoId}",
         ordinarias = new[]
         {
             new
@@ -107,10 +111,11 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Arrange: crear turno en catalogo
         var turnoId = Guid.CreateVersion7();
+        var nombreTurno = $"[TEST] Turno Smoke SB {turnoId}";
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Smoke SB",
+            nombre = nombreTurno,
             ordinarias = new[]
             {
                 new
@@ -168,7 +173,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         evento1.Colaborador.Should().Be(colaboradorEsperado);
 
         evento1.DetalleTurno.Should().NotBeNull();
-        evento1.DetalleTurno.Nombre.Should().Be("[TEST] Turno Smoke SB");
+        evento1.DetalleTurno.Nombre.Should().Be(nombreTurno);
         evento1.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
 
         // Issue #331 CA-2: la solicitud no incluye sede -> el comportamiento actual (anterior al
@@ -206,7 +211,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Smoke Sede",
+            nombre = $"[TEST] Turno Smoke Sede {turnoId}",
             ordinarias = new[]
             {
                 new
@@ -561,7 +566,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno Con Sede Prearmada",
+            nombre = $"[TEST] Turno Con Sede Prearmada {turnoId}",
             ordinarias = new[]
             {
                 new
@@ -625,7 +630,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            nombre = "[TEST] Turno para Duplicado",
+            nombre = $"[TEST] Turno para Duplicado {turnoId}",
             ordinarias = new[]
             {
                 new
@@ -687,7 +692,6 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoPayload = new
         {
             turnoId,
-            // Nombre unico por corrida (#497): sin sufijo, el segundo run choca con 409.
             nombre = $"[TEST] Turno Retirado Para Solicitar {turnoId}",
             ordinarias = new[]
             {
