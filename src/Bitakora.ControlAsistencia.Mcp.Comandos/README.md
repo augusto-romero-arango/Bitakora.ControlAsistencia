@@ -60,8 +60,9 @@ deploy.
   `appsettings.local.json` (ignorado por git) o las variables de entorno
   `Mcp__BaseUrl`/`Mcp__FunctionsKey`. La key nunca vive en un archivo versionado: en CI se lista en
   runtime con `az functionapp keys list` (MEF-ADR-0047 decision 5, MEF-ADR-0048 seccion 4).
-- `registrar_sede` consume el Function App de Sedes (`POST api/sedes`, #456): sus asserts
-  **pinneados** de `ComposicionDelHost/` y `RegistrarSede/` son contrato, no muestreo (MEF-ADR-0048
+- `registrar_sede` consume el Function App de Sedes (`POST api/sedes`, #456) y `registrar_colaborador`
+  el de Colaboradores (`POST api/colaboradores`, #574): sus asserts **pinneados** de
+  `ComposicionDelHost/` y de la carpeta propia de cada tool son contrato, no muestreo (MEF-ADR-0048
   seccion 2, verificaciones 2 y 4) -- toda tool nueva actualiza el catalogo exacto de `tools/list`
   y su error path del `.resx`.
 
@@ -70,6 +71,7 @@ deploy.
 | Tool | Que registra | Parametros |
 |---|---|---|
 | `registrar_sede` | Sede nueva de la empresa (`POST api/sedes`) | `codigo`, `nombre`, `ciudad?`, `direccion?` |
+| `registrar_colaborador` | Colaborador nuevo bajo control de asistencia, con su vinculacion desde `fecha_inicio` (`POST api/colaboradores`) | `tipo_identificacion`, `numero_identificacion`, `primer_nombre`, `segundo_nombre?`, `primer_apellido`, `segundo_apellido?`, `codigo_colaborador`, `fecha_inicio`, `codigo_sede?` |
 
 ## Limitacion conocida: `resource` ausente en la tool call (#571)
 
