@@ -55,4 +55,27 @@ public class TenantExecutionContextTests
     public void La_identidad_derivada_se_rechaza_incompleta(string tenantId, string actor)
         => Assert.Throws<ArgumentException>(
             () => TenantExecutionContext.SetDerivedIdentity(tenantId, actor));
+
+    [Fact]
+    public void TryObtener_RetornaFalseConAmbosNulos_CuandoNoHayIdentidadPoblada()
+    {
+        var obtuvo = TenantExecutionContext.TryObtener(out var tenantId, out var userId);
+
+        Assert.False(obtuvo);
+        Assert.Null(tenantId);
+        Assert.Null(userId);
+    }
+
+    [Fact]
+    public async Task TryObtener_RetornaTrueConLosValoresPoblados_CuandoLaIdentidadYaSeEstablecio()
+    {
+        TenantExecutionContext.SetDerivedIdentity("tenant-C", "user-C");
+
+        await Task.Yield();
+        var obtuvo = TenantExecutionContext.TryObtener(out var tenantId, out var userId);
+
+        Assert.True(obtuvo);
+        Assert.Equal("tenant-C", tenantId);
+        Assert.Equal("user-C", userId);
+    }
 }

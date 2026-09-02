@@ -46,6 +46,9 @@ builder.Services.AddSingleton<IValidadorTokenAuthKit, ValidadorTokenAuthKit>();
 // desviacion documentada en el resumen del pipeline (seguimiento harness#797).
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
+builder.Services.AddSingleton<IDerivadorIdentidadTenantMcp, DerivadorIdentidadTenantMcp>();
+builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
+
 builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
     builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));
 // Transient, no Singleton: HttpClientFactory desecha la cadena de handlers cada vez que rota el

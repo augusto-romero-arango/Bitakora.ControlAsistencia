@@ -9,10 +9,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- Cero ProjectReference (CA-1 del issue #502): este servidor es un cliente HTTP puro de los
-       Function Apps del BC. Los contratos upstream se redeclaran en Infraestructura/ como quinta
-       isla, al estilo de las tres islas de eventos (CA-ADR-0029): la verdad viaja en el JSON del
-       endpoint, no en un tipo compartido. -->
+  <!-- Cero ProjectReference hacia un Function App de dominio o un ensamblado de evento (CA-1 del
+       issue #502, MEF-ADR-0047 decision 3): este servidor es un cliente HTTP puro de los Function
+       Apps del BC. Los contratos upstream se redeclaran en Infraestructura/ como quinta isla, al
+       estilo de las tres islas de eventos (CA-ADR-0029): la verdad viaja en el JSON del endpoint,
+       no en un tipo compartido. Excepcion deliberada mas abajo: TenantResolver (issue #540) es
+       infraestructura transversal de identidad, no codigo de dominio, segundo consumidor de la
+       misma libreria que ya usan los Function Apps, reuso legitimo. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.8.1" />
@@ -32,6 +35,11 @@
        tests, no superficie publica del servidor. Mismo patron InternalsVisibleTo que Sedes. -->
   <ItemGroup>
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Mcp.Consultas.Tests" />
+  </ItemGroup>
+
+  <!-- Unica excepcion al "cero ProjectReference" de arriba: ver comentario junto a FrameworkReference. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.TenantResolver\Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </ItemGroup>
 
   <ItemGroup>

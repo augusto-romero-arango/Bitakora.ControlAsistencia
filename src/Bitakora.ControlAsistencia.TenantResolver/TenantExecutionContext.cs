@@ -73,6 +73,26 @@ public sealed class TenantExecutionContext : ITenantResolver
 
     public string UserId => AssertValue(_userId.Value, "usuario");
 
+    /// <summary>
+    /// Version sin lanzar de los getters, para un consumidor que decide entre la identidad ambiente
+    /// y un fallback propio sin usar <see cref="InvalidOperationException"/> como control de flujo.
+    /// Retorna <c>false</c> si cualquiera de los dos valores no esta poblado; en ese caso ambos out
+    /// quedan en <c>null</c>, nunca uno poblado y el otro no.
+    /// </summary>
+    public static bool TryObtener(out string? tenantId, out string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(_tenantId.Value) || string.IsNullOrWhiteSpace(_userId.Value))
+        {
+            tenantId = null;
+            userId = null;
+            return false;
+        }
+
+        tenantId = _tenantId.Value;
+        userId = _userId.Value;
+        return true;
+    }
+
     private static string AssertValue(string? value, string contextField)
         => string.IsNullOrWhiteSpace(value)
             ? throw new InvalidOperationException(
