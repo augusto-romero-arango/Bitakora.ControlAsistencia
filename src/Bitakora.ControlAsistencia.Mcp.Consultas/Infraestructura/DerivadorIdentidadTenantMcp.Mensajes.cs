@@ -11,5 +11,7 @@ public sealed partial class DerivadorIdentidadTenantMcp
     internal static class Mensajes
     {
         public static string OrganizacionAusente => ResourceManager.GetString(nameof(OrganizacionAusente))!;
+
+        public static string UsuarioAusente => ResourceManager.GetString(nameof(UsuarioAusente))!;
     }
 }

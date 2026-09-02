@@ -6,8 +6,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests.Soporte;
 /// <summary>
 /// Fake manual (nunca NSubstitute) de <see cref="IDerivadorIdentidadTenantMcp"/>: aisla
 /// <c>IdentidadTenantMcpMiddleware</c> de la traduccion real de claims, ya cubierta por
-/// <c>DerivadorIdentidadTenantMcpTests</c> -- mismo patron de "handler falso, sin red real" que
-/// <see cref="ValidadorTokenFalso"/> aplica al validador.
+/// <c>DerivadorIdentidadTenantMcpTests</c>.
 /// </summary>
 public sealed class DerivadorIdentidadTenantMcpFalso : IDerivadorIdentidadTenantMcp
 {

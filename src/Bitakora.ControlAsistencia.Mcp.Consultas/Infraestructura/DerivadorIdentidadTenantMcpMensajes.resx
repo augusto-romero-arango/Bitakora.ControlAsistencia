@@ -23,4 +23,7 @@
   <data name="OrganizacionAusente" xml:space="preserve">
     <value>El usuario autenticado no pertenece a ninguna organizacion de WorkOS (claim org_id ausente); no es posible determinar el tenant</value>
   </data>
+  <data name="UsuarioAusente" xml:space="preserve">
+    <value>El token del usuario autenticado no identifica al usuario (claim sub ausente); no es posible determinar la identidad de la llamada</value>
+  </data>
 </root>

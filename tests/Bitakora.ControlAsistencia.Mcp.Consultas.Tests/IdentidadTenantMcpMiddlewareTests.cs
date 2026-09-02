@@ -2,48 +2,44 @@ using System.Security.Claims;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Tests.Soporte;
-using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 
-// CA-1/CA-2/CA-3 (issue #540): nucleo testable de IdentidadTenantMcpMiddleware
-// (PoblarIdentidadAmbienteAsync opera sobre el encabezado Authorization ya extraido, nunca sobre
-// FunctionContext/ToolInvocationContext -- inalcanzables en un unit test, mismo limite que
-// MEF-ADR-0048 seccion 1 documenta para tools/list). El validador y el derivador se fakean para
-// aislar la orquestacion del middleware de su criptografia (ValidadorTokenAuthKitTests) y de su
-// traduccion de claims (DerivadorIdentidadTenantMcpTests).
+// Nucleo testable de IdentidadTenantMcpMiddleware: DerivarIdentidadAsync opera sobre el encabezado
+// Authorization ya extraido, porque FunctionContext/ToolInvocationContext no son instanciables en un
+// unit test (MEF-ADR-0048 seccion 1). El validador y el derivador se fakean para aislar la
+// orquestacion de la criptografia (ValidadorTokenAuthKitTests) y de la traduccion de claims
+// (DerivadorIdentidadTenantMcpTests).
 public class IdentidadTenantMcpMiddlewareTests
 {
     private static ClaimsPrincipal PrincipalDeEjemplo =>
         new(new ClaimsIdentity([new Claim("sub", "usuario_123")]));
 
     [Fact]
-    public async Task PoblarIdentidadAmbiente_EstableceLaIdentidadDelToken_CuandoElBearerTraeOrganizacion()
+    public async Task DerivarIdentidad_RetornaLaIdentidadDelToken_CuandoElBearerTraeOrganizacion()
     {
         var identidadEsperada = new IdentidadTenant("org_acme", "usuario_123");
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueAutoriza(PrincipalDeEjemplo),
             DerivadorIdentidadTenantMcpFalso.QueDeriva(identidadEsperada));
 
-        await middleware.PoblarIdentidadAmbienteAsync(
+        var identidad = await middleware.DerivarIdentidadAsync(
             $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-valido",
             TestContext.Current.CancellationToken);
 
-        TenantExecutionContext.TryObtener(out var tenantId, out var userId).Should().BeTrue();
-        tenantId.Should().Be("org_acme");
-        userId.Should().Be("usuario_123");
+        identidad.Should().Be(identidadEsperada);
     }
 
     [Fact]
-    public async Task PoblarIdentidadAmbiente_PropagaElRechazoDelDerivador_CuandoElUsuarioNoTieneOrganizacion()
+    public async Task DerivarIdentidad_PropagaElRechazoDelDerivador_CuandoElUsuarioNoTieneOrganizacion()
     {
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueAutoriza(PrincipalDeEjemplo),
             DerivadorIdentidadTenantMcpFalso.QueFalla(
                 new InvalidOperationException(DerivadorIdentidadTenantMcp.Mensajes.OrganizacionAusente)));
 
-        var act = async () => await middleware.PoblarIdentidadAmbienteAsync(
+        var act = async () => await middleware.DerivarIdentidadAsync(
             $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-sin-org",
             TestContext.Current.CancellationToken);
 
@@ -51,16 +47,18 @@ public class IdentidadTenantMcpMiddlewareTests
             .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.OrganizacionAusente}*");
     }
 
+    // Sin identidad derivada el middleware no puebla el ambiente, y el propagador cae al tenant fijo
+    // interino de ConfiguracionIdentidadTenant (llamada directa con system key: smoke, local).
     [Fact]
-    public async Task PoblarIdentidadAmbiente_NoTocaElAmbiente_CuandoNoHayBearer()
+    public async Task DerivarIdentidad_NoDerivaNinguna_CuandoNoHayBearer()
     {
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueFalla(new SecurityTokenException("no deberia invocarse sin Bearer")),
             DerivadorIdentidadTenantMcpFalso.QueFalla(
                 new InvalidOperationException("no deberia invocarse sin Bearer")));
 
-        await middleware.PoblarIdentidadAmbienteAsync(null, TestContext.Current.CancellationToken);
+        var identidad = await middleware.DerivarIdentidadAsync(null, TestContext.Current.CancellationToken);
 
-        TenantExecutionContext.TryObtener(out _, out _).Should().BeFalse();
+        identidad.Should().BeNull();
     }
 }

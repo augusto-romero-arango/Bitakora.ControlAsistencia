@@ -7,12 +7,11 @@ public interface IDerivadorIdentidadTenantMcp
     IdentidadTenant Derivar(ClaimsPrincipal principal);
 }
 
-// Traduce el ClaimsPrincipal que IValidadorTokenAuthKit ya valido (issuer+firma+expiracion,
-// issue #554) a la identidad de tenant real del usuario MCP (issue #540): org_id (claim de
-// organizacion de WorkOS Connect, elegida por el usuario al autorizar -- workos.com/docs/authkit/
-// connect/oauth, "Organization Access") -> TenantId; sub -> UserId. CA-2: sin org_id el usuario no
-// pertenece a ninguna organizacion -- rechazo explicito con mensaje .resx, nunca un fallback
-// silencioso al tenant fijo de ConfiguracionIdentidadTenant ni a un tenant vacio.
+// Traduce a IdentidadTenant el ClaimsPrincipal que IValidadorTokenAuthKit ya valido: org_id (la
+// organizacion que el usuario elige al autorizar en WorkOS Connect -- workos.com/docs/authkit/
+// connect/oauth, "Organization Access") -> TenantId; sub -> UserId. Ninguno de los dos admite
+// fallback: sin organizacion o sin usuario no hay tenant que derivar, y caer al tenant fijo de
+// ConfiguracionIdentidadTenant daria acceso a datos de otra empresa.
 public sealed partial class DerivadorIdentidadTenantMcp : IDerivadorIdentidadTenantMcp
 {
     internal const string ClaimOrganizacion = "org_id";
@@ -25,6 +24,9 @@ public sealed partial class DerivadorIdentidadTenantMcp : IDerivadorIdentidadTen
             throw new InvalidOperationException(Mensajes.OrganizacionAusente);
 
         var usuario = principal.FindFirstValue(ClaimUsuario);
-        return new IdentidadTenant(organizacion, usuario!);
+        if (string.IsNullOrWhiteSpace(usuario))
+            throw new InvalidOperationException(Mensajes.UsuarioAusente);
+
+        return new IdentidadTenant(organizacion, usuario);
     }
 }

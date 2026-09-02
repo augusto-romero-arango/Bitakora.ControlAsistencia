@@ -46,9 +46,6 @@ builder.Services.AddSingleton<IValidadorTokenAuthKit, ValidadorTokenAuthKit>();
 // desviacion documentada en el resumen del pipeline (seguimiento harness#797).
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
-// Deriva la identidad real del usuario MCP del Bearer de AuthKit y la puebla en el ambiente
-// (issue #540): PropagadorIdentidadTenantHandler la prefiere sobre el tenant fijo interino de
-// ConfiguracionIdentidadTenant.
 builder.Services.AddSingleton<IDerivadorIdentidadTenantMcp, DerivadorIdentidadTenantMcp>();
 builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
 

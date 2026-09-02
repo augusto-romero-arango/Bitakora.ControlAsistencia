@@ -56,9 +56,6 @@ public class TenantExecutionContextTests
         => Assert.Throws<ArgumentException>(
             () => TenantExecutionContext.SetDerivedIdentity(tenantId, actor));
 
-    // Segundo consumidor (issue #540): PropagadorIdentidadTenantHandler del servidor MCP debe poder
-    // preguntar si hay identidad ambiente sin capturar la InvalidOperationException de los getters
-    // como control de flujo.
     [Fact]
     public void TryObtener_RetornaFalseConAmbosNulos_CuandoNoHayIdentidadPoblada()
     {

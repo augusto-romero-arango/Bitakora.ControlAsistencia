@@ -4,8 +4,7 @@ using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 
-// CA-1/CA-2 (issue #540): traduccion claims -> IdentidadTenant real del usuario MCP. El
-// ClaimsPrincipal ya llega validado (issuer+firma+expiracion) por IValidadorTokenAuthKit -- este
+// El ClaimsPrincipal llega ya validado (issuer+firma+expiracion) por IValidadorTokenAuthKit: este
 // derivador no revalida nada, solo traduce org_id/sub.
 public class DerivadorIdentidadTenantMcpTests
 {
@@ -40,5 +39,19 @@ public class DerivadorIdentidadTenantMcpTests
 
         act.Should().ThrowExactly<InvalidOperationException>()
             .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.OrganizacionAusente}*");
+    }
+
+    // Un token sin sub (por ejemplo uno de maquina a maquina) no identifica usuario: rechazo
+    // explicito en vez de un X-User-Id vacio aguas abajo.
+    [Fact]
+    public void Derivar_LanzaInvalidOperationException_CuandoFaltaSub()
+    {
+        var derivador = new DerivadorIdentidadTenantMcp();
+        var principal = PrincipalCon("org_acme", null);
+
+        var act = () => derivador.Derivar(principal);
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.UsuarioAusente}*");
     }
 }

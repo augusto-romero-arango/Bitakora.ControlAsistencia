@@ -3,10 +3,11 @@ using Bitakora.ControlAsistencia.TenantResolver;
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 /// <summary>
-/// Estampa X-Tenant-Id/X-User-Id en toda request saliente hacia una Function App del BC. Prefiere
-/// la identidad ambiente que <see cref="IdentidadTenantMcpMiddleware"/> deriva del token del usuario
-/// autenticado (issue #540); si ninguna tool call la poblo (llamada directa con system key: smoke,
-/// desarrollo local), cae al tenant fijo interino de <see cref="ConfiguracionIdentidadTenant"/>.
+/// Estampa X-Tenant-Id/X-User-Id (MEF-ADR-0028 seccion 4) en toda request saliente hacia una
+/// Function App del BC. Prefiere la identidad ambiente que <see cref="IdentidadTenantMcpMiddleware"/>
+/// deriva del token del usuario autenticado; si ninguna tool call la poblo (llamada directa con
+/// system key: smoke, desarrollo local), cae al tenant fijo interino de
+/// <see cref="ConfiguracionIdentidadTenant"/>.
 /// </summary>
 public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) : DelegatingHandler
 {

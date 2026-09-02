@@ -74,13 +74,10 @@ public sealed class TenantExecutionContext : ITenantResolver
     public string UserId => AssertValue(_userId.Value, "usuario");
 
     /// <summary>
-    /// Version sin lanzar de los getters, para un consumidor que debe decidir entre la identidad
-    /// ambiente y un fallback propio sin usar <see cref="InvalidOperationException"/> como control
-    /// de flujo (segundo consumidor: <c>PropagadorIdentidadTenantHandler</c> del servidor MCP,
-    /// issue #540 -- prefiere la identidad ambiente derivada del token y cae al tenant fijo de
-    /// <c>ConfiguracionIdentidadTenant</c> solo cuando esta no esta poblada). Retorna
-    /// <c>false</c> si cualquiera de los dos valores no esta poblado; en ese caso ambos out quedan
-    /// en <c>null</c>, nunca uno poblado y el otro no.
+    /// Version sin lanzar de los getters, para un consumidor que decide entre la identidad ambiente
+    /// y un fallback propio sin usar <see cref="InvalidOperationException"/> como control de flujo.
+    /// Retorna <c>false</c> si cualquiera de los dos valores no esta poblado; en ese caso ambos out
+    /// quedan en <c>null</c>, nunca uno poblado y el otro no.
     /// </summary>
     public static bool TryObtener(out string? tenantId, out string? userId)
     {
