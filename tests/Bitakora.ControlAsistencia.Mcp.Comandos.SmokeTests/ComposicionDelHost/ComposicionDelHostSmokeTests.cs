@@ -7,12 +7,12 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLaToolRegistrarSede_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaElCatalogoDeTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
-        tools.Select(t => t.Name).Should().ContainSingle().Which.Should().Be("registrar_sede");
+        tools.Select(t => t.Name).Should().BeEquivalentTo("registrar_sede", "registrar_colaborador");
     }
 
     [Fact]
@@ -27,6 +27,22 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             .EnumerateArray().Select(e => e.GetString());
 
         requeridas.Should().BeEquivalentTo("codigo", "nombre");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RegistrarColaborador_DeclaraLosSeisRequeridos_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "registrar_colaborador");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo(
+            "tipo_identificacion", "numero_identificacion", "primer_nombre",
+            "primer_apellido", "codigo_colaborador", "fecha_inicio");
     }
 
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations

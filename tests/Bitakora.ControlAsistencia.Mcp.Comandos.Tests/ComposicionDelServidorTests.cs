@@ -1,5 +1,6 @@
 using System.Reflection;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarColaborador;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -19,12 +20,12 @@ public class ComposicionDelServidorTests
             .FirstOrDefault(p => p.GetCustomAttribute<McpToolTriggerAttribute>() is not null);
 
     [Fact]
-    public void ServidorMcp_ExponeLaToolRegistrarSede_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeElCatalogoDeTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
 
-        nombres.Should().ContainSingle().Which.Should().Be(RegistrarSedeTool.NombreTool);
+        nombres.Should().BeEquivalentTo(RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool);
     }
 
     [Fact]
@@ -81,5 +82,29 @@ public class ComposicionDelServidorTests
             ("nombre", true),
             ("ciudad", false),
             ("direccion", false));
+    }
+
+    [Fact]
+    public void RegistrarColaborador_DeclaraSeisRequeridosYTresOpcionales_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == RegistrarColaboradorTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("tipo_identificacion", true),
+            ("numero_identificacion", true),
+            ("primer_nombre", true),
+            ("segundo_nombre", false),
+            ("primer_apellido", true),
+            ("segundo_apellido", false),
+            ("codigo_colaborador", true),
+            ("fecha_inicio", true),
+            ("codigo_sede", false));
     }
 }
