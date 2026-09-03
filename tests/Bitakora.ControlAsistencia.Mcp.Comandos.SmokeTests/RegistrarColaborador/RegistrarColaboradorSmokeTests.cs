@@ -8,9 +8,10 @@ public class RegistrarColaboradorSmokeTests(McpFixture mcp)
 {
     // Identificacion y codigo unicos por invocacion: la identidad del stream es
     // Identificacion.ToString() ("CC-<numero>"), asi que reusar un numero fijo chocaria con 409 en
-    // la segunda corrida. Mismo oraculo que RegistrarColaboradorSmokeTests de Colaboradores
-    // (Guid.CreateVersion7 formato "N" en mayusculas: alfanumerico ASCII, sobrevive intacto a la
-    // limpieza del numero que hace el dominio). Residuo inofensivo en tenant-smoke (precedente #547).
+    // la segunda corrida. Formato "N" en mayusculas (issue #586): el assert de numero_identificacion
+    // de abajo confirma que ArgumentosCrudosMcpMiddleware devuelve el texto exacto enviado, sin la
+    // coercion a Guid formato "D" minusculas que aplica DictionaryStringObjectJsonConverter
+    // (Azure/azure-functions-mcp-extension#129). Residuo inofensivo en tenant-smoke (precedente #547).
     private static Dictionary<string, object?> ArgumentosValidos(string fechaInicio = "2026-09-01") => new()
     {
         ["tipo_identificacion"] = "CC",
@@ -30,6 +31,7 @@ public class RegistrarColaboradorSmokeTests(McpFixture mcp)
         var ct = TestContext.Current.CancellationToken;
         var argumentos = ArgumentosValidos();
         var codigo = (string)argumentos["codigo_colaborador"]!;
+        var numeroIdentificacion = (string)argumentos["numero_identificacion"]!;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "registrar_colaborador", argumentos, cancellationToken: ct);
@@ -38,6 +40,10 @@ public class RegistrarColaboradorSmokeTests(McpFixture mcp)
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
 
         texto.Should().Contain(codigo);
+        // CA-1 (issue #586): el eco trae numero_identificacion EXACTAMENTE como se envio (GUID "N"
+        // mayusculas) -- si el middleware no restaura el texto original, la tool recibe el Guid ya
+        // coercionado a formato "D" minusculas y este assert no encuentra el texto.
+        texto.Should().Contain(numeroIdentificacion);
     }
 
     // CA-2 end-to-end: el 409 del dominio (ColaboradorYaRegistrado) tiene que llegar al asistente
