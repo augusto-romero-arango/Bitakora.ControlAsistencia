@@ -1,3 +1,9 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -16,6 +22,9 @@ public partial class SolicitarProgramacionTurnoTool(
     internal const string NombreTool = "solicitar_programacion_turno";
     internal const int MaximoIdentificaciones = 200;
     internal const int PostsSimultaneos = 8;
+    private const int MaximoTurnosEnMensaje = 20;
+
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     [Function("SolicitarProgramacionTurno")]
     public async Task<string> Run(
@@ -65,8 +74,137 @@ public partial class SolicitarProgramacionTurnoTool(
         string identificaciones,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(desde))
+            return string.Format(Mensajes.CampoObligatorio, "desde");
+        if (string.IsNullOrWhiteSpace(hasta))
+            return string.Format(Mensajes.CampoObligatorio, "hasta");
+        if (string.IsNullOrWhiteSpace(turno))
+            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (string.IsNullOrWhiteSpace(sedeDeProgramacion))
+            return string.Format(Mensajes.CampoObligatorio, "sede_de_programacion");
+        if (string.IsNullOrWhiteSpace(identificaciones))
+            return string.Format(Mensajes.CampoObligatorio, "identificaciones");
+
+        var identificacionesSolicitadas = identificaciones
+            .Split(',')
+            .Select(i => i.Trim())
+            .Where(i => i.Length > 0)
+            .ToList();
+        if (identificacionesSolicitadas.Count == 0)
+            return string.Format(Mensajes.CampoObligatorio, "identificaciones");
+        if (identificacionesSolicitadas.Count > MaximoIdentificaciones)
+            return string.Format(Mensajes.DemasiadasIdentificaciones, MaximoIdentificaciones);
+
+        if (!DateOnly.TryParseExact(
+            desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaDesde))
+            return string.Format(Mensajes.FechaInvalida, "desde", desde);
+        if (!DateOnly.TryParseExact(
+            hasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaHasta))
+            return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
+
+        // La ventana formatea su propio mensaje con el conteo de dias (no publico en el VO: su
+        // Crear solo asegura el invariante, MEF-ADR-0012) antes de delegarle la construccion.
+        if (fechaDesde > fechaHasta)
+            return Mensajes.VentanaInvertida;
+
+        var diasVentana = (fechaHasta.DayNumber - fechaDesde.DayNumber) + 1;
+        if (diasVentana > VentanaDeProgramacion.MaximoDias)
+            return string.Format(Mensajes.VentanaExcedeMaximo, diasVentana);
+
+        var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
+
+        var respuestaTurnos = await programacion.ListarTurnos(ct);
+        var catalogo = await respuestaTurnos.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
+        var turnoNormalizado = NormalizarNombre(turno);
+        var fichaTurno = catalogo.FirstOrDefault(f => NormalizarNombre(f.Nombre) == turnoNormalizado);
+        if (fichaTurno is null)
+            return string.Format(
+                Mensajes.TurnoNoExiste,
+                turno,
+                string.Join(", ", catalogo.Select(f => f.Nombre).Take(MaximoTurnosEnMensaje)));
+
+        var respuestaSede = await sedes.ObtenerFicha(sedeDeProgramacion, ct);
+        if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
+            return string.Format(Mensajes.SedeNoExiste, sedeDeProgramacion);
+        var fichaSede = (await respuestaSede.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
+        if (!fichaSede.Activa)
+            return string.Format(Mensajes.SedeInactiva, sedeDeProgramacion);
+
+        var respuestaDirectorio = await colaboradores.BuscarEnDirectorio(
+            identificacionesSolicitadas, MaximoIdentificaciones, ct);
+        var directorio = await respuestaDirectorio.Content.ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
+
+        var identificacionesNormalizadas = identificacionesSolicitadas
+            .Select(i => i.ToUpperInvariant())
+            .ToHashSet();
+
+        var candidatos = directorio
+            .Where(entrada => identificacionesNormalizadas.Contains(entrada.Identificacion.Trim().ToUpperInvariant()))
+            .Select(entrada => (
+                Entrada: entrada,
+                Dias: ventana.DiasCubiertosPor(entrada.VigenteDesde, entrada.VigenteHasta)))
+            .Where(candidato => candidato.Dias.Count > 0)
+            .ToList();
+
+        var omitidos = identificacionesSolicitadas.Count - candidatos.Count;
+        var turnoId = Guid.Parse(fichaTurno.Id);
+        var sedeProgramada = new SedeProgramada(fichaSede.Codigo, fichaSede.Nombre, fichaSede.CentroDeCostos);
+
+        var programados = new ConcurrentBag<ColaboradorProgramadoResumen>();
+        var fallidos = new ConcurrentBag<ColaboradorFallidoResumen>();
+
+        await Parallel.ForEachAsync(
+            candidatos,
+            new ParallelOptions { MaxDegreeOfParallelism = PostsSimultaneos, CancellationToken = ct },
+            async (candidato, tokenInterno) =>
+            {
+                var solicitud = new SolicitudProgramacionTurno(
+                    Guid.CreateVersion7(),
+                    turnoId,
+                    new ColaboradorSolicitado(
+                        candidato.Entrada.Identificacion,
+                        candidato.Entrada.CodigoColaborador,
+                        candidato.Entrada.NombreCompleto),
+                    candidato.Dias,
+                    sedeProgramada);
+
+                var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
+
+                if (respuestaSolicitud.IsSuccessStatusCode)
+                {
+                    programados.Add(new ColaboradorProgramadoResumen(
+                        candidato.Entrada.Identificacion,
+                        candidato.Entrada.NombreCompleto,
+                        candidato.Entrada.CodigoColaborador,
+                        candidato.Dias[0],
+                        candidato.Dias[^1],
+                        candidato.Dias.Count));
+                }
+                else
+                {
+                    var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
+                    fallidos.Add(new ColaboradorFallidoResumen(candidato.Entrada.Identificacion, motivo));
+                }
+            });
+
+        return RespuestaJson.Serializar(new ProgramacionSolicitadaResumen(
+            Mensajes.ResultadoProgramacionSolicitada,
+            fichaTurno.Nombre,
+            new SedeResumen(fichaSede.Codigo, fichaSede.Nombre),
+            ventana.ToString(),
+            [.. programados],
+            omitidos,
+            fallidos.IsEmpty ? null : [.. fallidos],
+            Mensajes.NotaVisibilidadEventual));
     }
+
+    // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): esta tool
+    // cruza de Mcp.Comandos hacia Programacion, sin ensamblado compartido entre ambos.
+    private static string NormalizarNombre(string nombre) =>
+        EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex EspaciosConsecutivos();
 }
 
 /// <summary>
