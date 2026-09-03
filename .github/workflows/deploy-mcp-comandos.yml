@@ -180,14 +180,30 @@ jobs:
   # (unico consumidor hasta ahora), por eso los cuatro inputs de abajo se pasan EXPLICITOS: sin
   # ellos este job desplegaria smoke tests contra la app equivocada.
   #
-  # Issue #573 agrego la primera siembra e2e real (registrar_sede con codigo TEST-{Guid v7}), pero
-  # la tool persiste en el event store de tenant-smoke sin publicar ni consumir Service Bus
-  # (SedeRegistrada no cruza el bus, CA-ADR-0030): sigue sin competir por la suscripcion
-  # 'smoke-tests' que motiva el grupo 'smoke-tests-dev' (smoke-tests-mcp.yml). Si una tool futura
-  # de este servidor SI publica/consume Service Bus, ese issue reevalua meter esta suite al grupo.
+  # A diferencia de deploy-mcp-consultas.yml, este job SI entra al grupo de concurrencia
+  # 'smoke-tests-dev' (issue #592, MEF-ADR-0048 seccion 5): la tool 'solicitar_programacion_turno'
+  # (#589) publica ProgramacionTurnoDiarioSolicitada hacia ControlHoras por Service Bus en cada
+  # 'POST programacion/solicitudes', y su smoke real lo dispara en dev -- compite por la misma
+  # suscripcion compartida 'smoke-tests' que las suites de dominio (mismo motivo que documenta
+  # smoke-tests-dominio.yml, no uno nuevo). deploy-mcp-consultas.yml NO entra: su suite sigue
+  # siendo de solo lectura (tools/list + error paths), no publica ni consume Service Bus
+  # (MEF-ADR-0048 seccion 5).
+  #
+  # El reusable smoke-tests-mcp.yml NO declara 'concurrency' (a diferencia de
+  # smoke-tests-dominio.yml, que lo declara a nivel de workflow con 'queue: max') porque hoy solo
+  # este caller lo necesita -- deploy-mcp-consultas.yml sigue sin el grupo. Por eso se declara
+  # aqui, a nivel de JOB: un job 'uses:' admite 'concurrency' igual que cualquier otro job.
   smoke-tests:
     needs: [determinar-alcance, deploy]
     if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    # queue: max (ver razonamiento completo en smoke-tests-dominio.yml) -- el default
+    # 'queue: single' cancelaria una corrida pendiente de este job si llega una segunda antes de
+    # que la suscripcion compartida libere turno; 'max' la deja en cola en vez de reportarla
+    # 'cancelled'. No combinable con 'cancel-in-progress: true'.
+    concurrency:
+      group: smoke-tests-dev
+      cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       # El reusable declara 'id-token: write' para el azure/login del listkeys, pero un workflow
