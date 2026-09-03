@@ -145,6 +145,21 @@ public static class ConfiguracionMartenProjectionsColaboradores
                     .Index(x => x.EtiquetasNormalizadas, i => i.Method = IndexMethod.gin)
                     .Index(x => x.VigenteHasta)
                     .Index(x => x.NombreCompleto);
+
+                // Tercera proyeccion del dominio -- DirectorioColaborador, N1 sobre el MISMO
+                // stream del colaborador que FichaColaboradorProjection. Lifecycle Async, el
+                // canonico del worker (MEF-ADR-0034 seccion 3).
+                opts.Projections.Add<DirectorioColaboradorProjection>(ProjectionLifecycle.Async);
+
+                // Indices del futuro QUERY del directorio: btree sobre NumeroDocumento (filtro
+                // por numero suelto), GIN sobre TokensNombre (containment "contiene todos estos
+                // tokens", mismo criterio que el GIN de EtiquetasNormalizadas de arriba) y btree
+                // sobre NombreCompleto (ORDER BY del listado). Ningun EXPLAIN los verifica
+                // todavia: eso llega con el endpoint que los consuma.
+                opts.Schema.For<DirectorioColaborador>()
+                    .Index(x => x.NumeroDocumento)
+                    .Index(x => x.TokensNombre, i => i.Method = IndexMethod.gin)
+                    .Index(x => x.NombreCompleto);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,

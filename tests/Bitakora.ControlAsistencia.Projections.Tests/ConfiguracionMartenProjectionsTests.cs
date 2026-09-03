@@ -699,6 +699,83 @@ public class ConfiguracionMartenProjectionsTests
         mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "nombre", "completo"));
     }
 
+    // Complementa ConfigurarColaboradores_NoRegistraNingunaProyeccionInline: aquella prueba que
+    // NADA quedo Inline, esta que la proyeccion CONCRETA se registro con lifecycle Async.
+    [Fact]
+    public void ConfigurarColaboradores_RegistraDirectorioColaboradorProjectionComoAsync()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("DirectorioColaborador");
+    }
+
+    // Marten aplica ProjectionDocumentPolicy (mt_version bigint) SOLO a los documentos target de
+    // una proyeccion REGISTRADA en el store: si DirectorioColaboradorProjection dejara de
+    // registrarse arriba, este mapping caeria al default y este test se pondria rojo.
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Mitad worker del par espejo write-side/read-side (MEF-ADR-0034 seccion 6): congela el
+    // literal de tabla/tenancy/id que el Function App debera replicar cuando consulte esta vista --
+    // la otra mitad nace con el endpoint que la lea.
+    [Fact]
+    public void ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_directoriocolaborador");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(DirectorioColaborador.Id));
+    }
+
+    [Fact]
+    public void ConfigurarColaboradores_DeclaraUnIndiceSobreNumeroDocumentoDeDirectorioColaborador()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "numero", "documento"));
+    }
+
+    [Fact]
+    public void ConfigurarColaboradores_DeclaraIndiceGinSobreTokensNombreDeDirectorioColaborador()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.Indexes.Should().Contain(indice =>
+            indice.Method == IndexMethod.gin && IndiceMencionaCampo(indice, "tokens", "nombre"));
+    }
+
+    [Fact]
+    public void ConfigurarColaboradores_DeclaraUnIndiceSobreNombreCompletoDeDirectorioColaborador()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        var mapping = provider.GetRequiredService<IColaboradoresProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "nombre", "completo"));
+    }
+
     // --- Sedes (issue #455: el named store nace con el andamiaje del dominio, sin proyecciones) ---
 
     // Mismas guardas que los demas dominios: son las que fijan la forma del named store ANTES de
