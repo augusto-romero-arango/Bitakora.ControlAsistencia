@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
@@ -10,6 +12,13 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 public sealed class ColaboradoresApi(HttpClient http)
 {
     private static readonly HttpMethod Query = new("QUERY");
+
+    // Criterios ausentes (nombre/identificaciones) no deben viajar como null en el body: el
+    // endpoint upstream distingue "campo ausente" de "campo null" (#590).
+    private static readonly JsonSerializerOptions OpcionesSinNulls = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public Task<HttpResponseMessage> ListarFichas(
         DateOnly fechaReferencia,
@@ -40,12 +49,14 @@ public sealed class ColaboradoresApi(HttpClient http)
     {
         var request = new HttpRequestMessage(Query, "api/colaboradores/directorio")
         {
-            Content = JsonContent.Create(new
-            {
-                identificaciones = identificaciones is { Count: > 0 } ? identificaciones : null,
-                nombre,
-                take
-            })
+            Content = JsonContent.Create(
+                new
+                {
+                    identificaciones = identificaciones is { Count: > 0 } ? identificaciones : null,
+                    nombre,
+                    take
+                },
+                options: OpcionesSinNulls)
         };
 
         return http.SendAsync(request, ct);
