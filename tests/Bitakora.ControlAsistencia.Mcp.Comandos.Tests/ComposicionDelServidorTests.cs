@@ -2,6 +2,7 @@ using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarColaborador;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
+using Bitakora.ControlAsistencia.Mcp.Comandos.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
@@ -25,7 +26,8 @@ public class ComposicionDelServidorTests
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
 
-        nombres.Should().BeEquivalentTo(RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool);
+        nombres.Should().BeEquivalentTo(
+            RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool, SolicitarProgramacionTurnoTool.NombreTool);
     }
 
     [Fact]
@@ -106,5 +108,25 @@ public class ComposicionDelServidorTests
             ("codigo_colaborador", true),
             ("fecha_inicio", true),
             ("codigo_sede", false));
+    }
+
+    [Fact]
+    public void SolicitarProgramacionTurno_DeclaraLosCincoParametrosComoRequeridos_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == SolicitarProgramacionTurnoTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("desde", true),
+            ("hasta", true),
+            ("turno", true),
+            ("sede_de_programacion", true),
+            ("identificaciones", true));
     }
 }

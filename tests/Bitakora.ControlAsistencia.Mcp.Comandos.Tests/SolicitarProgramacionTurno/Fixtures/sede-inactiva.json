@@ -1,0 +1,10 @@
+{
+  "id": "s:suba",
+  "codigo": "SUBA",
+  "nombre": "Sede Suba",
+  "ciudad": "Bogota",
+  "direccion": "Cra 1 # 2-3",
+  "centroDeCostos": "CC-100",
+  "activa": false,
+  "dispositivos": []
+}

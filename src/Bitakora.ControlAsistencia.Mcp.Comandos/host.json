@@ -12,7 +12,7 @@
         "mcp": {
             "serverName": "ControlAsistencias Comandos",
             "serverVersion": "1.0.0",
-            "instructions": "Servidor MCP de comandos (escritura) del bounded context ControlAsistencias. Hoy expone el registro de sedes (lugares de trabajo) con registrar_sede y el registro de colaboradores con registrar_colaborador. Cada tool registra un hecho de negocio en el BC y, cuando el dominio lo rechaza, devuelve ese rechazo como texto. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
+            "instructions": "Servidor MCP de comandos (escritura) del bounded context ControlAsistencias. Hoy expone el registro de sedes (lugares de trabajo) con registrar_sede, el registro de colaboradores con registrar_colaborador y la programacion de un turno a una lista de colaboradores con solicitar_programacion_turno. En solicitar_programacion_turno la sede de programacion (donde se registra la programacion) no es la sede de trabajo del colaborador: pidesela siempre al usuario. Cada tool registra un hecho de negocio en el BC y, cuando el dominio lo rechaza, devuelve ese rechazo como texto. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
         }
     }
 }
