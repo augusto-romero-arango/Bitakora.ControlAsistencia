@@ -34,6 +34,7 @@ using Wolverine;
 using ObtenerFichaColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador.FunctionEndpoint;
 using ListarFichasColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador.FunctionEndpoint;
 using ListarCategoriasDeEtiquetasEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas.FunctionEndpoint;
+using ListarDirectorioColaboradoresEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarDirectorioColaboradores.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -561,6 +562,76 @@ public class ComposicionServiciosTests
         var opciones = provider.GetRequiredService<IOptions<AzureMonitorExporterOptions>>().Value;
 
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
+    }
+
+    // Issue #590 (projection-test-writer): test de composicion de la TERCERA Function de lectura
+    // del dominio, hermano del que #373 dejo para ListarFichasColaborador -- misma idea
+    // (MEF-ADR-0029/ActivatorUtilities.CreateInstance, sin host real), pero sobre la vista
+    // DirectorioColaborador que #587 materializa. Ninguna proyeccion ni read model nuevos: este
+    // issue consulta la MISMA vista via (a') (session.Query, en vez de LoadAsync por id).
+    //
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // comportamiento de Run (415/400/422, clasificacion de "identificaciones", tokenizacion de
+    // "nombre", paginacion keyset), que cubre FunctionEndpointTests.cs (validacion de borde y forma
+    // de la respuesta) y el smoke test contra dev (CA-6, camino feliz + Marten real).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarDirectorioColaboradores_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarDirectorioColaboradoresEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #590, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
+    // seccion 6) para la TERCERA vista materializada del dominio -- hermano exacto de los
+    // guardrails que #356/#357 dejaron para FichaColaborador/CategoriaDeEtiquetas, cuyo comentario
+    // documenta el gotcha completo de "Numeric Revisioned Documents" y el incidente de dev del
+    // issue #294. El worker registra DirectorioColaboradorProjection (#587) y crea mt_version como
+    // bigint; este Function App SOLO la consulta (ListarDirectorioColaboradores.FunctionEndpoint),
+    // asi que sin la declaracion explicita del lado LECTURA esperaria mt_version uuid sobre la
+    // MISMA tabla fisica y cada request respondería 500 permanente (42804).
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica congela desde el
+    // worker (#587), sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaDirectorioColaborador()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Issue #590, segunda dimension del mismo par 2 sobre DirectorioColaborador (precedente
+    // #356/#357): tabla, tenancy e IdMember tienen que converger entre el worker que materializa y
+    // este Function App que consulta, o el QUERY devuelve coleccion vacia para siempre con el
+    // daemon funcionando. Ningun compilador lo garantiza -- son dos configuraciones de Marten
+    // independientes sobre el mismo schema.
+    //
+    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide
+    // congela desde el worker (#587).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveDirectorioColaboradorSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_directoriocolaborador");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(DirectorioColaborador.Id));
     }
 
     // Issue #515: el seam agrega un PostConfigure que rellena ConnectionString con un valor inerte
