@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 
 /// <summary>
@@ -71,8 +74,46 @@ public sealed record DirectorioColaborador(
     /// que no se referencian entre si: esta proyeccion (al escribir TokensNombre) y el endpoint de
     /// #590 (al leer, para tokenizar el termino de busqueda del cliente).
     /// </summary>
-    public static IReadOnlyList<string> TokenizarNombre(string nombre) =>
-        throw new NotImplementedException();
+    public static IReadOnlyList<string> TokenizarNombre(string nombre)
+    {
+        // Mismo patron que Etiqueta.Normalizar (Colaboradores.DomainEvents): descomponer en FormD,
+        // filtrar las marcas de combinacion (NonSpacingMark) y recomponer en FormC, minusculas
+        // invariantes. Duplicado deliberadamente (MEF-ADR-0018, cruza islas).
+        var normalizado = new string(nombre.Normalize(NormalizationForm.FormD)
+                .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                .ToArray())
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
+
+        var tokens = new List<string>();
+        var tokenActual = new StringBuilder();
+
+        foreach (var caracter in normalizado)
+        {
+            if (char.IsLetterOrDigit(caracter))
+            {
+                tokenActual.Append(caracter);
+                continue;
+            }
+
+            AgregarTokenSiNuevo(tokens, tokenActual);
+        }
+
+        AgregarTokenSiNuevo(tokens, tokenActual);
+
+        return tokens;
+    }
+
+    private static void AgregarTokenSiNuevo(List<string> tokens, StringBuilder tokenActual)
+    {
+        if (tokenActual.Length == 0) return;
+
+        var token = tokenActual.ToString();
+        tokenActual.Clear();
+
+        if (!tokens.Contains(token))
+            tokens.Add(token);
+    }
 
     /// <summary>
     /// Normaliza un numero de documento: conserva solo caracteres ASCII letra/digito, mayusculas
@@ -82,5 +123,8 @@ public sealed record DirectorioColaborador(
     /// #590.
     /// </summary>
     public static string NormalizarNumeroDocumento(string numero) =>
-        throw new NotImplementedException();
+        new string((numero ?? string.Empty)
+            .Where(char.IsAsciiLetterOrDigit)
+            .Select(char.ToUpperInvariant)
+            .ToArray());
 }

@@ -37,34 +37,52 @@ public sealed partial class DirectorioColaboradorProjection
     // -- el resto queda en su forma "vacia" hasta que Apply(VinculacionIniciada) los completa (mismo
     // commit que ColaboradorRegistrado, misma forma que FichaColaboradorProjection.Create).
     public static DirectorioColaborador Create(IEvent<ColaboradorRegistrado> e) =>
-        throw new NotImplementedException();
+        new(
+            e.StreamKey!,
+            e.Data.Identificacion.Tipo.ToString(),
+            DirectorioColaborador.NormalizarNumeroDocumento(e.Data.Identificacion.Numero),
+            e.Data.Nombre.NombreCompleto,
+            DirectorioColaborador.TokenizarNombre(e.Data.Nombre.NombreCompleto),
+            string.Empty,
+            default,
+            DirectorioColaborador.CentinelaVigenciaAbierta);
 
     // CA-1 (segunda mitad) / CA-2: codigo y VigenteDesde nuevos, VigenteHasta al centinela y
     // CodigoSede = e.CodigoSede tal cual -- "reingreso nace limpio" (espejo de
     // FichaColaboradorProjection.Apply(VinculacionIniciada) y de
     // ColaboradorAggregateRoot.Apply(VinculacionIniciada), #520).
     public static DirectorioColaborador Apply(VinculacionIniciada e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            CodigoColaborador = e.Codigo,
+            VigenteDesde = e.FechaInicio,
+            VigenteHasta = DirectorioColaborador.CentinelaVigenciaAbierta,
+            CodigoSede = e.CodigoSede
+        };
 
     // CA-2: VigenteHasta = FechaEfectiva.
     public static DirectorioColaborador Apply(VinculacionTerminada e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { VigenteHasta = e.FechaEfectiva };
 
     // CA-2: reabre -- VigenteHasta vuelve al centinela.
     public static DirectorioColaborador Apply(TerminacionAnulada e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { VigenteHasta = DirectorioColaborador.CentinelaVigenciaAbierta };
 
     // CA-3: reemplaza NombreCompleto Y recalcula TokensNombre (Tell-don't-Ask, MEF-ADR-0012: invoca
     // DirectorioColaborador.TokenizarNombre, ningun algoritmo propio aqui).
     public static DirectorioColaborador Apply(NombresCorregidos e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            NombreCompleto = e.Nombre.NombreCompleto,
+            TokensNombre = DirectorioColaborador.TokenizarNombre(e.Nombre.NombreCompleto)
+        };
 
     // CA-2: reemplaza VigenteDesde.
     public static DirectorioColaborador Apply(FechaInicioVinculacionCorregida e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { VigenteDesde = e.FechaInicio };
 
     // CA-3: reemplaza CodigoSede -- SedeAsignada representa siempre el reemplazo completo de la sede
     // (primera asignacion y reasignacion emiten el mismo evento, sin evento de retiro).
     public static DirectorioColaborador Apply(SedeAsignada e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { CodigoSede = e.CodigoSede };
 }
