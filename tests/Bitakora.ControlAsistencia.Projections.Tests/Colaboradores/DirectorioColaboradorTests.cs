@@ -1,10 +1,5 @@
-// Issue #587 CA-4: unit tests de las estaticas de DirectorioColaborador (TokenizarNombre,
-// NormalizarNumeroDocumento). Viven en Projections.Tests porque no existe proyecto de tests propio
-// de ReadModels (issue #587, "Capas de test esperadas" -- propuesta explicitamente revisable, aqui
-// mantenida). MEF-ADR-0012 (Tell-don't-Ask): la vista expone estos dos metodos porque los usan DOS
-// procesos que no se referencian entre si -- DirectorioColaboradorProjection (al escribir) y el
-// endpoint de #590 (al leer, para tokenizar/normalizar el termino de busqueda del cliente) -- asi
-// que ningun algoritmo de normalizacion se duplica entre ambos.
+// Las estaticas de la vista se testean desde Projections.Tests porque ReadModels es una isla sin
+// referencias de proyecto y no tiene proyecto de tests propio (CA-ADR-0029).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
@@ -13,23 +8,41 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Colaboradores;
 
 public class DirectorioColaboradorTests
 {
-    // Casos literales del issue #587 CA-4: separa por todo caracter que no sea letra ni digito
-    // (espacios, guiones, puntos, corchetes), sin diacriticos, minusculas, sin vacios ni duplicados,
-    // en orden de aparicion.
-    [Theory]
-    [InlineData("Juan Pablo Bermúdez", new[] { "juan", "pablo", "bermudez" })]
-    [InlineData("  María  José ", new[] { "maria", "jose" })]
-    [InlineData("Ana Ana Muñoz", new[] { "ana", "munoz" })]
-    [InlineData("[TEST] García-Márquez", new[] { "test", "garcia", "marquez" })]
-    public void TokenizarNombre_NormalizaSeparaYDeduplica_SegunElCaso(string nombre, string[] tokensEsperados)
+    [Fact]
+    public void TokenizarNombre_QuitaDiacriticosYPasaAMinusculas()
     {
-        var tokens = DirectorioColaborador.TokenizarNombre(nombre);
+        var tokens = DirectorioColaborador.TokenizarNombre("Juan Pablo Bermúdez");
 
-        tokens.Should().BeEquivalentTo(tokensEsperados, o => o.WithStrictOrdering());
+        tokens.Should().BeEquivalentTo(["juan", "pablo", "bermudez"], o => o.WithStrictOrdering());
     }
 
-    // Caso literal del issue #587 CA-4: misma regla que Identificacion.Crear (Colaboradores.
-    // DomainEvents) -- conserva solo [A-Za-z0-9], mayusculas invariantes.
+    [Fact]
+    public void TokenizarNombre_DescartaEspaciosSobrantes()
+    {
+        var tokens = DirectorioColaborador.TokenizarNombre("  María  José ");
+
+        tokens.Should().BeEquivalentTo(["maria", "jose"], o => o.WithStrictOrdering());
+    }
+
+    // La enie colapsa junto al resto de los diacriticos: "Munoz" y "Muñoz" son el mismo token.
+    [Fact]
+    public void TokenizarNombre_DescartaTokensDuplicados()
+    {
+        var tokens = DirectorioColaborador.TokenizarNombre("Ana Ana Muñoz");
+
+        tokens.Should().BeEquivalentTo(["ana", "munoz"], o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void TokenizarNombre_SeparaPorTodoCaracterQueNoSeaLetraNiDigito()
+    {
+        var tokens = DirectorioColaborador.TokenizarNombre("[TEST] García-Márquez");
+
+        tokens.Should().BeEquivalentTo(["test", "garcia", "marquez"], o => o.WithStrictOrdering());
+    }
+
+    // Misma regla que Identificacion.Crear (Colaboradores.DomainEvents): un numero escrito con
+    // puntos o guiones tiene que encontrar la misma entrada que el numero limpio.
     [Fact]
     public void NormalizarNumeroDocumento_ConservaSoloLetrasYDigitosEnMayusculas()
     {

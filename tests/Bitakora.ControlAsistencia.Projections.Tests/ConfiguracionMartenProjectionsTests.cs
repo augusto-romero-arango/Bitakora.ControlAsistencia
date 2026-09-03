@@ -699,12 +699,8 @@ public class ConfiguracionMartenProjectionsTests
         mapping.Indexes.Should().Contain(indice => IndiceMencionaCampo(indice, "nombre", "completo"));
     }
 
-    // Issue #587: tercera proyeccion concreta de Colaboradores -- DirectorioColaborador, N1
-    // (SingleStreamProjection<DirectorioColaborador, string>), mismo stream que
-    // FichaColaboradorProjection. Vista propia para ENCONTRAR a una persona por nombre o
-    // identificacion (MEF-ADR-0041). Complementa ConfigurarColaboradores_NoRegistraNingunaProyeccionInline:
-    // aquella prueba que NADA quedo Inline, esta que la proyeccion CONCRETA se registro con lifecycle
-    // Async, el canonico del worker (MEF-ADR-0034 seccion 3).
+    // Complementa ConfigurarColaboradores_NoRegistraNingunaProyeccionInline: aquella prueba que
+    // NADA quedo Inline, esta que la proyeccion CONCRETA se registro con lifecycle Async.
     [Fact]
     public void ConfigurarColaboradores_RegistraDirectorioColaboradorProjectionComoAsync()
     {
@@ -714,10 +710,9 @@ public class ConfiguracionMartenProjectionsTests
             .AssertProyeccionAsyncRegistrada("DirectorioColaborador");
     }
 
-    // Issue #587, mismo gotcha de "Numeric Revisioned Documents" que #356/#357 ya cerraron para
-    // FichaColaborador/CategoriaDeEtiquetas: Marten aplica ProjectionDocumentPolicy SOLO a los
-    // documentos target de una proyeccion REGISTRADA en el store. Si DirectorioColaboradorProjection
-    // dejara de registrarse arriba, este mapping caeria al default y este test se pondria rojo.
+    // Marten aplica ProjectionDocumentPolicy (mt_version bigint) SOLO a los documentos target de
+    // una proyeccion REGISTRADA en el store: si DirectorioColaboradorProjection dejara de
+    // registrarse arriba, este mapping caeria al default y este test se pondria rojo.
     [Fact]
     public void ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica()
     {
@@ -731,10 +726,9 @@ public class ConfiguracionMartenProjectionsTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #587, mitad worker del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6): el daemon materializa DirectorioColaborador desde este named store; el Function App
-    // de Colaboradores lo consultara en #590 (QUERY colaboradores/directorio). Este issue no escribe
-    // esa mitad -- solo deja el literal congelado aqui para que #590 lo replique.
+    // Mitad worker del par espejo write-side/read-side (MEF-ADR-0034 seccion 6): congela el
+    // literal de tabla/tenancy/id que el Function App debera replicar cuando consulte esta vista --
+    // la otra mitad nace con el endpoint que la lea.
     [Fact]
     public void ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide()
     {
@@ -748,13 +742,6 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(DirectorioColaborador.Id));
     }
 
-    // Issue #587 CA-5: indices declarados en el seam del worker para el futuro QUERY
-    // colaboradores/directorio (#590) -- ningun EXPLAIN se corre en este issue (sin superficie HTTP
-    // que ejercer), quedan listos para que #590 los aproveche y los verifique.
-    //
-    // Baseline verificado por spike propio (sin este issue, StoreOptions.FindOrResolveDocumentType):
-    // DirectorioColaborador no existe todavia, asi que las tres guardas de abajo fallan en la fase
-    // roja tanto por el tipo ausente como por Indexes.Count == 0.
     [Fact]
     public void ConfigurarColaboradores_DeclaraUnIndiceSobreNumeroDocumentoDeDirectorioColaborador()
     {

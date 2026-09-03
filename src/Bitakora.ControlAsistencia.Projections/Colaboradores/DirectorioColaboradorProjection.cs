@@ -6,36 +6,25 @@ using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en M
 namespace Bitakora.ControlAsistencia.Projections.Colaboradores;
 
 /// <summary>
-/// Clase de proyeccion companion de DirectorioColaborador (issue #587, receta N1 -- un solo stream,
-/// el del colaborador, mismo stream que FichaColaboradorProjection; MEF-ADR-0035). Vive en el worker
-/// (Bitakora.ControlAsistencia.Projections), el ensamblado que si referencia Marten y el analizador
-/// JasperFx.Events.SourceGenerator.
-///
-/// partial es obligatorio (skills/projections/modelos-marten.md): el source generator descubre
-/// Create/Apply por convencion y emite el dispatcher [GeneratedEvolver]. Sin partial el build queda
-/// limpio pero falla en RUNTIME al registrar la proyeccion (InvalidProjectionException).
-///
-/// Se registra en ConfiguracionMartenProjectionsColaboradores.ConfigurarColaboradores con
-/// opts.Projections.Add&lt;DirectorioColaboradorProjection&gt;(ProjectionLifecycle.Async) --
-/// lifecycle canonico del worker (MEF-ADR-0034 seccion 3).
-///
-/// Create toma IEvent&lt;ColaboradorRegistrado&gt;, no ColaboradorRegistrado a secas: la identidad
-/// del documento es exactamente el StreamKey del stream de ColaboradorAggregateRoot --
-/// IEvent&lt;T&gt;.StreamKey es quien la expone, sin recomputarla a mano desde el payload (mismo
-/// criterio que FichaColaboradorProjection.Create).
-///
-/// Solo consume los 7 eventos que el issue #587 enumera -- ningun Apply para
-/// EtiquetaAsignada/EtiquetaRetirada: el directorio no lleva etiquetas (esa busqueda sigue siendo
-/// del QUERY de fichas).
-///
-/// Sin ShouldDelete: el directorio nunca borra (issue #587, "Receta").
+/// Clase de proyeccion companion de DirectorioColaborador (receta N1 -- un solo stream, el mismo
+/// del colaborador que proyecta FichaColaboradorProjection; MEF-ADR-0035).
 /// </summary>
+/// <remarks>
+/// partial es obligatorio: el source generator descubre Create/Apply por convencion y emite el
+/// dispatcher [GeneratedEvolver]. Sin partial el build queda limpio y falla en RUNTIME al registrar
+/// la proyeccion (skills/projections/modelos-marten.md).
+///
+/// Create toma IEvent&lt;ColaboradorRegistrado&gt; y no el payload a secas porque la identidad del
+/// documento es exactamente el StreamKey del stream, sin recomponerla a mano desde el payload.
+///
+/// Solo declara Apply para los 7 eventos del directorio: sin Apply de EtiquetaAsignada/
+/// EtiquetaRetirada (el directorio no lleva etiquetas) y sin ShouldDelete (nunca borra).
+/// </remarks>
 public sealed partial class DirectorioColaboradorProjection
     : SingleStreamProjection<DirectorioColaborador, string>
 {
-    // CA-1: nace con Id, TipoDocumento, NumeroDocumento (normalizado), NombreCompleto y TokensNombre
-    // -- el resto queda en su forma "vacia" hasta que Apply(VinculacionIniciada) los completa (mismo
-    // commit que ColaboradorRegistrado, misma forma que FichaColaboradorProjection.Create).
+    // El resto de los campos queda en su forma vacia hasta que Apply(VinculacionIniciada) los
+    // complete, en el mismo commit que ColaboradorRegistrado.
     public static DirectorioColaborador Create(IEvent<ColaboradorRegistrado> e) =>
         new(
             e.StreamKey!,
@@ -47,10 +36,9 @@ public sealed partial class DirectorioColaboradorProjection
             default,
             DirectorioColaborador.CentinelaVigenciaAbierta);
 
-    // CA-1 (segunda mitad) / CA-2: codigo y VigenteDesde nuevos, VigenteHasta al centinela y
-    // CodigoSede = e.CodigoSede tal cual -- "reingreso nace limpio" (espejo de
-    // FichaColaboradorProjection.Apply(VinculacionIniciada) y de
-    // ColaboradorAggregateRoot.Apply(VinculacionIniciada), #520).
+    // Reemplazo incondicional, tambien de la sede: e.CodigoSede se asienta tal cual, asi que un
+    // reingreso sin sede LIMPIA la anterior en vez de heredarla ("reingreso nace limpio", espejo de
+    // ColaboradorAggregateRoot.Apply(VinculacionIniciada)).
     public static DirectorioColaborador Apply(VinculacionIniciada e, DirectorioColaborador vista) =>
         vista with
         {
@@ -60,16 +48,15 @@ public sealed partial class DirectorioColaboradorProjection
             CodigoSede = e.CodigoSede
         };
 
-    // CA-2: VigenteHasta = FechaEfectiva.
     public static DirectorioColaborador Apply(VinculacionTerminada e, DirectorioColaborador vista) =>
         vista with { VigenteHasta = e.FechaEfectiva };
 
-    // CA-2: reabre -- VigenteHasta vuelve al centinela.
     public static DirectorioColaborador Apply(TerminacionAnulada e, DirectorioColaborador vista) =>
         vista with { VigenteHasta = DirectorioColaborador.CentinelaVigenciaAbierta };
 
-    // CA-3: reemplaza NombreCompleto Y recalcula TokensNombre (Tell-don't-Ask, MEF-ADR-0012: invoca
-    // DirectorioColaborador.TokenizarNombre, ningun algoritmo propio aqui).
+    // Corregir el nombre obliga a recalcular los tokens, o la entrada deja de encontrarse por su
+    // nombre nuevo. La regla la aporta la vista (Tell-don't-Ask, MEF-ADR-0012), nunca un algoritmo
+    // propio de la proyeccion.
     public static DirectorioColaborador Apply(NombresCorregidos e, DirectorioColaborador vista) =>
         vista with
         {
@@ -77,12 +64,11 @@ public sealed partial class DirectorioColaboradorProjection
             TokensNombre = DirectorioColaborador.TokenizarNombre(e.Nombre.NombreCompleto)
         };
 
-    // CA-2: reemplaza VigenteDesde.
     public static DirectorioColaborador Apply(FechaInicioVinculacionCorregida e, DirectorioColaborador vista) =>
         vista with { VigenteDesde = e.FechaInicio };
 
-    // CA-3: reemplaza CodigoSede -- SedeAsignada representa siempre el reemplazo completo de la sede
-    // (primera asignacion y reasignacion emiten el mismo evento, sin evento de retiro).
+    // SedeAsignada es siempre reemplazo completo: primera asignacion y reasignacion emiten el mismo
+    // evento y no existe evento de retiro (DomainEvents/SedeAsignada.cs).
     public static DirectorioColaborador Apply(SedeAsignada e, DirectorioColaborador vista) =>
         vista with { CodigoSede = e.CodigoSede };
 }

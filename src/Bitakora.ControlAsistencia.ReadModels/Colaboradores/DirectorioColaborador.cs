@@ -4,48 +4,24 @@ using System.Text;
 namespace Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 
 /// <summary>
-/// Read model del directorio de colaboradores (issue #587) -- vista propia para ENCONTRAR a una
-/// persona concreta por nombre o numero de identificacion (MEF-ADR-0041), a diferencia de
-/// FichaColaborador (consulta puntual por identificacion completa y exacta) y del listado de fichas
-/// (busqueda por grupo: sede + etiquetas + fecha de referencia). Una entrada por colaborador.
+/// Read model del directorio de colaboradores -- una entrada por colaborador, para ENCONTRAR a una
+/// persona por nombre o numero de documento. Necesidad de lectura distinta de la ficha, que muestra
+/// el detalle de una persona ya identificada (MEF-ADR-0041).
 /// </summary>
 /// <remarks>
-/// Record plano SIN partial (MEF-ADR-0035, skills/projections/modelos-marten.md): el comportamiento
-/// de proyeccion vive en la clase companion DirectorioColaboradorProjection, en el worker
-/// (Bitakora.ControlAsistencia.Projections). Este tipo vive en ReadModels, la cuarta isla del repo
+/// Record plano SIN partial (MEF-ADR-0035): el comportamiento de proyeccion vive en la clase
+/// companion DirectorioColaboradorProjection, en el worker. ReadModels es la cuarta isla del repo
 /// (CA-ADR-0029): cero referencias de proyecto.
 ///
-/// Sin sufijo "View" (MEF-ADR-0041 decision 3, precedente FichaColaborador).
+/// Id es el stream key de ColaboradorAggregateRoot ("{Tipo}-{Numero}", ej. "CC-79879078") y ES la
+/// identificacion completa -- por eso NO existe un campo Identificacion aparte, seria redundante.
+/// TipoDocumento/NumeroDocumento son la forma descompuesta de esa misma identidad, necesaria para
+/// buscar por numero suelto ("79879078", sin el prefijo de tipo).
 ///
-/// Id es el stream key que compone ColaboradorAggregateRoot.ComputarStreamId(Identificacion):
-/// "{Tipo}-{Numero}" (ej. "CC-79879078") -- ES la identificacion completa, por eso NO existe un
-/// campo Identificacion aparte (seria redundante con el Id, mismo criterio que fijo FichaColaborador
-/// en su momento -- decision de refinamiento 2026-08-12, reafirmada para este issue).
-///
-/// TipoDocumento/NumeroDocumento son la forma DESCOMPUESTA de esa misma identidad -- las necesita el
-/// filtro por numero suelto del issue hermano (#590): el asistente puede recibir solo "79879078" sin
-/// el prefijo de tipo. NumeroDocumento se normaliza con <see cref="NormalizarNumeroDocumento"/>
-/// (misma regla que Identificacion.Crear en Colaboradores.DomainEvents, duplicada deliberadamente
-/// por MEF-ADR-0018 -- ver el issue, "cruza islas").
-///
-/// TokensNombre es la forma normalizada para buscar por nombre (minusculas, sin diacriticos, una
-/// palabra por token) -- ver <see cref="TokenizarNombre"/>. NombreCompleto conserva la forma
-/// original para display.
-///
-/// CodigoColaborador, VigenteDesde y VigenteHasta reflejan siempre la ULTIMA vinculacion -- igual
-/// que FichaColaborador, un reingreso (VinculacionIniciada tras terminacion) sobrescribe estos tres
-/// campos (y CodigoSede). Sin ShouldDelete: el directorio nunca borra -- los terminados siguen
-/// apareciendo, la vigencia viaja y el consumidor decide (issue #587, "Receta").
-///
-/// VigenteHasta usa el CENTINELA <see cref="CentinelaVigenciaAbierta"/> cuando la vinculacion esta
-/// abierta -- mismo valor que FichaColaborador.CentinelaVigenciaAbierta, pero constante PROPIA de
-/// esta vista (cada vista codifica sus propios campos, decision de refinamiento del issue #587): los
-/// dos procesos que la comparten (esta proyeccion al escribir, el endpoint de #590 al leer) solo se
-/// referencian a traves de ReadModels.
-///
-/// CodigoSede refleja la sede de la VINCULACION vigente -- null si no tiene. Se asienta desde
-/// SedeAsignada (reemplazo completo) y desde VinculacionIniciada.CodigoSede (un reingreso sin sede
-/// LIMPIA el valor anterior -- "reingreso nace limpio", espejo de FichaColaborador/#520).
+/// CodigoColaborador, VigenteDesde, VigenteHasta y CodigoSede reflejan siempre la ULTIMA
+/// vinculacion: un reingreso los sobrescribe, y un reingreso sin sede LIMPIA la anterior en vez de
+/// heredarla ("reingreso nace limpio"). Sin ShouldDelete: el directorio nunca borra -- un
+/// colaborador terminado sigue apareciendo con su VigenteHasta y el consumidor decide.
 ///
 /// No lleva etiquetas: la busqueda por grupo sigue siendo del QUERY de fichas.
 /// </remarks>
@@ -60,71 +36,61 @@ public sealed record DirectorioColaborador(
     DateOnly VigenteHasta,
     string? CodigoSede = null)
 {
+    private const char SeparadorDeTokens = ' ';
+
     /// <summary>
     /// Valor de <see cref="VigenteHasta"/> que significa "vinculacion abierta" (sin terminacion
-    /// registrada). Mismo valor que FichaColaborador.CentinelaVigenciaAbierta, pero declarado aqui
-    /// como constante PROPIA de esta vista -- ver remarks de la clase.
+    /// registrada).
     /// </summary>
+    /// <remarks>
+    /// Constante PROPIA de esta vista aunque coincida con FichaColaborador.CentinelaVigenciaAbierta:
+    /// cada vista codifica sus propios campos. Vive con la vista y no con la proyeccion porque la
+    /// comparten dos procesos que solo se ven a traves de ReadModels -- el worker que la escribe y
+    /// el endpoint que la lee.
+    /// </remarks>
     public static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
 
     /// <summary>
-    /// Tokeniza un nombre para busqueda: minusculas, sin diacriticos, una palabra por token
-    /// separando por todo caracter que no sea letra ni digito, sin vacios ni duplicados, en orden de
-    /// aparicion. Expuesta por la vista (Tell-don't-Ask, MEF-ADR-0012) porque la usan DOS procesos
-    /// que no se referencian entre si: esta proyeccion (al escribir TokensNombre) y el endpoint de
-    /// #590 (al leer, para tokenizar el termino de busqueda del cliente).
+    /// Tokeniza un nombre para busqueda: minusculas, sin diacriticos, un token por palabra separando
+    /// por todo caracter que no sea letra ni digito, sin duplicados, en orden de aparicion.
     /// </summary>
+    /// <remarks>
+    /// La expone la vista (Tell-don't-Ask, MEF-ADR-0012) porque la usan dos procesos que no se
+    /// referencian entre si -- la proyeccion al escribir TokensNombre y el endpoint de consulta al
+    /// tokenizar el termino de busqueda del cliente: un algoritmo por lado divergiria en silencio.
+    /// </remarks>
     public static IReadOnlyList<string> TokenizarNombre(string nombre)
     {
-        // Mismo patron que Etiqueta.Normalizar (Colaboradores.DomainEvents): descomponer en FormD,
-        // filtrar las marcas de combinacion (NonSpacingMark) y recomponer en FormC, minusculas
-        // invariantes. Duplicado deliberadamente (MEF-ADR-0018, cruza islas).
-        var normalizado = new string(nombre.Normalize(NormalizationForm.FormD)
+        // Quitar diacriticos duplica a proposito Etiqueta.Normalizar (Colaboradores.DomainEvents):
+        // cruza islas, ReadModels no referencia DomainEvents (MEF-ADR-0018). Colapsa la enie --
+        // "Munoz" y "Munoz" con virgulilla son el mismo token, consecuencia deseada para buscar.
+        var sinDiacriticos = new string(nombre.Normalize(NormalizationForm.FormD)
                 .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
                 .ToArray())
             .Normalize(NormalizationForm.FormC)
             .ToLowerInvariant();
 
-        var tokens = new List<string>();
-        var tokenActual = new StringBuilder();
+        var separadoPorEspacios = new string(sinDiacriticos
+            .Select(c => char.IsLetterOrDigit(c) ? c : SeparadorDeTokens)
+            .ToArray());
 
-        foreach (var caracter in normalizado)
-        {
-            if (char.IsLetterOrDigit(caracter))
-            {
-                tokenActual.Append(caracter);
-                continue;
-            }
-
-            AgregarTokenSiNuevo(tokens, tokenActual);
-        }
-
-        AgregarTokenSiNuevo(tokens, tokenActual);
-
-        return tokens;
-    }
-
-    private static void AgregarTokenSiNuevo(List<string> tokens, StringBuilder tokenActual)
-    {
-        if (tokenActual.Length == 0) return;
-
-        var token = tokenActual.ToString();
-        tokenActual.Clear();
-
-        if (!tokens.Contains(token))
-            tokens.Add(token);
+        // Where preserva el orden de aparicion; Distinct no lo garantiza por contrato.
+        var yaVistos = new HashSet<string>();
+        return separadoPorEspacios
+            .Split(SeparadorDeTokens, StringSplitOptions.RemoveEmptyEntries)
+            .Where(yaVistos.Add)
+            .ToList();
     }
 
     /// <summary>
-    /// Normaliza un numero de documento: conserva solo caracteres ASCII letra/digito, mayusculas
-    /// invariantes -- misma regla que Identificacion.Crear (Colaboradores.DomainEvents), duplicada
-    /// deliberadamente (MEF-ADR-0018, cruza islas: ReadModels no referencia DomainEvents). Expuesta
-    /// por la vista por la misma razon que TokenizarNombre: la usan esta proyeccion y el endpoint de
-    /// #590.
+    /// Normaliza un numero de documento: conserva solo caracteres ASCII letra/digito, en mayusculas
+    /// invariantes ("79.879.078" y " ab-123.456 " se vuelven "79879078" y "AB123456").
     /// </summary>
+    /// <remarks>
+    /// Misma regla que Identificacion.Crear (Colaboradores.DomainEvents), duplicada a proposito:
+    /// cruza islas, ReadModels no referencia DomainEvents (MEF-ADR-0018). Expuesta por la vista por
+    /// la misma razon que <see cref="TokenizarNombre"/>.
+    /// </remarks>
     public static string NormalizarNumeroDocumento(string numero) =>
-        new string((numero ?? string.Empty)
-            .Where(char.IsAsciiLetterOrDigit)
-            .Select(char.ToUpperInvariant)
-            .ToArray());
+        new(numero.Where(char.IsAsciiLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
 }
