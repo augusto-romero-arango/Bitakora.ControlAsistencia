@@ -145,6 +145,32 @@ public static class ConfiguracionMartenProjectionsColaboradores
                     .Index(x => x.EtiquetasNormalizadas, i => i.Method = IndexMethod.gin)
                     .Index(x => x.VigenteHasta)
                     .Index(x => x.NombreCompleto);
+
+                // Issue #587: tercera proyeccion concreta del dominio -- DirectorioColaborador, N1
+                // (SingleStreamProjection<DirectorioColaborador, string>), mismo stream que
+                // FichaColaboradorProjection. Vista propia para ENCONTRAR a una persona por nombre o
+                // identificacion (MEF-ADR-0041), no para verla en detalle (esa sigue siendo la
+                // ficha). Mismo lifecycle canonico del worker (MEF-ADR-0034 seccion 3), aditivo
+                // dentro del mismo AddMartenStore.
+                opts.Projections.Add<DirectorioColaboradorProjection>(ProjectionLifecycle.Async);
+
+                // Issue #587 CA-5: indices para el futuro QUERY colaboradores/directorio (#590) --
+                // ningun EXPLAIN se corre en este issue (sin superficie HTTP que ejercer), quedan
+                // declarados para que #590 los aproveche y los verifique.
+                //
+                // Btree sobre NumeroDocumento: acelera el filtro por numero suelto (el asistente
+                // puede recibir solo "79879078", sin el prefijo de tipo de documento).
+                //
+                // GIN sobre TokensNombre (array de strings): acelera el filtro "contiene todos estos
+                // tokens" del termino de busqueda por nombre, mismo criterio de containment que el
+                // GIN de EtiquetasNormalizadas arriba (precedente #337/#373).
+                //
+                // Btree sobre NombreCompleto: acelera el ORDER BY de un eventual listado por nombre,
+                // mismo criterio que el btree ya declarado sobre FichaColaborador.NombreCompleto.
+                opts.Schema.For<DirectorioColaborador>()
+                    .Index(x => x.NumeroDocumento)
+                    .Index(x => x.TokensNombre, i => i.Method = IndexMethod.gin)
+                    .Index(x => x.NombreCompleto);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
