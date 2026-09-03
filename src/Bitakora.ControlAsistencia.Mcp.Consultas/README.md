@@ -26,6 +26,13 @@ puro, sin referencias a los ensamblados del BC (issue #502).
 | `obtener_turno` | Detalle de un turno: franjas, descansos, extras, sede prearmada | `id` |
 | `listar_sedes` | Sedes activas: codigo, nombre, ciudad, direccion | `filtro_nombre?` |
 | `consultar_programacion` | Que turno rige a cada colaborador en un rango de fechas | `desde`, `hasta`, `codigo_colaborador?`, `sede_id?` |
+| `listar_colaboradores` | Colaboradores por **grupo** (sede o etiquetas) o ficha puntual por identificacion exacta | `identificacion?`, `sede?`, `etiquetas?`, `fecha_referencia?` |
+| `buscar_colaboradores` | Colaboradores concretos por **persona**: nombre (palabras completas) o identificacion (completa o solo numero) | `nombre?`, `identificaciones?` |
+
+Grupos e individuos son lentes distintas (issue #588): `listar_colaboradores` resuelve un
+**grupo** o una identificacion exacta y completa; `buscar_colaboradores` resuelve a **quien se
+refiere el usuario** cuando nombra a alguien por su nombre o por un numero sin tipo de
+documento, y pregunta cual es cuando hay varias coincidencias.
 
 ## Onboarding de un cliente MCP (entorno dev)
 
@@ -60,7 +67,7 @@ claude mcp add --transport http consultas-asistencia \
 
 En una conversacion nueva de Claude Code:
 
-1. El servidor `consultas-asistencia` aparece conectado (`/mcp`) y lista las 4 tools de la tabla.
+1. El servidor `consultas-asistencia` aparece conectado (`/mcp`) y lista las 6 tools de la tabla.
 2. Una consulta real responde con datos de dev — por ejemplo: *"lista los turnos"* debe invocar
    `listar_turnos` y devolver el catalogo, y *"que programacion hay entre el 1 y el 31 de julio
    de 2026"* debe invocar `consultar_programacion` con ese rango.

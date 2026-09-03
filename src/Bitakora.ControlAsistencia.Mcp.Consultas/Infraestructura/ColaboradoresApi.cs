@@ -34,6 +34,22 @@ public sealed class ColaboradoresApi(HttpClient http)
 
     public Task<HttpResponseMessage> ObtenerFicha(string identificacion, CancellationToken ct) =>
         http.GetAsync($"api/colaboradores/fichas/{Uri.EscapeDataString(identificacion)}", ct);
+
+    public Task<HttpResponseMessage> BuscarEnDirectorio(
+        IReadOnlyList<string>? identificaciones, string? nombre, int take, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/colaboradores/directorio")
+        {
+            Content = JsonContent.Create(new
+            {
+                identificaciones = identificaciones is { Count: > 0 } ? identificaciones : null,
+                nombre,
+                take
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }
 
 /// <summary>

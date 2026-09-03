@@ -1,0 +1,252 @@
+[
+  {
+    "identificacion": "CC-79000001",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000001",
+    "nombreCompleto": "[TEST] Juan Grande 01",
+    "codigoColaborador": "COL-G1",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000002",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000002",
+    "nombreCompleto": "[TEST] Juan Grande 02",
+    "codigoColaborador": "COL-G2",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000003",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000003",
+    "nombreCompleto": "[TEST] Juan Grande 03",
+    "codigoColaborador": "COL-G3",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000004",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000004",
+    "nombreCompleto": "[TEST] Juan Grande 04",
+    "codigoColaborador": "COL-G4",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000005",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000005",
+    "nombreCompleto": "[TEST] Juan Grande 05",
+    "codigoColaborador": "COL-G5",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000006",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000006",
+    "nombreCompleto": "[TEST] Juan Grande 06",
+    "codigoColaborador": "COL-G6",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000007",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000007",
+    "nombreCompleto": "[TEST] Juan Grande 07",
+    "codigoColaborador": "COL-G7",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000008",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000008",
+    "nombreCompleto": "[TEST] Juan Grande 08",
+    "codigoColaborador": "COL-G8",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000009",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000009",
+    "nombreCompleto": "[TEST] Juan Grande 09",
+    "codigoColaborador": "COL-G9",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000010",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000010",
+    "nombreCompleto": "[TEST] Juan Grande 10",
+    "codigoColaborador": "COL-G10",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000011",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000011",
+    "nombreCompleto": "[TEST] Juan Grande 11",
+    "codigoColaborador": "COL-G11",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000012",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000012",
+    "nombreCompleto": "[TEST] Juan Grande 12",
+    "codigoColaborador": "COL-G12",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000013",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000013",
+    "nombreCompleto": "[TEST] Juan Grande 13",
+    "codigoColaborador": "COL-G13",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000014",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000014",
+    "nombreCompleto": "[TEST] Juan Grande 14",
+    "codigoColaborador": "COL-G14",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000015",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000015",
+    "nombreCompleto": "[TEST] Juan Grande 15",
+    "codigoColaborador": "COL-G15",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000016",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000016",
+    "nombreCompleto": "[TEST] Juan Grande 16",
+    "codigoColaborador": "COL-G16",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000017",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000017",
+    "nombreCompleto": "[TEST] Juan Grande 17",
+    "codigoColaborador": "COL-G17",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000018",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000018",
+    "nombreCompleto": "[TEST] Juan Grande 18",
+    "codigoColaborador": "COL-G18",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000019",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000019",
+    "nombreCompleto": "[TEST] Juan Grande 19",
+    "codigoColaborador": "COL-G19",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000020",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000020",
+    "nombreCompleto": "[TEST] Juan Grande 20",
+    "codigoColaborador": "COL-G20",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000021",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000021",
+    "nombreCompleto": "[TEST] Juan Grande 21",
+    "codigoColaborador": "COL-G21",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000022",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000022",
+    "nombreCompleto": "[TEST] Juan Grande 22",
+    "codigoColaborador": "COL-G22",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000023",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000023",
+    "nombreCompleto": "[TEST] Juan Grande 23",
+    "codigoColaborador": "COL-G23",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000024",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000024",
+    "nombreCompleto": "[TEST] Juan Grande 24",
+    "codigoColaborador": "COL-G24",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-79000025",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79000025",
+    "nombreCompleto": "[TEST] Juan Grande 25",
+    "codigoColaborador": "COL-G25",
+    "codigoSede": null,
+    "vigenteDesde": "2024-01-01",
+    "vigenteHasta": null
+  }
+]

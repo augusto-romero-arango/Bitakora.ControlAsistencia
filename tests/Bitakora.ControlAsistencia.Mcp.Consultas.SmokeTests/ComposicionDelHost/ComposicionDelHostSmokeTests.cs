@@ -12,14 +12,14 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasCincoToolsDeConsulta_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasSeisToolsDeConsulta_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
         tools.Select(t => t.Name).Should().BeEquivalentTo(
             "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
-            "listar_colaboradores");
+            "listar_colaboradores", "buscar_colaboradores");
     }
 
     [Fact]
@@ -81,6 +81,27 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
         Propiedades(tools.Single(t => t.Name == "listar_colaboradores")).Should().BeEquivalentTo(
             "identificacion", "sede", "etiquetas", "fecha_referencia");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task BuscarColaboradores_NoDeclaraParametrosObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Requeridas(tools.Single(t => t.Name == "buscar_colaboradores")).Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task BuscarColaboradores_DeclaraLosDosParametrosDelDiseno_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Propiedades(tools.Single(t => t.Name == "buscar_colaboradores")).Should().BeEquivalentTo(
+            "nombre", "identificaciones");
     }
 
     private static List<string?> Requeridas(McpClientTool tool) =>
