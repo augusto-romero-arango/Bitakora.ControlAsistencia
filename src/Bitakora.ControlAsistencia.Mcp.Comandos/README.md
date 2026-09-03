@@ -72,6 +72,15 @@ deploy.
 |---|---|---|
 | `registrar_sede` | Sede nueva de la empresa (`POST api/sedes`) | `codigo`, `nombre`, `ciudad?`, `direccion?` |
 | `registrar_colaborador` | Colaborador nuevo bajo control de asistencia, con su vinculacion desde `fecha_inicio` (`POST api/colaboradores`) | `tipo_identificacion`, `numero_identificacion`, `primer_nombre`, `segundo_nombre?`, `primer_apellido`, `segundo_apellido?`, `codigo_colaborador`, `fecha_inicio`, `codigo_sede?` |
+| `solicitar_programacion_turno` | Un turno programado a cada colaborador de la lista, solo los dias de la ventana que su vinculacion cubre (`POST api/programacion/solicitudes`, una solicitud por colaborador) | `desde`, `hasta`, `turno`, `sede_de_programacion`, `identificaciones` |
+
+`solicitar_programacion_turno` es la unica tool consolidada del servidor (MEF-ADR-0047 decision 4):
+resuelve el turno contra `GET api/programacion/turnos`, la sede contra `GET api/sedes/fichas/{codigo}`
+y re-verifica a los colaboradores contra `QUERY api/colaboradores/directorio` antes de emitir N
+comandos. La **sede de programacion** -- donde queda registrada la programacion -- **no es la sede de
+trabajo** del colaborador: la tool la exige explicitamente y nunca la asume. Un lote no es concepto
+del dominio (la ventana de trabajo es efimera, nunca se persiste) y el marco no ofrece atomicidad
+entre streams: el fallo de un colaborador no detiene a los demas, viaja en `fallidos[]`.
 
 ## Limitacion conocida: `resource` ausente en la tool call (#571)
 

@@ -36,11 +36,8 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
     }
 
     // Recorre la cadena completa: host MCP -> worker -> 3 HttpClients tipados -> Function Apps de
-    // Sedes/Colaboradores/Programacion -> event store. La proyeccion del directorio de
-    // colaboradores es Async (#590): justo despues del arrange la tool puede omitir al colaborador
-    // todavia no materializado -- por eso el assert vive DENTRO del polling (Fixtures/Polling.cs):
-    // las llamadas que lo omiten no hacen ningun POST (sin efecto secundario), la primera que lo
-    // encuentra programa y corta el loop.
+    // Sedes/Colaboradores/Programacion -> event store. El assert vive DENTRO del polling por el
+    // lifecycle Async del directorio -- ver Fixtures/Polling.cs.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_ProgramaAlColaborador_CuandoLaVentanaCubreSuVigencia()

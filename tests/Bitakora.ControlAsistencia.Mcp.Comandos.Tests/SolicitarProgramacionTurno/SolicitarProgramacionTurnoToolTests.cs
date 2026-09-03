@@ -33,19 +33,21 @@ public class SolicitarProgramacionTurnoToolTests
     // le interesa via argumentos nombrados, mismo patron de consolidacion que RegistrarColaboradorToolTests.
     private static Fakes CrearTool(
         string? turnosJson = null,
+        HttpStatusCode statusTurnos = HttpStatusCode.OK,
         HttpStatusCode statusSolicitud = HttpStatusCode.Accepted,
         string cuerpoSolicitud = "",
         string? sedeJson = null,
         HttpStatusCode statusSede = HttpStatusCode.OK,
-        string? directorioJson = null)
+        string? directorioJson = null,
+        HttpStatusCode statusDirectorio = HttpStatusCode.OK)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
-        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, turnosJson ?? TurnosJson);
+        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaSolicitudes, statusSolicitud, cuerpoSolicitud);
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
         var (clienteColaboradores, handlerColaboradores) = ClienteFalso.Con(
-            directorioJson ?? DirectorioJson, HttpStatusCode.OK);
+            directorioJson ?? DirectorioJson, statusDirectorio);
 
         var tool = new SolicitarProgramacionTurnoTool(
             new ProgramacionApi(clienteProgramacion),
@@ -396,5 +398,44 @@ public class SolicitarProgramacionTurnoToolTests
             SolicitarProgramacionTurnoTool.Mensajes.DemasiadasIdentificaciones,
             SolicitarProgramacionTurnoTool.MaximoIdentificaciones));
         AsegurarNingunaRequest(fakes);
+    }
+
+    // Boundary del sistema: un fallo de cualquiera de las 3 lecturas previas se traduce a texto,
+    // nunca a excepcion (CA-ADR-0030) -- y corta antes de cualquier POST.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_RespondeElRechazoDelDominioSinPost_CuandoElCatalogoDeTurnosFalla()
+    {
+        var fakes = CrearTool(turnosJson: "", statusTurnos: HttpStatusCode.ServiceUnavailable);
+
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.RechazoDelDominio, "503"));
+        fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+        fakes.Sedes.UltimaRequest.Should().BeNull("el catalogo se resuelve antes que la sede");
+        fakes.Colaboradores.UltimaRequest.Should().BeNull("el catalogo se resuelve antes que el directorio");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_RespondeElRechazoDelDominioSinPost_CuandoLaFichaDeSedeFalla()
+    {
+        var fakes = CrearTool(sedeJson: "sedes caido", statusSede: HttpStatusCode.InternalServerError);
+
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(
+            string.Format(SolicitarProgramacionTurnoTool.Mensajes.RechazoDelDominio, "sedes caido"));
+        fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+        fakes.Colaboradores.UltimaRequest.Should().BeNull("la sede se resuelve antes que el directorio");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_RespondeElRechazoDelDominioSinPost_CuandoElDirectorioFalla()
+    {
+        var fakes = CrearTool(directorioJson: "", statusDirectorio: HttpStatusCode.InternalServerError);
+
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.RechazoDelDominio, "500"));
+        fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 }

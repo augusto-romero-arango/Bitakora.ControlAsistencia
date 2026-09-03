@@ -114,6 +114,8 @@ public partial class SolicitarProgramacionTurnoTool(
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
         var respuestaTurnos = await programacion.ListarTurnos(ct);
+        if (await TraducirFalloDeLectura(respuestaTurnos, ct) is { } falloTurnos)
+            return falloTurnos;
         var catalogo = await respuestaTurnos.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
         var turnoNormalizado = NormalizarNombre(turno);
         var fichaTurno = catalogo.FirstOrDefault(f => NormalizarNombre(f.Nombre) == turnoNormalizado);
@@ -126,12 +128,16 @@ public partial class SolicitarProgramacionTurnoTool(
         var respuestaSede = await sedes.ObtenerFicha(sedeDeProgramacion, ct);
         if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
             return string.Format(Mensajes.SedeNoExiste, sedeDeProgramacion);
+        if (await TraducirFalloDeLectura(respuestaSede, ct) is { } falloSede)
+            return falloSede;
         var fichaSede = (await respuestaSede.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
         if (!fichaSede.Activa)
             return string.Format(Mensajes.SedeInactiva, sedeDeProgramacion);
 
         var respuestaDirectorio = await colaboradores.BuscarEnDirectorio(
             identificacionesSolicitadas, MaximoIdentificaciones, ct);
+        if (await TraducirFalloDeLectura(respuestaDirectorio, ct) is { } falloDirectorio)
+            return falloDirectorio;
         var directorio = await respuestaDirectorio.Content.ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
 
         var identificacionesNormalizadas = identificacionesSolicitadas
@@ -192,10 +198,25 @@ public partial class SolicitarProgramacionTurnoTool(
             fichaTurno.Nombre,
             new SedeResumen(fichaSede.Codigo, fichaSede.Nombre),
             ventana.ToString(),
-            [.. programados],
+            [.. programados.OrderBy(p => p.Identificacion, StringComparer.Ordinal)],
             omitidos,
-            fallidos.IsEmpty ? null : [.. fallidos],
+            fallidos.IsEmpty ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)],
             Mensajes.NotaVisibilidadEventual));
+    }
+
+    // Las tres lecturas previas (catalogo, ficha de sede, directorio) son el boundary del sistema:
+    // un 5xx del dominio -- o un cuerpo que no es el JSON esperado -- llegaria como excepcion cruda
+    // a la tool call. Se traduce a texto como cualquier otro rechazo (CA-ADR-0030), con el status
+    // cuando el cuerpo viene vacio (un 503 de un Function App frio no trae body).
+    private static async Task<string?> TraducirFalloDeLectura(HttpResponseMessage respuesta, CancellationToken ct)
+    {
+        if (respuesta.IsSuccessStatusCode)
+            return null;
+
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
+        return string.Format(
+            Mensajes.RechazoDelDominio,
+            string.IsNullOrWhiteSpace(cuerpo) ? ((int)respuesta.StatusCode).ToString() : cuerpo);
     }
 
     // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): esta tool
