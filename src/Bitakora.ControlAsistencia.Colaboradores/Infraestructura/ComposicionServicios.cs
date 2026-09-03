@@ -123,6 +123,10 @@ public static class ComposicionServicios
             // declaracion -- el par de config-tests de ambos lados la congela.
             options.Schema.For<CategoriaDeEtiquetas>().UseNumericRevisions(true);
 
+            // Tercera vista materializada del dominio, misma razon que las dos lineas de arriba:
+            // el worker la crea con mt_version bigint y ListarDirectorioColaboradores la consulta.
+            options.Schema.For<DirectorioColaborador>().UseNumericRevisions(true);
+
             // Issue #330: registra la serializacion custom de los VOs con ctor privado que aparecen
             // como payload de eventos persistidos (Identificacion, NombreColaborador) -- AQUI
             // DENTRO junto a AddEventTypes -- nunca en un ConfigureMarten separado (issue #232 CA-5:

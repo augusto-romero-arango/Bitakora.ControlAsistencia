@@ -34,6 +34,7 @@ using Wolverine;
 using ObtenerFichaColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador.FunctionEndpoint;
 using ListarFichasColaboradorEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador.FunctionEndpoint;
 using ListarCategoriasDeEtiquetasEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas.FunctionEndpoint;
+using ListarDirectorioColaboradoresEndpoint = Bitakora.ControlAsistencia.Colaboradores.ListarDirectorioColaboradores.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.Infraestructura;
 
@@ -561,6 +562,63 @@ public class ComposicionServiciosTests
         var opciones = provider.GetRequiredService<IOptions<AzureMonitorExporterOptions>>().Value;
 
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
+    }
+
+    // Solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor (MEF-ADR-0029). El
+    // comportamiento de Run lo cubren FunctionEndpointTests.cs y el smoke test contra dev.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarDirectorioColaboradores_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarDirectorioColaboradoresEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6)
+    // para la tercera vista del dominio: el worker la materializa con mt_version bigint y este
+    // Function App solo la consulta, asi que sin la declaracion del lado lectura cada request
+    // responderia 500 permanente (42804). El gotcha completo esta en el guardrail de
+    // FichaColaborador, mas arriba.
+    //
+    // Oraculo literal, espejo del que congela ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica desde el worker,
+    // sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    [Fact]
+    public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaDirectorioColaborador()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
+    // worker que materializa y este Function App que consulta, o el QUERY devuelve coleccion vacia
+    // para siempre con el daemon funcionando. Son dos configuraciones de Marten independientes
+    // sobre el mismo schema: ningun compilador las alinea.
+    //
+    // Oraculo literal, espejo del que congela ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide.
+    [Fact]
+    public async Task AgregarServiciosColaboradores_ResuelveDirectorioColaboradorSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(DirectorioColaborador));
+
+        mapping.TableName.QualifiedName.Should().Be("colaboradores.mt_doc_directoriocolaborador");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(DirectorioColaborador.Id));
     }
 
     // Issue #515: el seam agrega un PostConfigure que rellena ConnectionString con un valor inerte
