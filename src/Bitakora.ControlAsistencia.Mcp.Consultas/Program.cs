@@ -49,6 +49,11 @@ builder.UseMiddleware<AutorizacionMcpMiddleware>();
 builder.Services.AddSingleton<IDerivadorIdentidadTenantMcp, DerivadorIdentidadTenantMcp>();
 builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
 
+// Restaura el texto original de los argumentos string que la extension MCP coerciona a
+// DateTimeOffset/Guid (issue #586). Debe correr despues de ConfigureFunctionsWebApplication() para
+// que context.Items ya traiga el ToolInvocationContext bindeado por FunctionsMcpContextMiddleware.
+builder.UseMiddleware<ArgumentosCrudosMcpMiddleware>();
+
 builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
     builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));
 // Transient, no Singleton: HttpClientFactory desecha la cadena de handlers cada vez que rota el

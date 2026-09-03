@@ -24,4 +24,9 @@ builder.UseMiddleware<AutorizacionMcpMiddleware>();
 // fijo interino (MEF-ADR-0047 decision 6, issue #572).
 builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
 
+// Restaura el texto original de los argumentos string que la extension MCP coerciona a
+// DateTimeOffset/Guid (issue #586). Debe correr despues de ConfigureFunctionsWebApplication() para
+// que context.Items ya traiga el ToolInvocationContext bindeado por FunctionsMcpContextMiddleware.
+builder.UseMiddleware<ArgumentosCrudosMcpMiddleware>();
+
 await builder.Build().RunAsync();
