@@ -564,16 +564,8 @@ public class ComposicionServiciosTests
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
     }
 
-    // Issue #590 (projection-test-writer): test de composicion de la TERCERA Function de lectura
-    // del dominio, hermano del que #373 dejo para ListarFichasColaborador -- misma idea
-    // (MEF-ADR-0029/ActivatorUtilities.CreateInstance, sin host real), pero sobre la vista
-    // DirectorioColaborador que #587 materializa. Ninguna proyeccion ni read model nuevos: este
-    // issue consulta la MISMA vista via (a') (session.Query, en vez de LoadAsync por id).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
-    // comportamiento de Run (415/400/422, clasificacion de "identificaciones", tokenizacion de
-    // "nombre", paginacion keyset), que cubre FunctionEndpointTests.cs (validacion de borde y forma
-    // de la respuesta) y el smoke test contra dev (CA-6, camino feliz + Marten real).
+    // Solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor (MEF-ADR-0029). El
+    // comportamiento de Run lo cubren FunctionEndpointTests.cs y el smoke test contra dev.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarDirectorioColaboradores_CuandoElContenedorEstaCompuesto()
     {
@@ -585,18 +577,15 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #590, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6) para la TERCERA vista materializada del dominio -- hermano exacto de los
-    // guardrails que #356/#357 dejaron para FichaColaborador/CategoriaDeEtiquetas, cuyo comentario
-    // documenta el gotcha completo de "Numeric Revisioned Documents" y el incidente de dev del
-    // issue #294. El worker registra DirectorioColaboradorProjection (#587) y crea mt_version como
-    // bigint; este Function App SOLO la consulta (ListarDirectorioColaboradores.FunctionEndpoint),
-    // asi que sin la declaracion explicita del lado LECTURA esperaria mt_version uuid sobre la
-    // MISMA tabla fisica y cada request respondería 500 permanente (42804).
+    // Mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6)
+    // para la tercera vista del dominio: el worker la materializa con mt_version bigint y este
+    // Function App solo la consulta, asi que sin la declaracion del lado lectura cada request
+    // responderia 500 permanente (42804). El gotcha completo esta en el guardrail de
+    // FichaColaborador, mas arriba.
     //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica congela desde el
-    // worker (#587), sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    // Oraculo literal, espejo del que congela ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica desde el worker,
+    // sin que ningun ensamblado referencie al otro (CA-ADR-0029).
     [Fact]
     public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaDirectorioColaborador()
     {
@@ -611,15 +600,13 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #590, segunda dimension del mismo par 2 sobre DirectorioColaborador (precedente
-    // #356/#357): tabla, tenancy e IdMember tienen que converger entre el worker que materializa y
-    // este Function App que consulta, o el QUERY devuelve coleccion vacia para siempre con el
-    // daemon funcionando. Ningun compilador lo garantiza -- son dos configuraciones de Marten
-    // independientes sobre el mismo schema.
+    // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
+    // worker que materializa y este Function App que consulta, o el QUERY devuelve coleccion vacia
+    // para siempre con el daemon funcionando. Son dos configuraciones de Marten independientes
+    // sobre el mismo schema: ningun compilador las alinea.
     //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide
-    // congela desde el worker (#587).
+    // Oraculo literal, espejo del que congela ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveDirectorioColaboradorSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {

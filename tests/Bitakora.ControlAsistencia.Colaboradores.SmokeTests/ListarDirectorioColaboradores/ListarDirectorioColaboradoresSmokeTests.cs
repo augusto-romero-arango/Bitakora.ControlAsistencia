@@ -1,24 +1,20 @@
-// Issue #590: smoke tests de ListarDirectorioColaboradores, verbo QUERY (RFC 10008, MEF-ADR-0042)
-// sobre colaboradores/directorio -- segunda mitad del desglose de #587. No hay proyeccion ni read
-// model nuevos: esta clase consulta la MISMA vista materializada DirectorioColaborador via (a')
-// session.Query<DirectorioColaborador>(), mismo corte que ListarFichasColaborador (#373) hizo sobre
-// la ficha de #356.
+// Smoke tests de ListarDirectorioColaboradores (verbo QUERY, RFC 10008 / MEF-ADR-0042) sobre
+// colaboradores/directorio. Consulta la vista DirectorioColaborador que el worker ya materializa:
+// no hay proyeccion ni read model nuevos.
 //
 // Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
-// POST Colaboradores (#330) y se termina con POST colaboradores/{id}/vinculaciones/{codigo}:terminar
-// (#349/#379) -- los mismos comandos que la proyeccion consume.
+// POST Colaboradores y se termina con POST colaboradores/{id}/vinculaciones/{codigo}:terminar --
+// los mismos comandos que la proyeccion consume.
 //
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza DirectorioColaborador
-// DESPUES de que Colaboradores persiste sus eventos. Los casos de exito envuelven la consulta en
-// Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling
-// directo en tests".
+// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa DESPUES de que Colaboradores
+// persiste. Los casos de exito envuelven la consulta en Polling.WaitUntilAsync -- unica excepcion
+// documentada al "no usar Polling directo en tests".
 //
-// Aislamiento SIN cleanup en un entorno que ACUMULA entradas de corridas anteriores: un token de
-// busqueda generico ("juan") o un numero de documento corto podrian coincidir con historial ajeno.
-// Cada test que busca por nombre embebe un Guid en el APELLIDO mismo (sin separador, ej.
-// "Bermudez{guidHex}"), formando un token unico en TODAS las corridas pasadas y futuras -- el AND de
-// tokens exige que ese token unico este presente, asi que ningun ruido historico puede colarse. La
-// busqueda por numero de documento usa un numero fresco (Guid hex) por el mismo motivo.
+// Aislamiento SIN cleanup en un entorno que ACUMULA entradas de corridas anteriores: un token
+// generico ("juan") o un numero corto podrian coincidir con historial ajeno. Cada test que busca
+// por nombre embebe un Guid en el APELLIDO mismo, sin separador ("Bermudez{guidHex}"), formando un
+// token unico en toda corrida pasada y futura; el AND de tokens exige ese token, asi que ningun
+// ruido historico se cuela. La busqueda por numero usa un numero fresco por el mismo motivo.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -202,7 +198,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             Filtro(nombre: $"juan {busquedaSinAcento}"), ct);
 
         porNombre.Should().ContainSingle(f => f.Identificacion == idUno,
-            "'juan {apellido sin acento}' deberia encontrar exactamente a la entrada UNO");
+            "buscar 'juan' mas el apellido sin acento deberia encontrar exactamente a la entrada UNO");
         porNombre.Should().NotContain(f => f.Identificacion == idDos,
             "el token de apellido de UNO no aparece en el nombre de DOS");
 
@@ -342,10 +338,15 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             "CC", numeroB, new DateOnly(2026, 1, 1), "[TEST]", null, apellidoB, null,
             NuevoCodigoColaborador(), ct);
 
+        // El filtro por el token unico de apellido es obligatorio (sin identificaciones ni nombre
+        // el endpoint responde 422) y ademas aisla la pagina del ruido historico: sin el, un cursor
+        // suelto con Take: 1 devolveria cualquier fila de una corrida anterior que ordene despues.
+        // Ambos apellidos comparten ese token -- el sufijo "-A"/"-B" tokeniza aparte.
+        //
         // Pagina 1: cursor posicionado exactamente en el nombre de A (Identificacion vacia ordena
         // antes que cualquier Id real) -- con Take: 1 trae solo a A.
         var pagina1 = await ConsultarHastaQueAsync(
-            Filtro(cursor: new { nombreCompleto = nombreCompletoA, identificacion = "" }, take: 1),
+            Filtro(nombre: apellidoBase, cursor: new { nombreCompleto = nombreCompletoA, identificacion = "" }, take: 1),
             lista => lista.Any(f => f.Identificacion == idA),
             ct);
 
@@ -355,7 +356,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         // Pagina 2: cursor REAL de la ultima fila de la pagina 1 -- debe continuar exactamente en
         // B, sin saltarlo ni repetir A.
         var pagina2 = await ConsultarHastaQueAsync(
-            Filtro(cursor: new { nombreCompleto = nombreCompletoA, identificacion = idA }, take: 1),
+            Filtro(nombre: apellidoBase, cursor: new { nombreCompleto = nombreCompletoA, identificacion = idA }, take: 1),
             lista => lista.Any(f => f.Identificacion == idB),
             ct);
 

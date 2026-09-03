@@ -1,20 +1,11 @@
-// Issue #590: validacion del borde HTTP del endpoint QUERY ListarDirectorioColaboradores
-// (MEF-ADR-0042, RFC 10008), espejo de ListarFichasColaborador/FunctionEndpointTests.cs (#373).
-// Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y tenantResolver se pasan
-// nulos a proposito: si un cambio futuro moviera la validacion DESPUES de tocar Marten, estos
+// Validacion del borde HTTP del endpoint QUERY ListarDirectorioColaboradores (MEF-ADR-0042, RFC
+// 10008). Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y tenantResolver se
+// pasan nulos a proposito: si un cambio futuro moviera la validacion DESPUES de tocar Marten, estos
 // tests se pondrian rojos por la razon correcta.
 //
-// Fase roja (projection-test-writer): FunctionEndpoint.Run() hoy SOLO lanza NotImplementedException
-// (MEF-ADR-0033, stub minimo de compilacion) -- ninguno de estos tests puede pasar todavia. El
-// COMPORTAMIENTO (que status code y que rama dispara cada uno; si la clasificacion de
-// "identificaciones" y la tokenizacion de "nombre" quedan en LINQ o MatchesSql) es responsabilidad
-// de projection-implementer.
-//
-// La clasificacion completa-vs-numero de "identificaciones" y la tokenizacion de "nombre" son
-// PRIVADAS del endpoint (issue #590, seccion "NO es publico") y requieren Marten real para
-// observar sus resultados -- las cubre el smoke test (CA-6), no este archivo. Aqui solo se cubren
-// las validaciones de borde (415/400/422, sin tocar Marten) y la forma pura de
-// DirectorioColaboradorRespuesta.DesdeVista.
+// La clasificacion completa-vs-numero de "identificaciones" y el containment por tokens de "nombre"
+// son privados del endpoint y exigen Marten real para observarse -- los cubre el smoke test (CA-6),
+// no este archivo.
 
 using AwesomeAssertions;
 using System.Text;
@@ -181,6 +172,23 @@ public class FunctionEndpointTests
         var request = FakeHttpRequest(
             contentType: "application/json",
             body: """{"nombre":"   "}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
+        unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+        unprocessable.Value.Should().BeOfType<string>();
+    }
+
+    [Fact]
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoNombreSoloTraePuntuacion()
+    {
+        // "..." no produce ningun token. Sin este 422 el filtro seria un containment contra un array
+        // jsonb vacio, que esta contenido en TODA fila: el endpoint devolveria el directorio completo
+        // justo cuando el cliente pidio buscar por nombre (verificado contra Postgres 16).
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"nombre":"..."}""");
 
         var resultado = await Endpoint().Run(request, CancellationToken.None);
 

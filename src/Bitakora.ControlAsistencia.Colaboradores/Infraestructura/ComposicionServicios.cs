@@ -123,11 +123,8 @@ public static class ComposicionServicios
             // declaracion -- el par de config-tests de ambos lados la congela.
             options.Schema.For<CategoriaDeEtiquetas>().UseNumericRevisions(true);
 
-            // Issue #590: MISMA razon que las dos lineas de arriba, para la tercera vista
-            // materializada del dominio -- el worker registra DirectorioColaboradorProjection (#587)
-            // y crea mt_version como bigint; este Function App la consulta con session.Query en
-            // ListarDirectorioColaboradores. Sin esta linea el QUERY responde 500 permanente en dev
-            // (42804 por request), el mismo modo de falla que #294/#357 dejaron documentado arriba.
+            // Tercera vista materializada del dominio, misma razon que las dos lineas de arriba:
+            // el worker la crea con mt_version bigint y ListarDirectorioColaboradores la consulta.
             options.Schema.For<DirectorioColaborador>().UseNumericRevisions(true);
 
             // Issue #330: registra la serializacion custom de los VOs con ctor privado que aparecen
