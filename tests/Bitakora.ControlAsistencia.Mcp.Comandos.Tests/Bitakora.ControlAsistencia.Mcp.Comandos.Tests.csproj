@@ -30,6 +30,7 @@
   <ItemGroup>
     <Content Include="RegistrarSede\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="RegistrarColaborador\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="SolicitarProgramacionTurno\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

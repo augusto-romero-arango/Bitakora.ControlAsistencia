@@ -1,0 +1,32 @@
+[
+  {
+    "identificacion": "CC-1111",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "1111",
+    "nombreCompleto": "Ana Ruiz",
+    "codigoColaborador": "AR01",
+    "codigoSede": "SUBA",
+    "vigenteDesde": "2025-01-01",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-2222",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "2222",
+    "nombreCompleto": "Beto Diaz",
+    "codigoColaborador": "BD01",
+    "codigoSede": "SUBA",
+    "vigenteDesde": "2025-01-01",
+    "vigenteHasta": "2026-09-20"
+  },
+  {
+    "identificacion": "CC-3333",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "3333",
+    "nombreCompleto": "Caro Leon",
+    "codigoColaborador": "CL01",
+    "codigoSede": "SUBA",
+    "vigenteDesde": "2025-01-01",
+    "vigenteHasta": "2026-08-30"
+  }
+]
