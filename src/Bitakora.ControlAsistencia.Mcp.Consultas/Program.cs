@@ -46,13 +46,17 @@ builder.Services.AddSingleton<IValidadorTokenAuthKit, ValidadorTokenAuthKit>();
 // desviacion documentada en el resumen del pipeline (seguimiento harness#797).
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
+// Restaura el texto original de los argumentos string que la extension MCP coerciona a
+// DateTimeOffset/Guid (issue #586). Debe correr despues de ConfigureFunctionsWebApplication() (para
+// que context.Items ya traiga el ToolInvocationContext bindeado por FunctionsMcpContextMiddleware)
+// y ANTES de IdentidadTenantMcpMiddleware: aquel bindea el trigger con BindInputAsync, que cachea
+// el ConversionResult bajo el nombre del parametro ("context") en IBindingCache. Si corriera
+// despues, la tool recibiria en su parametro ToolInvocationContext el diccionario ya coercionado
+// desde ese cache, aunque sus parametros [McpToolProperty] si llegaran restaurados.
+builder.UseMiddleware<ArgumentosCrudosMcpMiddleware>();
+
 builder.Services.AddSingleton<IDerivadorIdentidadTenantMcp, DerivadorIdentidadTenantMcp>();
 builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
-
-// Restaura el texto original de los argumentos string que la extension MCP coerciona a
-// DateTimeOffset/Guid (issue #586). Debe correr despues de ConfigureFunctionsWebApplication() para
-// que context.Items ya traiga el ToolInvocationContext bindeado por FunctionsMcpContextMiddleware.
-builder.UseMiddleware<ArgumentosCrudosMcpMiddleware>();
 
 builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
     builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));

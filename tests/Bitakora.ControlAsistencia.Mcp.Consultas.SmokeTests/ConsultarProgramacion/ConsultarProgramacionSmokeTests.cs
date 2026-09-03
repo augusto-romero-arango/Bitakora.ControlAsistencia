@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.Fixtures;
@@ -28,12 +29,17 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
 
-        raiz.TryGetProperty("desde", out _).Should().BeTrue();
-        raiz.TryGetProperty("hasta", out _).Should().BeTrue();
-        raiz.TryGetProperty("total", out _).Should().BeTrue();
-        raiz.TryGetProperty("mostrando", out _).Should().BeTrue();
-        raiz.TryGetProperty("turnos", out var turnos).Should().BeTrue();
-        turnos.ValueKind.Should().Be(JsonValueKind.Array);
+        // El dominio devuelve el rango APLICADO, que puede diferir del pedido si hubo recorte (lo
+        // senala en "nota"): se afirma que son fechas en el formato del contrato, no que sean las
+        // pedidas.
+        DateOnly.TryParseExact(raiz.GetProperty("desde").GetString()!, "yyyy-MM-dd",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out _).Should().BeTrue();
+        DateOnly.TryParseExact(raiz.GetProperty("hasta").GetString()!, "yyyy-MM-dd",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out _).Should().BeTrue();
+
+        var mostrando = raiz.GetProperty("mostrando").GetInt32();
+        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
+        raiz.GetProperty("turnos").EnumerateArray().ToList().Should().HaveCount(mostrando);
     }
 
     // Error path que NO toca los dominios: la validacion de fecha corta en el worker y responde

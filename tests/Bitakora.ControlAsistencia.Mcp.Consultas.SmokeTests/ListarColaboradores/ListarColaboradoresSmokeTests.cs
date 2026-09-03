@@ -39,8 +39,8 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
 
     // CA-2 (issue #586): fecha_referencia con forma de fecha llegaba coercionada a DateTimeOffset
     // reformateado antes de ArgumentosCrudosMcpMiddleware, y el worker respondia siempre el mensaje
-    // FechaInvalida -- esta era la unica tool call de esta suite que ejercitaba el camino con fecha
-    // valida antes del fix, y por eso el gap paso desapercibido.
+    // FechaInvalida. Ninguna tool call de esta suite ejercitaba el camino con fecha VALIDA (la de
+    // arriba omite el filtro, la de abajo manda una fecha invalida): ese gap oculto el defecto.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarColaboradores_DevuelveElCatalogoCompacto_CuandoFechaReferenciaEsValida()
@@ -57,10 +57,9 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
 
-        raiz.TryGetProperty("total", out _).Should().BeTrue();
-        raiz.TryGetProperty("mostrando", out _).Should().BeTrue();
-        raiz.TryGetProperty("colaboradores", out var colaboradores).Should().BeTrue();
-        colaboradores.ValueKind.Should().Be(JsonValueKind.Array);
+        var mostrando = raiz.GetProperty("mostrando").GetInt32();
+        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
+        raiz.GetProperty("colaboradores").EnumerateArray().ToList().Should().HaveCount(mostrando);
     }
 
     // Error path que NO toca el dominio: la validacion de fecha corta en el worker y responde el

@@ -155,4 +155,46 @@ public class ArgumentosCrudosMcpMiddlewareTests
         restaurado.Arguments!.Should().ContainKey("fecha_inicio");
         restaurado.Arguments!["fecha_inicio"].Should().Be("2026-09-01");
     }
+
+    [Fact]
+    public void RestaurarTextoOriginal_ConservaNombreSesionYTransporte_CuandoReemplazaLosArgumentos()
+    {
+        var transporte = new HttpTransport("http-streamable");
+        var bindeado = new ToolInvocationContext
+        {
+            Name = "registrar_colaborador",
+            SessionId = "sesion-1",
+            Transport = transporte,
+            Arguments = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["fecha_inicio"] = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+        };
+        var jsonCrudo = ConstruirJsonCrudo(new { fecha_inicio = "2026-09-01" });
+
+        var restaurado = ArgumentosCrudosMcpMiddleware.RestaurarTextoOriginal(bindeado, jsonCrudo);
+
+        // La copia solo reemplaza Arguments: el SessionId lo usa el host para la afinidad de sesion
+        // y el Transport es de donde IdentidadTenantMcpMiddleware lee el Authorization -- perderlos
+        // no rompe ninguna asercion sobre el texto restaurado, pero si la tool call en runtime.
+        restaurado.Name.Should().Be("registrar_colaborador");
+        restaurado.SessionId.Should().Be("sesion-1");
+        restaurado.Transport.Should().BeSameAs(transporte);
+    }
+
+    [Fact]
+    public void RestaurarTextoOriginal_NoAgregaElArgumento_CuandoLaClaveDelJsonNoEstaEnElBindeado()
+    {
+        var bindeado = CrearBindeado(new()
+        {
+            ["fecha_inicio"] = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
+        });
+        // El diccionario bindeado es la fuente autorizada de que argumentos existen; el JSON crudo
+        // solo aporta el texto original de los que ya estan.
+        var jsonCrudo = ConstruirJsonCrudo(new { fecha_inicio = "2026-09-01", ajeno = "no declarado" });
+
+        var restaurado = ArgumentosCrudosMcpMiddleware.RestaurarTextoOriginal(bindeado, jsonCrudo);
+
+        restaurado.Arguments!.Should().ContainSingle().Which.Key.Should().Be("fecha_inicio");
+    }
 }
