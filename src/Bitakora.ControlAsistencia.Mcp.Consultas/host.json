@@ -12,7 +12,7 @@
         "mcp": {
             "serverName": "ControlAsistencias Consultas",
             "serverVersion": "1.0.0",
-            "instructions": "Servidor MCP de consultas (solo lectura) del bounded context ControlAsistencias. Expone el catalogo de turnos, las sedes y la programacion vigente de los colaboradores. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
+            "instructions": "Servidor MCP de consultas (solo lectura) del bounded context ControlAsistencias. Expone el catalogo de turnos, las sedes y la programacion vigente de los colaboradores, por grupo (listar_colaboradores: sede o etiquetas) o por persona (buscar_colaboradores: nombre o identificacion). Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
         }
     }
 }

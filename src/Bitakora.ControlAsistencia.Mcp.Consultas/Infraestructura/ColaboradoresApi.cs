@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
@@ -10,6 +12,14 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 public sealed class ColaboradoresApi(HttpClient http)
 {
     private static readonly HttpMethod Query = new("QUERY");
+
+    // Body compacto (MEF-ADR-0047 decision 4, aplicada al request): un criterio ausente se omite
+    // en vez de viajar como null. El endpoint de #590 trata null y ausente igual, asi que es forma
+    // del contrato de esta tool, no un requisito suyo.
+    private static readonly JsonSerializerOptions OpcionesSinNulls = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public Task<HttpResponseMessage> ListarFichas(
         DateOnly fechaReferencia,
@@ -34,6 +44,25 @@ public sealed class ColaboradoresApi(HttpClient http)
 
     public Task<HttpResponseMessage> ObtenerFicha(string identificacion, CancellationToken ct) =>
         http.GetAsync($"api/colaboradores/fichas/{Uri.EscapeDataString(identificacion)}", ct);
+
+    public Task<HttpResponseMessage> BuscarEnDirectorio(
+        IReadOnlyList<string>? identificaciones, string? nombre, int take, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/colaboradores/directorio")
+        {
+            Content = JsonContent.Create(
+                new
+                {
+                    // Lista vacia -> null: el endpoint responde 422 a "identificaciones": [] (#590).
+                    identificaciones = identificaciones is { Count: > 0 } ? identificaciones : null,
+                    nombre,
+                    take
+                },
+                options: OpcionesSinNulls)
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }
 
 /// <summary>
