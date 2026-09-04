@@ -110,10 +110,6 @@ public class CatalogoTurnosTests
     }
 
     // ---------- Issue #613 CA-4: EvaluarAsignabilidad() y su precedencia ----------
-    //
-    // Reemplaza a PuedeAsignarNuevaSolicitud(): agrega la razon "Incompleto" con precedencia de
-    // Retirado sobre completitud -- un turno retirado no se evalua por franjas (verificado en el
-    // ultimo test, con cero franjas Y retirado).
 
     [Fact]
     public void EvaluarAsignabilidad_EsRetirado_CuandoElTurnoFueRetirado()

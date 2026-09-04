@@ -90,6 +90,14 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // recursion de las dos listas en MapearFranja. Con el turno sin hijas de arriba esos dos mapeos
     // no se ejecutan nunca, asi que perder la Descripcion de una sub-franja o permutar las listas
     // Descansos/Extras pasaba en verde -- verificado por mutacion en la revision de este PR.
+    private static TurnoCreado CrearEventoTurnoConHijas() =>
+        TurnoCreado.Crear(
+            TurnoConHijasId,
+            "Turno Partido",
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0),
+                [(new TimeOnly(10, 0), new TimeOnly(10, 15))],
+                [(new TimeOnly(13, 0), new TimeOnly(14, 0))])]);
+
     // Issue #613: turno incompleto -- nace vacio y sin marca de descanso (CA-ADR-0033, #599).
     private static TurnoCreado CrearEventoTurnoIncompleto() =>
         TurnoCreado.Crear(TurnoIncompletoId, "Turno Incompleto", []);
@@ -102,14 +110,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // (Retirado gana sobre Incompleto).
     private static TurnoCreado CrearEventoTurnoRetiradoSinFranjas() =>
         TurnoCreado.Crear(TurnoRetiradoSinFranjasId, "Turno Retirado Vacio", []);
-
-    private static TurnoCreado CrearEventoTurnoConHijas() =>
-        TurnoCreado.Crear(
-            TurnoConHijasId,
-            "Turno Partido",
-            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0),
-                [(new TimeOnly(10, 0), new TimeOnly(10, 15))],
-                [(new TimeOnly(13, 0), new TimeOnly(14, 0))])]);
 
     // --- Formas esperadas del turno con hijas, en los dos roles de payload (CA-1, CA-5) ---
     //
@@ -580,5 +580,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
+        ThenIsPublishedPrivately();
     }
 }

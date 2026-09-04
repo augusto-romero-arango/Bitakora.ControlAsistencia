@@ -42,23 +42,20 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoRetiroTurno.Retirado;
     }
 
-    // Conservado por RetirarTurnoCommandHandlerTests (issue #500, fuera del alcance de #613): un
-    // solo booleano en terminos de EvaluarAsignabilidad(), sin duplicar la regla de asignabilidad.
-    internal bool PuedeAsignarNuevaSolicitud() =>
-        EvaluarAsignabilidad() == ResultadoAsignabilidadTurno.Asignable;
-
     // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
     // menos una franja ordinaria.
     internal bool EstaCompleto() => _esDescanso || _franjasOrdinarias.Count > 0;
 
-    // Issue #613: reemplaza a PuedeAsignarNuevaSolicitud() -- agrega la razon "Incompleto" con
-    // precedencia de retirado sobre completitud (un turno retirado no se evalua por franjas).
+    // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud, y con que
+    // razon -- el handler no interroga su estado interno para decidir por su cuenta.
     internal ResultadoAsignabilidadTurno EvaluarAsignabilidad()
     {
         if (!_estaActivo)
             return ResultadoAsignabilidadTurno.Retirado;
 
-        return EstaCompleto() ? ResultadoAsignabilidadTurno.Asignable : ResultadoAsignabilidadTurno.Incompleto;
+        return EstaCompleto()
+            ? ResultadoAsignabilidadTurno.Asignable
+            : ResultadoAsignabilidadTurno.Incompleto;
     }
 
     public override string ToString() => (_esDescanso, _franjasOrdinarias.Count) switch
