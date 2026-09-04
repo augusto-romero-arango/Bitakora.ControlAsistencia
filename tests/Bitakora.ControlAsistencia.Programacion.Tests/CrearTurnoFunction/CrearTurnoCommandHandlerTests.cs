@@ -198,7 +198,8 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
     }
 
-    // CA-5 (#601): el comando con hijas via Rango llega intacto al evento persistido y al detalle.
+    // El extra va contenido en 06:00-14:00: las extras se programan dentro de su ordinaria
+    // (invariante de catalogo-turnos.yaml). Un extra que la desborde hace fallar el arrange.
     [Fact]
     public async Task CrearTurno_EmiteTurnoCreadoConDescansoYExtra_CuandoFranjaTraeHijasComoRango()
     {
@@ -206,7 +207,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             [new CrearTurno.Franja(
                 new TimeOnly(6, 0), new TimeOnly(14, 0),
                 Descansos: [new CrearTurno.Rango(new TimeOnly(10, 0), new TimeOnly(10, 15))],
-                Extras: [new CrearTurno.Rango(new TimeOnly(14, 0), new TimeOnly(15, 0))])]);
+                Extras: [new CrearTurno.Rango(new TimeOnly(13, 0), new TimeOnly(14, 0))])]);
         var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
 
         Given();

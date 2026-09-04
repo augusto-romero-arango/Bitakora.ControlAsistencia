@@ -419,8 +419,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #601 CA-6: las hijas via JSON ({inicio, fin}, sin offsets) se infieren correctamente
-    // cuando la ordinaria es nocturna y el descanso cae en la madrugada (depende de #600).
+    // Los offsets del descanso no viajan en el body: los infiere el dominio desde su ordinaria.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_PersisteDescansoDeMadrugada_CuandoOrdinariaEsNocturna()
@@ -462,7 +461,6 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         descanso.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
     }
 
-    // Issue #601 CA-7: diaOffsetFin explicito en la ordinaria habilita la franja de 24 h exactas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_PersisteFranjaDe24Horas_CuandoDiaOffsetFinEsExplicito()

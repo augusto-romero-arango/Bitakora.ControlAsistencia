@@ -1,7 +1,5 @@
 // Issue #335: tests del mapeo CrearTurno.ToDatosFranjas() -- traduce el contrato HTTP a la
 // entrada del factory de TurnoCreado. Cubre la propagacion (o no) de la sede prearmada por franja.
-// Issue #601: las hijas via JSON llegan como {inicio, fin} -- record Rango, no tuplas (STJ no
-// serializa campos de ValueTuple por defecto) -- y DiaOffsetFin opcional en la ordinaria.
 
 using System.Text.Json;
 using AwesomeAssertions;
@@ -54,8 +52,6 @@ public class CrearTurnoTests
 
         datos.Should().BeEmpty();
     }
-
-    // ---------- Issue #601 CA-1: deserializacion JSON de las hijas via Rango ----------
 
     [Fact]
     public void Deserializar_MapeaDescansosYExtras_CuandoOrdinariaTraeHijasConFormatoHHmm()
@@ -116,8 +112,6 @@ public class CrearTurnoTests
         act.Should().Throw<JsonException>();
     }
 
-    // ---------- Issue #601 CA-2: ordinaria sin descansos/extras/diaOffsetFin ----------
-
     [Fact]
     public void ToDatosFranjas_DevuelveHijasVaciasYOffsetCero_CuandoOrdinariaJsonNoTraeHijasNiOffset()
     {
@@ -136,8 +130,6 @@ public class CrearTurnoTests
         datos[0].Extras.Should().BeEmpty();
         datos[0].DiaOffsetFin.Should().Be(0);
     }
-
-    // ---------- Issue #601 CA-3: mapeo Rango -> tupla y propagacion de DiaOffsetFin ----------
 
     [Fact]
     public void ToDatosFranjas_MapeaRangosATuplasYPropagaOffsetYSede_CuandoFranjaTraeHijasOffsetYSede()

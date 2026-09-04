@@ -6,9 +6,8 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 // grafo de referencias en ciclo. El comando se convierte con CrearTurno.ToDatosFranjas().
 // Issue #335: Sede es campo aditivo y opcional -- se propaga a FranjaOrdinaria.Crear() dentro de
 // TurnoCreado.Crear(). El mapeo comando -> DatosFranja lo hace CrearTurno.ToDatosFranjas().
-// Issue #601: DiaOffsetFin aditivo y opcional al final -- 0 = inferir (comportamiento previo
-// intacto), explicito habilita la franja de 24 h exactas. TurnoCreado.Crear lo propaga a
-// FranjaOrdinaria.Crear() y al chequeo de solape entre ordinarias.
+// DiaOffsetFin 0 = inferir (+1 si Fin < Inicio); explicito habilita la franja de 24 h exactas.
+// TurnoCreado.Crear lo propaga a FranjaOrdinaria.Crear() y al chequeo de solape entre ordinarias.
 public record DatosFranja(
     TimeOnly Inicio,
     TimeOnly Fin,

@@ -391,8 +391,6 @@ public class TurnoCreadoTests
             "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]");
     }
 
-    // ---------- Issue #601 CA-4: DiaOffsetFin explicito habilita la franja de 24 h exactas ----------
-
     [Fact]
     public void Crear_RetornaFranjaDe24Horas_CuandoDiaOffsetFinEsExplicito()
     {
