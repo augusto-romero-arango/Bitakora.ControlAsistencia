@@ -354,6 +354,41 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         eventoPersistido.GetProperty("FranjasOrdinarias").EnumerateArray().Should().BeEmpty(
             "TurnoCreado.CrearDescanso construye el evento con FranjasOrdinarias vacia");
+
+        // Issue #599 CA-7: el evento persistido debe distinguir "descanso" de "incompleto" por
+        // el campo EsDescanso, ya no por la ausencia de franjas (ver test de turno incompleto).
+        eventoPersistido.GetProperty("EsDescanso").GetBoolean().Should().BeTrue(
+            "TurnoCreado.CrearDescanso debe marcar EsDescanso = true en el evento persistido");
+    }
+
+    // Issue #599 CA-7: un turno sin ordinarias y sin marca de descanso ya no es 400 (se retira
+    // la regla NotEmpty del validator) -- nace como turno incompleto, con EsDescanso = false y
+    // FranjasOrdinarias vacia. mt_events es la unica ventana black-box para distinguirlo del
+    // descanso, que persiste la misma lista vacia pero con EsDescanso = true.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_DebeRetornar202YPersistirTurnoIncompleto_CuandoNoTraeFranjasNiMarca()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var nombreTurno = $"[TEST] Incompleto {turnoId}";
+        var payload = new { turnoId, nombre = nombreTurno };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = turnoId.ToString();
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoTurnoCreado,
+            campoJson: "Nombre", valorJson: nombreTurno, Timeout);
+
+        eventoPersistido.GetProperty("FranjasOrdinarias").EnumerateArray().Should().BeEmpty(
+            "un turno sin ordinarias se persiste con FranjasOrdinarias vacia");
+        eventoPersistido.GetProperty("EsDescanso").GetBoolean().Should().BeFalse(
+            "sin la marca esDescanso, el evento persistido debe quedar EsDescanso = false (turno incompleto)");
     }
 
     [Fact]
