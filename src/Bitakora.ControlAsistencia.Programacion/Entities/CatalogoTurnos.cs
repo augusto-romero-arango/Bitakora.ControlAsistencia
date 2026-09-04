@@ -29,7 +29,6 @@ public partial class CatalogoTurnos : AggregateRoot
     // emitir.
     public void Apply(TurnoRetirado evento) => _estaActivo = false;
 
-    // Issue #602: agrega la franja a la lista y con ella completa el turno (EstaCompleto()).
     public void Apply(FranjaAgregada evento) => _franjasOrdinarias.Add(evento.Franja);
 
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
@@ -45,9 +44,8 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoRetiroTurno.Retirado;
     }
 
-    // Issue #602: mismo mecanismo "declinar con resultado" que Retirar() -- el handler ya
-    // construyo la franja (invariantes del VO resueltas antes de llegar aqui). Precedencia:
-    // retirado > descanso > solape (CA-4).
+    // Recibe la franja ya construida: las invariantes del VO las resolvio el handler, para no
+    // mezclar ese canal de error (lanzar) con el de las reglas de negocio (declinar, CA-ADR-0030).
     internal ResultadoAgregarFranja AgregarFranja(FranjaOrdinaria franja)
     {
         if (!_estaActivo)

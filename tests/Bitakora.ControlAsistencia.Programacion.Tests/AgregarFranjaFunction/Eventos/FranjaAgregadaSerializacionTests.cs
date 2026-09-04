@@ -22,7 +22,10 @@ public class FranjaAgregadaSerializacionTests
         var sede = new SedeProgramada("SEDE-SUBA", "Suba");
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(22, 0), new TimeOnly(6, 0),
-            descansos: [SubFranja.Crear(new TimeOnly(2, 0), new TimeOnly(2, 30))],
+            // El descanso cae en el tramo posterior a medianoche de la ordinaria nocturna: su
+            // offset +1 es explicito, como en FranjaOrdinariaTests (convencion de #598/#600).
+            descansos: [SubFranja.Crear(new TimeOnly(2, 0), new TimeOnly(2, 30),
+                diaOffsetInicio: 1, diaOffsetFin: 1)],
             sede: sede);
         var evento = FranjaAgregada.Crear(TurnoId, franja);
 

@@ -24,7 +24,6 @@ public static class IdentidadEventosProgramacion
         typeof(ProgramacionTurnoSolicitada),
         typeof(TurnoRetirado),
         typeof(CancelacionProgramacionSolicitada),
-        // Issue #602: se agrega una franja al catalogo, un paso del diseno de turno por pasos.
         typeof(FranjaAgregada)
     ];
 }

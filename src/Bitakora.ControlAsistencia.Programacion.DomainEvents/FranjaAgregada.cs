@@ -3,9 +3,9 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #602: se agrega una franja ordinaria a un turno del catalogo, una a la vez
-// (CA-ADR-0033, diseno de turno por pasos). No cruza ningun bus (no implementa IPrivateEvent ni
-// IPublicEvent): solo se persiste en el event store de Programacion.
+// Una franja ordinaria se suma a un turno del catalogo, una a la vez (CA-ADR-0033, diseno de
+// turno por pasos). No cruza ningun bus: solo se persiste en el event store de Programacion --
+// sumarle IPrivateEvent/IPublicEvent exigiria antes aplanar Franja (MEF-ADR-0012).
 public sealed class FranjaAgregada
 {
     public Guid TurnoId { get; private set; }
@@ -17,12 +17,11 @@ public sealed class FranjaAgregada
         Franja = franja;
     }
 
-    // Constructor vacio privado para Marten/JSON (mismo patron que TurnoCreado/TurnoRetirado).
+    // Constructor vacio privado para Marten/JSON.
     private FranjaAgregada() { }
 
     public static FranjaAgregada Crear(Guid turnoId, FranjaOrdinaria franja) => new(turnoId, franja);
 
-    // Mapping de serializacion para STJ/Marten -- mismo patron que TurnoRetirado.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(FranjaAgregada)

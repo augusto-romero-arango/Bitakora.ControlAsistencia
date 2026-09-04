@@ -22,15 +22,18 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
-        var resultado = catalogo.AgregarFranja(franja);
-        switch (resultado)
+        // El arm final vuelve ruidoso un miembro nuevo del enum: sin el, un rechazo sin mensaje
+        // mapeado saldria 202 como si la franja se hubiera agregado.
+        var mensajeDeRechazo = catalogo.AgregarFranja(franja) switch
         {
-            case ResultadoAgregarFranja.TurnoRetirado:
-                throw new InvalidOperationException(Mensajes.TurnoRetirado);
-            case ResultadoAgregarFranja.TurnoEsDescanso:
-                throw new InvalidOperationException(Mensajes.TurnoEsDescanso);
-            case ResultadoAgregarFranja.SeSolapaConOtraFranja:
-                throw new InvalidOperationException(Mensajes.FranjaSeSolapa);
-        }
+            ResultadoAgregarFranja.Agregada => null,
+            ResultadoAgregarFranja.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoAgregarFranja.TurnoEsDescanso => Mensajes.TurnoEsDescanso,
+            ResultadoAgregarFranja.SeSolapaConOtraFranja => Mensajes.FranjaSeSolapa,
+            var otro => throw new NotSupportedException($"Resultado de AgregarFranja no mapeado: {otro}")
+        };
+
+        if (mensajeDeRechazo is not null)
+            throw new InvalidOperationException(mensajeDeRechazo);
     }
 }
