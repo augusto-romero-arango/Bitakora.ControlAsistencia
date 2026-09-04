@@ -106,6 +106,6 @@ public class CatalogoTurnosTests
         var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
 
         catalogo.EstaCompleto().Should().BeTrue();
-        catalogo.ToString().Should().Be(catalogo.ObtenerDetalle().Descripcion);
+        catalogo.ToString().Should().Be("Turno Manana (06:00-14:00)");
     }
 }

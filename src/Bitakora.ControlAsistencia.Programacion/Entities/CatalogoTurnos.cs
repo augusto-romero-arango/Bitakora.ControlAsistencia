@@ -50,17 +50,12 @@ public partial class CatalogoTurnos : AggregateRoot
     // menos una franja ordinaria.
     internal bool EstaCompleto() => _esDescanso || _franjasOrdinarias.Count > 0;
 
-    // Tres formas segun el estado del turno: descanso (marca explicita), incompleto (nace vacio,
-    // sin marca) o con franjas (concatena sus ordinarias).
-    public override string ToString()
+    public override string ToString() => (_esDescanso, _franjasOrdinarias.Count) switch
     {
-        if (_esDescanso)
-            return $"{_nombre} {Mensajes.LabelDescanso}";
-
-        return _franjasOrdinarias.Count == 0
-            ? $"{_nombre} {Mensajes.LabelIncompleto}"
-            : $"{_nombre} {string.Join("", _franjasOrdinarias)}";
-    }
+        (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",
+        (false, 0) => $"{_nombre} {Mensajes.LabelIncompleto}",
+        _ => $"{_nombre} {string.Join("", _franjasOrdinarias)}"
+    };
 
     // Devuelve el turno programado propio del dominio (Programacion.DomainEvents.TurnoProgramado).
     // Issue #319 (tres islas): ya no construye el DTO de bus (DetalleTurno, PrivateEvents) -- el

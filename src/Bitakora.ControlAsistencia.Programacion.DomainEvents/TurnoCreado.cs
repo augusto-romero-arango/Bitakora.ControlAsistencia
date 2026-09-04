@@ -69,8 +69,8 @@ public sealed partial class TurnoCreado
         if (string.IsNullOrWhiteSpace(nombre))
             errores.Add(new ArgumentException(Mensajes.NombreVacio));
 
-        // Un turno nace vacio y se completa por pasos (CA-ADR-0033): la ausencia de franjas ya no es
-        // invalida. El solapamiento solo aplica cuando hay al menos dos franjas que comparar.
+        // Un turno nace vacio y se completa por pasos (CA-ADR-0033): la ausencia de franjas ya no
+        // es invalida.
         if (HaySolapamientoEntreOrdinarias(ordinarias))
             // CA-8: solapamiento entre ordinarias -- un unico error independiente de cuantos pares
             errores.Add(new ArgumentException(Mensajes.FranjasOrdinariasSeSolapan));

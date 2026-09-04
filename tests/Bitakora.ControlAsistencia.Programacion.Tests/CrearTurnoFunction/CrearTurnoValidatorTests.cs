@@ -57,7 +57,7 @@ public class CrearTurnoValidatorTests
     // Un turno nace vacio y se completa por pasos (CA-ADR-0033): Ordinarias vacia (o ausente) ya
     // no es invalida cuando no se marca como descanso.
     [Fact]
-    public async Task DebeSerValido_CuandoOrdinariasEsListaVaciaYNoEsDescanso()
+    public async Task CrearTurno_EsValido_CuandoOrdinariasEsListaVaciaYNoEsDescanso()
     {
         var comando = new CrearTurno(Guid.NewGuid(), NombreTurno, []);
         var resultado = await _validator.ValidateAsync(
@@ -66,7 +66,7 @@ public class CrearTurnoValidatorTests
     }
 
     [Fact]
-    public async Task DebeSerValido_CuandoOrdinariasEsNullYNoEsDescanso()
+    public async Task CrearTurno_EsValido_CuandoOrdinariasEsNull()
     {
         var comando = new CrearTurno(Guid.NewGuid(), NombreTurno, null);
         var resultado = await _validator.ValidateAsync(
