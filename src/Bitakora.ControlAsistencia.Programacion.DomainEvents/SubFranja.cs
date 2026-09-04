@@ -18,14 +18,16 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
     private SubFranja() { }
 
     // CA-8: factory estatico
-    // CA-7: rechaza InicioYFinIguales
+    // Issue #598 CA-1, CA-2: rechaza duracion no positiva (generaliza el caso inicio == fin)
     public static SubFranja Crear(TimeOnly horaInicio, TimeOnly horaFin,
         int diaOffsetInicio = 0, int diaOffsetFin = 0)
     {
-        if (horaInicio == horaFin && diaOffsetInicio == diaOffsetFin)
+        var franja = new SubFranja(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
+
+        if (franja.DuracionEnMinutos() <= 0)
             throw new ArgumentException(Mensajes.DuracionNoPositiva);
 
-        return new SubFranja(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
+        return franja;
     }
 
     // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.SubFranjaProgramada).

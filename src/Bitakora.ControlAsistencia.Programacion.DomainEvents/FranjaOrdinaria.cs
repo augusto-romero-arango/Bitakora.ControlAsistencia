@@ -35,7 +35,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     }
 
     // CA-8: factory estatico
-    // CA-7: rechaza InicioYFinIguales
+    // Issue #598 CA-4 a CA-6: rechaza duracion no positiva (generaliza inicio == fin) y duracion
+    // mayor a 24 horas (jornada maxima; 24 h exactas se acepta para esquemas 24x24)
     // CA-13: infiere offset +1 cuando fin < inicio
     // CA-14 a CA-16: valida que descansos y extras esten contenidos
     // CA-17 a CA-19: valida que descansos y extras no se solapen entre si
@@ -53,10 +54,6 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         if (diaOffsetFin == 0 && horaFin < horaInicio)
             diaOffsetFin = 1;
 
-        // CA-7: rechazar duracion cero
-        if (horaInicio == horaFin && diaOffsetFin == 0)
-            throw new ArgumentException(FranjaTemporal.Mensajes.DuracionNoPositiva);
-
         // CA-3: rechazar sede incompleta -- la regla de completitud la responde la propia sede
         if (sede is not null && !sede.EstaCompleta())
             throw new ArgumentException(Mensajes.SedeIncompleta);
@@ -66,6 +63,13 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
 
         var ordinaria = new FranjaOrdinaria(horaInicio, horaFin, diaOffsetFin,
             listaDescansos, listaExtras, sede);
+
+        // Issue #598: la propia franja responde su duracion (Tell-don't-Ask, MEF-ADR-0012)
+        var duracion = ordinaria.DuracionEnMinutos();
+        if (duracion <= 0)
+            throw new ArgumentException(FranjaTemporal.Mensajes.DuracionNoPositiva);
+        if (duracion > MinutosPorDia)
+            throw new ArgumentException(Mensajes.DuracionExcedeUnDia);
 
         // Proyectar todas las hijas como FranjaTemporal para validaciones unificadas
         var hijas = listaDescansos.Cast<FranjaTemporal>().Concat(listaExtras).ToList();
