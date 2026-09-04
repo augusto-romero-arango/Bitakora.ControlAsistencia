@@ -426,4 +426,85 @@ public class FranjaOrdinariaTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaOrdinaria.Mensajes.SedeIncompleta}*");
     }
+
+    // ---------- Issue #600: ConDescanso/ConExtra infieren offsets relativos al contenedor ----------
+
+    // CA-1: hija antes de medianoche -- offsets 0/0
+    [Fact]
+    public void ConDescanso_InfiereOffsetsCero_CuandoHijaCaeAntesDeMedianoche()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30));
+
+        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:30)]");
+    }
+
+    // CA-2: hija que cruza medianoche -- offsets 0/1
+    [Fact]
+    public void ConDescanso_InfiereOffsetInicioCeroYOffsetFinUno_CuandoHijaCruzaMedianoche()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 30), new TimeOnly(0, 30));
+
+        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:30-00:30+1)]");
+    }
+
+    // CA-3: hija de madrugada -- offsets 1/1 (hoy TurnoCreado.Crear lo rechaza sin esta inferencia)
+    [Fact]
+    public void ConDescanso_InfiereOffsetsUno_CuandoHijaCaeEnLaMadrugada()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+    }
+
+    // CA-4: hija cuyo fin coincide con el borde final de la franja -- offsets 1/1
+    [Fact]
+    public void ConExtra_InfiereOffsetsUno_CuandoFinDeLaHijaCoincideConFinDeLaFranja()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConExtra(new TimeOnly(5, 30), new TimeOnly(6, 0));
+
+        franja.ToString().Should().Be("(22:00-06:00+1)[Extras:(05:30+1-06:00+1)]");
+    }
+
+    // CA-5: la hija inferida cae fuera del contenedor -- mismo rechazo que hoy por contencion
+    [Fact]
+    public void ConDescanso_LanzaExcepcion_CuandoOffsetInferidoDejaLaHijaFueraDelContenedor()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+
+        var act = () => franja.ConDescanso(new TimeOnly(5, 0), new TimeOnly(5, 30));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor}*");
+    }
+
+    // CA-6: duracion no positiva -- la franja original queda intacta (inmutabilidad)
+    [Fact]
+    public void ConDescanso_LanzaExcepcion_CuandoInicioYFinDeLaHijaSonIguales()
+    {
+        var franjaOriginal = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0));
+
+        var act = () => franjaOriginal.ConDescanso(new TimeOnly(23, 30), new TimeOnly(23, 30));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
+        franjaOriginal.ToString().Should().Be("(22:00-06:00+1)");
+    }
+
+    // CA-6: hija nueva que solapa una hija ya presente -- la franja original queda intacta
+    [Fact]
+    public void ConDescanso_LanzaExcepcion_CuandoHijaNuevaSeSolapaConHijaExistente()
+    {
+        var franjaConDescanso = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30));
+
+        var act = () => franjaConDescanso.ConDescanso(new TimeOnly(23, 15), new TimeOnly(23, 45));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.FranjasHijasSeSuperponen}*");
+        franjaConDescanso.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:30)]");
+    }
 }

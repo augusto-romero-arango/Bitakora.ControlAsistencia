@@ -83,6 +83,12 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return ordinaria;
     }
 
+    public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
+        throw new NotImplementedException();
+
+    public FranjaOrdinaria ConExtra(TimeOnly inicio, TimeOnly fin) =>
+        throw new NotImplementedException();
+
     // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.FranjaProgramada).
     // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleFranjaOrdinaria, PrivateEvents)
     // -- el FA mapea FranjaProgramada -> DetalleFranjaOrdinaria solo para los eventos que cruzan
