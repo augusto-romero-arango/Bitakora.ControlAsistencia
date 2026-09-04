@@ -741,6 +741,11 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        // CA-6: el body debe distinguir esta razon de la del turno retirado -- ambas comparten
+        // status 409, el texto es la unica evidencia black-box de que declino por incompletitud.
+        var body = await response.Content.ReadAsStringAsync(ct);
+        body.Should().Contain("no tiene franjas ordinarias");
     }
 
     [Fact]
