@@ -718,6 +718,31 @@ public class SolicitarProgramacionTurnoSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
+    // Issue #613 CA-6: un turno incompleto (creado sin franjas ordinarias y sin marca de descanso,
+    // ya posible desde #599) no es programable -- declina con 409, mismo mecanismo que el turno
+    // retirado de arriba. Requiere #599 desplegado en dev (el POST sin "ordinarias" responde 400
+    // hasta entonces).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebeRetornar409_CuandoElTurnoEstaIncompleto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var turnoPayload = new
+        {
+            turnoId,
+            nombre = $"[TEST] Incompleto {turnoId}"
+        };
+        var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de #599 (turno sin ordinarias) desplegado en dev");
+
+        var payload = PayloadValido(turnoId: turnoId);
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_DebeRetornar400_CuandoIdEsGuidVacio()

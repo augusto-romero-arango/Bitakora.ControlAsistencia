@@ -50,6 +50,11 @@ public partial class CatalogoTurnos : AggregateRoot
     // menos una franja ordinaria.
     internal bool EstaCompleto() => _esDescanso || _franjasOrdinarias.Count > 0;
 
+    // Issue #613: reemplaza a PuedeAsignarNuevaSolicitud() -- agrega la razon "Incompleto" con
+    // precedencia de retirado sobre completitud (un turno retirado no se evalua por franjas).
+    internal ResultadoAsignabilidadTurno EvaluarAsignabilidad() =>
+        throw new NotImplementedException();
+
     public override string ToString() => (_esDescanso, _franjasOrdinarias.Count) switch
     {
         (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",
