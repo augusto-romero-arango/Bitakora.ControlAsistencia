@@ -11,11 +11,11 @@ public partial class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
         RuleFor(x => x.TurnoId).NotEmpty();
         RuleFor(x => x.Nombre).NotEmpty();
 
-        // La marca de descanso y las franjas ordinarias se excluyen mutuamente.
+        // La marca de descanso y las franjas ordinarias se excluyen mutuamente. Un turno nace vacio
+        // y se completa por pasos (CA-ADR-0033): sin marca de descanso, Ordinarias vacia o ausente
+        // ya no es invalida.
         When(x => x.EsDescanso,
-                () => RuleFor(x => x.Ordinarias).Empty()
-                    .WithMessage(Mensajes.EsDescansoConFranjas))
-            .Otherwise(
-                () => RuleFor(x => x.Ordinarias).NotEmpty());
+            () => RuleFor(x => x.Ordinarias).Empty()
+                .WithMessage(Mensajes.EsDescansoConFranjas));
     }
 }

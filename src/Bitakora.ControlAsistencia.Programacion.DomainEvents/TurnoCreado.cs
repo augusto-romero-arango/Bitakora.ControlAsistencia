@@ -16,11 +16,13 @@ public sealed partial class TurnoCreado
     public bool EsDescanso { get; private set; }
 
     // CA-12: constructor real privado -- solo el factory lo invoca
-    private TurnoCreado(Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias)
+    private TurnoCreado(
+        Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias, bool esDescanso)
     {
         TurnoId = turnoId;
         Nombre = nombre;
         FranjasOrdinarias = franjasOrdinarias;
+        EsDescanso = esDescanso;
     }
 
     // CA-13: constructor vacio privado para Marten/JSON
@@ -67,10 +69,9 @@ public sealed partial class TurnoCreado
         if (string.IsNullOrWhiteSpace(nombre))
             errores.Add(new ArgumentException(Mensajes.NombreVacio));
 
-        // CA-6: validar al menos una franja ordinaria
-        if (ordinarias.Count == 0)
-            errores.Add(new ArgumentException(Mensajes.SinFranjasOrdinarias));
-        else if (HaySolapamientoEntreOrdinarias(ordinarias))
+        // Un turno nace vacio y se completa por pasos (CA-ADR-0033): la ausencia de franjas ya no es
+        // invalida. El solapamiento solo aplica cuando hay al menos dos franjas que comparar.
+        if (HaySolapamientoEntreOrdinarias(ordinarias))
             // CA-8: solapamiento entre ordinarias -- un unico error independiente de cuantos pares
             errores.Add(new ArgumentException(Mensajes.FranjasOrdinariasSeSolapan));
 
@@ -94,16 +95,17 @@ public sealed partial class TurnoCreado
         if (errores.Count > 0)
             throw new AggregateException(errores);
 
-        return new TurnoCreado(turnoId, nombre, franjasOrdinarias);
+        return new TurnoCreado(turnoId, nombre, franjasOrdinarias, esDescanso: false);
     }
 
-    // Unica puerta a cero franjas ordinarias: Crear() las exige >= 1 deliberadamente.
+    // La marca EsDescanso es la unica frontera entre un descanso y un turno incompleto: ambos
+    // nacen con cero franjas ordinarias (CA-ADR-0033).
     public static TurnoCreado CrearDescanso(Guid turnoId, string nombre)
     {
         if (string.IsNullOrWhiteSpace(nombre))
             throw new AggregateException(new ArgumentException(Mensajes.NombreVacio));
 
-        return new TurnoCreado(turnoId, nombre, []);
+        return new TurnoCreado(turnoId, nombre, [], esDescanso: true);
     }
 
     // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.

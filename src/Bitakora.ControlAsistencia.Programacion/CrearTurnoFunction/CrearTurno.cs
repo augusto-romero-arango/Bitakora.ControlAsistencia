@@ -24,7 +24,7 @@ public record CrearTurno(
     // TurnoCreado. Un solo lugar con el mapeo: lo reusan el handler y sus tests.
     // Issue #335 CA-1: propaga o.Sede -- prearma la sede de la franja del catalogo.
     public List<DatosFranja> ToDatosFranjas() =>
-        Ordinarias
+        (Ordinarias ?? [])
             .Select(o => new DatosFranja(o.Inicio, o.Fin, o.Descansos, o.Extras, o.Sede))
             .ToList();
 }
