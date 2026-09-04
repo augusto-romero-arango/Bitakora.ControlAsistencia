@@ -83,6 +83,10 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return ordinaria;
     }
 
+    // Publica porque el aggregate vive en otro ensamblado (Programacion FA) y no alcanza
+    // FranjaTemporal.SeSolapaCon, internal aqui. Fin exclusivo: contiguas no se solapan.
+    public bool SeSolapaCon(FranjaOrdinaria otra) => ((FranjaTemporal)this).SeSolapaCon(otra);
+
     public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin,
             [.. _descansos, InferirHija(inicio, fin)], _extras, _sede);

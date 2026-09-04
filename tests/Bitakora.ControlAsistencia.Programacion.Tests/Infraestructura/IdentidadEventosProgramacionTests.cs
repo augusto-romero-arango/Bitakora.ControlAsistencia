@@ -13,17 +13,18 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    // Issue #500: TurnoRetirado se persiste en el mismo stream de CatalogoTurnos -- debe listarse
-    // aqui igual que TurnoCreado.
+    // Issue #602: FranjaAgregada se persiste en el mismo stream de CatalogoTurnos -- debe
+    // listarse aqui igual que TurnoCreado/TurnoRetirado.
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosCuatroEventosPersistidosDeProgramacion()
+    public void TiposPersistidos_ContieneExactamenteLosCincoEventosPersistidosDeProgramacion()
     {
         IdentidadEventosProgramacion.TiposPersistidos.Should().BeEquivalentTo(
         [
             typeof(TurnoCreado),
             typeof(ProgramacionTurnoSolicitada),
             typeof(TurnoRetirado),
-            typeof(CancelacionProgramacionSolicitada)
+            typeof(CancelacionProgramacionSolicitada),
+            typeof(FranjaAgregada)
         ]);
     }
 

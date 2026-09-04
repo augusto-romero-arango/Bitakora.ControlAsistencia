@@ -64,4 +64,13 @@ public class AliasEventosProgramacionTests
         AliasDe<CancelacionProgramacionSolicitada>(options)
             .Should().Be("cancelacion_programacion_solicitada");
     }
+
+    // Issue #602
+    [Fact]
+    public void FranjaAgregada_TieneAliasFranjaAgregada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<FranjaAgregada>(options).Should().Be("franja_agregada");
+    }
 }

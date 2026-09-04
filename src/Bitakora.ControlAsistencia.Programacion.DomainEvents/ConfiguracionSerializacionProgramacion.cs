@@ -31,5 +31,6 @@ public static class ConfiguracionSerializacionProgramacion
         FranjaOrdinaria.ConfigurarSerializacion(resolver);
         TurnoCreado.ConfigurarSerializacion(resolver);
         TurnoRetirado.ConfigurarSerializacion(resolver);
+        FranjaAgregada.ConfigurarSerializacion(resolver);
     }
 }

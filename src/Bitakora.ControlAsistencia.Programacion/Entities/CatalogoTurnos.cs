@@ -29,6 +29,8 @@ public partial class CatalogoTurnos : AggregateRoot
     // emitir.
     public void Apply(TurnoRetirado evento) => _estaActivo = false;
 
+    public void Apply(FranjaAgregada evento) => _franjasOrdinarias.Add(evento.Franja);
+
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
     internal ResultadoRetiroTurno Retirar()
@@ -40,6 +42,25 @@ public partial class CatalogoTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoRetiroTurno.Retirado;
+    }
+
+    // Recibe la franja ya construida: las invariantes del VO las resolvio el handler, para no
+    // mezclar ese canal de error (lanzar) con el de las reglas de negocio (declinar, CA-ADR-0030).
+    internal ResultadoAgregarFranja AgregarFranja(FranjaOrdinaria franja)
+    {
+        if (!_estaActivo)
+            return ResultadoAgregarFranja.TurnoRetirado;
+
+        if (_esDescanso)
+            return ResultadoAgregarFranja.TurnoEsDescanso;
+
+        if (_franjasOrdinarias.Any(f => f.SeSolapaCon(franja)))
+            return ResultadoAgregarFranja.SeSolapaConOtraFranja;
+
+        var evento = FranjaAgregada.Crear(Guid.Parse(Id!), franja);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAgregarFranja.Agregada;
     }
 
     // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
