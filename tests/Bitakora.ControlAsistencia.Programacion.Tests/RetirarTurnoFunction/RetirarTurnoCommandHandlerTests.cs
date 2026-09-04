@@ -33,7 +33,8 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
         await WhenAsync(new RetirarTurno(TurnoId));
 
         Then(TurnoId.ToString(), TurnoRetirado.Crear(TurnoId));
-        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.PuedeAsignarNuevaSolicitud(), false);
+        And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
+            c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
     // CA-5: el retiro tambien aplica a turnos de descanso (turnos de pleno derecho, #423)
@@ -45,7 +46,8 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
         await WhenAsync(new RetirarTurno(TurnoId));
 
         Then(TurnoId.ToString(), TurnoRetirado.Crear(TurnoId));
-        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.PuedeAsignarNuevaSolicitud(), false);
+        And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
+            c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
     // CA-3: idempotencia -- retirar un turno ya retirado declina sin re-emitir (CA-ADR-0030)
@@ -59,7 +61,8 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{RetirarTurnoCommandHandler.Mensajes.TurnoYaRetirado}*");
         Then(TurnoId.ToString());
-        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.PuedeAsignarNuevaSolicitud(), false);
+        And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
+            c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
     // CA-2: turno inexistente -> 404, sin escribir nada al event store

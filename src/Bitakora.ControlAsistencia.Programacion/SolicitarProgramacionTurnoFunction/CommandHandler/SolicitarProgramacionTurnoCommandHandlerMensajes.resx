@@ -29,4 +29,7 @@
   <data name="TurnoRetirado" xml:space="preserve">
     <value>El turno fue retirado del catalogo y ya no es asignable</value>
   </data>
+  <data name="TurnoIncompleto" xml:space="preserve">
+    <value>El turno no tiene franjas ordinarias y aun no es programable</value>
+  </data>
 </root>

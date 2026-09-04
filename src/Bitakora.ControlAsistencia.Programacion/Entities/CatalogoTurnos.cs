@@ -42,13 +42,21 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoRetiroTurno.Retirado;
     }
 
-    // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud -- el
-    // handler no interroga su estado interno para decidir por su cuenta.
-    internal bool PuedeAsignarNuevaSolicitud() => _estaActivo;
-
     // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
     // menos una franja ordinaria.
     internal bool EstaCompleto() => _esDescanso || _franjasOrdinarias.Count > 0;
+
+    // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud, y con que
+    // razon -- el handler no interroga su estado interno para decidir por su cuenta.
+    internal ResultadoAsignabilidadTurno EvaluarAsignabilidad()
+    {
+        if (!_estaActivo)
+            return ResultadoAsignabilidadTurno.Retirado;
+
+        return EstaCompleto()
+            ? ResultadoAsignabilidadTurno.Asignable
+            : ResultadoAsignabilidadTurno.Incompleto;
+    }
 
     public override string ToString() => (_esDescanso, _franjasOrdinarias.Count) switch
     {

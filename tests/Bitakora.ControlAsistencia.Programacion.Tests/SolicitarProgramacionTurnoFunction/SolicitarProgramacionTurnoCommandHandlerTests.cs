@@ -24,6 +24,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Guid.Parse("018e4c1a-4f2b-7000-8000-778899aabbcc");
     private static readonly Guid TurnoConFranjasMixtasId =
         Guid.Parse("018e4c1a-4f2b-7000-8000-1a2b3c4d5e6f");
+    private static readonly Guid TurnoIncompletoId =
+        Guid.Parse("018e4c1a-4f2b-7000-8000-99aabbccddee");
+    private static readonly Guid TurnoDescansoId =
+        Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc001122");
+    private static readonly Guid TurnoRetiradoSinFranjasId =
+        Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc003344");
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
@@ -91,6 +97,19 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0),
                 [(new TimeOnly(10, 0), new TimeOnly(10, 15))],
                 [(new TimeOnly(13, 0), new TimeOnly(14, 0))])]);
+
+    // Issue #613: turno incompleto -- nace vacio y sin marca de descanso (CA-ADR-0033, #599).
+    private static TurnoCreado CrearEventoTurnoIncompleto() =>
+        TurnoCreado.Crear(TurnoIncompletoId, "Turno Incompleto", []);
+
+    // Issue #613 CA-2: un descanso es completo aunque tenga cero franjas ordinarias.
+    private static TurnoCreado CrearEventoTurnoDescanso() =>
+        TurnoCreado.CrearDescanso(TurnoDescansoId, "Descanso Compensatorio");
+
+    // Issue #613 CA-3: turno retirado que ademas nace vacio -- ejercita la precedencia
+    // (Retirado gana sobre Incompleto).
+    private static TurnoCreado CrearEventoTurnoRetiradoSinFranjas() =>
+        TurnoCreado.Crear(TurnoRetiradoSinFranjasId, "Turno Retirado Vacio", []);
 
     // --- Formas esperadas del turno con hijas, en los dos roles de payload (CA-1, CA-5) ---
     //
@@ -506,5 +525,61 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
+    }
+
+    // Issue #613 CA-1: un turno incompleto (nace vacio, sin marca de descanso) declina con 409 --
+    // hermano exacto de la guarda de turno retirado (CA-ADR-0030). Sin And<>(): igual que el test
+    // de retirado de arriba, la solicitud nunca se crea en este camino.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LanzaInvalidOperationException_CuandoElTurnoDelCatalogoEstaIncompleto()
+    {
+        Given(TurnoIncompletoId.ToString(), CrearEventoTurnoIncompleto());
+
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoIncompletoId, Colaborador, [Fecha1]));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoIncompleto}*");
+        Then(GuidAggregateId.ToString());
+        ThenIsPublishedPrivately();
+    }
+
+    // Issue #613 CA-2: un descanso es completo aunque tenga cero franjas ordinarias -- sigue
+    // siendo programable, el guard de completitud no lo bloquea.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_EmiteProgramacionSolicitada_CuandoElTurnoDelCatalogoEsDescanso()
+    {
+        Given(TurnoDescansoId.ToString(), CrearEventoTurnoDescanso());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoDescansoId, Colaborador, [Fecha1]));
+
+        var descripcionDescanso = $"Descanso Compensatorio {CatalogoTurnos.Mensajes.LabelDescanso}";
+        var turnoDescansoEsperado = new TurnoProgramado(
+            "Descanso Compensatorio", new List<FranjaProgramada>().AsReadOnly(), descripcionDescanso);
+        var detalleDescansoEsperado = new DetalleTurno(
+            "Descanso Compensatorio", new List<DetalleFranjaOrdinaria>().AsReadOnly(), descripcionDescanso);
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], turnoDescansoEsperado));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1, detalleDescansoEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
+    }
+
+    // Issue #613 CA-3: precedencia -- un turno retirado que ademas nace vacio (seria Incompleto
+    // por completitud) sigue declinando con el mensaje de TurnoRetirado, no el de TurnoIncompleto.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LanzaInvalidOperationExceptionConMensajeDeRetirado_CuandoElTurnoRetiradoAdemasEstaIncompleto()
+    {
+        Given(TurnoRetiradoSinFranjasId.ToString(),
+            CrearEventoTurnoRetiradoSinFranjas(), TurnoRetirado.Crear(TurnoRetiradoSinFranjasId));
+
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoRetiradoSinFranjasId, Colaborador, [Fecha1]));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
+        Then(GuidAggregateId.ToString());
+        ThenIsPublishedPrivately();
     }
 }

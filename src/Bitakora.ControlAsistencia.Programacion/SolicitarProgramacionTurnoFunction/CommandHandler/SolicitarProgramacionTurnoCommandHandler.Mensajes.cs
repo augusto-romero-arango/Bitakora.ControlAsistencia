@@ -18,5 +18,8 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         public static string TurnoRetirado =>
             ResourceManager.GetString(nameof(TurnoRetirado))!;
+
+        public static string TurnoIncompleto =>
+            ResourceManager.GetString(nameof(TurnoIncompleto))!;
     }
 }

@@ -33,9 +33,14 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
         // Guarda transaccional contra el aggregate ya cargado (Tell-don't-Ask, MEF-ADR-0012): un
-        // turno retirado ya no es asignable a nuevas solicitudes.
-        if (!catalogo.PuedeAsignarNuevaSolicitud())
-            throw new InvalidOperationException(Mensajes.TurnoRetirado);
+        // turno solo es asignable a una nueva solicitud si esta activo y completo (CA-ADR-0033).
+        switch (catalogo.EvaluarAsignabilidad())
+        {
+            case ResultadoAsignabilidadTurno.Retirado:
+                throw new InvalidOperationException(Mensajes.TurnoRetirado);
+            case ResultadoAsignabilidadTurno.Incompleto:
+                throw new InvalidOperationException(Mensajes.TurnoIncompleto);
+        }
 
         // Unico punto de normalizacion de la sede entrante: aguas abajo (cascada, evento
         // persistido, evento de bus) solo se transporta el valor ya normalizado.

@@ -108,4 +108,50 @@ public class CatalogoTurnosTests
         catalogo.EstaCompleto().Should().BeTrue();
         catalogo.ToString().Should().Be("Turno Manana (06:00-14:00)");
     }
+
+    // ---------- Issue #613 CA-4: EvaluarAsignabilidad() y su precedencia ----------
+
+    [Fact]
+    public void EvaluarAsignabilidad_EsRetirado_CuandoElTurnoFueRetirado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+        catalogo.Retirar();
+
+        catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Retirado);
+    }
+
+    [Fact]
+    public void EvaluarAsignabilidad_EsIncompleto_CuandoElTurnoNaceVacioSinMarcaDeDescanso()
+    {
+        var catalogo = CrearCatalogo();
+
+        catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Incompleto);
+    }
+
+    [Fact]
+    public void EvaluarAsignabilidad_EsAsignable_CuandoElTurnoTieneAlMenosUnaFranja()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+        catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Asignable);
+    }
+
+    [Fact]
+    public void EvaluarAsignabilidad_EsAsignable_CuandoElTurnoEsDescanso()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+
+        catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Asignable);
+    }
+
+    // Precedencia (CA-4): un turno retirado con cero franjas y sin marca de descanso -- por
+    // completitud seria Incompleto, pero Retirado gana la precedencia.
+    [Fact]
+    public void EvaluarAsignabilidad_EsRetirado_CuandoElTurnoEstaRetiradoYAdemasIncompleto()
+    {
+        var catalogo = CrearCatalogo();
+        catalogo.Retirar();
+
+        catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Retirado);
+    }
 }
