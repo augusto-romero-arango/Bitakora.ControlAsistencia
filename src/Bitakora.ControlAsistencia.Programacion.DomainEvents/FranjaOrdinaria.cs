@@ -83,11 +83,24 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return ordinaria;
     }
 
+    // Issue #600: agrega una hija infiriendo sus offsets relativos a esta franja (ver ConHija) y
+    // devuelve una nueva instancia -- inmutabilidad de VO, revalidada integramente via Crear.
     public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
-        throw new NotImplementedException();
+        Crear(_horaInicio, _horaFin, _diaOffsetFin, [.. _descansos, ConHija(inicio, fin)], _extras, _sede);
 
     public FranjaOrdinaria ConExtra(TimeOnly inicio, TimeOnly fin) =>
-        throw new NotImplementedException();
+        Crear(_horaInicio, _horaFin, _diaOffsetFin, _descansos, [.. _extras, ConHija(inicio, fin)], _sede);
+
+    // Issue #600: unico punto de inferencia de offsets de una hija, relativa al inicio de esta
+    // franja (Tell-don't-Ask, MEF-ADR-0012). Con la ordinaria acotada a <= 24h (#598), el dia de
+    // "inicio" es unico (anterior a medianoche si es previo al inicio de la franja) y el de "fin"
+    // es el primer instante posterior con esa hora.
+    private SubFranja ConHija(TimeOnly inicio, TimeOnly fin)
+    {
+        var offsetInicio = inicio < _horaInicio ? 1 : 0;
+        var offsetFin = fin < inicio ? offsetInicio + 1 : offsetInicio;
+        return SubFranja.Crear(inicio, fin, offsetInicio, offsetFin);
+    }
 
     // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.FranjaProgramada).
     // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleFranjaOrdinaria, PrivateEvents)

@@ -81,10 +81,14 @@ public sealed partial class TurnoCreado
         {
             try
             {
-                var descansos = franja.Descansos.Select(d => SubFranja.Crear(d.inicio, d.fin));
-                var extras = franja.Extras.Select(e => SubFranja.Crear(e.inicio, e.fin));
-                franjasOrdinarias.Add(FranjaOrdinaria.Crear(franja.Inicio, franja.Fin,
-                    descansos: descansos, extras: extras, sede: franja.Sede));
+                // Issue #600: la ordinaria nace sin hijas y se pliega con ConDescanso/ConExtra,
+                // que infieren los offsets relativos a esta franja -- ya no son entrada.
+                var ordinaria = FranjaOrdinaria.Crear(franja.Inicio, franja.Fin, sede: franja.Sede);
+                ordinaria = franja.Descansos.Aggregate(
+                    ordinaria, (acc, d) => acc.ConDescanso(d.inicio, d.fin));
+                ordinaria = franja.Extras.Aggregate(
+                    ordinaria, (acc, e) => acc.ConExtra(e.inicio, e.fin));
+                franjasOrdinarias.Add(ordinaria);
             }
             catch (ArgumentException ex)
             {
