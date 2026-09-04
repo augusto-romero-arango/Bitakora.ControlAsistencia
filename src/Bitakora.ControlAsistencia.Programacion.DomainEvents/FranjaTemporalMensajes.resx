@@ -20,8 +20,8 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="InicioYFinIguales" xml:space="preserve">
-    <value>La franja no puede tener duracion cero: HoraInicio y HoraFin son iguales</value>
+  <data name="DuracionNoPositiva" xml:space="preserve">
+    <value>La franja debe tener duracion positiva: el fin debe ser posterior al inicio</value>
   </data>
   <data name="FranjaHijaFueraDeContenedor" xml:space="preserve">
     <value>La franja hija no esta contenida dentro del rango temporal de la franja ordinaria</value>

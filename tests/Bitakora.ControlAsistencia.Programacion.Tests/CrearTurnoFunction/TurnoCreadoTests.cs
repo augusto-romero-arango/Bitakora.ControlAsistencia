@@ -312,4 +312,43 @@ public class TurnoCreadoTests
         ex.InnerExceptions.OfType<ArgumentException>()
             .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
     }
+
+    // ---------- Issue #598 CA-7: descanso con duracion no positiva se acumula como error delegado ----------
+
+    [Fact]
+    public void Crear_LanzaAggregateException_CuandoDescansoTieneDuracionNoPositiva()
+    {
+        // Ordinaria nocturna 22:00-06:00 con descanso (23:30, 00:30) sin offsets explicitos: SubFranja
+        // asume offsets 0/0, que antes de este issue construian una franja de -1380 min sin protestar.
+        var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(0, 30));
+
+        var act = () => TurnoCreado.Crear(
+            TurnoId,
+            NombreValido,
+            [new DatosFranja(
+                new TimeOnly(22, 0), new TimeOnly(6, 0),
+                [descansoInvalido], [])]);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(FranjaTemporal.Mensajes.DuracionNoPositiva));
+    }
+
+    [Fact]
+    public void Crear_LanzaAggregateExceptionConDosErrores_CuandoNombreVacioYDescansoTieneDuracionNoPositiva()
+    {
+        var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(0, 30));
+
+        var act = () => TurnoCreado.Crear(
+            TurnoId,
+            "",
+            [new DatosFranja(
+                new TimeOnly(22, 0), new TimeOnly(6, 0),
+                [descansoInvalido], [])]);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.Should().HaveCount(2);
+        ex.InnerExceptions.Should().Contain(e => e.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
+        ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaTemporal.Mensajes.DuracionNoPositiva));
+    }
 }

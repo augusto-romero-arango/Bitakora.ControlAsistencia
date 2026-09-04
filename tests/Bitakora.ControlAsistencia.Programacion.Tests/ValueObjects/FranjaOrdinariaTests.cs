@@ -63,13 +63,58 @@ public class FranjaOrdinariaTests
 
     // ---------- CA-7: inicio == fin es rechazado ----------
 
+    // Issue #598 CA-6: InicioYFinIguales se retira; la duracion no positiva la absorbe DuracionNoPositiva.
     [Fact]
     public void Crear_LanzaExcepcion_CuandoInicioYFinSonIguales()
     {
         var act = () => FranjaOrdinaria.Crear(new TimeOnly(10, 0), new TimeOnly(10, 0));
 
         act.Should().ThrowExactly<ArgumentException>()
-            .WithMessage($"*{FranjaTemporal.Mensajes.InicioYFinIguales}*");
+            .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
+    }
+
+    // ---------- Issue #598 CA-6: offset explicito negativo tambien produce duracion no positiva ----------
+
+    [Fact]
+    public void Crear_LanzaExcepcion_CuandoOffsetExplicitoProduceDuracionNegativa()
+    {
+        var act = () => FranjaOrdinaria.Crear(new TimeOnly(8, 0), new TimeOnly(10, 0), diaOffsetFin: -1);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
+    }
+
+    // ---------- Issue #598 CA-4: tope de 24 horas ----------
+
+    [Fact]
+    public void Crear_LanzaExcepcion_CuandoDuracionExcedeUnDia()
+    {
+        // 08:00 -> 10:00+1 = 26 horas
+        var act = () => FranjaOrdinaria.Crear(new TimeOnly(8, 0), new TimeOnly(10, 0), diaOffsetFin: 1);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaOrdinaria.Mensajes.DuracionExcedeUnDia}*");
+    }
+
+    [Fact]
+    public void Crear_LanzaExcepcion_CuandoDuracionExcedeUnDiaPorUnMinuto()
+    {
+        // 08:00 -> 08:01+1 = 1441 minutos, borde justo por encima del tope
+        var act = () => FranjaOrdinaria.Crear(new TimeOnly(8, 0), new TimeOnly(8, 1), diaOffsetFin: 1);
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaOrdinaria.Mensajes.DuracionExcedeUnDia}*");
+    }
+
+    // ---------- Issue #598 CA-5: 24 horas exactas se acepta (esquemas 24x24) ----------
+
+    [Fact]
+    public void Crear_AceptaFranjaDe24HorasExactas_CuandoOffsetExplicitoIgualaInicioYFin()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(8, 0), new TimeOnly(8, 0), diaOffsetFin: 1);
+
+        franja.DuracionEnMinutos().Should().Be(1440);
+        franja.ToString().Should().Be("(08:00-08:00+1)");
     }
 
     // ---------- CA-10: duracion sin offset ----------

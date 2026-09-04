@@ -10,7 +10,9 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 public abstract class FranjaTemporal
 {
     private const int MinutosPorHora = 60;
-    private const int MinutosPorDia = 1440;
+
+    // protected: FranjaOrdinaria la usa para su propio tope de 24 horas (Issue #598 CA-4/CA-5).
+    protected const int MinutosPorDia = 1440;
 
     private static readonly ResourceManager ResourceManager = new(
         "Bitakora.ControlAsistencia.Programacion.DomainEvents.FranjaTemporalMensajes",
@@ -18,8 +20,8 @@ public abstract class FranjaTemporal
 
     public static class Mensajes
     {
-        public static string InicioYFinIguales =>
-            ResourceManager.GetString(nameof(InicioYFinIguales))!;
+        public static string DuracionNoPositiva =>
+            ResourceManager.GetString(nameof(DuracionNoPositiva))!;
 
         public static string FranjaHijaFueraDeContenedor =>
             ResourceManager.GetString(nameof(FranjaHijaFueraDeContenedor))!;

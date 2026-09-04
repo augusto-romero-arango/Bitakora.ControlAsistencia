@@ -23,6 +23,9 @@
   <data name="SedeIncompleta" xml:space="preserve">
     <value>La sede de la franja debe tener Id y Nombre no vacios</value>
   </data>
+  <data name="DuracionExcedeUnDia" xml:space="preserve">
+    <value>La franja ordinaria no puede durar mas de 24 horas</value>
+  </data>
   <data name="LabelSede" xml:space="preserve">
     <value>sede</value>
   </data>
