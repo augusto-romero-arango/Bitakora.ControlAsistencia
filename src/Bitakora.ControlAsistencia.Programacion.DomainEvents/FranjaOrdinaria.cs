@@ -65,10 +65,10 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
             listaDescansos, listaExtras, sede);
 
         // Issue #598: la propia franja responde su duracion (Tell-don't-Ask, MEF-ADR-0012)
-        var duracion = ordinaria.DuracionEnMinutos();
-        if (duracion <= 0)
+        var duracionEnMinutos = ordinaria.DuracionEnMinutos();
+        if (duracionEnMinutos <= 0)
             throw new ArgumentException(FranjaTemporal.Mensajes.DuracionNoPositiva);
-        if (duracion > MinutosPorDia)
+        if (duracionEnMinutos > MinutosPorDia)
             throw new ArgumentException(Mensajes.DuracionExcedeUnDia);
 
         // Proyectar todas las hijas como FranjaTemporal para validaciones unificadas

@@ -318,8 +318,8 @@ public class TurnoCreadoTests
     [Fact]
     public void Crear_LanzaAggregateException_CuandoDescansoTieneDuracionNoPositiva()
     {
-        // Ordinaria nocturna 22:00-06:00 con descanso (23:30, 00:30) sin offsets explicitos:
-        // SubFranja.Crear() infiere offsets 0/0 y hoy construye -1380 min (defecto que este issue cierra).
+        // Ordinaria nocturna 22:00-06:00 con descanso (23:30, 00:30) sin offsets explicitos: SubFranja
+        // asume offsets 0/0, que antes de este issue construian una franja de -1380 min sin protestar.
         var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(0, 30));
 
         var act = () => TurnoCreado.Crear(

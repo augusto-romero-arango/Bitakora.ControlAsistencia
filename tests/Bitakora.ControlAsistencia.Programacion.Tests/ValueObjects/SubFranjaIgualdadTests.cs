@@ -18,8 +18,10 @@ public class SubFranjaIgualdadTests : IgualdadTestBase<SubFranja>
             SubFranja.Crear(new TimeOnly(10, 5), new TimeOnly(10, 15)));
         yield return ("HoraFin",
             SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 30)));
+        // Issue #598: ambos offsets en 1 -- con diaOffsetFin: 0 la duracion seria -1425 min, que la
+        // invariante de duracion positiva ahora rechaza. Sigue difiriendo del base en DiaOffsetInicio.
         yield return ("OffsetInicio",
-            SubFranja.Crear(new TimeOnly(1, 0), new TimeOnly(1, 15), diaOffsetInicio: 1, diaOffsetFin: 0));
+            SubFranja.Crear(new TimeOnly(1, 0), new TimeOnly(1, 15), diaOffsetInicio: 1, diaOffsetFin: 1));
         yield return ("OffsetFin",
             SubFranja.Crear(new TimeOnly(23, 50), new TimeOnly(0, 10), diaOffsetInicio: 0, diaOffsetFin: 1));
     }
