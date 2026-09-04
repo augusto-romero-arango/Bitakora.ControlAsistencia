@@ -449,7 +449,7 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:30-00:30+1)]");
     }
 
-    // CA-3: hija de madrugada -- offsets 1/1 (hoy TurnoCreado.Crear lo rechaza sin esta inferencia)
+    // CA-3: hija de madrugada -- offsets 1/1
     [Fact]
     public void ConDescanso_InfiereOffsetsUno_CuandoHijaCaeEnLaMadrugada()
     {
@@ -469,7 +469,7 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("(22:00-06:00+1)[Extras:(05:30+1-06:00+1)]");
     }
 
-    // CA-5: la hija inferida cae fuera del contenedor -- mismo rechazo que hoy por contencion
+    // CA-5: la hija inferida cae fuera del contenedor -- rechazo por contencion
     [Fact]
     public void ConDescanso_LanzaExcepcion_CuandoOffsetInferidoDejaLaHijaFueraDelContenedor()
     {
@@ -506,5 +506,21 @@ public class FranjaOrdinariaTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjasHijasSeSuperponen}*");
         franjaConDescanso.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:30)]");
+    }
+
+    // Agregar una hija reconstruye la franja desde sus campos: la sede prearmada y las hijas ya
+    // presentes deben sobrevivir esa reconstruccion.
+    [Fact]
+    public void ConExtra_ConservaLaSedePrearmadaYElDescansoPrevio_CuandoSeEncadenaSobreConDescanso()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba");
+
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0), sede: sede)
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30))
+            .ConExtra(new TimeOnly(5, 0), new TimeOnly(5, 30));
+
+        franja.ToString().Should().Be(
+            "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]"
+            + $"[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]");
     }
 }

@@ -333,10 +333,8 @@ public class TurnoCreadoTests
     }
 
     // ---------- Issue #598 CA-7: descanso con duracion no positiva se acumula como error delegado ----------
-    // Issue #600: con offsets inferidos, (23:30, 00:30) deja de ser invalido -- se infiere 0/1 y
-    // produce una hija valida de 60 min (ver ConDescanso_InfiereOffsetInicioCeroYOffsetFinUno_...
-    // en FranjaOrdinariaTests). El unico inicio/fin que la inferencia no puede rescatar es uno
-    // identico: offsetFin siempre iguala a offsetInicio cuando fin no es menor que inicio.
+    // Con offsets inferidos, el unico par (inicio, fin) que ninguna inferencia rescata es uno
+    // identico: offsetFin solo supera a offsetInicio cuando fin es menor que inicio.
 
     [Fact]
     public void Crear_LanzaAggregateException_CuandoDescansoTieneDuracionNoPositiva()
