@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -12,6 +13,24 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
 
     public AgregarFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
 
-    public Task HandleAsync(AgregarFranja command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(AgregarFranja command, CancellationToken ct = default)
+    {
+        var franja = FranjaOrdinaria.Crear(
+            command.Inicio, command.Fin, command.DiaOffsetFin ?? 0, sede: command.Sede);
+
+        var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
+        if (catalogo is null)
+            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+
+        var resultado = catalogo.AgregarFranja(franja);
+        switch (resultado)
+        {
+            case ResultadoAgregarFranja.TurnoRetirado:
+                throw new InvalidOperationException(Mensajes.TurnoRetirado);
+            case ResultadoAgregarFranja.TurnoEsDescanso:
+                throw new InvalidOperationException(Mensajes.TurnoEsDescanso);
+            case ResultadoAgregarFranja.SeSolapaConOtraFranja:
+                throw new InvalidOperationException(Mensajes.FranjaSeSolapa);
+        }
+    }
 }
