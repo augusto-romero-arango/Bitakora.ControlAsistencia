@@ -31,5 +31,7 @@ public static class ConfiguracionSerializacionProgramacion
         FranjaOrdinaria.ConfigurarSerializacion(resolver);
         TurnoCreado.ConfigurarSerializacion(resolver);
         TurnoRetirado.ConfigurarSerializacion(resolver);
+        // Issue #602: FranjaAgregada transporta FranjaOrdinaria como payload rico.
+        FranjaAgregada.ConfigurarSerializacion(resolver);
     }
 }

@@ -523,4 +523,34 @@ public class FranjaOrdinariaTests
             "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]"
             + $"[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]");
     }
+
+    // ---------- Issue #602: SeSolapaCon publico -- pregunta que CatalogoTurnos.AgregarFranja usa
+    // para decidir solape sin acceder a FranjaTemporal.SeSolapaCon (internal a este ensamblado) ----------
+
+    [Fact]
+    public void SeSolapaCon_EsFalse_CuandoLasFranjasSonContiguas()
+    {
+        var primera = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+        var segunda = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0));
+
+        primera.SeSolapaCon(segunda).Should().BeFalse();
+    }
+
+    [Fact]
+    public void SeSolapaCon_EsTrue_CuandoLasFranjasSeSuperponenParcialmente()
+    {
+        var primera = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+        var segunda = FranjaOrdinaria.Crear(new TimeOnly(10, 0), new TimeOnly(18, 0));
+
+        primera.SeSolapaCon(segunda).Should().BeTrue();
+    }
+
+    [Fact]
+    public void SeSolapaCon_EsSimetrico_CuandoSeInvierteElOrdenDeLasFranjas()
+    {
+        var primera = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+        var segunda = FranjaOrdinaria.Crear(new TimeOnly(10, 0), new TimeOnly(18, 0));
+
+        segunda.SeSolapaCon(primera).Should().BeTrue();
+    }
 }

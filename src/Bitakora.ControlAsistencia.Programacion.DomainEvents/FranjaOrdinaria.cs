@@ -83,6 +83,11 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return ordinaria;
     }
 
+    // Issue #602: pregunta publica que el aggregate (otro ensamblado -- Programacion FA) usa para
+    // decidir solape sin acceder a FranjaTemporal.SeSolapaCon, internal a este ensamblado
+    // (MEF-ADR-0012, Tell-don't-Ask). Fin exclusivo: contiguas no se solapan.
+    public bool SeSolapaCon(FranjaOrdinaria otra) => throw new NotImplementedException();
+
     public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin,
             [.. _descansos, InferirHija(inicio, fin)], _extras, _sede);

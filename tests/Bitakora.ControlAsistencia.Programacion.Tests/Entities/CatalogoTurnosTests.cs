@@ -154,4 +154,90 @@ public class CatalogoTurnosTests
 
         catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Retirado);
     }
+
+    // ---------- Issue #602 CA-2/CA-3/CA-4: AgregarFranja y su precedencia ----------
+
+    // CA-2: el turno pasa de incompleto a completo con la primera franja.
+    [Fact]
+    public void AgregarFranja_RetornaAgregada_CuandoElTurnoEstaIncompleto()
+    {
+        var catalogo = CrearCatalogo();
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0));
+
+        var resultado = catalogo.AgregarFranja(franja);
+
+        resultado.Should().Be(ResultadoAgregarFranja.Agregada);
+        catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().ContainSingle()
+            .Which.Franja.Should().Be(franja);
+        catalogo.EstaCompleto().Should().BeTrue();
+        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
+    }
+
+    // CA-3: fin exclusivo -- una franja contigua a la existente no se solapa y se agrega,
+    // conservando el orden de insercion en ToString().
+    [Fact]
+    public void AgregarFranja_RetornaAgregada_CuandoLaNuevaFranjaEsContiguaALaExistente()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+        var nueva = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0));
+
+        var resultado = catalogo.AgregarFranja(nueva);
+
+        resultado.Should().Be(ResultadoAgregarFranja.Agregada);
+        catalogo.ToString().Should().Be("Turno Manana (06:00-14:00)(14:00-22:00)");
+    }
+
+    // CA-3: una franja que se superpone parcialmente con la existente se rechaza sin emitir evento.
+    [Fact]
+    public void AgregarFranja_RetornaSeSolapaConOtraFranja_CuandoLaNuevaFranjaSeSuperponeConLaExistente()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+        var nueva = FranjaOrdinaria.Crear(new TimeOnly(10, 0), new TimeOnly(12, 0));
+
+        var resultado = catalogo.AgregarFranja(nueva);
+
+        resultado.Should().Be(ResultadoAgregarFranja.SeSolapaConOtraFranja);
+        catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().BeEmpty();
+        catalogo.ObtenerDetalle().FranjasOrdinarias.Should().HaveCount(1);
+    }
+
+    // CA-4: un turno de descanso no admite franjas ordinarias.
+    [Fact]
+    public void AgregarFranja_RetornaTurnoEsDescanso_CuandoElTurnoEsDeDescanso()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+
+        var resultado = catalogo.AgregarFranja(franja);
+
+        resultado.Should().Be(ResultadoAgregarFranja.TurnoEsDescanso);
+        catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().BeEmpty();
+    }
+
+    // CA-4: un turno retirado no admite nuevas franjas.
+    [Fact]
+    public void AgregarFranja_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+        catalogo.Retirar();
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0));
+
+        var resultado = catalogo.AgregarFranja(franja);
+
+        resultado.Should().Be(ResultadoAgregarFranja.TurnoRetirado);
+        catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().BeEmpty();
+    }
+
+    // CA-4: precedencia -- un turno de descanso retirado devuelve TurnoRetirado, no TurnoEsDescanso.
+    [Fact]
+    public void AgregarFranja_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+        catalogo.Retirar();
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+
+        var resultado = catalogo.AgregarFranja(franja);
+
+        resultado.Should().Be(ResultadoAgregarFranja.TurnoRetirado);
+    }
 }

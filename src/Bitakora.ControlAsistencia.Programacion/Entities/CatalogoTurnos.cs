@@ -29,6 +29,9 @@ public partial class CatalogoTurnos : AggregateRoot
     // emitir.
     public void Apply(TurnoRetirado evento) => _estaActivo = false;
 
+    // Issue #602: agrega la franja a la lista y con ella completa el turno (EstaCompleto()).
+    public void Apply(FranjaAgregada evento) => throw new NotImplementedException();
+
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
     internal ResultadoRetiroTurno Retirar()
@@ -41,6 +44,12 @@ public partial class CatalogoTurnos : AggregateRoot
         Apply(evento);
         return ResultadoRetiroTurno.Retirado;
     }
+
+    // Issue #602: mismo mecanismo "declinar con resultado" que Retirar() -- el handler ya
+    // construyo la franja (invariantes del VO resueltas antes de llegar aqui). Precedencia:
+    // retirado > descanso > solape (CA-4).
+    internal ResultadoAgregarFranja AgregarFranja(FranjaOrdinaria franja) =>
+        throw new NotImplementedException();
 
     // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
     // menos una franja ordinaria.
