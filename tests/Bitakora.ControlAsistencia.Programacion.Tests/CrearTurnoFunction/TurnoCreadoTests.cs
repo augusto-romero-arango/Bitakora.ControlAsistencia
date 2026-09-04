@@ -333,13 +333,13 @@ public class TurnoCreadoTests
     }
 
     // ---------- Issue #598 CA-7: descanso con duracion no positiva se acumula como error delegado ----------
+    // Con offsets inferidos, el unico par (inicio, fin) que ninguna inferencia rescata es uno
+    // identico: offsetFin solo supera a offsetInicio cuando fin es menor que inicio.
 
     [Fact]
     public void Crear_LanzaAggregateException_CuandoDescansoTieneDuracionNoPositiva()
     {
-        // Ordinaria nocturna 22:00-06:00 con descanso (23:30, 00:30) sin offsets explicitos: SubFranja
-        // asume offsets 0/0, que antes de este issue construian una franja de -1380 min sin protestar.
-        var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(0, 30));
+        var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(23, 30));
 
         var act = () => TurnoCreado.Crear(
             TurnoId,
@@ -356,7 +356,7 @@ public class TurnoCreadoTests
     [Fact]
     public void Crear_LanzaAggregateExceptionConDosErrores_CuandoNombreVacioYDescansoTieneDuracionNoPositiva()
     {
-        var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(0, 30));
+        var descansoInvalido = (new TimeOnly(23, 30), new TimeOnly(23, 30));
 
         var act = () => TurnoCreado.Crear(
             TurnoId,
@@ -369,5 +369,25 @@ public class TurnoCreadoTests
         ex.InnerExceptions.Should().HaveCount(2);
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaTemporal.Mensajes.DuracionNoPositiva));
+    }
+
+    // ---------- Issue #600: offsets de hijas inferidos relativos a su franja contenedora ----------
+
+    // CA-7: descanso y extra de madrugada, hoy rechazados sin la inferencia, quedan contenidos
+    [Fact]
+    public void Crear_InfiereOffsetsDeHijas_CuandoDescansoYExtraCaenEnLaMadrugada()
+    {
+        var descansoMadrugada = (new TimeOnly(2, 0), new TimeOnly(2, 30));
+        var extraMadrugada = (new TimeOnly(5, 0), new TimeOnly(5, 30));
+
+        var evento = TurnoCreado.Crear(
+            TurnoId,
+            NombreValido,
+            [new DatosFranja(
+                new TimeOnly(22, 0), new TimeOnly(6, 0),
+                [descansoMadrugada], [extraMadrugada])]);
+
+        evento.FranjasOrdinarias[0].ToString().Should().Be(
+            "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]");
     }
 }

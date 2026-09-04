@@ -83,6 +83,24 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return ordinaria;
     }
 
+    public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
+        Crear(_horaInicio, _horaFin, _diaOffsetFin,
+            [.. _descansos, InferirHija(inicio, fin)], _extras, _sede);
+
+    public FranjaOrdinaria ConExtra(TimeOnly inicio, TimeOnly fin) =>
+        Crear(_horaInicio, _horaFin, _diaOffsetFin,
+            _descansos, [.. _extras, InferirHija(inicio, fin)], _sede);
+
+    // El dia de la hija es deducible solo porque la ordinaria esta acotada a <= 24 h: dentro de
+    // ella cada HH:mm tiene un unico representante. Ampliar ese tope volveria ambigua esta
+    // inferencia.
+    private SubFranja InferirHija(TimeOnly inicio, TimeOnly fin)
+    {
+        var offsetInicio = inicio < _horaInicio ? 1 : 0;
+        var offsetFin = fin < inicio ? offsetInicio + 1 : offsetInicio;
+        return SubFranja.Crear(inicio, fin, offsetInicio, offsetFin);
+    }
+
     // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.FranjaProgramada).
     // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleFranjaOrdinaria, PrivateEvents)
     // -- el FA mapea FranjaProgramada -> DetalleFranjaOrdinaria solo para los eventos que cruzan
