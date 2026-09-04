@@ -31,13 +31,36 @@ public class SubFranjaTests
 
     // ---------- CA-7: inicio == fin es rechazado ----------
 
+    // Issue #598 CA-2: InicioYFinIguales se retira; la duracion no positiva la absorbe DuracionNoPositiva.
     [Fact]
     public void Crear_LanzaExcepcion_CuandoInicioYFinSonIguales()
     {
         var act = () => SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 0));
 
         act.Should().ThrowExactly<ArgumentException>()
-            .WithMessage($"*{FranjaTemporal.Mensajes.InicioYFinIguales}*");
+            .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
+    }
+
+    // ---------- Issue #598 CA-1: duracion negativa con offsets iguales (bug real: -1380 min) ----------
+
+    [Fact]
+    public void Crear_LanzaExcepcion_CuandoFinEsAnteriorAInicioConOffsetsIguales()
+    {
+        var act = () => SubFranja.Crear(new TimeOnly(23, 30), new TimeOnly(0, 30));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
+    }
+
+    // ---------- Issue #598 CA-3: cruce de medianoche explicito sigue siendo valido ----------
+
+    [Fact]
+    public void Crear_AceptaFranja_CuandoCruzaMedianocheConOffsetExplicito()
+    {
+        var franja = SubFranja.Crear(new TimeOnly(23, 30), new TimeOnly(0, 30),
+            diaOffsetInicio: 0, diaOffsetFin: 1);
+
+        franja.DuracionEnMinutos().Should().Be(60);
     }
 
     // ---------- CA-5: tiene DiaOffsetInicio y DiaOffsetFin ----------

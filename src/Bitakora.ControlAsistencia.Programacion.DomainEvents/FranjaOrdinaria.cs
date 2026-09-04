@@ -55,7 +55,7 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
 
         // CA-7: rechazar duracion cero
         if (horaInicio == horaFin && diaOffsetFin == 0)
-            throw new ArgumentException(FranjaTemporal.Mensajes.InicioYFinIguales);
+            throw new ArgumentException(FranjaTemporal.Mensajes.DuracionNoPositiva);
 
         // CA-3: rechazar sede incompleta -- la regla de completitud la responde la propia sede
         if (sede is not null && !sede.EstaCompleta())

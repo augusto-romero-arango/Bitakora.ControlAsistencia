@@ -24,5 +24,8 @@ public sealed partial class FranjaOrdinaria
 
         public static string LabelSede =>
             ResourceManager.GetString(nameof(LabelSede))!;
+
+        public static string DuracionExcedeUnDia =>
+            ResourceManager.GetString(nameof(DuracionExcedeUnDia))!;
     }
 }

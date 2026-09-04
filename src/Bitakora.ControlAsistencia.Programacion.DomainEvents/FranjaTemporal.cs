@@ -18,8 +18,8 @@ public abstract class FranjaTemporal
 
     public static class Mensajes
     {
-        public static string InicioYFinIguales =>
-            ResourceManager.GetString(nameof(InicioYFinIguales))!;
+        public static string DuracionNoPositiva =>
+            ResourceManager.GetString(nameof(DuracionNoPositiva))!;
 
         public static string FranjaHijaFueraDeContenedor =>
             ResourceManager.GetString(nameof(FranjaHijaFueraDeContenedor))!;

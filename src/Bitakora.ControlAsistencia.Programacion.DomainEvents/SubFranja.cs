@@ -23,7 +23,7 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
         int diaOffsetInicio = 0, int diaOffsetFin = 0)
     {
         if (horaInicio == horaFin && diaOffsetInicio == diaOffsetFin)
-            throw new ArgumentException(Mensajes.InicioYFinIguales);
+            throw new ArgumentException(Mensajes.DuracionNoPositiva);
 
         return new SubFranja(horaInicio, horaFin, diaOffsetInicio, diaOffsetFin);
     }
