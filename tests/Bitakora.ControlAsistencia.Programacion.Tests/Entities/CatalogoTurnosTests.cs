@@ -76,4 +76,36 @@ public class CatalogoTurnosTests
 
         detalle.FranjasOrdinarias[0].Sede.Should().BeNull();
     }
+
+    // ---------- CA-4: EstaCompleto() y las tres formas de ToString() ----------
+
+    private static CatalogoTurnos CrearCatalogoDescanso(string nombre) =>
+        CatalogoTurnos.Iniciar(TurnoCreado.CrearDescanso(TurnoId, nombre));
+
+    [Fact]
+    public void EstaCompleto_EsTrue_CuandoTurnoEsDescanso()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+
+        catalogo.EstaCompleto().Should().BeTrue();
+        catalogo.ToString().Should().Be($"Descanso Compensatorio {CatalogoTurnos.Mensajes.LabelDescanso}");
+    }
+
+    [Fact]
+    public void EstaCompleto_EsFalse_CuandoTurnoNaceVacioSinMarcaDeDescanso()
+    {
+        var catalogo = CrearCatalogo();
+
+        catalogo.EstaCompleto().Should().BeFalse();
+        catalogo.ToString().Should().Be($"Turno Manana {CatalogoTurnos.Mensajes.LabelIncompleto}");
+    }
+
+    [Fact]
+    public void EstaCompleto_EsTrue_CuandoTurnoTieneAlMenosUnaFranja()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+        catalogo.EstaCompleto().Should().BeTrue();
+        catalogo.ToString().Should().Be(catalogo.ObtenerDetalle().Descripcion);
+    }
 }

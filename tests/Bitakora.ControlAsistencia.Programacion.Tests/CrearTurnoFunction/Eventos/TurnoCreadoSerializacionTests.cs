@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -13,19 +12,10 @@ public class TurnoCreadoSerializacionTests
 {
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000001");
 
-    // Replica las opciones que Marten usa: PropertyNamingPolicy = null (PascalCase)
-    private static JsonSerializerOptions CrearOpcionesMarten()
-    {
-        var resolver = new DefaultJsonTypeInfoResolver();
-        SubFranja.ConfigurarSerializacion(resolver);
-        FranjaOrdinaria.ConfigurarSerializacion(resolver);
-        TurnoCreado.ConfigurarSerializacion(resolver);
-        return new JsonSerializerOptions
-        {
-            TypeInfoResolver = resolver,
-            PropertyNamingPolicy = null // Marten fuerza null
-        };
-    }
+    // Opciones reales de produccion: un resolver armado inline hace pasar el test con el tipo sin
+    // registrar en el seam, y produccion falla.
+    private static JsonSerializerOptions CrearOpcionesMarten() =>
+        ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
 
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoOrdinariaConDescansoYExtra()
@@ -104,5 +94,51 @@ public class TurnoCreadoSerializacionTests
         deserializado!.TurnoId.Should().Be(TurnoId);
         deserializado.Nombre.Should().Be("Descanso Compensatorio");
         deserializado.FranjasOrdinarias.Should().BeEmpty();
+    }
+
+    // ---------- CA-3: EsDescanso sobrevive el roundtrip en las dos variantes ----------
+
+    [Fact]
+    public void RoundTrip_PreservaEsDescansoTrue_CuandoEventoEsDescanso()
+    {
+        var evento = TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.EsDescanso.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RoundTrip_PreservaEsDescansoFalse_CuandoEventoTieneAlMenosUnaFranja()
+    {
+        var evento = TurnoCreado.Crear(
+            TurnoId, "Turno Completo",
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(16, 0), [], [])]);
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.EsDescanso.Should().BeFalse();
+    }
+
+    // Pin explicito de la decision de compatibilidad: un JSON legado (streams ya escritos antes de
+    // este campo) no trae la clave EsDescanso -- debe deserializar false, no lanzar.
+    [Fact]
+    public void Deserializar_AsumeEsDescansoFalse_CuandoJsonLegadoNoTraeLaClave()
+    {
+        var opciones = CrearOpcionesMarten();
+        var json = $$"""
+            {"TurnoId":"{{TurnoId}}","Nombre":"Turno Legado","FranjasOrdinarias":[]}
+            """;
+
+        var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.EsDescanso.Should().BeFalse();
     }
 }

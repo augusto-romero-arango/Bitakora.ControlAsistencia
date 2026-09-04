@@ -23,4 +23,7 @@
   <data name="LabelDescanso" xml:space="preserve">
     <value>(descanso)</value>
   </data>
+  <data name="LabelIncompleto" xml:space="preserve">
+    <value>(incompleto)</value>
+  </data>
 </root>

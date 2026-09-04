@@ -13,6 +13,7 @@ public sealed partial class TurnoCreado
     public Guid TurnoId { get; private set; }
     public string Nombre { get; private set; }
     public IReadOnlyList<FranjaOrdinaria> FranjasOrdinarias { get; private set; }
+    public bool EsDescanso { get; private set; }
 
     // CA-12: constructor real privado -- solo el factory lo invoca
     private TurnoCreado(Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias)

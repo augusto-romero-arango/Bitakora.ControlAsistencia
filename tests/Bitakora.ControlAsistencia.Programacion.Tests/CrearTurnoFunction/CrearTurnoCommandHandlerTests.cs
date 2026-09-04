@@ -94,6 +94,20 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             c => c.ObtenerDetalle().FranjasOrdinarias[1].Sede, null);
     }
 
+    // CA-6: un body sin franjas ni marca de descanso ya no es 400 -- el turno nace incompleto.
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreadoConFranjasVaciasYEsDescansoFalso_CuandoNoTraeFranjasNiMarca()
+    {
+        var comando = new CrearTurno(GuidAggregateId, NombreTurno);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, []);
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
+    }
+
     [Fact]
     public async Task CrearTurno_EmiteTurnoCreadoConFranjasVacias_CuandoEsDescansoEsTrue()
     {

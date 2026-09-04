@@ -13,5 +13,8 @@ public partial class CatalogoTurnos
     {
         public static string LabelDescanso =>
             ResourceManager.GetString(nameof(LabelDescanso))!;
+
+        public static string LabelIncompleto =>
+            ResourceManager.GetString(nameof(LabelIncompleto))!;
     }
 }

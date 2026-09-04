@@ -44,6 +44,8 @@ public partial class CatalogoTurnos : AggregateRoot
     // handler no interroga su estado interno para decidir por su cuenta.
     internal bool PuedeAsignarNuevaSolicitud() => _estaActivo;
 
+    internal bool EstaCompleto() => throw new NotImplementedException();
+
     // La estructura cero-franjas ES el descanso: sin discriminador en el estado del aggregate.
     public override string ToString() => _franjasOrdinarias.Count == 0
         ? $"{_nombre} {Mensajes.LabelDescanso}"

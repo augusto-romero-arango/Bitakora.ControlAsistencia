@@ -54,16 +54,24 @@ public class CrearTurnoValidatorTests
             .Contain(e => e.PropertyName == nameof(CrearTurno.Nombre));
     }
 
-    // CA-5: Ordinarias no puede estar vacia
+    // Un turno nace vacio y se completa por pasos (CA-ADR-0033): Ordinarias vacia (o ausente) ya
+    // no es invalida cuando no se marca como descanso.
     [Fact]
-    public async Task DebeRechazar_CuandoOrdinariaEstaVacia()
+    public async Task DebeSerValido_CuandoOrdinariasEsListaVaciaYNoEsDescanso()
     {
         var comando = new CrearTurno(Guid.NewGuid(), NombreTurno, []);
         var resultado = await _validator.ValidateAsync(
             comando, TestContext.Current.CancellationToken);
-        resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should()
-            .Contain(e => e.PropertyName == nameof(CrearTurno.Ordinarias));
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DebeSerValido_CuandoOrdinariasEsNullYNoEsDescanso()
+    {
+        var comando = new CrearTurno(Guid.NewGuid(), NombreTurno, null);
+        var resultado = await _validator.ValidateAsync(
+            comando, TestContext.Current.CancellationToken);
+        resultado.IsValid.Should().BeTrue();
     }
 
     [Fact]
