@@ -390,4 +390,43 @@ public class TurnoCreadoTests
         evento.FranjasOrdinarias[0].ToString().Should().Be(
             "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]");
     }
+
+    [Fact]
+    public void Crear_RetornaFranjaDe24Horas_CuandoDiaOffsetFinEsExplicito()
+    {
+        var evento = TurnoCreado.Crear(
+            TurnoId, NombreValido,
+            [new DatosFranja(new TimeOnly(8, 0), new TimeOnly(8, 0), [], [], DiaOffsetFin: 1)]);
+
+        evento.FranjasOrdinarias[0].ToString().Should().Be("(08:00-08:00+1)");
+        evento.FranjasOrdinarias[0].DuracionEnMinutos().Should().Be(1440);
+    }
+
+    // El solape entre ordinarias debe usar el offset EXPLICITO, no la inferencia por defecto
+    // (fin < inicio): con inicio == fin, la inferencia daria offset 0 y una franja de 24 h se
+    // veria de duracion cero para este chequeo, dejando pasar una segunda ordinaria contenida.
+    [Fact]
+    public void Crear_LanzaAggregateException_CuandoSegundaOrdinariaSeSolapaConFranjaDe24HorasExplicita()
+    {
+        var act = () => TurnoCreado.Crear(
+            TurnoId, NombreValido,
+            [
+                new DatosFranja(new TimeOnly(8, 0), new TimeOnly(8, 0), [], [], DiaOffsetFin: 1),
+                new DatosFranja(new TimeOnly(10, 0), new TimeOnly(12, 0), [], [])
+            ]);
+
+        var ex = act.Should().ThrowExactly<AggregateException>().Which;
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.FranjasOrdinariasSeSolapan));
+    }
+
+    [Fact]
+    public void Crear_InfiereOffsetMasUno_CuandoDiaOffsetFinEsCeroYFinEsMenorQueInicio()
+    {
+        var evento = TurnoCreado.Crear(
+            TurnoId, NombreValido,
+            [new DatosFranja(new TimeOnly(22, 0), new TimeOnly(6, 0), [], [], DiaOffsetFin: 0)]);
+
+        evento.FranjasOrdinarias[0].ToString().Should().Be("(22:00-06:00+1)");
+    }
 }

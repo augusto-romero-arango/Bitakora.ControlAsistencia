@@ -81,7 +81,8 @@ public sealed partial class TurnoCreado
         {
             try
             {
-                var ordinaria = FranjaOrdinaria.Crear(franja.Inicio, franja.Fin, sede: franja.Sede);
+                var ordinaria = FranjaOrdinaria.Crear(
+                    franja.Inicio, franja.Fin, franja.DiaOffsetFin, sede: franja.Sede);
                 ordinaria = franja.Descansos.Aggregate(
                     ordinaria, (acc, d) => acc.ConDescanso(d.inicio, d.fin));
                 ordinaria = franja.Extras.Aggregate(
@@ -124,7 +125,7 @@ public sealed partial class TurnoCreado
 
         var absolutas = franjas.Select(f =>
         {
-            var offsetFin = f.Fin < f.Inicio ? 1 : 0;
+            var offsetFin = f.DiaOffsetFin != 0 ? f.DiaOffsetFin : (f.Fin < f.Inicio ? 1 : 0);
             var inicio = f.Inicio.Hour * minsPorHora + f.Inicio.Minute;
             var fin = f.Fin.Hour * minsPorHora + f.Fin.Minute + offsetFin * minsPorDia;
             return (inicio, fin);

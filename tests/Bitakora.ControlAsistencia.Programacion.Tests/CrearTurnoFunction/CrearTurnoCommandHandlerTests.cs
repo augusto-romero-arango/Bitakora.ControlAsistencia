@@ -197,6 +197,26 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         Then(eventoEsperado);
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
     }
+
+    // El extra va contenido en 06:00-14:00: las extras se programan dentro de su ordinaria
+    // (invariante de catalogo-turnos.yaml). Un extra que la desborde hace fallar el arrange.
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreadoConDescansoYExtra_CuandoFranjaTraeHijasComoRango()
+    {
+        var comando = new CrearTurno(GuidAggregateId, "Diurno",
+            [new CrearTurno.Franja(
+                new TimeOnly(6, 0), new TimeOnly(14, 0),
+                Descansos: [new CrearTurno.Rango(new TimeOnly(10, 0), new TimeOnly(10, 15))],
+                Extras: [new CrearTurno.Rango(new TimeOnly(13, 0), new TimeOnly(14, 0))])]);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, int>(c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
+        And<CatalogoTurnos, int>(c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
+    }
 }
 
 internal sealed class FakeLectorNombresTurno(params string[] nombres) : ILectorNombresTurno
