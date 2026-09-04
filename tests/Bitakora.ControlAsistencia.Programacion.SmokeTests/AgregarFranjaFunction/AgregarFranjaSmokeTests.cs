@@ -25,6 +25,29 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
+    private async Task<Guid> CrearTurnoDescansoAsync(string nombreBase, CancellationToken ct)
+    {
+        var turnoId = Guid.CreateVersion7();
+        var payload = new
+        {
+            turnoId,
+            nombre = $"{nombreBase} {turnoId}",
+            ordinarias = Array.Empty<object>(),
+            esDescanso = true
+        };
+        var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que CrearTurno funcione");
+        return turnoId;
+    }
+
+    private async Task RetirarTurnoAsync(Guid turnoId, CancellationToken ct)
+    {
+        var response = await _client.DeleteAsync($"{RutaTurnos}/{turnoId}", ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que RetirarTurno funcione");
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task HealthCheck_DebeResponder200()
@@ -74,5 +97,82 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             RutaAgregarFranja(turnoId), payloadSolapada, ct);
 
         segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // CA-5: turno inexistente -> 404 (KeyNotFoundException, patron de RetirarTurnoFunction).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DebeRetornar404_CuandoElTurnoNoExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { inicio = "08:00:00", fin = "16:00:00" };
+
+        var response = await _client.PostAsJsonAsync(
+            RutaAgregarFranja(Guid.CreateVersion7()), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // CA-4: precedencia retirado > descanso > solape -- un turno retirado rechaza la franja aunque
+    // no tenga ninguna otra que se solape.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DebeRetornar409_CuandoElTurnoEstaRetirado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoVacioAsync(turnoId, "[TEST] Turno Retirado Para Franja", ct);
+        await RetirarTurnoAsync(turnoId, ct);
+
+        var payload = new { inicio = "08:00:00", fin = "16:00:00" };
+        var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // CA-4: un descanso rechaza la primera franja ordinaria.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DebeRetornar409_CuandoElTurnoEsDescanso()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = await CrearTurnoDescansoAsync("[TEST] Descanso Para Franja", ct);
+
+        var payload = new { inicio = "08:00:00", fin = "16:00:00" };
+        var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // Invariante del VO (FranjaOrdinaria.Crear): Inicio == Fin sin offset explicito es una
+    // duracion no positiva -- el handler deja subir la ArgumentException antes de tocar el
+    // aggregate (CA-ADR-0030), el endpoint la traduce a 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DebeRetornar400_CuandoLaDuracionNoEsPositiva()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoVacioAsync(turnoId, "[TEST] Turno Duracion Invalida", ct);
+
+        var payload = new { inicio = "10:00:00", fin = "10:00:00" };
+        var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): un id no-Guid nunca llega
+    // al command router.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DebeRetornar400_CuandoElIdDeRutaNoEsUnGuidValido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { inicio = "08:00:00", fin = "16:00:00" };
+
+        var response = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/no-es-un-guid:agregar-franja", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }
