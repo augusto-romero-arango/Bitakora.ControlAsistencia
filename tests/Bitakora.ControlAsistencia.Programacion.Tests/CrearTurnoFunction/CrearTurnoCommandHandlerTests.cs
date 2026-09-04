@@ -197,6 +197,25 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         Then(eventoEsperado);
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
     }
+
+    // CA-5 (#601): el comando con hijas via Rango llega intacto al evento persistido y al detalle.
+    [Fact]
+    public async Task CrearTurno_EmiteTurnoCreadoConDescansoYExtra_CuandoFranjaTraeHijasComoRango()
+    {
+        var comando = new CrearTurno(GuidAggregateId, "Diurno",
+            [new CrearTurno.Franja(
+                new TimeOnly(6, 0), new TimeOnly(14, 0),
+                Descansos: [new CrearTurno.Rango(new TimeOnly(10, 0), new TimeOnly(10, 15))],
+                Extras: [new CrearTurno.Rango(new TimeOnly(14, 0), new TimeOnly(15, 0))])]);
+        var eventoEsperado = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(eventoEsperado);
+        And<CatalogoTurnos, int>(c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
+        And<CatalogoTurnos, int>(c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
+    }
 }
 
 internal sealed class FakeLectorNombresTurno(params string[] nombres) : ILectorNombresTurno

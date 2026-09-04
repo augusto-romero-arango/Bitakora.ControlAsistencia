@@ -418,4 +418,85 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    // Issue #601 CA-6: las hijas via JSON ({inicio, fin}, sin offsets) se infieren correctamente
+    // cuando la ordinaria es nocturna y el descanso cae en la madrugada (depende de #600).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_PersisteDescansoDeMadrugada_CuandoOrdinariaEsNocturna()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var nombreTurno = $"[TEST] Nocturno Con Descanso {turnoId}";
+        var payload = new
+        {
+            turnoId,
+            nombre = nombreTurno,
+            ordinarias = new object[]
+            {
+                new
+                {
+                    inicio = "22:00:00",
+                    fin = "06:00:00",
+                    descansos = new object[] { new { inicio = "02:00:00", fin = "02:30:00" } }
+                }
+            }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = turnoId.ToString();
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoTurnoCreado,
+            campoJson: "Nombre", valorJson: nombreTurno, Timeout);
+
+        var descanso = eventoPersistido.GetProperty("FranjasOrdinarias")[0].GetProperty("descansos")[0];
+
+        descanso.GetProperty("horaInicio").GetString().Should().Be("02:00:00");
+        descanso.GetProperty("horaFin").GetString().Should().Be("02:30:00");
+        descanso.GetProperty("diaOffsetInicio").GetInt32().Should().Be(1);
+        descanso.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
+    }
+
+    // Issue #601 CA-7: diaOffsetFin explicito en la ordinaria habilita la franja de 24 h exactas.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_PersisteFranjaDe24Horas_CuandoDiaOffsetFinEsExplicito()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var nombreTurno = $"[TEST] Turno 24 Horas {turnoId}";
+        var payload = new
+        {
+            turnoId,
+            nombre = nombreTurno,
+            ordinarias = new object[]
+            {
+                new
+                {
+                    inicio = "08:00:00",
+                    fin = "08:00:00",
+                    diaOffsetFin = 1
+                }
+            }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = turnoId.ToString();
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoTurnoCreado,
+            campoJson: "Nombre", valorJson: nombreTurno, Timeout);
+
+        eventoPersistido.GetProperty("FranjasOrdinarias")[0]
+            .GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
+    }
 }
