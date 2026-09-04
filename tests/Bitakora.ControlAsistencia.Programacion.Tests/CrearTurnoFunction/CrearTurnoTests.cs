@@ -35,4 +35,16 @@ public class CrearTurnoTests
 
         datos[0].Sede.Should().BeNull();
     }
+
+    // CA-5: un body sin la clave "ordinarias" llega con Ordinarias == null -- ToDatosFranjas() lo
+    // trata como lista vacia, no como error.
+    [Fact]
+    public void ToDatosFranjas_DevuelveListaVacia_CuandoOrdinariasEsNull()
+    {
+        var comando = new CrearTurno(Guid.NewGuid(), NombreTurno, null);
+
+        var datos = comando.ToDatosFranjas();
+
+        datos.Should().BeEmpty();
+    }
 }

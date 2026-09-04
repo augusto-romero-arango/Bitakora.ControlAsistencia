@@ -11,6 +11,7 @@ public partial class CatalogoTurnos : AggregateRoot
 {
     private string _nombre = string.Empty;
     private List<FranjaOrdinaria> _franjasOrdinarias = [];
+    private bool _esDescanso;
     private bool _estaActivo;
 
     // CA-1: aplica TurnoCreado y establece estado interno del aggregate
@@ -20,6 +21,7 @@ public partial class CatalogoTurnos : AggregateRoot
         Id = evento.TurnoId.ToString();
         _nombre = evento.Nombre;
         _franjasOrdinarias = evento.FranjasOrdinarias.ToList();
+        _esDescanso = evento.EsDescanso;
         _estaActivo = true;
     }
 
@@ -44,10 +46,16 @@ public partial class CatalogoTurnos : AggregateRoot
     // handler no interroga su estado interno para decidir por su cuenta.
     internal bool PuedeAsignarNuevaSolicitud() => _estaActivo;
 
-    // La estructura cero-franjas ES el descanso: sin discriminador en el estado del aggregate.
-    public override string ToString() => _franjasOrdinarias.Count == 0
-        ? $"{_nombre} {Mensajes.LabelDescanso}"
-        : $"{_nombre} {string.Join("", _franjasOrdinarias)}";
+    // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
+    // menos una franja ordinaria.
+    internal bool EstaCompleto() => _esDescanso || _franjasOrdinarias.Count > 0;
+
+    public override string ToString() => (_esDescanso, _franjasOrdinarias.Count) switch
+    {
+        (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",
+        (false, 0) => $"{_nombre} {Mensajes.LabelIncompleto}",
+        _ => $"{_nombre} {string.Join("", _franjasOrdinarias)}"
+    };
 
     // Devuelve el turno programado propio del dominio (Programacion.DomainEvents.TurnoProgramado).
     // Issue #319 (tres islas): ya no construye el DTO de bus (DetalleTurno, PrivateEvents) -- el

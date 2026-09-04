@@ -103,16 +103,25 @@ public class TurnoCreadoTests
             .Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:15)]");
     }
 
-    // ---------- CA-6: sin franjas ordinarias ----------
+    // ---------- Turno vacio: sin franjas y sin marca de descanso ----------
 
     [Fact]
-    public void Crear_LanzaAggregateException_CuandoListaDeOrdinariasEstaVacia()
+    public void Crear_RetornaTurnoCreadoConFranjasVaciasYEsDescansoFalso_CuandoListaDeOrdinariasEstaVacia()
     {
-        var act = () => TurnoCreado.Crear(TurnoId, NombreValido, []);
+        var evento = TurnoCreado.Crear(TurnoId, NombreValido, []);
 
-        var ex = act.Should().ThrowExactly<AggregateException>().Which;
-        ex.InnerExceptions.OfType<ArgumentException>()
-            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.SinFranjasOrdinarias));
+        evento.TurnoId.Should().Be(TurnoId);
+        evento.Nombre.Should().Be(NombreValido);
+        evento.FranjasOrdinarias.Should().BeEmpty();
+        evento.EsDescanso.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Crear_TieneEsDescansoFalso_CuandoHayAlMenosUnaFranja()
+    {
+        var evento = TurnoCreado.Crear(TurnoId, NombreValido, [FranjaDiurnaSimple()]);
+
+        evento.EsDescanso.Should().BeFalse();
     }
 
     // ---------- CA-7: nombre vacio o solo espacios ----------
@@ -197,13 +206,15 @@ public class TurnoCreadoTests
     // ---------- CA-10: acumulacion de multiples errores sin fail-fast ----------
 
     [Fact]
-    public void Crear_LanzaAggregateExceptionConTodosLosErrores_CuandoHayNombreVacioYSinOrdinarias()
+    public void Crear_LanzaAggregateExceptionConUnSoloError_CuandoHayNombreVacioYSinOrdinarias()
     {
-        // Nombre vacio + sin ordinarias = exactamente 2 errores
+        // La ausencia de franjas ya no es invalida -- solo queda el error de nombre.
         var act = () => TurnoCreado.Crear(TurnoId, "", []);
 
         var ex = act.Should().ThrowExactly<AggregateException>().Which;
-        ex.InnerExceptions.Should().HaveCount(2);
+        ex.InnerExceptions.Should().HaveCount(1);
+        ex.InnerExceptions.OfType<ArgumentException>()
+            .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
     }
 
     [Fact]
@@ -291,6 +302,14 @@ public class TurnoCreadoTests
         evento.TurnoId.Should().Be(TurnoId);
         evento.Nombre.Should().Be("Descanso Compensatorio");
         evento.FranjasOrdinarias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CrearDescanso_TieneEsDescansoTrue_CuandoNombreValido()
+    {
+        var evento = TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+        evento.EsDescanso.Should().BeTrue();
     }
 
     [Fact]

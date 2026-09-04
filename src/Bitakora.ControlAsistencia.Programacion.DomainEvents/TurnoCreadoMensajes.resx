@@ -23,9 +23,6 @@
   <data name="NombreVacio" xml:space="preserve">
     <value>El nombre del turno no puede estar vacio</value>
   </data>
-  <data name="SinFranjasOrdinarias" xml:space="preserve">
-    <value>El turno debe tener al menos una franja ordinaria</value>
-  </data>
   <data name="FranjasOrdinariasSeSolapan" xml:space="preserve">
     <value>Las franjas ordinarias del turno se solapan entre si</value>
   </data>

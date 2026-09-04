@@ -15,9 +15,6 @@ public sealed partial class TurnoCreado
         public static string NombreVacio =>
             ResourceManager.GetString(nameof(NombreVacio))!;
 
-        public static string SinFranjasOrdinarias =>
-            ResourceManager.GetString(nameof(SinFranjasOrdinarias))!;
-
         public static string FranjasOrdinariasSeSolapan =>
             ResourceManager.GetString(nameof(FranjasOrdinariasSeSolapan))!;
     }
