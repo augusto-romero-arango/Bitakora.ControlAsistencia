@@ -12,6 +12,21 @@ on:
       - 'src/Bitakora.ControlAsistencia.Colaboradores.DomainEvents/**'
       - 'src/Bitakora.ControlAsistencia.PrivateEvents/**'
       - 'src/Bitakora.ControlAsistencia.PublicEvents/**'
+      # Issue #642: ReadModels es la cuarta isla que referencia el .csproj de este dominio
+      # (ProjectReference a Bitakora.ControlAsistencia.ReadModels) para servir sus Functions HTTP
+      # GET de consulta (MEF-ADR-0035 seccion 4, MEF-ADR-0041). El ensamblado se compila DENTRO
+      # del artefacto que este workflow publica, asi que un cambio ahi altera el binario igual
+      # que un cambio en src/.../Colaboradores/**. Sin esta ruta el modo de fallo es el mismo
+      # staleness silenciosa que describe el bloque de arriba: el PR #635 (merge 06015c5) agrego
+      # el campo Completo a FichaTurno en ReadModels sin tocar ningun archivo de este dominio,
+      # solo disparo Deploy Projections, y func-asist-dev-programacion sirvio fichas sin ese
+      # campo hasta el redeploy manual (run 33966777932) -- el mismo modo de fallo aplica a este
+      # dominio para cualquier cambio de forma en un read model que sirva. Esta lista debe
+      # seguir siendo espejo de los ProjectReference del .csproj de este dominio, con un hueco
+      # conocido todavia abierto: TenantResolver (CA-ADR-0032) tambien esta referenciado y
+      # tampoco aparece aqui -- mismo modo de fallo, pendiente de su propio issue. No lo
+      # agregues sin cerrarlo.
+      - 'src/Bitakora.ControlAsistencia.ReadModels/**'
       # global.json (issue #454 del harness): quien lo lee NO es actions/setup-dotnet -- los
       # jobs de abajo le pasan 'dotnet-version' explicito, no 'global-json-file', asi que la
       # action solo instala el SDK del canal pedido. Lo leen el muxer del CLI y el resolver
@@ -34,6 +49,10 @@ on:
       #   workflow_run de abajo, para que el codigo nunca se despliegue antes del apply de
       #   infra (MEF-ADR-0022). Devolverlo aqui rompe ese orden.
       # - tests/**: un cambio de tests no altera el binario publicado de este dominio.
+      # - src/Bitakora.ControlAsistencia.Projections/**: el .csproj de este dominio no
+      #   referencia al worker de proyecciones (CA-ADR-0028 conserva esa prohibicion), asi que
+      #   un cambio en una clase de proyeccion no altera este binario. Lo unico compartido con
+      #   el read-side que si lo altera es ReadModels/**, que ya esta arriba.
   workflow_run:
     # 'Infra CD - Terraform Apply' es el nombre real del workflow en este repo
     # (.github/workflows/infra-cd.yml), verificado contra el resto de workflows de deploy.
@@ -47,9 +66,12 @@ jobs:
   # ambos) garantiza el orden infra -> deploy (MEF-ADR-0022, "Orden: infra antes que deploy
   # de codigo"). Pero workflow_run por si solo redesplegaria el dominio tras CADA apply de
   # infra (seguro por idempotencia, pero costoso); este job filtra por si el PR que se acaba
-  # de mergear toco este dominio (src/Bitakora.ControlAsistencia.Colaboradores/**) y salta el
-  # redeploy si no. Se resuelve via la API de PRs asociados al commit (no depende de la
-  # estrategia de merge: squash, merge o rebase).
+  # de mergear toco alguno de los inputs de build de este dominio -- el mismo conjunto que el
+  # filtro 'paths' de arriba: src/Bitakora.ControlAsistencia.Colaboradores/**, .DomainEvents/**,
+  # PrivateEvents/**, PublicEvents/** y ReadModels/** -- y salta el redeploy si no. Los dos
+  # filtros deben moverse juntos (MEF-ADR-0022; regla que fija la plantilla vigente de
+  # domain-scaffolder, agents/domain-scaffolder.md). Se resuelve via la API de PRs asociados al
+  # commit (no depende de la estrategia de merge: squash, merge o rebase).
   determinar-alcance:
     runs-on: ubuntu-latest
     permissions:
@@ -91,7 +113,7 @@ jobs:
             echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if gh api "repos/${REPO}/pulls/${PR_NUM}/files" --paginate --jq '.[].filename' | grep -qE '^src/Bitakora\.ControlAsistencia\.Colaboradores/'; then
+          if gh api "repos/${REPO}/pulls/${PR_NUM}/files" --paginate --jq '.[].filename' | grep -qE '^src/Bitakora\.ControlAsistencia\.(Colaboradores(\.DomainEvents)?|PublicEvents|PrivateEvents|ReadModels)/'; then
             echo "debe_desplegar=true" >> "$GITHUB_OUTPUT"
           else
             echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
