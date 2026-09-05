@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="CampoObligatorio" xml:space="preserve">
+    <value>'{0}' es obligatorio.</value>
+  </data>
+  <data name="HoraInvalida" xml:space="preserve">
+    <value>'{0}' no es una hora valida en formato HH:mm: '{1}'.</value>
+  </data>
+  <data name="TipoDesconocido" xml:space="preserve">
+    <value>'{0}' no es un tipo de sub-franja valido. Usa 'descanso' o 'extra'.</value>
+  </data>
+  <data name="TurnoNoExiste" xml:space="preserve">
+    <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la solicitud: {0}</value>
+  </data>
+  <data name="ResultadoSubFranjaAgregada" xml:space="preserve">
+    <value>Sub-franja agregada</value>
+  </data>
+  <data name="NotaVisibilidadEventual" xml:space="preserve">
+    <value>La sub-franja aparece en obtener_turno unos segundos despues.</value>
+  </data>
+</root>

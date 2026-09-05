@@ -34,6 +34,8 @@
     <Content Include="CrearTurno\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="AgregarFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="QuitarFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="AgregarSubFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="QuitarSubFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
