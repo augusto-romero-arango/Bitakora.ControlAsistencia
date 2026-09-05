@@ -14,7 +14,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
         tools.Select(t => t.Name).Should().BeEquivalentTo(
             "registrar_sede", "registrar_colaborador", "solicitar_programacion_turno",
-            "crear_turno", "retirar_turno");
+            "crear_turno", "retirar_turno", "agregar_franja", "quitar_franja");
     }
 
     [Fact]
@@ -90,6 +90,34 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         requeridas.Should().BeEquivalentTo("turno");
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DeclaraTurnoInicioYFinObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "agregar_franja");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("turno", "inicio", "fin");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task QuitarFranja_DeclaraTurnoYFranjaObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "quitar_franja");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("turno", "franja");
+    }
+
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations
     // del spec; cuando la extension exponga annotations.readOnlyHint, este test migra alli.
     // Recorre TODO el catalogo, no una tool por nombre: MEF-ADR-0048 seccion 2 (verificacion 2,
@@ -105,7 +133,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         foreach (var tool in tools)
         {
             var meta = tool.ProtocolTool.Meta;
-            var esDestructiva = tool.Name == "retirar_turno";
+            var esDestructiva = tool.Name is "retirar_turno" or "quitar_franja";
             meta.Should().NotBeNull($"{tool.Name} debe publicar su _meta con los hints");
             meta!["readOnlyHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} escribe en el dominio");
             meta["destructiveHint"]?.GetValue<bool>().Should().Be(
