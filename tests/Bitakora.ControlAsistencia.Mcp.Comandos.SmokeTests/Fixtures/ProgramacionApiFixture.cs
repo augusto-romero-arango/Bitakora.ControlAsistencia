@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.Fixtures;
@@ -42,4 +44,22 @@ public class ProgramacionApiFixture : IAsyncLifetime
         Client.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    // Arrange/assert directo de crear_plantilla_semanal/retirar_plantilla_semanal (issue #627, #628
+    // reutiliza): la ficha individual de GET programacion/plantillas-semanales/{id}, o null si
+    // todavia no se materializo (crear) o ya se retiro (retirar) -- mismo patron que
+    // CatalogoDeTurnos.BuscarFichaAsync/EsperarFichaAsync sobre GET programacion/turnos.
+    public async Task<JsonDocument?> BuscarCuadroAsync(string id, CancellationToken ct)
+    {
+        var respuesta = await Client.GetAsync($"/api/programacion/plantillas-semanales/{id}", ct);
+        if (respuesta.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        respuesta.EnsureSuccessStatusCode();
+        var texto = await respuesta.Content.ReadAsStringAsync(ct);
+        return JsonDocument.Parse(texto);
+    }
+
+    public Task<JsonDocument> EsperarCuadroAsync(string id, CancellationToken ct) =>
+        Polling.WaitUntilAsync(() => BuscarCuadroAsync(id, ct), CatalogoDeTurnos.TimeoutPolling);
 }

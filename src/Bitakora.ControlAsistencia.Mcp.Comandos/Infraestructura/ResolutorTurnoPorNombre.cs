@@ -32,6 +32,16 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
                 null, null, [.. catalogo.Select(f => f.Nombre).Take(MaximoTurnosEnMensaje)]);
     }
 
+    // Resuelve N nombres con UNA sola lectura del catalogo (crear_plantilla_semanal, MEF-ADR-0047
+    // decision 4: nunca un GET por nombre). Cada nombre solicitado conserva su posicion y su texto
+    // original -- puede repetirse o venir con distinta capitalizacion -- para que la tool
+    // consumidora arme el mensaje de "faltantes" con el texto que el usuario/modelo escribio.
+    public async Task<ResultadoResolucionVariosTurnos> ResolverVariosAsync(
+        IEnumerable<string> nombres, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
     // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): este
     // resolutor cruza de Mcp.Comandos hacia Programacion, sin ensamblado compartido entre ambos.
     private static string NormalizarNombre(string nombre) =>
@@ -48,5 +58,18 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
 /// </summary>
 public sealed record ResultadoResolucionTurno(
     FichaTurno? Ficha,
+    string? FalloDeLectura,
+    IReadOnlyList<string> NombresDisponibles);
+
+/// <summary>Resolucion de un nombre solicitado dentro de un lote (ResolverVariosAsync); Ficha null = no encontrado.</summary>
+public sealed record ResolucionTurnoPorNombre(string NombreSolicitado, FichaTurno? Ficha);
+
+/// <summary>
+/// Resultado de resolver varios turnos por nombre con una sola lectura del catalogo. Resoluciones
+/// conserva el orden y las repeticiones de los nombres solicitados; NombresDisponibles alimenta el
+/// mensaje TurnosNoExisten de la tool consumidora (maximo MaximoTurnosEnMensaje).
+/// </summary>
+public sealed record ResultadoResolucionVariosTurnos(
+    IReadOnlyList<ResolucionTurnoPorNombre> Resoluciones,
     string? FalloDeLectura,
     IReadOnlyList<string> NombresDisponibles);
