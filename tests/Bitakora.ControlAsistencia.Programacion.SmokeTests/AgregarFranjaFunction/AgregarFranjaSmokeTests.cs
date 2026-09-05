@@ -90,7 +90,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var franja = eventoPersistido.GetProperty("Franja");
         franja.GetProperty("horaInicio").GetString().Should().Be("22:00:00");
         franja.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
-        franja.GetProperty("sede").GetProperty("id").GetString().Should().Be("SEDE-SUBA");
+        EventoPersistido.SedeDe(franja).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
 
         var payloadSolapada = new { inicio = "23:00:00", fin = "01:00:00" };
         var segundaRespuesta = await _client.PostAsJsonAsync(
