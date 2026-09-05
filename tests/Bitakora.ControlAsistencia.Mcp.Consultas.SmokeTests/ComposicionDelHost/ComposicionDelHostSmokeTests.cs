@@ -44,6 +44,18 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             .Should().BeEquivalentTo("id");
     }
 
+    // CA-5 (issue #612): pin de required re-ejecutado -- listar_turnos sigue sin parametros
+    // obligatorios (filtro_nombre es opcional) aunque el catalogo gano enConstruccion.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnos_NoDeclaraParametrosObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Requeridas(tools.Single(t => t.Name == "listar_turnos")).Should().BeEmpty();
+    }
+
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations
     // del spec; cuando la extension exponga annotations.readOnlyHint, este test migra alli.
     [Fact]
