@@ -92,4 +92,72 @@ public class PlantillaSemanalTurnosTests
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
     }
+
+    // Issue #622: quitar (vaciar) el turno de un dia de la plantilla.
+
+    [Fact]
+    public void QuitarDia_RetornaQuitado_CuandoElSlotTieneTurnoAsignado()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+
+        var resultado = plantilla.QuitarDia(1, DiaSemana.Lunes);
+
+        resultado.Should().Be(ResultadoQuitarDia.Quitado);
+        var evento = plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should()
+            .ContainSingle().Which;
+        evento.PlantillaId.Should().Be(PlantillaId);
+        evento.Semana.Should().Be(1);
+        evento.Dia.Should().BeSameAs(DiaSemana.Lunes);
+    }
+
+    // CA-2: tras quitar, el slot vuelve a estar vacio -- AsignarDia responde Asignado, no
+    // SinCambios, aunque se le pase el mismo turno que tenia antes.
+    [Fact]
+    public void QuitarDia_DejaElSlotVacio_LuegoAsignarDiaVuelveARetornarAsignado()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.QuitarDia(1, DiaSemana.Lunes);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+
+        resultado.Should().Be(ResultadoAsignarDia.Asignado);
+    }
+
+    [Fact]
+    public void QuitarDia_RetornaSinCambios_CuandoElDiaNuncaTuvoTurnoAsignado()
+    {
+        var plantilla = CrearPlantilla(2);
+
+        var resultado = plantilla.QuitarDia(1, DiaSemana.Martes);
+
+        resultado.Should().Be(ResultadoQuitarDia.SinCambios);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void QuitarDia_RetornaSinCambios_CuandoElDiaYaFueQuitado()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.QuitarDia(1, DiaSemana.Lunes);
+
+        var resultado = plantilla.QuitarDia(1, DiaSemana.Lunes);
+
+        resultado.Should().Be(ResultadoQuitarDia.SinCambios);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().ContainSingle();
+    }
+
+    // CA-3: la semana se valida ANTES que el estado del dia, aunque el dia este vacio.
+    [Fact]
+    public void QuitarDia_RetornaSemanaFueraDeRango_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
+    {
+        var plantilla = CrearPlantilla(2);
+
+        var resultado = plantilla.QuitarDia(3, DiaSemana.Lunes);
+
+        resultado.Should().Be(ResultadoQuitarDia.SemanaFueraDeRango);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().BeEmpty();
+    }
 }

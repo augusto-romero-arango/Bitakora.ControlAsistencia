@@ -20,6 +20,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     public void Apply(DiaDePlantillaSemanalAsignado evento) =>
         _dias[(evento.Semana, evento.Dia)] = evento.TurnoId;
 
+    // Issue #622: Remove sobre una clave ausente devuelve false sin lanzar (MEF-ADR-0004 capa 4).
+    public void Apply(DiaDePlantillaSemanalQuitado evento) => throw new NotImplementedException();
+
     internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
     {
         var plantilla = new PlantillaSemanalTurnos();
@@ -43,4 +46,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         Apply(evento);
         return ResultadoAsignarDia.Asignado;
     }
+
+    // Issue #622: declina con resultado, nunca lanza (CA-ADR-0030). La precedencia es la misma de
+    // AsignarDia: semana fuera de rango > sin cambios (idempotencia) > quitado. La semana se valida
+    // ANTES que el estado del dia, aunque el dia este vacio (CA-3).
+    internal ResultadoQuitarDia QuitarDia(int semana, DiaSemana dia) => throw new NotImplementedException();
 }
