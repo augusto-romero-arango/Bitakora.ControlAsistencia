@@ -13,7 +13,7 @@ public partial class CrearTurnoTool(ProgramacionApi programacion)
     internal const string NombreTool = "crear_turno";
 
     [Function("CrearTurno")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Crea un turno nuevo del catalogo. Por defecto nace vacio (turno incompleto): existe "
@@ -32,7 +32,21 @@ public partial class CrearTurnoTool(ProgramacionApi programacion)
             + "false: turno incompleto listo para disenar con agregar_franja.")]
         bool esDescanso,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return string.Format(Mensajes.CampoObligatorio, "nombre");
+
+        var turnoId = Guid.CreateVersion7();
+        var respuesta = await programacion.CrearTurno(turnoId, nombre, esDescanso, ct);
+
+        if (!respuesta.IsSuccessStatusCode)
+            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
+
+        return RespuestaJson.Serializar(new TurnoCreadoResumen(
+            Mensajes.ResultadoTurnoCreado,
+            new TurnoCreadoEco(turnoId.ToString(), nombre, esDescanso, esDescanso),
+            Mensajes.NotaVisibilidadEventual));
+    }
 }
 
 /// <summary>

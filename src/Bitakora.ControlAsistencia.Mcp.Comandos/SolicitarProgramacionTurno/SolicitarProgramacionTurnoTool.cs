@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -22,9 +21,10 @@ public partial class SolicitarProgramacionTurnoTool(
     internal const string NombreTool = "solicitar_programacion_turno";
     internal const int MaximoIdentificaciones = 200;
     internal const int PostsSimultaneos = 8;
-    private const int MaximoTurnosEnMensaje = 20;
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
+
+    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("SolicitarProgramacionTurno")]
     public async Task<string> Run(
@@ -113,17 +113,13 @@ public partial class SolicitarProgramacionTurnoTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var respuestaTurnos = await programacion.ListarTurnos(ct);
-        if (await TraducirFalloDeLectura(respuestaTurnos, ct) is { } falloTurnos)
-            return falloTurnos;
-        var catalogo = await respuestaTurnos.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
-        var turnoNormalizado = NormalizarNombre(turno);
-        var fichaTurno = catalogo.FirstOrDefault(f => NormalizarNombre(f.Nombre) == turnoNormalizado);
-        if (fichaTurno is null)
+        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurnos)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
+        if (resolucion.Ficha is null)
             return string.Format(
-                Mensajes.TurnoNoExiste,
-                turno,
-                string.Join(", ", catalogo.Select(f => f.Nombre).Take(MaximoTurnosEnMensaje)));
+                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+        var fichaTurno = resolucion.Ficha;
 
         var respuestaSede = await sedes.ObtenerFicha(sedeDeProgramacion, ct);
         if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
@@ -218,14 +214,6 @@ public partial class SolicitarProgramacionTurnoTool(
             Mensajes.RechazoDelDominio,
             string.IsNullOrWhiteSpace(cuerpo) ? ((int)respuesta.StatusCode).ToString() : cuerpo);
     }
-
-    // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): esta tool
-    // cruza de Mcp.Comandos hacia Programacion, sin ensamblado compartido entre ambos.
-    private static string NormalizarNombre(string nombre) =>
-        EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
-
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex EspaciosConsecutivos();
 }
 
 /// <summary>

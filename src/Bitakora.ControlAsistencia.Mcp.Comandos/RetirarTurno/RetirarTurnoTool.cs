@@ -12,8 +12,10 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion)
 {
     internal const string NombreTool = "retirar_turno";
 
+    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
+
     [Function("RetirarTurno")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Retira un turno del catalogo por su nombre exacto (miralo con listar_turnos): deja "
@@ -28,7 +30,28 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion)
             isRequired: true)]
         string turno,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (string.IsNullOrWhiteSpace(turno))
+            return string.Format(Mensajes.CampoObligatorio, "turno");
+
+        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        if (resolucion.FalloDeLectura is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+
+        var ficha = resolucion.Ficha;
+        var respuesta = await programacion.RetirarTurno(ficha.Id, ct);
+
+        if (!respuesta.IsSuccessStatusCode)
+            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
+
+        return RespuestaJson.Serializar(new TurnoRetiradoResumen(
+            Mensajes.ResultadoTurnoRetirado,
+            new TurnoRetiradoEco(ficha.Id, ficha.Nombre),
+            Mensajes.NotaVisibilidadEventual));
+    }
 }
 
 /// <summary>
