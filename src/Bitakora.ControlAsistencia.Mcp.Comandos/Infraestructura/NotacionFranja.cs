@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
 // Extraido para las tools de diseno de turno (#609-#611): agregar_franja/quitar_franja (este
@@ -12,6 +14,26 @@ internal static class NotacionFranja
         int diaOffsetFin,
         IReadOnlyList<SubFranjaFicha> descansos,
         IReadOnlyList<SubFranjaFicha> extras,
-        string? nombreSede) =>
-        throw new NotImplementedException();
+        string? nombreSede)
+    {
+        var texto = new StringBuilder(Rango(inicio, fin, diaOffsetInicio: 0, diaOffsetFin));
+
+        foreach (var descanso in descansos)
+            texto.Append(
+                $", descanso {Rango(descanso.HoraInicio, descanso.HoraFin, descanso.DiaOffsetInicio, descanso.DiaOffsetFin)}");
+
+        foreach (var extra in extras)
+            texto.Append(
+                $", extra {Rango(extra.HoraInicio, extra.HoraFin, extra.DiaOffsetInicio, extra.DiaOffsetFin)}");
+
+        if (nombreSede is not null)
+            texto.Append($", sede: {nombreSede}");
+
+        return texto.ToString();
+    }
+
+    private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
+        $"{inicio:HH\\:mm}{Sufijo(diaOffsetInicio)}-{fin:HH\\:mm}{Sufijo(diaOffsetFin)}";
+
+    private static string Sufijo(int diaOffset) => diaOffset > 0 ? $"+{diaOffset}" : "";
 }
