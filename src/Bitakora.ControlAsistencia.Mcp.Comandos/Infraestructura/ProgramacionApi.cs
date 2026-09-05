@@ -42,11 +42,10 @@ public sealed class ProgramacionApi(HttpClient http)
         http.PostAsJsonAsync(
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-subfranja", subFranja, ct);
 
-    // El body ya viene armado por la tool consumidora: con sede para asignar, sin la clave sede
-    // (omitida, no null) para retirar (issue #611).
-    public Task<HttpResponseMessage> AsignarSedeAFranja(string id, object body, CancellationToken ct) =>
+    public Task<HttpResponseMessage> AsignarSedeAFranja(
+        string id, SedeDeFranjaAAsignar sedeDeFranja, CancellationToken ct) =>
         http.PostAsJsonAsync(
-            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", body, ct);
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", sedeDeFranja, ct);
 }
 
 /// <summary>
@@ -124,6 +123,25 @@ public sealed record SubFranjaAAgregar
     public string Inicio { get; }
 
     public string Fin { get; }
+}
+
+/// <summary>
+/// Payload propio de asignar_sede_franja hacia POST programacion/turnos/{id}:asignar-sede-franja.
+/// La hora viaja como HH:mm, igual que FranjaAAgregar; sede se omite del JSON cuando la tool
+/// retira la sede prearmada -- el dominio distingue "sin sede" por la clave ausente, no por null.
+/// </summary>
+public sealed record SedeDeFranjaAAsignar
+{
+    public SedeDeFranjaAAsignar(TimeOnly franja, SedeProgramada? sede)
+    {
+        Franja = NotacionFranja.Hora(franja);
+        Sede = sede;
+    }
+
+    public string Franja { get; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SedeProgramada? Sede { get; }
 }
 
 /// <summary>

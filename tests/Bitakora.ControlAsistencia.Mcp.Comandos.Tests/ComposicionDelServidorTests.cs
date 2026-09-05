@@ -270,4 +270,17 @@ public class ComposicionDelServidorTests
 
         propiedades.Should().Equal(("turno", true), ("franja", true), ("codigo_sede", false));
     }
+
+    // CA-4: el modelo elige esta tool leyendo su descripcion antes de la primera llamada
+    // (MEF-ADR-0047 decision 4), asi que los dos terminos del lenguaje ubicuo que la distinguen de
+    // agregar_franja -- prearmar la sede, no crear la franja -- se pinnean, no solo "no vacia".
+    [Fact]
+    public void AsignarSedeFranja_DescribeSedePrearmadaYFranjaOrdinaria_CuandoSeInspeccionaLaTool()
+    {
+        var trigger = MetodosDeTool
+            .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!)
+            .Single(t => t.ToolName == AsignarSedeFranjaTool.NombreTool);
+
+        trigger.Description.Should().Contain("sede prearmada").And.Contain("franja ordinaria");
+    }
 }

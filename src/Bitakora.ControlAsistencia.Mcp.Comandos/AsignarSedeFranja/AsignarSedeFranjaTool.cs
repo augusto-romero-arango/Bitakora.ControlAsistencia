@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -16,9 +13,8 @@ public partial class AsignarSedeFranjaTool(ProgramacionApi programacion, SedesAp
 {
     internal const string NombreTool = "asignar_sede_franja";
 
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
-
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
+    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
 
     [Function("AsignarSedeFranja")]
     public async Task<string> Run(
@@ -61,30 +57,27 @@ public partial class AsignarSedeFranjaTool(ProgramacionApi programacion, SedesAp
         SedeProgramada? sede = null;
         if (!string.IsNullOrWhiteSpace(codigoSede))
         {
-            var respuestaSede = await sedes.ObtenerFicha(codigoSede, ct);
-            if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
-                return string.Format(Mensajes.SedeNoExiste, codigoSede);
-            if (await respuestaSede.LeerFalloAsync(ct) is { } falloSede)
+            var resolucionSede = await resolutorSedes.ResolverAsync(codigoSede, ct);
+            if (resolucionSede.FalloDeLectura is { } falloSede)
                 return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucionSede.MensajeDelMotivo(
+                codigoSede, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+                return rechazo;
 
-            var fichaSede = (await respuestaSede.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
-            if (!fichaSede.Activa)
-                return string.Format(Mensajes.SedeInactiva, codigoSede);
-
-            sede = new SedeProgramada(fichaSede.Codigo, fichaSede.Nombre, fichaSede.CentroDeCostos);
+            sede = resolucionSede.Sede;
         }
 
-        var horaCompacta = NotacionFranja.Hora(horaFranja);
-        object body = sede is null ? new { franja = horaCompacta } : new { franja = horaCompacta, sede };
-
-        var respuestaAsignar = await programacion.AsignarSedeAFranja(fichaTurno.Id, body, ct);
+        var respuestaAsignar = await programacion.AsignarSedeAFranja(
+            fichaTurno.Id, new SedeDeFranjaAAsignar(horaFranja, sede), ct);
         if (await respuestaAsignar.LeerFalloAsync(ct) is { } falloAsignar)
             return string.Format(Mensajes.RechazoDelDominio, falloAsignar);
 
-        var resultado = sede is null ? Mensajes.ResultadoSedeRetirada : Mensajes.ResultadoSedeAsignada;
-
         return RespuestaJson.Serializar(new SedeDeFranjaResumen(
-            resultado, fichaTurno.Nombre, horaCompacta, sede?.Nombre, Mensajes.NotaVisibilidadEventual));
+            sede is null ? Mensajes.ResultadoSedeRetirada : Mensajes.ResultadoSedeAsignada,
+            fichaTurno.Nombre,
+            NotacionFranja.Hora(horaFranja),
+            sede?.Nombre,
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 

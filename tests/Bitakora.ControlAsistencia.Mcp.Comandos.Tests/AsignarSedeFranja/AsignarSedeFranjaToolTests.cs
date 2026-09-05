@@ -178,12 +178,12 @@ public class AsignarSedeFranjaToolTests
     [Fact]
     public async Task AsignarSedeFranja_TraduceElRechazoDelDominio_Cuando400()
     {
-        var fixture = Validacion400Json;
-        var fakes = CrearTool(statusAsignar: HttpStatusCode.BadRequest, cuerpoAsignar: fixture);
+        var fakes = CrearTool(statusAsignar: HttpStatusCode.BadRequest, cuerpoAsignar: Validacion400Json);
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(AsignarSedeFranjaTool.Mensajes.RechazoDelDominio, fixture));
+        resultado.Should().Be(
+            string.Format(AsignarSedeFranjaTool.Mensajes.RechazoDelDominio, Validacion400Json));
     }
 
     [Fact]

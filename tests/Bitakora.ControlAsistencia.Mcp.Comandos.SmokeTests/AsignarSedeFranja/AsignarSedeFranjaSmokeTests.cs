@@ -74,7 +74,9 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
 
         var argumentosAsignar = new Dictionary<string, object?>
         {
-            ["turno"] = nombreTurno, ["franja"] = "14:00", ["codigo_sede"] = codigoSede
+            ["turno"] = nombreTurno,
+            ["franja"] = "14:00",
+            ["codigo_sede"] = codigoSede
         };
 
         // SedeNoExiste llega como texto plano mientras la sede recien registrada no se materializa;
@@ -169,7 +171,9 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
             "asignar_sede_franja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno, ["franja"] = "14:00", ["codigo_sede"] = codigoSede
+                ["turno"] = nombreTurno,
+                ["franja"] = "14:00",
+                ["codigo_sede"] = codigoSede
             },
             cancellationToken: ct);
 
