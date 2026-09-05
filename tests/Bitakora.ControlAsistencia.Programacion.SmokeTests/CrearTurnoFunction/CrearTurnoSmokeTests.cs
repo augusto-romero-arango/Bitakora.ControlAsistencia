@@ -12,20 +12,6 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     private const string TipoEventoTurnoCreado = "turno_creado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Forma minima de SedeProgramada para asertar sobre el JSON persistido sin referenciar
-    // Programacion.DomainEvents desde los smoke tests (mismo criterio que DeadLetterMinimos).
-    private sealed record SedeMinima(string Id, string Nombre);
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
-    private static SedeMinima? SedeDe(JsonElement franja) =>
-        franja.TryGetProperty("sede", out var sede)
-            ? sede.Deserialize<SedeMinima>(OpcionesLectura)
-            : null;
-
     private readonly HttpClient _client = api.Client;
 
     // El nombre es unico en el catalogo (invariante del dominio): sufijar el default con el turnoId
@@ -256,8 +242,8 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         franjas.Should().HaveCount(3);
 
         // CA-1: cada franja prearmada conserva SU sede (no la del vecino).
-        SedeDe(franjas[0]).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
-        SedeDe(franjas[1]).Should().Be(new SedeMinima("SEDE-CHAPINERO", "[TEST] Chapinero"));
+        LectorDeSede.SedeDe(franjas[0]).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
+        LectorDeSede.SedeDe(franjas[1]).Should().Be(new SedeMinima("SEDE-CHAPINERO", "[TEST] Chapinero"));
 
         // CA-2/CA-4: la franja sin sede no agrega la clave al JSON persistido -- misma forma que
         // los streams escritos antes de este issue (ShouldSerialize omite el campo cuando es null).

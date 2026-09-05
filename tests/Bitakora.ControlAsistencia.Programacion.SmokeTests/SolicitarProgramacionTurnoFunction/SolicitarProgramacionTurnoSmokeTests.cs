@@ -22,18 +22,13 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
     // Formas minimas del evento persistido, para asertar sobre el JSON de mt_events sin referenciar
     // Programacion.DomainEvents desde los smoke tests (mismo criterio que DeadLetterMinimos y que
-    // CrearTurnoSmokeTests). Solo declaran los campos que este test verifica; leerlas de forma
-    // case-insensitive deja la politica de nombres del serializador fuera de la asercion -- lo que
-    // se verifica es el DATO que quedo grabado, no como el host llama a la clave.
-    private sealed record SedeMinima(string Id, string Nombre, string? CentroDeCostos = null);
+    // CrearTurnoSmokeTests). SedeMinima vive en Fixtures (compartida). Solo declaran los campos que
+    // este test verifica; leerlas de forma case-insensitive deja la politica de nombres del
+    // serializador fuera de la asercion -- lo que se verifica es el DATO que quedo grabado, no como
+    // el host llama a la clave.
     private sealed record FranjaMinima(SedeMinima? Sede);
     private sealed record TurnoMinimo(IReadOnlyList<FranjaMinima> FranjasOrdinarias);
     private sealed record SolicitudMinima(TurnoMinimo DetalleTurno, SedeMinima? Sede);
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     // El nombre es unico en el catalogo (#497): todo payload de turno de este archivo lo sufija con
     // el turnoId para que el arrange no choque con 409 contra la FichaTurno que dejo materializada
@@ -476,7 +471,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
             campoJson: "Id", valorJson: streamId, Timeout);
 
-        var eventoPersistido = json.Deserialize<SolicitudMinima>(OpcionesLectura);
+        var eventoPersistido = json.Deserialize<SolicitudMinima>(LectorDeSede.OpcionesLectura);
         eventoPersistido.Should().NotBeNull();
 
         // La unica franja no trae sede propia: adopta por cascada la sede por defecto COMPLETA.
@@ -536,7 +531,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
             campoJson: "Id", valorJson: streamId, Timeout);
 
-        var eventoPersistido = json.Deserialize<SolicitudMinima>(OpcionesLectura);
+        var eventoPersistido = json.Deserialize<SolicitudMinima>(LectorDeSede.OpcionesLectura);
         eventoPersistido.Should().NotBeNull();
 
         // CA-1: cada franja quedo grabada con SU sede efectiva -- la prearmada le gana al default.

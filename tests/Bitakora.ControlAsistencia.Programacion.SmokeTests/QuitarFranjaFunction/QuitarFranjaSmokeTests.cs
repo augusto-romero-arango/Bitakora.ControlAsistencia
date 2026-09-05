@@ -64,7 +64,7 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var franja = eventoPersistido.GetProperty("Franja");
         franja.GetProperty("horaInicio").GetString().Should().Be("15:00:00");
-        franja.GetProperty("sede").GetProperty("id").GetString().Should().Be("SEDE-SUBA");
+        LectorDeSede.SedeDe(franja).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
 
         var segundaRespuesta = await _client.PostAsJsonAsync(RutaQuitarFranja(turnoId), payload, ct);
 
