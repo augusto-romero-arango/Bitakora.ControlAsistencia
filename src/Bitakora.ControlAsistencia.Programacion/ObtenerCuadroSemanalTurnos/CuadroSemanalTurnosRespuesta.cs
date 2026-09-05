@@ -33,7 +33,26 @@ public sealed record CuadroSemanalTurnosRespuesta(
         CuadroSemanalTurnos cuadro,
         IReadOnlyDictionary<string, FichaTurno> fichasPorId)
     {
-        throw new NotImplementedException();
+        var dias = cuadro.Dias
+            .Select(dia => new DiaDelCuadroRespuesta(dia.Semana, dia.Dia, ResolverTurno(dia.TurnoId, fichasPorId)))
+            .ToList();
+
+        // "Vigente" incluye programable (decision del planner, issue #625): la plantilla solo es
+        // Completa si trae los 7 x Semanas dias asignados Y ninguno quedo retirado o incompleto.
+        var completa = dias.Count == cuadro.Semanas * 7 && dias.All(dia => dia.Turno is { Retirado: false, Completo: true });
+
+        return new CuadroSemanalTurnosRespuesta(cuadro.Id, cuadro.Nombre, cuadro.Semanas, completa, dias);
+    }
+
+    private static TurnoDelCuadroRespuesta ResolverTurno(
+        string turnoId, IReadOnlyDictionary<string, FichaTurno> fichasPorId)
+    {
+        // Retirado se deriva de la AUSENCIA de FichaTurno (la proyeccion la borra en TurnoRetirado,
+        // ver Notas tecnicas del issue #625) -- no hay flag que leer.
+        if (!fichasPorId.TryGetValue(turnoId, out var ficha))
+            return new TurnoDelCuadroRespuesta(turnoId, Nombre: null, Descripcion: null, Completo: false, Retirado: true);
+
+        return new TurnoDelCuadroRespuesta(turnoId, ficha.Nombre, ficha.Descripcion, ficha.Completo, Retirado: false);
     }
 }
 
