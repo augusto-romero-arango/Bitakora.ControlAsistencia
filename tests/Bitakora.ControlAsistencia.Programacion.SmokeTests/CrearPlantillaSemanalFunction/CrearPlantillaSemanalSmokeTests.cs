@@ -29,6 +29,16 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task HealthCheck_DebeResponder200()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task CrearPlantillaSemanal_DebeRetornar201YPersistirPlantillaSemanalCreada_CuandoPayloadEsValido()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
