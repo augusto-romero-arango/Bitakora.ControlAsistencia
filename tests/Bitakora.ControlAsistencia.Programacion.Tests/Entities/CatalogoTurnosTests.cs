@@ -240,4 +240,121 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoAgregarFranja.TurnoRetirado);
     }
+
+    // ---------- Issue #603: AgregarDescanso/AgregarExtra sobre una franja existente ----------
+
+    // CA-2: camino feliz -- localiza la franja por hora de inicio, delega en ConDescanso y emite.
+    [Fact]
+    public void AgregarDescanso_RetornaAgregada_CuandoLaFranjaExisteYElDescansoEsValido()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+
+        var resultado = catalogo.AgregarDescanso(
+            new TimeOnly(22, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        resultado.Should().Be(ResultadoAgregarSubFranja.Agregada);
+        catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().ContainSingle()
+            .Which.Franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+    }
+
+    // CA-2: AgregarExtra sobre la franja resultante conserva el descanso previo (inmutabilidad del VO).
+    [Fact]
+    public void AgregarExtra_ConservaElDescansoPrevio_CuandoSeAgregaSobreUnaFranjaConDescansoYaAgregado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+        catalogo.AgregarDescanso(new TimeOnly(22, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        var resultado = catalogo.AgregarExtra(
+            new TimeOnly(22, 0), new TimeOnly(5, 0), new TimeOnly(6, 0));
+
+        resultado.Should().Be(ResultadoAgregarSubFranja.Agregada);
+        catalogo.UncommittedEvents.OfType<ExtraAgregado>().Should().ContainSingle()
+            .Which.Franja.ToString().Should().Be(
+                "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-06:00+1)]");
+        catalogo.ToString().Should().Be(
+            "Turno Manana (22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-06:00+1)]");
+    }
+
+    // CA-3: ninguna franja empieza a esa hora.
+    [Fact]
+    public void AgregarDescanso_RetornaFranjaNoExiste_CuandoNingunaFranjaEmpiezaAEsaHora()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+
+        var resultado = catalogo.AgregarDescanso(
+            new TimeOnly(23, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        resultado.Should().Be(ResultadoAgregarSubFranja.FranjaNoExiste);
+        catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().BeEmpty();
+    }
+
+    // CA-3: un turno de descanso no admite sub-franjas.
+    [Fact]
+    public void AgregarDescanso_RetornaTurnoEsDescanso_CuandoElTurnoEsDeDescanso()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+
+        var resultado = catalogo.AgregarDescanso(
+            new TimeOnly(22, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        resultado.Should().Be(ResultadoAgregarSubFranja.TurnoEsDescanso);
+        catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().BeEmpty();
+    }
+
+    // CA-3: un turno retirado no admite nuevas sub-franjas.
+    [Fact]
+    public void AgregarDescanso_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+        catalogo.Retirar();
+
+        var resultado = catalogo.AgregarDescanso(
+            new TimeOnly(22, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        resultado.Should().Be(ResultadoAgregarSubFranja.TurnoRetirado);
+        catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().BeEmpty();
+    }
+
+    // CA-3: precedencia -- retirado gana sobre descanso.
+    [Fact]
+    public void AgregarDescanso_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+        catalogo.Retirar();
+
+        var resultado = catalogo.AgregarDescanso(
+            new TimeOnly(22, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        resultado.Should().Be(ResultadoAgregarSubFranja.TurnoRetirado);
+    }
+
+    // CA-4: invariante estructural del VO (hija fuera del contenedor) sube sin capturarse -- la
+    // franja original queda intacta (inmutabilidad de FranjaOrdinaria.ConDescanso).
+    [Fact]
+    public void AgregarDescanso_DejaSubirArgumentException_CuandoLaHijaQuedaFueraDeLaFranjaContenedora()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+
+        var act = () => catalogo.AgregarDescanso(
+            new TimeOnly(22, 0), new TimeOnly(5, 0), new TimeOnly(7, 0));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor}*");
+        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
+    }
+
+    // CA-4: solape con una hermana ya presente.
+    [Fact]
+    public void AgregarDescanso_DejaSubirArgumentException_CuandoSeSuperponeConUnaHermana()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+        catalogo.AgregarDescanso(new TimeOnly(22, 0), new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        var act = () => catalogo.AgregarDescanso(
+            new TimeOnly(22, 0), new TimeOnly(2, 15), new TimeOnly(2, 45));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaTemporal.Mensajes.FranjasHijasSeSuperponen}*");
+    }
 }

@@ -73,4 +73,21 @@ public class AliasEventosProgramacionTests
 
         AliasDe<FranjaAgregada>(options).Should().Be("franja_agregada");
     }
+
+    // Issue #603
+    [Fact]
+    public void DescansoAgregado_TieneAliasDescansoAgregado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<DescansoAgregado>(options).Should().Be("descanso_agregado");
+    }
+
+    [Fact]
+    public void ExtraAgregado_TieneAliasExtraAgregado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<ExtraAgregado>(options).Should().Be("extra_agregado");
+    }
 }

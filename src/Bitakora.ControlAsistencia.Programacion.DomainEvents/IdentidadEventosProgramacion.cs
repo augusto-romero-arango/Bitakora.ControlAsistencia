@@ -24,6 +24,8 @@ public static class IdentidadEventosProgramacion
         typeof(ProgramacionTurnoSolicitada),
         typeof(TurnoRetirado),
         typeof(CancelacionProgramacionSolicitada),
-        typeof(FranjaAgregada)
+        typeof(FranjaAgregada),
+        typeof(DescansoAgregado),
+        typeof(ExtraAgregado)
     ];
 }

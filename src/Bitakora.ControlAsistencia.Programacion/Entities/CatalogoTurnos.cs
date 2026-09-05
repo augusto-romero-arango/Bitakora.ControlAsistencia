@@ -31,6 +31,13 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(FranjaAgregada evento) => _franjasOrdinarias.Add(evento.Franja);
 
+    // MEF-ADR-0004: Apply nunca lanza -- localiza por hora de inicio y reemplaza sin invocar
+    // ningun factory (ConDescanso/ConExtra), asi que un endurecimiento futuro de esas invariantes
+    // no rompe la rehidratacion de streams viejos.
+    public void Apply(DescansoAgregado evento) => throw new NotImplementedException();
+
+    public void Apply(ExtraAgregado evento) => throw new NotImplementedException();
+
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
     internal ResultadoRetiroTurno Retirar()
@@ -62,6 +69,18 @@ public partial class CatalogoTurnos : AggregateRoot
         Apply(evento);
         return ResultadoAgregarFranja.Agregada;
     }
+
+    // Localiza la franja contenedora por hora de inicio (EmpiezaA), delega la construccion de la
+    // hija en ConDescanso (invariantes del VO, #600) y declina con resultado (CA-ADR-0030): la
+    // ArgumentException del VO sube sin capturarse -- es el unico canal de error mezclado que
+    // acepta esta familia de comandos de diseno.
+    internal ResultadoAgregarSubFranja AgregarDescanso(
+        TimeOnly horaInicioFranja, TimeOnly inicio, TimeOnly fin) =>
+        throw new NotImplementedException();
+
+    internal ResultadoAgregarSubFranja AgregarExtra(
+        TimeOnly horaInicioFranja, TimeOnly inicio, TimeOnly fin) =>
+        throw new NotImplementedException();
 
     // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
     // menos una franja ordinaria.
