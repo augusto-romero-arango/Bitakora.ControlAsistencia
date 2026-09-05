@@ -22,7 +22,9 @@ on:
       # el campo Completo a FichaTurno en ReadModels sin tocar ningun archivo de este dominio,
       # solo disparo Deploy Projections, y func-asist-dev-programacion sirvio fichas sin ese
       # campo hasta el redeploy manual (run 33966777932). Esta lista debe seguir siendo espejo
-      # de los ProjectReference del .csproj de este dominio.
+      # de los ProjectReference del .csproj de este dominio, con un hueco conocido todavia
+      # abierto: TenantResolver (CA-ADR-0032) tambien esta referenciado y tampoco aparece aqui
+      # -- mismo modo de fallo, pendiente de su propio issue. No lo agregues sin cerrarlo.
       - 'src/Bitakora.ControlAsistencia.ReadModels/**'
       # global.json (issue #454 del harness): quien lo lee NO es actions/setup-dotnet -- los
       # jobs de abajo le pasan 'dotnet-version' explicito, no 'global-json-file', asi que la
@@ -49,6 +51,10 @@ on:
       # - .dockerignore: acota el contexto de build de imagenes Docker (issue #260); este
       #   workflow no construye ninguna imagen (dotnet publish directo, sin Docker), asi que
       #   no es un input de lo que despliega.
+      # - src/Bitakora.ControlAsistencia.Projections/**: el .csproj de este dominio no
+      #   referencia al worker de proyecciones (CA-ADR-0028 conserva esa prohibicion), asi que
+      #   un cambio en una clase de proyeccion no altera este binario. Lo unico compartido con
+      #   el read-side que si lo altera es ReadModels/**, que ya esta arriba.
   workflow_run:
     # 'Infra CD - Terraform Apply' es el nombre real del workflow en este repo
     # (.github/workflows/infra-cd.yml), verificado contra la API de Actions -- no el literal
