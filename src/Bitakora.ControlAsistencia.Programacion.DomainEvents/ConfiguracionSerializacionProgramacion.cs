@@ -39,5 +39,6 @@ public static class ConfiguracionSerializacionProgramacion
         ExtraQuitado.ConfigurarSerializacion(resolver);
         SedeDeFranjaAsignada.ConfigurarSerializacion(resolver);
         SedeDeFranjaRetirada.ConfigurarSerializacion(resolver);
+        PlantillaSemanalCreada.ConfigurarSerializacion(resolver);
     }
 }

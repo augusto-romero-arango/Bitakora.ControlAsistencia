@@ -10,5 +10,13 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 public partial class PlantillaSemanalTurnos : AggregateRoot
 {
     // CA-3: aplica PlantillaSemanalCreada y establece Id (heredado de AggregateRoot).
-    public void Apply(PlantillaSemanalCreada evento) => throw new NotImplementedException();
+    public void Apply(PlantillaSemanalCreada evento) => Id = evento.PlantillaId.ToString();
+
+    internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
+    {
+        var plantilla = new PlantillaSemanalTurnos();
+        plantilla._uncommittedEvents.Add(evento);
+        plantilla.Apply(evento);
+        return plantilla;
+    }
 }

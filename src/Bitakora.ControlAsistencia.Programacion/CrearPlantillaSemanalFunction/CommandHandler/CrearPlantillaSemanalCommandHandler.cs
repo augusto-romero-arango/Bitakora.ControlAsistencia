@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using ComandoCrearPlantillaSemanal =
     Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CrearPlantillaSemanal;
@@ -17,6 +19,14 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
     public CrearPlantillaSemanalCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(ComandoCrearPlantillaSemanal command, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task HandleAsync(ComandoCrearPlantillaSemanal command, CancellationToken ct = default)
+    {
+        var existe = await _eventStore.ExistsAsync<PlantillaSemanalTurnos>(command.PlantillaId, ct);
+        if (existe)
+            throw new InvalidOperationException(Mensajes.PlantillaYaExiste);
+
+        var evento = PlantillaSemanalCreada.Crear(command.PlantillaId, command.Nombre, command.Semanas);
+        var plantilla = PlantillaSemanalTurnos.Iniciar(evento);
+        _eventStore.StartStream(plantilla);
+    }
 }

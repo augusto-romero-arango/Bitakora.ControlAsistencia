@@ -8,5 +8,9 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.
 // CA-5: NotEmpty en PlantillaId y Nombre.
 public partial class CrearPlantillaSemanalValidator : AbstractValidator<CrearPlantillaSemanal>
 {
-    public CrearPlantillaSemanalValidator() => throw new NotImplementedException();
+    public CrearPlantillaSemanalValidator()
+    {
+        RuleFor(x => x.PlantillaId).NotEmpty();
+        RuleFor(x => x.Nombre).NotEmpty();
+    }
 }

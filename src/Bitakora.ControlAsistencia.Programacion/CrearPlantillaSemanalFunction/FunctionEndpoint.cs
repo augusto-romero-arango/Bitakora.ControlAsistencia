@@ -15,9 +15,29 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CrearPlantillaSemanal")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/plantillas-semanales")]
         HttpRequest req,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<CrearPlantillaSemanal>(req, ct);
+        if (error is not null)
+            return error;
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(
+                ex.InnerExceptions.Select(e => e.Message));
+        }
+
+        return new CreatedResult($"/api/programacion/plantillas-semanales/{comando!.PlantillaId}", null);
+    }
 }
