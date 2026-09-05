@@ -31,6 +31,7 @@ public static class IdentidadEventosProgramacion
         typeof(DescansoQuitado),
         typeof(ExtraQuitado),
         typeof(SedeDeFranjaAsignada),
-        typeof(SedeDeFranjaRetirada)
+        typeof(SedeDeFranjaRetirada),
+        typeof(PlantillaSemanalCreada)
     ];
 }
