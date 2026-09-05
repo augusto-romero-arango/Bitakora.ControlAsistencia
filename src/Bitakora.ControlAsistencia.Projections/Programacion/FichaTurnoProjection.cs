@@ -32,28 +32,22 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     {
         var turnoCreado = e.Data;
 
-        // Cero franjas ordinarias: puede ser la variante descanso (TurnoCreado.CrearDescanso) o un
-        // turno recien nacido, todavia incompleto (CA-ADR-0033) -- EsDescanso.Crear() es la unica
-        // frontera entre ambos casos, nunca el conteo de franjas (issue #607, CA-1/CA-6).
-        if (turnoCreado.FranjasOrdinarias.Count == 0)
-        {
-            return turnoCreado.EsDescanso
-                ? new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso", Completo: true)
-                : Reconstruir(e.StreamKey!, turnoCreado.Nombre, false, []);
-        }
+        // TurnoCreado.EsDescanso es la UNICA frontera entre descanso y turno: un turno recien
+        // nacido tambien tiene cero franjas (diseno por pasos, CA-ADR-0033), asi que derivar el
+        // descanso del conteo lo confundiria con uno incompleto.
+        if (turnoCreado.EsDescanso)
+            return new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso", Completo: true);
 
         // ToDetalle() es el DTO plano que el VO rico ya expone (Tell-don't-Ask, MEF-ADR-0012): sus
         // campos son privados, no se reabren aqui. FranjaProgramada.Descripcion ya es el texto que
         // FranjaOrdinaria.ToString() produce, asi que se reusa en vez de recomponerlo.
-        var detalles = turnoCreado.FranjasOrdinarias.Select(f => f.ToDetalle()).ToList();
+        var franjas = turnoCreado.FranjasOrdinarias.Select(f => MapearFranja(f.ToDetalle()));
 
-        return Reconstruir(e.StreamKey!, turnoCreado.Nombre, false, detalles.Select(MapearFranja).ToList());
+        return Reconstruir(e.StreamKey!, turnoCreado.Nombre, esDescanso: false, franjas);
     }
 
-    // Los 8 Apply de los eventos de diseno por pasos (CA-ADR-0033) reemplazan/agregan/quitan la
-    // FranjaFicha cuyo HoraInicio coincide con evento.Franja.ToDetalle().HoraInicio (o la agregan
-    // si no existe, MEF-ADR-0004: Apply no lanza) y recalculan HorarioResumido/Descripcion/Completo
-    // en un unico punto (Reconstruir), con las franjas ordenadas por HoraInicio.
+    // Los eventos de diseno por pasos (CA-ADR-0033) traen la franja contenedora RESULTANTE, no el
+    // delta: por eso todos reemplazan por HoraInicio en vez de mutar la franja ya materializada.
 
     public static FichaTurno Apply(FranjaAgregada e, FichaTurno ficha) =>
         ReemplazarOAgregar(ficha, e.Franja.ToDetalle());
@@ -61,8 +55,7 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     public static FichaTurno Apply(FranjaQuitada e, FichaTurno ficha)
     {
         var horaInicio = e.Franja.ToDetalle().HoraInicio;
-        var franjas = ficha.Franjas.Where(f => f.HoraInicio != horaInicio).ToList();
-        return Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas);
+        return Reconstruir(ficha, ficha.Franjas.Where(f => f.HoraInicio != horaInicio));
     }
 
     public static FichaTurno Apply(DescansoAgregado e, FichaTurno ficha) =>
@@ -85,20 +78,21 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
 
     public static bool ShouldDelete(TurnoRetirado e) => true;
 
-    // Reemplaza la FranjaFicha cuyo HoraInicio coincide con la del detalle recibido -- o la agrega
-    // si ninguna coincide (MEF-ADR-0004: Apply no lanza) -- y recalcula los derivados.
-    private static FichaTurno ReemplazarOAgregar(FichaTurno ficha, FranjaProgramada detalle)
-    {
-        var franjaNueva = MapearFranja(detalle);
-        var franjas = ficha.Franjas.Where(f => f.HoraInicio != detalle.HoraInicio).Append(franjaNueva).ToList();
-        return Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas);
-    }
+    // Si ninguna franja coincide por HoraInicio, la agrega en vez de fallar: Apply no lanza
+    // (MEF-ADR-0004).
+    private static FichaTurno ReemplazarOAgregar(FichaTurno ficha, FranjaProgramada detalle) =>
+        Reconstruir(ficha, ficha.Franjas
+            .Where(f => f.HoraInicio != detalle.HoraInicio)
+            .Append(MapearFranja(detalle)));
 
-    // Unico punto de recomputo de los derivados (issue #607): evita que HorarioResumido,
-    // Descripcion y Completo diverjan entre Create y los Apply. Las franjas se presentan ordenadas
-    // por HoraInicio (vista para leer el dia, no el orden en que se diseno -- MEF-ADR-0041).
+    private static FichaTurno Reconstruir(FichaTurno ficha, IEnumerable<FranjaFicha> franjas) =>
+        Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas);
+
+    // Unico punto de recomputo de los derivados: evita que HorarioResumido, Descripcion y Completo
+    // diverjan entre Create y los Apply. Las franjas se presentan ordenadas por HoraInicio (vista
+    // para leer el dia, no el orden en que se diseno -- MEF-ADR-0041).
     private static FichaTurno Reconstruir(
-        string id, string nombre, bool esDescanso, IReadOnlyList<FranjaFicha> franjas)
+        string id, string nombre, bool esDescanso, IEnumerable<FranjaFicha> franjas)
     {
         var ordenadas = franjas.OrderBy(f => f.HoraInicio).ToList();
 

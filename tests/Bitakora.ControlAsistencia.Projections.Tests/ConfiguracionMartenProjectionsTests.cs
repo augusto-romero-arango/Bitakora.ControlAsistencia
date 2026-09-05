@@ -173,10 +173,6 @@ public class ConfiguracionMartenProjectionsTests
     // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
     // IdentidadEventosProgramacion.TiposPersistidos acoplaria este guardrail al mismo artefacto que
     // IdentidadEventosProgramacionTests ya verifica en el write-side.
-    //
-    // Issue #607: el literal crece de 3 a los 12 tipos que IdentidadEventosProgramacion.TiposPersistidos
-    // declara hoy -- los 9 eventos de diseno por pasos del turno (CA-ADR-0033, issues #602-#606) mas
-    // los 3 que ya cubria este test.
     [Fact]
     public void ConfigurarProgramacion_RegistraLosTiposDeEventoPersistidos()
     {

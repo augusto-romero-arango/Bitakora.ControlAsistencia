@@ -46,7 +46,8 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         bool EsDescanso,
         string HorarioResumido,
         IReadOnlyList<FranjaFichaRespuestaSmoke> Franjas,
-        string Descripcion);
+        string Descripcion,
+        bool Completo);
 
     private static string Ruta(Guid turnoId) => $"{RutaTurnos}/{turnoId}";
 
@@ -75,6 +76,9 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         ordinarias = Array.Empty<object>(),
         esDescanso = true
     };
+
+    // Sin ordinarias y sin esDescanso: el turno nace vacio y se disena por pasos (CA-ADR-0033).
+    private static object PayloadTurnoVacio(Guid turnoId, string nombre) => new { turnoId, nombre };
 
     private async Task CrearTurnoAsync(object payload, CancellationToken ct)
     {
@@ -132,6 +136,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         franja.SedeId.Should().BeNull();
         franja.Descansos.Should().BeEmpty();
         franja.Extras.Should().BeEmpty();
+        ficha.Completo.Should().BeTrue();
     }
 
     // CA-2
@@ -148,6 +153,26 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         var ficha = await EsperarFichaAsync(turnoId, ct);
 
         ficha.EsDescanso.Should().BeTrue();
+        ficha.Franjas.Should().BeEmpty();
+        ficha.Completo.Should().BeTrue("un descanso es programable aunque no tenga franjas");
+    }
+
+    // Cero franjas SIN esDescanso: la ficha lo distingue del descanso -- el mismo conteo, dos
+    // respuestas opuestas en EsDescanso y Completo.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaTurno_ExponeCompletoFalse_CuandoElTurnoNoTieneFranjas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var nombre = $"[TEST] Turno Vacio Ficha {turnoId}";
+
+        await CrearTurnoAsync(PayloadTurnoVacio(turnoId, nombre), ct);
+
+        var ficha = await EsperarFichaAsync(turnoId, ct);
+
+        ficha.EsDescanso.Should().BeFalse();
+        ficha.Completo.Should().BeFalse();
         ficha.Franjas.Should().BeEmpty();
     }
 

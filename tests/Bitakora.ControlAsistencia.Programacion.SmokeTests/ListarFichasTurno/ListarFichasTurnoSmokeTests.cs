@@ -36,7 +36,8 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         bool EsDescanso,
         string HorarioResumido,
         IReadOnlyList<JsonElement> Franjas,
-        string Descripcion);
+        string Descripcion,
+        bool Completo);
 
     private static object PayloadTurno(Guid turnoId, string nombre) => new
     {
@@ -59,6 +60,22 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         var response = await _client.PostAsJsonAsync(RutaTurnos, PayloadTurno(turnoId, nombre), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Accepted,
             "el arrange de este smoke test depende de que CrearTurno funcione");
+    }
+
+    // Sin ordinarias y sin esDescanso: el turno nace vacio y se disena por pasos (CA-ADR-0033).
+    private async Task CrearTurnoVacioAsync(Guid turnoId, string nombre, CancellationToken ct)
+    {
+        var response = await _client.PostAsJsonAsync(RutaTurnos, new { turnoId, nombre }, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que CrearTurno funcione");
+    }
+
+    private async Task AgregarFranjaAsync(Guid turnoId, string inicio, string fin, CancellationToken ct)
+    {
+        var response = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/{turnoId}:agregar-franja", new { inicio, fin }, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+            "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
     private async Task<List<FichaTurnoRespuestaSmoke>> ListarAsync(CancellationToken ct)
@@ -133,5 +150,28 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
 
         indiceA.Should().BeLessThan(indiceB,
             "el orden estable es por Nombre, y nombreA precede a nombreB alfabeticamente");
+    }
+
+    // El listado sigue el diseno por pasos: la ficha nace incompleta y la franja agregada despues
+    // la vuelve programable sin pasar por CrearTurno de nuevo.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasTurno_ReflejaLaFranjaAgregada_CuandoSeDisenaPorPasos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var nombre = $"[TEST] Turno Por Pasos Listado {turnoId}";
+
+        await CrearTurnoVacioAsync(turnoId, nombre, ct);
+        await ListarHastaQueAsync(l => l.Any(f => f.Id == turnoId.ToString() && !f.Completo), ct);
+
+        await AgregarFranjaAsync(turnoId, "06:00:00", "14:00:00", ct);
+
+        var lista = await ListarHastaQueAsync(
+            l => l.Any(f => f.Id == turnoId.ToString() && f.Completo && f.Franjas.Count == 1), ct);
+
+        var ficha = lista.Should().ContainSingle(f => f.Id == turnoId.ToString()).Subject;
+        ficha.HorarioResumido.Should().Be("06:00-14:00");
+        ficha.EsDescanso.Should().BeFalse();
     }
 }

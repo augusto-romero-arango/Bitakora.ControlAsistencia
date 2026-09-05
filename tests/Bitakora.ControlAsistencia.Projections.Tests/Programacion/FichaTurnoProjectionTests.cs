@@ -10,10 +10,6 @@
 //
 // BeEquivalentTo, no Be: FichaTurno es un record plano sin igualdad por valor sobre sus colecciones
 // (MEF-ADR-0035) -- Be compararia Franjas por referencia y fallaria con valores identicos.
-//
-// Issue #607: la ficha refleja el diseno por pasos (CA-ADR-0033) -- 8 Apply nuevos (uno por evento
-// de diseno) mas Completo en Create. Todos ejercen el mismo eje ("la ficha refleja el diseno y dice
-// si es programable"), por eso conviven en un unico archivo de tests (ver "Justificacion" del issue).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -25,10 +21,6 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Programacion;
 
 public class FichaTurnoProjectionTests
 {
-    // ---------------------------------------------------------------------------------------
-    // Create (CA-1)
-    // ---------------------------------------------------------------------------------------
-
     // La identidad del documento es el StreamKey del stream de CatalogoTurnos, nunca recomputada
     // desde el payload.
     [Fact]
@@ -60,7 +52,6 @@ public class FichaTurnoProjectionTests
             "sede-01", "Sede Centro",
             "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]");
 
-        // CA-1: con >= 1 franja, Completo = true.
         vista.Should().BeEquivalentTo(new FichaTurno(
             turnoId.ToString(),
             "Turno Manana",
@@ -71,17 +62,19 @@ public class FichaTurnoProjectionTests
             Completo: true));
     }
 
-    // Con varias franjas, HorarioResumido y Descripcion unen los rangos en el orden del evento.
+    // HorarioResumido y Descripcion unen los rangos ordenados por HoraInicio, no en el orden en que
+    // el evento los trae (vista para leer el dia -- MEF-ADR-0041): el arrange llega desordenado a
+    // proposito.
     [Fact]
-    public void Create_UneLosRangosDeTodasLasFranjas_CuandoElTurnoTieneVariasFranjas()
+    public void Create_UneLosRangosOrdenadosPorHoraInicio_CuandoElTurnoTieneVariasFranjas()
     {
         var turnoId = Guid.Parse("019600b0-0000-7000-8000-000000000003");
         var turnoCreado = TurnoCreado.Crear(
             turnoId,
             "Turno Partido",
             [
-                new DatosFranja(new TimeOnly(6, 0), new TimeOnly(10, 0), [], [], null),
-                new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [], null)
+                new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [], null),
+                new DatosFranja(new TimeOnly(6, 0), new TimeOnly(10, 0), [], [], null)
             ]);
 
         var evento = new Event<TurnoCreado>(turnoCreado)
@@ -95,7 +88,7 @@ public class FichaTurnoProjectionTests
 
         vista.HorarioResumido.Should().Be("06:00-10:00, 14:00-18:00");
         vista.Descripcion.Should().Be("(06:00-10:00), (14:00-18:00)");
-        vista.Completo.Should().BeTrue(); // CA-1: con >= 1 franja, Completo = true.
+        vista.Completo.Should().BeTrue();
         vista.Franjas.Should().BeEquivalentTo([
             new FranjaFicha(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], null, null, "(06:00-10:00)"),
             new FranjaFicha(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], null, null, "(14:00-18:00)")
@@ -117,7 +110,7 @@ public class FichaTurnoProjectionTests
 
         var vista = FichaTurnoProjection.Create(evento);
 
-        // CA-1: con EsDescanso = true, Completo = true (un descanso siempre es programable).
+        // Un descanso siempre es programable.
         vista.Should().BeEquivalentTo(new FichaTurno(
             turnoId.ToString(),
             "Descanso Dominical",
@@ -128,10 +121,8 @@ public class FichaTurnoProjectionTests
             Completo: true));
     }
 
-    // CA-1, tercera variante: un turno recien nacido (CA-ADR-0033, diseno por pasos) sin franjas
-    // y sin marca de descanso NO es un descanso -- es un turno incompleto, todavia no programable.
-    // Este es exactamente el caso que la derivacion anterior (EsDescanso = FranjasOrdinarias.Count
-    // == 0) confundia con un descanso.
+    // Un turno recien nacido (CA-ADR-0033, diseno por pasos) sin franjas y sin marca de descanso NO
+    // es un descanso: es un turno incompleto, todavia no programable.
     [Fact]
     public void Create_ProyectaTurnoIncompleto_DesdeTurnoCreadoSinFranjasNiDescanso()
     {
@@ -157,10 +148,6 @@ public class FichaTurnoProjectionTests
             Completo: false));
     }
 
-    // ---------------------------------------------------------------------------------------
-    // ShouldDelete (CA-6)
-    // ---------------------------------------------------------------------------------------
-
     // Un turno sin ficha materializada no necesita test propio: sin Create(TurnoRetirado), Marten
     // no llega a invocar ShouldDelete cuando el stream no tiene documento previo.
     [Fact]
@@ -172,10 +159,6 @@ public class FichaTurnoProjectionTests
 
         debeBorrarse.Should().BeTrue();
     }
-
-    // ---------------------------------------------------------------------------------------
-    // Apply(FranjaAgregada) (CA-2)
-    // ---------------------------------------------------------------------------------------
 
     [Fact]
     public void Apply_AgregaLaFranjaYCompletaLaFicha_CuandoFranjaAgregadaSobreFichaSinFranjas()
@@ -234,10 +217,6 @@ public class FichaTurnoProjectionTests
         ], opciones => opciones.WithStrictOrdering());
     }
 
-    // ---------------------------------------------------------------------------------------
-    // Apply(FranjaQuitada) (CA-3)
-    // ---------------------------------------------------------------------------------------
-
     [Fact]
     public void Apply_QuitaLaFranjaCuyaHoraInicioCoincide_CuandoFranjaQuitada()
     {
@@ -277,11 +256,8 @@ public class FichaTurnoProjectionTests
             turnoId.ToString(), "Turno Manana", false, "Sin franjas", [], "Sin franjas", Completo: false));
     }
 
-    // ---------------------------------------------------------------------------------------
-    // Apply(DescansoAgregado / ExtraAgregado / DescansoQuitado / ExtraQuitado) (CA-4)
-    // ---------------------------------------------------------------------------------------
-    // Los cuatro eventos traen la franja CONTENEDORA resultante -- la clave de reemplazo es
-    // Franja.ToDetalle().HoraInicio -- y dejan las demas franjas de la ficha intactas.
+    // Los eventos de sub-franja y de sede traen la franja CONTENEDORA resultante -- la clave de
+    // reemplazo es Franja.ToDetalle().HoraInicio -- y dejan las demas franjas de la ficha intactas.
 
     [Fact]
     public void Apply_ReemplazaSoloLaFranjaConElDescansoNuevo_CuandoDescansoAgregado()
@@ -391,10 +367,6 @@ public class FichaTurnoProjectionTests
         vista.Franjas.Should().BeEquivalentTo([franjaMananaEsperada, franjaTarde]);
         vista.Descripcion.Should().Be("(06:00-14:00), (14:00-22:00)");
     }
-
-    // ---------------------------------------------------------------------------------------
-    // Apply(SedeDeFranjaAsignada / SedeDeFranjaRetirada) (CA-5)
-    // ---------------------------------------------------------------------------------------
 
     [Fact]
     public void Apply_AsignaLaSedeALaFranja_CuandoSedeDeFranjaAsignada()
