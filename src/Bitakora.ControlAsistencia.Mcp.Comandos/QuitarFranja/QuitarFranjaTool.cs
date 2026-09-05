@@ -1,4 +1,3 @@
-using System.Globalization;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -6,10 +5,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
 
 // Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id + ficha vigente
-// para el eco) + POST programacion/turnos/{id}:quitar-franja (paso 4 MEF-ADR-0043). El eco compone
-// la franja retirada con lo que la ficha vigente mostraba al momento de la llamada (visibilidad
-// eventual): si la ficha aun no la mostraba, el eco solo trae la hora. El 404/409 del POST se
-// traduce a texto, nunca a excepcion (CA-ADR-0030).
+// para el eco) + POST programacion/turnos/{id}:quitar-franja (paso 4 MEF-ADR-0043). El 404/409 del
+// POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class QuitarFranjaTool(ProgramacionApi programacion)
 {
     internal const string NombreTool = "quitar_franja";
@@ -38,7 +35,7 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion)
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
 
-        if (!TryParseHora(franja, out var horaFranja))
+        if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
             return string.Format(Mensajes.HoraInvalida, "franja", franja);
 
         var resolucion = await resolutor.ResolverAsync(turno, ct);
@@ -50,35 +47,29 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion)
         var fichaTurno = resolucion.Ficha;
 
         var respuestaQuitar = await programacion.QuitarFranja(fichaTurno.Id, horaFranja, ct);
-        if (!respuestaQuitar.IsSuccessStatusCode)
-        {
-            var cuerpo = await respuestaQuitar.Content.ReadAsStringAsync(ct);
-            return string.Format(
-                Mensajes.RechazoDelDominio,
-                string.IsNullOrWhiteSpace(cuerpo) ? ((int)respuestaQuitar.StatusCode).ToString() : cuerpo);
-        }
-
-        // El eco compone la franja retirada con lo que la ficha vigente mostraba al momento de la
-        // llamada (visibilidad eventual): si aun no la mostraba, solo la hora -- el POST ya se
-        // envio igual, el dominio decide con 409 si en verdad no existia.
-        var franjaEncontrada = fichaTurno.Franjas.FirstOrDefault(f => f.HoraInicio == horaFranja);
-        var franjaQuitada = franjaEncontrada is not null
-            ? NotacionFranja.Compactar(
-                franjaEncontrada.HoraInicio,
-                franjaEncontrada.HoraFin,
-                franjaEncontrada.DiaOffsetFin,
-                franjaEncontrada.Descansos,
-                franjaEncontrada.Extras,
-                franjaEncontrada.NombreSede ?? franjaEncontrada.SedeId)
-            : horaFranja.ToString("HH:mm");
+        if (await respuestaQuitar.LeerFalloAsync(ct) is { } falloQuitar)
+            return string.Format(Mensajes.RechazoDelDominio, falloQuitar);
 
         return RespuestaJson.Serializar(new FranjaQuitadaResumen(
-            Mensajes.ResultadoFranjaQuitada, fichaTurno.Nombre, franjaQuitada, Mensajes.NotaVisibilidadEventual));
+            Mensajes.ResultadoFranjaQuitada,
+            fichaTurno.Nombre,
+            ComponerEco(fichaTurno, horaFranja),
+            Mensajes.NotaVisibilidadEventual));
     }
 
-    private static bool TryParseHora(string valor, out TimeOnly hora) =>
-        TimeOnly.TryParseExact(
-            valor, ["HH:mm", "H:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out hora);
+    // El eco usa lo que la ficha vigente mostraba al momento de la llamada (visibilidad eventual):
+    // si aun no mostraba la franja, solo la hora -- el POST ya se envio igual y el dominio decide
+    // con 409 si en verdad no existia.
+    private static string ComponerEco(FichaTurno ficha, TimeOnly hora) =>
+        ficha.Franjas.FirstOrDefault(f => f.HoraInicio == hora) is { } franja
+            ? NotacionFranja.Compactar(
+                franja.HoraInicio,
+                franja.HoraFin,
+                franja.DiaOffsetFin,
+                franja.Descansos,
+                franja.Extras,
+                franja.NombreSede ?? franja.SedeId)
+            : NotacionFranja.Hora(hora);
 }
 
 /// <summary>

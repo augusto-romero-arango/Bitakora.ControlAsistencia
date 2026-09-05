@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.Fixtures;
 using ModelContextProtocol.Protocol;
@@ -10,19 +9,6 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.CrearTurno;
 // viven en RetirarTurno/RetirarTurnoSmokeTests.cs.
 public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
-    private static readonly TimeSpan TimeoutPolling = TimeSpan.FromSeconds(30);
-
-    private async Task<JsonDocument?> BuscarFichaAsync(string nombre, CancellationToken ct)
-    {
-        var texto = await programacion.Client.GetStringAsync("/api/programacion/turnos", ct);
-        using var documento = JsonDocument.Parse(texto);
-        foreach (var turno in documento.RootElement.EnumerateArray())
-            if (turno.GetProperty("nombre").GetString() == nombre)
-                return JsonDocument.Parse(turno.GetRawText());
-
-        return null;
-    }
-
     // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> Function App de
     // Programacion -> event store. El assert de creacion vive DENTRO del polling (materializacion
     // asincronica del catalogo); retirar_turno limpia el turno sembrado por este mismo test.
@@ -38,7 +24,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         creado.IsError.Should().NotBeTrue();
         creado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(nombre);
 
-        using var ficha = await Polling.WaitUntilAsync(() => BuscarFichaAsync(nombre, ct), TimeoutPolling);
+        using var ficha = await programacion.Client.EsperarFichaAsync(nombre, ct);
         ficha.RootElement.GetProperty("esDescanso").GetBoolean().Should().BeFalse();
 
         var retirado = await mcp.Cliente.CallToolAsync(
@@ -49,11 +35,11 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         await Polling.WaitUntilAsync(
             async () =>
             {
-                var candidato = await BuscarFichaAsync(nombre, ct);
+                var candidato = await programacion.Client.BuscarFichaAsync(nombre, ct);
                 candidato?.Dispose();
                 return candidato is null ? new object() : null;
             },
-            TimeoutPolling);
+            CatalogoDeTurnos.TimeoutPolling);
     }
 
     // Variante es_descanso=true (CA-6): la ficha debe llegar con esDescanso true; el descanso
@@ -71,7 +57,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
             cancellationToken: ct);
         creado.IsError.Should().NotBeTrue();
 
-        using var ficha = await Polling.WaitUntilAsync(() => BuscarFichaAsync(nombre, ct), TimeoutPolling);
+        using var ficha = await programacion.Client.EsperarFichaAsync(nombre, ct);
         ficha.RootElement.GetProperty("esDescanso").GetBoolean().Should().BeTrue();
 
         await mcp.Cliente.CallToolAsync(

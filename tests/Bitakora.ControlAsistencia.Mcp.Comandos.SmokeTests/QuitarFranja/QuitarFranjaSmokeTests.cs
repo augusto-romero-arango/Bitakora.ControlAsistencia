@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.Fixtures;
 using ModelContextProtocol.Protocol;
@@ -11,18 +10,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.QuitarFranja;
 // los caminos de quitar_franja que no dependen de esa franja ya agregada.
 public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
-    private static readonly TimeSpan TimeoutPolling = TimeSpan.FromSeconds(30);
-
-    private async Task<JsonDocument?> BuscarFichaPorNombreAsync(string nombre, CancellationToken ct)
-    {
-        var texto = await programacion.Client.GetStringAsync("/api/programacion/turnos", ct);
-        using var documento = JsonDocument.Parse(texto);
-        foreach (var turno in documento.RootElement.EnumerateArray())
-            if (turno.GetProperty("nombre").GetString() == nombre)
-                return JsonDocument.Parse(turno.GetRawText());
-
-        return null;
-    }
+    private static string TextoDe(CallToolResult resultado) =>
+        resultado.Content.OfType<TextContentBlock>().Single().Text;
 
     // CA-3/CA-4: un turno recien creado no tiene franjas, asi que quitar una hora que no existe
     // llega al 409 real del dominio (FranjaNoExiste), traducido a texto (CA-ADR-0030).
@@ -37,7 +26,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = nombreTurno }, cancellationToken: ct);
         creado.IsError.Should().NotBeTrue();
 
-        using var ficha = await Polling.WaitUntilAsync(() => BuscarFichaPorNombreAsync(nombreTurno, ct), TimeoutPolling);
+        using var ficha = await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
         ficha.RootElement.GetProperty("franjas").GetArrayLength().Should().Be(0);
 
         var resultado = await mcp.Cliente.CallToolAsync(
@@ -45,8 +34,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             new Dictionary<string, object?> { ["turno"] = nombreTurno, ["franja"] = "10:00" },
             cancellationToken: ct);
         resultado.IsError.Should().NotBeTrue("un rechazo de negocio no es un error del protocolo");
-        resultado.Content.OfType<TextContentBlock>().Single().Text
-            .Should().StartWith("El dominio rechazo la solicitud:");
+        TextoDe(resultado).Should().StartWith("El dominio rechazo la solicitud:");
 
         await mcp.Cliente.CallToolAsync(
             "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
@@ -65,7 +53,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             new Dictionary<string, object?> { ["turno"] = "   ", ["franja"] = "15:00" },
             cancellationToken: ct);
 
-        resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Be("'turno' es obligatorio.");
+        TextoDe(resultado).Should().Be("'turno' es obligatorio.");
     }
 
     [Fact]
@@ -79,7 +67,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             new Dictionary<string, object?> { ["turno"] = "cualquiera", ["franja"] = "   " },
             cancellationToken: ct);
 
-        resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Be("'franja' es obligatorio.");
+        TextoDe(resultado).Should().Be("'franja' es obligatorio.");
     }
 
     // CA-3: hora no parseable corta antes de resolver el turno.
@@ -94,8 +82,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             new Dictionary<string, object?> { ["turno"] = "cualquiera", ["franja"] = "3pm" },
             cancellationToken: ct);
 
-        resultado.Content.OfType<TextContentBlock>().Single().Text
-            .Should().Be("'franja' no es una hora valida en formato HH:mm: '3pm'.");
+        TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '3pm'.");
     }
 
     // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
@@ -111,7 +98,6 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             new Dictionary<string, object?> { ["turno"] = nombre, ["franja"] = "15:00" },
             cancellationToken: ct);
 
-        resultado.Content.OfType<TextContentBlock>().Single().Text
-            .Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+        TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
     }
 }

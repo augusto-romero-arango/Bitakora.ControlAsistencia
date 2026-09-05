@@ -1,13 +1,21 @@
+using System.Globalization;
 using System.Text;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
-// Extraido para las tools de diseno de turno (#609-#611): agregar_franja/quitar_franja (este
-// issue) y las que #610/#611 agreguen despues. Replica el formato HH:mm[+N]-HH:mm[+N] que
-// ObtenerTurnoTool.Compactar ya usa en Mcp.Consultas -- se replica el texto, no el tipo
-// (MEF-ADR-0047 decision 3: cada servidor MCP es una isla).
+// Formato HH:mm de las franjas, en las dos direcciones: lo que entra por parametro de tool
+// (TryParseHora) y lo que sale en el eco (Compactar). Compartido por las tools de diseno de turno
+// (#609-#611). Replica el formato HH:mm[+N]-HH:mm[+N] que ObtenerTurnoTool.Compactar ya usa en
+// Mcp.Consultas -- se replica el texto, no el tipo (MEF-ADR-0047 decision 3: cada servidor MCP es
+// una isla).
 internal static class NotacionFranja
 {
+    private static readonly string[] FormatosAceptados = ["HH:mm", "H:mm"];
+
+    public static bool TryParseHora(string valor, out TimeOnly hora) =>
+        TimeOnly.TryParseExact(
+            valor, FormatosAceptados, CultureInfo.InvariantCulture, DateTimeStyles.None, out hora);
+
     public static string Compactar(
         TimeOnly inicio,
         TimeOnly fin,
@@ -32,8 +40,10 @@ internal static class NotacionFranja
         return texto.ToString();
     }
 
+    public static string Hora(TimeOnly hora) => hora.ToString("HH\\:mm");
+
     private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
-        $"{inicio:HH\\:mm}{Sufijo(diaOffsetInicio)}-{fin:HH\\:mm}{Sufijo(diaOffsetFin)}";
+        $"{Hora(inicio)}{Sufijo(diaOffsetInicio)}-{Hora(fin)}{Sufijo(diaOffsetFin)}";
 
     private static string Sufijo(int diaOffset) => diaOffset > 0 ? $"+{diaOffset}" : "";
 }

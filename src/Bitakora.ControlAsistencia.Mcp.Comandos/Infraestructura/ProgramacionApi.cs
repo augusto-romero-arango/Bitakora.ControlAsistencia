@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
@@ -23,17 +24,14 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
-    // Accion de negocio con verbo propio (paso 4 MEF-ADR-0043): el body ya viene armado por la
-    // tool consumidora -- agregar_franja decide si incluye diaOffsetFin/sede (issue #609).
-    public Task<HttpResponseMessage> AgregarFranja(string id, object body, CancellationToken ct) =>
-        http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", body, ct);
+    // Acciones de negocio con verbo propio (paso 4 MEF-ADR-0043).
+    public Task<HttpResponseMessage> AgregarFranja(string id, FranjaAAgregar franja, CancellationToken ct) =>
+        http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", franja, ct);
 
-    // La franja se identifica por su hora de inicio en formato HH:mm -- igual que el body que el
-    // dominio espera (QuitarFranjaBody), nunca la serializacion TimeOnly por defecto.
     public Task<HttpResponseMessage> QuitarFranja(string id, TimeOnly franja, CancellationToken ct) =>
         http.PostAsJsonAsync(
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-franja",
-            new { franja = franja.ToString("HH:mm") },
+            new { franja = NotacionFranja.Hora(franja) },
             ct);
 }
 
@@ -63,6 +61,32 @@ public sealed record SubFranjaFicha(
     TimeOnly HoraFin,
     int DiaOffsetInicio,
     int DiaOffsetFin);
+
+/// <summary>
+/// Payload propio de agregar_franja hacia POST programacion/turnos/{id}:agregar-franja. Las horas
+/// viajan como HH:mm y no como la serializacion por defecto de TimeOnly (HH:mm:ss); diaOffsetFin y
+/// sede se omiten del JSON cuando no aplican, en vez de viajar en null.
+/// </summary>
+public sealed record FranjaAAgregar
+{
+    public FranjaAAgregar(TimeOnly inicio, TimeOnly fin, int? diaOffsetFin, SedeProgramada? sede)
+    {
+        Inicio = NotacionFranja.Hora(inicio);
+        Fin = NotacionFranja.Hora(fin);
+        DiaOffsetFin = diaOffsetFin;
+        Sede = sede;
+    }
+
+    public string Inicio { get; }
+
+    public string Fin { get; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? DiaOffsetFin { get; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SedeProgramada? Sede { get; }
+}
 
 /// <summary>
 /// Payload propio de la tool hacia POST /api/programacion/solicitudes (MEF-ADR-0039 decision 6: el
