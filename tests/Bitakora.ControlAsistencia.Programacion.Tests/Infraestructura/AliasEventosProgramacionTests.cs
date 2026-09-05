@@ -90,4 +90,12 @@ public class AliasEventosProgramacionTests
 
         AliasDe<ExtraAgregado>(options).Should().Be("extra_agregado");
     }
+
+    [Fact]
+    public void FranjaQuitada_TieneAliasFranjaQuitada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<FranjaQuitada>(options).Should().Be("franja_quitada");
+    }
 }

@@ -35,6 +35,11 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(ExtraAgregado evento) => ReemplazarFranja(evento.Franja);
 
+    // MEF-ADR-0004 capa 4: RemoveAll, no FindIndex + RemoveAt -- sobre un stream anomalo, indexar
+    // con -1 lanzaria, y un Apply que lanza deja el aggregate roto para siempre.
+    public void Apply(FranjaQuitada evento) =>
+        _franjasOrdinarias.RemoveAll(f => f.EmpiezaALaMismaHoraQue(evento.Franja));
+
     // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
     // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
     // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
@@ -117,6 +122,23 @@ public partial class CatalogoTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAgregarSubFranja.Agregada;
+    }
+
+    // Precedencia: retirado > franja no existe. Un descanso no necesita resultado propio: no
+    // tiene franjas ordinarias, asi que ya cae en FranjaNoExiste.
+    internal ResultadoQuitarFranja QuitarFranja(TimeOnly horaInicio)
+    {
+        if (!_estaActivo)
+            return ResultadoQuitarFranja.TurnoRetirado;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicio));
+        if (indice == -1)
+            return ResultadoQuitarFranja.FranjaNoExiste;
+
+        var evento = FranjaQuitada.Crear(Guid.Parse(Id!), _franjasOrdinarias[indice]);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarFranja.Quitada;
     }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
