@@ -572,6 +572,37 @@ public class CatalogoTurnosTests
         catalogo.ObtenerDetalle().FranjasOrdinarias[0].Sede.Should().BeNull();
     }
 
+    // CA-3 completo: la secuencia asignar -> retirar -> retirar. Cierra el hueco que dejan los
+    // casos sueltos: prueba que Apply(SedeDeFranjaRetirada) dejo la franja realmente sin sede, no
+    // solo que el retiro emitio su evento.
+    [Fact]
+    public void AsignarSedeAFranja_RetornaFranjaSinSede_CuandoSeRetiraDosVecesSeguidas()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaSinSede);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaRetirada>().Should().ContainSingle();
+    }
+
+    // Asignar la MISMA sede que ya tiene emite el evento igual: la intencion queda registrada en
+    // el stream aunque el efecto sea idempotente (decision del issue #606, revisable).
+    [Fact]
+    public void AsignarSedeAFranja_RetornaAsignada_CuandoLaFranjaYaTeniaEsaMismaSede()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.Asignada);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaAsignada>().Should().HaveCount(2);
+        catalogo.ObtenerDetalle().FranjasOrdinarias[0].Sede.Should().Be(Chapinero);
+    }
+
     // Nada que retirar: la franja ya no tiene sede -- mismo criterio que
     // ResultadoRetiroTurno.YaEstabaRetirado.
     [Fact]
@@ -582,7 +613,9 @@ public class CatalogoTurnosTests
         var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
 
         resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaSinSede);
-        catalogo.UncommittedEvents.Should().BeEmpty();
+        // No BeEmpty(): el TurnoCreado del arrange (CatalogoTurnos.Iniciar) queda en la lista. Lo
+        // que este caso afirma es que la declinacion no agrego ningun evento nuevo.
+        catalogo.UncommittedEvents.Should().ContainSingle().Which.Should().BeOfType<TurnoCreado>();
     }
 
     [Fact]
@@ -593,7 +626,7 @@ public class CatalogoTurnosTests
         var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(15, 0), Chapinero);
 
         resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaNoExiste);
-        catalogo.UncommittedEvents.Should().BeEmpty();
+        catalogo.UncommittedEvents.Should().ContainSingle().Which.Should().BeOfType<TurnoCreado>();
     }
 
     // CA-3: un descanso no tiene franjas ordinarias -- cualquier hora cae en FranjaNoExiste (mismo

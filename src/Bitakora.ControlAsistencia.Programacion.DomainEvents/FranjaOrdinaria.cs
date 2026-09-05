@@ -113,8 +113,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         Crear(_horaInicio, _horaFin, _diaOffsetFin,
             _descansos, [.. _extras, InferirHija(inicio, fin)], _sede);
 
-    // Issue #606: cambia (o retira, con null) la sede prearmada sin afectar las hijas -- Crear()
-    // vuelve a validar completitud si la sede nueva no es null.
+    // Delega en Crear(), asi que hereda su validacion: con una sede nueva incompleta lanza
+    // SedeIncompleta en vez de devolver la franja.
     public FranjaOrdinaria ConSede(SedeProgramada? sede) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin, _descansos, _extras, sede);
 

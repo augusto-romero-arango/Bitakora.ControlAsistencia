@@ -44,7 +44,6 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
 
-    // Issue #606: reemplaza la franja por la resultante (con la sede nueva, o sin ella).
     public void Apply(SedeDeFranjaAsignada evento) => ReemplazarFranja(evento.Franja);
 
     public void Apply(SedeDeFranjaRetirada evento) => ReemplazarFranja(evento.Franja);
@@ -190,9 +189,9 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoQuitarSubFranja.Quitada;
     }
 
-    // Issue #606: mismo mecanismo "declinar con resultado" que QuitarFranja -- localiza por hora
-    // de inicio y delega en ConSede/TieneSedePrearmada (invariantes del VO ya resueltas por el
-    // handler antes de llegar aqui). Precedencia: TurnoRetirado > FranjaNoExiste > FranjaSinSede.
+    // Mismo mecanismo "declinar con resultado" que QuitarFranja (CA-ADR-0030). Precedencia:
+    // TurnoRetirado > FranjaNoExiste > FranjaSinSede. La sede incompleta NO se declina aqui: es
+    // invariante del VO, y ConSede la deja subir como ArgumentException (400, no 409).
     internal ResultadoAsignarSedeAFranja AsignarSedeAFranja(TimeOnly horaInicioFranja, SedeProgramada? sede)
     {
         if (!_estaActivo)
@@ -202,23 +201,23 @@ public partial class CatalogoTurnos : AggregateRoot
         if (indice == -1)
             return ResultadoAsignarSedeAFranja.FranjaNoExiste;
 
-        if (sede is null && !_franjasOrdinarias[indice].TieneSedePrearmada())
-            return ResultadoAsignarSedeAFranja.FranjaSinSede;
+        var franja = _franjasOrdinarias[indice];
 
-        var franjaResultante = _franjasOrdinarias[indice].ConSede(sede);
-
-        if (sede is not null)
+        if (sede is null)
         {
-            var evento = SedeDeFranjaAsignada.Crear(Guid.Parse(Id!), franjaResultante);
-            _uncommittedEvents.Add(evento);
-            Apply(evento);
-            return ResultadoAsignarSedeAFranja.Asignada;
+            if (!franja.TieneSedePrearmada())
+                return ResultadoAsignarSedeAFranja.FranjaSinSede;
+
+            var retiro = SedeDeFranjaRetirada.Crear(Guid.Parse(Id!), franja.ConSede(null));
+            _uncommittedEvents.Add(retiro);
+            Apply(retiro);
+            return ResultadoAsignarSedeAFranja.Retirada;
         }
 
-        var eventoRetiro = SedeDeFranjaRetirada.Crear(Guid.Parse(Id!), franjaResultante);
-        _uncommittedEvents.Add(eventoRetiro);
-        Apply(eventoRetiro);
-        return ResultadoAsignarSedeAFranja.Retirada;
+        var asignacion = SedeDeFranjaAsignada.Crear(Guid.Parse(Id!), franja.ConSede(sede));
+        _uncommittedEvents.Add(asignacion);
+        Apply(asignacion);
+        return ResultadoAsignarSedeAFranja.Asignada;
     }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
