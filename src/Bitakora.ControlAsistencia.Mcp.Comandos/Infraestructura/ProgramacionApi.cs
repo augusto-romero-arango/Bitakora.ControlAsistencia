@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
@@ -22,13 +23,70 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
+
+    // Acciones de negocio con verbo propio (paso 4 MEF-ADR-0043).
+    public Task<HttpResponseMessage> AgregarFranja(string id, FranjaAAgregar franja, CancellationToken ct) =>
+        http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", franja, ct);
+
+    public Task<HttpResponseMessage> QuitarFranja(string id, TimeOnly franja, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-franja",
+            new { franja = NotacionFranja.Hora(franja) },
+            ct);
 }
 
 /// <summary>
 /// Ficha de turno del catalogo tal como la devuelve GET programacion/turnos -- solo los campos que
-/// esta tool consume (MEF-ADR-0047 decision 3: contrato propio, no el read model del dominio).
+/// las tools de este servidor consumen (MEF-ADR-0047 decision 3: contrato propio, no el read
+/// model del dominio). Franjas crecio en el issue #609 para el eco de quitar_franja.
 /// </summary>
-public sealed record FichaTurno(string Id, string Nombre, bool EsDescanso);
+public sealed record FichaTurno(
+    string Id,
+    string Nombre,
+    bool EsDescanso,
+    IReadOnlyList<FranjaFicha> Franjas);
+
+/// <summary>Espejo parcial de FranjaFicha del read model -- issue #609 (eco de quitar_franja).</summary>
+public sealed record FranjaFicha(
+    TimeOnly HoraInicio,
+    TimeOnly HoraFin,
+    int DiaOffsetFin,
+    IReadOnlyList<SubFranjaFicha> Descansos,
+    IReadOnlyList<SubFranjaFicha> Extras,
+    string? SedeId,
+    string? NombreSede);
+
+public sealed record SubFranjaFicha(
+    TimeOnly HoraInicio,
+    TimeOnly HoraFin,
+    int DiaOffsetInicio,
+    int DiaOffsetFin);
+
+/// <summary>
+/// Payload propio de agregar_franja hacia POST programacion/turnos/{id}:agregar-franja. Las horas
+/// viajan como HH:mm y no como la serializacion por defecto de TimeOnly (HH:mm:ss); diaOffsetFin y
+/// sede se omiten del JSON cuando no aplican, en vez de viajar en null.
+/// </summary>
+public sealed record FranjaAAgregar
+{
+    public FranjaAAgregar(TimeOnly inicio, TimeOnly fin, int? diaOffsetFin, SedeProgramada? sede)
+    {
+        Inicio = NotacionFranja.Hora(inicio);
+        Fin = NotacionFranja.Hora(fin);
+        DiaOffsetFin = diaOffsetFin;
+        Sede = sede;
+    }
+
+    public string Inicio { get; }
+
+    public string Fin { get; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? DiaOffsetFin { get; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SedeProgramada? Sede { get; }
+}
 
 /// <summary>
 /// Payload propio de la tool hacia POST /api/programacion/solicitudes (MEF-ADR-0039 decision 6: el

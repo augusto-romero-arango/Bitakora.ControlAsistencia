@@ -1,0 +1,20 @@
+[
+  {
+    "id": "8f14e45f-ceea-4b3c-8f0a-000000000020",
+    "nombre": "Nocturno",
+    "esDescanso": false,
+    "franjas": [
+      {
+        "horaInicio": "15:00:00",
+        "horaFin": "19:00:00",
+        "diaOffsetFin": 0,
+        "descansos": [
+          { "horaInicio": "12:00:00", "horaFin": "13:00:00", "diaOffsetInicio": 0, "diaOffsetFin": 0 }
+        ],
+        "extras": [],
+        "sedeId": "SUBA",
+        "nombreSede": "Suba"
+      }
+    ]
+  }
+]

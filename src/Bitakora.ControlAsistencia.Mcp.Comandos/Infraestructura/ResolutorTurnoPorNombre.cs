@@ -19,12 +19,8 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
     public async Task<ResultadoResolucionTurno> ResolverAsync(string nombre, CancellationToken ct)
     {
         var respuesta = await programacion.ListarTurnos(ct);
-        if (!respuesta.IsSuccessStatusCode)
-        {
-            var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
-            var fallo = string.IsNullOrWhiteSpace(cuerpo) ? ((int)respuesta.StatusCode).ToString() : cuerpo;
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoResolucionTurno(null, fallo, []);
-        }
 
         var catalogo = await respuesta.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
         var normalizado = NormalizarNombre(nombre);
