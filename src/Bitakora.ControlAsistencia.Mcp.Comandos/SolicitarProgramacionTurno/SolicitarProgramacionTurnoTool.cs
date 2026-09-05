@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
@@ -25,6 +24,7 @@ public partial class SolicitarProgramacionTurnoTool(
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
+    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
 
     [Function("SolicitarProgramacionTurno")]
     public async Task<string> Run(
@@ -121,14 +121,13 @@ public partial class SolicitarProgramacionTurnoTool(
                 Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
-        var respuestaSede = await sedes.ObtenerFicha(sedeDeProgramacion, ct);
-        if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
-            return string.Format(Mensajes.SedeNoExiste, sedeDeProgramacion);
-        if (await respuestaSede.LeerFalloAsync(ct) is { } falloSede)
+        var resolucionSede = await resolutorSedes.ResolverAsync(sedeDeProgramacion, ct);
+        if (resolucionSede.FalloDeLectura is { } falloSede)
             return string.Format(Mensajes.RechazoDelDominio, falloSede);
-        var fichaSede = (await respuestaSede.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
-        if (!fichaSede.Activa)
-            return string.Format(Mensajes.SedeInactiva, sedeDeProgramacion);
+        if (resolucionSede.MensajeDelMotivo(
+            sedeDeProgramacion, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+            return rechazo;
+        var sedeProgramada = resolucionSede.Sede!;
 
         var respuestaDirectorio = await colaboradores.BuscarEnDirectorio(
             identificacionesSolicitadas, MaximoIdentificaciones, ct);
@@ -150,7 +149,6 @@ public partial class SolicitarProgramacionTurnoTool(
 
         var omitidos = identificacionesSolicitadas.Count - candidatos.Count;
         var turnoId = Guid.Parse(fichaTurno.Id);
-        var sedeProgramada = new SedeProgramada(fichaSede.Codigo, fichaSede.Nombre, fichaSede.CentroDeCostos);
 
         var programados = new ConcurrentBag<ColaboradorProgramadoResumen>();
         var fallidos = new ConcurrentBag<ColaboradorFallidoResumen>();
@@ -192,7 +190,7 @@ public partial class SolicitarProgramacionTurnoTool(
         return RespuestaJson.Serializar(new ProgramacionSolicitadaResumen(
             Mensajes.ResultadoProgramacionSolicitada,
             fichaTurno.Nombre,
-            new SedeResumen(fichaSede.Codigo, fichaSede.Nombre),
+            new SedeResumen(sedeProgramada.Id, sedeProgramada.Nombre),
             ventana.ToString(),
             [.. programados.OrderBy(p => p.Identificacion, StringComparer.Ordinal)],
             omitidos,

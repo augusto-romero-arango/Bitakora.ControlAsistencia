@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -15,9 +12,8 @@ public partial class AgregarFranjaTool(ProgramacionApi programacion, SedesApi se
 {
     internal const string NombreTool = "agregar_franja";
 
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
-
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
+    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
 
     [Function("AgregarFranja")]
     public async Task<string> Run(
@@ -67,17 +63,14 @@ public partial class AgregarFranjaTool(ProgramacionApi programacion, SedesApi se
         SedeProgramada? sede = null;
         if (!string.IsNullOrWhiteSpace(codigoSede))
         {
-            var respuestaSede = await sedes.ObtenerFicha(codigoSede, ct);
-            if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
-                return string.Format(Mensajes.SedeNoExiste, codigoSede);
-            if (await respuestaSede.LeerFalloAsync(ct) is { } falloSede)
+            var resolucionSede = await resolutorSedes.ResolverAsync(codigoSede, ct);
+            if (resolucionSede.FalloDeLectura is { } falloSede)
                 return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucionSede.MensajeDelMotivo(
+                codigoSede, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+                return rechazo;
 
-            var fichaSede = (await respuestaSede.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
-            if (!fichaSede.Activa)
-                return string.Format(Mensajes.SedeInactiva, codigoSede);
-
-            sede = new SedeProgramada(fichaSede.Codigo, fichaSede.Nombre, fichaSede.CentroDeCostos);
+            sede = resolucionSede.Sede;
         }
 
         // inicio == fin es la unica lectura valida de una franja de 24h; el dominio infiere el +1

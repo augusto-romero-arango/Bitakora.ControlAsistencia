@@ -1,0 +1,10 @@
+{
+  "id": "s:chapinero",
+  "codigo": "CHAPINERO",
+  "nombre": "Chapinero",
+  "ciudad": "Bogota",
+  "direccion": "Cra 10 # 20-30",
+  "centroDeCostos": "CC-200",
+  "activa": false,
+  "dispositivos": []
+}
