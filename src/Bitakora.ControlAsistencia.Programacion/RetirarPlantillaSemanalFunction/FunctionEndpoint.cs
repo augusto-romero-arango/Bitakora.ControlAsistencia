@@ -11,10 +11,24 @@ namespace Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunctio
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarPlantillaSemanal")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "programacion/plantillas-semanales/{id}")]
         HttpRequest req,
         string id,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (!Guid.TryParse(id, out var plantillaId))
+            return new BadRequestObjectResult("El id de la plantilla no es un Guid valido");
+
+        try
+        {
+            await commandRouter.InvokeAsync(new RetirarPlantillaSemanal(plantillaId), ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+
+        return new NoContentResult();
+    }
 }

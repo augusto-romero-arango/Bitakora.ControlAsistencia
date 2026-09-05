@@ -9,12 +9,14 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 public partial class PlantillaSemanalTurnos : AggregateRoot
 {
     private int _semanas;
+    private bool _estaActiva;
     private readonly Dictionary<(int Semana, DiaSemana Dia), Guid> _dias = new();
 
     public void Apply(PlantillaSemanalCreada evento)
     {
         Id = evento.PlantillaId.ToString();
         _semanas = evento.Semanas;
+        _estaActiva = true;
     }
 
     public void Apply(DiaDePlantillaSemanalAsignado evento) =>
@@ -24,7 +26,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     public void Apply(DiaDePlantillaSemanalQuitado evento) => _dias.Remove((evento.Semana, evento.Dia));
 
     // Issue #623: cierra el ciclo de vida (CA-ADR-0034 decision 4, espejo de CatalogoTurnos.Retirar).
-    public void Apply(PlantillaSemanalRetirada evento) => throw new NotImplementedException();
+    public void Apply(PlantillaSemanalRetirada evento) => _estaActiva = false;
 
     internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
     {
@@ -38,6 +40,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     // semana fuera de rango > sin cambios (idempotencia) > asignado.
     internal ResultadoAsignarDia AsignarDia(int semana, DiaSemana dia, Guid turnoId)
     {
+        if (!_estaActiva)
+            return ResultadoAsignarDia.PlantillaRetirada;
+
         if (semana > _semanas)
             return ResultadoAsignarDia.SemanaFueraDeRango;
 
@@ -54,6 +59,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     // semana se valida antes que el estado del dia, aunque ese dia ya este vacio.
     internal ResultadoQuitarDia QuitarDia(int semana, DiaSemana dia)
     {
+        if (!_estaActiva)
+            return ResultadoQuitarDia.PlantillaRetirada;
+
         if (semana > _semanas)
             return ResultadoQuitarDia.SemanaFueraDeRango;
 
@@ -69,5 +77,14 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     // Issue #623: declina con resultado, nunca lanza (CA-ADR-0030). Retirar la plantilla es el
     // ultimo eslabon de su ciclo de vida -- retirar una plantilla ya retirada es SinCambios
     // (idempotencia, harness#850), no un rechazo 409 (se aparta del precedente CatalogoTurnos.Retirar).
-    internal ResultadoRetiroPlantilla Retirar() => throw new NotImplementedException();
+    internal ResultadoRetiroPlantilla Retirar()
+    {
+        if (!_estaActiva)
+            return ResultadoRetiroPlantilla.SinCambios;
+
+        var evento = PlantillaSemanalRetirada.Crear(Guid.Parse(Id));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoRetiroPlantilla.Retirada;
+    }
 }
