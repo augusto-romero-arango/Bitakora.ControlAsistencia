@@ -52,10 +52,9 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que AgregarSubFranja funcione");
     }
 
-    // CA-6: tercer paso del diseno de turno por pasos -- crear el turno, agregarle la franja
-    // nocturna, agregarle un descanso de madrugada, y quitarlo. descanso_quitado no cruza ningun
-    // bus: mt_events es la unica ventana black-box a lo que quedo grabado. El segundo
-    // :quitar-subfranja sobre la misma hija cierra la regla de negocio -> 409.
+    // descanso_quitado no cruza ningun bus: mt_events es la unica ventana black-box a lo que
+    // quedo grabado. El segundo :quitar-subfranja sobre la misma hija cierra la regla de negocio
+    // -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_DebeRetornar202YPersistirLaFranjaSinElDescanso_CuandoElDescansoExiste()
@@ -86,9 +85,8 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-4: mismo discriminador de frontera que AgregarSubFranja -- Tipo = Extra produce el evento
-    // gemelo extra_quitado en vez de descanso_quitado. El test de descanso ya cubre el camino
-    // feliz del comando; este solo cierra que el otro valor del discriminador enruta correcto.
+    // El test de descanso ya cubre el camino feliz del comando; este solo cierra que el otro
+    // valor del discriminador enruta al evento gemelo extra_quitado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_DebeRetornar202YPersistirLaFranjaSinElExtra_CuandoTipoEsExtra()
@@ -133,13 +131,23 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     public async Task QuitarSubFranja_DebeRetornar400_CuandoElTipoEsDesconocido()
     {
         var ct = TestContext.Current.CancellationToken;
-        var turnoId = Guid.CreateVersion7();
-        await CrearTurnoVacioAsync(turnoId, "[TEST] Turno Quitar Subfranja Tipo Invalido", ct);
-        await AgregarFranjaNocturnaAsync(turnoId, ct);
-        await AgregarDescansoDeMadrugadaAsync(turnoId, ct);
-
         var payload = new { franja = "22:00", tipo = "pausa", inicio = "02:00" };
-        var response = await _client.PostAsJsonAsync(RutaQuitarSubFranja(turnoId), payload, ct);
+
+        var response = await _client.PostAsJsonAsync(
+            RutaQuitarSubFranja(Guid.CreateVersion7()), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task QuitarSubFranja_DebeRetornar400_CuandoElIdDeRutaNoEsUnGuidValido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = new { franja = "22:00", tipo = "descanso", inicio = "02:00" };
+
+        var response = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/no-es-un-guid:quitar-subfranja", payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

@@ -1,7 +1,3 @@
-// Issue #605: Tipo viaja como string case-insensitive; mismo discriminador que #603
-// (AgregarSubFranjaBody). El validator reusa AgregarSubFranjaBodyValidator.Mensajes.TipoDesconocido
-// -- no se duplica el .resx (MEF-ADR-0018).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction;

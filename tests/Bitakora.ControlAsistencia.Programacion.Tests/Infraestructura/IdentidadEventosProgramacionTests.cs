@@ -13,8 +13,6 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    // Issue #605: DescansoQuitado/ExtraQuitado se persisten en el mismo stream de CatalogoTurnos
-    // -- deben listarse aqui igual que DescansoAgregado/ExtraAgregado (#603).
     [Fact]
     public void TiposPersistidos_ContieneExactamenteLosDiezEventosPersistidosDeProgramacion()
     {

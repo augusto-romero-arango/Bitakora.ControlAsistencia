@@ -1,6 +1,5 @@
-// Issue #605 CA-1: ExtraQuitado sobrevive un roundtrip de serializacion STJ -- requerido por
-// Marten -- transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya sin la hija) como
-// payload rico.
+// ExtraQuitado sobrevive un roundtrip de serializacion STJ -- requerido por Marten --
+// transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya sin la hija).
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -35,7 +34,7 @@ public class ExtraQuitadoSerializacionTests
         deserializado.Franja.ToString().Should().Be(franja.ToString());
     }
 
-    // CA-regresion: si alguien olvida registrar ExtraQuitado en
+    // Regresion: si alguien olvida registrar ExtraQuitado en
     // ConfiguracionSerializacionProgramacion.ConfigurarResolver, este test falla.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeExtraQuitado()

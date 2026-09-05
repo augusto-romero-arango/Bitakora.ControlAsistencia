@@ -99,7 +99,6 @@ public class AliasEventosProgramacionTests
         AliasDe<FranjaQuitada>(options).Should().Be("franja_quitada");
     }
 
-    // Issue #605
     [Fact]
     public void DescansoQuitado_TieneAliasDescansoQuitado()
     {

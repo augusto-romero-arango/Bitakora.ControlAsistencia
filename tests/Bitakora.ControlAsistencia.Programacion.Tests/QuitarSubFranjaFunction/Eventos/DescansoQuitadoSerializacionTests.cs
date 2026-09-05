@@ -1,6 +1,5 @@
-// Issue #605 CA-1: DescansoQuitado sobrevive un roundtrip de serializacion STJ -- requerido por
-// Marten -- transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya sin la hija) como
-// payload rico.
+// DescansoQuitado sobrevive un roundtrip de serializacion STJ -- requerido por Marten --
+// transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya sin la hija).
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -35,7 +34,7 @@ public class DescansoQuitadoSerializacionTests
         deserializado.Franja.ToString().Should().Be(franja.ToString());
     }
 
-    // CA-regresion: si alguien olvida registrar DescansoQuitado en
+    // Regresion: si alguien olvida registrar DescansoQuitado en
     // ConfiguracionSerializacionProgramacion.ConfigurarResolver, este test falla.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeDescansoQuitado()

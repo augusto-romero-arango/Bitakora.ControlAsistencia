@@ -40,8 +40,6 @@ public partial class CatalogoTurnos : AggregateRoot
     public void Apply(FranjaQuitada evento) =>
         _franjasOrdinarias.RemoveAll(f => f.EmpiezaALaMismaHoraQue(evento.Franja));
 
-    // Issue #605: espejo de Apply(DescansoAgregado)/Apply(ExtraAgregado) -- localiza por hora de
-    // inicio y reemplaza sin invocar ningun factory, sin lanzar (MEF-ADR-0004 capa 4).
     public void Apply(DescansoQuitado evento) => ReemplazarFranja(evento.Franja);
 
     public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
@@ -147,10 +145,8 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoQuitarFranja.Quitada;
     }
 
-    // Espejo de AgregarDescanso/AgregarExtra: localiza la franja contenedora por hora de inicio
-    // (EmpiezaA), delega en SinDescanso/SinExtra (issue #605) y declina con resultado
-    // (CA-ADR-0030). Sin ArgumentException que mezclar: quitar una hija nunca viola invariantes.
-    // Precedencia: TurnoRetirado > FranjaNoExiste > SubFranjaNoExiste.
+    // Sin ArgumentException que mezclar con las reglas de negocio (CA-ADR-0030), a diferencia de
+    // AgregarDescanso/AgregarExtra: quitar una hija nunca viola las invariantes del VO.
     internal ResultadoQuitarSubFranja QuitarDescanso(TimeOnly horaInicioFranja, TimeOnly horaInicioHija)
     {
         if (!_estaActivo)

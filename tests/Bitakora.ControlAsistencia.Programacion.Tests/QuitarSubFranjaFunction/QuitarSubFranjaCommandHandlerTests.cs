@@ -1,7 +1,3 @@
-// Issue #605: quitar un descanso o un extra de una franja de un turno -- espejo de #603
-// (AgregarSubFranja): mismo discriminador de frontera Tipo, dos eventos gemelos, la franja
-// contenedora se reemplaza por una nueva sin la hija.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -32,8 +28,6 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
             FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
                 .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30)));
 
-    // CA-4: camino feliz -- Tipo = Descanso emite DescansoQuitado con la franja resultante,
-    // ya sin la hija.
     [Fact]
     public async Task QuitarSubFranja_EmiteDescansoQuitado_CuandoElDescansoExiste()
     {
@@ -48,7 +42,6 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 0);
     }
 
-    // CA-4: Tipo = Extra emite ExtraQuitado.
     [Fact]
     public async Task QuitarSubFranja_EmiteExtraQuitado_CuandoElExtraExiste()
     {
@@ -67,7 +60,7 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
     }
 
     // Sin And<>: el aggregate no existe (ningun Given) y reconstruirlo lanzaria
-    // ArgumentNullException -- mismo criterio que AgregarSubFranjaCommandHandlerTests.
+    // ArgumentNullException.
     [Fact]
     public async Task QuitarSubFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
     {
@@ -111,8 +104,7 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 0);
     }
 
-    // Un descanso no tiene franjas ordinarias: cae en franja-no-existe, sin resultado propio
-    // (mismo criterio que QuitarFranjaCommandHandler, #604).
+    // Un descanso no tiene franjas ordinarias: cae en franja-no-existe, sin resultado propio.
     [Fact]
     public async Task QuitarSubFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
     {
@@ -127,7 +119,7 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
         And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), true);
     }
 
-    // CA-3: la franja existe, pero ninguna hija de ese tipo empieza a esa hora.
+    // La franja existe, pero ninguna hija de ese tipo empieza a esa hora.
     [Fact]
     public async Task QuitarSubFranja_LanzaInvalidOperationException_CuandoLaSubFranjaNoExiste()
     {

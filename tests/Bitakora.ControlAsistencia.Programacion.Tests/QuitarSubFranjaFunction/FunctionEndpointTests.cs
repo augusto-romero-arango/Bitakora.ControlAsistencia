@@ -1,5 +1,3 @@
-// Issue #605: tests del endpoint HTTP POST /programacion/turnos/{id}:quitar-subfranja
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -28,8 +26,8 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-5 (ultimo enunciado): la ruta declarada es exactamente esta, con verbo post -- congelada
-    // por reflexion, porque ningun otro test local ejercita el HttpTriggerAttribute.
+    // Congela verbo y ruta por reflexion: ningun otro test local ejercita el
+    // HttpTriggerAttribute -- Run() se llama directo, sin pasar por el enrutador del host.
     [Fact]
     public void QuitarSubFranja_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -66,8 +64,7 @@ public class FunctionEndpointTests
     }
 
     // Guarda del borde: el 400 canonico de un tipo desconocido lo produce el validator, pero el
-    // endpoint tiene que traducir string -> TipoSubFranja igual (mismo criterio que
-    // AgregarSubFranjaFunction/FunctionEndpoint, #603).
+    // endpoint traduce string -> TipoSubFranja igual, sin depender de que este registrado.
     [Fact]
     public async Task QuitarSubFranja_Retorna400ConElMensajeDelValidator_CuandoElTipoNoEsParseable()
     {

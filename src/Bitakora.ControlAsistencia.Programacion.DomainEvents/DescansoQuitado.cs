@@ -3,10 +3,10 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Se quita un descanso de una franja ordinaria ya existente de un turno del catalogo
-// (CA-ADR-0033, diseno de turno por pasos). Espejo de DescansoAgregado (#603): el payload es la
-// franja contenedora RESULTANTE, ya sin la hija. No cruza ningun bus: solo se persiste en el
-// event store de Programacion (MEF-ADR-0012).
+// Se quita un descanso de una franja ordinaria de un turno del catalogo (CA-ADR-0033, diseno de
+// turno por pasos). El payload es la franja contenedora RESULTANTE, ya sin la hija -- lo quitado
+// se deduce comparando con el estado previo. No cruza ningun bus: solo se persiste en el event
+// store de Programacion (MEF-ADR-0012).
 public sealed class DescansoQuitado
 {
     public Guid TurnoId { get; private set; }

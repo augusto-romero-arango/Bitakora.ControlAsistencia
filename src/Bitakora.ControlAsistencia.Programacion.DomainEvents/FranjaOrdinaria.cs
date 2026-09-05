@@ -91,9 +91,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // esto cual reemplazar, sin que _horaInicio deje de ser privado.
     public bool EmpiezaALaMismaHoraQue(FranjaOrdinaria otra) => EmpiezaA(otra._horaInicio);
 
-    // Issue #605: contraparte de ConDescanso/ConExtra -- localiza la hija por su hora de inicio y
-    // devuelve la franja contenedora SIN ella, o null si ninguna hija de ese tipo empieza ahi
-    // (Tell-don't-Ask, MEF-ADR-0012). El aggregate nunca lee _descansos/_extras directamente.
+    // Contraparte de ConDescanso/ConExtra: null cuando ninguna hija de ese tipo empieza a esa
+    // hora -- el aggregate nunca lee _descansos/_extras para averiguarlo (MEF-ADR-0012).
     public FranjaOrdinaria? SinDescanso(TimeOnly horaInicio) =>
         _descansos.Any(d => d.EmpiezaA(horaInicio))
             ? Crear(_horaInicio, _horaFin, _diaOffsetFin,

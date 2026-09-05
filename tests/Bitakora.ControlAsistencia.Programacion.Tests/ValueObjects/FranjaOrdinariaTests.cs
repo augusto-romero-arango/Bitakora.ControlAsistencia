@@ -592,9 +592,8 @@ public class FranjaOrdinariaTests
         primera.EmpiezaALaMismaHoraQue(segunda).Should().BeFalse();
     }
 
-    // ---------- Issue #605: SinDescanso/SinExtra -- quitar una hija por su hora de inicio ----------
+    // ---------- SinDescanso/SinExtra -- quitar una hija por su hora de inicio ----------
 
-    // CA-2: con dos descansos, quitar el primero deja el segundo intacto.
     [Fact]
     public void SinDescanso_RetornaFranjaSinLaHija_CuandoOtroDescansoQuedaEnLaFranja()
     {
@@ -607,7 +606,6 @@ public class FranjaOrdinariaTests
         resultado!.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
     }
 
-    // CA-2: ningun descanso empieza a esa hora -- null.
     [Fact]
     public void SinDescanso_RetornaNull_CuandoNingunDescansoEmpiezaAEsaHora()
     {
@@ -618,7 +616,7 @@ public class FranjaOrdinariaTests
         franja.SinDescanso(new TimeOnly(23, 15)).Should().BeNull();
     }
 
-    // CA-2: la hija a esa hora existe, pero es un descanso, no un extra -- null.
+    // La hija a esa hora existe, pero es un descanso, no un extra.
     [Fact]
     public void SinExtra_RetornaNull_CuandoLaHijaAEsaHoraEsUnDescanso()
     {
@@ -629,7 +627,6 @@ public class FranjaOrdinariaTests
         franja.SinExtra(new TimeOnly(23, 0)).Should().BeNull();
     }
 
-    // CA-2: la franja original queda intacta (inmutabilidad, mismo criterio que ConDescanso/ConExtra).
     [Fact]
     public void SinDescanso_DejaLaFranjaOriginalIntacta_CuandoQuitaUnaHija()
     {
