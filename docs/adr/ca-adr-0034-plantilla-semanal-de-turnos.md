@@ -2,7 +2,9 @@
 
 ## Estado
 
-Aceptado (sesion de planeacion 2026-09-04; implementacion en #620-#629).
+Aceptado (sesion de planeacion 2026-09-04; implementacion en #620-#629). Enmendado 2026-09-05 (refinamiento
+de toda la cadena): tope de semanas, codificacion del dia, codigos HTTP e idempotencia (CA-ADR-0035), read-side
+N1 + composicion en lectura (decision 5), turno inline diferido a #651.
 
 ## Contexto
 
@@ -30,9 +32,14 @@ sesion es de **construccion** de plantillas.
 
 ### 1. Plantilla semanal de turnos: molde de 1..N semanas, lunes a domingo, con referencias al catalogo
 
-- Aggregate `PlantillaSemanalTurnos` (stream por plantilla; Id Guid del cliente, nombre, numero de semanas
-  fijado al crear). Cada dia se identifica por `(semana, diaSemana)` y referencia un turno del catalogo por
-  `TurnoId`. Con N=1 la semana sobra en la conversacion pero no en el modelo: S1+S2 queda cubierto sin
+- Aggregate `PlantillaSemanalTurnos` (stream por plantilla; Id Guid canonico del cliente -- paso 1 de CA-ADR-0031
+  --, nombre, numero de semanas fijado al crear: **1..6 inclusive**, tope del experto 2026-09-05). Cada dia se
+  identifica por `(semana, diaSemana)` y referencia un turno del catalogo por `TurnoId`. **El dia de la semana se
+  codifica como numero ISO 8601 (1 = lunes ... 7 = domingo)** en eventos y rutas -- VO `DiaSemana` de lista
+  cerrada (patron `TipoIdentificacion`): ni `System.DayOfWeek` (domingo = 0, sombra de plataforma que obliga a
+  rotar el orden en cada consumidor) ni la palabra en espanol (es etiqueta, no codigo: se localiza por `.resx`,
+  MEF-ADR-0009). La friccion ISO <-> .NET se paga una sola vez, en `DiaSemana.Desde(DayOfWeek)`, cuando la
+  asignacion futura la necesite. Con N=1 la semana sobra en la conversacion pero no en el modelo: S1+S2 queda cubierto sin
   tercer concepto.
 - **Modalidad semanal, explicita en el nombre.** Los ciclos posicionales (4x2, 2x2, 6x1 con descanso que
   corre) no calzan en una semana y serian **otro aggregate** con dias por posicion. Por eso el aggregate,
@@ -72,6 +79,14 @@ sesion es de **construccion** de plantillas.
 - A diferencia de las franjas del turno (hora `HH:mm` no URL-safe -> `:verbo`), el dia **si** tiene clave
   URL-safe `(semana, dia)` y es un slot atomico: `PUT .../{id}/dias/{semana}/{dia}` reemplaza (paso 2) y
   `DELETE .../dias/{semana}/{dia}` vacia (paso 3). Corregir = reemplazar, no quitar + agregar.
+- **Codigos de exito (enmienda 2026-09-05, CA-ADR-0035)**: `201 Created` + `Location` en el `POST`, `204 No
+  Content` en `PUT`/`DELETE` -- la transaccion confirma antes de responder; el 202 heredado del marco era
+  impreciso. **Idempotencia**: PUT con el mismo turno, DELETE sobre un dia ya vacio y retirar una plantilla ya
+  retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409. El 409 queda para conflictos reales
+  (plantilla retirada, semana fuera de rango, turno retirado/incompleto) y el 404 para recurso inexistente.
+- **Solo turnos completos son asignables a un dia** (decision del experto 2026-09-05, espejo de #613): 409
+  `TurnoIncompleto`. La verificacion lee el aggregate `CatalogoTurnos` del mismo store (`EvaluarAsignabilidad`),
+  no la vista `FichaTurno`: local, sincrono y consistente.
 - `Semanas` es fijo al crear: cambiarlo = retirar + crear (la plantilla no tiene historia que preservar).
 - Nombre unico best-effort contra la vista (espejo de #497: trim, case-insensitive, acentos significativos).
   Retiro (`DELETE .../{id}`) espejo de #500/#501: deja de ser usable, su cuadro se borra, el nombre queda libre.
@@ -79,15 +94,25 @@ sesion es de **construccion** de plantillas.
 ### 5. Read-side: `CuadroSemanalTurnos`, N2 con grouper, nombre + `ToString()` del turno
 
 - Vista `CuadroSemanalTurnos` ("cuadro de turnos": termino real de salud y vigilancia para la grilla
-  dias x turnos; aqui el cuadro de una plantilla, sin personas). Por dia lleva `TurnoId`, `NombreTurno` y
-  `Descripcion` (el `ToString()` del turno, lo que `FichaTurno` ya expone) -- **no** el objeto completo;
-  las franjas siguen siendo `obtener_turno`. A nivel plantilla: `Nombre`, `Semanas`, `Completa`.
-- Como `Descripcion` cambia con el diseno del turno, la vista es **N2 (`MultiStreamProjection`) con
-  grouper custom** (regla 3 de `modelos-marten.md`): los eventos de plantilla se rutean por `PlantillaId`;
-  los de diseno de turno y `TurnoRetirado` traen `TurnoId` y el grouper consulta la propia vista para
-  abrirlos en las plantillas que lo contienen. `NombreTurno`/`Descripcion` se leen de `FichaTurno` (mismo
-  store), nunca de `CatalogoTurnos.ToString()` (el worker no referencia Function Apps, CA-ADR-0028).
-- Copiar en el read-side es legitimo: la vista es derivada y reconstruible; copiar en el write-side (2) no.
+  dias x turnos; aqui el cuadro de una plantilla, sin personas). Lo que el Programador lee, por dia: turno con
+  nombre y `Descripcion` (el `ToString()` del turno, lo que `FichaTurno` ya expone), si esta retirado o
+  incompleto -- **no** el objeto completo; las franjas siguen siendo `obtener_turno`. A nivel plantilla:
+  `Nombre`, `Semanas`, `Completa`.
+- **Enmienda 2026-09-05 (opcion B): N1 + composicion en la lectura.** El documento materializado es
+  `SingleStreamProjection` sobre el stream de la plantilla y guarda solo `Id`, `Nombre`, `Semanas` y por dia
+  `(Semana, Dia ISO, TurnoId)` (#624). El GET (#625) lo junta con `FichaTurno` en la misma `QuerySession` y
+  responde el cuadro resuelto (`CuadroSemanalTurnosRespuesta`: `nombre`, `descripcion`, `completo`, `retirado`
+  por dia -- ficha ausente = retirado --; `Completa` = 7xN dias con ficha presente **y completa**, porque un
+  turno que quedo incompleto hace la plantilla no usable). `read-apis.md` admite ese DTO para "componer varias
+  vistas en una sola respuesta". La descripcion nunca queda vieja: no hay copia que refrescar.
+- **Rechazado el N2 con grouper custom** de la version original: obligaba a la proyeccion a consultar estado
+  externo (el propio cuadro para hallar las plantillas de un turno; `FichaTurno` para copiar la descripcion)
+  contra la regla de procedencia del Skill `projections`, tenia una carrera de lote (el grouper lee el
+  documento persistido, atrasado dentro del mismo lote) y seria el primer grouper del BC. Cinco hipotesis en el
+  write-side para evitarlo -- snapshot al asignar, que el turno conozca sus plantillas, fan-out por reaccion,
+  ids desde el handler, turnos inmutables -- invertian la dependencia turno -> plantilla o congelaban la
+  descripcion. La relacion es de la plantilla hacia el turno y se resuelve en el unico momento en que ambos
+  lados estan disponibles sin copia: la lectura. El worker sigue sin referenciar Function Apps (CA-ADR-0028).
 - **"Ficha" no es un patron de naming.** El experto: "lo usamos para resolver colaboradores y ahora siento
   que todo es Ficha... es como decir 'Vista'". Cada vista se nombra desde el actor que la lee
   (MEF-ADR-0041); las `Ficha*` existentes se quedan.
@@ -95,7 +120,10 @@ sesion es de **construccion** de plantillas.
 ### 6. Tools MCP: composicion consolidada; el turno inline se crea en el catalogo
 
 - `crear_plantilla_semanal` recibe la composicion completa y hace `POST` + N `PUT` bajo el capo
-  (MEF-ADR-0047 decision 4). Un dia descrito inline ("07:00-17:00", sin nombre) se resuelve creando el
+  (MEF-ADR-0047 decision 4). Enmienda 2026-09-05: `dias` viaja como **JSON en texto** (los parametros de tool
+  son strings planos); los `PUT` van **secuenciales** (mismo stream); se resuelven todos los nombres de turno
+  antes del `POST` y no se crea nada si alguno falta. El turno inline se **difiere a #651**: #627 nace con
+  turnos por nombre. Un dia descrito inline ("07:00-17:00", sin nombre) se resuelve creando el
   turno en el catalogo con nombre derivado y referenciandolo: la friccion de nombrar se paga en el
   asistente, no en el dominio (el turno inline sin nombre se **rechazo** como concepto: duplicaria la
   superficie de diseno de CA-ADR-0033 o produciria turnos "pobres").
@@ -113,7 +141,8 @@ sesion es de **construccion** de plantillas.
 - **Turno inline sin nombre**: ver decision 6.
 - **Snapshot + evento gordo / bloquear el retiro del turno**: ver decision 2.
 - **N1 con nombre de turno copiado en el evento de plantilla**: bastaba si la vista mostrara solo nombres
-  (inmutables: no hay `RenombrarTurno`); el experto quiso el `ToString()`, que si cambia -> N2.
+  (inmutables: no hay `RenombrarTurno`); el experto quiso el `ToString()`, que si cambia -> N2. Superada el
+  2026-09-05 por N1 **sin copia** + composicion en lectura (decision 5 enmendada).
 - **Dia vacio = "sin plan" deliberado**: descartado; descanso es turno, vacio es incompleto.
 - **`AgregarSemana`/`QuitarSemana`**: sin caso de uso; retirar + crear.
 
@@ -126,24 +155,32 @@ sesion es de **construccion** de plantillas.
 - La puerta a la modalidad ciclica queda abierta sin renombrar nada.
 
 ### Negativas
-- 4 tipos de evento persistidos y 4 comandos nuevos en Programacion; una vista N2 con grouper custom
-  (variante mas compleja del read-side; API a confirmar en Marten 9.12; indice sobre `Dias[].TurnoId`).
+- 4 tipos de evento persistidos y 4 comandos nuevos en Programacion; un GET que compone dos vistas por
+  request (una consulta extra; `Completa` no es filtrable server-side -- hoy no se necesita).
 - Verificaciones best-effort entre streams (turno existe/activo, nombre unico) sin atomicidad -- mismo
   perfil que #497.
 - La decision del 2026-08-29 queda parcialmente revertida: el glosario debe leerse con esta enmienda.
-- Ventana entre editar un turno y que el cuadro refresque `Descripcion` (segundos, solo visual).
+- ~~Ventana entre editar un turno y que el cuadro refresque `Descripcion`~~ -- eliminada por la enmienda
+  2026-09-05: la descripcion se resuelve al leer.
 
 ## Referencias
 
-- Issues: #620 (crear), #621 (asignar dia), #622 (quitar dia), #623 (retirar), #624 (vista N2), #625
-  (GET), #626 (nombre unico), #627-#628 (tools de Comandos), #629 (tools de Consultas).
+- Issues: #620 (crear), #621 (asignar dia), #622 (quitar dia), #623 (retirar), #624 (vista N1), #625
+  (GET + composicion), #626 (nombre unico), #627-#628 (tools de Comandos), #629 (tools de Consultas), #651
+  (turno inline), #640 (correccion de codigos HTTP de los endpoints existentes); harness#849, harness#850.
 - MEF-ADR-0004, MEF-ADR-0011, MEF-ADR-0012, MEF-ADR-0018, MEF-ADR-0034, MEF-ADR-0035, MEF-ADR-0036,
   MEF-ADR-0041, MEF-ADR-0042, MEF-ADR-0043, MEF-ADR-0046, MEF-ADR-0047, MEF-ADR-0048;
-  CA-ADR-0028, CA-ADR-0029, CA-ADR-0030, CA-ADR-0031, CA-ADR-0033.
+  CA-ADR-0028, CA-ADR-0029, CA-ADR-0030, CA-ADR-0031, CA-ADR-0033, CA-ADR-0035.
 - Glosario: Plantilla de turnos, Plantilla semanal de turnos, Cuadro semanal de turnos, Turno (enmienda),
   Ventana de trabajo, Programador de turnos.
-- Skill `projections`, `modelos-marten.md` regla 3 (N2 con `CustomGrouping`/`IEventSlicer`).
+- Skill `projections`, `modelos-marten.md` (regla de procedencia: un metodo de proyeccion no lee estado externo;
+  regla 3 sobre N2 con grouper, descartada aqui) y `read-apis.md` (DTO de respuesta por composicion).
 
 ## Control de cambios
 
 - 2026-09-04: creado (sesion planner; creacion de #620-#629).
+- 2026-09-05: enmendado (sesion planner; refinamiento de #620-#629 a `estado:listo`). Decision 1: tope 6 semanas,
+  `DiaSemana` ISO 1..7. Decision 4: 201/204 (CA-ADR-0035), no-ops idempotentes sin 409, solo turnos completos
+  asignables. Decision 5: N2 con grouper -> N1 + composicion en lectura (opcion B), con las hipotesis del
+  write-side descartadas. Decision 6: `dias` JSON, PUT secuenciales, turno inline diferido a #651. Nace #640
+  (inventario de codigos) y CA-ADR-0035.
