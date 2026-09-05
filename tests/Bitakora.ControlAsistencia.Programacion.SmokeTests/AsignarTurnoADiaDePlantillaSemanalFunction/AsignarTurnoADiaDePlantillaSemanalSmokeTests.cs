@@ -62,6 +62,16 @@ public class AsignarTurnoADiaDePlantillaSemanalSmokeTests(ApiFixture api, Postgr
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task HealthCheck_DebeResponder200()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task AsignarTurnoADia_DebeRetornar204YPersistirElDia_CuandoLaPlantillaYElTurnoExisten()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
