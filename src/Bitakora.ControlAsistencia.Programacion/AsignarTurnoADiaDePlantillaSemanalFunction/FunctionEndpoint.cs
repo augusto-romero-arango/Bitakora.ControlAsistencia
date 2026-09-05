@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -15,7 +16,7 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSem
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarTurnoADiaDePlantillaSemanal")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put",
             Route = "programacion/plantillas-semanales/{id}/dias/{semana}/{dia}")]
         HttpRequest req,
@@ -23,5 +24,45 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         string semana,
         string dia,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (!Guid.TryParse(id, out var plantillaId))
+            return new BadRequestObjectResult("El id de la plantilla no es un Guid valido");
+
+        if (!int.TryParse(semana, out var semanaNumero) || semanaNumero < 1)
+            return new BadRequestObjectResult("La semana debe ser un entero mayor o igual a 1");
+
+        if (!int.TryParse(dia, out var diaNumero))
+            return new BadRequestObjectResult("El dia no es un entero valido");
+
+        DiaSemana diaSemana;
+        try
+        {
+            diaSemana = DiaSemana.Desde(diaNumero);
+        }
+        catch (ArgumentException ex)
+        {
+            return new BadRequestObjectResult(ex.Message);
+        }
+
+        var (body, error) = await requestValidator.ValidarAsync<AsignarTurnoADiaDePlantillaSemanalBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new AsignarTurnoADiaDePlantillaSemanal(plantillaId, semanaNumero, diaSemana, body!.TurnoId);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+
+        return new NoContentResult();
+    }
 }

@@ -16,6 +16,19 @@ public sealed partial class DiaSemana
     public static readonly DiaSemana Sabado = new(6);
     public static readonly DiaSemana Domingo = new(7);
 
+    // Lookup map por clave discreta (numero -> instancia), no switch/if: agregar un dia nuevo seria
+    // agregar una fila (mismo patron TipoIdentificacion.PorCodigo).
+    private static readonly IReadOnlyDictionary<int, DiaSemana> PorNumero = new Dictionary<int, DiaSemana>
+    {
+        [Lunes._numero] = Lunes,
+        [Martes._numero] = Martes,
+        [Miercoles._numero] = Miercoles,
+        [Jueves._numero] = Jueves,
+        [Viernes._numero] = Viernes,
+        [Sabado._numero] = Sabado,
+        [Domingo._numero] = Domingo,
+    };
+
     private readonly int _numero;
 
     private DiaSemana(int numero) => _numero = numero;
@@ -23,5 +36,8 @@ public sealed partial class DiaSemana
     public int Numero => _numero;
 
     // CA-1: rehidrata desde el numero ISO persistido; rechaza numeros fuera de 1..7.
-    public static DiaSemana Desde(int numero) => throw new NotImplementedException();
+    public static DiaSemana Desde(int numero) =>
+        PorNumero.TryGetValue(numero, out var dia)
+            ? dia
+            : throw new ArgumentException(Mensajes.NumeroFueraDeRango, nameof(numero));
 }

@@ -7,5 +7,6 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSem
 public class AsignarTurnoADiaDePlantillaSemanalBodyValidator
     : AbstractValidator<AsignarTurnoADiaDePlantillaSemanalBody>
 {
-    public AsignarTurnoADiaDePlantillaSemanalBodyValidator() => throw new NotImplementedException();
+    public AsignarTurnoADiaDePlantillaSemanalBodyValidator() =>
+        RuleFor(x => x.TurnoId).NotEmpty();
 }
