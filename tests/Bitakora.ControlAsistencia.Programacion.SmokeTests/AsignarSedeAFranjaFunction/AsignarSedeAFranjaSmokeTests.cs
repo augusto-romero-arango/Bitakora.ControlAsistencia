@@ -67,7 +67,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
             SchemaProgramacion, streamId, TipoEventoSedeAsignada,
             campoJson: "TurnoId", valorJson: turnoId.ToString(), Timeout);
 
-        LectorDeSede.SedeDe(eventoAsignado.GetProperty("Franja"))
+        EventoPersistido.SedeDe(eventoAsignado.GetProperty("Franja"))
             .Should().Be(new SedeMinima("SEDE-CHAPINERO", "[TEST] Chapinero"));
 
         var payloadRetirar = new { franja = "14:00" };

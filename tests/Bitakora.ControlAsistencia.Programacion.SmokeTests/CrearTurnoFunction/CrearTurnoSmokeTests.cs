@@ -242,8 +242,8 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         franjas.Should().HaveCount(3);
 
         // CA-1: cada franja prearmada conserva SU sede (no la del vecino).
-        LectorDeSede.SedeDe(franjas[0]).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
-        LectorDeSede.SedeDe(franjas[1]).Should().Be(new SedeMinima("SEDE-CHAPINERO", "[TEST] Chapinero"));
+        EventoPersistido.SedeDe(franjas[0]).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
+        EventoPersistido.SedeDe(franjas[1]).Should().Be(new SedeMinima("SEDE-CHAPINERO", "[TEST] Chapinero"));
 
         // CA-2/CA-4: la franja sin sede no agrega la clave al JSON persistido -- misma forma que
         // los streams escritos antes de este issue (ShouldSerialize omite el campo cuando es null).

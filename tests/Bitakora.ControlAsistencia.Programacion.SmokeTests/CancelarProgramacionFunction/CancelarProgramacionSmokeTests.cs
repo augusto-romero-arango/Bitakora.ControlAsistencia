@@ -20,14 +20,9 @@ public class CancelarProgramacionSmokeTests(
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Forma minima del evento persistido: evita referenciar Programacion.DomainEvents desde los
-    // smoke tests. Lectura case-insensitive -- se verifica el DATO grabado, no el nombre de la clave.
+    // smoke tests. La lectura case-insensitive la aporta EventoPersistido.OpcionesLectura.
     private sealed record ColaboradorMinimo(string Identificacion, string CodigoColaborador, string NombreCompleto);
     private sealed record CancelacionMinima(Guid Id, ColaboradorMinimo Colaborador, IReadOnlyList<DateOnly> Fechas);
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -76,7 +71,7 @@ public class CancelarProgramacionSmokeTests(
             SchemaProgramacion, streamId, TipoEventoCancelacionSolicitada,
             campoJson: "Id", valorJson: streamId, Timeout);
 
-        var eventoPersistido = json.Deserialize<CancelacionMinima>(OpcionesLectura);
+        var eventoPersistido = json.Deserialize<CancelacionMinima>(EventoPersistido.OpcionesLectura);
         eventoPersistido.Should().NotBeNull();
         eventoPersistido!.Colaborador.Should().Be(
             new ColaboradorMinimo(identificacion, codigoColaborador, nombreCompleto));
