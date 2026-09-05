@@ -39,5 +39,6 @@
    "descripcion": "(14:00-18:00)"
   }
  ],
- "descripcion": "(06:00-10:00)[sede:[TEST] Suba], (14:00-18:00)"
+ "descripcion": "(06:00-10:00)[sede:[TEST] Suba], (14:00-18:00)",
+ "completo": true
 }

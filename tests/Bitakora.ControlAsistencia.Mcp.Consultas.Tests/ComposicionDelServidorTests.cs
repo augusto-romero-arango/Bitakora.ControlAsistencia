@@ -105,6 +105,34 @@ public class ComposicionDelServidorTests
         Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("id", true));
     }
 
+    // CA-4 (issue #612): listar_turnos sigue sin parametros obligatorios -- filtro_nombre es
+    // opcional. El pin re-ejecuta esta forma tras el remodelado de enConstruccion (MEF-ADR-0048
+    // seccion 6: aunque el inputSchema no cambia, la tool cambia y el pin se re-verifica).
+    [Fact]
+    public void ListarTurnos_DeclaraFiltroNombreComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == "listar_turnos");
+
+        Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("filtro_nombre", false));
+    }
+
+    // CA-4 (issue #612): la descripcion de listar_turnos debe orientar al asistente a no programar
+    // un turno en construccion y a retomarlo con agregar_franja.
+    [Fact]
+    public void ListarTurnos_DescribeLaMarcaDeConstruccionYComoRetomarla_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == "listar_turnos");
+
+        var descripcion = ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description;
+
+        descripcion.Should().Contain("enConstruccion").And.Contain("agregar_franja");
+    }
+
     [Fact]
     public void ListarColaboradores_DeclaraLosCuatroParametrosOpcionales_CuandoSeInspeccionaLaTool()
     {

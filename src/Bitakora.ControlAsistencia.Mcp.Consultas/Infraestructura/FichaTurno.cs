@@ -12,7 +12,8 @@ public sealed record FichaTurno(
     bool EsDescanso,
     string HorarioResumido,
     IReadOnlyList<FranjaFicha> Franjas,
-    string Descripcion);
+    string Descripcion,
+    bool Completo);
 
 public sealed record FranjaFicha(
     TimeOnly HoraInicio,

@@ -44,6 +44,7 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             ficha.Id,
             ficha.Nombre.Trim(),
             ficha.EsDescanso,
+            false,
             ficha.HorarioResumido,
             [.. ficha.Franjas.Select(Compactar)]);
 
@@ -76,5 +77,6 @@ public sealed record TurnoDetallado(
     string Id,
     string Nombre,
     bool EsDescanso,
+    bool Completo,
     string Horario,
     IReadOnlyList<string> Franjas);
