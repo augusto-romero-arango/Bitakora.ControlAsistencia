@@ -16,6 +16,12 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> SolicitarProgramacion(
         SolicitudProgramacionTurno solicitud, CancellationToken ct) =>
         http.PostAsJsonAsync("api/programacion/solicitudes", solicitud, ct);
+
+    public Task<HttpResponseMessage> CrearTurno(Guid turnoId, string nombre, bool esDescanso, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/turnos", new { turnoId, nombre, esDescanso }, ct);
+
+    public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
+        http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 }
 
 /// <summary>
