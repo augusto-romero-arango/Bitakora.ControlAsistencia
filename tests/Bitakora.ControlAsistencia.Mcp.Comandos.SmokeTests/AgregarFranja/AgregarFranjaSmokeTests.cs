@@ -105,8 +105,11 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
             cancellationToken: ct);
         quitado.IsError.Should().NotBeTrue();
         using var ecoQuitado = JsonDocument.Parse(TextoDe(quitado));
+        // A diferencia del eco de agregar (linea 84, compuesto con lo enviado), este eco lo compone
+        // quitar_franja desde la ficha vigente, donde el dominio ya infirio el offset (CA-ADR-0033) y
+        // la notacion unificada de las tools (#612) le agrega el sufijo +1.
         ecoQuitado.RootElement.GetProperty("franjaQuitada").GetString()
-            .Should().Be($"22:00-06:00, sede: {nombreSede}");
+            .Should().Be($"22:00-06:00+1, sede: {nombreSede}");
 
         await Polling.WaitUntilAsync(
             () => EfectoVisibleEnFichaAsync(
