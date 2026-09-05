@@ -66,6 +66,24 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
+    // Guarda del borde: el 400 canonico de un tipo desconocido lo produce el validator, pero el
+    // endpoint tiene que traducir string -> TipoSubFranja igual, y un Parse fallido ahi seria un
+    // 500 (MEF-ADR-0037 seccion 2: parseo tipado con 400 explicito).
+    [Fact]
+    public async Task AgregarSubFranja_Retorna400ConElMensajeDelValidator_CuandoElTipoNoEsParseable()
+    {
+        var validator = new FakeRequestValidator<AgregarSubFranjaBody>(
+            new AgregarSubFranjaBody(new TimeOnly(22, 0), "pausa",
+                new TimeOnly(2, 0), new TimeOnly(2, 30)));
+        var router = new FakeCommandRouter();
+        var function = new FunctionEndpoint(validator, router);
+
+        var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        result.Should().BeOfType<BadRequestObjectResult>()
+            .Which.Value.Should().Be(AgregarSubFranjaBodyValidator.Mensajes.TipoDesconocido);
+    }
+
     [Fact]
     public async Task AgregarSubFranja_Retorna400_CuandoElBodyNoValida()
     {

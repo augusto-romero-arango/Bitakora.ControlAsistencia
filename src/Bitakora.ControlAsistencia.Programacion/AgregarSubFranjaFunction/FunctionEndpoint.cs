@@ -25,7 +25,13 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         if (error is not null)
             return error;
 
-        var tipo = Enum.Parse<TipoSubFranja>(body!.Tipo, ignoreCase: true);
+        // Enum.Parse lanzaria fuera del try (500) si el body llegara con un tipo no parseable:
+        // el 400 canonico de este caso lo produce AgregarSubFranjaBodyValidator, y esta guarda
+        // reemite su mismo mensaje .resx para que el borde nunca dependa de que el validator este
+        // registrado (MEF-ADR-0037 seccion 2: parseo tipado con 400 explicito).
+        if (!Enum.TryParse<TipoSubFranja>(body!.Tipo, ignoreCase: true, out var tipo))
+            return new BadRequestObjectResult(AgregarSubFranjaBodyValidator.Mensajes.TipoDesconocido);
+
         var comando = new AgregarSubFranja(turnoId, body.Franja, tipo, body.Inicio, body.Fin);
 
         try

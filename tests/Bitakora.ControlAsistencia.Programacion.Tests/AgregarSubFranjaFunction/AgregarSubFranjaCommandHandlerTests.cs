@@ -59,7 +59,9 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
     }
 
-    // CA-3: turno inexistente -> 404.
+    // CA-3: turno inexistente -> 404. Sin And<>: el aggregate no existe (ningun Given) y
+    // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
+    // AgregarFranjaCommandHandlerTests para el mismo escenario.
     [Fact]
     public async Task AgregarSubFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
     {

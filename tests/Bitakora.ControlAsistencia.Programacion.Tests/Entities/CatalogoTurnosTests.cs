@@ -344,6 +344,22 @@ public class CatalogoTurnosTests
         catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
     }
 
+    // MEF-ADR-0004 capa 4: un Apply que lanza deja el aggregate roto para siempre -- si el stream
+    // trae un DescansoAgregado cuya franja contenedora ya no esta (anomalia, o retirada por un
+    // evento posterior de #605), la rehidratacion lo ignora en vez de indexar con -1.
+    [Fact]
+    public void Apply_NoLanzaYDejaLasFranjasIntactas_CuandoNingunaEmpiezaALaHoraDelEvento()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(22, 0), new TimeOnly(6, 0)));
+        var franjaHuerfana = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))
+            .ConDescanso(new TimeOnly(9, 0), new TimeOnly(9, 15));
+
+        var act = () => catalogo.Apply(DescansoAgregado.Crear(TurnoId, franjaHuerfana));
+
+        act.Should().NotThrow();
+        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
+    }
+
     // CA-4: solape con una hermana ya presente.
     [Fact]
     public void AgregarDescanso_DejaSubirArgumentException_CuandoSeSuperponeConUnaHermana()
@@ -356,5 +372,7 @@ public class CatalogoTurnosTests
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjasHijasSeSuperponen}*");
+        catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().ContainSingle(
+            "el descanso rechazado no emite un segundo evento");
     }
 }

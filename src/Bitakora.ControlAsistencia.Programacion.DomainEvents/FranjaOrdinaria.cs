@@ -91,11 +91,9 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // MEF-ADR-0012) -- el aggregate nunca lee _horaInicio directamente.
     public bool EmpiezaA(TimeOnly horaInicio) => _horaInicio == horaInicio;
 
-    // Segundo overload: Apply(DescansoAgregado)/Apply(ExtraAgregado) reciben la franja
-    // RESULTANTE (ya con la hija) y deben localizar cual franja existente reemplazar -- sin este
-    // overload no hay forma de comparar horas de inicio entre dos FranjaOrdinaria sin exponer un
-    // getter publico de _horaInicio.
-    public bool EmpiezaA(FranjaOrdinaria otra) => EmpiezaA(otra._horaInicio);
+    // Apply(DescansoAgregado)/Apply(ExtraAgregado) reciben la franja RESULTANTE y localizan con
+    // esto cual reemplazar, sin que _horaInicio deje de ser privado.
+    public bool EmpiezaALaMismaHoraQue(FranjaOrdinaria otra) => EmpiezaA(otra._horaInicio);
 
     public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin,

@@ -31,14 +31,21 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(FranjaAgregada evento) => _franjasOrdinarias.Add(evento.Franja);
 
-    // MEF-ADR-0004: Apply nunca lanza -- localiza por hora de inicio y reemplaza sin invocar
-    // ningun factory (ConDescanso/ConExtra), asi que un endurecimiento futuro de esas invariantes
-    // no rompe la rehidratacion de streams viejos.
-    public void Apply(DescansoAgregado evento) =>
-        _franjasOrdinarias[_franjasOrdinarias.FindIndex(f => f.EmpiezaA(evento.Franja))] = evento.Franja;
+    public void Apply(DescansoAgregado evento) => ReemplazarFranja(evento.Franja);
 
-    public void Apply(ExtraAgregado evento) =>
-        _franjasOrdinarias[_franjasOrdinarias.FindIndex(f => f.EmpiezaA(evento.Franja))] = evento.Franja;
+    public void Apply(ExtraAgregado evento) => ReemplazarFranja(evento.Franja);
+
+    // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
+    // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
+    // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
+    // por un evento posterior -- ignora en vez de indexar con -1: un Apply que lanza deja el
+    // aggregate roto para siempre.
+    private void ReemplazarFranja(FranjaOrdinaria franja)
+    {
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaALaMismaHoraQue(franja));
+        if (indice >= 0)
+            _franjasOrdinarias[indice] = franja;
+    }
 
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
