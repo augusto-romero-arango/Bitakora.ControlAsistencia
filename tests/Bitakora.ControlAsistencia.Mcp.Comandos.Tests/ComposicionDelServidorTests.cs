@@ -3,11 +3,13 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarSedeFranja;
+using Bitakora.ControlAsistencia.Mcp.Comandos.CrearPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarColaborador;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
+using Bitakora.ControlAsistencia.Mcp.Comandos.RetirarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RetirarTurno;
 using Bitakora.ControlAsistencia.Mcp.Comandos.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -36,7 +38,8 @@ public class ComposicionDelServidorTests
         nombres.Should().BeEquivalentTo(
             RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool, SolicitarProgramacionTurnoTool.NombreTool,
             CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool,
-            AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool, AsignarSedeFranjaTool.NombreTool);
+            AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool, AsignarSedeFranjaTool.NombreTool,
+            CrearPlantillaSemanalTool.NombreTool, RetirarPlantillaSemanalTool.NombreTool);
     }
 
     [Fact]
@@ -64,14 +67,15 @@ public class ComposicionDelServidorTests
     }
 
     // destructiveHint es true en las tools que remueven algo del catalogo (retirar_turno,
-    // quitar_franja, quitar_subfranja -- CA-5 de #609, CA-4 de #610); el resto solo crea o
-    // agrega, nunca destruye.
+    // quitar_franja, quitar_subfranja -- CA-5 de #609, CA-4 de #610; retirar_plantilla_semanal --
+    // issue #627); el resto solo crea o agrega, nunca destruye.
     [Fact]
     public void ServidorMcp_DeclaraDestructiveHintEnLasToolsQueRemueven_CuandoSeInspeccionaElEnsamblado()
     {
         var destructivas = new HashSet<string>
         {
-            RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool
+            RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool,
+            RetirarPlantillaSemanalTool.NombreTool
         };
 
         foreach (var metodo in MetodosDeTool)
@@ -282,5 +286,39 @@ public class ComposicionDelServidorTests
             .Single(t => t.ToolName == AsignarSedeFranjaTool.NombreTool);
 
         trigger.Description.Should().Contain("sede prearmada").And.Contain("franja ordinaria");
+    }
+
+    // CA-6: nombre, semanas y dias -- solo nombre y dias son requeridos, semanas tiene default 1.
+    [Fact]
+    public void CrearPlantillaSemanal_DeclaraNombreYDiasComoRequeridosYSemanasComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == CrearPlantillaSemanalTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("nombre", true),
+            ("semanas", false),
+            ("dias", true));
+    }
+
+    [Fact]
+    public void RetirarPlantillaSemanal_DeclaraPlantillaComoRequerido_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == RetirarPlantillaSemanalTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(("plantilla", true));
     }
 }

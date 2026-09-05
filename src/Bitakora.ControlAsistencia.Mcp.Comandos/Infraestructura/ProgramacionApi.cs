@@ -24,6 +24,28 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
+    // Plantillas semanales (CA-ADR-0034 decision 6, MEF-ADR-0043): CrearPlantillaSemanal es paso 1
+    // (POST), AsignarTurnoADia es paso 2 (PUT por dia, MEF-ADR-0037 seccion 1), RetirarPlantillaSemanal
+    // es paso 3 (DELETE). Los PUT tocan el mismo stream que el POST -- concurrencia optimista de
+    // Marten -- por eso la tool consumidora los serializa (nunca en paralelo, a diferencia de
+    // SolicitarProgramacion).
+    public Task<HttpResponseMessage> CrearPlantillaSemanal(
+        Guid plantillaId, string nombre, int semanas, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas }, ct);
+
+    public Task<HttpResponseMessage> AsignarTurnoADia(
+        string plantillaId, int semana, int dia, string turnoId, CancellationToken ct) =>
+        http.PutAsJsonAsync(
+            $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
+            new { turnoId },
+            ct);
+
+    public Task<HttpResponseMessage> RetirarPlantillaSemanal(string id, CancellationToken ct) =>
+        http.DeleteAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
+        http.GetAsync("api/programacion/plantillas-semanales", ct);
+
     // Acciones de negocio con verbo propio (paso 4 MEF-ADR-0043).
     public Task<HttpResponseMessage> AgregarFranja(string id, FranjaAAgregar franja, CancellationToken ct) =>
         http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", franja, ct);
@@ -178,3 +200,10 @@ public sealed record SolicitudProgramacionTurno(
 public sealed record ColaboradorSolicitado(string Identificacion, string CodigoColaborador, string NombreCompleto);
 
 public sealed record SedeProgramada(string Id, string Nombre, string? CentroDeCostos);
+
+/// <summary>
+/// Resumen de una plantilla semanal tal como lo devuelve GET programacion/plantillas-semanales --
+/// contrato isla minimo, solo lo que crear_plantilla_semanal y retirar_plantilla_semanal consumen
+/// (MEF-ADR-0047 decision 3, issue #625).
+/// </summary>
+public sealed record CuadroSemanalResumen(string Id, string Nombre, int Semanas, bool Completa);
