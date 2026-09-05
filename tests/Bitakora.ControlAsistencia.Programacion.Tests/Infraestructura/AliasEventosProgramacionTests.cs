@@ -98,4 +98,21 @@ public class AliasEventosProgramacionTests
 
         AliasDe<FranjaQuitada>(options).Should().Be("franja_quitada");
     }
+
+    // Issue #605
+    [Fact]
+    public void DescansoQuitado_TieneAliasDescansoQuitado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<DescansoQuitado>(options).Should().Be("descanso_quitado");
+    }
+
+    [Fact]
+    public void ExtraQuitado_TieneAliasExtraQuitado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<ExtraQuitado>(options).Should().Be("extra_quitado");
+    }
 }

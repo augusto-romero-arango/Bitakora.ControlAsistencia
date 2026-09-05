@@ -40,6 +40,12 @@ public partial class CatalogoTurnos : AggregateRoot
     public void Apply(FranjaQuitada evento) =>
         _franjasOrdinarias.RemoveAll(f => f.EmpiezaALaMismaHoraQue(evento.Franja));
 
+    // Issue #605: espejo de Apply(DescansoAgregado)/Apply(ExtraAgregado) -- localiza por hora de
+    // inicio y reemplaza sin invocar ningun factory, sin lanzar (MEF-ADR-0004 capa 4).
+    public void Apply(DescansoQuitado evento) => ReemplazarFranja(evento.Franja);
+
+    public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
+
     // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
     // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
     // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
@@ -140,6 +146,16 @@ public partial class CatalogoTurnos : AggregateRoot
         Apply(evento);
         return ResultadoQuitarFranja.Quitada;
     }
+
+    // Espejo de AgregarDescanso/AgregarExtra: localiza la franja contenedora por hora de inicio
+    // (EmpiezaA), delega en SinDescanso/SinExtra (issue #605) y declina con resultado
+    // (CA-ADR-0030). Sin ArgumentException que mezclar: quitar una hija nunca viola invariantes.
+    // Precedencia: TurnoRetirado > FranjaNoExiste > SubFranjaNoExiste.
+    internal ResultadoQuitarSubFranja QuitarDescanso(TimeOnly horaInicioFranja, TimeOnly horaInicioHija) =>
+        throw new NotImplementedException();
+
+    internal ResultadoQuitarSubFranja QuitarExtra(TimeOnly horaInicioFranja, TimeOnly horaInicioHija) =>
+        throw new NotImplementedException();
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
     // descanso). null significa "sigue, localiza la franja".
