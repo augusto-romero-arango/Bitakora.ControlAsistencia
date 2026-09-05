@@ -28,13 +28,32 @@ public sealed partial class CuadroSemanalTurnosProjection
     : SingleStreamProjection<CuadroSemanalTurnos, string>
 {
     public static CuadroSemanalTurnos Create(IEvent<PlantillaSemanalCreada> e) =>
-        throw new NotImplementedException();
+        new(e.StreamKey!, e.Data.Nombre, e.Data.Semanas, []);
 
     public static CuadroSemanalTurnos Apply(DiaDePlantillaSemanalAsignado e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        Reconstruir(vista, vista.Dias
+            .Where(d => !CoincideSlot(d, e.Semana, e.Dia))
+            .Append(new DiaDelCuadro(e.Semana, e.Dia.Numero, e.TurnoId.ToString())));
 
+    // Apply nunca lanza (MEF-ADR-0004 capa 4): si el slot ya no existe, el Where simplemente no
+    // quita nada y la vista queda igual.
     public static CuadroSemanalTurnos Apply(DiaDePlantillaSemanalQuitado e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        Reconstruir(vista, vista.Dias.Where(d => !CoincideSlot(d, e.Semana, e.Dia)));
 
-    public static bool ShouldDelete(PlantillaSemanalRetirada e) => throw new NotImplementedException();
+    public static bool ShouldDelete(PlantillaSemanalRetirada e) => true;
+
+    private static bool CoincideSlot(DiaDelCuadro dia, int semana, DiaSemana diaSemana) =>
+        dia.Semana == semana && dia.Dia == diaSemana.Numero;
+
+    // Unico punto de reconstruccion: ordena por (Semana, Dia) -- vista para leer lunes -> domingo
+    // (MEF-ADR-0041), no el orden en que se asignaron los slots. Evita que Apply de asignado y de
+    // quitado diverjan en el orden (mismo criterio que FichaTurnoProjection.Reconstruir).
+    private static CuadroSemanalTurnos Reconstruir(CuadroSemanalTurnos vista, IEnumerable<DiaDelCuadro> dias) =>
+        vista with
+        {
+            Dias = dias
+                .OrderBy(d => d.Semana)
+                .ThenBy(d => d.Dia)
+                .ToList(),
+        };
 }
