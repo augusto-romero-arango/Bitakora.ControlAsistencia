@@ -79,6 +79,11 @@ public abstract class FranjaTemporal
         MinutosAbsolutoInicio < otra.MinutosAbsolutoFin
         && otra.MinutosAbsolutoInicio < MinutosAbsolutoFin;
 
+    // Publica en la base: la usan FranjaOrdinaria (localizar la contenedora) y SubFranja
+    // (localizar la hija) desde el ensamblado del Function App, sin abrir _horaInicio
+    // (MEF-ADR-0012).
+    public bool EmpiezaA(TimeOnly horaInicio) => _horaInicio == horaInicio;
+
     // CA-20: formato legible - "(06:00-12:00)" o "(22:00-06:00+1)" con offset
     public abstract override string ToString();
 

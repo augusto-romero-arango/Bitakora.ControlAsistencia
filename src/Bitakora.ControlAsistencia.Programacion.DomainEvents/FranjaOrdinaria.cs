@@ -87,13 +87,23 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // FranjaTemporal.SeSolapaCon, internal aqui. Fin exclusivo: contiguas no se solapan.
     public bool SeSolapaCon(FranjaOrdinaria otra) => ((FranjaTemporal)this).SeSolapaCon(otra);
 
-    // Issue #603: localiza la franja contenedora por su hora de inicio (Tell-don't-Ask,
-    // MEF-ADR-0012) -- el aggregate nunca lee _horaInicio directamente.
-    public bool EmpiezaA(TimeOnly horaInicio) => _horaInicio == horaInicio;
-
     // Apply(DescansoAgregado)/Apply(ExtraAgregado) reciben la franja RESULTANTE y localizan con
     // esto cual reemplazar, sin que _horaInicio deje de ser privado.
     public bool EmpiezaALaMismaHoraQue(FranjaOrdinaria otra) => EmpiezaA(otra._horaInicio);
+
+    // Contraparte de ConDescanso/ConExtra: null cuando ninguna hija de ese tipo empieza a esa
+    // hora -- el aggregate nunca lee _descansos/_extras para averiguarlo (MEF-ADR-0012).
+    public FranjaOrdinaria? SinDescanso(TimeOnly horaInicio) =>
+        _descansos.Any(d => d.EmpiezaA(horaInicio))
+            ? Crear(_horaInicio, _horaFin, _diaOffsetFin,
+                _descansos.Where(d => !d.EmpiezaA(horaInicio)), _extras, _sede)
+            : null;
+
+    public FranjaOrdinaria? SinExtra(TimeOnly horaInicio) =>
+        _extras.Any(e => e.EmpiezaA(horaInicio))
+            ? Crear(_horaInicio, _horaFin, _diaOffsetFin,
+                _descansos, _extras.Where(e => !e.EmpiezaA(horaInicio)), _sede)
+            : null;
 
     public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin,

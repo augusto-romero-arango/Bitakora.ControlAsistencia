@@ -40,6 +40,10 @@ public partial class CatalogoTurnos : AggregateRoot
     public void Apply(FranjaQuitada evento) =>
         _franjasOrdinarias.RemoveAll(f => f.EmpiezaALaMismaHoraQue(evento.Franja));
 
+    public void Apply(DescansoQuitado evento) => ReemplazarFranja(evento.Franja);
+
+    public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
+
     // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
     // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
     // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
@@ -139,6 +143,46 @@ public partial class CatalogoTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoQuitarFranja.Quitada;
+    }
+
+    // Sin ArgumentException que mezclar con las reglas de negocio (CA-ADR-0030), a diferencia de
+    // AgregarDescanso/AgregarExtra: quitar una hija nunca viola las invariantes del VO.
+    internal ResultadoQuitarSubFranja QuitarDescanso(TimeOnly horaInicioFranja, TimeOnly horaInicioHija)
+    {
+        if (!_estaActivo)
+            return ResultadoQuitarSubFranja.TurnoRetirado;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoQuitarSubFranja.FranjaNoExiste;
+
+        var franjaResultante = _franjasOrdinarias[indice].SinDescanso(horaInicioHija);
+        if (franjaResultante is null)
+            return ResultadoQuitarSubFranja.SubFranjaNoExiste;
+
+        var evento = DescansoQuitado.Crear(Guid.Parse(Id!), franjaResultante);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarSubFranja.Quitada;
+    }
+
+    internal ResultadoQuitarSubFranja QuitarExtra(TimeOnly horaInicioFranja, TimeOnly horaInicioHija)
+    {
+        if (!_estaActivo)
+            return ResultadoQuitarSubFranja.TurnoRetirado;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoQuitarSubFranja.FranjaNoExiste;
+
+        var franjaResultante = _franjasOrdinarias[indice].SinExtra(horaInicioHija);
+        if (franjaResultante is null)
+            return ResultadoQuitarSubFranja.SubFranjaNoExiste;
+
+        var evento = ExtraQuitado.Crear(Guid.Parse(Id!), franjaResultante);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarSubFranja.Quitada;
     }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >

@@ -35,5 +35,7 @@ public static class ConfiguracionSerializacionProgramacion
         DescansoAgregado.ConfigurarSerializacion(resolver);
         ExtraAgregado.ConfigurarSerializacion(resolver);
         FranjaQuitada.ConfigurarSerializacion(resolver);
+        DescansoQuitado.ConfigurarSerializacion(resolver);
+        ExtraQuitado.ConfigurarSerializacion(resolver);
     }
 }

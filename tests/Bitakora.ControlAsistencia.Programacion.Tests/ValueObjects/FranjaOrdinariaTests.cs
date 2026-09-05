@@ -591,4 +591,52 @@ public class FranjaOrdinariaTests
 
         primera.EmpiezaALaMismaHoraQue(segunda).Should().BeFalse();
     }
+
+    // ---------- SinDescanso/SinExtra -- quitar una hija por su hora de inicio ----------
+
+    [Fact]
+    public void SinDescanso_RetornaFranjaSinLaHija_CuandoOtroDescansoQuedaEnLaFranja()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30))
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        var resultado = franja.SinDescanso(new TimeOnly(23, 0));
+
+        resultado!.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+    }
+
+    [Fact]
+    public void SinDescanso_RetornaNull_CuandoNingunDescansoEmpiezaAEsaHora()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30))
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        franja.SinDescanso(new TimeOnly(23, 15)).Should().BeNull();
+    }
+
+    // La hija a esa hora existe, pero es un descanso, no un extra.
+    [Fact]
+    public void SinExtra_RetornaNull_CuandoLaHijaAEsaHoraEsUnDescanso()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30))
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        franja.SinExtra(new TimeOnly(23, 0)).Should().BeNull();
+    }
+
+    [Fact]
+    public void SinDescanso_DejaLaFranjaOriginalIntacta_CuandoQuitaUnaHija()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+            .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30))
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        franja.SinDescanso(new TimeOnly(23, 0));
+
+        franja.ToString().Should().Be(
+            "(22:00-06:00+1)[Descansos:(23:00-23:30), (02:00+1-02:30+1)]");
+    }
 }
