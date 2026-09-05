@@ -40,5 +40,6 @@ public static class ConfiguracionSerializacionProgramacion
         SedeDeFranjaAsignada.ConfigurarSerializacion(resolver);
         SedeDeFranjaRetirada.ConfigurarSerializacion(resolver);
         PlantillaSemanalCreada.ConfigurarSerializacion(resolver);
+        DiaDePlantillaSemanalAsignado.ConfigurarSerializacion(resolver);
     }
 }

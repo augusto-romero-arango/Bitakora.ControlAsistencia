@@ -32,6 +32,7 @@ public static class IdentidadEventosProgramacion
         typeof(ExtraQuitado),
         typeof(SedeDeFranjaAsignada),
         typeof(SedeDeFranjaRetirada),
-        typeof(PlantillaSemanalCreada)
+        typeof(PlantillaSemanalCreada),
+        typeof(DiaDePlantillaSemanalAsignado)
     ];
 }

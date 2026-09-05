@@ -14,7 +14,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 public class IdentidadEventosProgramacionTests
 {
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosTreceEventosPersistidosDeProgramacion()
+    public void TiposPersistidos_ContieneExactamenteLosCatorceEventosPersistidosDeProgramacion()
     {
         IdentidadEventosProgramacion.TiposPersistidos.Should().BeEquivalentTo(
         [
@@ -30,7 +30,8 @@ public class IdentidadEventosProgramacionTests
             typeof(ExtraQuitado),
             typeof(SedeDeFranjaAsignada),
             typeof(SedeDeFranjaRetirada),
-            typeof(PlantillaSemanalCreada)
+            typeof(PlantillaSemanalCreada),
+            typeof(DiaDePlantillaSemanalAsignado)
         ]);
     }
 
