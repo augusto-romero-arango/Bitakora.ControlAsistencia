@@ -26,6 +26,8 @@ public static class IdentidadEventosProgramacion
         typeof(CancelacionProgramacionSolicitada),
         typeof(FranjaAgregada),
         typeof(DescansoAgregado),
-        typeof(ExtraAgregado)
+        typeof(ExtraAgregado),
+        // Issue #604: se quita una franja del catalogo -- corregir = quitar + agregar.
+        typeof(FranjaQuitada)
     ];
 }

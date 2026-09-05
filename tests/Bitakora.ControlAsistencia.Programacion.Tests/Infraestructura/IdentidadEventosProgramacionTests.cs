@@ -13,10 +13,10 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    // Issue #603: DescansoAgregado/ExtraAgregado se persisten en el mismo stream de
-    // CatalogoTurnos -- deben listarse aqui igual que FranjaAgregada (#602).
+    // Issue #604: FranjaQuitada se persiste en el mismo stream de CatalogoTurnos -- debe
+    // listarse aqui igual que FranjaAgregada/DescansoAgregado/ExtraAgregado.
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosSieteEventosPersistidosDeProgramacion()
+    public void TiposPersistidos_ContieneExactamenteLosOchoEventosPersistidosDeProgramacion()
     {
         IdentidadEventosProgramacion.TiposPersistidos.Should().BeEquivalentTo(
         [
@@ -26,7 +26,8 @@ public class IdentidadEventosProgramacionTests
             typeof(CancelacionProgramacionSolicitada),
             typeof(FranjaAgregada),
             typeof(DescansoAgregado),
-            typeof(ExtraAgregado)
+            typeof(ExtraAgregado),
+            typeof(FranjaQuitada)
         ]);
     }
 

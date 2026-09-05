@@ -375,4 +375,90 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().ContainSingle(
             "el descanso rechazado no emite un segundo evento");
     }
+
+    // ---------- Issue #604: QuitarFranja y su precedencia ----------
+
+    // CA-2: camino feliz -- quita la franja de las 06:00, conserva su descanso y su sede en el
+    // evento (memoria de lo que se fue), y el turno sigue completo con la que queda.
+    [Fact]
+    public void QuitarFranja_RetornaQuitada_CuandoLaFranjaExisteYQuedanOtras()
+    {
+        var sede = new SedeProgramada("SEDE-SUBA", "Suba");
+        var catalogo = CrearCatalogo(
+            new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0),
+                [(new TimeOnly(9, 0), new TimeOnly(9, 15))], [], sede),
+            Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+
+        var resultado = catalogo.QuitarFranja(new TimeOnly(6, 0));
+
+        resultado.Should().Be(ResultadoQuitarFranja.Quitada);
+        catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().ContainSingle()
+            .Which.Franja.ToString().Should().Be(
+                "(06:00-14:00)[Descansos:(09:00-09:15)][sede:Suba]");
+        catalogo.ToString().Should().Be("Turno Manana (14:00-22:00)");
+        catalogo.EstaCompleto().Should().BeTrue();
+    }
+
+    // CA-3: al quitar la unica franja, el turno queda incompleto (no descanso).
+    [Fact]
+    public void QuitarFranja_RetornaQuitada_CuandoEraLaUnicaFranja()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+        var resultado = catalogo.QuitarFranja(new TimeOnly(6, 0));
+
+        resultado.Should().Be(ResultadoQuitarFranja.Quitada);
+        catalogo.EstaCompleto().Should().BeFalse();
+        catalogo.ToString().Should().Be($"Turno Manana {CatalogoTurnos.Mensajes.LabelIncompleto}");
+    }
+
+    // CA-3: ninguna franja empieza a esa hora.
+    [Fact]
+    public void QuitarFranja_RetornaFranjaNoExiste_CuandoNingunaFranjaEmpiezaAEsaHora()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+        var resultado = catalogo.QuitarFranja(new TimeOnly(7, 0));
+
+        resultado.Should().Be(ResultadoQuitarFranja.FranjaNoExiste);
+        catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().BeEmpty();
+        catalogo.ObtenerDetalle().FranjasOrdinarias.Should().HaveCount(1);
+    }
+
+    // CA-3: un descanso no tiene franjas ordinarias -- cae en FranjaNoExiste sin resultado propio.
+    [Fact]
+    public void QuitarFranja_RetornaFranjaNoExiste_CuandoElTurnoEsDescanso()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+
+        var resultado = catalogo.QuitarFranja(new TimeOnly(6, 0));
+
+        resultado.Should().Be(ResultadoQuitarFranja.FranjaNoExiste);
+        catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().BeEmpty();
+    }
+
+    // CA-3: un turno retirado no admite quitarle franjas.
+    [Fact]
+    public void QuitarFranja_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+        catalogo.Retirar();
+
+        var resultado = catalogo.QuitarFranja(new TimeOnly(6, 0));
+
+        resultado.Should().Be(ResultadoQuitarFranja.TurnoRetirado);
+        catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().BeEmpty();
+    }
+
+    // CA-3: precedencia -- retirado gana sobre "franja no existe", incluso sobre un descanso.
+    [Fact]
+    public void QuitarFranja_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+        catalogo.Retirar();
+
+        var resultado = catalogo.QuitarFranja(new TimeOnly(6, 0));
+
+        resultado.Should().Be(ResultadoQuitarFranja.TurnoRetirado);
+    }
 }
