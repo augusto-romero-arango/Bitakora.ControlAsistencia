@@ -98,6 +98,13 @@ public static class ComposicionServicios
             // y los GET en 500 permanente. El par de config-tests congela ambos literales.
             options.Schema.For<FichaTurno>().UseNumericRevisions(true);
 
+            // Issue #625: par 2 para CuadroSemanalTurnos -- este GET (ObtenerCuadroSemanalTurnos/
+            // ListarCuadrosSemanalesTurnos) es el primer consumidor write-side de la vista que #624
+            // materializo. Mismo motivo que FichaTurno arriba: sin esta linea el store esperaria
+            // mt_version uuid sobre la MISMA tabla que el worker ya escribe con mt_version bigint,
+            // 500 permanente en el primer request real.
+            options.Schema.For<CuadroSemanalTurnos>().UseNumericRevisions(true);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>

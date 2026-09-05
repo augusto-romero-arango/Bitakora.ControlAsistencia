@@ -33,6 +33,8 @@ using Wolverine;
 using Wolverine.Runtime;
 using ObtenerFichaTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno.FunctionEndpoint;
 using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ListarFichasTurno.FunctionEndpoint;
+using ObtenerCuadroSemanalTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos.FunctionEndpoint;
+using ListarCuadrosSemanalesTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
@@ -313,5 +315,64 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_fichaturno");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
+    }
+
+    // Issue #625 CA-4: mismo patron que ObtenerFichaTurno/ListarFichasTurno de arriba, para los dos
+    // GET nuevos del cuadro semanal resuelto (opcion B, composicion en lectura con FichaTurno).
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerCuadroSemanalTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerCuadroSemanalTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarCuadrosSemanalesTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarCuadrosSemanalesTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #625 CA-4: mitad write-side del par 2 (MEF-ADR-0034 seccion 6) para CuadroSemanalTurnos
+    // -- par espejo de FichaTurno de arriba. Hasta este issue solo el worker tocaba la tabla; este
+    // GET es el primer consumidor write-side, y sin Schema.For<CuadroSemanalTurnos>()
+    // .UseNumericRevisions(true) en ComposicionServicios este store espera mt_version uuid sobre una
+    // tabla bigint (500 permanente en el primer request real).
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCuadroSemanalTurnos()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CuadroSemanalTurnos));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del mismo par 2 para CuadroSemanalTurnos: tabla, tenancy e IdMember tienen
+    // que converger entre el worker que materializa y este Function App que ahora la consulta.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveCuadroSemanalTurnosSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CuadroSemanalTurnos));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrosemanalturnos");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 }
