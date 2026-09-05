@@ -38,6 +38,10 @@ public partial class CrearPlantillaSemanalTool
         public static string DiaDuplicado =>
             ResourceManager.GetString(nameof(DiaDuplicado))!;
 
+        /// <summary>{0}: semana de la entrada; {1}: dia de la entrada.</summary>
+        public static string TurnoObligatorioEnEntrada =>
+            ResourceManager.GetString(nameof(TurnoObligatorioEnEntrada))!;
+
         /// <summary>{0}: nombres de turno que faltan; {1}: nombres disponibles en el catalogo.</summary>
         public static string TurnosNoExisten =>
             ResourceManager.GetString(nameof(TurnosNoExisten))!;

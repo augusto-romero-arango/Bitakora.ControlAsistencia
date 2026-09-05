@@ -18,6 +18,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
     internal const string NombreTool = "crear_plantilla_semanal";
     internal const int MinimoSemanas = 1;
     internal const int MaximoSemanas = 6;
+    internal const int DiasPorSemana = 7;
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
@@ -78,9 +79,15 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
 
         foreach (var entrada in entradas)
         {
-            var textoDia = entrada.Dia.ValueKind == JsonValueKind.String
-                ? entrada.Dia.GetString() ?? string.Empty
-                : entrada.Dia.GetRawText();
+            // Undefined (la entrada no trae la clave "dia") y cualquier otra forma que no sea
+            // texto ni numero caen en string.Empty: GetRawText() sobre un JsonElement sin
+            // inicializar lanza, y una tool nunca responde con excepcion (CA-ADR-0030).
+            var textoDia = entrada.Dia.ValueKind switch
+            {
+                JsonValueKind.String => entrada.Dia.GetString() ?? string.Empty,
+                JsonValueKind.Number => entrada.Dia.GetRawText(),
+                _ => string.Empty
+            };
 
             if (!DiaSemanaMcp.TryParsear(textoDia, out var diaIso))
                 return string.Format(Mensajes.DiaDesconocido, textoDia);
@@ -92,7 +99,11 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
             if (!vistos.Add((semana, diaIso)))
                 return string.Format(Mensajes.DiaDuplicado, semana, diaIso);
 
-            validadas.Add(new EntradaValidada(semana, diaIso, entrada.Turno ?? string.Empty));
+            if (string.IsNullOrWhiteSpace(entrada.Turno))
+                return string.Format(
+                    Mensajes.TurnoObligatorioEnEntrada, semana, DiaSemanaMcp.NombreDe(diaIso));
+
+            validadas.Add(new EntradaValidada(semana, diaIso, entrada.Turno));
         }
 
         var resolucion = await resolutor.ResolverVariosAsync(validadas.Select(v => v.TurnoNombre), ct);
@@ -111,13 +122,13 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
                 string.Join(", ", resolucion.NombresDisponibles));
 
         var turnoIdPorNombre = resolucion.Resoluciones
-            .GroupBy(r => r.NombreSolicitado)
-            .ToDictionary(g => g.Key, g => g.First().Ficha!.Id);
+            .DistinctBy(r => r.NombreSolicitado)
+            .ToDictionary(r => r.NombreSolicitado, r => r.Ficha!.Id);
 
         var plantillaId = Guid.CreateVersion7();
         var respuestaPost = await programacion.CrearPlantillaSemanal(plantillaId, nombre, semanasValor, ct);
-        if (!respuestaPost.IsSuccessStatusCode)
-            return string.Format(Mensajes.RechazoDelDominio, await respuestaPost.Content.ReadAsStringAsync(ct));
+        if (await respuestaPost.LeerFalloAsync(ct) is { } falloPost)
+            return string.Format(Mensajes.RechazoDelDominio, falloPost);
 
         var diasAsignados = 0;
         var diasRechazados = new List<DiaRechazado>();
@@ -128,14 +139,11 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
             var respuestaPut = await programacion.AsignarTurnoADia(
                 plantillaId.ToString(), validada.Semana, validada.DiaIso, turnoId, ct);
 
-            if (respuestaPut.IsSuccessStatusCode)
-                diasAsignados++;
-            else
+            if (await respuestaPut.LeerFalloAsync(ct) is { } motivo)
                 diasRechazados.Add(new DiaRechazado(
-                    validada.Semana,
-                    DiaSemanaMcp.NombreDe(validada.DiaIso),
-                    validada.TurnoNombre,
-                    await respuestaPut.Content.ReadAsStringAsync(ct)));
+                    validada.Semana, DiaSemanaMcp.NombreDe(validada.DiaIso), validada.TurnoNombre, motivo));
+            else
+                diasAsignados++;
         }
 
         return RespuestaJson.Serializar(new PlantillaCreadaResumen(
@@ -143,7 +151,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
             new PlantillaResumen(plantillaId.ToString(), nombre, semanasValor),
             diasAsignados,
             diasRechazados.Count > 0 ? diasRechazados : null,
-            diasAsignados == 7 * semanasValor,
+            diasAsignados == DiasPorSemana * semanasValor,
             Mensajes.NotaVisibilidadEventual));
     }
 
@@ -154,7 +162,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
 /// Eco de crear_plantilla_semanal hacia el asistente: el 201 del POST y el 204 de cada PUT no
 /// traen body util, asi que la plantilla se reconstruye con lo que entro a la tool. DiasRechazados
 /// null se omite del JSON (RespuestaJson, WhenWritingNull); completa se calcula localmente
-/// (diasAsignados == 7 * semanas): todo turno asignado es completo por construccion (#621).
+/// (diasAsignados == DiasPorSemana * semanas): todo turno asignado es completo por construccion (#621).
 /// </summary>
 public sealed record PlantillaCreadaResumen(
     string Resultado,

@@ -41,6 +41,9 @@
   <data name="DiaDuplicado" xml:space="preserve">
     <value>Hay mas de una entrada para la semana {0}, dia {1}.</value>
   </data>
+  <data name="TurnoObligatorioEnEntrada" xml:space="preserve">
+    <value>La entrada de la semana {0}, dia {1} no trae turno.</value>
+  </data>
   <data name="TurnosNoExisten" xml:space="preserve">
     <value>Los siguientes turnos no existen en el catalogo: {0}. Turnos disponibles: {1}.</value>
   </data>

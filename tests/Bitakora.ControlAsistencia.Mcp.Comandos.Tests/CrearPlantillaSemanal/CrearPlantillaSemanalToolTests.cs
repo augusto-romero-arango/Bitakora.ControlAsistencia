@@ -298,7 +298,7 @@ public class CrearPlantillaSemanalToolTests
         handler.RespondeConPrefijo(HttpMethod.Put, $"{RutaPlantillas}/", (request, _) =>
             request.RequestUri!.AbsolutePath.EndsWith("/dias/1/3", StringComparison.Ordinal)
                 ? new HttpResponseMessage(HttpStatusCode.Conflict)
-                    { Content = new StringContent(motivoRechazo, Encoding.UTF8, "application/json") }
+                { Content = new StringContent(motivoRechazo, Encoding.UTF8, "application/json") }
                 : new HttpResponseMessage(HttpStatusCode.NoContent));
 
         var tool = new CrearPlantillaSemanalTool(new ProgramacionApi(cliente));
@@ -320,5 +320,43 @@ public class CrearPlantillaSemanalToolTests
 
         handler.Requests.Where(r => r.Metodo == HttpMethod.Put).Should().HaveCount(7,
             "un PUT rechazado no detiene al resto del lote");
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaEntradaNoTraeLaClaveDia()
+    {
+        var fakes = CrearTool();
+        var dias = """[{"semana":1,"turno":"Cocina Manana"}]""";
+
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.DiaDesconocido, ""));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaEntradaNoTraeLaClaveTurno()
+    {
+        var fakes = CrearTool();
+        var dias = """[{"semana":1,"dia":"lunes"}]""";
+
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoObligatorioEnEntrada, 1, "lunes"));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    // Boundary del sistema: un 503 de un Function App frio no trae body -- el motivo cae al status
+    // (RespuestaDelDominio), nunca a un mensaje vacio que el modelo no pueda interpretar.
+    [Fact]
+    public async Task CrearPlantillaSemanal_TraduceElStatusSinPut_CuandoElPostFallaSinCuerpo()
+    {
+        var fakes = CrearTool(statusPost: HttpStatusCode.ServiceUnavailable);
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.RechazoDelDominio, "503"));
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
     }
 }

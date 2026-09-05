@@ -42,9 +42,8 @@ public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion)
 
         var ficha = resolucion.Ficha;
         var respuesta = await programacion.RetirarPlantillaSemanal(ficha.Id, ct);
-
-        if (!respuesta.IsSuccessStatusCode)
-            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
+        if (await respuesta.LeerFalloAsync(ct) is { } falloDelete)
+            return string.Format(Mensajes.RechazoDelDominio, falloDelete);
 
         return RespuestaJson.Serializar(new PlantillaRetiradaResumen(
             Mensajes.ResultadoPlantillaRetirada,
