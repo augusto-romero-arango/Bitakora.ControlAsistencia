@@ -166,13 +166,14 @@ public class ConfiguracionMartenProjectionsTests
             .Should().Be("(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(06:00-06:30)]");
     }
 
-    // Issue #277 CA-3/CA-4: defensa en profundidad read-side. El worker no esta expuesto hoy (sin
-    // proyecciones concretas), pero lo estara en cuanto las tenga -- este guardrail evita que ese
-    // dia el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
+    // Evita que el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
     //
     // Tipos esperados listados literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
     // IdentidadEventosProgramacion.TiposPersistidos acoplaria este guardrail al mismo artefacto que
-    // IdentidadEventosProgramacionTests ya verifica en el write-side.
+    // IdentidadEventosProgramacionTests ya verifica en el write-side. Debe seguir siendo espejo del
+    // oraculo del write-side (ComposicionServiciosTests
+    // .AgregarServiciosProgramacion_RegistraLosTiposDeEventoPersistidos_...): un tipo listado alli
+    // y no aqui es exactamente la divergencia que este guardrail existe para cazar.
     [Fact]
     public void ConfigurarProgramacion_RegistraLosTiposDeEventoPersistidos()
     {
@@ -192,7 +193,11 @@ public class ConfiguracionMartenProjectionsTests
                 typeof(DescansoQuitado),
                 typeof(ExtraQuitado),
                 typeof(SedeDeFranjaAsignada),
-                typeof(SedeDeFranjaRetirada)
+                typeof(SedeDeFranjaRetirada),
+                typeof(PlantillaSemanalCreada),
+                typeof(DiaDePlantillaSemanalAsignado),
+                typeof(DiaDePlantillaSemanalQuitado),
+                typeof(PlantillaSemanalRetirada)
             ]);
     }
 
@@ -241,6 +246,21 @@ public class ConfiguracionMartenProjectionsTests
         mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_fichaturno");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
+    }
+
+    // CA-5, mismo criterio que el test de FichaTurno de arriba.
+    //
+    // Sin el equivalente de MaterializaFichaTurnoConRevisionNumerica/
+    // MaterializaFichaTurnoSobreLaTablaQueConsultaElWriteSide: el par de compatibilidad
+    // write-side/read-side (mt_version bigint, Schema.For en ComposicionServicios) llega con el
+    // GET que empieza a leer la tabla (#625). Hasta entonces solo el worker la toca.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraCuadroSemanalTurnosProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("CuadroSemanalTurnos");
     }
 
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
