@@ -1,18 +1,15 @@
-// Invocacion DIRECTA de los metodos estaticos de CuadroSemanalTurnosProjection (N1, MEF-ADR-0035)
-// -- no el DSL Given/When/Then de CommandHandlerTestBase, que testea command handlers contra el
-// event store: aqui se prueba una funcion pura evento -> vista, sin abrir ningun stream.
+// Invocacion DIRECTA de los metodos estaticos, no el DSL Given/When/Then de
+// CommandHandlerTestBase: aqui se prueba una funcion pura evento -> vista, sin abrir ningun stream.
 //
 // Cada oraculo se arma a mano (MEF-ADR-0002, no-tautologia): las vistas previas y las esperadas se
 // construyen con el constructor posicional del record, nunca reusando la logica del SUT.
 //
 // BeEquivalentTo, no Be: CuadroSemanalTurnos es un record plano sin igualdad por valor sobre su
-// coleccion Dias (mismo criterio que FichaTurnoProjectionTests -- MEF-ADR-0035).
+// coleccion Dias.
 //
 // Sin test para "Apply de un evento de dia sobre un stream sin creacion": esa garantia es
-// estructural -- la clase no declara ningun Create(DiaDePlantillaSemanalAsignado) ni
-// Create(DiaDePlantillaSemanalQuitado), y el dispatcher generado no materializa nada sin un Create
-// previo. Un test que solo reflexionara sobre esa ausencia seria tautologico (mismo criterio que
-// UbicacionDispositivoProjectionTests).
+// estructural -- la clase no declara ningun Create para esos eventos, y el dispatcher generado no
+// materializa nada sin un Create previo. Un test sobre esa ausencia seria tautologico.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -24,9 +21,8 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Programacion;
 
 public class CuadroSemanalTurnosProjectionTests
 {
-    // CA-1: el Id de la vista sale del StreamKey de la envolvente, nunca recomputado del payload.
-    // El PlantillaId embebido en el evento se fija DISTINTO del StreamKey a proposito: un Create
-    // que leyera e.Data.PlantillaId.ToString() en vez de e.StreamKey quedaria en evidencia aqui.
+    // CA-1: el PlantillaId embebido en el evento se fija DISTINTO del StreamKey a proposito -- un
+    // Create que leyera e.Data.PlantillaId.ToString() en vez de e.StreamKey quedaria en evidencia.
     [Fact]
     public void Create_ProyectaElCuadroVacio_DesdePlantillaSemanalCreada()
     {
@@ -44,9 +40,8 @@ public class CuadroSemanalTurnosProjectionTests
         vista.Should().BeEquivalentTo(new CuadroSemanalTurnos("plantilla-001", "Semana Cocina", 2, []));
     }
 
-    // CA-2: primer dia asignado sobre un cuadro vacio. TurnoId es turnoId.ToString() (formato "D",
-    // minusculas): construir el esperado con la misma llamada .ToString() es el valor de dato de la
-    // fixture, no la logica del SUT (mismo criterio que FichaTurnoProjectionTests con turnoId).
+    // CA-2. TurnoId es turnoId.ToString() (formato "D", minusculas): construir el esperado con la
+    // misma llamada es el valor de dato de la fixture, no la logica del SUT.
     [Fact]
     public void Apply_AgregaElDia_CuandoDiaDePlantillaSemanalAsignadoSobreCuadroVacio()
     {
@@ -61,8 +56,7 @@ public class CuadroSemanalTurnosProjectionTests
         vista.Dias.Should().BeEquivalentTo([new DiaDelCuadro(1, 5, turnoId.ToString())]);
     }
 
-    // CA-2: asignar de nuevo el MISMO slot (1, 5) reemplaza el turno, no lo agrega -- un solo
-    // elemento para el slot.
+    // CA-2: reasignar el MISMO slot reemplaza el turno, no agrega un segundo elemento.
     [Fact]
     public void Apply_ReemplazaElDia_CuandoDiaDePlantillaSemanalAsignadoSobreElMismoSlot()
     {
@@ -80,9 +74,7 @@ public class CuadroSemanalTurnosProjectionTests
         vista.Dias.Should().BeEquivalentTo([new DiaDelCuadro(1, 5, turnoId2.ToString())]);
     }
 
-    // CA-2: vista para leer el dia lunes -> domingo (MEF-ADR-0041), no el orden de asignacion --
-    // se asignan (2,1) y luego (1,7) sobre un cuadro que ya tenia (1,5), y Dias queda ordenado
-    // (Semana, Dia): (1,5), (1,7), (2,1).
+    // CA-2: la vista se lee lunes -> domingo (MEF-ADR-0041), no en el orden de asignacion.
     [Fact]
     public void Apply_OrdenaLosDiasPorSemanaYDia_CuandoSeAsignanVariosSlotsDesordenados()
     {
@@ -110,7 +102,7 @@ public class CuadroSemanalTurnosProjectionTests
             opciones => opciones.WithStrictOrdering());
     }
 
-    // CA-3: quitar el slot (1, 5) deja solo el otro dia de la misma semana.
+    // CA-3.
     [Fact]
     public void Apply_QuitaElDiaCuyoSlotCoincide_CuandoDiaDePlantillaSemanalQuitado()
     {
@@ -148,8 +140,8 @@ public class CuadroSemanalTurnosProjectionTests
         vista.Should().BeEquivalentTo(cuadroSinEseSlot);
     }
 
-    // CA-4: el retiro borra el cuadro -- la memoria queda en el stream, el nombre queda libre para
-    // #626 (criterio de FichaTurno/TurnoRetirado).
+    // CA-4: el retiro borra el cuadro -- la memoria queda en el stream y el nombre queda libre
+    // para reusarse (CA-ADR-0034 decision 4).
     [Fact]
     public void ShouldDelete_BorraElCuadro_CuandoPlantillaSemanalRetirada()
     {
