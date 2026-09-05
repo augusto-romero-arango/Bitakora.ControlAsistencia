@@ -34,7 +34,6 @@ public static class ConfiguracionSerializacionProgramacion
         FranjaAgregada.ConfigurarSerializacion(resolver);
         DescansoAgregado.ConfigurarSerializacion(resolver);
         ExtraAgregado.ConfigurarSerializacion(resolver);
-        // Issue #604: FranjaQuitada transporta la FranjaOrdinaria completa que se quito.
         FranjaQuitada.ConfigurarSerializacion(resolver);
     }
 }

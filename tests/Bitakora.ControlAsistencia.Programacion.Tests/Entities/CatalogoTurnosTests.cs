@@ -376,10 +376,8 @@ public class CatalogoTurnosTests
             "el descanso rechazado no emite un segundo evento");
     }
 
-    // ---------- Issue #604: QuitarFranja y su precedencia ----------
+    // ---------- QuitarFranja y su precedencia ----------
 
-    // CA-2: camino feliz -- quita la franja de las 06:00, conserva su descanso y su sede en el
-    // evento (memoria de lo que se fue), y el turno sigue completo con la que queda.
     [Fact]
     public void QuitarFranja_RetornaQuitada_CuandoLaFranjaExisteYQuedanOtras()
     {
@@ -399,7 +397,7 @@ public class CatalogoTurnosTests
         catalogo.EstaCompleto().Should().BeTrue();
     }
 
-    // CA-3: al quitar la unica franja, el turno queda incompleto (no descanso).
+    // Incompleto y descanso son dos ToString() distintos: quitar la ultima franja da el primero.
     [Fact]
     public void QuitarFranja_RetornaQuitada_CuandoEraLaUnicaFranja()
     {
@@ -412,7 +410,6 @@ public class CatalogoTurnosTests
         catalogo.ToString().Should().Be($"Turno Manana {CatalogoTurnos.Mensajes.LabelIncompleto}");
     }
 
-    // CA-3: ninguna franja empieza a esa hora.
     [Fact]
     public void QuitarFranja_RetornaFranjaNoExiste_CuandoNingunaFranjaEmpiezaAEsaHora()
     {
@@ -425,7 +422,7 @@ public class CatalogoTurnosTests
         catalogo.ObtenerDetalle().FranjasOrdinarias.Should().HaveCount(1);
     }
 
-    // CA-3: un descanso no tiene franjas ordinarias -- cae en FranjaNoExiste sin resultado propio.
+    // Un descanso no tiene franjas ordinarias: cae en FranjaNoExiste, sin resultado propio.
     [Fact]
     public void QuitarFranja_RetornaFranjaNoExiste_CuandoElTurnoEsDescanso()
     {
@@ -437,7 +434,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().BeEmpty();
     }
 
-    // CA-3: un turno retirado no admite quitarle franjas.
     [Fact]
     public void QuitarFranja_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
     {
@@ -450,7 +446,7 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().BeEmpty();
     }
 
-    // CA-3: precedencia -- retirado gana sobre "franja no existe", incluso sobre un descanso.
+    // Retirado gana incluso sobre un descanso, que por si solo daria FranjaNoExiste.
     [Fact]
     public void QuitarFranja_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
     {

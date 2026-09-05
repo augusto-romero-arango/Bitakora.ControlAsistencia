@@ -1,6 +1,3 @@
-// Issue #604: quitar una franja ordinaria de un turno -- corregir el diseno de turno por pasos
-// es "quitar + agregar" (Rule of Three, MEF-ADR-0018).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
@@ -38,8 +35,6 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
         FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0),
             descansos: [SubFranja.Crear(new TimeOnly(9, 0), new TimeOnly(9, 15))], sede: Sede);
 
-    // CA-2: camino feliz -- la franja quitada conserva su descanso y su sede en el evento; el
-    // turno sigue completo con la que queda.
     [Fact]
     public async Task QuitarFranja_EmiteFranjaQuitada_CuandoQuedanOtrasFranjas()
     {
@@ -53,7 +48,6 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
     }
 
-    // CA-3/CA-4: al quitar la unica franja, el turno queda incompleto.
     [Fact]
     public async Task QuitarFranja_EmiteFranjaQuitadaYDejaElTurnoIncompleto_CuandoEraLaUnicaFranja()
     {
@@ -66,7 +60,6 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
         And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), false);
     }
 
-    // CA-4: turno inexistente -> 404.
     [Fact]
     public async Task QuitarFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
     {
@@ -77,7 +70,7 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
         Then(TurnoId.ToString());
     }
 
-    // CA-4: turno retirado gana la precedencia sobre "franja no existe".
+    // La hora 06:00 si existe entre las franjas: lo que decide es la precedencia del retiro.
     [Fact]
     public async Task QuitarFranja_LanzaInvalidOperationException_CuandoElTurnoFueRetirado()
     {
@@ -92,7 +85,6 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 2);
     }
 
-    // CA-3/CA-4: ninguna franja empieza a esa hora.
     [Fact]
     public async Task QuitarFranja_LanzaInvalidOperationException_CuandoLaFranjaNoExiste()
     {
@@ -107,7 +99,7 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 2);
     }
 
-    // CA-3/CA-4: un descanso no tiene franjas -- cae en "franja no existe" sin resultado propio.
+    // Un descanso no tiene franjas: cae en "franja no existe", sin resultado propio.
     [Fact]
     public async Task QuitarFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
     {

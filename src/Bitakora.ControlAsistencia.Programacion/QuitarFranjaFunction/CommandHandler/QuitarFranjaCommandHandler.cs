@@ -3,9 +3,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler;
 
-// Espejo de RetirarTurnoCommandHandler/AgregarFranjaCommandHandler en el canal de errores: sin
-// invariantes de VO involucradas (este comando no construye nada), asi que no hay canal de
-// ArgumentException que mezclar (CA-ADR-0030).
+// Este comando no construye ningun VO, asi que no hay canal de ArgumentException que mezclar con
+// el de las reglas de negocio (CA-ADR-0030) -- a diferencia de AgregarFranjaCommandHandler.
 public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFranja>
 {
     private readonly IEventStore _eventStore;

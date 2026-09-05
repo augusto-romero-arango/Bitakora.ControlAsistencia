@@ -13,8 +13,6 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    // Issue #604: FranjaQuitada se persiste en el mismo stream de CatalogoTurnos -- debe
-    // listarse aqui igual que FranjaAgregada/DescansoAgregado/ExtraAgregado.
     [Fact]
     public void TiposPersistidos_ContieneExactamenteLosOchoEventosPersistidosDeProgramacion()
     {

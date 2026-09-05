@@ -91,7 +91,6 @@ public class AliasEventosProgramacionTests
         AliasDe<ExtraAgregado>(options).Should().Be("extra_agregado");
     }
 
-    // Issue #604
     [Fact]
     public void FranjaQuitada_TieneAliasFranjaQuitada()
     {

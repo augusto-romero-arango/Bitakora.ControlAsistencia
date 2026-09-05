@@ -39,9 +39,8 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
-    // CA-6: quitar la franja que se acaba de agregar deja memoria de lo que se fue (hora de
-    // inicio y sede) en mt_events, sin cruzar ningun bus. Repetir el mismo :quitar-franja sobre la
-    // misma hora cierra la regla de negocio -> 409 (la franja ya no existe).
+    // franja_quitada no cruza ningun bus: mt_events es la unica ventana black-box a lo que quedo
+    // grabado. El segundo :quitar-franja sobre la misma hora cierra la regla de negocio -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_DebeRetornar202YPersistirLaFranjaQuitada_CuandoLaFranjaExiste()
@@ -72,7 +71,6 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-4: turno inexistente -> 404.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_DebeRetornar404_CuandoElTurnoNoExiste()
@@ -86,8 +84,6 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): un id no-Guid nunca llega
-    // al command router.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_DebeRetornar400_CuandoElIdDeRutaNoEsUnGuidValido()

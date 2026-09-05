@@ -1,5 +1,3 @@
-// Issue #604: tests del endpoint HTTP POST /programacion/turnos/{id}:quitar-franja
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -27,10 +25,8 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-5: la ruta declarada es exactamente esta, con verbo post -- congelada por reflexion
-    // (mismo criterio que AgregarFranjaFunction/FunctionEndpointTests), porque ningun otro test
-    // local ejercita el HttpTriggerAttribute (Run() se llama directo, sin pasar por el enrutador
-    // del host).
+    // Congela verbo y ruta por reflexion: ningun otro test local ejercita el
+    // HttpTriggerAttribute -- Run() se llama directo, sin pasar por el enrutador del host.
     [Fact]
     public void QuitarFranja_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -52,8 +48,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<AcceptedResult>();
     }
 
-    // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): el comando nunca debe
-    // despacharse con un id que no sea un Guid valido.
     [Fact]
     public async Task QuitarFranja_Retorna400_CuandoElIdDeRutaNoEsUnGuidValido()
     {

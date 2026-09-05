@@ -35,8 +35,8 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(ExtraAgregado evento) => ReemplazarFranja(evento.Franja);
 
-    // Issue #604: remueve la franja cuyo inicio coincide con la que se fue -- sin factories, la
-    // franja del evento ya trae todo lo que se quito (descansos, extras, sede).
+    // MEF-ADR-0004 capa 4: RemoveAll, no FindIndex + RemoveAt -- sobre un stream anomalo, indexar
+    // con -1 lanzaria, y un Apply que lanza deja el aggregate roto para siempre.
     public void Apply(FranjaQuitada evento) =>
         _franjasOrdinarias.RemoveAll(f => f.EmpiezaALaMismaHoraQue(evento.Franja));
 
@@ -124,9 +124,8 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoAgregarSubFranja.Agregada;
     }
 
-    // Issue #604: espejo de RetirarTurno()/AgregarFranja() en el mecanismo "declinar con
-    // resultado" (CA-ADR-0030). Precedencia: retirado > franja no existe (un descanso no tiene
-    // franjas: cae en FranjaNoExiste sin resultado propio).
+    // Precedencia: retirado > franja no existe. Un descanso no necesita resultado propio: no
+    // tiene franjas ordinarias, asi que ya cae en FranjaNoExiste.
     internal ResultadoQuitarFranja QuitarFranja(TimeOnly horaInicio)
     {
         if (!_estaActivo)
