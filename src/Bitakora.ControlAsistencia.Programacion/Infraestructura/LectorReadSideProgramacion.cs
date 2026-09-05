@@ -19,6 +19,9 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantResolver te
         return await session.Query<FichaTurno>().Select(f => f.Nombre).ToListAsync(ct);
     }
 
-    Task<IReadOnlyList<string>> ILectorNombresPlantillaSemanal.ObtenerNombresAsync(CancellationToken ct) =>
-        throw new NotImplementedException();
+    async Task<IReadOnlyList<string>> ILectorNombresPlantillaSemanal.ObtenerNombresAsync(CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantResolver.TenantId);
+        return await session.Query<CuadroSemanalTurnos>().Select(c => c.Nombre).ToListAsync(ct);
+    }
 }
