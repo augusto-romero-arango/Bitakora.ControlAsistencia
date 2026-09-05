@@ -1,7 +1,3 @@
-// Issue #621 CA-7: endpoint HTTP PUT programacion/plantillas-semanales/{id}/dias/{semana}/{dia}
-// (fakes manuales, patron AsignarEtiquetaFunction/FunctionEndpointTests +
-// AsignarSedeAFranjaFunction/FunctionEndpointTests).
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction;
@@ -31,8 +27,8 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-7: ruta y verbo pactados en el issue, congelados por reflexion -- Run() se invoca directo
-    // en los demas tests, sin pasar por el enrutador del host.
+    // Los demas tests invocan Run() directo, sin pasar por el enrutador del host: solo este
+    // congela la ruta y el verbo pactados, y por reflexion.
     [Fact]
     public void AsignarTurnoADiaDePlantillaSemanal_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -55,7 +51,7 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NoContentResult>();
     }
 
-    // CA-7: el slot existe por construccion -- el PUT nunca "crea" (RFC 9110 seccion 9.3.4).
+    // El slot existe por construccion: el PUT nunca "crea" (RFC 9110 seccion 9.3.4).
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaSemanal_NuncaRetornaAcceptedResult_CuandoComandoEsValido()
     {
@@ -111,8 +107,8 @@ public class FunctionEndpointTests
         router.Invocado.Should().BeFalse();
     }
 
-    // CA-7: {dia} fuera de 1..7 se traduce a 400 en el endpoint, ANTES de despachar --
-    // DiaSemana.Desde lanza ArgumentException (MEF-ADR-0004 capa 1) y el router nunca se invoca.
+    // {dia} fuera de 1..7 se traduce a 400 en el endpoint, ANTES de despachar (MEF-ADR-0004
+    // capa 1): el router nunca se invoca.
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaSemanal_Retorna400ConMensajeYSinInvocarElRouter_CuandoElDiaEsCero()
     {
@@ -186,9 +182,9 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// Fakes manuales - NO NSubstitute.
 
-internal class FakeRequestValidator<TComando> : IRequestValidator
+internal sealed class FakeRequestValidator<TComando> : IRequestValidator
 {
     private readonly TComando? _comando;
     private readonly IActionResult? _error;
@@ -212,7 +208,6 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
     }
 }
 
-// Invocado: CA-7 exige verificar que un {dia} fuera de rango NUNCA llega a invocar el router.
 internal sealed class FakeCommandRouter(Exception? excepcion = null) : ICommandRouter
 {
     public bool Invocado { get; private set; }

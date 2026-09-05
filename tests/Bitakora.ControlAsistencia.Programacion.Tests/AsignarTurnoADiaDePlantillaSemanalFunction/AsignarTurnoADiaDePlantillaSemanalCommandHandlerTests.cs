@@ -1,6 +1,6 @@
-// Issue #621 CA-5/CA-6: comando sobre DOS streams -- la plantilla (bajo GuidAggregateId, identidad
-// simple) y el turno del catalogo (bajo su propio TurnoId, pre-cargado con Given(streamId, evento),
-// mismo patron que SolicitarProgramacionTurnoCommandHandlerTests).
+// El comando toca DOS streams: la plantilla (bajo GuidAggregateId) y el turno del catalogo (bajo
+// su propio TurnoId, pre-cargado con el overload Given(streamId, evento)) -- mismo patron que
+// SolicitarProgramacionTurnoCommandHandlerTests.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction;
@@ -28,11 +28,11 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         TurnoCreado.Crear(
             TurnoId, "Turno Manana", [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [])]);
 
-    // CA-5: un descanso es completo aunque tenga cero franjas ordinarias.
+    // Un descanso es completo aunque tenga cero franjas ordinarias (CA-ADR-0033).
     private static TurnoCreado CrearEventoTurnoDescanso() =>
         TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
 
-    // CA-6: turno incompleto -- nace vacio y sin marca de descanso (CA-ADR-0033).
+    // Turno incompleto: nace vacio y sin marca de descanso (CA-ADR-0033).
     private static TurnoCreado CrearEventoTurnoIncompleto() =>
         TurnoCreado.Crear(TurnoId, "Turno Incompleto", []);
 
@@ -48,7 +48,6 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-5: el descanso es completo por definicion -- se asigna igual que un turno con franjas.
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaSemanal_EmiteDiaAsignado_CuandoElTurnoEsDescanso()
     {
@@ -129,8 +128,8 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         Then(GuidAggregateId.ToString());
     }
 
-    // CA-6: mismo turno ya asignado a ese dia -- sin excepcion y sin evento nuevo en NINGUNO de los
-    // dos streams (idempotencia, ResultadoAsignarDia.SinCambios).
+    // Idempotencia (ResultadoAsignarDia.SinCambios): los dos Then sin eventos esperados afirman
+    // que no se emitio nada en NINGUNO de los dos streams.
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaSemanal_NoEmiteEvento_CuandoElMismoTurnoYaEstaAsignadoAEseDia()
     {

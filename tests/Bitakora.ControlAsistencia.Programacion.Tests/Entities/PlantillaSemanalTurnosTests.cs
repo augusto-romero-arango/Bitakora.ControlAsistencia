@@ -1,6 +1,5 @@
-// Issue #621 CA-3/CA-4: PlantillaSemanalTurnos.AsignarDia -- precedencia semana fuera de rango >
-// sin cambios (idempotencia) > asignado. Iniciar()/AsignarDia() son internal (ADR-0015);
-// accesibles en este proyecto de tests via InternalsVisibleTo (Bitakora.ControlAsistencia.Programacion.csproj).
+// Iniciar()/AsignarDia() son internal (ADR-0015): este proyecto de tests los alcanza via el
+// InternalsVisibleTo de Bitakora.ControlAsistencia.Programacion.csproj.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -17,7 +16,6 @@ public class PlantillaSemanalTurnosTests
     private static PlantillaSemanalTurnos CrearPlantilla(int semanas) =>
         PlantillaSemanalTurnos.Iniciar(PlantillaSemanalCreada.Crear(PlantillaId, "Semana Cocina", semanas));
 
-    // CA-3: primer PUT sobre un slot vacio -- Asignado, con el evento en no confirmados.
     [Fact]
     public void AsignarDia_RetornaAsignado_CuandoElSlotEstaVacio()
     {
@@ -34,7 +32,6 @@ public class PlantillaSemanalTurnosTests
         evento.TurnoId.Should().Be(Turno1Id);
     }
 
-    // CA-3: reemplazo -- el segundo PUT sobre el mismo slot con OTRO turno tambien es Asignado.
     [Fact]
     public void AsignarDia_RetornaAsignado_CuandoReemplazaElTurnoDeUnSlotYaOcupado()
     {
@@ -48,7 +45,6 @@ public class PlantillaSemanalTurnosTests
             .And.Subject.Last().TurnoId.Should().Be(Turno2Id);
     }
 
-    // CA-3: repetir el MISMO turno en el mismo slot es idempotente -- SinCambios, sin evento nuevo.
     [Fact]
     public void AsignarDia_RetornaSinCambios_CuandoElMismoTurnoYaEstaAsignadoAEseDia()
     {
@@ -61,7 +57,7 @@ public class PlantillaSemanalTurnosTests
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
     }
 
-    // CA-3: el mismo turno puede asignarse a OTRO slot sin conflicto (no hay unicidad de turno).
+    // Un turno no es exclusivo de un slot: puede repetirse en varios dias de la plantilla.
     [Fact]
     public void AsignarDia_RetornaAsignado_CuandoElMismoTurnoSeAsignaAOtroSlot()
     {
@@ -74,7 +70,6 @@ public class PlantillaSemanalTurnosTests
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().HaveCount(2);
     }
 
-    // CA-4: semana fuera de rango -- sin evento nuevo.
     [Fact]
     public void AsignarDia_RetornaSemanaFueraDeRango_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
     {
@@ -86,7 +81,7 @@ public class PlantillaSemanalTurnosTests
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().BeEmpty();
     }
 
-    // CA-4: borde inclusive -- la ultima semana de la plantilla SI es asignable.
+    // El tope de semanas es inclusive: la ultima semana de la plantilla SI es asignable.
     [Fact]
     public void AsignarDia_RetornaAsignado_CuandoLaSemanaEsElBordeInclusiveDeLaPlantilla()
     {

@@ -1,6 +1,3 @@
-// Issue #621 CA-2: round-trip STJ con las opciones reales de Marten, y el contrato de persistencia
-// del dia (numero ISO entero, nunca el nombre del enum de .NET ni una etiqueta en espanol).
-
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -34,9 +31,6 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
         deserializado.TurnoId.Should().Be(TurnoId);
     }
 
-    // CA-2: el numero ISO persiste como entero -- nunca "Friday" (nombre del enum DayOfWeek de
-    // .NET) ni "viernes"/"Viernes" (etiqueta en espanol, que ademas ni siquiera existe todavia:
-    // DiaSemana no tiene ToString() localizado en este issue).
     [Fact]
     public void Serializar_PersisteElDiaComoSuNumeroIso_SinNombreDeEnumNiEtiquetaEnEspanol()
     {
@@ -45,7 +39,10 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
 
         var json = JsonSerializer.Serialize(evento, opciones);
 
-        json.Should().Contain("5");
+        var dia = JsonDocument.Parse(json).RootElement
+            .GetProperty(nameof(DiaDePlantillaSemanalAsignado.Dia));
+        dia.ValueKind.Should().Be(JsonValueKind.Number);
+        dia.GetInt32().Should().Be(5, "ISO 8601 numera el viernes como 5, no como el 4 de System.DayOfWeek");
         json.Should().NotContain("Friday");
         json.Should().NotContain("viernes");
         json.Should().NotContain("Viernes");

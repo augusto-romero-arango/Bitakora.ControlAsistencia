@@ -2,8 +2,7 @@ using FluentValidation;
 
 namespace Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction;
 
-// Se auto-registra via AddValidatorsFromAssemblyContaining (Program.cs). NotEmpty en TurnoId --
-// mismo criterio que AsignarEtiquetaBodyValidator (Colaboradores).
+// Se auto-registra via AddValidatorsFromAssemblyContaining (Program.cs).
 public class AsignarTurnoADiaDePlantillaSemanalBodyValidator
     : AbstractValidator<AsignarTurnoADiaDePlantillaSemanalBody>
 {

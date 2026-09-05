@@ -6,8 +6,8 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarTurnoADiaDePlantillaSemanalFunction;
 
-// Issue #621 CA-8: PUT que reemplaza el turno de un dia de la plantilla semanal. mt_events es la
-// unica ventana black-box al efecto secundario del handler (evento interno, no cruza bus).
+// El evento no cruza ningun bus: mt_events es la unica ventana black-box al efecto secundario
+// del handler.
 public class AsignarTurnoADiaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string SchemaProgramacion = "programacion";

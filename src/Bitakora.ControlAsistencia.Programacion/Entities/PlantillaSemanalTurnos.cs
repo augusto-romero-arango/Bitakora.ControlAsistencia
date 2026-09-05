@@ -3,8 +3,8 @@ using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-// Segundo nivel de composicion sobre el Turno (CA-ADR-0034). Nace vacia: el resto del estado
-// (_nombre, _semanas, _estaActiva, _dias) entra con su primer consumidor, no antes.
+// Segundo nivel de composicion sobre el Turno (CA-ADR-0034). El estado que aun no tiene consumidor
+// (_nombre, _estaActiva) entra con el, no antes.
 // Anatomia de clave (CA-ADR-0031): Guid canonico "D", sin prefijo.
 public partial class PlantillaSemanalTurnos : AggregateRoot
 {
@@ -17,7 +17,6 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         _semanas = evento.Semanas;
     }
 
-    // Issue #621: reemplaza (o pone por primera vez) el turno de un slot (semana, dia).
     public void Apply(DiaDePlantillaSemanalAsignado evento) =>
         _dias[(evento.Semana, evento.Dia)] = evento.TurnoId;
 
@@ -29,9 +28,8 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         return plantilla;
     }
 
-    // Issue #621: CA-ADR-0030 -- declina con resultado. Precedencia: semana fuera de rango > sin
-    // cambios (idempotencia) > asignado. El tope de semanas lo fijo PlantillaSemanalCreada.Semanas
-    // (Apply de #620, ver Notas tecnicas del issue #621).
+    // Declina con resultado, nunca lanza (CA-ADR-0030). La precedencia es parte del contrato:
+    // semana fuera de rango > sin cambios (idempotencia) > asignado.
     internal ResultadoAsignarDia AsignarDia(int semana, DiaSemana dia, Guid turnoId)
     {
         if (semana > _semanas)

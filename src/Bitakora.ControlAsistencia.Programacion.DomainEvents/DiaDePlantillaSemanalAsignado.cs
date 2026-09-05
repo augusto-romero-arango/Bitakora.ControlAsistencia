@@ -3,10 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #621: pone -- o reemplaza -- el turno de un dia de la plantilla semanal (CA-ADR-0034
-// decisiones 1, 3 y 4). Referencia viva al turno (TurnoId), nunca copia: editar el turno despues
-// se refleja solo. Mismo patron que PlantillaSemanalCreada: sealed class con ctor privado + ctor
-// vacio para Marten/JSON.
+// Referencia viva al turno (TurnoId), nunca una copia de su contenido (CA-ADR-0034 decision 2):
+// editar el turno despues se refleja solo en la plantilla.
 public sealed partial class DiaDePlantillaSemanalAsignado
 {
     public Guid PlantillaId { get; private set; }
@@ -22,11 +20,12 @@ public sealed partial class DiaDePlantillaSemanalAsignado
         TurnoId = turnoId;
     }
 
-    // Constructor vacio privado para Marten/JSON (mismo patron que PlantillaSemanalCreada).
+    // Constructor vacio privado para Marten/JSON: sin el, ConfigurarSerializacion no tiene como
+    // instanciar el tipo al deserializar.
     private DiaDePlantillaSemanalAsignado() => Dia = DiaSemana.Lunes;
 
     // El tope N de semanas es regla del aggregate (PlantillaSemanalTurnos.AsignarDia), no del
-    // evento: aqui solo se valida el piso semana >= 1.
+    // evento: aqui solo se valida el piso.
     public static DiaDePlantillaSemanalAsignado Crear(
         Guid plantillaId, int semana, DiaSemana dia, Guid turnoId)
     {
@@ -36,9 +35,10 @@ public sealed partial class DiaDePlantillaSemanalAsignado
         return new DiaDePlantillaSemanalAsignado(plantillaId, semana, dia, turnoId);
     }
 
-    // Dia persiste como su numero ISO (entero), nunca el nombre del enum de .NET ni una etiqueta
-    // en espanol -- mismo mecanismo con que Identificacion.ConfigurarSerializacion persiste _tipo
-    // como codigo literal y rehidrata via TipoIdentificacion.Desde.
+    // Contrato de persistencia: Dia se guarda como su numero ISO (entero), nunca el nombre del enum
+    // de .NET ni una etiqueta en espanol. STJ no sabe reconstruir DiaSemana (ctor privado), asi que
+    // se descarta su JsonPropertyInfo auto-detectada y se sustituye por una de tipo int que
+    // rehidrata via DiaSemana.Desde.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var tipoClase = typeof(DiaDePlantillaSemanalAsignado);
@@ -53,9 +53,6 @@ public sealed partial class DiaDePlantillaSemanalAsignado
 
             typeInfo.CreateObject = () => ctor.Invoke(null);
 
-            // PlantillaId, Semana, TurnoId: propiedades con private set de tipos que STJ ya
-            // serializa nativamente (Guid, int) -- solo falta cablear el Set via el backing field
-            // (mismo patron que PlantillaSemanalCreada). Dia se resuelve aparte, mas abajo.
             foreach (var prop in typeInfo.Properties)
             {
                 if (prop.Set is not null) continue;
@@ -67,8 +64,8 @@ public sealed partial class DiaDePlantillaSemanalAsignado
                     prop.Set = (obj, val) => backingField.SetValue(obj, val);
             }
 
-            var diaPropAutoDetectada = typeInfo.Properties.First(p => p.Name == nameof(Dia));
-            typeInfo.Properties.Remove(diaPropAutoDetectada);
+            var diaAutoDetectada = typeInfo.Properties.First(p => p.Name == nameof(Dia));
+            typeInfo.Properties.Remove(diaAutoDetectada);
 
             var diaProp = typeInfo.CreateJsonPropertyInfo(typeof(int), nameof(Dia));
             diaProp.Get = obj => ((DiaDePlantillaSemanalAsignado)obj).Dia.Numero;

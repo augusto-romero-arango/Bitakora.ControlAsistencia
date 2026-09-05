@@ -1,6 +1,3 @@
-// Issue #621 CA-1: DiaSemana es una lista cerrada de 7 instancias canonicas (Lunes..Domingo,
-// numero ISO 8601) -- mismo patron que TipoIdentificacion (Colaboradores.DomainEvents).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -35,7 +32,6 @@ public class DiaSemanaTests
         resultado.Numero.Should().Be(5);
     }
 
-    // CA-1: la misma instancia canonica en llamadas repetidas -- Desde() nunca crea una nueva.
     [Fact]
     public void Desde_RetornaLaMismaInstanciaCanonica_CuandoSeLlamaDosVecesConElMismoNumero()
     {
