@@ -156,6 +156,23 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
             plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
     }
 
+    // CA-2, lado espejo: la normalizacion se aplica tambien al nombre QUE VIENE DEL CATALOGO, no
+    // solo al del comando -- un cuadro guardado con espacios/mayusculas de sobra igual colisiona.
+    [Fact]
+    public async Task CrearPlantillaSemanal_LanzaInvalidOperationException_CuandoElNombreDelCatalogoDifiereSoloEnMayusculasYEspacios()
+    {
+        var plantillaExistenteId = SembrarPlantillaEnCatalogo("  SEMANA   cocina ");
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2);
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, string>(
+            plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
+    }
+
     // CA-2: nombre difiere solo en acentos de uno vigente -> se crea normalmente (decision del
     // experto en #497: normalizar acentos abre falsos positivos, los acentos SON significativos).
     [Fact]

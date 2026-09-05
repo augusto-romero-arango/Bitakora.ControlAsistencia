@@ -84,23 +84,19 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #626: espera a que CuadroSemanalTurnos materialice la plantilla antes del POST
-    // duplicado -- sin esto, un 201/409 inmediato no distingue "la comparacion contra el catalogo
-    // funciono" de "la proyeccion Async (MEF-ADR-0034 seccion 3) aun no vio nada" (best-effort,
-    // CA-ADR-0034 decision 4). El GET lo agrego #625.
-    private async Task EsperarPlantillaMaterializadaAsync(Guid plantillaId, CancellationToken ct) =>
-        await Polling.WaitUntilTrueAsync(async () =>
-        {
-            var response = await _client.GetAsync(
-                $"/api/programacion/plantillas-semanales/{plantillaId}", ct);
-            return response.StatusCode == HttpStatusCode.OK;
-        }, Timeout);
-
     private async Task<bool> PlantillaEstaMaterializadaAsync(Guid plantillaId, CancellationToken ct)
     {
         var response = await _client.GetAsync($"/api/programacion/plantillas-semanales/{plantillaId}", ct);
         return response.StatusCode == HttpStatusCode.OK;
     }
+
+    // Espera a que CuadroSemanalTurnos materialice la plantilla antes del POST duplicado: sin esto,
+    // un 201/409 inmediato no distingue "la comparacion contra el catalogo funciono" de "la
+    // proyeccion Async (MEF-ADR-0034 seccion 3) aun no vio nada" (best-effort, CA-ADR-0034
+    // decision 4).
+    private async Task EsperarPlantillaMaterializadaAsync(Guid plantillaId, CancellationToken ct) =>
+        await Polling.WaitUntilTrueAsync(
+            async () => await PlantillaEstaMaterializadaAsync(plantillaId, ct), Timeout);
 
     // CA-1/CA-2: nombre coincide exactamente, o solo difiere en mayusculas/espacios de sobra, con
     // el de un cuadro vigente -> 409 NombreDuplicado. Espejo de CrearTurno (#497).

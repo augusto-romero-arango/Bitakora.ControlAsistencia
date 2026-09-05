@@ -43,9 +43,9 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
 
     // Trim de extremos + colapso de espacios internos + case-folding. Los acentos SON
     // significativos (decision del experto, issue #497): ToUpperInvariant no los remueve, y por eso
-    // la comparacion final es Ordinal sobre los dos nombres ya normalizados. Segunda ocurrencia de
-    // la misma regla de dominio que CrearTurnoCommandHandler (MEF-ADR-0018 admite duplicar; el
-    // test-writer no dejo cobertura para un normalizador extraido).
+    // la comparacion final es Ordinal sobre los dos nombres ya normalizados. Copia deliberada de
+    // CrearTurnoCommandHandler: segunda ocurrencia, MEF-ADR-0018 mantiene la duplicacion hasta la
+    // tercera -- si cambia esta regla, cambia alla tambien.
     private static string NormalizarNombre(string nombre) =>
         EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
 

@@ -76,8 +76,6 @@ public static class ComposicionServicios
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
-        // Issue #626: mismo adaptador (LectorReadSideProgramacion), segundo puerto -- un
-        // adaptador por store/tenant con dos metodos, espejo del registro de arriba.
         services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
 
         // Registrar serializacion custom para tipos con constructores privados.
