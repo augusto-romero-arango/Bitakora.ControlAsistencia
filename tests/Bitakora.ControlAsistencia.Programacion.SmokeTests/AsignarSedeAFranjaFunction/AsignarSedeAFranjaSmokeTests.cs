@@ -130,4 +130,22 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    // Invariante del VO (FranjaOrdinaria.Crear via ConSede): una sede con Id en blanco es
+    // SedeIncompleta -- el handler deja subir la ArgumentException sin envolverla (CA-ADR-0030),
+    // el endpoint la traduce a 400.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarSedeAFranja_DebeRetornar400_CuandoLaSedeEsIncompleta()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoVacioAsync(turnoId, "[TEST] Turno Sede Incompleta", ct);
+        await AgregarFranjaSinSedeAsync(turnoId, ct);
+
+        var payload = new { franja = "14:00", sede = new { id = "", nombre = "[TEST] Sin Id" } };
+        var response = await _client.PostAsJsonAsync(RutaAsignarSedeAFranja(turnoId), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
