@@ -12,6 +12,25 @@ public partial class AsignarSedeAFranjaCommandHandler : ICommandHandlerAsync<Asi
 
     public AsignarSedeAFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
 
-    public Task HandleAsync(AsignarSedeAFranja command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(AsignarSedeAFranja command, CancellationToken ct = default)
+    {
+        var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
+        if (catalogo is null)
+            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+
+        // El arm final vuelve ruidoso un miembro nuevo del enum: sin el, un rechazo sin mensaje
+        // mapeado saldria 202 como si la sede se hubiera asignado/retirado.
+        var mensajeDeRechazo = catalogo.AsignarSedeAFranja(command.Franja, command.Sede) switch
+        {
+            ResultadoAsignarSedeAFranja.Asignada => null,
+            ResultadoAsignarSedeAFranja.Retirada => null,
+            ResultadoAsignarSedeAFranja.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoAsignarSedeAFranja.FranjaNoExiste => Mensajes.FranjaNoExiste,
+            ResultadoAsignarSedeAFranja.FranjaSinSede => Mensajes.FranjaSinSede,
+            var otro => throw new NotSupportedException($"Resultado de AsignarSedeAFranja no mapeado: {otro}")
+        };
+
+        if (mensajeDeRechazo is not null)
+            throw new InvalidOperationException(mensajeDeRechazo);
+    }
 }

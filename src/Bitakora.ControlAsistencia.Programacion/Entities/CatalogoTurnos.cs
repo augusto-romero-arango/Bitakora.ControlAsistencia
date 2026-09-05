@@ -45,9 +45,9 @@ public partial class CatalogoTurnos : AggregateRoot
     public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
 
     // Issue #606: reemplaza la franja por la resultante (con la sede nueva, o sin ella).
-    public void Apply(SedeDeFranjaAsignada evento) => throw new NotImplementedException();
+    public void Apply(SedeDeFranjaAsignada evento) => ReemplazarFranja(evento.Franja);
 
-    public void Apply(SedeDeFranjaRetirada evento) => throw new NotImplementedException();
+    public void Apply(SedeDeFranjaRetirada evento) => ReemplazarFranja(evento.Franja);
 
     // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
     // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
@@ -193,8 +193,33 @@ public partial class CatalogoTurnos : AggregateRoot
     // Issue #606: mismo mecanismo "declinar con resultado" que QuitarFranja -- localiza por hora
     // de inicio y delega en ConSede/TieneSedePrearmada (invariantes del VO ya resueltas por el
     // handler antes de llegar aqui). Precedencia: TurnoRetirado > FranjaNoExiste > FranjaSinSede.
-    internal ResultadoAsignarSedeAFranja AsignarSedeAFranja(TimeOnly horaInicioFranja, SedeProgramada? sede) =>
-        throw new NotImplementedException();
+    internal ResultadoAsignarSedeAFranja AsignarSedeAFranja(TimeOnly horaInicioFranja, SedeProgramada? sede)
+    {
+        if (!_estaActivo)
+            return ResultadoAsignarSedeAFranja.TurnoRetirado;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoAsignarSedeAFranja.FranjaNoExiste;
+
+        if (sede is null && !_franjasOrdinarias[indice].TieneSedePrearmada())
+            return ResultadoAsignarSedeAFranja.FranjaSinSede;
+
+        var franjaResultante = _franjasOrdinarias[indice].ConSede(sede);
+
+        if (sede is not null)
+        {
+            var evento = SedeDeFranjaAsignada.Crear(Guid.Parse(Id!), franjaResultante);
+            _uncommittedEvents.Add(evento);
+            Apply(evento);
+            return ResultadoAsignarSedeAFranja.Asignada;
+        }
+
+        var eventoRetiro = SedeDeFranjaRetirada.Crear(Guid.Parse(Id!), franjaResultante);
+        _uncommittedEvents.Add(eventoRetiro);
+        Apply(eventoRetiro);
+        return ResultadoAsignarSedeAFranja.Retirada;
+    }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
     // descanso). null significa "sigue, localiza la franja".

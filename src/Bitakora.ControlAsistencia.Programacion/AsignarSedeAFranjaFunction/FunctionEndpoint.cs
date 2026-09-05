@@ -14,10 +14,38 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarSedeAFranja")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/turnos/{id}:asignar-sede-franja")]
         HttpRequest req,
         string id,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!Guid.TryParse(id, out var turnoId))
+            return new BadRequestObjectResult("El id del turno no es un Guid valido");
+
+        var (body, error) = await requestValidator.ValidarAsync<AsignarSedeAFranjaBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new AsignarSedeAFranja(turnoId, body!.Franja, body.Sede);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return new BadRequestObjectResult(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }
