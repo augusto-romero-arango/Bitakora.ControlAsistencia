@@ -113,6 +113,14 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         Crear(_horaInicio, _horaFin, _diaOffsetFin,
             _descansos, [.. _extras, InferirHija(inicio, fin)], _sede);
 
+    // Issue #606: cambia (o retira, con null) la sede prearmada sin afectar las hijas -- Crear()
+    // vuelve a validar completitud si la sede nueva no es null.
+    public FranjaOrdinaria ConSede(SedeProgramada? sede) => throw new NotImplementedException();
+
+    // Contraparte de _sede sin abrir el campo (MEF-ADR-0012, Tell-don't-Ask): el aggregate
+    // pregunta esto para decidir el rechazo "nada que retirar" (FranjaSinSede) sin leer el VO.
+    public bool TieneSedePrearmada() => throw new NotImplementedException();
+
     // El dia de la hija es deducible solo porque la ordinaria esta acotada a <= 24 h: dentro de
     // ella cada HH:mm tiene un unico representante. Ampliar ese tope volveria ambigua esta
     // inferencia.

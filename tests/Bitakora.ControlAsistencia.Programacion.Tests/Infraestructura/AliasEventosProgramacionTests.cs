@@ -114,4 +114,21 @@ public class AliasEventosProgramacionTests
 
         AliasDe<ExtraQuitado>(options).Should().Be("extra_quitado");
     }
+
+    // Issue #606
+    [Fact]
+    public void SedeDeFranjaAsignada_TieneAliasSedeDeFranjaAsignada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<SedeDeFranjaAsignada>(options).Should().Be("sede_de_franja_asignada");
+    }
+
+    [Fact]
+    public void SedeDeFranjaRetirada_TieneAliasSedeDeFranjaRetirada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<SedeDeFranjaRetirada>(options).Should().Be("sede_de_franja_retirada");
+    }
 }

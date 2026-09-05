@@ -44,6 +44,11 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
 
+    // Issue #606: reemplaza la franja por la resultante (con la sede nueva, o sin ella).
+    public void Apply(SedeDeFranjaAsignada evento) => throw new NotImplementedException();
+
+    public void Apply(SedeDeFranjaRetirada evento) => throw new NotImplementedException();
+
     // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
     // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
     // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
@@ -184,6 +189,12 @@ public partial class CatalogoTurnos : AggregateRoot
         Apply(evento);
         return ResultadoQuitarSubFranja.Quitada;
     }
+
+    // Issue #606: mismo mecanismo "declinar con resultado" que QuitarFranja -- localiza por hora
+    // de inicio y delega en ConSede/TieneSedePrearmada (invariantes del VO ya resueltas por el
+    // handler antes de llegar aqui). Precedencia: TurnoRetirado > FranjaNoExiste > FranjaSinSede.
+    internal ResultadoAsignarSedeAFranja AsignarSedeAFranja(TimeOnly horaInicioFranja, SedeProgramada? sede) =>
+        throw new NotImplementedException();
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
     // descanso). null significa "sigue, localiza la franja".
