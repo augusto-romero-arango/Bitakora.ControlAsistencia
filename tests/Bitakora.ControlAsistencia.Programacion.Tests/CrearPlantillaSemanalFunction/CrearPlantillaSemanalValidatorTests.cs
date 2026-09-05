@@ -10,7 +10,7 @@ public class CrearPlantillaSemanalValidatorTests
     private readonly IValidator<CrearPlantillaSemanal> _validator = new CrearPlantillaSemanalValidator();
 
     [Fact]
-    public async Task DebeSerValido_CuandoDatosCompletos()
+    public async Task CrearPlantillaSemanal_EsValido_CuandoDatosSonCompletos()
     {
         var comando = new CrearPlantillaSemanal(Guid.NewGuid(), "Semana Cocina", 2);
 
@@ -20,7 +20,7 @@ public class CrearPlantillaSemanalValidatorTests
     }
 
     [Fact]
-    public async Task DebeRechazar_CuandoPlantillaIdEsGuidVacio()
+    public async Task CrearPlantillaSemanal_EsInvalido_CuandoPlantillaIdEsGuidVacio()
     {
         var comando = new CrearPlantillaSemanal(Guid.Empty, "Semana Cocina", 2);
 
@@ -31,7 +31,7 @@ public class CrearPlantillaSemanalValidatorTests
     }
 
     [Fact]
-    public async Task DebeRechazar_CuandoNombreEstaVacio()
+    public async Task CrearPlantillaSemanal_EsInvalido_CuandoNombreEstaVacio()
     {
         var comando = new CrearPlantillaSemanal(Guid.NewGuid(), string.Empty, 2);
 
@@ -41,10 +41,10 @@ public class CrearPlantillaSemanalValidatorTests
         resultado.Errors.Should().Contain(e => e.PropertyName == nameof(CrearPlantillaSemanal.Nombre));
     }
 
-    // El rango de Semanas NO se valida aqui (dos fuentes del mismo literal): es invariante de
-    // dominio y vive en PlantillaSemanalCreada.Crear. El validator solo cubre forma.
+    // El rango de Semanas es invariante de dominio y vive en PlantillaSemanalCreada.Crear: el
+    // validator solo cubre forma.
     [Fact]
-    public async Task DebeSerValido_CuandoSemanasEstaFueraDeRango()
+    public async Task CrearPlantillaSemanal_EsValido_CuandoSemanasEstaFueraDeRango()
     {
         var comando = new CrearPlantillaSemanal(Guid.NewGuid(), "Semana Cocina", 0);
 

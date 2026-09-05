@@ -132,7 +132,6 @@ public class AliasEventosProgramacionTests
         AliasDe<SedeDeFranjaRetirada>(options).Should().Be("sede_de_franja_retirada");
     }
 
-    // Issue #620
     [Fact]
     public void PlantillaSemanalCreada_TieneAliasPlantillaSemanalCreada()
     {

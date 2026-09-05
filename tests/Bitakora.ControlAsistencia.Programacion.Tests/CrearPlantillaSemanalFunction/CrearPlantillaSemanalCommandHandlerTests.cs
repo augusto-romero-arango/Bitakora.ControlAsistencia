@@ -1,5 +1,3 @@
-// Issue #620: implementar comando CrearPlantillaSemanal con aggregate, handler y endpoint HTTP
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
@@ -17,7 +15,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
     protected override ICommandHandlerAsync<CrearPlantillaSemanal> Handler =>
         new CrearPlantillaSemanalCommandHandler(EventStore);
 
-    // CA-3: camino feliz -- la plantilla nace vacia, solo Id queda establecido.
     [Fact]
     public async Task CrearPlantillaSemanal_EmitePlantillaSemanalCreadaYEstableceId_CuandoPlantillaNoExiste()
     {
@@ -31,7 +28,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-2 (borde inclusive) sobre el mismo canal del handler: Semanas = 6 tambien crea.
     [Fact]
     public async Task CrearPlantillaSemanal_EmitePlantillaSemanalCreada_CuandoSemanasEsElMaximoPermitido()
     {
@@ -46,7 +42,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-4: PlantillaId ya tiene stream -> 409, sin escribir nada.
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaInvalidOperationException_CuandoPlantillaYaExiste()
     {
@@ -63,8 +58,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-4 (ultimo enunciado): un nombre ya usado por OTRA plantilla no se rechaza -- la
-    // unicidad de nombre llega en #626, con la vista que hoy no existe.
+    // Un nombre repetido NO se rechaza todavia: la unicidad exige la vista de plantillas, que aun
+    // no existe.
     [Fact]
     public async Task CrearPlantillaSemanal_EmitePlantillaSemanalCreada_CuandoNombreYaFueUsadoPorOtraPlantilla()
     {

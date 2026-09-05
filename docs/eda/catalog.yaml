@@ -396,6 +396,12 @@ aggregates:
     description: "Registra la intencion de programar un turno para un empleado en N dias. Identidad por invocacion (Guid)."
     used_in: ["#10"]
 
+  - name: PlantillaSemanalTurnos
+    context: Programacion
+    description: "Molde reutilizable de 1..N semanas lunes-domingo; cada dia referencia un TurnoId del catalogo, nunca una copia (CA-ADR-0034). Nace vacia y se disena por pasos."
+    identity: "PlantillaId (Guid canonico \"D\", generado por el cliente)"
+    used_in: ["#620"]
+
   - name: ControlDiarioAggregateRoot
     context: ControlHoras
     description: "Dia de trabajo de un empleado. Identidad: EmpleadoId + Fecha. Recibe programaciones y marcaciones, depura contra franjas, calcula desglose de horas, emite DiaCalculado."

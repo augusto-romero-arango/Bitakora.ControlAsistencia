@@ -1,8 +1,3 @@
-// Issue #620: tests del endpoint HTTP POST /programacion/plantillas-semanales.
-// Primer endpoint del BC con el codigo de exito correcto: 201 Created, nunca 202 Accepted (regla
-// del experto, 2026-09-05 -- Accepted solo cuando lo emitido fue un mensaje, Created si el objeto
-// quedo persistido en el mismo POST).
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
@@ -29,10 +24,8 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-5 (ultimo enunciado): la ruta declarada es exactamente esta, con verbo post -- congelada
-    // por reflexion (mismo criterio que AgregarFranjaFunction.FunctionEndpointTests), porque
-    // ningun otro test local ejercita el HttpTriggerAttribute (Run() se llama directo, sin pasar
-    // por el enrutador del host).
+    // Ruta y verbo congelados por reflexion: Run() se invoca directo en los demas tests, sin pasar
+    // por el enrutador del host, asi que nada mas ejercita el HttpTriggerAttribute.
     [Fact]
     public void CrearPlantillaSemanal_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -56,8 +49,7 @@ public class FunctionEndpointTests
         creado.Location.Should().Be($"/api/programacion/plantillas-semanales/{comando.PlantillaId}");
     }
 
-    // Ningun camino de este endpoint devuelve AcceptedResult (CA-5): el handler persiste y la
-    // transaccion confirma antes de responder.
+    // Guarda contra alinear este endpoint con los del BC que aun devuelven 202 (ver #640).
     [Fact]
     public async Task CrearPlantillaSemanal_NuncaRetornaAcceptedResult_CuandoComandoEsValido()
     {
@@ -99,13 +91,15 @@ public class FunctionEndpointTests
     public async Task CrearPlantillaSemanal_Retorna400ConMensajes_CuandoElFactoryRechazaLosDatos()
     {
         var validator = new FakeRequestValidator<CrearPlantillaSemanal>(ComandoValido());
-        var erroresDeNegocio = new ArgumentException[] { new("El numero de semanas debe estar entre 1 y 6") };
+        var erroresDeNegocio = new ArgumentException[] { new("nombre vacio"), new("semanas fuera de rango") };
         var router = new FakeCommandRouter(erroresAggregateException: erroresDeNegocio);
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        var badRequest = result.Should().BeOfType<BadRequestObjectResult>().Which;
+        badRequest.Value.Should().BeAssignableTo<IEnumerable<string>>()
+            .Which.Should().BeEquivalentTo(erroresDeNegocio.Select(e => e.Message));
     }
 }
 

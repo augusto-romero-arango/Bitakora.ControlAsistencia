@@ -1,6 +1,3 @@
-// Issue #620: verifica que PlantillaSemanalCreada sobrevive un roundtrip de serializacion STJ --
-// requerido por Marten (MEF-ADR-0012).
-
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -46,9 +43,8 @@ public class PlantillaSemanalCreadaSerializacionTests
         deserializado!.Semanas.Should().Be(PlantillaSemanalCreada.MaximoSemanas);
     }
 
-    // Anti-regresion: sin el registro en ConfiguracionSerializacionProgramacion.ConfigurarResolver,
-    // STJ no encuentra un constructor publico ni parameterless para reconstruir el tipo -- CA-1
-    // se apoya en que este registro exista.
+    // Guarda del registro en ConfigurarResolver: sin el, STJ no encuentra constructor publico ni
+    // parameterless. Si este test dejara de lanzar, el resolver ya no seria necesario -- no lo es.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDePlantillaSemanalCreada()
     {

@@ -3,9 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #620: evento que registra la creacion de una plantilla semanal de turnos vacia (segundo
-// nivel de composicion sobre el Turno, CA-ADR-0034). Mismo patron que TurnoCreado/TurnoRetirado:
-// sealed class con ctor privado + factory que acumula errores, ctor vacio privado para Marten/JSON.
+// Molde reutilizable de 1..N semanas lunes-domingo sobre el catalogo de turnos (CA-ADR-0034):
+// nace vacia, sin dias -- los dias llegan por eventos de diseno posteriores.
 public sealed partial class PlantillaSemanalCreada
 {
     public const int MaximoSemanas = 6;
@@ -21,15 +20,15 @@ public sealed partial class PlantillaSemanalCreada
         Semanas = semanas;
     }
 
-    // Constructor vacio privado para Marten/JSON (mismo patron que TurnoCreado).
+    // Constructor vacio privado para Marten/JSON: sin el, ConfigurarSerializacion no tiene como
+    // instanciar el tipo al deserializar.
     private PlantillaSemanalCreada()
     {
         Nombre = string.Empty;
     }
 
-    // El evento nunca se construye en estado invalido: debe acumular TODOS los errores antes de
-    // lanzar AggregateException (mismo patron que TurnoCreado.Crear). El tope de 6 semanas es
-    // decision del experto (2026-09-05).
+    // Acumula TODOS los errores antes de lanzar -- sin fail-fast: el 400 del endpoint devuelve la
+    // lista completa de invariantes violadas.
     public static PlantillaSemanalCreada Crear(Guid plantillaId, string nombre, int semanas)
     {
         var errores = new List<Exception>();
@@ -46,7 +45,6 @@ public sealed partial class PlantillaSemanalCreada
         return new PlantillaSemanalCreada(plantillaId, nombre, semanas);
     }
 
-    // Mapping de serializacion para STJ/Marten -- mismo patron que TurnoRetirado.ConfigurarSerializacion.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(PlantillaSemanalCreada)

@@ -5,9 +5,8 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.CrearPlantillaSemanalFunction;
 
-// Issue #620: primer endpoint del BC con el codigo de exito correcto (201 Created). El read model
-// que expone GET aun no existe (#625) -- este smoke solo verifica el efecto secundario real:
-// mt_events en el schema programacion.
+// El GET que expone la plantilla aun no existe: mt_events es la unica ventana black-box al efecto
+// secundario del handler.
 public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string SchemaProgramacion = "programacion";

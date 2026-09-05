@@ -1,5 +1,3 @@
-// Issue #620: tests del factory PlantillaSemanalCreada.Crear(Guid, string, int)
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -20,7 +18,6 @@ public class PlantillaSemanalCreadaTests
         evento.Semanas.Should().Be(2);
     }
 
-    // Bordes inclusive (CA-2): Semanas 1 y 6 son validos.
     [Fact]
     public void Crear_RetornaPlantillaSemanalCreada_CuandoSemanasEsUno()
     {
@@ -77,8 +74,6 @@ public class PlantillaSemanalCreadaTests
             .Should().ContainSingle(ae => ae.Message.Contains(PlantillaSemanalCreada.Mensajes.SemanasFueraDeRango));
     }
 
-    // CA-2: nombre en blanco Y semanas fuera de rango acumulan AMBOS mensajes en una sola excepcion
-    // (sin fail-fast, mismo patron que TurnoCreado.Crear).
     [Fact]
     public void Crear_AcumulaAmbosMensajes_CuandoNombreEsEnBlancoYSemanasEsCero()
     {

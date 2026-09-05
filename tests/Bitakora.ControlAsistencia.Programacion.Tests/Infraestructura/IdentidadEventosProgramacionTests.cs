@@ -13,8 +13,6 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    // Issue #620: PlantillaSemanalCreada se suma a la lista -- primer evento persistido del segundo
-    // nivel de composicion (CA-ADR-0034), y no se aplica a ningun AggregateRoot existente.
     [Fact]
     public void TiposPersistidos_ContieneExactamenteLosTreceEventosPersistidosDeProgramacion()
     {
