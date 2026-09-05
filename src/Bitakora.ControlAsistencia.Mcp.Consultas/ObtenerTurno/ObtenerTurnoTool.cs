@@ -53,11 +53,11 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
 
     private static string Compactar(FranjaFicha franja)
     {
-        // Una franja siempre inicia en su propio dia (offset 0); solo sus hijas (descansos/extras)
-        // pueden nacer al dia siguiente. Formato HH:mm[+N]-HH:mm[+N] replicado del eco de las
-        // tools de Comandos (#609-#611): mismo texto en ambos servidores, cada uno con su propio
-        // tipo (MEF-ADR-0047 decision 3).
-        var texto = new StringBuilder(Rango(franja.HoraInicio, franja.HoraFin, 0, franja.DiaOffsetFin));
+        // FranjaFicha no trae DiaOffsetInicio: una franja nace siempre en su propio dia y solo sus
+        // hijas pueden caer al siguiente. El formato HH:mm[+N]-HH:mm[+N] se replica como texto, no
+        // como tipo compartido, del eco de las tools de Comandos (MEF-ADR-0047 decision 3).
+        var texto = new StringBuilder(
+            Rango(franja.HoraInicio, franja.HoraFin, diaOffsetInicio: 0, franja.DiaOffsetFin));
 
         foreach (var descanso in franja.Descansos)
             texto.Append($", descanso {Rango(descanso.HoraInicio, descanso.HoraFin, descanso.DiaOffsetInicio, descanso.DiaOffsetFin)}");

@@ -21,8 +21,10 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
         var textoListado = listado.Content.OfType<TextContentBlock>().Single().Text;
         using var jsonListado = JsonDocument.Parse(textoListado);
 
-        var primerId = jsonListado.RootElement.GetProperty("turnos")
-            .EnumerateArray().First().GetProperty("id").GetString();
+        var turnos = jsonListado.RootElement.GetProperty("turnos").EnumerateArray().ToList();
+        turnos.Should().NotBeEmpty("dev tiene turnos reales cargados");
+
+        var primerId = turnos[0].GetProperty("id").GetString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "obtener_turno", new Dictionary<string, object?> { ["id"] = primerId }, cancellationToken: ct);
