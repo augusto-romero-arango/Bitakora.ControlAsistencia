@@ -243,6 +243,26 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 
+    // Issue #624 CA-5: segunda proyeccion concreta de Programacion (N1,
+    // SingleStreamProjection<CuadroSemanalTurnos, string> sobre el stream de la plantilla
+    // semanal). Complementa ConfigurarProgramacion_NoRegistraNingunaProyeccionInline: aquella
+    // prueba que NADA quedo Inline -- una lista vacia la pasaria --, esta que la proyeccion
+    // CONCRETA se registro con lifecycle Async (MEF-ADR-0034 seccion 3).
+    //
+    // Sin el equivalente de MaterializaFichaTurnoConRevisionNumerica/
+    // MaterializaFichaTurnoSobreLaTablaQueConsultaElWriteSide para CuadroSemanalTurnos: el par de
+    // compatibilidad write-side/read-side (mt_version bigint, Schema.For en ComposicionServicios)
+    // llega en #625, que es donde el Function App empieza a leer la tabla (precedente #587 ->
+    // #590, mismo patron que UbicacionDispositivo dejo pendiente hasta el issue #467).
+    [Fact]
+    public void ConfigurarProgramacion_RegistraCuadroSemanalTurnosProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("CuadroSemanalTurnos");
+    }
+
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
 
     [Fact]

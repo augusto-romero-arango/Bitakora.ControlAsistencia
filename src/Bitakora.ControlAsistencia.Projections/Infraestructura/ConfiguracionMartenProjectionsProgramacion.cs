@@ -110,6 +110,13 @@ public static class ConfiguracionMartenProjectionsProgramacion
                 // Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3). Registrarla
                 // aqui es tambien lo que hace que Marten fije mt_version bigint sobre FichaTurno.
                 opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async);
+
+                // Issue #624: segunda proyeccion concreta del dominio (N1,
+                // SingleStreamProjection<CuadroSemanalTurnos, string> sobre el stream de la
+                // plantilla semanal). Async es el lifecycle canonico del worker (MEF-ADR-0034
+                // seccion 3); registrarla aqui es tambien lo que hace que Marten fije mt_version
+                // bigint sobre CuadroSemanalTurnos.
+                opts.Projections.Add<CuadroSemanalTurnosProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
