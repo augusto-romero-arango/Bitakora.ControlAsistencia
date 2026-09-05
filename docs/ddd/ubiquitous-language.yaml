@@ -4,7 +4,48 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-09-02 (sesion planner, servidor MCP de Comandos: nace la entrada
+# Ultima actualizacion: 2026-09-04 (sesion planner, Plantilla semanal de turnos: se REABRE la decision
+#   del 2026-08-29 ("mallas/rotaciones no son dominio"): el experto quiere persistir, nombrar y reutilizar
+#   la composicion de una semana. Decisiones: nombre PlantillaTurnos -> PlantillaSemanalTurnos (los ciclos
+#   4x2/2x2 quedan fuera y serian otro aggregate; el generico queda como paraguas); dias por
+#   (semana, diaSemana) con REFERENCIA a TurnoId (rechazado el snapshot sincronizado por "evento gordo":
+#   replica local, MEF-ADR-0046); descanso es un turno, no una omision; dia = slot atomico (PUT/DELETE);
+#   vista CuadroSemanalTurnos N2 con grouper, lleva nombre + ToString del turno; "Ficha" NO es patron de
+#   naming. La asignacion de plantilla a colaborador queda fuera del foco. Nacen Plantilla de turnos,
+#   Plantilla semanal de turnos, Cuadro semanal de turnos; se enmiendan Turno, Colaborador (acepcion de
+#   "plantilla") y el actor Programador de turnos. Issues #620-#629. Se escribe CA-ADR-0034.)
+# Actualizacion previa: 2026-09-04 (sesion planner, refinar la cadena del turno componible #598-#612
+#   en orden de ejecucion; nace #613 al partir #599. Decisiones del experto: la jornada maxima es 24 h
+#   (franja ordinaria <= 1440 min INCLUSIVE, 08:00-08:00+1 valido); los offsets de las hijas NO son
+#   entrada -- se infieren relativos a la franja al construir el VO, y adentro todo queda con offset;
+#   esDescanso viaja como bool plano en TurnoCreado (dev solo tiene datos [TEST]: sin bool?, sin V2,
+#   sin purga). Nacen Turno incompleto y Diseno de turno; se enmiendan Turno, Franja Ordinaria,
+#   Franja de Descanso, Franja de Extra, Offset de dia y FichaTurno. Se escribe CA-ADR-0033.)
+# Actualizacion previa: 2026-09-03 (sesion planner, refinar #587: se parte en #587 -- materializar
+#   el Directorio de colaboradores, vista + proyeccion + indices en el worker, sin HTTP -- y #590 --
+#   QUERY colaboradores/directorio, endpoint + registro write-side + smoke --, mismo corte que la ficha
+#   #356 -> #373. #588 y #589 pasan a depender de #590. Tocados: Directorio de colaboradores
+#   (Id = identificacion completa, sin campo aparte; NumeroDocumento con la limpieza de
+#   Identificacion.Crear; enie colapsa; take se clampea). Sin terminos nuevos.)
+# Actualizacion previa: 2026-09-03 (sesion planner, MCP para solicitar programacion: intencion
+#   definitiva del experto en dos pasos -- (1) ENCONTRAR en Consultas (grupos con listar_colaboradores;
+#   personas concretas con la nueva buscar_colaboradores sobre el Directorio de colaboradores) y (2)
+#   PROGRAMAR en Comandos (solicitar_programacion_turno: ventana <= 31 dias, turno por nombre, sede de
+#   programacion explicita y obligatoria, lista de identificaciones completas; N POST, uno por
+#   colaborador; mejor esfuerzo a nivel FECHA -- cada colaborador recibe solo los dias de la ventana
+#   que su vinculacion cubre; omitidos como conteo, sin reportar ausencias). Nace "Directorio de
+#   colaboradores" (vista propia para buscar por nombre parcial sin acentos/mayusculas y por numero
+#   de documento sin tipo, con lista de identificaciones para re-verificar en una llamada; la ficha
+#   canonica y su QUERY NO se tocan). Se rechaza la ruta colaboradores/fichas/busqueda ("busqueda" es
+#   accion, no recurso; canon REST + naming.md: la ruta nombra la vista) a favor de
+#   colaboradores/directorio. Se acuna "Sede de programacion" (contraste con Sede del colaborador =
+#   sede de trabajo). Ventana de trabajo ampliada (tope 31 dias, forma desde/hasta). Descartados:
+#   lote como concepto del dominio, parametro fechas[] en la tool, tope de colaboradores por lote,
+#   resolver terna/sede desde el agente, prefijos y tolerancia a tipeo en nombres. Nacen #587
+#   (directorio, projection), #588 (buscar_colaboradores, Consultas), #589 (solicitar_programacion_turno,
+#   Comandos; detras de #574). Fuera del corte: cancelar_programacion, crear_turno, retirar_turno.
+#   Nuevos: Directorio de colaboradores, Sede de programacion. Tocados: Ventana de trabajo.)
+# Actualizacion previa: 2026-09-02 (sesion planner, servidor MCP de Comandos: nace la entrada
 #   "Servidor MCP de Comandos" (par de escritura de Consultas, Bitakora.ControlAsistencia.Mcp.Comandos,
 #   segundo Function App + segunda API APIM + segundo Resource Indicator: servidor == credencial,
 #   MEF-ADR-0047). Decisiones del experto: fecha_inicio OBLIGATORIA en registrar_colaborador (hecho
@@ -258,12 +299,13 @@ terms:
 
   - name: Turno
     definition: >
-      Plantilla reutilizable del plan del dia: de trabajo (compuesta por franjas ordinarias,
+      Plan del dia reutilizable -- el atomo que compone la Plantilla semanal de turnos --: de
+      trabajo (compuesta por franjas ordinarias,
       cada una con posibles descansos y extras contenidos) o de descanso (sin franjas,
       creada exclusivamente por el factory CrearDescanso). Se almacena en el catalogo con
       un Id (Guid generado por el cliente) y un nombre. Concepto operativo.
     context: Programacion
-    date_updated: 2026-08-24
+    date_updated: 2026-09-04
     note: >
       'Jornada' se reserva para el concepto juridico (duraciones y limites legales).
       Ampliacion 2026-08-17 (sesion planner, issue #423): el descanso programado es una
@@ -274,6 +316,131 @@ terms:
       el MISMO comando CrearTurno (POST programacion/turnos, paso 1 de MEF-ADR-0043: mismo
       evento TurnoCreado -> mismo create); la deliberacion se declara con la marca EsDescanso,
       que vive SOLO en el DTO de frontera -- nunca en el evento ni en el aggregate.
+      REVERSION PARCIAL 2026-09-04 (sesion planner, CA-ADR-0033, #599): el turno pasa a ser
+      COMPONIBLE y EDITABLE SIEMPRE. Nace vacio (sin franjas) y se le agregan franjas por pasos
+      (Diseno de turno); la biunivocidad "cero franjas = descanso" muere: un turno vacio puede ser
+      un descanso o un Turno incompleto. La marca EsDescanso entra al evento TurnoCreado (bool
+      plano; los streams legados sin la clave leen false) y al aggregate (_esDescanso). Un turno
+      es PROGRAMABLE cuando esta completo: >= 1 franja ordinaria, o declarado descanso. Sin
+      estados ni publicacion. Sigue sin comandos Mover*/Modificar*: corregir = quitar + agregar.
+      Enmienda 2026-09-04 (CA-ADR-0034): la definicion deja de decir "plantilla" -- esa palabra
+      nombra ahora el nivel 2 (Plantilla de turnos). El turno es el PLAN DEL DIA; el nombre del
+      turno no es editable (no hay RenombrarTurno), su ToString() si cambia con el diseno.
+
+  - name: Turno incompleto
+    definition: >
+      Turno del catalogo que existe pero todavia no es programable: no tiene franjas ordinarias
+      y no fue declarado descanso. Es el estado natural de un turno recien creado por pasos
+      (crear vacio -> agregar franjas) y el de un turno al que se le quito su ultima franja.
+      Se edita libremente; SolicitarProgramacionTurno lo rechaza con 409 (TurnoIncompleto) hasta
+      que tenga al menos una franja. En la ficha se ve como completo = false ("Sin franjas"); en
+      las tools de consulta como enConstruccion.
+    context: Programacion
+    date_added: 2026-09-04
+    rejected_synonyms: [turno vacio, turno borrador, turno en edicion]
+    rejection_reason: >
+      "Vacio" tambien describe al descanso (cero franjas) y confunde; "borrador"/"en edicion"
+      sugieren un estado del ciclo de vida que el turno NO tiene (editable siempre, sin
+      publicacion). "Incompleto" nombra exactamente lo que falta: franjas.
+    note: "Nacido en #599 (modelo) y #613 (guarda de solicitud). CA-ADR-0033."
+
+  - name: Diseno de turno
+    definition: >
+      Componer un turno del catalogo por pasos, cada uno un comando propio sobre el aggregate
+      CatalogoTurnos: agregar franja ordinaria (opcionalmente con sede prearmada inline),
+      agregar descanso o extra a una franja, quitar franja (arrastra sus hijas y sede), quitar
+      descanso o extra, asignar o retirar la sede prearmada de una franja. Las franjas se
+      identifican por su hora de inicio (unica por la invariante de no-solape); las hijas por
+      franja + hora de inicio. Corregir = quitar + agregar. Aplica igual a un turno incompleto
+      que a uno ya programable (las solicitudes hechas conservan su snapshot). Cada paso emite un
+      evento de diseno que lleva la franja COMPLETA (la resultante; la removida en FranjaQuitada)
+      para que Apply y la proyeccion reemplacen sin factories.
+    context: Programacion
+    date_added: 2026-09-04
+    note: >
+      Contratos HTTP: POST programacion/turnos/{id}:agregar-franja | :quitar-franja |
+      :agregar-subfranja | :quitar-subfranja | :asignar-sede-franja (paso 4 MEF-ADR-0043; la
+      hora HH:mm no es URL-safe, por eso no hay DELETE/PUT por sub-recurso). Issues #602-#606;
+      tools MCP #608-#611; ficha #607. CA-ADR-0033.
+
+  - name: Plantilla de turnos
+    definition: >
+      Termino PARAGUAS: molde reutilizable, con nombre y en catalogo, que compone varios dias a partir
+      de turnos del catalogo -- el segundo nivel de composicion sobre el Turno (plan del dia). Tiene
+      modalidades: la semanal (construida, ver Plantilla semanal de turnos) y, a futuro y solo si un
+      cliente la necesita, la ciclica (rotaciones 4x2, 2x2, 6x1 con descanso que corre: dias por
+      posicion, no por dia de la semana; seria OTRO aggregate). Ningun tipo de codigo se llama
+      PlantillaTurnos a secas: el generico se reserva para la familia (anti-squatting).
+    context: Programacion
+    date_added: 2026-09-04
+    rejected_synonyms: [Horario, Esquema de turnos, Semana tipo, Malla de turnos, Sabana de turnos, Patron de turnos]
+    rejection_reason: >
+      Horario roza con HorarioResumido (las horas de UN turno). Semana tipo muere con mas de una
+      semana. Malla/Sabana nombran la grilla ya ASIGNADA (colaboradores x dias), no el molde. Patron
+      significa empleador en derecho laboral colombiano. El experto eligio "plantilla" en su acepcion
+      de molde reutilizable: NO contradice el rechazo de "Plantilla" como sinonimo de Colaborador
+      (ahi la acepcion rechazada era "planta de personal").
+    note: >
+      REVIERTE PARCIALMENTE la decision del 2026-08-29 ("mallas/rotaciones NO son conceptos del
+      dominio sino recetas del asistente"): lo que separa la receta del concepto es persistir +
+      nombrar + reutilizar, y eso es lo que el experto pidio. La Ventana de trabajo sigue siendo
+      efimera: la plantilla no tiene fechas, tiene dias de la semana. CA-ADR-0034.
+
+  - name: Plantilla semanal de turnos
+    definition: >
+      Plantilla de turnos en modalidad semanal: 1..N semanas, siempre de lunes a domingo, donde cada
+      dia (identificado por semana + dia de la semana) REFERENCIA un turno del catalogo por TurnoId.
+      Nunca copia el turno: editar el turno se refleja en las asignaciones futuras; el snapshot ocurre
+      al asignar (fuera de esta cadena). El descanso es un turno mas, no una omision: un dia sin turno
+      la deja INCOMPLETA (existe, se ve, se edita, no es usable -- 409, espejo de Turno incompleto),
+      igual que si un turno referenciado se retira del catalogo (el retiro no se bloquea ni cascadea).
+      Completa = 7xN dias con turno vigente (derivada, sin evento). Nace vacia, se disena por pasos,
+      editable siempre, sin estados (espejo de CA-ADR-0033); el dia es un slot atomico: corregir =
+      reemplazar con PUT, no quitar + agregar. Semanas fijo al crear (cambiarlo = retirar + crear).
+      Nombre unico best-effort (espejo de #497). Retiro espejo de #500/#501.
+    context: Programacion
+    date_added: 2026-09-04
+    rejected_synonyms: [PlantillaTurnos (sin modalidad), Ventana de trabajo, Periodo de programacion, turno inline sin nombre]
+    rejection_reason: >
+      El alias del evento persistido es el nombre simple de la clase y una futura PlantillaCiclica
+      viviria en el mismo store: sin "Semanal" colisionarian y renombrar despues exige el protocolo
+      de MEF-ADR-0036. No es una Ventana de trabajo (esa tiene fechas y es efimera). El turno
+      descrito inline sin nombre se rechazo: duplicaria la superficie de diseno del turno o daria
+      turnos "pobres"; la friccion de nombrar la resuelve el asistente creando el turno en el
+      catalogo (tool crear_plantilla_semanal, #627).
+    note: >
+      Aggregate PlantillaSemanalTurnos. Eventos: PlantillaSemanalCreada, DiaDePlantillaSemanalAsignado,
+      DiaDePlantillaSemanalQuitado, PlantillaSemanalRetirada. Contratos: POST programacion/
+      plantillas-semanales (paso 1); PUT .../{id}/dias/{semana}/{dia} (paso 2, slot atomico);
+      DELETE .../dias/{semana}/{dia} y DELETE .../{id} (paso 3). Issues #620-#623 (aggregate y
+      comandos), #626 (nombre unico), #627-#628 (tools de Comandos). CA-ADR-0034.
+
+  - name: Cuadro semanal de turnos
+    definition: >
+      Vista read-side de una Plantilla semanal de turnos, para que el Programador (front o asistente)
+      sepa si la plantilla que necesita ya existe, elija cual usar y vea de un vistazo que turno toca
+      cada dia y si esta completa. Por dia lleva TurnoId, NombreTurno y Descripcion (el ToString()
+      del turno, lo que FichaTurno ya expone) y la marca de turno retirado; a nivel plantilla Nombre,
+      Semanas y Completa. NO lleva las franjas: eso sigue siendo obtener_turno. "Cuadro de turnos" es
+      el termino real en salud y vigilancia para la grilla dias x turnos; aqui es el cuadro de una
+      plantilla, sin personas.
+    context: Programacion
+    date_added: 2026-09-04
+    rejected_synonyms: [FichaPlantillaSemanal, Vista de plantilla, Resumen de plantilla]
+    rejection_reason: >
+      "Ficha" NO es doctrina de naming (experto, 2026-09-04): nacio para resolver colaboradores y
+      se estaba volviendo un sufijo comodin equivalente a "View", que MEF-ADR-0041 proscribe.
+      Tampoco se reemplaza por otro comodin (Resumen*, Detalle*). Cada vista se nombra desde el
+      actor que la lee; las Ficha* existentes se quedan.
+    note: >
+      Codigo CuadroSemanalTurnos (simetrico con el aggregate PlantillaSemanalTurnos: el molde y su
+      cuadro). Receta N2 (MultiStreamProjection) con grouper custom: los eventos de diseno de turno y
+      TurnoRetirado traen TurnoId, no PlantillaId, y el grouper consulta la propia vista para abrirlos
+      en las plantillas que lo contienen; NombreTurno/Descripcion se leen de FichaTurno (mismo store).
+      Functions ObtenerCuadroSemanalTurnos / ListarCuadrosSemanalesTurnos sobre GET programacion/
+      plantillas-semanales[/{id}] (misma ruta del recurso leida desde el read-side, criterio de
+      FichaTurno). Sin filtro server-side; lista tambien las incompletas. Issues #624 (vista), #625
+      (GET), #629 (tools de Consultas). CA-ADR-0034.
 
   - name: Turno Diario
     definition: >
@@ -289,7 +456,14 @@ terms:
   - name: Franja Ordinaria
     definition: Segmento continuo de trabajo dentro de un turno. Es la franja principal que recibe marcaciones. Puede contener franjas de descanso y/o franjas de extra.
     context: Programacion
-    note: "Solo las ordinarias pueden contener otras franjas. Una ordinaria NO puede contener otra ordinaria."
+    date_updated: 2026-09-04
+    note: >
+      Solo las ordinarias pueden contener otras franjas. Una ordinaria NO puede contener otra
+      ordinaria. Ampliacion 2026-09-04 (#598, decision del experto): dura mas de 0 y COMO MAXIMO
+      24 h inclusive (la jornada maxima es 24 h; esquemas 24x24 de vigilancia) -- 08:00-08:00+1
+      es valido y solo expresable con diaOffsetFin explicito. Su identidad dentro del turno es la
+      hora de inicio (Diseno de turno). Inmutable: agregar/quitar hijas o cambiar sede produce una
+      franja nueva (ConDescanso/ConExtra/SinDescanso/SinExtra/ConSede).
     rejected_synonyms: [tramo, bloque, segmento]
 
   - name: Franja de Descanso
@@ -299,18 +473,37 @@ terms:
       No requiere marcaciones: se asume que se toma como programado. Si el cliente
       quiere control de marcaciones durante descansos, debe crear franjas ordinarias separadas.
     context: Programacion
-    note: "No modela derechos laborales (lactancia) ni actividades (pausas activas, reuniones). Solo pausas operativas del horario."
-    date_updated: 2026-04-17
+    note: >
+      No modela derechos laborales (lactancia) ni actividades (pausas activas, reuniones). Solo
+      pausas operativas del horario. Ampliacion 2026-09-04 (#598/#600/#603/#605): duracion
+      positiva obligatoria; sus offsets de dia NO son entrada -- se infieren relativos a la franja
+      contenedora al construirla (y quedan persistidos); se agrega y se quita por pasos
+      identificada por su hora de inicio dentro de la franja.
+    date_updated: 2026-09-04
 
   - name: Franja de Extra
     definition: Horas extras programadas dentro de una franja ordinaria. Representan un compromiso del empleado. Es hoja — no contiene otras franjas.
     context: Programacion
-    note: "Las extras NO programadas (el jefe pidio quedarse) se resuelven en ControlHoras, no en Programacion."
+    date_updated: 2026-09-04
+    note: >
+      Las extras NO programadas (el jefe pidio quedarse) se resuelven en ControlHoras, no en
+      Programacion. Ampliacion 2026-09-04: misma forma e invariantes que la Franja de Descanso
+      (duracion positiva, offsets inferidos, agregar/quitar por pasos por hora de inicio); solo
+      difiere la lista que la contiene -- por eso una sola tool/comando con discriminador tipo.
 
   - name: Offset de dia
     definition: "Indicador relativo que marca si una hora pertenece al mismo dia (+0, implicito) o al dia siguiente (+1, explicito) respecto al dia de asignacion del turno. Se usa para representar turnos que cruzan medianoche."
     context: Programacion
-    note: "El factory del evento infiere +1 cuando fin < inicio en la tupla del comando."
+    date_updated: 2026-09-04
+    note: >
+      Ampliacion 2026-09-04 (#600/#601, decision del experto, reemplaza la "decision C"): en la
+      ORDINARIA, diaOffsetFin se infiere (+1 cuando fin < inicio) y puede venir explicito -- unico
+      caso que lo necesita: la franja de 24 h exactas. En las HIJAS (descanso/extra) los offsets
+      NUNCA son entrada: se infieren relativos a la franja contenedora (inicio < inicio de la
+      franja => dia siguiente; fin < inicio de la hija => cruza) -- con la franja acotada a 24 h
+      cada HH:mm tiene un unico dia posible, asi que un offset explicito solo podria coincidir o
+      violar contencion. Adentro todo queda con offset (SubFranja lo persiste; ficha y ControlHoras
+      lo reciben). Notacion unificada en tools: HH:mm[+N]-HH:mm[+N] (02:00+1-02:30+1).
 
   - name: Programacion de turnos
     definition: Asignacion de turnos a empleados para periodos especificos.
@@ -359,7 +552,15 @@ terms:
       muestra lo asignable; la auditoria vive en el event store.
     context: Programacion
     date_added: 2026-08-29
-    note: "Nacida en #496; la invariante de nombre unico (#497, trim + case-insensitive, acentos significativos) se verifica best-effort contra esta vista."
+    date_updated: 2026-09-04
+    note: >
+      Nacida en #496; la invariante de nombre unico (#497, trim + case-insensitive, acentos
+      significativos) se verifica best-effort contra esta vista. Ampliacion 2026-09-04 (#607): sigue
+      los 9 eventos de Diseno de turno (reemplaza la franja por hora de inicio) y gana Completo
+      (derivado de lectura: EsDescanso || franjas > 0). Lee EsDescanso del evento, ya no del conteo.
+      Franjas ordenadas por hora de inicio; turno incompleto = "Sin franjas". Sin filtro server-side
+      (?completo descartado): el cliente filtra. Lista tambien los incompletos (el resolutor por
+      nombre de las tools los necesita).
 
   - name: Retiro de turno
     definition: >
@@ -392,6 +593,64 @@ terms:
       tomado por FranjaTemporal (rango de horas intra-dia en Programacion.DomainEvents). Sin
       guardia de ventana en la solicitud: el enmarcado es responsabilidad del cliente.
     date_added: 2026-08-29
+    date_updated: 2026-09-03
+    note: >
+      Ampliacion 2026-09-03 (sesion planner, #589): en la tool solicitar_programacion_turno la
+      ventana es parametro explicito (desde/hasta) con TOPE de 31 dias -- "no es limitar, es
+      enmarcar": acota el periodo para mantener el control de colaboradores y dias. Se programan
+      TODOS los dias de la ventana recortados por la vigencia de cada colaborador (no existe
+      parametro fechas[]; "lunes a viernes" se compone con varias llamadas o sobreescribiendo
+      con el turno Descanso -- el ultimo gana). Sigue sin persistirse ni ser estado del servidor.
+
+  - name: Directorio de colaboradores
+    definition: >
+      Vista read-side del dominio Colaboradores (DirectorioColaborador, una entrada por
+      colaborador) hecha para ENCONTRAR a una persona concreta por como la nombran: por nombre o
+      parte del nombre sin acentos ni mayusculas ("juan bermudez" encuentra a Juan Pablo Bermudez;
+      "juan" a todos los Juanes; token completo, no prefijo), por identificacion completa
+      (CC-79879078) o solo por numero de documento (79879078; alfanumericos sin distinguir
+      mayusculas; una colision entre tipos devuelve varias entradas y se desambigua en la
+      conversacion). Las reglas lexicas se materializan AL PROYECTAR (TokensNombre,
+      NumeroDocumento normalizado) y el query compara valores ya normalizados. Acepta una lista de
+      identificaciones para re-verificar N colaboradores en una llamada (terna, sede de trabajo,
+      vigencia). No filtra por vigencia: la vigencia viaja y el consumidor decide. Endpoint
+      QUERY colaboradores/directorio; tool buscar_colaboradores en Consultas.
+    context: Colaboradores
+    rejected_synonyms: [busqueda de colaboradores (como recurso), colaboradores/fichas/busqueda, extender el QUERY de fichas con reglas lexicas]
+    rejection_reason: >
+      "busqueda" nombra una accion, no un recurso: el canon REST y naming.md fijan que la ruta
+      nombra la vista. Meter nombre/numero en el QUERY de fichas mezclaba reglas lexicas con la
+      ficha canonica (lente de GRUPOS: sede de trabajo + etiquetas + fecha de referencia), que
+      se conserva intacta. Distinta necesidad de lectura -> vista propia (MEF-ADR-0041).
+    date_added: 2026-09-03
+    date_updated: 2026-09-03
+    note: >
+      Nacido en #587. Refinamiento 2026-09-03: se parte en dos, mismo corte que la ficha
+      (#356 -> #373): #587 materializa la vista (DirectorioColaborador + proyeccion + indices en
+      el worker; sin HTTP) y #590 expone el QUERY colaboradores/directorio (endpoint, registro
+      write-side, smoke). Precisiones verificadas en codigo: el Id de la vista YA ES la
+      identificacion completa (ComputarStreamId = Identificacion.ToString(), "CC-79879078"), asi
+      que no existe campo Identificacion aparte; NumeroDocumento se normaliza con la MISMA
+      limpieza que Identificacion.Crear (solo [A-Za-z0-9], mayusculas -- "79.879.078" encuentra
+      79879078), no solo trim; la enie colapsa a n al tokenizar (Munoz = Muñoz), como en
+      Etiqueta. take fuera de rango se clampea (no 422), como el QUERY de fichas. Consumidores:
+      buscar_colaboradores (#588) y solicitar_programacion_turno (#589), ambos dependen de #590.
+      Fuera de alcance: prefijos, tolerancia a errores de tipeo.
+
+  - name: Sede de programacion
+    definition: >
+      Sede donde se REGISTRA la programacion de un turno (la SedeProgramada de la solicitud: Id =
+      codigo de la sede, Nombre y CentroDeCostos copiados de FichaSede). La fija el Programador de
+      forma explicita y obligatoria al solicitar la programacion via el asistente; no se deriva
+      del colaborador. Debe existir y estar activa. Distinta de la Sede del colaborador (sede de
+      trabajo, filtro para ENCONTRAR grupos): en la conversacion hay que desambiguar las dos.
+    context: Programacion
+    rejected_synonyms: [sede (a secas, en la tool), derivarla de la sede del colaborador cuando no se indica]
+    rejection_reason: >
+      Decision del experto (2026-09-03, #589): "debe fijarle al programador la sede donde se
+      registraran las programaciones". El default a la sede del colaborador se habia propuesto
+      y se revirtio: la intencion de programar siempre declara donde.
+    date_added: 2026-09-03
 
   - name: Servidor MCP de Consultas
     definition: >
@@ -599,7 +858,9 @@ terms:
     context: Colaboradores
     rejected_synonyms: [Empleado (concepto rico), Plantilla, Planta de personal, Nomina (conjunto), Maestro de colaboradores]
     rejection_reason: >
-      Empleado excluye contratistas. Plantilla es lexico de Espana/futbol, no laboral colombiano.
+      Empleado excluye contratistas. Plantilla es lexico de Espana/futbol, no laboral colombiano
+      (acepcion "planta de personal"; la acepcion "molde reutilizable" SI se adopto el 2026-09-04
+      para Plantilla de turnos -- no hay contradiccion).
       "Planta" en Colombia connota empleado permanente (excluiria contratistas). Nomina ya nombra
       al sistema externo downstream. "Maestro de X" crearia un canon de maestros ("maestro de todo").
     note: >
@@ -1117,6 +1378,7 @@ actors:
     definition: Persona responsable de garantizar la cobertura operativa de uno o mas sitios de trabajo.
     responsibilities:
       - Definir turnos con sus franjas (ordinarias, descansos, extras)
+      - Componer plantillas semanales de turnos (moldes reutilizables de 1..N semanas) a partir del catalogo (2026-09-04, CA-ADR-0034)
       - Asignar turnos a empleados para periodos especificos
       - Garantizar cobertura operativa del sitio
       - Cumplir limites legales de jornada laboral maxima y trabajo suplementario
@@ -1154,6 +1416,14 @@ actors:
     note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo. Pregunta 'como le llamamos en el dominio?': resuelta en #330 -- colaborador."
     interacts_with: []
     open_questions:
+  - question: "Asignacion de una Plantilla semanal de turnos a un colaborador: acotada (desde/hasta) o abierta (hasta nuevo aviso)? Debe el rango arrancar en lunes (409, alinear, o tolerar)? Se registra el hecho 'tiene la plantilla X' (aggregate propio) o solo se desdobla en solicitudes por fecha? El experto lo saco del foco de la sesion de construccion (2026-09-04)."
+    context: Programacion
+    date: 2026-09-04
+    priority: high
+  - question: "Modalidad ciclica de Plantilla de turnos (4x2, 2x2, 6x1 con descanso que corre): hay clientes que la necesiten? Seria otro aggregate con dias por posicion, anclado a una fecha al asignar."
+    context: Programacion
+    date: 2026-09-04
+    priority: low
       - "Que datos del colaborador nos importan para el control de asistencia?"
 
   - name: Administrador
