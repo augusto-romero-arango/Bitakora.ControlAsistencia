@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -75,6 +76,7 @@ public static class ComposicionServicios
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
+        services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
 
         // Registrar serializacion custom para tipos con constructores privados.
         // Issue #267: las tres columnas de metadata de evento que exige MEF-ADR-0034 seccion 7
