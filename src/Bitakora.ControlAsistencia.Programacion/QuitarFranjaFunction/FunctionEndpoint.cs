@@ -13,10 +13,34 @@ namespace Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("QuitarFranja")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/turnos/{id}:quitar-franja")]
         HttpRequest req,
         string id,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!Guid.TryParse(id, out var turnoId))
+            return new BadRequestObjectResult("El id del turno no es un Guid valido");
+
+        var (body, error) = await requestValidator.ValidarAsync<QuitarFranjaBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new QuitarFranja(turnoId, body!.Franja);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+
+        return new AcceptedResult();
+    }
 }

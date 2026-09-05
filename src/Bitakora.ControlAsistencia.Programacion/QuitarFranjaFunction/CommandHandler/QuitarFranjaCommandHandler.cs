@@ -12,6 +12,23 @@ public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFra
 
     public QuitarFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
 
-    public Task HandleAsync(QuitarFranja command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(QuitarFranja command, CancellationToken ct = default)
+    {
+        var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
+        if (catalogo is null)
+            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+
+        // El arm final vuelve ruidoso un miembro nuevo del enum: sin el, un rechazo sin mensaje
+        // mapeado saldria 202 como si la franja se hubiera quitado.
+        var mensajeDeRechazo = catalogo.QuitarFranja(command.Franja) switch
+        {
+            ResultadoQuitarFranja.Quitada => null,
+            ResultadoQuitarFranja.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoQuitarFranja.FranjaNoExiste => Mensajes.FranjaNoExiste,
+            var otro => throw new NotSupportedException($"Resultado de QuitarFranja no mapeado: {otro}")
+        };
+
+        if (mensajeDeRechazo is not null)
+            throw new InvalidOperationException(mensajeDeRechazo);
+    }
 }
