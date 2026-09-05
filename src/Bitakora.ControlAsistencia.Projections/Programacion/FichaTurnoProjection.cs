@@ -28,13 +28,18 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 /// </remarks>
 public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaTurno, string>
 {
+    // STUB (issue #607, fase roja): Completo queda con un placeholder fijo (false) en ambas
+    // ramas -- projection-implementer debe calcularlo (EsDescanso || Franjas.Count > 0) y, en la
+    // rama de cero franjas, leer turnoCreado.EsDescanso en vez del "true" fijo que sigue aqui
+    // (CA-1/CA-6: EsDescanso ya NO se deriva del conteo de franjas). No se toca esa logica desde
+    // este stage -- test-writer nunca implementa Create/Apply reales.
     public static FichaTurno Create(IEvent<TurnoCreado> e)
     {
         var turnoCreado = e.Data;
 
         // Cero franjas ordinarias es la variante descanso (TurnoCreado.CrearDescanso).
         if (turnoCreado.FranjasOrdinarias.Count == 0)
-            return new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso");
+            return new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso", Completo: false);
 
         // ToDetalle() es el DTO plano que el VO rico ya expone (Tell-don't-Ask, MEF-ADR-0012): sus
         // campos son privados, no se reabren aqui. FranjaProgramada.Descripcion ya es el texto que
@@ -51,8 +56,38 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             false,
             horarioResumido,
             detalles.Select(MapearFranja).ToList(),
-            descripcion);
+            descripcion,
+            Completo: false);
     }
+
+    // STUBS (issue #607, fase roja): los 8 Apply de los eventos de diseno por pasos (CA-ADR-0033)
+    // -- projection-implementer los completa reemplazando/agregando/quitando la FranjaFicha cuyo
+    // HoraInicio coincide con evento.Franja.ToDetalle().HoraInicio (o agregandola si no existe,
+    // MEF-ADR-0004: Apply no lanza) y recalculando HorarioResumido/Descripcion/Completo en un
+    // unico punto (Reconstruir), con las franjas ordenadas por HoraInicio.
+    public static FichaTurno Apply(FranjaAgregada e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(FranjaQuitada e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(DescansoAgregado e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(ExtraAgregado e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(DescansoQuitado e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(ExtraQuitado e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(SedeDeFranjaAsignada e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
+    public static FichaTurno Apply(SedeDeFranjaRetirada e, FichaTurno ficha) =>
+        throw new NotImplementedException();
 
     public static bool ShouldDelete(TurnoRetirado e) => true;
 

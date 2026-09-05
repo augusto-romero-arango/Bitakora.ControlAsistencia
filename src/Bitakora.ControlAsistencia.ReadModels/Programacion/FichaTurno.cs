@@ -14,8 +14,14 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 ///
 /// Id es el stream key del catalogo (TurnoId.ToString(), StreamIdentity.AsString), nunca un Guid.
 ///
-/// EsDescanso no existe como campo del aggregate: se deriva de la variante del evento
-/// (TurnoCreado.CrearDescanso, sin franjas).
+/// EsDescanso se lee de TurnoCreado.EsDescanso (issue #607): ya NO se deriva del conteo de
+/// franjas -- con el turno componible (CA-ADR-0033) un turno vacio no-descanso tambien tiene
+/// cero franjas, y esa derivacion lo confundiria con un descanso.
+///
+/// Completo (issue #607) es un derivado de LECTURA, nunca un campo del aggregate/evento
+/// (MEF-ADR-0041): EsDescanso || Franjas.Count > 0. Responde "ya es programable este turno" sin
+/// que el consumidor (front o el resolutor por nombre de las tools MCP) tenga que inspeccionar
+/// Franjas por su cuenta.
 /// </remarks>
 public sealed record FichaTurno(
     string Id,
@@ -23,7 +29,8 @@ public sealed record FichaTurno(
     bool EsDescanso,
     string HorarioResumido,
     IReadOnlyList<FranjaFicha> Franjas,
-    string Descripcion);
+    string Descripcion,
+    bool Completo);
 
 /// <summary>
 /// Franja completa de un turno del catalogo: el consumidor responde "hay descansos o extras dentro
