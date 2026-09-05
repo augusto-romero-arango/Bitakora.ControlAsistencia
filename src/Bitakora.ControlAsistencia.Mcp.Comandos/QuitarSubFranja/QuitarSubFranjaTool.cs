@@ -45,8 +45,7 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion)
         if (string.IsNullOrWhiteSpace(inicio))
             return string.Format(Mensajes.CampoObligatorio, "inicio");
 
-        var tipoNormalizado = tipo.Trim().ToLowerInvariant();
-        if (tipoNormalizado is not ("descanso" or "extra"))
+        if (!TipoSubFranja.TryNormalizar(tipo, out var tipoNormalizado))
             return string.Format(Mensajes.TipoDesconocido, tipo);
 
         if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
@@ -81,12 +80,15 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion)
     private static string ComponerEco(FichaTurno ficha, TimeOnly horaFranja, string tipo, TimeOnly horaInicio)
     {
         var franjaFicha = ficha.Franjas.FirstOrDefault(f => f.HoraInicio == horaFranja);
-        var lista = tipo == "extra" ? franjaFicha?.Extras : franjaFicha?.Descansos;
+        var lista = tipo == TipoSubFranja.Extra ? franjaFicha?.Extras : franjaFicha?.Descansos;
         var subFranja = lista?.FirstOrDefault(s => s.HoraInicio == horaInicio);
+        if (subFranja is null)
+            return $"{tipo} {NotacionFranja.Hora(horaInicio)}";
 
-        return subFranja is not null
-            ? $"{tipo} {NotacionFranja.Rango(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio, subFranja.DiaOffsetFin)}"
-            : $"{tipo} {NotacionFranja.Hora(horaInicio)}";
+        var rango = NotacionFranja.Rango(
+            subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio, subFranja.DiaOffsetFin);
+
+        return $"{tipo} {rango}";
     }
 }
 

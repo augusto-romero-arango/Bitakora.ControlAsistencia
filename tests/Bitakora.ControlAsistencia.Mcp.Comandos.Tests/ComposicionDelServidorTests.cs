@@ -47,8 +47,8 @@ public class ComposicionDelServidorTests
     }
 
     // idempotentHint se omite a proposito: repetir el mismo codigo no es idempotente, da 409.
-    // readOnlyHint es false en las 5 tools -- ninguna es de solo lectura, todas escriben en el
-    // dominio (este es el servidor Mcp.Comandos, MEF-ADR-0047 decision 2).
+    // readOnlyHint es false en toda tool de este ensamblado: es el servidor Mcp.Comandos, ninguna
+    // es de solo lectura (MEF-ADR-0047 decision 2).
     [Fact]
     public void ServidorMcp_DeclaraReadOnlyHintFalseEnCadaTool_CuandoSeInspeccionaElEnsamblado()
     {

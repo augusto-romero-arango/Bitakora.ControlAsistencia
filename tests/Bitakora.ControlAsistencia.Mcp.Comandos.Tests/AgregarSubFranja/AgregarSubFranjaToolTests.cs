@@ -49,8 +49,7 @@ public class AgregarSubFranjaToolTests
     private static void AsegurarNingunaRequest(Fakes fakes) =>
         fakes.Programacion.Requests.Should().BeEmpty();
 
-    // CA-1: el body viaja con las horas tal cual, sin offsets -- el dominio los infiere por su
-    // cuenta (#600) -- y el eco compone la sub-franja con el rango que se envio.
+    // Sin offsets en el body: los infiere el dominio a partir de la hora, la tool nunca los calcula.
     [Fact]
     public async Task AgregarSubFranja_EnviaElBodySinOffsets_YComponeElEcoConElRangoEnviado()
     {
@@ -73,8 +72,6 @@ public class AgregarSubFranjaToolTests
         json["nota"]!.GetValue<string>().Should().Be(AgregarSubFranjaTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-1: el tipo viaja normalizado a minusculas, sin importar la capitalizacion recibida; el
-    // eco tambien lo refleja normalizado.
     [Fact]
     public async Task AgregarSubFranja_NormalizaElTipoAMinusculas_CuandoLlegaCapitalizado()
     {

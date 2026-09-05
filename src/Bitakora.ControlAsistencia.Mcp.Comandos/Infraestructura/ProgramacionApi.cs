@@ -98,8 +98,8 @@ public sealed record FranjaAAgregar
 
 /// <summary>
 /// Payload propio de agregar_subfranja hacia POST programacion/turnos/{id}:agregar-subfranja. Las
-/// horas viajan como HH:mm, igual que FranjaAAgregar; tipo ya llega normalizado a minusculas desde
-/// la tool (descanso/extra comparten forma exacta, MEF-ADR-0047 decision 4).
+/// horas viajan como HH:mm, igual que FranjaAAgregar; tipo llega ya normalizado por
+/// TipoSubFranja.TryNormalizar, este record no lo revalida.
 /// </summary>
 public sealed record SubFranjaAAgregar
 {

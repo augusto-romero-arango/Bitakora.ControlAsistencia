@@ -42,9 +42,6 @@ internal static class NotacionFranja
 
     public static string Hora(TimeOnly hora) => hora.ToString("HH\\:mm");
 
-    // Publico (dentro del alcance del internal contenedor): agregar_subfranja/quitar_subfranja
-    // (#610) lo reusan para componer el eco de una sub-franja suelta, sin la etiqueta
-    // "descanso"/"extra" que Compactar antepone.
     public static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
         $"{Hora(inicio)}{Sufijo(diaOffsetInicio)}-{Hora(fin)}{Sufijo(diaOffsetFin)}";
 

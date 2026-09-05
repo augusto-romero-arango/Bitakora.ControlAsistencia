@@ -52,8 +52,7 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion)
         if (string.IsNullOrWhiteSpace(fin))
             return string.Format(Mensajes.CampoObligatorio, "fin");
 
-        var tipoNormalizado = tipo.Trim().ToLowerInvariant();
-        if (tipoNormalizado is not ("descanso" or "extra"))
+        if (!TipoSubFranja.TryNormalizar(tipo, out var tipoNormalizado))
             return string.Format(Mensajes.TipoDesconocido, tipo);
 
         if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
@@ -76,7 +75,8 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion)
         if (await respuestaAgregar.LeerFalloAsync(ct) is { } falloAgregar)
             return string.Format(Mensajes.RechazoDelDominio, falloAgregar);
 
-        var subFranja = $"{tipoNormalizado} {NotacionFranja.Rango(horaInicio, horaFin, 0, 0)}";
+        var subFranja =
+            $"{tipoNormalizado} {NotacionFranja.Rango(horaInicio, horaFin, diaOffsetInicio: 0, diaOffsetFin: 0)}";
 
         return RespuestaJson.Serializar(new SubFranjaAgregadaResumen(
             Mensajes.ResultadoSubFranjaAgregada,

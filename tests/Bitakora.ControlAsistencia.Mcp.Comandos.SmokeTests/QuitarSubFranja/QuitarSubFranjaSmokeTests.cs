@@ -13,8 +13,8 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-    // CA-3/CA-4: un turno recien creado no tiene franjas ni sub-franjas, asi que quitar un
-    // descanso llega al 409 real del dominio, traducido a texto (CA-ADR-0030).
+    // Un turno recien creado no tiene franjas, asi que la llamada alcanza el 409 real del dominio,
+    // traducido a texto (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_RespondeRechazoDelDominio_CuandoLaSubFranjaNoExisteEnElTurno()
@@ -33,7 +33,10 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno, ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "02:00"
+                ["turno"] = nombreTurno,
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "02:00"
             },
             cancellationToken: ct);
         resultado.IsError.Should().NotBeTrue("un rechazo de negocio no es un error del protocolo");
@@ -54,14 +57,16 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "   ", ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "02:00"
+                ["turno"] = "   ",
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "02:00"
             },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'turno' es obligatorio.");
     }
 
-    // CA-2: tipo desconocido corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_RespondeTipoDesconocido_CuandoElTipoNoEsDescansoNiExtra()
@@ -72,14 +77,16 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "cualquiera", ["franja"] = "22:00", ["tipo"] = "pausa", ["inicio"] = "02:00"
+                ["turno"] = "cualquiera",
+                ["franja"] = "22:00",
+                ["tipo"] = "pausa",
+                ["inicio"] = "02:00"
             },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'pausa' no es un tipo de sub-franja valido. Usa 'descanso' o 'extra'.");
     }
 
-    // CA-3: hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_RespondeHoraInvalida_CuandoInicioNoTieneFormatoHHmm()
@@ -90,14 +97,16 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "cualquiera", ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "2am"
+                ["turno"] = "cualquiera",
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "2am"
             },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'inicio' no es una hora valida en formato HH:mm: '2am'.");
     }
 
-    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
@@ -109,7 +118,10 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombre, ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "02:00"
+                ["turno"] = nombre,
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "02:00"
             },
             cancellationToken: ct);
 

@@ -49,8 +49,7 @@ public class QuitarSubFranjaToolTests
     private static void AsegurarNingunaRequest(Fakes fakes) =>
         fakes.Programacion.Requests.Should().BeEmpty();
 
-    // CA-3: el body viaja con las horas tal cual (sin offsets), y el eco compone la sub-franja
-    // completa con los offsets que trae la ficha vigente al momento de la llamada.
+    // Sin offsets en el body: los del eco salen de la ficha vigente, no de lo que se envio.
     [Fact]
     public async Task QuitarSubFranja_EnviaElBodyConLasHoras_YComponeElEcoConLosOffsetsDeLaFichaVigente()
     {
@@ -72,7 +71,6 @@ public class QuitarSubFranjaToolTests
         json["nota"]!.GetValue<string>().Should().Be(QuitarSubFranjaTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-3: la sub-franja tambien puede buscarse en la lista de extras de la franja.
     [Fact]
     public async Task QuitarSubFranja_ComponeElEcoDesdeLaListaDeExtras_CuandoElTipoEsExtra()
     {
@@ -84,8 +82,7 @@ public class QuitarSubFranjaToolTests
         JsonNode.Parse(resultado)!["subFranjaQuitada"]!.GetValue<string>().Should().Be("extra 23:00-23:30");
     }
 
-    // CA-3: si la ficha vigente aun no muestra la sub-franja (visibilidad eventual), el eco trae
-    // solo tipo + hora -- pero el POST se envia igual: el dominio decide con 409 si en verdad no existe.
+    // El POST se envia igual aunque la ficha no muestre la sub-franja: el 409 lo decide el dominio.
     [Fact]
     public async Task QuitarSubFranja_ComponeElEcoSoloConTipoYHora_CuandoLaFichaVigenteAunNoMuestraLaSubFranja()
     {

@@ -44,8 +44,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
     private static bool TieneUnaFranja(JsonElement ficha) =>
         ficha.GetProperty("franjas").GetArrayLength() == 1;
 
-    // CA-5: franjas[0].descansos.Count == 1 && descansos[0].diaOffsetInicio == 1 (el dominio
-    // infiere el offset de la hija nocturna a partir de la hora, #600 -- la tool nunca lo calcula).
+    // diaOffsetInicio == 1 lo infiere el dominio a partir de la hora; la tool nunca lo envia.
     private static bool TieneUnDescansoNocturno(JsonElement ficha)
     {
         var descansos = ficha.GetProperty("franjas")[0].GetProperty("descansos");
@@ -97,7 +96,10 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno, ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "02:00"
+                ["turno"] = nombreTurno,
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "02:00"
             },
             cancellationToken: ct);
         quitado.IsError.Should().NotBeTrue();
@@ -122,14 +124,17 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "agregar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "   ", ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "02:00", ["fin"] = "02:30"
+                ["turno"] = "   ",
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "02:00",
+                ["fin"] = "02:30"
             },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'turno' es obligatorio.");
     }
 
-    // CA-2: tipo desconocido corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_RespondeTipoDesconocido_CuandoElTipoNoEsDescansoNiExtra()
@@ -151,7 +156,6 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
         TextoDe(resultado).Should().Be("'pausa' no es un tipo de sub-franja valido. Usa 'descanso' o 'extra'.");
     }
 
-    // CA-2: hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_RespondeHoraInvalida_CuandoInicioNoTieneFormatoHHmm()
@@ -173,7 +177,6 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
         TextoDe(resultado).Should().Be("'inicio' no es una hora valida en formato HH:mm: '2am'.");
     }
 
-    // CA-2: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
@@ -185,7 +188,11 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "agregar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombre, ["franja"] = "22:00", ["tipo"] = "descanso", ["inicio"] = "02:00", ["fin"] = "02:30"
+                ["turno"] = nombre,
+                ["franja"] = "22:00",
+                ["tipo"] = "descanso",
+                ["inicio"] = "02:00",
+                ["fin"] = "02:30"
             },
             cancellationToken: ct);
 
