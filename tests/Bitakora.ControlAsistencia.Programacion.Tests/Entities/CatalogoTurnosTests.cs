@@ -540,4 +540,128 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoQuitarSubFranja.TurnoRetirado);
     }
+
+    // ---------- Issue #606 CA-3: AsignarSedeAFranja asigna, retira, y su precedencia ----------
+
+    private static readonly SedeProgramada Chapinero = new("SEDE-CHAPINERO", "Chapinero");
+
+    [Fact]
+    public void AsignarSedeAFranja_RetornaAsignada_CuandoLaFranjaNoTeniaSede()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.Asignada);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaAsignada>().Should().ContainSingle()
+            .Which.Franja.ToDetalle().Sede.Should().Be(Chapinero);
+        catalogo.ObtenerDetalle().FranjasOrdinarias[0].Sede.Should().Be(Chapinero);
+    }
+
+    [Fact]
+    public void AsignarSedeAFranja_RetornaRetirada_CuandoLaSedeEsNullYLaFranjaTeniaSede()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.Retirada);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaRetirada>().Should().ContainSingle()
+            .Which.Franja.ToDetalle().Sede.Should().BeNull();
+        catalogo.ObtenerDetalle().FranjasOrdinarias[0].Sede.Should().BeNull();
+    }
+
+    // CA-3 completo: la secuencia asignar -> retirar -> retirar. Cierra el hueco que dejan los
+    // casos sueltos: prueba que Apply(SedeDeFranjaRetirada) dejo la franja realmente sin sede, no
+    // solo que el retiro emitio su evento.
+    [Fact]
+    public void AsignarSedeAFranja_RetornaFranjaSinSede_CuandoSeRetiraDosVecesSeguidas()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaSinSede);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaRetirada>().Should().ContainSingle();
+    }
+
+    // Asignar la MISMA sede que ya tiene emite el evento igual: la intencion queda registrada en
+    // el stream aunque el efecto sea idempotente (decision del issue #606, revisable).
+    [Fact]
+    public void AsignarSedeAFranja_RetornaAsignada_CuandoLaFranjaYaTeniaEsaMismaSede()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+        catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.Asignada);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaAsignada>().Should().HaveCount(2);
+        catalogo.ObtenerDetalle().FranjasOrdinarias[0].Sede.Should().Be(Chapinero);
+    }
+
+    // Nada que retirar: la franja ya no tiene sede -- mismo criterio que
+    // ResultadoRetiroTurno.YaEstabaRetirado.
+    [Fact]
+    public void AsignarSedeAFranja_RetornaFranjaSinSede_CuandoLaFranjaYaNoTieneSedeQueRetirar()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), null);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaSinSede);
+        // No BeEmpty(): el TurnoCreado del arrange (CatalogoTurnos.Iniciar) queda en la lista. Lo
+        // que este caso afirma es que la declinacion no agrego ningun evento nuevo.
+        catalogo.UncommittedEvents.Should().ContainSingle().Which.Should().BeOfType<TurnoCreado>();
+    }
+
+    [Fact]
+    public void AsignarSedeAFranja_RetornaFranjaNoExiste_CuandoNingunaFranjaEmpiezaAEsaHora()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(15, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaNoExiste);
+        catalogo.UncommittedEvents.Should().ContainSingle().Which.Should().BeOfType<TurnoCreado>();
+    }
+
+    // CA-3: un descanso no tiene franjas ordinarias -- cualquier hora cae en FranjaNoExiste (mismo
+    // criterio que QuitarFranja/QuitarDescanso).
+    [Fact]
+    public void AsignarSedeAFranja_RetornaFranjaNoExiste_CuandoElTurnoEsDescanso()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.FranjaNoExiste);
+    }
+
+    [Fact]
+    public void AsignarSedeAFranja_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(14, 0), new TimeOnly(22, 0)));
+        catalogo.Retirar();
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.TurnoRetirado);
+        catalogo.UncommittedEvents.OfType<SedeDeFranjaAsignada>().Should().BeEmpty();
+    }
+
+    // Precedencia: un descanso retirado devuelve TurnoRetirado, no FranjaNoExiste.
+    [Fact]
+    public void AsignarSedeAFranja_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
+    {
+        var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
+        catalogo.Retirar();
+
+        var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
+
+        resultado.Should().Be(ResultadoAsignarSedeAFranja.TurnoRetirado);
+    }
 }

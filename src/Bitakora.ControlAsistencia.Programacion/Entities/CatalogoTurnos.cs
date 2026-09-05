@@ -44,6 +44,10 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
 
+    public void Apply(SedeDeFranjaAsignada evento) => ReemplazarFranja(evento.Franja);
+
+    public void Apply(SedeDeFranjaRetirada evento) => ReemplazarFranja(evento.Franja);
+
     // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
     // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
     // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
@@ -183,6 +187,37 @@ public partial class CatalogoTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoQuitarSubFranja.Quitada;
+    }
+
+    // Mismo mecanismo "declinar con resultado" que QuitarFranja (CA-ADR-0030). Precedencia:
+    // TurnoRetirado > FranjaNoExiste > FranjaSinSede. La sede incompleta NO se declina aqui: es
+    // invariante del VO, y ConSede la deja subir como ArgumentException (400, no 409).
+    internal ResultadoAsignarSedeAFranja AsignarSedeAFranja(TimeOnly horaInicioFranja, SedeProgramada? sede)
+    {
+        if (!_estaActivo)
+            return ResultadoAsignarSedeAFranja.TurnoRetirado;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoAsignarSedeAFranja.FranjaNoExiste;
+
+        var franja = _franjasOrdinarias[indice];
+
+        if (sede is null)
+        {
+            if (!franja.TieneSedePrearmada())
+                return ResultadoAsignarSedeAFranja.FranjaSinSede;
+
+            var retiro = SedeDeFranjaRetirada.Crear(Guid.Parse(Id!), franja.ConSede(null));
+            _uncommittedEvents.Add(retiro);
+            Apply(retiro);
+            return ResultadoAsignarSedeAFranja.Retirada;
+        }
+
+        var asignacion = SedeDeFranjaAsignada.Crear(Guid.Parse(Id!), franja.ConSede(sede));
+        _uncommittedEvents.Add(asignacion);
+        Apply(asignacion);
+        return ResultadoAsignarSedeAFranja.Asignada;
     }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >

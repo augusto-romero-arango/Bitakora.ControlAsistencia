@@ -639,4 +639,60 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be(
             "(22:00-06:00+1)[Descansos:(23:00-23:30), (02:00+1-02:30+1)]");
     }
+
+    // ---------- Issue #606: ConSede cambia (o retira) la sede prearmada sin afectar hijas ----------
+
+    [Fact]
+    public void ConSede_AsignaLaSedeNueva_YConservaLasHijasExistentes()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))
+            .ConDescanso(new TimeOnly(18, 0), new TimeOnly(18, 30));
+
+        var conSede = franja.ConSede(new SedeProgramada("SEDE-CHAPINERO", "Chapinero"));
+
+        conSede.ToString().Should().Be(
+            "(14:00-22:00)[Descansos:(18:00-18:30)]"
+            + $"[{FranjaOrdinaria.Mensajes.LabelSede}:Chapinero]");
+    }
+
+    [Fact]
+    public void ConSede_QuitaElLabelDeSede_CuandoRecibeNull()
+    {
+        var franja = FranjaOrdinaria.Crear(
+            new TimeOnly(14, 0), new TimeOnly(22, 0),
+            sede: new SedeProgramada("SEDE-SUBA", "Suba"));
+
+        var sinSede = franja.ConSede(null);
+
+        sinSede.ToString().Should().Be("(14:00-22:00)");
+    }
+
+    [Fact]
+    public void ConSede_LanzaExcepcion_CuandoLaSedeNuevaEsIncompleta()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0));
+
+        var act = () => franja.ConSede(new SedeProgramada("", "Chapinero"));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{FranjaOrdinaria.Mensajes.SedeIncompleta}*");
+    }
+
+    [Fact]
+    public void TieneSedePrearmada_EsTrue_CuandoLaFranjaTraeSede()
+    {
+        var franja = FranjaOrdinaria.Crear(
+            new TimeOnly(14, 0), new TimeOnly(22, 0),
+            sede: new SedeProgramada("SEDE-SUBA", "Suba"));
+
+        franja.TieneSedePrearmada().Should().BeTrue();
+    }
+
+    [Fact]
+    public void TieneSedePrearmada_EsFalse_CuandoLaFranjaNoTraeSede()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0));
+
+        franja.TieneSedePrearmada().Should().BeFalse();
+    }
 }

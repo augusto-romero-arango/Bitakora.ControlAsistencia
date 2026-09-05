@@ -13,8 +13,10 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
+    // Issue #606: SedeDeFranjaAsignada/SedeDeFranjaRetirada se persisten en el mismo stream de
+    // CatalogoTurnos -- deben listarse aqui igual que FranjaAgregada/DescansoAgregado/ExtraAgregado.
     [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosDiezEventosPersistidosDeProgramacion()
+    public void TiposPersistidos_ContieneExactamenteLosDoceEventosPersistidosDeProgramacion()
     {
         IdentidadEventosProgramacion.TiposPersistidos.Should().BeEquivalentTo(
         [
@@ -27,7 +29,9 @@ public class IdentidadEventosProgramacionTests
             typeof(ExtraAgregado),
             typeof(FranjaQuitada),
             typeof(DescansoQuitado),
-            typeof(ExtraQuitado)
+            typeof(ExtraQuitado),
+            typeof(SedeDeFranjaAsignada),
+            typeof(SedeDeFranjaRetirada)
         ]);
     }
 
