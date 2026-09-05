@@ -13,5 +13,8 @@ public partial class CrearPlantillaSemanalCommandHandler
     {
         public static string PlantillaYaExiste =>
             ResourceManager.GetString(nameof(PlantillaYaExiste))!;
+
+        public static string NombreDuplicado =>
+            ResourceManager.GetString(nameof(NombreDuplicado))!;
     }
 }

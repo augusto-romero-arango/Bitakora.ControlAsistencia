@@ -13,9 +13,14 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.
 public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<ComandoCrearPlantillaSemanal>
 {
     private readonly IEventStore _eventStore;
+    private readonly ILectorNombresPlantillaSemanal _lectorNombres;
 
-    public CrearPlantillaSemanalCommandHandler(IEventStore eventStore) =>
+    public CrearPlantillaSemanalCommandHandler(
+        IEventStore eventStore, ILectorNombresPlantillaSemanal lectorNombres)
+    {
         _eventStore = eventStore;
+        _lectorNombres = lectorNombres;
+    }
 
     public async Task HandleAsync(ComandoCrearPlantillaSemanal command, CancellationToken ct = default)
     {

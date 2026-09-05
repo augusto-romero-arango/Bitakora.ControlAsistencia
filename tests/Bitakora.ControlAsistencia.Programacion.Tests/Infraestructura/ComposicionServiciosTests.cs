@@ -22,6 +22,8 @@
 using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -374,5 +376,30 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrosemanalturnos");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
+    }
+
+    // Issue #626 CA-5: el handler de CrearPlantillaSemanal gana el puerto de lookup de nombres
+    // (ILectorNombresPlantillaSemanal) -- el contenedor debe seguir resolviendolo tras el registro
+    // nuevo, mismo patron de guardrail que ILectorNombresTurno le dio a CrearTurno en #497.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveILectorNombresPlantillaSemanal_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => scope.ServiceProvider.GetRequiredService<ILectorNombresPlantillaSemanal>();
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElHandlerDeCrearPlantillaSemanal_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<CrearPlantillaSemanalCommandHandler>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
     }
 }
