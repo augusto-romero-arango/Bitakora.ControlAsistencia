@@ -1,5 +1,3 @@
-// Issue #623: retirar una plantilla semanal -- ya no es usable ni editable
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;

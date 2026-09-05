@@ -11,15 +11,16 @@ public class RetirarPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture p
 {
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoPlantillaRetirada = "plantilla_semanal_retirada";
+    private const int SemanasDeLaPlantilla = 2;
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _client = api.Client;
 
-    private static object PayloadPlantillaValida(Guid plantillaId, int semanas = 2) => new
+    private static object PayloadPlantillaValida(Guid plantillaId) => new
     {
         plantillaId,
         nombre = $"[TEST] Plantilla {plantillaId}",
-        semanas
+        semanas = SemanasDeLaPlantilla
     };
 
     private static object PayloadTurnoValido(Guid turnoId) => new

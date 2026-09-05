@@ -72,6 +72,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
         await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*{QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaRetirada}*");
         Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
     // Idempotencia: un dia ya vacio no es rechazo -- el handler retorna sin lanzar (CA-ADR-0030).

@@ -16,7 +16,6 @@ public class PlantillaSemanalTurnosTests
     private static PlantillaSemanalTurnos CrearPlantilla(int semanas) =>
         PlantillaSemanalTurnos.Iniciar(PlantillaSemanalCreada.Crear(PlantillaId, "Semana Cocina", semanas));
 
-    // Issue #623: arrange comun de CA-3 -- la plantilla ya paso por su propio ciclo de retiro.
     private static PlantillaSemanalTurnos CrearPlantillaRetirada(int semanas)
     {
         var plantilla = CrearPlantilla(semanas);

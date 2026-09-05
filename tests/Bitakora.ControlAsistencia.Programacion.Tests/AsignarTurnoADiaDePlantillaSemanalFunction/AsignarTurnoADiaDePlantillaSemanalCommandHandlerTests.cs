@@ -142,6 +142,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaRetirada}*");
         Then(GuidAggregateId.ToString());
         Then(TurnoId.ToString());
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
     // Idempotencia (ResultadoAsignarDia.SinCambios): los dos Then sin eventos esperados afirman

@@ -5,9 +5,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction;
 
-// DELETE retira la plantilla del catalogo -- remocion veraz y SIN body (MEF-ADR-0043 paso 3). Ya
-// retirada responde 204 igual que recien retirada (SinCambios, CA-ADR-0030) -- DELETE es
-// idempotente (RFC 9110 seccion 9.2.2). Nunca AcceptedResult.
+// Remocion veraz y SIN body (MEF-ADR-0043 paso 3), asi que el {id} de ruta es lo unico que
+// validar (MEF-ADR-0037 seccion 2). Una plantilla ya retirada responde 204 igual que una recien
+// retirada (DELETE idempotente, RFC 9110 seccion 9.2.2): nunca 409 ni AcceptedResult.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarPlantillaSemanal")]

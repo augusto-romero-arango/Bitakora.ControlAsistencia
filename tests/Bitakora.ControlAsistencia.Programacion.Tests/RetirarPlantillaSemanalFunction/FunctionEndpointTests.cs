@@ -1,5 +1,3 @@
-// Issue #623: tests del endpoint HTTP DELETE /programacion/plantillas-semanales/{id}
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction;

@@ -7,7 +7,5 @@ internal enum ResultadoAsignarDia
     Asignado,
     SinCambios,
     SemanaFueraDeRango,
-
-    // Issue #623: precedencia final -- PlantillaRetirada > SemanaFueraDeRango > SinCambios.
     PlantillaRetirada
 }

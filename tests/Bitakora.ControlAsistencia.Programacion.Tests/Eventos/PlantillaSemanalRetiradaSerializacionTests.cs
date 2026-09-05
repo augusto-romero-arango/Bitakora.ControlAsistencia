@@ -1,5 +1,3 @@
-// Issue #623: round-trip de serializacion de PlantillaSemanalRetirada (seccion 6d del harness)
-
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;

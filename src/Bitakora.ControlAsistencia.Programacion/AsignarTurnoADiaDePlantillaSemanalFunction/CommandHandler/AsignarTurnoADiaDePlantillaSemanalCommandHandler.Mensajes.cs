@@ -26,7 +26,6 @@ public partial class AsignarTurnoADiaDePlantillaSemanalCommandHandler
         public static string SemanaFueraDeRango =>
             ResourceManager.GetString(nameof(SemanaFueraDeRango))!;
 
-        // Issue #623: PlantillaRetirada gana a SemanaFueraDeRango en la precedencia del aggregate.
         public static string PlantillaRetirada =>
             ResourceManager.GetString(nameof(PlantillaRetirada))!;
     }
