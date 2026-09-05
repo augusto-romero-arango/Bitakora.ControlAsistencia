@@ -76,6 +76,21 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
             "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
     }
 
+    // Error path que no toca el dominio: nombre en blanco corta en el worker (mensaje .resx),
+    // prueba que los recursos embebidos viajaron en el publish.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_RespondeElMensajeDeValidacion_CuandoElNombreEstaEnBlanco()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "crear_turno", new Dictionary<string, object?> { ["nombre"] = "   " }, cancellationToken: ct);
+
+        resultado.Content.OfType<TextContentBlock>().Single().Text
+            .Should().Be("'nombre' es obligatorio.");
+    }
+
     // Error path que no toca el dominio: turno en blanco corta en el worker (mensaje .resx),
     // prueba que los recursos embebidos viajaron en el publish.
     [Fact]
@@ -89,5 +104,21 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
 
         resultado.Content.OfType<TextContentBlock>().Single().Text
             .Should().Be("'turno' es obligatorio.");
+    }
+
+    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion
+    // (sin DELETE). El guid en el nombre garantiza que no colisiona con ningun turno sembrado.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RetirarTurno_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+
+        resultado.Content.OfType<TextContentBlock>().Single().Text
+            .Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
     }
 }
