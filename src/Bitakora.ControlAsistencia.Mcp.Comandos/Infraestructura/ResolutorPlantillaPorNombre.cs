@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -17,7 +18,18 @@ public sealed partial class ResolutorPlantillaPorNombre(ProgramacionApi programa
     // tool consumidora decide como formatearlo con su propia .resx RechazoDelDominio (CA-ADR-0030).
     public async Task<ResultadoResolucionPlantilla> ResolverAsync(string nombre, CancellationToken ct)
     {
-        throw new NotImplementedException();
+        var respuesta = await programacion.ListarPlantillasSemanales(ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return new ResultadoResolucionPlantilla(null, fallo, []);
+
+        var catalogo = await respuesta.Content.ReadFromJsonAsync<List<CuadroSemanalResumen>>(OpcionesLectura, ct) ?? [];
+        var normalizado = NormalizarNombre(nombre);
+        var ficha = catalogo.FirstOrDefault(f => NormalizarNombre(f.Nombre) == normalizado);
+
+        return ficha is not null
+            ? new ResultadoResolucionPlantilla(ficha, null, [])
+            : new ResultadoResolucionPlantilla(
+                null, null, [.. catalogo.Select(f => f.Nombre).Take(MaximoPlantillasEnMensaje)]);
     }
 
     private static string NormalizarNombre(string nombre) =>

@@ -30,7 +30,26 @@ public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion)
         string plantilla,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(plantilla))
+            return string.Format(Mensajes.CampoObligatorio, "plantilla");
+
+        var resolucion = await resolutor.ResolverAsync(plantilla, ct);
+        if (resolucion.FalloDeLectura is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
+
+        var ficha = resolucion.Ficha;
+        var respuesta = await programacion.RetirarPlantillaSemanal(ficha.Id, ct);
+
+        if (!respuesta.IsSuccessStatusCode)
+            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
+
+        return RespuestaJson.Serializar(new PlantillaRetiradaResumen(
+            Mensajes.ResultadoPlantillaRetirada,
+            new PlantillaRetiradaEco(ficha.Id, ficha.Nombre),
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 

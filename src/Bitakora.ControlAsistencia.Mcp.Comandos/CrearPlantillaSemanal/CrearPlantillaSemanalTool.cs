@@ -50,8 +50,104 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
         string dias,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(nombre))
+            return string.Format(Mensajes.CampoObligatorio, "nombre");
+
+        var semanasValor = semanas ?? MinimoSemanas;
+        if (semanasValor < MinimoSemanas || semanasValor > MaximoSemanas)
+            return string.Format(Mensajes.SemanasFueraDeRango, semanasValor);
+
+        if (string.IsNullOrWhiteSpace(dias))
+            return string.Format(Mensajes.CampoObligatorio, "dias");
+
+        List<DiaDePlantillaEntrada>? entradas;
+        try
+        {
+            entradas = JsonSerializer.Deserialize<List<DiaDePlantillaEntrada>>(dias, OpcionesLectura);
+        }
+        catch (JsonException)
+        {
+            return Mensajes.DiasJsonInvalido;
+        }
+
+        if (entradas is null || entradas.Count == 0)
+            return Mensajes.DiasVacio;
+
+        var vistos = new HashSet<(int Semana, int Dia)>();
+        var validadas = new List<EntradaValidada>();
+
+        foreach (var entrada in entradas)
+        {
+            var textoDia = entrada.Dia.ValueKind == JsonValueKind.String
+                ? entrada.Dia.GetString() ?? string.Empty
+                : entrada.Dia.GetRawText();
+
+            if (!DiaSemanaMcp.TryParsear(textoDia, out var diaIso))
+                return string.Format(Mensajes.DiaDesconocido, textoDia);
+
+            var semana = entrada.Semana ?? MinimoSemanas;
+            if (semana < MinimoSemanas || semana > semanasValor)
+                return string.Format(Mensajes.SemanaFueraDeRango, semana, semanasValor);
+
+            if (!vistos.Add((semana, diaIso)))
+                return string.Format(Mensajes.DiaDuplicado, semana, diaIso);
+
+            validadas.Add(new EntradaValidada(semana, diaIso, entrada.Turno ?? string.Empty));
+        }
+
+        var resolucion = await resolutor.ResolverVariosAsync(validadas.Select(v => v.TurnoNombre), ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+
+        var faltantes = resolucion.Resoluciones
+            .Where(r => r.Ficha is null)
+            .Select(r => r.NombreSolicitado)
+            .Distinct()
+            .ToList();
+        if (faltantes.Count > 0)
+            return string.Format(
+                Mensajes.TurnosNoExisten,
+                string.Join(", ", faltantes),
+                string.Join(", ", resolucion.NombresDisponibles));
+
+        var turnoIdPorNombre = resolucion.Resoluciones
+            .GroupBy(r => r.NombreSolicitado)
+            .ToDictionary(g => g.Key, g => g.First().Ficha!.Id);
+
+        var plantillaId = Guid.CreateVersion7();
+        var respuestaPost = await programacion.CrearPlantillaSemanal(plantillaId, nombre, semanasValor, ct);
+        if (!respuestaPost.IsSuccessStatusCode)
+            return string.Format(Mensajes.RechazoDelDominio, await respuestaPost.Content.ReadAsStringAsync(ct));
+
+        var diasAsignados = 0;
+        var diasRechazados = new List<DiaRechazado>();
+
+        foreach (var validada in validadas)
+        {
+            var turnoId = turnoIdPorNombre[validada.TurnoNombre];
+            var respuestaPut = await programacion.AsignarTurnoADia(
+                plantillaId.ToString(), validada.Semana, validada.DiaIso, turnoId, ct);
+
+            if (respuestaPut.IsSuccessStatusCode)
+                diasAsignados++;
+            else
+                diasRechazados.Add(new DiaRechazado(
+                    validada.Semana,
+                    DiaSemanaMcp.NombreDe(validada.DiaIso),
+                    validada.TurnoNombre,
+                    await respuestaPut.Content.ReadAsStringAsync(ct)));
+        }
+
+        return RespuestaJson.Serializar(new PlantillaCreadaResumen(
+            Mensajes.ResultadoPlantillaCreada,
+            new PlantillaResumen(plantillaId.ToString(), nombre, semanasValor),
+            diasAsignados,
+            diasRechazados.Count > 0 ? diasRechazados : null,
+            diasAsignados == 7 * semanasValor,
+            Mensajes.NotaVisibilidadEventual));
     }
+
+    private sealed record EntradaValidada(int Semana, int DiaIso, string TurnoNombre);
 }
 
 /// <summary>

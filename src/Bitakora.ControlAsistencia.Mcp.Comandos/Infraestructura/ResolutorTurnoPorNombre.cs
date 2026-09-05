@@ -39,7 +39,23 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
     public async Task<ResultadoResolucionVariosTurnos> ResolverVariosAsync(
         IEnumerable<string> nombres, CancellationToken ct)
     {
-        throw new NotImplementedException();
+        var respuesta = await programacion.ListarTurnos(ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return new ResultadoResolucionVariosTurnos([], fallo, []);
+
+        var catalogo = await respuesta.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
+        var porNombreNormalizado = catalogo
+            .GroupBy(f => NormalizarNombre(f.Nombre))
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var resoluciones = nombres
+            .Select(nombre => new ResolucionTurnoPorNombre(
+                nombre,
+                porNombreNormalizado.GetValueOrDefault(NormalizarNombre(nombre))))
+            .ToList();
+
+        return new ResultadoResolucionVariosTurnos(
+            resoluciones, null, [.. catalogo.Select(f => f.Nombre).Take(MaximoTurnosEnMensaje)]);
     }
 
     // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): este

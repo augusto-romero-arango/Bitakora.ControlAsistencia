@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
 // Traduce el dia de una entrada de plantilla semanal (lunes..domingo, sin distinguir mayusculas ni
@@ -22,6 +25,28 @@ public static class DiaSemanaMcp
     /// </summary>
     public static bool TryParsear(string valor, out int numeroIso)
     {
-        throw new NotImplementedException();
+        var normalizado = QuitarAcentos(valor.Trim()).ToUpperInvariant();
+
+        if (NombresIso.TryGetValue(normalizado, out numeroIso))
+            return true;
+
+        if (int.TryParse(normalizado, out var numero) && numero is >= 1 and <= 7)
+        {
+            numeroIso = numero;
+            return true;
+        }
+
+        numeroIso = 0;
+        return false;
     }
+
+    /// <summary>Nombre en espanol minusculas sin acento (ej. "miercoles") del numero ISO 1..7.</summary>
+    public static string NombreDe(int numeroIso) =>
+        NombresIso.Single(kv => kv.Value == numeroIso).Key.ToLowerInvariant();
+
+    private static string QuitarAcentos(string valor) =>
+        string.Concat(valor
+            .Normalize(NormalizationForm.FormD)
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark))
+            .Normalize(NormalizationForm.FormC);
 }
