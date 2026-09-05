@@ -16,7 +16,7 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion)
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("AgregarSubFranja")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Agrega dentro de una franja ordinaria de un turno un descanso (pausa que se descuenta "
@@ -40,7 +40,51 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion)
         [McpToolProperty("fin", "Hora de fin del descanso o extra, formato HH:mm.", isRequired: true)]
         string fin,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (string.IsNullOrWhiteSpace(turno))
+            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (string.IsNullOrWhiteSpace(franja))
+            return string.Format(Mensajes.CampoObligatorio, "franja");
+        if (string.IsNullOrWhiteSpace(tipo))
+            return string.Format(Mensajes.CampoObligatorio, "tipo");
+        if (string.IsNullOrWhiteSpace(inicio))
+            return string.Format(Mensajes.CampoObligatorio, "inicio");
+        if (string.IsNullOrWhiteSpace(fin))
+            return string.Format(Mensajes.CampoObligatorio, "fin");
+
+        var tipoNormalizado = tipo.Trim().ToLowerInvariant();
+        if (tipoNormalizado is not ("descanso" or "extra"))
+            return string.Format(Mensajes.TipoDesconocido, tipo);
+
+        if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
+            return string.Format(Mensajes.HoraInvalida, "franja", franja);
+        if (!NotacionFranja.TryParseHora(inicio, out var horaInicio))
+            return string.Format(Mensajes.HoraInvalida, "inicio", inicio);
+        if (!NotacionFranja.TryParseHora(fin, out var horaFin))
+            return string.Format(Mensajes.HoraInvalida, "fin", fin);
+
+        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurnos)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+        var fichaTurno = resolucion.Ficha;
+
+        var respuestaAgregar = await programacion.AgregarSubFranja(
+            fichaTurno.Id, new SubFranjaAAgregar(horaFranja, tipoNormalizado, horaInicio, horaFin), ct);
+        if (await respuestaAgregar.LeerFalloAsync(ct) is { } falloAgregar)
+            return string.Format(Mensajes.RechazoDelDominio, falloAgregar);
+
+        var subFranja = $"{tipoNormalizado} {NotacionFranja.Rango(horaInicio, horaFin, 0, 0)}";
+
+        return RespuestaJson.Serializar(new SubFranjaAgregadaResumen(
+            Mensajes.ResultadoSubFranjaAgregada,
+            fichaTurno.Nombre,
+            NotacionFranja.Hora(horaFranja),
+            subFranja,
+            Mensajes.NotaVisibilidadEventual));
+    }
 }
 
 /// <summary>
