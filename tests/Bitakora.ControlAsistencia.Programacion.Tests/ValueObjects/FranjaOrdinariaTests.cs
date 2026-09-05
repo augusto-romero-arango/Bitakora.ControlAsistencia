@@ -553,4 +553,42 @@ public class FranjaOrdinariaTests
 
         segunda.SeSolapaCon(primera).Should().BeTrue();
     }
+
+    // ---------- Issue #603: EmpiezaA -- localizar la franja contenedora por hora de inicio ----------
+
+    [Fact]
+    public void EmpiezaA_EsTrue_CuandoLaHoraCoincideConElInicioDeLaFranja()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0));
+
+        franja.EmpiezaA(new TimeOnly(22, 0)).Should().BeTrue();
+    }
+
+    [Fact]
+    public void EmpiezaA_EsFalse_CuandoLaHoraNoCoincideConElInicioDeLaFranja()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0));
+
+        franja.EmpiezaA(new TimeOnly(23, 0)).Should().BeFalse();
+    }
+
+    // Overload usado por Apply(DescansoAgregado)/Apply(ExtraAgregado) para localizar la franja
+    // original a reemplazar a partir de la franja RESULTANTE que trae el evento.
+    [Fact]
+    public void EmpiezaALaMismaHoraQue_EsTrue_CuandoOtraFranjaComienzaALaMismaHora()
+    {
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0));
+        var franjaConDescanso = franja.ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+
+        franja.EmpiezaALaMismaHoraQue(franjaConDescanso).Should().BeTrue();
+    }
+
+    [Fact]
+    public void EmpiezaALaMismaHoraQue_EsFalse_CuandoOtraFranjaComienzaAOtraHora()
+    {
+        var primera = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
+        var segunda = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0));
+
+        primera.EmpiezaALaMismaHoraQue(segunda).Should().BeFalse();
+    }
 }

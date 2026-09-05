@@ -135,7 +135,8 @@ public class ComposicionServiciosTests
 
         store.AssertEventosPersistidosRegistrados(
             [typeof(TurnoCreado), typeof(ProgramacionTurnoSolicitada), typeof(TurnoRetirado),
-             typeof(CancelacionProgramacionSolicitada), typeof(FranjaAgregada)]);
+             typeof(CancelacionProgramacionSolicitada), typeof(FranjaAgregada),
+             typeof(DescansoAgregado), typeof(ExtraAgregado)]);
     }
 
     // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
@@ -156,7 +157,9 @@ public class ComposicionServiciosTests
             [typeof(ProgramacionTurnoSolicitada)] = "programacion_turno_solicitada",
             [typeof(TurnoRetirado)] = "turno_retirado",
             [typeof(CancelacionProgramacionSolicitada)] = "cancelacion_programacion_solicitada",
-            [typeof(FranjaAgregada)] = "franja_agregada"
+            [typeof(FranjaAgregada)] = "franja_agregada",
+            [typeof(DescansoAgregado)] = "descanso_agregado",
+            [typeof(ExtraAgregado)] = "extra_agregado"
         });
     }
 

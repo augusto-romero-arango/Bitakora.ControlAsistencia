@@ -31,6 +31,22 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public void Apply(FranjaAgregada evento) => _franjasOrdinarias.Add(evento.Franja);
 
+    public void Apply(DescansoAgregado evento) => ReemplazarFranja(evento.Franja);
+
+    public void Apply(ExtraAgregado evento) => ReemplazarFranja(evento.Franja);
+
+    // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
+    // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
+    // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
+    // por un evento posterior -- ignora en vez de indexar con -1: un Apply que lanza deja el
+    // aggregate roto para siempre.
+    private void ReemplazarFranja(FranjaOrdinaria franja)
+    {
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaALaMismaHoraQue(franja));
+        if (indice >= 0)
+            _franjasOrdinarias[indice] = franja;
+    }
+
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
     internal ResultadoRetiroTurno Retirar()
@@ -61,6 +77,59 @@ public partial class CatalogoTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAgregarFranja.Agregada;
+    }
+
+    // Localiza la franja contenedora por hora de inicio (EmpiezaA), delega la construccion de la
+    // hija en ConDescanso (invariantes del VO, #600) y declina con resultado (CA-ADR-0030): la
+    // ArgumentException del VO sube sin capturarse -- es el unico canal de error mezclado que
+    // acepta esta familia de comandos de diseno.
+    internal ResultadoAgregarSubFranja AgregarDescanso(
+        TimeOnly horaInicioFranja, TimeOnly inicio, TimeOnly fin)
+    {
+        var precondicion = EvaluarPrecondicionSubFranja();
+        if (precondicion is not null)
+            return precondicion.Value;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoAgregarSubFranja.FranjaNoExiste;
+
+        var evento = DescansoAgregado.Crear(
+            Guid.Parse(Id!), _franjasOrdinarias[indice].ConDescanso(inicio, fin));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAgregarSubFranja.Agregada;
+    }
+
+    internal ResultadoAgregarSubFranja AgregarExtra(
+        TimeOnly horaInicioFranja, TimeOnly inicio, TimeOnly fin)
+    {
+        var precondicion = EvaluarPrecondicionSubFranja();
+        if (precondicion is not null)
+            return precondicion.Value;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoAgregarSubFranja.FranjaNoExiste;
+
+        var evento = ExtraAgregado.Crear(
+            Guid.Parse(Id!), _franjasOrdinarias[indice].ConExtra(inicio, fin));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAgregarSubFranja.Agregada;
+    }
+
+    // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
+    // descanso). null significa "sigue, localiza la franja".
+    private ResultadoAgregarSubFranja? EvaluarPrecondicionSubFranja()
+    {
+        if (!_estaActivo)
+            return ResultadoAgregarSubFranja.TurnoRetirado;
+
+        if (_esDescanso)
+            return ResultadoAgregarSubFranja.TurnoEsDescanso;
+
+        return null;
     }
 
     // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
