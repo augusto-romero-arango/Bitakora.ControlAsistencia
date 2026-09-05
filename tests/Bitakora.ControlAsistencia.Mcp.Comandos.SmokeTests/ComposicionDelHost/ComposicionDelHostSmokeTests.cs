@@ -13,7 +13,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
         tools.Select(t => t.Name).Should().BeEquivalentTo(
-            "registrar_sede", "registrar_colaborador", "solicitar_programacion_turno");
+            "registrar_sede", "registrar_colaborador", "solicitar_programacion_turno",
+            "crear_turno", "retirar_turno");
     }
 
     [Fact]
@@ -61,6 +62,34 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "desde", "hasta", "turno", "sede_de_programacion", "identificaciones");
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_DeclaraNombreObligatorioYEsDescansoOpcional_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "crear_turno");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("nombre");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RetirarTurno_DeclaraTurnoObligatorio_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "retirar_turno");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("turno");
+    }
+
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations
     // del spec; cuando la extension exponga annotations.readOnlyHint, este test migra alli.
     // Recorre TODO el catalogo, no una tool por nombre: MEF-ADR-0048 seccion 2 (verificacion 2,
@@ -76,9 +105,11 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         foreach (var tool in tools)
         {
             var meta = tool.ProtocolTool.Meta;
+            var esDestructiva = tool.Name == "retirar_turno";
             meta.Should().NotBeNull($"{tool.Name} debe publicar su _meta con los hints");
             meta!["readOnlyHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} escribe en el dominio");
-            meta["destructiveHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} no destruye datos");
+            meta["destructiveHint"]?.GetValue<bool>().Should().Be(
+                esDestructiva, $"{tool.Name} destructiveHint debe ser {esDestructiva}");
         }
     }
 }
