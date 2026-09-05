@@ -41,6 +41,12 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> QuitarSubFranja(string id, SubFranjaAQuitar subFranja, CancellationToken ct) =>
         http.PostAsJsonAsync(
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-subfranja", subFranja, ct);
+
+    // El body ya viene armado por la tool consumidora: con sede para asignar, sin la clave sede
+    // (omitida, no null) para retirar (issue #611).
+    public Task<HttpResponseMessage> AsignarSedeAFranja(string id, object body, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", body, ct);
 }
 
 /// <summary>

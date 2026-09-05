@@ -2,6 +2,7 @@ using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarSubFranja;
+using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarSedeFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarSubFranja;
@@ -35,7 +36,7 @@ public class ComposicionDelServidorTests
         nombres.Should().BeEquivalentTo(
             RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool, SolicitarProgramacionTurnoTool.NombreTool,
             CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool,
-            AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool);
+            AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool, AsignarSedeFranjaTool.NombreTool);
     }
 
     [Fact]
@@ -253,5 +254,20 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
         propiedades.Should().Equal(("turno", true), ("franja", true), ("tipo", true), ("inicio", true));
+    }
+
+    [Fact]
+    public void AsignarSedeFranja_DeclaraTurnoYFranjaComoRequeridosYCodigoSedeComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == AsignarSedeFranjaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(("turno", true), ("franja", true), ("codigo_sede", false));
     }
 }

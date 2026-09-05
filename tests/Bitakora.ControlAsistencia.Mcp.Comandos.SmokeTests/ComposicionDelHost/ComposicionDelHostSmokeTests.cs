@@ -15,7 +15,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         tools.Select(t => t.Name).Should().BeEquivalentTo(
             "registrar_sede", "registrar_colaborador", "solicitar_programacion_turno",
             "crear_turno", "retirar_turno", "agregar_franja", "quitar_franja",
-            "agregar_subfranja", "quitar_subfranja");
+            "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja");
     }
 
     [Fact]
@@ -145,6 +145,20 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             .EnumerateArray().Select(e => e.GetString());
 
         requeridas.Should().BeEquivalentTo("turno", "franja", "tipo", "inicio");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarSedeFranja_DeclaraTurnoYFranjaObligatoriosYCodigoSedeOpcional_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "asignar_sede_franja");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("turno", "franja");
     }
 
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations

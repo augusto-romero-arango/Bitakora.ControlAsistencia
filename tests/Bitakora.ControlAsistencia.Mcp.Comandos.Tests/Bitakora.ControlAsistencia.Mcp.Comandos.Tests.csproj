@@ -36,6 +36,7 @@
     <Content Include="QuitarFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="AgregarSubFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="QuitarSubFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="AsignarSedeFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
