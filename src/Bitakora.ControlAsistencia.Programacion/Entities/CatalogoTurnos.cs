@@ -151,11 +151,43 @@ public partial class CatalogoTurnos : AggregateRoot
     // (EmpiezaA), delega en SinDescanso/SinExtra (issue #605) y declina con resultado
     // (CA-ADR-0030). Sin ArgumentException que mezclar: quitar una hija nunca viola invariantes.
     // Precedencia: TurnoRetirado > FranjaNoExiste > SubFranjaNoExiste.
-    internal ResultadoQuitarSubFranja QuitarDescanso(TimeOnly horaInicioFranja, TimeOnly horaInicioHija) =>
-        throw new NotImplementedException();
+    internal ResultadoQuitarSubFranja QuitarDescanso(TimeOnly horaInicioFranja, TimeOnly horaInicioHija)
+    {
+        if (!_estaActivo)
+            return ResultadoQuitarSubFranja.TurnoRetirado;
 
-    internal ResultadoQuitarSubFranja QuitarExtra(TimeOnly horaInicioFranja, TimeOnly horaInicioHija) =>
-        throw new NotImplementedException();
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoQuitarSubFranja.FranjaNoExiste;
+
+        var franjaResultante = _franjasOrdinarias[indice].SinDescanso(horaInicioHija);
+        if (franjaResultante is null)
+            return ResultadoQuitarSubFranja.SubFranjaNoExiste;
+
+        var evento = DescansoQuitado.Crear(Guid.Parse(Id!), franjaResultante);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarSubFranja.Quitada;
+    }
+
+    internal ResultadoQuitarSubFranja QuitarExtra(TimeOnly horaInicioFranja, TimeOnly horaInicioHija)
+    {
+        if (!_estaActivo)
+            return ResultadoQuitarSubFranja.TurnoRetirado;
+
+        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
+        if (indice == -1)
+            return ResultadoQuitarSubFranja.FranjaNoExiste;
+
+        var franjaResultante = _franjasOrdinarias[indice].SinExtra(horaInicioHija);
+        if (franjaResultante is null)
+            return ResultadoQuitarSubFranja.SubFranjaNoExiste;
+
+        var evento = ExtraQuitado.Crear(Guid.Parse(Id!), franjaResultante);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarSubFranja.Quitada;
+    }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
     // descanso). null significa "sigue, localiza la franja".

@@ -87,10 +87,6 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // FranjaTemporal.SeSolapaCon, internal aqui. Fin exclusivo: contiguas no se solapan.
     public bool SeSolapaCon(FranjaOrdinaria otra) => ((FranjaTemporal)this).SeSolapaCon(otra);
 
-    // Issue #603: localiza la franja contenedora por su hora de inicio (Tell-don't-Ask,
-    // MEF-ADR-0012) -- el aggregate nunca lee _horaInicio directamente.
-    public bool EmpiezaA(TimeOnly horaInicio) => _horaInicio == horaInicio;
-
     // Apply(DescansoAgregado)/Apply(ExtraAgregado) reciben la franja RESULTANTE y localizan con
     // esto cual reemplazar, sin que _horaInicio deje de ser privado.
     public bool EmpiezaALaMismaHoraQue(FranjaOrdinaria otra) => EmpiezaA(otra._horaInicio);
@@ -98,9 +94,17 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // Issue #605: contraparte de ConDescanso/ConExtra -- localiza la hija por su hora de inicio y
     // devuelve la franja contenedora SIN ella, o null si ninguna hija de ese tipo empieza ahi
     // (Tell-don't-Ask, MEF-ADR-0012). El aggregate nunca lee _descansos/_extras directamente.
-    public FranjaOrdinaria? SinDescanso(TimeOnly horaInicio) => throw new NotImplementedException();
+    public FranjaOrdinaria? SinDescanso(TimeOnly horaInicio) =>
+        _descansos.Any(d => d.EmpiezaA(horaInicio))
+            ? Crear(_horaInicio, _horaFin, _diaOffsetFin,
+                _descansos.Where(d => !d.EmpiezaA(horaInicio)), _extras, _sede)
+            : null;
 
-    public FranjaOrdinaria? SinExtra(TimeOnly horaInicio) => throw new NotImplementedException();
+    public FranjaOrdinaria? SinExtra(TimeOnly horaInicio) =>
+        _extras.Any(e => e.EmpiezaA(horaInicio))
+            ? Crear(_horaInicio, _horaFin, _diaOffsetFin,
+                _descansos, _extras.Where(e => !e.EmpiezaA(horaInicio)), _sede)
+            : null;
 
     public FranjaOrdinaria ConDescanso(TimeOnly inicio, TimeOnly fin) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin,

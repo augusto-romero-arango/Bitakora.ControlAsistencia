@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -11,6 +12,29 @@ public partial class QuitarSubFranjaCommandHandler : ICommandHandlerAsync<Quitar
 
     public QuitarSubFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
 
-    public Task HandleAsync(QuitarSubFranja command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(QuitarSubFranja command, CancellationToken ct = default)
+    {
+        var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
+        if (catalogo is null)
+            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+
+        var resultado = command.Tipo switch
+        {
+            TipoSubFranja.Descanso => catalogo.QuitarDescanso(command.Franja, command.Inicio),
+            TipoSubFranja.Extra => catalogo.QuitarExtra(command.Franja, command.Inicio),
+            var otro => throw new NotSupportedException($"Tipo de sub-franja no mapeado: {otro}")
+        };
+
+        var mensajeDeRechazo = resultado switch
+        {
+            ResultadoQuitarSubFranja.Quitada => null,
+            ResultadoQuitarSubFranja.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoQuitarSubFranja.FranjaNoExiste => Mensajes.FranjaNoExiste,
+            ResultadoQuitarSubFranja.SubFranjaNoExiste => Mensajes.SubFranjaNoExiste,
+            var otro => throw new NotSupportedException($"Resultado de QuitarSubFranja no mapeado: {otro}")
+        };
+
+        if (mensajeDeRechazo is not null)
+            throw new InvalidOperationException(mensajeDeRechazo);
+    }
 }
