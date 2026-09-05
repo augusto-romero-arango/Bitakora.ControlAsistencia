@@ -1,8 +1,10 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
+using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
+using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarColaborador;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RetirarTurno;
@@ -32,7 +34,8 @@ public class ComposicionDelServidorTests
 
         nombres.Should().BeEquivalentTo(
             RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool, SolicitarProgramacionTurnoTool.NombreTool,
-            CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool);
+            CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool,
+            AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool);
     }
 
     [Fact]
@@ -44,8 +47,8 @@ public class ComposicionDelServidorTests
     }
 
     // idempotentHint se omite a proposito: repetir el mismo codigo no es idempotente, da 409.
-    // readOnlyHint es false en las 5 tools -- ninguna es de solo lectura, todas escriben en el
-    // dominio (este es el servidor Mcp.Comandos, MEF-ADR-0047 decision 2).
+    // readOnlyHint es false en toda tool de este ensamblado: es el servidor Mcp.Comandos, ninguna
+    // es de solo lectura (MEF-ADR-0047 decision 2).
     [Fact]
     public void ServidorMcp_DeclaraReadOnlyHintFalseEnCadaTool_CuandoSeInspeccionaElEnsamblado()
     {
@@ -59,12 +62,16 @@ public class ComposicionDelServidorTests
         }
     }
 
-    // CA-5: destructiveHint es true en retirar_turno y quitar_franja (ambas remueven algo del
-    // catalogo); el resto de las tools solo crea o agrega, nunca destruye.
+    // destructiveHint es true en las tools que remueven algo del catalogo (retirar_turno,
+    // quitar_franja, quitar_subfranja -- CA-5 de #609, CA-4 de #610); el resto solo crea o
+    // agrega, nunca destruye.
     [Fact]
-    public void ServidorMcp_DeclaraDestructiveHintEnRetirarTurnoYQuitarFranja_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_DeclaraDestructiveHintEnLasToolsQueRemueven_CuandoSeInspeccionaElEnsamblado()
     {
-        var destructivas = new HashSet<string> { RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool };
+        var destructivas = new HashSet<string>
+        {
+            RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool
+        };
 
         foreach (var metodo in MetodosDeTool)
         {
@@ -215,5 +222,36 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
         propiedades.Should().Equal(("turno", true), ("franja", true));
+    }
+
+    [Fact]
+    public void AgregarSubFranja_DeclaraLosCincoParametrosComoRequeridos_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == AgregarSubFranjaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("turno", true), ("franja", true), ("tipo", true), ("inicio", true), ("fin", true));
+    }
+
+    [Fact]
+    public void QuitarSubFranja_DeclaraLosCuatroParametrosComoRequeridos_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == QuitarSubFranjaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(("turno", true), ("franja", true), ("tipo", true), ("inicio", true));
     }
 }

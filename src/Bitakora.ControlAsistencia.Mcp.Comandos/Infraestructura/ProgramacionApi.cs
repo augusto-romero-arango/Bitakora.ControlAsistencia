@@ -33,6 +33,14 @@ public sealed class ProgramacionApi(HttpClient http)
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-franja",
             new { franja = NotacionFranja.Hora(franja) },
             ct);
+
+    public Task<HttpResponseMessage> AgregarSubFranja(string id, SubFranjaAAgregar subFranja, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-subfranja", subFranja, ct);
+
+    public Task<HttpResponseMessage> QuitarSubFranja(string id, SubFranjaAQuitar subFranja, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-subfranja", subFranja, ct);
 }
 
 /// <summary>
@@ -86,6 +94,49 @@ public sealed record FranjaAAgregar
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SedeProgramada? Sede { get; }
+}
+
+/// <summary>
+/// Payload propio de agregar_subfranja hacia POST programacion/turnos/{id}:agregar-subfranja. Las
+/// horas viajan como HH:mm, igual que FranjaAAgregar; tipo llega ya normalizado por
+/// TipoSubFranja.TryNormalizar, este record no lo revalida.
+/// </summary>
+public sealed record SubFranjaAAgregar
+{
+    public SubFranjaAAgregar(TimeOnly franja, string tipo, TimeOnly inicio, TimeOnly fin)
+    {
+        Franja = NotacionFranja.Hora(franja);
+        Tipo = tipo;
+        Inicio = NotacionFranja.Hora(inicio);
+        Fin = NotacionFranja.Hora(fin);
+    }
+
+    public string Franja { get; }
+
+    public string Tipo { get; }
+
+    public string Inicio { get; }
+
+    public string Fin { get; }
+}
+
+/// <summary>
+/// Payload propio de quitar_subfranja hacia POST programacion/turnos/{id}:quitar-subfranja.
+/// </summary>
+public sealed record SubFranjaAQuitar
+{
+    public SubFranjaAQuitar(TimeOnly franja, string tipo, TimeOnly inicio)
+    {
+        Franja = NotacionFranja.Hora(franja);
+        Tipo = tipo;
+        Inicio = NotacionFranja.Hora(inicio);
+    }
+
+    public string Franja { get; }
+
+    public string Tipo { get; }
+
+    public string Inicio { get; }
 }
 
 /// <summary>

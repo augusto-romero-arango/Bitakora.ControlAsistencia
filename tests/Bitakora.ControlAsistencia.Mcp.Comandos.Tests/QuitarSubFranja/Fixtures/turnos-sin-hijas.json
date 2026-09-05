@@ -1,0 +1,18 @@
+[
+  {
+    "id": "8f14e45f-ceea-4b3c-8f0a-000000000040",
+    "nombre": "Nocturno",
+    "esDescanso": false,
+    "franjas": [
+      {
+        "horaInicio": "22:00:00",
+        "horaFin": "06:00:00",
+        "diaOffsetFin": 1,
+        "descansos": [],
+        "extras": [],
+        "sedeId": null,
+        "nombreSede": null
+      }
+    ]
+  }
+]
