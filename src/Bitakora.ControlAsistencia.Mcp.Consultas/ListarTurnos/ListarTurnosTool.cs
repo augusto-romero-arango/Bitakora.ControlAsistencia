@@ -24,7 +24,9 @@ public partial class ListarTurnosTool(ProgramacionApi api)
             NombreTool,
             "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno. "
             + "La lista se trunca cuando es larga; usa filtro_nombre para encontrar un turno especifico. "
-            + "Para ver la composicion completa de un turno usa obtener_turno con su id.")]
+            + "Para ver la composicion completa de un turno usa obtener_turno con su id. "
+            + "Los turnos marcados con enConstruccion no tienen franjas todavia y no se pueden "
+            + "programar: sirven para retomar un diseno con agregar_franja.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -47,7 +49,8 @@ public partial class ListarTurnosTool(ProgramacionApi api)
                 f.Id,
                 f.Nombre.Trim(),
                 f.HorarioResumido,
-                f.EsDescanso ? true : null))
+                EsDescanso: f.EsDescanso ? true : null,
+                EnConstruccion: f.Completo ? null : true))
             .ToList();
 
         var nota = fichas.Count > visibles.Count
@@ -65,9 +68,13 @@ public sealed record CatalogoDeTurnos(
     string? Nota,
     IReadOnlyList<TurnoResumido> Turnos);
 
-/// <summary>EsDescanso viaja solo cuando es true: null se omite en la serializacion.</summary>
+/// <summary>
+/// EsDescanso y EnConstruccion viajan solo cuando son true: null se omite en la serializacion
+/// (filtro de relevancia, MEF-ADR-0047 decision 4).
+/// </summary>
 public sealed record TurnoResumido(
     string Id,
     string Nombre,
     string Horario,
-    bool? EsDescanso);
+    bool? EsDescanso,
+    bool? EnConstruccion);

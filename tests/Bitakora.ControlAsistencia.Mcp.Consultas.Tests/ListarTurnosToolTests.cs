@@ -69,4 +69,26 @@ public class ListarTurnosToolTests
         json["total"]!.GetValue<int>().Should().Be(1, "'mañana' debe encontrar 'MANANA'");
         json["turnos"]![0]!["nombre"]!.GetValue<string>().Should().Contain("MANANA");
     }
+
+    // CA-1 (issue #612): un turno incompleto (completo: false en la ficha, turno componible sin
+    // franjas todavia -- CA-ADR-0033) se marca con enConstruccion para que el asistente no intente
+    // programarlo. La marca solo viaja cuando aplica (MEF-ADR-0047 decision 4), igual que esDescanso.
+    [Fact]
+    public async Task ListarTurnos_MarcaEnConstruccion_CuandoElTurnoEsIncompleto()
+    {
+        var json = await Ejecutar("listar-turnos-con-turno-incompleto.json");
+
+        var incompleto = json["turnos"]![1]!.AsObject();
+        incompleto["enConstruccion"]!.GetValue<bool>().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ListarTurnos_OmiteEnConstruccion_CuandoElTurnoEstaCompleto()
+    {
+        var json = await Ejecutar("listar-turnos-con-turno-incompleto.json");
+
+        var completo = json["turnos"]![0]!.AsObject();
+        completo.ContainsKey("enConstruccion").Should().BeFalse(
+            "enConstruccion solo viaja cuando el turno esta incompleto");
+    }
 }

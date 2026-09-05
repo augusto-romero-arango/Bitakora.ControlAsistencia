@@ -16,7 +16,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a04fda-7705-7fa7-987b-45f073f17f74",
@@ -35,7 +36,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a04fdf-feb8-7f4c-9688-ea325f59394c",
@@ -54,7 +56,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a04fe3-ec86-76b7-9ec7-c95a0a2ecc5e",
@@ -73,7 +76,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a04fbd-322c-7c64-bd03-c3fe89875f1f",
@@ -92,7 +96,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fc1-e547-78a1-95e3-cd1ff5bcf142",
@@ -111,7 +116,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fcc-2246-74d3-bfbc-acfa15de6632",
@@ -130,7 +136,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fd2-463d-70b4-b264-dafcd93c6dd2",
@@ -149,7 +156,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fd5-45a7-7c2c-a179-687c91c0b8b8",
@@ -168,7 +176,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fd9-47c5-7cfd-9bf6-a6ff99a6a5a3",
@@ -187,7 +196,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fda-4990-708b-a3ce-39fdb317f5db",
@@ -206,7 +216,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fdf-d9db-701f-8b5b-1ce5315bc8af",
@@ -225,7 +236,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fe4-0fbb-725a-a35a-a41b0cfe8743",
@@ -244,7 +256,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fe9-b514-771a-a002-ac72d1ba96a5",
@@ -263,7 +276,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04ff5-a2a3-773b-b678-a1c2c00b014a",
@@ -282,7 +296,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04ffa-2361-7b9d-991f-d8a48709f5e9",
@@ -301,7 +316,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04ffa-b9c4-7c64-8ca8-1079eac6b051",
@@ -320,7 +336,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a04fff-f6da-76b4-8a2e-329c65ba7fcb",
@@ -339,7 +356,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05001-c6fe-7605-b7de-98400ee37234",
@@ -358,7 +376,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05004-9ec2-7626-9a29-a364dd213bab",
@@ -377,7 +396,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05005-a521-76d4-92d1-8f988811e480",
@@ -396,7 +416,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a0500a-36a5-7a98-b379-0ed761117767",
@@ -415,7 +436,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a0500f-b6ac-7a8d-8360-4bb7cf1ff26b",
@@ -434,7 +456,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05010-3ea3-7373-96aa-60da897f6479",
@@ -453,7 +476,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05011-a258-7537-a7a4-e6c33d286ab3",
@@ -472,7 +496,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05015-bb81-7492-a2eb-62186332c69d",
@@ -491,7 +516,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05018-ce38-7a09-b6f3-3a3e0047663b",
@@ -510,7 +536,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05026-a638-72d7-9448-a5d6a2ade0dd",
@@ -529,7 +556,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05028-0d30-7189-95dd-8b8bc5ff5ad0",
@@ -548,7 +576,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a0502c-f08c-70f5-861f-4808527fd615",
@@ -567,7 +596,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a0502d-f00f-7f9b-9d09-28698ffaafd8",
@@ -586,7 +616,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05036-d235-736b-94ad-82beee45e6bc",
@@ -605,7 +636,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05040-ec04-7005-a41f-9e8a5b0c2f96",
@@ -624,7 +656,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05047-7f13-7272-82e7-94a7c295d226",
@@ -643,7 +676,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a0504a-79dd-724e-abde-6e296b07ecf7",
@@ -662,7 +696,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05053-1a65-7780-a36f-628c3e0946e1",
@@ -681,7 +716,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05057-4bd6-715e-a61d-b29deeca0de5",
@@ -700,7 +736,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05059-402f-7dd0-93fa-f92b23bcadf1",
@@ -719,7 +756,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a0505b-4697-72d6-9aca-73762fff7fba",
@@ -738,7 +776,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05061-8e84-7329-ac3e-a7503f351cd4",
@@ -757,7 +796,8 @@
     "descripcion": "(06:00-14:00)"
    }
   ],
-  "descripcion": "(06:00-14:00)"
+  "descripcion": "(06:00-14:00)",
+  "completo": true
  },
  {
   "id": "01a05010-30d0-7875-abdc-80287f548a00",
@@ -765,7 +805,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a03513-b7c5-7e50-8e25-53a03763f4bb",
@@ -784,7 +825,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a03516-4acc-758f-bb4d-b0dabdbd8b02",
@@ -803,7 +845,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a0351e-9efb-758e-8f7f-484775388c35",
@@ -822,7 +865,8 @@
     "descripcion": "(08:00-16:00)"
    }
   ],
-  "descripcion": "(08:00-16:00)"
+  "descripcion": "(08:00-16:00)",
+  "completo": true
  },
  {
   "id": "01a03525-4083-7feb-b3e5-f32d5c2c0962",
@@ -830,7 +874,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a03584-c39d-7984-bb1c-856046ccf7b9",
@@ -838,7 +883,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a0463a-eb94-7aac-aa64-a75a5d942071",
@@ -846,7 +892,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04dd1-a937-7176-822d-17bb254f16c9",
@@ -854,7 +901,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04e20-200a-7bf4-97cd-b14defe29d10",
@@ -862,7 +910,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04ea0-09e5-770f-bc3b-e043048ab9dc",
@@ -870,7 +919,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fd3-22f1-7e2b-8667-f7e8adbdd029",
@@ -878,7 +928,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a05040-56c5-7ada-84e2-c4323556dad7",
@@ -886,7 +937,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a05047-4bce-732f-93dd-e4ae3c8969e0",
@@ -894,7 +946,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fbe-2048-7b94-9573-f48b6341dfa3",
@@ -902,7 +955,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fc2-d849-7191-b481-bfe7cd7b37a6",
@@ -910,7 +964,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fcb-30b6-77c9-a44d-4cd1e6be7400",
@@ -918,7 +973,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fd3-1a8d-7fda-9953-8cb807c428a8",
@@ -926,7 +982,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fd5-77d7-79d7-9ef7-4745b53065ee",
@@ -934,7 +991,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fd9-72e0-76e3-8ece-c21e9a5c8ffb",
@@ -942,7 +1000,8 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  },
  {
   "id": "01a04fda-67d4-7c60-82dd-be2b30e8e12d",
@@ -950,6 +1009,7 @@
   "esDescanso": true,
   "horarioResumido": "Descanso",
   "franjas": [],
-  "descripcion": "Descanso"
+  "descripcion": "Descanso",
+  "completo": true
  }
 ]

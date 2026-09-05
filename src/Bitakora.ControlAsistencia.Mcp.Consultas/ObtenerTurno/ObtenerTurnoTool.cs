@@ -44,6 +44,7 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             ficha.Id,
             ficha.Nombre.Trim(),
             ficha.EsDescanso,
+            ficha.Completo,
             ficha.HorarioResumido,
             [.. ficha.Franjas.Select(Compactar)]);
 
@@ -52,13 +53,17 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
 
     private static string Compactar(FranjaFicha franja)
     {
-        var texto = new StringBuilder(Rango(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin));
+        // FranjaFicha no trae DiaOffsetInicio: una franja nace siempre en su propio dia y solo sus
+        // hijas pueden caer al siguiente. El formato HH:mm[+N]-HH:mm[+N] se replica como texto, no
+        // como tipo compartido, del eco de las tools de Comandos (MEF-ADR-0047 decision 3).
+        var texto = new StringBuilder(
+            Rango(franja.HoraInicio, franja.HoraFin, diaOffsetInicio: 0, franja.DiaOffsetFin));
 
         foreach (var descanso in franja.Descansos)
-            texto.Append($", descanso {Rango(descanso.HoraInicio, descanso.HoraFin, descanso.DiaOffsetFin)}");
+            texto.Append($", descanso {Rango(descanso.HoraInicio, descanso.HoraFin, descanso.DiaOffsetInicio, descanso.DiaOffsetFin)}");
 
         foreach (var extra in franja.Extras)
-            texto.Append($", extra {Rango(extra.HoraInicio, extra.HoraFin, extra.DiaOffsetFin)}");
+            texto.Append($", extra {Rango(extra.HoraInicio, extra.HoraFin, extra.DiaOffsetInicio, extra.DiaOffsetFin)}");
 
         var sede = franja.NombreSede ?? franja.SedeId;
         if (sede is not null)
@@ -67,8 +72,10 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
         return texto.ToString();
     }
 
-    private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetFin) =>
-        $"{inicio:HH\\:mm}-{fin:HH\\:mm}{(diaOffsetFin > 0 ? $"(+{diaOffsetFin})" : "")}";
+    private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
+        $"{inicio:HH\\:mm}{Sufijo(diaOffsetInicio)}-{fin:HH\\:mm}{Sufijo(diaOffsetFin)}";
+
+    private static string Sufijo(int diaOffset) => diaOffset > 0 ? $"+{diaOffset}" : "";
 }
 
 /// <summary>Contrato de respuesta de obtener_turno hacia el asistente (remodelado, issue #502).</summary>
@@ -76,5 +83,6 @@ public sealed record TurnoDetallado(
     string Id,
     string Nombre,
     bool EsDescanso,
+    bool Completo,
     string Horario,
     IReadOnlyList<string> Franjas);

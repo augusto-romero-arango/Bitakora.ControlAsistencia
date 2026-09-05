@@ -36,6 +36,11 @@ public class ListarTurnosSmokeTests(McpFixture mcp)
             turno.GetProperty("id").GetString().Should().NotBeNullOrWhiteSpace();
             turno.GetProperty("nombre").GetString().Should().NotBeNullOrWhiteSpace();
             turno.GetProperty("horario").GetString().Should().NotBeNullOrWhiteSpace();
+
+            // CA-5 (issue #612): tool call real ampliada -- si un turno trae enConstruccion, debe
+            // ser true (la marca solo viaja cuando el turno esta incompleto, MEF-ADR-0047 decision 4).
+            if (turno.TryGetProperty("enConstruccion", out var enConstruccion))
+                enConstruccion.GetBoolean().Should().BeTrue();
         }
     }
 }

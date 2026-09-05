@@ -34,11 +34,16 @@ public class ComposicionDelServidorTests
         metodo.GetParameters()
             .FirstOrDefault(p => p.GetCustomAttribute<McpToolTriggerAttribute>() is not null);
 
+    private static McpToolTriggerAttribute Trigger(MethodInfo metodo) =>
+        ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!;
+
+    private static MethodInfo Tool(string nombreTool) =>
+        MetodosDeTool.Single(m => Trigger(m).ToolName == nombreTool);
+
     [Fact]
     public void ServidorMcp_ExponeLasSeisToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
     {
-        var nombres = MetodosDeTool
-            .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
+        var nombres = MetodosDeTool.Select(m => Trigger(m).ToolName);
 
         nombres.Should().BeEquivalentTo(
             "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
@@ -71,8 +76,7 @@ public class ComposicionDelServidorTests
     {
         foreach (var metodo in MetodosDeTool)
         {
-            ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!
-                .Description.Should().NotBeNullOrWhiteSpace();
+            Trigger(metodo).Description.Should().NotBeNullOrWhiteSpace();
 
             foreach (var propiedad in PropiedadesConDescripcion(metodo))
                 propiedad.Descripcion.Should().NotBeNullOrWhiteSpace();
@@ -82,9 +86,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ConsultarProgramacion_DeclaraElRangoObligatorioYLosFiltrosOpcionales_CuandoSeInspeccionaLaTool()
     {
-        var metodo = MetodosDeTool.Single(m =>
-            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
-                == "consultar_programacion");
+        var metodo = Tool("consultar_programacion");
 
         Propiedades(metodo).Should().BeEquivalentTo(
         [
@@ -98,19 +100,36 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ObtenerTurno_DeclaraElIdObligatorio_CuandoSeInspeccionaLaTool()
     {
-        var metodo = MetodosDeTool.Single(m =>
-            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
-                == "obtener_turno");
+        var metodo = Tool("obtener_turno");
 
         Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("id", true));
+    }
+
+    // CA-4 (issue #612): listar_turnos sigue sin parametros obligatorios -- filtro_nombre es
+    // opcional. El pin re-ejecuta esta forma tras el remodelado de enConstruccion (MEF-ADR-0048
+    // seccion 6: aunque el inputSchema no cambia, la tool cambia y el pin se re-verifica).
+    [Fact]
+    public void ListarTurnos_DeclaraFiltroNombreComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = Tool("listar_turnos");
+
+        Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("filtro_nombre", false));
+    }
+
+    // CA-4 (issue #612).
+    [Fact]
+    public void ListarTurnos_DescribeLaMarcaDeConstruccionYComoRetomarla_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = Tool("listar_turnos");
+
+        Trigger(metodo).Description.Should()
+            .Contain("enConstruccion").And.Contain("agregar_franja");
     }
 
     [Fact]
     public void ListarColaboradores_DeclaraLosCuatroParametrosOpcionales_CuandoSeInspeccionaLaTool()
     {
-        var metodo = MetodosDeTool.Single(m =>
-            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
-                == "listar_colaboradores");
+        var metodo = Tool("listar_colaboradores");
 
         Propiedades(metodo).Should().BeEquivalentTo(
         [
@@ -124,9 +143,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void BuscarColaboradores_DeclaraLosDosParametrosOpcionales_CuandoSeInspeccionaLaTool()
     {
-        var metodo = MetodosDeTool.Single(m =>
-            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
-                == "buscar_colaboradores");
+        var metodo = Tool("buscar_colaboradores");
 
         Propiedades(metodo).Should().BeEquivalentTo(
         [

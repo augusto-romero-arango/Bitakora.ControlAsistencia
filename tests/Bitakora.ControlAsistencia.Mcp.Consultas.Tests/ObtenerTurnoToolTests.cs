@@ -26,8 +26,46 @@ public class ObtenerTurnoToolTests
         json["nombre"]!.GetValue<string>().Should().Be("[TEST] Turno Con Sede Prearmada");
         json["horario"]!.GetValue<string>().Should().Be("08:00-16:00");
         json["esDescanso"]!.GetValue<bool>().Should().BeFalse();
+        json["completo"]!.GetValue<bool>().Should().BeTrue();
         json["franjas"]!.AsArray().Select(f => f!.GetValue<string>()).Should()
             .Equal("08:00-16:00, sede: [TEST] Centro");
+    }
+
+    // CA-2 (issue #612): un turno incompleto (sin franjas, CA-ADR-0033) expone completo: false tal
+    // como viene de la ficha; horario y franjas viajan sin remodelar ("Sin franjas" y []).
+    [Fact]
+    public async Task ObtenerTurno_ExponeCompletoFalso_CuandoElTurnoNoTieneFranjas()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("obtener-turno-incompleto.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a05a10-1f2e-7c3a-9d0e-2f0a5a1e3b90", TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["completo"]!.GetValue<bool>().Should().BeFalse();
+        json["horario"]!.GetValue<string>().Should().Be("Sin franjas");
+        json["franjas"]!.AsArray().Should().BeEmpty();
+    }
+
+    // CA-3 (issue #612): la notacion compacta unifica el offset de inicio y de fin de cada franja e
+    // hija (descanso/extra), reemplazando la vieja forma "(+1)" que solo mostraba el offset del fin
+    // y ocultaba el de las hijas (un descanso de madrugada 02:00+1-02:30+1 se veia ambiguo como
+    // 02:00-02:30(+1)). Formato replicado del eco de las tools de Comandos (#609-#611).
+    [Fact]
+    public async Task ObtenerTurno_MuestraOffsetDeInicioYFin_CuandoLaFranjaNocturnaTieneDescansoDeMadrugada()
+    {
+        var (cliente, _) = ClienteFalso.Con(
+            Fixtures.Leer("obtener-turno-nocturno-con-descanso-madrugada.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a05a10-6b7c-7d8e-9f0a-1b2c3d4e5f60", TestContext.Current.CancellationToken);
+
+        var franjas = JsonNode.Parse(resultado)!["franjas"]!.AsArray()
+            .Select(f => f!.GetValue<string>());
+
+        franjas.Should().Equal("22:00-06:00+1, descanso 02:00+1-02:30+1, sede: [TEST] Suba");
     }
 
     [Fact]
