@@ -23,6 +23,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     // Remove sobre una clave ausente devuelve false sin lanzar (MEF-ADR-0004 capa 4).
     public void Apply(DiaDePlantillaSemanalQuitado evento) => _dias.Remove((evento.Semana, evento.Dia));
 
+    // Issue #623: cierra el ciclo de vida (CA-ADR-0034 decision 4, espejo de CatalogoTurnos.Retirar).
+    public void Apply(PlantillaSemanalRetirada evento) => throw new NotImplementedException();
+
     internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
     {
         var plantilla = new PlantillaSemanalTurnos();
@@ -62,4 +65,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         Apply(evento);
         return ResultadoQuitarDia.Quitado;
     }
+
+    // Issue #623: declina con resultado, nunca lanza (CA-ADR-0030). Retirar la plantilla es el
+    // ultimo eslabon de su ciclo de vida -- retirar una plantilla ya retirada es SinCambios
+    // (idempotencia, harness#850), no un rechazo 409 (se aparta del precedente CatalogoTurnos.Retirar).
+    internal ResultadoRetiroPlantilla Retirar() => throw new NotImplementedException();
 }

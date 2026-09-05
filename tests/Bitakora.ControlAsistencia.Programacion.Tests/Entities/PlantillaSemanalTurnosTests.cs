@@ -16,6 +16,14 @@ public class PlantillaSemanalTurnosTests
     private static PlantillaSemanalTurnos CrearPlantilla(int semanas) =>
         PlantillaSemanalTurnos.Iniciar(PlantillaSemanalCreada.Crear(PlantillaId, "Semana Cocina", semanas));
 
+    // Issue #623: arrange comun de CA-3 -- la plantilla ya paso por su propio ciclo de retiro.
+    private static PlantillaSemanalTurnos CrearPlantillaRetirada(int semanas)
+    {
+        var plantilla = CrearPlantilla(semanas);
+        plantilla.Retirar();
+        return plantilla;
+    }
+
     [Fact]
     public void AsignarDia_RetornaAsignado_CuandoElSlotEstaVacio()
     {
@@ -171,5 +179,68 @@ public class PlantillaSemanalTurnosTests
 
         resultado.Should().Be(ResultadoQuitarDia.SemanaFueraDeRango);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().BeEmpty();
+    }
+
+    // CA-2
+    [Fact]
+    public void Retirar_RetornaRetirada_CuandoLaPlantillaEstaActiva()
+    {
+        var plantilla = CrearPlantilla(2);
+
+        var resultado = plantilla.Retirar();
+
+        resultado.Should().Be(ResultadoRetiroPlantilla.Retirada);
+        var evento = plantilla.UncommittedEvents.OfType<PlantillaSemanalRetirada>().Should()
+            .ContainSingle().Which;
+        evento.PlantillaId.Should().Be(PlantillaId);
+    }
+
+    // CA-2: idempotencia -- retirar una plantilla ya retirada declina sin re-emitir (harness#850).
+    [Fact]
+    public void Retirar_RetornaSinCambios_CuandoLaPlantillaYaEstaRetirada()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.Retirar();
+
+        var resultado = plantilla.Retirar();
+
+        resultado.Should().Be(ResultadoRetiroPlantilla.SinCambios);
+        plantilla.UncommittedEvents.OfType<PlantillaSemanalRetirada>().Should().ContainSingle();
+    }
+
+    // CA-3
+    [Fact]
+    public void AsignarDia_RetornaPlantillaRetirada_CuandoLaPlantillaEstaRetirada()
+    {
+        var plantilla = CrearPlantillaRetirada(2);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+
+        resultado.Should().Be(ResultadoAsignarDia.PlantillaRetirada);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().BeEmpty();
+    }
+
+    // CA-3
+    [Fact]
+    public void QuitarDia_RetornaPlantillaRetirada_CuandoLaPlantillaEstaRetirada()
+    {
+        var plantilla = CrearPlantillaRetirada(2);
+
+        var resultado = plantilla.QuitarDia(1, DiaSemana.Lunes);
+
+        resultado.Should().Be(ResultadoQuitarDia.PlantillaRetirada);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().BeEmpty();
+    }
+
+    // CA-3: precedencia -- PlantillaRetirada gana a SemanaFueraDeRango.
+    [Fact]
+    public void AsignarDia_RetornaPlantillaRetirada_CuandoLaSemanaTambienEstaFueraDeRango()
+    {
+        var plantilla = CrearPlantillaRetirada(2);
+
+        var resultado = plantilla.AsignarDia(9, DiaSemana.Lunes, Turno1Id);
+
+        resultado.Should().Be(ResultadoAsignarDia.PlantillaRetirada);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().BeEmpty();
     }
 }
