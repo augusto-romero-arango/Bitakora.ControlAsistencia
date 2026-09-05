@@ -2,17 +2,13 @@ using Bitakora.ControlAsistencia.ReadModels.Programacion;
 
 namespace Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos;
 
-// Issue #625 (opcion B, decision del experto 2026-09-05, reemplaza CA-ADR-0034 decision 5): DTO de
-// respuesta HTTP, excepcion bajo Rule of Three (MEF-ADR-0041 decision 4, skills/projections/
-// read-apis.md "El GET serializa la vista; el DTO de respuesta es excepcion") -- el proposito real
-// es COMPONER dos vistas (CuadroSemanalTurnos + FichaTurno) en una sola respuesta, precedente
-// FichaColaboradorRespuesta.DesdeVista(...) en ObtenerFichaColaborador. Vive en el namespace del
-// endpoint, nunca en ReadModels: el read model no conoce esta composicion.
+// DTO de respuesta HTTP: excepcion al "el GET serializa la vista" bajo Rule of Three
+// (MEF-ADR-0041 decision 4) porque COMPONE dos vistas -- CuadroSemanalTurnos + FichaTurno -- en una
+// sola respuesta; precedente FichaColaboradorRespuesta.DesdeVista. Vive junto al endpoint, nunca en
+// ReadModels: el read model no conoce esta composicion (CA-ADR-0034 decision 5 enmendada).
 //
-// Componer es una funcion PURA (sin QuerySession, sin IO): el endpoint carga cuadro + fichas y le
-// delega toda la logica de negocio de lectura (Completa, Retirado) a este metodo -- la unica pieza
-// testeable sin Marten (CA-1..CA-3). Stub de fase roja: implementacion real fuera del alcance de
-// este agente (projection-test-writer).
+// Componer es PURA (sin QuerySession, sin IO): el endpoint carga cuadro + fichas y le delega toda la
+// logica de lectura (Completa, Retirado), unica y testeable sin Marten.
 public sealed record CuadroSemanalTurnosRespuesta(
     string Id,
     string Nombre,
@@ -20,11 +16,14 @@ public sealed record CuadroSemanalTurnosRespuesta(
     bool Completa,
     IReadOnlyList<DiaDelCuadroRespuesta> Dias)
 {
+    private const int DiasPorSemana = 7;
+
     /// <summary>
     /// Compone el cuadro semanal resuelto: cada dia junta su <see cref="ReadModels.Programacion.DiaDelCuadro"/>
     /// con la <see cref="FichaTurno"/> correspondiente (ausencia = turno retirado). Completa es true
     /// solo si los 7 x Semanas dias tienen turno y todos esos turnos tienen ficha presente con
-    /// Completo == true (decision del planner, issue #625: "vigente" incluye programable).
+    /// Completo == true: "vigente" incluye programable, porque un turno que quedo incompleto vuelve
+    /// la plantilla inusable (la asignacion futura la rechazaria con 409 TurnoIncompleto).
     /// </summary>
     /// <param name="cuadro">La vista <see cref="CuadroSemanalTurnos"/> ya cargada via LoadAsync.</param>
     /// <param name="fichasPorId">Las <see cref="FichaTurno"/> de los TurnoId distintos del cuadro,
@@ -37,9 +36,8 @@ public sealed record CuadroSemanalTurnosRespuesta(
             .Select(dia => new DiaDelCuadroRespuesta(dia.Semana, dia.Dia, ResolverTurno(dia.TurnoId, fichasPorId)))
             .ToList();
 
-        // "Vigente" incluye programable (decision del planner, issue #625): la plantilla solo es
-        // Completa si trae los 7 x Semanas dias asignados Y ninguno quedo retirado o incompleto.
-        var completa = dias.Count == cuadro.Semanas * 7 && dias.All(dia => dia.Turno is { Retirado: false, Completo: true });
+        var completa = dias.Count == cuadro.Semanas * DiasPorSemana
+                       && dias.All(dia => dia.Turno is { Retirado: false, Completo: true });
 
         return new CuadroSemanalTurnosRespuesta(cuadro.Id, cuadro.Nombre, cuadro.Semanas, completa, dias);
     }
@@ -47,8 +45,8 @@ public sealed record CuadroSemanalTurnosRespuesta(
     private static TurnoDelCuadroRespuesta ResolverTurno(
         string turnoId, IReadOnlyDictionary<string, FichaTurno> fichasPorId)
     {
-        // Retirado se deriva de la AUSENCIA de FichaTurno (la proyeccion la borra en TurnoRetirado,
-        // ver Notas tecnicas del issue #625) -- no hay flag que leer.
+        // Retirado se deriva de la AUSENCIA de FichaTurno (la proyeccion la borra en TurnoRetirado):
+        // no hay flag que leer.
         if (!fichasPorId.TryGetValue(turnoId, out var ficha))
             return new TurnoDelCuadroRespuesta(turnoId, Nombre: null, Descripcion: null, Completo: false, Retirado: true);
 

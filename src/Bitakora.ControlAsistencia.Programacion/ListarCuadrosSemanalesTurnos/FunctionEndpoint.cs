@@ -8,14 +8,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos;
 
-// Issue #625: GET sin filtro server-side ni paginacion (MEF-ADR-0042 seccion 1, catalogo acotado de
-// plantillas). Lista tambien las incompletas; no lista las retiradas (su cuadro se borro). Comparte
-// segmento "programacion/plantillas-semanales" con el POST de #620 -- cada uno declara su verbo
-// (MEF-ADR-0006). Reusa CuadroSemanalTurnosRespuesta del namespace hermano ObtenerCuadroSemanalTurnos.
-//
-// Stub de fase roja (projection-test-writer): la implementacion real -- cargar todos los cuadros,
-// una unica LoadManyAsync<FichaTurno> con la union de TurnoId, y componer cada uno -- es
-// responsabilidad del projection-implementer.
+// Listado sin filtro server-side ni paginacion: el catalogo de plantillas es acotado y el cliente
+// filtra (MEF-ADR-0042 seccion 1). Comparte el segmento "programacion/plantillas-semanales" con el
+// POST de CrearPlantillaSemanal; cada uno declara su verbo (MEF-ADR-0006).
 public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
 {
     [Function("ListarCuadrosSemanalesTurnos")]
@@ -28,9 +23,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         // ITenantResolver -- nunca a un tenant id que llegara por query string.
         await using var session = store.QuerySession(tenantResolver.TenantId);
 
-        // Orden estable (Nombre, Id) como contrato de la respuesta -- lista tambien las
-        // incompletas (#629/#626 las necesitan); no lista las retiradas: su cuadro se borro con la
-        // plantilla (ausencia = borrado, no un flag que filtrar).
+        // Orden estable (Nombre, Id) como contrato de la respuesta. Lista tambien las incompletas;
+        // las retiradas no aparecen porque su cuadro se borro con la plantilla (ausencia = borrado,
+        // no un flag que filtrar).
         var cuadros = await session.Query<CuadroSemanalTurnos>()
             .OrderBy(cuadro => cuadro.Nombre).ThenBy(cuadro => cuadro.Id)
             .ToListAsync(ct);
@@ -43,10 +38,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         var fichas = await session.LoadManyAsync<FichaTurno>(ct, turnoIds);
         var fichasPorId = fichas.ToDictionary(ficha => ficha.Id);
 
-        var respuesta = cuadros
+        return new OkObjectResult(cuadros
             .Select(cuadro => CuadroSemanalTurnosRespuesta.Componer(cuadro, fichasPorId))
-            .ToList();
-
-        return new OkObjectResult(respuesta);
+            .ToList());
     }
 }

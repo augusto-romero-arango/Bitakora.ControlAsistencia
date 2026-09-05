@@ -129,4 +129,39 @@ public class CuadroSemanalTurnosRespuestaTests
         respuesta.Completa.Should().BeFalse();
         respuesta.Dias.Should().HaveCount(6);
     }
+
+    // CA-1/CA-3 con N > 1: Completa multiplica por Semanas, no compara contra 7 fijo. Sin este par
+    // de casos una implementacion que exigiera "7 dias" pasaria toda la bateria de arriba.
+    [Fact]
+    public void Componer_MarcaLaPlantillaCompleta_CuandoLasDosSemanasTienenSusCatorceDiasConFichaCompleta()
+    {
+        var dias = DiasDeSemanasCompletas(semanas: 2);
+        var cuadro = new CuadroSemanalTurnos("plantilla-005", "Quincena Planta", Semanas: 2, dias);
+        var fichasPorId = dias.Select(d => d.TurnoId)
+            .ToDictionary(id => id, id => CrearFicha(id, completo: true));
+
+        var respuesta = CuadroSemanalTurnosRespuesta.Componer(cuadro, fichasPorId);
+
+        respuesta.Semanas.Should().Be(2);
+        respuesta.Dias.Should().HaveCount(14);
+        respuesta.Completa.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Componer_MarcaLaPlantillaIncompleta_CuandoFaltaLaSegundaSemanaDeDos()
+    {
+        var dias = DiasDeSemanasCompletas(semanas: 1);
+        var cuadro = new CuadroSemanalTurnos("plantilla-006", "Quincena A Medias", Semanas: 2, dias);
+        var fichasPorId = dias.Select(d => d.TurnoId)
+            .ToDictionary(id => id, id => CrearFicha(id, completo: true));
+
+        var respuesta = CuadroSemanalTurnosRespuesta.Componer(cuadro, fichasPorId);
+
+        respuesta.Dias.Should().HaveCount(7);
+        respuesta.Completa.Should().BeFalse();
+    }
+
+    private static DiaDelCuadro[] DiasDeSemanasCompletas(int semanas) =>
+        [.. Enumerable.Range(1, semanas).SelectMany(semana => Enumerable.Range(1, 7)
+            .Select(dia => new DiaDelCuadro(semana, dia, $"turno-s{semana}-d{dia}")))];
 }
