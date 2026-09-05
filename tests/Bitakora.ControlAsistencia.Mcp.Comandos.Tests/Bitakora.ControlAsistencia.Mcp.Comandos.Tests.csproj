@@ -32,6 +32,8 @@
     <Content Include="RegistrarColaborador\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="SolicitarProgramacionTurno\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="CrearTurno\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="AgregarFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="QuitarFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

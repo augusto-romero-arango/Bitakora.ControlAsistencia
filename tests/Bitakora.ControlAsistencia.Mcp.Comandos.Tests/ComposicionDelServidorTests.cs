@@ -1,6 +1,8 @@
 using System.Reflection;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
+using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarColaborador;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RetirarTurno;
@@ -30,7 +32,7 @@ public class ComposicionDelServidorTests
 
         nombres.Should().BeEquivalentTo(
             RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool, SolicitarProgramacionTurnoTool.NombreTool,
-            CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool);
+            CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool);
     }
 
     [Fact]
@@ -57,16 +59,18 @@ public class ComposicionDelServidorTests
         }
     }
 
-    // CA-5: destructiveHint es true unicamente en retirar_turno (saca un turno del catalogo); el
-    // resto de las tools solo crea o agrega, nunca destruye.
+    // CA-5: destructiveHint es true en retirar_turno y quitar_franja (ambas remueven algo del
+    // catalogo); el resto de las tools solo crea o agrega, nunca destruye.
     [Fact]
-    public void ServidorMcp_DeclaraDestructiveHintSoloEnRetirarTurno_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_DeclaraDestructiveHintEnRetirarTurnoYQuitarFranja_CuandoSeInspeccionaElEnsamblado()
     {
+        var destructivas = new HashSet<string> { RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool };
+
         foreach (var metodo in MetodosDeTool)
         {
             var toolName = ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName;
             var metadata = ParametroTrigger(metodo)!.GetCustomAttribute<McpMetadataAttribute>()!;
-            var esperado = toolName == RetirarTurnoTool.NombreTool;
+            var esperado = destructivas.Contains(toolName);
 
             metadata.Json.Should().Contain(
                 esperado ? "\"destructiveHint\": true" : "\"destructiveHint\": false",
@@ -179,5 +183,37 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
         propiedades.Should().Equal(("turno", true));
+    }
+
+    [Fact]
+    public void AgregarFranja_DeclaraTurnoInicioFinComoRequeridosYCodigoSedeComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == AgregarFranjaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("turno", true),
+            ("inicio", true),
+            ("fin", true),
+            ("codigo_sede", false));
+    }
+
+    [Fact]
+    public void QuitarFranja_DeclaraTurnoYFranjaComoRequeridos_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == QuitarFranjaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(("turno", true), ("franja", true));
     }
 }

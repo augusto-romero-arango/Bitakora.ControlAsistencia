@@ -22,13 +22,47 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
+
+    // Accion de negocio con verbo propio (paso 4 MEF-ADR-0043): el body ya viene armado por la
+    // tool consumidora -- agregar_franja decide si incluye diaOffsetFin/sede (issue #609).
+    public Task<HttpResponseMessage> AgregarFranja(string id, object body, CancellationToken ct) =>
+        http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", body, ct);
+
+    // La franja se identifica por su hora de inicio en formato HH:mm -- igual que el body que el
+    // dominio espera (QuitarFranjaBody), nunca la serializacion TimeOnly por defecto.
+    public Task<HttpResponseMessage> QuitarFranja(string id, TimeOnly franja, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-franja",
+            new { franja = franja.ToString("HH:mm") },
+            ct);
 }
 
 /// <summary>
 /// Ficha de turno del catalogo tal como la devuelve GET programacion/turnos -- solo los campos que
-/// esta tool consume (MEF-ADR-0047 decision 3: contrato propio, no el read model del dominio).
+/// las tools de este servidor consumen (MEF-ADR-0047 decision 3: contrato propio, no el read
+/// model del dominio). Franjas crecio en el issue #609 para el eco de quitar_franja.
 /// </summary>
-public sealed record FichaTurno(string Id, string Nombre, bool EsDescanso);
+public sealed record FichaTurno(
+    string Id,
+    string Nombre,
+    bool EsDescanso,
+    IReadOnlyList<FranjaFicha> Franjas);
+
+/// <summary>Espejo parcial de FranjaFicha del read model -- issue #609 (eco de quitar_franja).</summary>
+public sealed record FranjaFicha(
+    TimeOnly HoraInicio,
+    TimeOnly HoraFin,
+    int DiaOffsetFin,
+    IReadOnlyList<SubFranjaFicha> Descansos,
+    IReadOnlyList<SubFranjaFicha> Extras,
+    string? SedeId,
+    string? NombreSede);
+
+public sealed record SubFranjaFicha(
+    TimeOnly HoraInicio,
+    TimeOnly HoraFin,
+    int DiaOffsetInicio,
+    int DiaOffsetFin);
 
 /// <summary>
 /// Payload propio de la tool hacia POST /api/programacion/solicitudes (MEF-ADR-0039 decision 6: el
