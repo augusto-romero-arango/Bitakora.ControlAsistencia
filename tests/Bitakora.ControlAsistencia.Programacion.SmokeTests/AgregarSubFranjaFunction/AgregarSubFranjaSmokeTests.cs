@@ -13,6 +13,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoDescansoAgregado = "descanso_agregado";
+    private const string TipoEventoExtraAgregado = "extra_agregado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private static string RutaAgregarFranja(Guid turnoId) => $"{RutaTurnos}/{turnoId}:agregar-franja";
@@ -62,6 +63,36 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         descanso.GetProperty("horaInicio").GetString().Should().Be("02:00:00");
         descanso.GetProperty("diaOffsetInicio").GetInt32().Should().Be(1);
         descanso.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
+    }
+
+    // CA-5: mismo discriminador de frontera que CrearTurno.EsDescanso, pero aqui produce un
+    // segundo tipo de evento (extra_agregado en vez de descanso_agregado). El test de descanso ya
+    // cubre el camino feliz del comando; este solo cierra que "tipo: extra" enruta al otro evento.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarSubFranja_DebeRetornar202YPersistirElExtraDeMadrugada_CuandoTipoEsExtra()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoVacioAsync(turnoId, "[TEST] Turno Subfranja Extra", ct);
+        await AgregarFranjaNocturnaAsync(turnoId, ct);
+
+        var payload = new { franja = "22:00", tipo = "extra", inicio = "05:00", fin = "06:00" };
+        var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var streamId = turnoId.ToString();
+        var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoExtraAgregado,
+            campoJson: "TurnoId", valorJson: turnoId.ToString(), Timeout);
+
+        var extra = eventoPersistido.GetProperty("Franja").GetProperty("extras")[0];
+        extra.GetProperty("horaInicio").GetString().Should().Be("05:00:00");
+        extra.GetProperty("diaOffsetInicio").GetInt32().Should().Be(1);
+        extra.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
     }
 
     // CA-6: tipo desconocido -> 400 (validado por AgregarSubFranjaBodyValidator).
