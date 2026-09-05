@@ -67,6 +67,22 @@ public class CrearTurnoToolTests
             .BeTrue("un descanso nace completo: no necesita franjas para poder programarse");
     }
 
+    // El cliente MCP omite es_descanso: la extension deja el argumento sin resolver y la tool lo
+    // recibe null. Debe comportarse igual que un false explicito, nunca reventar.
+    [Fact]
+    public async Task CrearTurno_EnviaEsDescansoFalso_CuandoElClienteOmiteEsDescanso()
+    {
+        var (tool, handler) = CrearTool();
+
+        var resultado = await tool.Run(null!, "Nocturno", null, TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(handler.UltimoCuerpoEnviado!)!["esDescanso"]!.GetValue<bool>().Should().BeFalse();
+
+        var json = JsonNode.Parse(resultado)!;
+        json["turno"]!["esDescanso"]!.GetValue<bool>().Should().BeFalse();
+        json["turno"]!["completo"]!.GetValue<bool>().Should().BeFalse();
+    }
+
     [Fact]
     public async Task CrearTurno_TraduceElRechazoDelDominio_Cuando409()
     {

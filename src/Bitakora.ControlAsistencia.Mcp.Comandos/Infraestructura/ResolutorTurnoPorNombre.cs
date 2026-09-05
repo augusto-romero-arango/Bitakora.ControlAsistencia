@@ -8,12 +8,11 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 // CrearTurno/AgregarFranja/etc. ya planeadas en #609-#611). Encapsula GET programacion/turnos +
 // normalizacion + busqueda por nombre; cada tool consumidora sigue formateando su propio mensaje
 // de "no encontrado" con su .resx (MEF-ADR-0009) a partir de NombresDisponibles.
-public class ResolutorTurnoPorNombre(ProgramacionApi programacion)
+public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion)
 {
     public const int MaximoTurnosEnMensaje = 20;
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
-    private static readonly Regex EspaciosConsecutivos = new(@"\s+", RegexOptions.Compiled);
 
     // El boundary del sistema (5xx o cuerpo no JSON) se traduce como fallo de lectura crudo: la
     // tool consumidora decide como formatearlo con su propia .resx RechazoDelDominio (CA-ADR-0030).
@@ -40,7 +39,10 @@ public class ResolutorTurnoPorNombre(ProgramacionApi programacion)
     // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): este
     // resolutor cruza de Mcp.Comandos hacia Programacion, sin ensamblado compartido entre ambos.
     private static string NormalizarNombre(string nombre) =>
-        EspaciosConsecutivos.Replace(nombre.Trim(), " ").ToUpperInvariant();
+        EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex EspaciosConsecutivos();
 }
 
 /// <summary>

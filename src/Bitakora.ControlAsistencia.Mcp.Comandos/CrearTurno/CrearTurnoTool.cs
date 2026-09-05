@@ -26,25 +26,31 @@ public partial class CrearTurnoTool(ProgramacionApi programacion)
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico del turno en el catalogo.", isRequired: true)]
         string nombre,
+        // bool? y no bool: cuando el cliente omite un parametro opcional, el converter de la
+        // extension (ToolInvocationArgumentTypeConverter) no lo resuelve y el worker deja null en
+        // el argumento; el ejecutor generado hace (bool)argumento, que sobre null revienta en
+        // runtime. Con bool? el null viaja igual que en los string? opcionales del resto de las
+        // tools. El inputSchema publicado no cambia: bool y bool? mapean ambos a "boolean".
         [McpToolProperty(
             "es_descanso",
             "En true crea un turno de descanso (dia libre programable, sin franjas). Por defecto "
             + "false: turno incompleto listo para disenar con agregar_franja.")]
-        bool esDescanso,
+        bool? esDescanso,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(nombre))
             return string.Format(Mensajes.CampoObligatorio, "nombre");
 
+        var descanso = esDescanso ?? false;
         var turnoId = Guid.CreateVersion7();
-        var respuesta = await programacion.CrearTurno(turnoId, nombre, esDescanso, ct);
+        var respuesta = await programacion.CrearTurno(turnoId, nombre, descanso, ct);
 
         if (!respuesta.IsSuccessStatusCode)
             return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
 
         return RespuestaJson.Serializar(new TurnoCreadoResumen(
             Mensajes.ResultadoTurnoCreado,
-            new TurnoCreadoEco(turnoId.ToString(), nombre, esDescanso, esDescanso),
+            new TurnoCreadoEco(turnoId.ToString(), nombre, descanso, descanso),
             Mensajes.NotaVisibilidadEventual));
     }
 }
