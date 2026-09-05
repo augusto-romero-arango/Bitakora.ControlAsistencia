@@ -23,19 +23,4 @@
   <data name="PlantillaNoEncontrada" xml:space="preserve">
     <value>No se encontro la plantilla semanal con el Id especificado</value>
   </data>
-  <data name="TurnoNoEncontrado" xml:space="preserve">
-    <value>No se encontro el turno con el Id especificado en el catalogo</value>
-  </data>
-  <data name="TurnoRetirado" xml:space="preserve">
-    <value>El turno fue retirado del catalogo y ya no es asignable</value>
-  </data>
-  <data name="TurnoIncompleto" xml:space="preserve">
-    <value>El turno esta incompleto y no puede asignarse a un dia de la plantilla</value>
-  </data>
-  <data name="SemanaFueraDeRango" xml:space="preserve">
-    <value>La semana especificada supera el numero de semanas de la plantilla</value>
-  </data>
-  <data name="PlantillaRetirada" xml:space="preserve">
-    <value>La plantilla fue retirada y ya no admite cambios de diseno</value>
-  </data>
 </root>

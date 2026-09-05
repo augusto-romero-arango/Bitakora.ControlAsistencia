@@ -128,6 +128,23 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         Then(GuidAggregateId.ToString());
     }
 
+    // CA-5 (issue #623): la plantilla retirada gana a cualquier otra evaluacion del handler.
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoLaPlantillaEstaRetirada()
+    {
+        Given(CrearEventoPlantilla(), PlantillaSemanalRetirada.Crear(GuidAggregateId));
+        Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
+
+        var act = async () => await WhenAsync(
+            new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaRetirada}*");
+        Then(GuidAggregateId.ToString());
+        Then(TurnoId.ToString());
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
     // Idempotencia (ResultadoAsignarDia.SinCambios): los dos Then sin eventos esperados afirman
     // que no se emitio nada en NINGUNO de los dos streams.
     [Fact]

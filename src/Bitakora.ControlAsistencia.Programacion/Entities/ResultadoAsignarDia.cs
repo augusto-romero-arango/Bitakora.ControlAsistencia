@@ -6,5 +6,6 @@ internal enum ResultadoAsignarDia
 {
     Asignado,
     SinCambios,
-    SemanaFueraDeRango
+    SemanaFueraDeRango,
+    PlantillaRetirada
 }

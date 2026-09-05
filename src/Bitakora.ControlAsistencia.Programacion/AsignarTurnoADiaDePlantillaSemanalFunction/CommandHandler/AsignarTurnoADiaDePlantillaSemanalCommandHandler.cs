@@ -37,7 +37,12 @@ public partial class AsignarTurnoADiaDePlantillaSemanalCommandHandler
         }
 
         var resultado = plantilla.AsignarDia(command.Semana, command.Dia, command.TurnoId);
-        if (resultado == ResultadoAsignarDia.SemanaFueraDeRango)
-            throw new InvalidOperationException(Mensajes.SemanaFueraDeRango);
+        switch (resultado)
+        {
+            case ResultadoAsignarDia.PlantillaRetirada:
+                throw new InvalidOperationException(Mensajes.PlantillaRetirada);
+            case ResultadoAsignarDia.SemanaFueraDeRango:
+                throw new InvalidOperationException(Mensajes.SemanaFueraDeRango);
+        }
     }
 }

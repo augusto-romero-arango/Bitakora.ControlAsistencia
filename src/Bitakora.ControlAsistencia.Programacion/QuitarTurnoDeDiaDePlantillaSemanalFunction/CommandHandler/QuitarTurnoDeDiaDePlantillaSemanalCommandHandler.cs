@@ -24,7 +24,12 @@ public partial class QuitarTurnoDeDiaDePlantillaSemanalCommandHandler
             throw new KeyNotFoundException(Mensajes.PlantillaNoEncontrada);
 
         var resultado = plantilla.QuitarDia(command.Semana, command.Dia);
-        if (resultado == ResultadoQuitarDia.SemanaFueraDeRango)
-            throw new InvalidOperationException(Mensajes.SemanaFueraDeRango);
+        switch (resultado)
+        {
+            case ResultadoQuitarDia.PlantillaRetirada:
+                throw new InvalidOperationException(Mensajes.PlantillaRetirada);
+            case ResultadoQuitarDia.SemanaFueraDeRango:
+                throw new InvalidOperationException(Mensajes.SemanaFueraDeRango);
+        }
     }
 }

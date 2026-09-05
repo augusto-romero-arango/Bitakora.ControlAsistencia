@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction;
+
+public record RetirarPlantillaSemanal(Guid PlantillaId);

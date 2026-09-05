@@ -25,5 +25,8 @@ public partial class AsignarTurnoADiaDePlantillaSemanalCommandHandler
 
         public static string SemanaFueraDeRango =>
             ResourceManager.GetString(nameof(SemanaFueraDeRango))!;
+
+        public static string PlantillaRetirada =>
+            ResourceManager.GetString(nameof(PlantillaRetirada))!;
     }
 }

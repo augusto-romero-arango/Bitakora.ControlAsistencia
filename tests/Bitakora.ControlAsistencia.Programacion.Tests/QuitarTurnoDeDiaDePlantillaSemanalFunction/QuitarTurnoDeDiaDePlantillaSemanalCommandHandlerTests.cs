@@ -58,6 +58,23 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
+    // CA-5 (issue #623): la plantilla retirada gana a cualquier otra evaluacion del handler.
+    [Fact]
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoLaPlantillaEstaRetirada()
+    {
+        Given(CrearEventoPlantilla(),
+            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId),
+            PlantillaSemanalRetirada.Crear(GuidAggregateId));
+
+        var act = async () => await WhenAsync(
+            new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5)));
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*{QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaRetirada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
     // Idempotencia: un dia ya vacio no es rechazo -- el handler retorna sin lanzar (CA-ADR-0030).
     [Fact]
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_NoEmiteEvento_CuandoElDiaYaEstaVacio()

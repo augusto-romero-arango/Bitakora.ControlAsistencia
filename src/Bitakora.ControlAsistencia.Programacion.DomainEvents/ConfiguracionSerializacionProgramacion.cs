@@ -42,5 +42,6 @@ public static class ConfiguracionSerializacionProgramacion
         PlantillaSemanalCreada.ConfigurarSerializacion(resolver);
         DiaDePlantillaSemanalAsignado.ConfigurarSerializacion(resolver);
         DiaDePlantillaSemanalQuitado.ConfigurarSerializacion(resolver);
+        PlantillaSemanalRetirada.ConfigurarSerializacion(resolver);
     }
 }

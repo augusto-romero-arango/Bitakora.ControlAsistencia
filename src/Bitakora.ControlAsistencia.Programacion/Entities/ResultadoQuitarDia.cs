@@ -6,5 +6,6 @@ internal enum ResultadoQuitarDia
 {
     Quitado,
     SinCambios,
-    SemanaFueraDeRango
+    SemanaFueraDeRango,
+    PlantillaRetirada
 }
