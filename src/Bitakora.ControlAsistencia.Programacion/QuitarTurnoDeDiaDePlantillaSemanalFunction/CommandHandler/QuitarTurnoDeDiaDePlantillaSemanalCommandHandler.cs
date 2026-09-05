@@ -6,7 +6,8 @@ namespace Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSem
 // El BC no ha scaffoldeado aun RecursoYaExisteException/RecursoNoEncontradoException (regimen de
 // coexistencia, MEF-ADR-0004): sigue el patron vigente del repo, KeyNotFoundException (404) /
 // InvalidOperationException (409). SinCambios no es un rechazo (CA-ADR-0030): el handler retorna
-// sin lanzar y el endpoint responde 204.
+// sin lanzar y el endpoint responde 204. En el camino de exito el aggregate deja el evento en
+// _uncommittedEvents -- el middleware persiste via SaveChanges.
 public partial class QuitarTurnoDeDiaDePlantillaSemanalCommandHandler
     : ICommandHandlerAsync<QuitarTurnoDeDiaDePlantillaSemanal>
 {

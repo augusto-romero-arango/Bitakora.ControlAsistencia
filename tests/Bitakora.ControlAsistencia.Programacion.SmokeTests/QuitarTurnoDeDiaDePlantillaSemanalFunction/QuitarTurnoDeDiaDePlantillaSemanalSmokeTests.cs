@@ -96,8 +96,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalSmokeTests(ApiFixture api, Postgr
             $"el evento {TipoEventoDiaQuitado} deberia existir en el stream {streamId} tras quitar el dia");
     }
 
-    // DELETE es idempotente (RFC 9110 seccion 9.2.2): repetirlo sobre un dia ya vacio responde
-    // 204 igual, sin re-emitir.
+    // DELETE es idempotente (RFC 9110 seccion 9.2.2): el segundo retiro no re-emite ni conflictua.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarTurnoDeDia_DebeRetornar204_CuandoSeRepiteSobreUnDiaYaVacio()

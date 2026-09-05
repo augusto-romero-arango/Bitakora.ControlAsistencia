@@ -93,8 +93,6 @@ public class PlantillaSemanalTurnosTests
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
     }
 
-    // Issue #622: quitar (vaciar) el turno de un dia de la plantilla.
-
     [Fact]
     public void QuitarDia_RetornaQuitado_CuandoElSlotTieneTurnoAsignado()
     {
@@ -111,8 +109,8 @@ public class PlantillaSemanalTurnosTests
         evento.Dia.Should().BeSameAs(DiaSemana.Lunes);
     }
 
-    // CA-2: tras quitar, el slot vuelve a estar vacio -- AsignarDia responde Asignado, no
-    // SinCambios, aunque se le pase el mismo turno que tenia antes.
+    // Observabilidad sin getters: el slot vacio se prueba porque AsignarDia vuelve a responder
+    // Asignado con el mismo turno que tenia antes, en vez de SinCambios.
     [Fact]
     public void QuitarDia_DejaElSlotVacio_LuegoAsignarDiaVuelveARetornarAsignado()
     {
@@ -136,6 +134,20 @@ public class PlantillaSemanalTurnosTests
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().BeEmpty();
     }
 
+    // El slot se localiza por (semana, dia) completo: quitar el mismo dia de otra semana no toca
+    // el asignado -- AsignarDia con el mismo turno sigue respondiendo SinCambios.
+    [Fact]
+    public void QuitarDia_NoTocaElMismoDiaDeOtraSemana_CuandoLaSemanaPedidaEstaVacia()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+
+        var resultado = plantilla.QuitarDia(2, DiaSemana.Lunes);
+
+        resultado.Should().Be(ResultadoQuitarDia.SinCambios);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id).Should().Be(ResultadoAsignarDia.SinCambios);
+    }
+
     [Fact]
     public void QuitarDia_RetornaSinCambios_CuandoElDiaYaFueQuitado()
     {
@@ -149,7 +161,7 @@ public class PlantillaSemanalTurnosTests
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalQuitado>().Should().ContainSingle();
     }
 
-    // CA-3: la semana se valida ANTES que el estado del dia, aunque el dia este vacio.
+    // La semana se valida antes que el estado del dia, aunque ese dia ya este vacio.
     [Fact]
     public void QuitarDia_RetornaSemanaFueraDeRango_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
     {

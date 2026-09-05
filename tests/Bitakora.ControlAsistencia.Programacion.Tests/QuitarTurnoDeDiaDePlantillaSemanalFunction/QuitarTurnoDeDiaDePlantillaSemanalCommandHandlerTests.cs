@@ -1,5 +1,3 @@
-// Issue #622: quitar (vaciar) el turno de un dia de la plantilla semanal.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
@@ -22,7 +20,6 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
     private PlantillaSemanalCreada CrearEventoPlantilla(int semanas = 2) =>
         PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, semanas);
 
-    // CA-4
     [Fact]
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_EmiteDiaQuitado_CuandoElDiaTieneTurnoAsignado()
     {
@@ -61,7 +58,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // Idempotencia (ResultadoQuitarDia.SinCambios): DELETE de un dia ya vacio no lanza ni emite.
+    // Idempotencia: un dia ya vacio no es rechazo -- el handler retorna sin lanzar (CA-ADR-0030).
     [Fact]
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_NoEmiteEvento_CuandoElDiaYaEstaVacio()
     {

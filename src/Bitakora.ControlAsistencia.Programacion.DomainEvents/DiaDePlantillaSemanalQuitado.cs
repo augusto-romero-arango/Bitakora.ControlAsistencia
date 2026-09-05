@@ -3,10 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #622: vacia el slot (semana, dia) de la plantilla. Su resultado es una ausencia
-// (CA-ADR-0033 decision 4): sin TurnoId -- la clave (Semana, Dia) ya localiza el slot que Apply
-// debe vaciar, sin necesitar el turno que se fue. Mismo patron que DiaDePlantillaSemanalAsignado:
-// sealed class con ctor privado + ctor vacio para Marten/JSON.
+// Su resultado es una ausencia (CA-ADR-0033 decision 4): sin TurnoId -- la clave (Semana, Dia) ya
+// localiza el slot que Apply debe vaciar, sin necesitar el turno que se fue.
 public sealed partial class DiaDePlantillaSemanalQuitado
 {
     public Guid PlantillaId { get; private set; }
@@ -20,7 +18,7 @@ public sealed partial class DiaDePlantillaSemanalQuitado
         Dia = dia;
     }
 
-    // Constructor vacio privado para Marten/JSON (mismo patron que DiaDePlantillaSemanalAsignado).
+    // Ctor vacio para Marten/JSON: sin el, ConfigurarSerializacion no tiene como instanciar el tipo.
     private DiaDePlantillaSemanalQuitado() => Dia = DiaSemana.Lunes;
 
     public static DiaDePlantillaSemanalQuitado Crear(Guid plantillaId, int semana, DiaSemana dia)
@@ -31,7 +29,9 @@ public sealed partial class DiaDePlantillaSemanalQuitado
         return new DiaDePlantillaSemanalQuitado(plantillaId, semana, dia);
     }
 
-    // Dia persiste como su numero ISO (entero), mismo mecanismo que DiaDePlantillaSemanalAsignado.
+    // Contrato de persistencia: Dia se guarda como su numero ISO, nunca el nombre del enum de .NET.
+    // STJ no sabe reconstruir DiaSemana (ctor privado), asi que se descarta su JsonPropertyInfo
+    // auto-detectada y se sustituye por una de tipo int que rehidrata via DiaSemana.Desde.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var tipoClase = typeof(DiaDePlantillaSemanalQuitado);

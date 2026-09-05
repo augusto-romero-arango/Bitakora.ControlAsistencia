@@ -1,6 +1,3 @@
-// Issue #622: tests del endpoint HTTP DELETE
-// programacion/plantillas-semanales/{id}/dias/{semana}/{dia}
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -47,7 +44,7 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NoContentResult>();
     }
 
-    // El DELETE nunca es asincrono diferido -- ni siquiera cuando el dia ya estaba vacio.
+    // El DELETE nunca es asincrono diferido, a diferencia del resto de comandos del dominio.
     [Fact]
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_NuncaRetornaAcceptedResult_CuandoComandoEsValido()
     {
