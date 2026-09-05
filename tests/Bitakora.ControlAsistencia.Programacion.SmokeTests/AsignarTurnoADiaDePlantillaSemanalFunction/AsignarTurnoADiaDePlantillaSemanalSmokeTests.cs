@@ -137,4 +137,24 @@ public class AsignarTurnoADiaDePlantillaSemanalSmokeTests(ApiFixture api, Postgr
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    // #623: precedencia retirada > semana fuera de rango -- la guarda _estaActiva es la primera
+    // evaluacion del comando, antes de validar la semana.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_DebeRetornar409_CuandoLaPlantillaEstaRetirada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (plantillaId, turnoId) = await CrearPlantillaYTurnoAsync(ct);
+
+        var retiroResponse = await _client.DeleteAsync(
+            $"/api/programacion/plantillas-semanales/{plantillaId}", ct);
+        retiroResponse.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que el retiro de la plantilla funcione");
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/programacion/plantillas-semanales/{plantillaId}/dias/1/5", new { turnoId }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }
