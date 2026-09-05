@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -12,6 +15,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.AsignarSedeFranja;
 public partial class AsignarSedeFranjaTool(ProgramacionApi programacion, SedesApi sedes)
 {
     internal const string NombreTool = "asignar_sede_franja";
+
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
@@ -37,7 +42,49 @@ public partial class AsignarSedeFranjaTool(ProgramacionApi programacion, SedesAp
         string? codigoSede,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(turno))
+            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (string.IsNullOrWhiteSpace(franja))
+            return string.Format(Mensajes.CampoObligatorio, "franja");
+
+        if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
+            return string.Format(Mensajes.HoraInvalida, "franja", franja);
+
+        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurnos)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+        var fichaTurno = resolucion.Ficha;
+
+        SedeProgramada? sede = null;
+        if (!string.IsNullOrWhiteSpace(codigoSede))
+        {
+            var respuestaSede = await sedes.ObtenerFicha(codigoSede, ct);
+            if (respuestaSede.StatusCode == HttpStatusCode.NotFound)
+                return string.Format(Mensajes.SedeNoExiste, codigoSede);
+            if (await respuestaSede.LeerFalloAsync(ct) is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+
+            var fichaSede = (await respuestaSede.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
+            if (!fichaSede.Activa)
+                return string.Format(Mensajes.SedeInactiva, codigoSede);
+
+            sede = new SedeProgramada(fichaSede.Codigo, fichaSede.Nombre, fichaSede.CentroDeCostos);
+        }
+
+        var horaCompacta = NotacionFranja.Hora(horaFranja);
+        object body = sede is null ? new { franja = horaCompacta } : new { franja = horaCompacta, sede };
+
+        var respuestaAsignar = await programacion.AsignarSedeAFranja(fichaTurno.Id, body, ct);
+        if (await respuestaAsignar.LeerFalloAsync(ct) is { } falloAsignar)
+            return string.Format(Mensajes.RechazoDelDominio, falloAsignar);
+
+        var resultado = sede is null ? Mensajes.ResultadoSedeRetirada : Mensajes.ResultadoSedeAsignada;
+
+        return RespuestaJson.Serializar(new SedeDeFranjaResumen(
+            resultado, fichaTurno.Nombre, horaCompacta, sede?.Nombre, Mensajes.NotaVisibilidadEventual));
     }
 }
 
