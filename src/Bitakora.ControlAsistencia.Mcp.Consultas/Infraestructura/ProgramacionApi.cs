@@ -12,4 +12,12 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
+
+    // Plantillas semanales (issue #629): mismo par listar/obtener que turnos, sobre el cuadro
+    // resuelto de #625.
+    public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
+        http.GetAsync("api/programacion/plantillas-semanales", ct);
+
+    public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
+        http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 }
