@@ -10,16 +10,18 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.ComposicionDelHost
 // materializo en dev.
 public class ComposicionDelHostSmokeTests(McpFixture mcp)
 {
+    // CA-5 (issue #629): pin de tools/list re-ejecutado con las 8 tools del catalogo.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasSeisToolsDeConsulta_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasOchoToolsDeConsulta_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
         tools.Select(t => t.Name).Should().BeEquivalentTo(
             "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
-            "listar_colaboradores", "buscar_colaboradores");
+            "listar_colaboradores", "buscar_colaboradores",
+            "listar_plantillas_semanales", "obtener_plantilla_semanal");
     }
 
     [Fact]
@@ -114,6 +116,29 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
         Propiedades(tools.Single(t => t.Name == "buscar_colaboradores")).Should().BeEquivalentTo(
             "nombre", "identificaciones");
+    }
+
+    // CA-5 (issue #629): listar_plantillas_semanales no declara obligatorios (filtro_nombre es opcional).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarPlantillasSemanales_NoDeclaraParametrosObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Requeridas(tools.Single(t => t.Name == "listar_plantillas_semanales")).Should().BeEmpty();
+    }
+
+    // CA-5 (issue #629): obtener_plantilla_semanal exige plantilla.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerPlantillaSemanal_DeclaraPlantillaObligatoria_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Requeridas(tools.Single(t => t.Name == "obtener_plantilla_semanal"))
+            .Should().BeEquivalentTo("plantilla");
     }
 
     private static List<string?> Requeridas(McpClientTool tool) =>

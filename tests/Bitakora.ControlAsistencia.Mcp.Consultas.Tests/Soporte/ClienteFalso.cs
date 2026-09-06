@@ -28,6 +28,24 @@ public sealed class HandlerEnlatado(HttpStatusCode status, string cuerpo) : Http
     }
 }
 
+/// <summary>
+/// HttpMessageHandler falso que responde segun una funcion arbitraria de la request y registra
+/// TODAS las requests recibidas (a diferencia de <see cref="HandlerEnlatado"/>, que solo guarda la
+/// ultima): necesario para tools que hacen mas de un GET (resolver nombre -> id, issue #629) y
+/// deben verificar cuantas veces se llamo al dominio.
+/// </summary>
+public sealed class HandlerFuncional(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+{
+    public List<HttpRequestMessage> Requests { get; } = [];
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Requests.Add(request);
+        return Task.FromResult(responder(request));
+    }
+}
+
 public static class ClienteFalso
 {
     public static (HttpClient Cliente, HandlerEnlatado Handler) Con(
@@ -37,6 +55,19 @@ public static class ClienteFalso
         var cliente = new HttpClient(handler) { BaseAddress = new Uri("https://dominio.falso.local") };
         return (cliente, handler);
     }
+
+    public static (HttpClient Cliente, HandlerFuncional Handler) ConFuncion(
+        Func<HttpRequestMessage, HttpResponseMessage> responder)
+    {
+        var handler = new HandlerFuncional(responder);
+        var cliente = new HttpClient(handler) { BaseAddress = new Uri("https://dominio.falso.local") };
+        return (cliente, handler);
+    }
+
+    public static HttpResponseMessage JsonOk(string cuerpo) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent(cuerpo, Encoding.UTF8, "application/json")
+    };
 
     /// <summary>
     /// Igual que <see cref="Con"/>, pero intercalando <see cref="PropagadorIdentidadTenantHandler"/>

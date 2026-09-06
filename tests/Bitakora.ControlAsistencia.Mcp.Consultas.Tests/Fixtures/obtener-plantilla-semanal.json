@@ -1,0 +1,74 @@
+{
+ "id": "01a07000-1000-7000-9000-000000000001",
+ "nombre": "[TEST] Semana Cocina",
+ "semanas": 1,
+ "completa": false,
+ "dias": [
+  {
+   "semana": 1,
+   "dia": 1,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000001",
+    "nombre": "[TEST] Cocina Manana",
+    "descripcion": "(07:00-17:00)",
+    "completo": true,
+    "retirado": false
+   }
+  },
+  {
+   "semana": 1,
+   "dia": 2,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000002",
+    "nombre": "[TEST] Cocina Tarde",
+    "descripcion": "(13:00-21:00)",
+    "completo": true,
+    "retirado": false
+   }
+  },
+  {
+   "semana": 1,
+   "dia": 3,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000003",
+    "nombre": "[TEST] Turno Incompleto",
+    "descripcion": "Sin franjas",
+    "completo": false,
+    "retirado": false
+   }
+  },
+  {
+   "semana": 1,
+   "dia": 4,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000004",
+    "nombre": null,
+    "descripcion": null,
+    "completo": false,
+    "retirado": true
+   }
+  },
+  {
+   "semana": 1,
+   "dia": 5,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000005",
+    "nombre": "[TEST] Cocina Noche",
+    "descripcion": "(21:00-05:00+1)",
+    "completo": true,
+    "retirado": false
+   }
+  },
+  {
+   "semana": 1,
+   "dia": 6,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000006",
+    "nombre": "[TEST] Descanso Semana Cocina",
+    "descripcion": "Descanso",
+    "completo": true,
+    "retirado": false
+   }
+  }
+ ]
+}

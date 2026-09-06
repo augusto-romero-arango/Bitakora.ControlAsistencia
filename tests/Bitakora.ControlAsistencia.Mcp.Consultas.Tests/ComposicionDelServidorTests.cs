@@ -40,14 +40,16 @@ public class ComposicionDelServidorTests
     private static MethodInfo Tool(string nombreTool) =>
         MetodosDeTool.Single(m => Trigger(m).ToolName == nombreTool);
 
+    // CA-4 (issue #629): catalogo 6 -> 8 con el par listar_plantillas_semanales/obtener_plantilla_semanal.
     [Fact]
-    public void ServidorMcp_ExponeLasSeisToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasOchoToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool.Select(m => Trigger(m).ToolName);
 
         nombres.Should().BeEquivalentTo(
             "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
-            "listar_colaboradores", "buscar_colaboradores");
+            "listar_colaboradores", "buscar_colaboradores",
+            "listar_plantillas_semanales", "obtener_plantilla_semanal");
     }
 
     [Fact]
@@ -150,6 +152,25 @@ public class ComposicionDelServidorTests
             ("nombre", false),
             ("identificaciones", false)
         ], opciones => opciones.WithoutStrictOrdering(), "ambos parametros son opcionales (CA-4)");
+    }
+
+    // CA-4 (issue #629): listar_plantillas_semanales sigue el mismo patron que listar_turnos --
+    // filtro_nombre es el unico parametro y es opcional.
+    [Fact]
+    public void ListarPlantillasSemanales_DeclaraFiltroNombreComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = Tool("listar_plantillas_semanales");
+
+        Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("filtro_nombre", false));
+    }
+
+    // CA-4 (issue #629): obtener_plantilla_semanal exige el nombre exacto de la plantilla.
+    [Fact]
+    public void ObtenerPlantillaSemanal_DeclaraPlantillaComoObligatoria_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = Tool("obtener_plantilla_semanal");
+
+        Propiedades(metodo).Should().ContainSingle().Which.Should().Be(("plantilla", true));
     }
 
     private static List<(string Nombre, bool Obligatoria, string? Descripcion)> PropiedadesConDescripcion(
