@@ -1,0 +1,110 @@
+using System.Text.Json;
+using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.Fixtures;
+using ModelContextProtocol.Protocol;
+
+namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.AsignarTurnoADia;
+
+// El ciclo crear turno+plantilla -> asignar -> quitar va junto (CA-5 del issue #628, mismo
+// precedente que CrearPlantillaSemanalSmokeTests): retirar_plantilla_semanal/retirar_turno limpian
+// lo sembrado por este mismo test.
+public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
+{
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_MuestraElTurnoEnElDia_YQuitarTurnoDeDia_LoDejaDeMostrar()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var nombreTurno = $"[TEST] Turno MCP {sufijo}";
+        var nombrePlantilla = $"[TEST] Plantilla MCP {sufijo}";
+
+        var creadoTurno = await mcp.Cliente.CallToolAsync(
+            "crear_turno", new Dictionary<string, object?> { ["nombre"] = nombreTurno }, cancellationToken: ct);
+        creadoTurno.IsError.Should().NotBeTrue();
+
+        using (await programacion.Client.EsperarFichaAsync(nombreTurno, ct)) { }
+
+        var conFranja = await mcp.Cliente.CallToolAsync(
+            "agregar_franja",
+            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            cancellationToken: ct);
+        conFranja.IsError.Should().NotBeTrue();
+
+        // Plantilla de un solo dia (lunes): martes queda vacio a proposito -- es el slot que este
+        // test asigna y luego quita con las dos tools bajo prueba.
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{nombreTurno}}"}]""";
+        var creada = await mcp.Cliente.CallToolAsync(
+            "crear_plantilla_semanal",
+            new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
+            cancellationToken: ct);
+        creada.IsError.Should().NotBeTrue();
+
+        using var textoCreada = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
+        var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
+
+        using (var cuadroInicial = await programacion.EsperarCuadroAsync(plantillaId, ct))
+            cuadroInicial.RootElement.GetProperty("dias").GetArrayLength().Should().Be(1);
+
+        var asignado = await mcp.Cliente.CallToolAsync(
+            "asignar_turno_a_dia",
+            new Dictionary<string, object?>
+            {
+                ["plantilla"] = nombrePlantilla, ["turno"] = nombreTurno, ["dia"] = "martes", ["semana"] = 1
+            },
+            cancellationToken: ct);
+        asignado.IsError.Should().NotBeTrue();
+
+        await Polling.WaitUntilAsync(
+            async () =>
+            {
+                using var cuadro = await programacion.BuscarCuadroAsync(plantillaId, ct);
+                var muestraMartes = cuadro?.RootElement.GetProperty("dias").EnumerateArray()
+                    .Any(dia => dia.GetProperty("semana").GetInt32() == 1 && dia.GetProperty("dia").GetInt32() == 2);
+                return muestraMartes == true ? new object() : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
+
+        var quitado = await mcp.Cliente.CallToolAsync(
+            "quitar_turno_de_dia",
+            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla, ["dia"] = "martes", ["semana"] = 1 },
+            cancellationToken: ct);
+        quitado.IsError.Should().NotBeTrue();
+
+        await Polling.WaitUntilAsync(
+            async () =>
+            {
+                using var cuadro = await programacion.BuscarCuadroAsync(plantillaId, ct);
+                var yaNoMuestraMartes = !(cuadro?.RootElement.GetProperty("dias").EnumerateArray()
+                    .Any(dia => dia.GetProperty("semana").GetInt32() == 1 && dia.GetProperty("dia").GetInt32() == 2) ?? false);
+                return yaNoMuestraMartes ? new object() : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
+
+        await mcp.Cliente.CallToolAsync(
+            "retirar_plantilla_semanal",
+            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            cancellationToken: ct);
+        await mcp.Cliente.CallToolAsync(
+            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+    }
+
+    // CA-2/CA-4: plantilla inexistente -> PlantillaNoExiste con el catalogo real de dev, sin PUT.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_RespondePlantillaNoExiste_CuandoLaPlantillaNoExisteEnElCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaInexistente = $"[TEST] Plantilla inexistente {Guid.CreateVersion7()}";
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "asignar_turno_a_dia",
+            new Dictionary<string, object?>
+            {
+                ["plantilla"] = plantillaInexistente, ["turno"] = "cualquiera", ["dia"] = "lunes"
+            },
+            cancellationToken: ct);
+
+        resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(plantillaInexistente);
+    }
+}

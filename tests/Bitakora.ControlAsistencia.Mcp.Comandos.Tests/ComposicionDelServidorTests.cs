@@ -3,10 +3,12 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarSedeFranja;
+using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarTurnoADia;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarSubFranja;
+using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarTurnoDeDia;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarColaborador;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RegistrarSede;
 using Bitakora.ControlAsistencia.Mcp.Comandos.RetirarPlantillaSemanal;
@@ -39,7 +41,8 @@ public class ComposicionDelServidorTests
             RegistrarSedeTool.NombreTool, RegistrarColaboradorTool.NombreTool, SolicitarProgramacionTurnoTool.NombreTool,
             CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool,
             AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool, AsignarSedeFranjaTool.NombreTool,
-            CrearPlantillaSemanalTool.NombreTool, RetirarPlantillaSemanalTool.NombreTool);
+            CrearPlantillaSemanalTool.NombreTool, RetirarPlantillaSemanalTool.NombreTool,
+            AsignarTurnoADiaTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool);
     }
 
     [Fact]
@@ -68,14 +71,14 @@ public class ComposicionDelServidorTests
 
     // destructiveHint es true en las tools que remueven algo del catalogo (retirar_turno,
     // quitar_franja, quitar_subfranja -- CA-5 de #609, CA-4 de #610; retirar_plantilla_semanal --
-    // issue #627); el resto solo crea o agrega, nunca destruye.
+    // issue #627; quitar_turno_de_dia -- issue #628); el resto solo crea o agrega, nunca destruye.
     [Fact]
     public void ServidorMcp_DeclaraDestructiveHintEnLasToolsQueRemueven_CuandoSeInspeccionaElEnsamblado()
     {
         var destructivas = new HashSet<string>
         {
             RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool,
-            RetirarPlantillaSemanalTool.NombreTool
+            RetirarPlantillaSemanalTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool
         };
 
         foreach (var metodo in MetodosDeTool)
@@ -320,5 +323,44 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
         propiedades.Should().Equal(("plantilla", true));
+    }
+
+    // CA-4: plantilla, turno y dia son requeridos; semana tiene default 1.
+    [Fact]
+    public void AsignarTurnoADia_DeclaraPlantillaTurnoYDiaComoRequeridosYSemanaComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == AsignarTurnoADiaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("plantilla", true),
+            ("turno", true),
+            ("dia", true),
+            ("semana", false));
+    }
+
+    // CA-4: plantilla y dia son requeridos; semana tiene default 1.
+    [Fact]
+    public void QuitarTurnoDeDia_DeclaraPlantillaYDiaComoRequeridosYSemanaComoOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == QuitarTurnoDeDiaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("plantilla", true),
+            ("dia", true),
+            ("semana", false));
     }
 }

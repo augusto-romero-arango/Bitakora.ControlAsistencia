@@ -16,7 +16,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "registrar_sede", "registrar_colaborador", "solicitar_programacion_turno",
             "crear_turno", "retirar_turno", "agregar_franja", "quitar_franja",
             "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
-            "crear_plantilla_semanal", "retirar_plantilla_semanal");
+            "crear_plantilla_semanal", "retirar_plantilla_semanal",
+            "asignar_turno_a_dia", "quitar_turno_de_dia");
     }
 
     [Fact]
@@ -190,6 +191,34 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         requeridas.Should().BeEquivalentTo("plantilla");
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_DeclaraPlantillaTurnoYDiaObligatoriosYSemanaOpcional_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "asignar_turno_a_dia");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("plantilla", "turno", "dia");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task QuitarTurnoDeDia_DeclaraPlantillaYDiaObligatoriosYSemanaOpcional_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "quitar_turno_de_dia");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("plantilla", "dia");
+    }
+
     // El hint viaja en _meta (McpMetadata) porque la extension 1.6.0 no soporta ToolAnnotations
     // del spec; cuando la extension exponga annotations.readOnlyHint, este test migra alli.
     // Recorre TODO el catalogo, no una tool por nombre: MEF-ADR-0048 seccion 2 (verificacion 2,
@@ -206,7 +235,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         {
             var meta = tool.ProtocolTool.Meta;
             var esDestructiva = tool.Name is "retirar_turno" or "quitar_franja" or "quitar_subfranja"
-                or "retirar_plantilla_semanal";
+                or "retirar_plantilla_semanal" or "quitar_turno_de_dia";
             meta.Should().NotBeNull($"{tool.Name} debe publicar su _meta con los hints");
             meta!["readOnlyHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} escribe en el dominio");
             meta["destructiveHint"]?.GetValue<bool>().Should().Be(
