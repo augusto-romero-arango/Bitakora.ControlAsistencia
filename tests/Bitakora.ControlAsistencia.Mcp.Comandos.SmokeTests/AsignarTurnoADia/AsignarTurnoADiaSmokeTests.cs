@@ -13,6 +13,20 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
+    // El cuadro se materializa asincronicamente: la vista tarda unos segundos en reflejar el PUT y
+    // el DELETE. Un dia sin turno no aparece en "dias" (ausencia = vacio, CuadroSemanalTurnos), asi
+    // que la misma sonda sirve para esperar que aparezca y que deje de aparecer.
+    private async Task EsperarHastaQueElMartesDeLaPrimeraSemana(string plantillaId, bool aparezca, CancellationToken ct) =>
+        await Polling.WaitUntilAsync(
+            async () =>
+            {
+                using var cuadro = await programacion.BuscarCuadroAsync(plantillaId, ct);
+                var aparece = cuadro?.RootElement.GetProperty("dias").EnumerateArray()
+                    .Any(dia => dia.GetProperty("semana").GetInt32() == 1 && dia.GetProperty("dia").GetInt32() == 2) ?? false;
+                return aparece == aparezca ? new object() : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarTurnoADia_MuestraElTurnoEnElDia_YQuitarTurnoDeDia_LoDejaDeMostrar()
@@ -26,7 +40,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = nombreTurno }, cancellationToken: ct);
         creadoTurno.IsError.Should().NotBeTrue();
 
-        using (await programacion.Client.EsperarFichaAsync(nombreTurno, ct)) { }
+        using var fichaTurno = await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
 
         var conFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
@@ -43,7 +57,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();
 
-        using var textoCreada = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
+        using var textoCreada = JsonDocument.Parse(TextoDe(creada));
         var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
 
         using (var cuadroInicial = await programacion.EsperarCuadroAsync(plantillaId, ct))
@@ -53,20 +67,15 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "asignar_turno_a_dia",
             new Dictionary<string, object?>
             {
-                ["plantilla"] = nombrePlantilla, ["turno"] = nombreTurno, ["dia"] = "martes", ["semana"] = 1
+                ["plantilla"] = nombrePlantilla,
+                ["turno"] = nombreTurno,
+                ["dia"] = "martes",
+                ["semana"] = 1
             },
             cancellationToken: ct);
         asignado.IsError.Should().NotBeTrue();
 
-        await Polling.WaitUntilAsync(
-            async () =>
-            {
-                using var cuadro = await programacion.BuscarCuadroAsync(plantillaId, ct);
-                var muestraMartes = cuadro?.RootElement.GetProperty("dias").EnumerateArray()
-                    .Any(dia => dia.GetProperty("semana").GetInt32() == 1 && dia.GetProperty("dia").GetInt32() == 2);
-                return muestraMartes == true ? new object() : null;
-            },
-            CatalogoDeTurnos.TimeoutPolling);
+        await EsperarHastaQueElMartesDeLaPrimeraSemana(plantillaId, aparezca: true, ct);
 
         var quitado = await mcp.Cliente.CallToolAsync(
             "quitar_turno_de_dia",
@@ -74,15 +83,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             cancellationToken: ct);
         quitado.IsError.Should().NotBeTrue();
 
-        await Polling.WaitUntilAsync(
-            async () =>
-            {
-                using var cuadro = await programacion.BuscarCuadroAsync(plantillaId, ct);
-                var yaNoMuestraMartes = !(cuadro?.RootElement.GetProperty("dias").EnumerateArray()
-                    .Any(dia => dia.GetProperty("semana").GetInt32() == 1 && dia.GetProperty("dia").GetInt32() == 2) ?? false);
-                return yaNoMuestraMartes ? new object() : null;
-            },
-            CatalogoDeTurnos.TimeoutPolling);
+        await EsperarHastaQueElMartesDeLaPrimeraSemana(plantillaId, aparezca: false, ct);
 
         await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
@@ -104,11 +105,13 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "asignar_turno_a_dia",
             new Dictionary<string, object?>
             {
-                ["plantilla"] = plantillaInexistente, ["turno"] = "cualquiera", ["dia"] = "lunes"
+                ["plantilla"] = plantillaInexistente,
+                ["turno"] = "cualquiera",
+                ["dia"] = "lunes"
             },
             cancellationToken: ct);
 
-        resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(plantillaInexistente);
+        TextoDe(resultado).Should().Contain(plantillaInexistente);
     }
 
     // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba

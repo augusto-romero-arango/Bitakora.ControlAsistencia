@@ -15,7 +15,6 @@ public class QuitarTurnoDeDiaToolTests
     // Reuso deliberado del fixture de plantillas de #627 (MEF-ADR-0018): mismo catalogo
     // (RetirarPlantillaSemanal, "Semana Tipo Cocina" id ...101).
     private static string PlantillasJson => Fixtures.Leer("RetirarPlantillaSemanal", "plantillas-semanales.json");
-    private static string Validacion400Json => Fixtures.Leer("QuitarTurnoDeDia", "validacion-400.json");
 
     private sealed record Fakes(QuitarTurnoDeDiaTool Tool, HandlerPorRuta Handler);
 
@@ -185,15 +184,17 @@ public class QuitarTurnoDeDiaToolTests
         resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.RechazoDelDominio, cuerpo));
     }
 
+    // El 400 de este DELETE es texto plano, no un ValidationProblemDetails: la ruta no lleva body,
+    // asi que nunca pasa por RequestValidator (el PUT hermano si). Por eso no hay fixture JSON.
     [Fact]
     public async Task QuitarTurnoDeDia_TraduceElRechazoDelDominio_Cuando400()
     {
-        var fixture = Validacion400Json;
-        var fakes = CrearTool(statusDelete: HttpStatusCode.BadRequest, cuerpoDelete: fixture);
+        const string cuerpo = "El id de la plantilla no es un Guid valido";
+        var fakes = CrearTool(statusDelete: HttpStatusCode.BadRequest, cuerpoDelete: cuerpo);
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.RechazoDelDominio, fixture));
+        resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.RechazoDelDominio, cuerpo));
     }
 
     // Boundary del sistema: un 5xx del catalogo de plantillas se traduce a texto y corta antes de
