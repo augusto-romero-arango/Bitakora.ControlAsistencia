@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -27,8 +28,32 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
             "filtro_nombre",
             "Texto a buscar dentro del nombre de la plantilla (sin distinguir mayusculas ni acentos).")]
         string? filtroNombre,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var respuesta = await api.ListarPlantillasSemanales(ct);
+        respuesta.EnsureSuccessStatusCode();
+
+        var catalogo = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<CuadroSemanalTurnos>>(ct)
+            ?? [];
+
+        if (!string.IsNullOrWhiteSpace(filtroNombre))
+            catalogo = [.. catalogo.Where(c => FiltroDeNombre.Contiene(c.Nombre, filtroNombre))];
+
+        var visibles = catalogo.Take(MaximoPlantillas)
+            .Select(c => new PlantillaResumida(
+                c.Id,
+                c.Nombre.Trim(),
+                c.Semanas,
+                Incompleta: c.Completa ? null : true))
+            .ToList();
+
+        var nota = catalogo.Count > visibles.Count
+            ? string.Format(Mensajes.NotaTruncado, visibles.Count, catalogo.Count)
+            : null;
+
+        return RespuestaJson.Serializar(
+            new CatalogoDePlantillasSemanales(catalogo.Count, visibles.Count, nota, visibles));
+    }
 }
 
 /// <summary>Contrato de respuesta de listar_plantillas_semanales hacia el asistente (issue #629).</summary>

@@ -19,5 +19,20 @@ public partial class ObtenerPlantillaSemanalTool
         /// <summary>{0}: nombre de plantilla recibido; {1}: nombres disponibles en el catalogo.</summary>
         public static string PlantillaNoExiste =>
             ResourceManager.GetString(nameof(PlantillaNoExiste))!;
+
+        /// <summary>{0}: el motivo crudo devuelto por ResolutorPlantillaPorNombre.LeerFalloAsync.</summary>
+        public static string RechazoDelDominio =>
+            ResourceManager.GetString(nameof(RechazoDelDominio))!;
+
+        public static string SinTurno =>
+            ResourceManager.GetString(nameof(SinTurno))!;
+
+        /// <summary>{0}: nombre del turno, o su id cuando la ficha ya no existe en el catalogo.</summary>
+        public static string TurnoRetirado =>
+            ResourceManager.GetString(nameof(TurnoRetirado))!;
+
+        /// <summary>{0}: nombre del turno.</summary>
+        public static string TurnoIncompleto =>
+            ResourceManager.GetString(nameof(TurnoIncompleto))!;
     }
 }

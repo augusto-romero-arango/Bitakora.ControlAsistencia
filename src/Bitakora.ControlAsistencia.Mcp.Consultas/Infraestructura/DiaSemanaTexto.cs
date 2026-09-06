@@ -7,5 +7,16 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 /// </summary>
 public static class DiaSemanaTexto
 {
-    public static string NombreDe(int numeroIso) => throw new NotImplementedException();
+    private static readonly IReadOnlyDictionary<int, string> Nombres = new Dictionary<int, string>
+    {
+        [1] = "lunes",
+        [2] = "martes",
+        [3] = "miercoles",
+        [4] = "jueves",
+        [5] = "viernes",
+        [6] = "sabado",
+        [7] = "domingo",
+    };
+
+    public static string NombreDe(int numeroIso) => Nombres[numeroIso];
 }
