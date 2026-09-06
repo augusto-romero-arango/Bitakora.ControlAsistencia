@@ -43,6 +43,14 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> RetirarPlantillaSemanal(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 
+    // Un DELETE sobre un dia ya vacio responde 204 sin evento (idempotente, RFC 9110 seccion
+    // 9.2.2): la tool consumidora lo reporta como exito, no como error.
+    public Task<HttpResponseMessage> QuitarTurnoDeDia(
+        string plantillaId, int semana, int dia, CancellationToken ct) =>
+        http.DeleteAsync(
+            $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
+            ct);
+
     public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
         http.GetAsync("api/programacion/plantillas-semanales", ct);
 

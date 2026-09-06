@@ -39,6 +39,7 @@
     <Content Include="AsignarSedeFranja\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="CrearPlantillaSemanal\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="RetirarPlantillaSemanal\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="AsignarTurnoADia\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
