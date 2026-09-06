@@ -40,7 +40,48 @@ public partial class AsignarTurnoADiaTool(ProgramacionApi programacion)
         int? semana,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(plantilla))
+            return string.Format(Mensajes.CampoObligatorio, "plantilla");
+
+        if (string.IsNullOrWhiteSpace(turno))
+            return string.Format(Mensajes.CampoObligatorio, "turno");
+
+        if (string.IsNullOrWhiteSpace(dia))
+            return string.Format(Mensajes.CampoObligatorio, "dia");
+
+        if (!DiaSemanaMcp.TryParsear(dia, out var diaIso))
+            return string.Format(Mensajes.DiaDesconocido, dia);
+
+        var semanaValor = semana ?? 1;
+        if (semanaValor < 1)
+            return string.Format(Mensajes.SemanaInvalida, semanaValor);
+
+        var resolucionPlantilla = await resolutorPlantilla.ResolverAsync(plantilla, ct);
+        if (resolucionPlantilla.FalloDeLectura is { } falloPlantilla)
+            return string.Format(Mensajes.RechazoDelDominio, falloPlantilla);
+        if (resolucionPlantilla.Ficha is null)
+            return string.Format(
+                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucionPlantilla.NombresDisponibles));
+
+        var resolucionTurno = await resolutorTurno.ResolverAsync(turno, ct);
+        if (resolucionTurno.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucionTurno.Ficha is null)
+            return string.Format(
+                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucionTurno.NombresDisponibles));
+
+        var respuesta = await programacion.AsignarTurnoADia(
+            resolucionPlantilla.Ficha.Id, semanaValor, diaIso, resolucionTurno.Ficha.Id, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new TurnoAsignadoResumen(
+            Mensajes.ResultadoTurnoAsignado,
+            resolucionPlantilla.Ficha.Nombre,
+            semanaValor,
+            DiaSemanaMcp.NombreDe(diaIso),
+            resolucionTurno.Ficha.Nombre,
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 
