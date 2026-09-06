@@ -8,10 +8,6 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 // texto/codigo propio, islas) sobre ListarPlantillasSemanales: mismo criterio de normalizacion
 // (trim + colapso de espacios + case-insensitive, acentos significativos) y mismo contrato de
 // NombresDisponibles para el mensaje PlantillaNoExiste de la tool consumidora (MEF-ADR-0009).
-//
-// Contains en vez de igualdad estricta (deviacion del analogo de Comandos, documentada en el
-// resumen del pipeline): el asistente puede omitir un prefijo de catalogacion al escribir el
-// nombre; los acentos siguen siendo significativos porque Contains aqui es ordinal.
 public sealed partial class ResolutorPlantillaPorNombre(ProgramacionApi programacion)
 {
     public const int MaximoPlantillasEnMensaje = 20;
@@ -26,7 +22,7 @@ public sealed partial class ResolutorPlantillaPorNombre(ProgramacionApi programa
 
         var catalogo = await respuesta.Content.ReadFromJsonAsync<List<CuadroSemanalTurnos>>(OpcionesLectura, ct) ?? [];
         var normalizado = NormalizarNombre(nombre);
-        var cuadro = catalogo.FirstOrDefault(c => NormalizarNombre(c.Nombre).Contains(normalizado));
+        var cuadro = catalogo.FirstOrDefault(c => NormalizarNombre(c.Nombre) == normalizado);
 
         return cuadro is not null
             ? new ResultadoResolucionPlantilla(cuadro, null, [])

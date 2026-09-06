@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.Fixtures;
 using ModelContextProtocol.Protocol;
@@ -24,19 +23,7 @@ public class ObtenerPlantillaSemanalSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-        // La respuesta es texto plano en espanol (no JSON): un JsonException aqui delataria que la
-        // tool empezo a responder un objeto serializado en el camino de "no existe".
-        var esJson = true;
-        try
-        {
-            JsonDocument.Parse(texto);
-        }
-        catch (JsonException)
-        {
-            esJson = false;
-        }
-
-        esJson.Should().BeFalse("el mensaje de plantilla inexistente es texto, no JSON");
+        texto.Should().NotStartWith("{", "el mensaje de plantilla inexistente es texto, no el objeto del camino feliz");
         texto.Should().Contain("[SMOKE] Plantilla Que No Existe 629");
     }
 }

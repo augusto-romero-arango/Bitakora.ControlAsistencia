@@ -1,0 +1,19 @@
+{
+ "id": "01a07000-1000-7000-9000-000000000004",
+ "nombre": "[TEST] Semana Bodega",
+ "semanas": 2,
+ "completa": false,
+ "dias": [
+  {
+   "semana": 1,
+   "dia": 1,
+   "turno": {
+    "id": "01a07000-2000-7000-9000-000000000005",
+    "nombre": "[TEST] Bodega Manana",
+    "descripcion": "(08:00-16:00)",
+    "completo": true,
+    "retirado": false
+   }
+  }
+ ]
+}

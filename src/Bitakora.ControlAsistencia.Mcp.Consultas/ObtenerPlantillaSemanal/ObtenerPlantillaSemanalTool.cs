@@ -65,32 +65,27 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api)
 
     private static SemanaDelCuadro ArmarSemana(int semana, IEnumerable<DiaDelCuadro> dias)
     {
-        var textos = Enumerable.Range(1, 7).ToDictionary(DiaSemanaTexto.NombreDe, _ => Mensajes.SinTurno);
-
+        // Indexado por el numero ISO de DiaDelCuadro.Dia; un dia ausente rinde "sin turno" (el
+        // cuadro materializado omite los vacios, #624). Asignacion por indexador y no ToDictionary:
+        // el upstream es un boundary y un (semana, dia) repetido no debe tumbar la tool call.
+        var textos = new Dictionary<int, string>();
         foreach (var dia in dias)
-            textos[DiaSemanaTexto.NombreDe(dia.Dia)] = TextoDelDia(dia.Turno);
+            textos[dia.Dia] = TextoDelDia(dia.Turno);
+
+        string Dia(int numeroIso) => textos.GetValueOrDefault(numeroIso, Mensajes.SinTurno);
 
         return new SemanaDelCuadro(
-            semana,
-            textos[DiaSemanaTexto.NombreDe(1)],
-            textos[DiaSemanaTexto.NombreDe(2)],
-            textos[DiaSemanaTexto.NombreDe(3)],
-            textos[DiaSemanaTexto.NombreDe(4)],
-            textos[DiaSemanaTexto.NombreDe(5)],
-            textos[DiaSemanaTexto.NombreDe(6)],
-            textos[DiaSemanaTexto.NombreDe(7)]);
+            semana, Dia(1), Dia(2), Dia(3), Dia(4), Dia(5), Dia(6), Dia(7));
     }
 
-    private static string TextoDelDia(TurnoDelCuadro turno)
+    // Retirado gana sobre incompleto: sin ficha en el catalogo, Completo llega false por
+    // construccion (TurnoDelCuadroRespuesta.ResolverTurno de #625) y el motivo util es el retiro.
+    private static string TextoDelDia(TurnoDelCuadro turno) => turno switch
     {
-        if (turno.Retirado)
-            return string.Format(Mensajes.TurnoRetirado, turno.Nombre ?? turno.Id);
-
-        if (!turno.Completo)
-            return string.Format(Mensajes.TurnoIncompleto, turno.Nombre);
-
-        return $"{turno.Nombre} {turno.Descripcion}";
-    }
+        { Retirado: true } => string.Format(Mensajes.TurnoRetirado, turno.Nombre ?? turno.Id),
+        { Completo: false } => string.Format(Mensajes.TurnoIncompleto, turno.Nombre),
+        _ => $"{turno.Nombre} {turno.Descripcion}"
+    };
 }
 
 /// <summary>Contrato de respuesta de obtener_plantilla_semanal hacia el asistente (issue #629).</summary>
@@ -102,8 +97,10 @@ public sealed record PlantillaSemanalDetallada(
     IReadOnlyList<SemanaDelCuadro> Cuadro);
 
 /// <summary>
-/// Una semana del cuadro con una propiedad fija por dia (lunes..domingo, serializadas en
-/// minuscula por RespuestaJson) para que el asistente la lea como tabla.
+/// Una semana del cuadro con una propiedad fija por dia para que el asistente la lea como tabla.
+/// El orden de las propiedades ES el mapeo del numero ISO 8601 de DiaDelCuadro.Dia (1 = Lunes ..
+/// 7 = Domingo) al nombre en espanol que pide el CA-2: RespuestaJson las serializa en minuscula
+/// desde el nombre de cada propiedad, sin tabla de conversion intermedia.
 /// </summary>
 public sealed record SemanaDelCuadro(
     int Semana,

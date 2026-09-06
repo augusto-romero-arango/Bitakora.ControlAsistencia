@@ -102,7 +102,7 @@ public class ObtenerPlantillaSemanalToolTests
         var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
 
         var resultado = await tool.Run(
-            null!, "  semana   cocina  ", TestContext.Current.CancellationToken);
+            null!, "  [TEST]   semana   cocina  ", TestContext.Current.CancellationToken);
 
         handler.Requests.Should().HaveCount(2);
         JsonNode.Parse(resultado)!["nombre"]!.GetValue<string>().Should().Be("[TEST] Semana Cocina");
@@ -147,6 +147,47 @@ public class ObtenerPlantillaSemanalToolTests
 
         handler.Requests.Should().HaveCount(2, "el 404 llega recien en el segundo GET");
         resultado.Should().Contain("[TEST] Semana Cocina");
+    }
+
+    // Enumerable.Range(1, detalle.Semanas) -- no las semanas presentes en Dias: una semana sin
+    // ningun turno asignado tambien debe rendir sus 7 "sin turno" (CA-2).
+    [Fact]
+    public async Task ObtenerPlantillaSemanal_RindeUnaFilaPorSemanaDeclarada_CuandoUnaSemanaNoTieneNingunDiaAsignado()
+    {
+        var (cliente, _) = ClienteConCatalogoYDetalle(
+            "listar-plantillas-semanales.json", "obtener-plantilla-semanal-dos-semanas.json");
+        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "[TEST] Semana Bodega", TestContext.Current.CancellationToken);
+
+        var cuadro = JsonNode.Parse(resultado)!["cuadro"]!.AsArray();
+        cuadro.Should().HaveCount(2);
+        cuadro[0]!["lunes"]!.GetValue<string>().Should().Be("[TEST] Bodega Manana (08:00-16:00)");
+
+        var segunda = cuadro[1]!.AsObject();
+        segunda["semana"]!.GetValue<int>().Should().Be(2);
+        new[] { "lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo" }
+            .Select(dia => segunda[dia]!.GetValue<string>())
+            .Should().AllBe("sin turno");
+    }
+
+    // El boundary del sistema (5xx del Function App) se traduce a RechazoDelDominio con el cuerpo
+    // crudo, nunca a una excepcion cruda en la tool call (CA-ADR-0030, MEF-ADR-0009).
+    [Fact]
+    public async Task ObtenerPlantillaSemanal_RespondeRechazoDelDominio_CuandoElCatalogoFallaConError500()
+    {
+        var (cliente, handler) = ClienteFalso.ConFuncion(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
+        {
+            Content = new StringContent("catalogo no disponible")
+        });
+        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+
+        handler.Requests.Should().HaveCount(1, "sin catalogo no hay id que pedir");
+        resultado.Should().Contain("catalogo no disponible");
     }
 
     [Fact]
