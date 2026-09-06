@@ -10,6 +10,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.AsignarTurnoADia;
 // lo sembrado por este mismo test.
 public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
+    private static string TextoDe(CallToolResult resultado) =>
+        resultado.Content.OfType<TextContentBlock>().Single().Text;
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarTurnoADia_MuestraElTurnoEnElDia_YQuitarTurnoDeDia_LoDejaDeMostrar()
@@ -106,5 +109,36 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             cancellationToken: ct);
 
         resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(plantillaInexistente);
+    }
+
+    // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba
+    // que los recursos embebidos de cada tool viajaron en el publish (mismo patron que AgregarFranja/
+    // QuitarFranja). Ambas tools comparten 'plantilla' como primer chequeo -- un test por tool basta.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_RespondeElMensajeDeValidacion_CuandoLaPlantillaEstaEnBlanco()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "asignar_turno_a_dia",
+            new Dictionary<string, object?> { ["plantilla"] = "   ", ["turno"] = "cualquiera", ["dia"] = "lunes" },
+            cancellationToken: ct);
+
+        TextoDe(resultado).Should().Be("'plantilla' es obligatorio.");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task QuitarTurnoDeDia_RespondeElMensajeDeValidacion_CuandoLaPlantillaEstaEnBlanco()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "quitar_turno_de_dia",
+            new Dictionary<string, object?> { ["plantilla"] = "   ", ["dia"] = "lunes" },
+            cancellationToken: ct);
+
+        TextoDe(resultado).Should().Be("'plantilla' es obligatorio.");
     }
 }
