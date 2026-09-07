@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -75,6 +76,7 @@ public static class ComposicionServicios
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
+        services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
 
         // Registrar serializacion custom para tipos con constructores privados.
         // Issue #267: las tres columnas de metadata de evento que exige MEF-ADR-0034 seccion 7
@@ -97,6 +99,13 @@ public static class ComposicionServicios
             // MISMA tabla fisica: "alter column" en CADA request, rechazado por Postgres con 42804,
             // y los GET en 500 permanente. El par de config-tests congela ambos literales.
             options.Schema.For<FichaTurno>().UseNumericRevisions(true);
+
+            // Issue #625: par 2 para CuadroSemanalTurnos -- este GET (ObtenerCuadroSemanalTurnos/
+            // ListarCuadrosSemanalesTurnos) es el primer consumidor write-side de la vista que #624
+            // materializo. Mismo motivo que FichaTurno arriba: sin esta linea el store esperaria
+            // mt_version uuid sobre la MISMA tabla que el worker ya escribe con mt_version bigint,
+            // 500 permanente en el primer request real.
+            options.Schema.For<CuadroSemanalTurnos>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {

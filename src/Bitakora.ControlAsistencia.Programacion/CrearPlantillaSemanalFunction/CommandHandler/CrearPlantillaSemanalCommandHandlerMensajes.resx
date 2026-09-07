@@ -23,4 +23,7 @@
   <data name="PlantillaYaExiste" xml:space="preserve">
     <value>Ya existe una plantilla semanal con ese identificador</value>
   </data>
+  <data name="NombreDuplicado" xml:space="preserve">
+    <value>Ya existe una plantilla semanal vigente con ese nombre</value>
+  </data>
 </root>

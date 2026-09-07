@@ -12,4 +12,10 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
+        http.GetAsync("api/programacion/plantillas-semanales", ct);
+
+    public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
+        http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 }

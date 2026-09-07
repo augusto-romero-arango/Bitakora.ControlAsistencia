@@ -1,0 +1,78 @@
+[
+ {
+  "id": "01a07000-1000-7000-9000-000000000001",
+  "nombre": "[TEST] Semana Cocina",
+  "semanas": 1,
+  "completa": true,
+  "dias": [
+   {
+    "semana": 1,
+    "dia": 1,
+    "turno": {
+     "id": "01a07000-2000-7000-9000-000000000001",
+     "nombre": "[TEST] Cocina Manana",
+     "descripcion": "(07:00-17:00)",
+     "completo": true,
+     "retirado": false
+    }
+   }
+  ]
+ },
+ {
+  "id": "01a07000-1000-7000-9000-000000000002",
+  "nombre": "  [TEST]  semana   ASEO incompleta ",
+  "semanas": 1,
+  "completa": false,
+  "dias": [
+   {
+    "semana": 1,
+    "dia": 1,
+    "turno": {
+     "id": "01a07000-2000-7000-9000-000000000003",
+     "nombre": "[TEST] Aseo Manana",
+     "descripcion": "(06:00-14:00)",
+     "completo": true,
+     "retirado": false
+    }
+   }
+  ]
+ },
+ {
+  "id": "01a07000-1000-7000-9000-000000000004",
+  "nombre": "[TEST] Semana Bodega",
+  "semanas": 2,
+  "completa": true,
+  "dias": [
+   {
+    "semana": 1,
+    "dia": 1,
+    "turno": {
+     "id": "01a07000-2000-7000-9000-000000000005",
+     "nombre": "[TEST] Bodega Manana",
+     "descripcion": "(08:00-16:00)",
+     "completo": true,
+     "retirado": false
+    }
+   }
+  ]
+ },
+ {
+  "id": "01a07000-1000-7000-9000-000000000006",
+  "nombre": "[TEST] Semana Cafetería",
+  "semanas": 1,
+  "completa": true,
+  "dias": [
+   {
+    "semana": 1,
+    "dia": 1,
+    "turno": {
+     "id": "01a07000-2000-7000-9000-000000000007",
+     "nombre": "[TEST] Cafetería Mañana",
+     "descripcion": "(06:00-14:00)",
+     "completo": true,
+     "retirado": false
+    }
+   }
+  ]
+ }
+]

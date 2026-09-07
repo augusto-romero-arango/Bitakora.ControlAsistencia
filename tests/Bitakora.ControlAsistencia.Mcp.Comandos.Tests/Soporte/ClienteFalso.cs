@@ -39,6 +39,12 @@ public sealed class HandlerPorRuta : HttpMessageHandler
 {
     private readonly Dictionary<(HttpMethod Metodo, string Ruta), Func<HttpRequestMessage, string?, HttpResponseMessage>> _respuestas = [];
 
+    // Match por prefijo para rutas cuyo tramo final lo decide un id generado DENTRO de la tool
+    // (p.ej. el plantillaId de crear_plantilla_semanal, Guid v7 que el test no puede predecir antes
+    // de ejecutar el Run): a diferencia de _respuestas (ruta exacta), esta lista se recorre en
+    // orden de registro y usa el primer prefijo que matchea metodo + StartsWith.
+    private readonly List<(HttpMethod Metodo, string Prefijo, Func<HttpRequestMessage, string?, HttpResponseMessage> Fabrica)> _porPrefijo = [];
+
     public List<(HttpMethod Metodo, string Ruta, string? Cuerpo)> Requests { get; } = [];
 
     public HandlerPorRuta Responde(HttpMethod metodo, string ruta, HttpStatusCode status, string cuerpo = "") =>
@@ -48,6 +54,17 @@ public sealed class HandlerPorRuta : HttpMessageHandler
         HttpMethod metodo, string ruta, Func<HttpRequestMessage, string?, HttpResponseMessage> respuesta)
     {
         _respuestas[(metodo, ruta)] = respuesta;
+        return this;
+    }
+
+    public HandlerPorRuta RespondeConPrefijo(
+        HttpMethod metodo, string prefijo, HttpStatusCode status, string cuerpo = "") =>
+        RespondeConPrefijo(metodo, prefijo, (_, _) => Respuesta(status, cuerpo));
+
+    public HandlerPorRuta RespondeConPrefijo(
+        HttpMethod metodo, string prefijo, Func<HttpRequestMessage, string?, HttpResponseMessage> respuesta)
+    {
+        _porPrefijo.Add((metodo, prefijo, respuesta));
         return this;
     }
 
@@ -61,11 +78,16 @@ public sealed class HandlerPorRuta : HttpMessageHandler
         lock (Requests)
             Requests.Add((request.Method, request.RequestUri!.AbsolutePath, cuerpo));
 
-        if (!_respuestas.TryGetValue((request.Method, request.RequestUri!.AbsolutePath), out var fabrica))
-            throw new InvalidOperationException(
-                $"HandlerPorRuta no tiene respuesta registrada para {request.Method} {request.RequestUri.AbsolutePath}");
+        if (_respuestas.TryGetValue((request.Method, request.RequestUri!.AbsolutePath), out var fabrica))
+            return fabrica(request, cuerpo);
 
-        return fabrica(request, cuerpo);
+        var porPrefijo = _porPrefijo.FirstOrDefault(p =>
+            p.Metodo == request.Method && request.RequestUri!.AbsolutePath.StartsWith(p.Prefijo, StringComparison.Ordinal));
+        if (porPrefijo.Fabrica is not null)
+            return porPrefijo.Fabrica(request, cuerpo);
+
+        throw new InvalidOperationException(
+            $"HandlerPorRuta no tiene respuesta registrada para {request.Method} {request.RequestUri.AbsolutePath}");
     }
 
     private static HttpResponseMessage Respuesta(HttpStatusCode status, string cuerpo) =>
