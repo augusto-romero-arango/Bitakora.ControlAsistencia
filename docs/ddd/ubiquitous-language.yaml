@@ -4,7 +4,17 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-09-04 (sesion planner, Plantilla semanal de turnos: se REABRE la decision
+# Ultima actualizacion: 2026-09-05 (sesion planner, refinar la cadena de la plantilla semanal #620-#629 a
+#   estado:listo. Decisiones del experto: tope 6 semanas; el dia de la semana se codifica como numero ISO 8601
+#   (1 = lunes ... 7 = domingo) -- ni DayOfWeek (domingo=0) ni la palabra en espanol (etiqueta localizable, no
+#   codigo); solo turnos COMPLETOS son asignables a un dia; los comandos que confirman en la transaccion
+#   responden 201/204 (nunca 202: el 202 es solo para "emiti un mensaje") y un no-op idempotente (quitar lo
+#   ya ausente, retirar lo ya retirado, PUT sin cambios) responde exito sin evento, nunca 409; el read-side del
+#   cuadro pasa de N2 con grouper a N1 + composicion en el GET (opcion B); dias de la tool en JSON; turno
+#   inline diferido a #651. Nace Dia de la semana; se enmiendan Plantilla semanal de turnos y Cuadro semanal
+#   de turnos. Nacen #640 (29 endpoints con 202 a corregir), #651; drafts harness#849/#850; CA-ADR-0035;
+#   CA-ADR-0034 enmendado.)
+# Actualizacion previa: 2026-09-04 (sesion planner, Plantilla semanal de turnos: se REABRE la decision
 #   del 2026-08-29 ("mallas/rotaciones no son dominio"): el experto quiere persistir, nombrar y reutilizar
 #   la composicion de una semana. Decisiones: nombre PlantillaTurnos -> PlantillaSemanalTurnos (los ciclos
 #   4x2/2x2 quedan fuera y serian otro aggregate; el generico queda como paraguas); dias por
@@ -398,8 +408,14 @@ terms:
       editable siempre, sin estados (espejo de CA-ADR-0033); el dia es un slot atomico: corregir =
       reemplazar con PUT, no quitar + agregar. Semanas fijo al crear (cambiarlo = retirar + crear).
       Nombre unico best-effort (espejo de #497). Retiro espejo de #500/#501.
+      Enmienda 2026-09-05 (refinamiento): Semanas entre 1 y 6 inclusive; el dia se codifica como numero
+      ISO 8601 (ver Dia de la semana); SOLO turnos completos son asignables a un dia (409 TurnoIncompleto,
+      verificado contra el aggregate CatalogoTurnos del mismo store, no contra la vista); el POST responde
+      201 Created y los PUT/DELETE 204 No Content (CA-ADR-0035); PUT con el mismo turno, DELETE sobre un dia
+      ya vacio y retirar una plantilla ya retirada son no-ops: exito sin evento, nunca 409.
     context: Programacion
     date_added: 2026-09-04
+    date_updated: 2026-09-05
     rejected_synonyms: [PlantillaTurnos (sin modalidad), Ventana de trabajo, Periodo de programacion, turno inline sin nombre]
     rejection_reason: >
       El alias del evento persistido es el nombre simple de la clase y una futura PlantillaCiclica
@@ -407,7 +423,7 @@ terms:
       de MEF-ADR-0036. No es una Ventana de trabajo (esa tiene fechas y es efimera). El turno
       descrito inline sin nombre se rechazo: duplicaria la superficie de diseno del turno o daria
       turnos "pobres"; la friccion de nombrar la resuelve el asistente creando el turno en el
-      catalogo (tool crear_plantilla_semanal, #627).
+      catalogo (tool crear_plantilla_semanal -- diferido a #651; #627 nace con turnos por nombre).
     note: >
       Aggregate PlantillaSemanalTurnos. Eventos: PlantillaSemanalCreada, DiaDePlantillaSemanalAsignado,
       DiaDePlantillaSemanalQuitado, PlantillaSemanalRetirada. Contratos: POST programacion/
@@ -419,13 +435,17 @@ terms:
     definition: >
       Vista read-side de una Plantilla semanal de turnos, para que el Programador (front o asistente)
       sepa si la plantilla que necesita ya existe, elija cual usar y vea de un vistazo que turno toca
-      cada dia y si esta completa. Por dia lleva TurnoId, NombreTurno y Descripcion (el ToString()
-      del turno, lo que FichaTurno ya expone) y la marca de turno retirado; a nivel plantilla Nombre,
-      Semanas y Completa. NO lleva las franjas: eso sigue siendo obtener_turno. "Cuadro de turnos" es
+      cada dia y si esta completa. Lo que el Programador lee, por dia: el turno con su nombre y su
+      Descripcion (el ToString() del turno, lo que FichaTurno ya expone), y si esta retirado o incompleto;
+      a nivel plantilla Nombre, Semanas y Completa (= 7xN dias con turno presente y completo). NO lleva las
+      franjas: eso sigue siendo obtener_turno. Enmienda 2026-09-05: el DOCUMENTO materializado guarda solo
+      Id, Nombre, Semanas y por dia (semana, dia ISO, TurnoId); nombre, descripcion, retirado, completo y
+      Completa se resuelven al LEER, juntando con FichaTurno en el GET (CuadroSemanalTurnosRespuesta). "Cuadro de turnos" es
       el termino real en salud y vigilancia para la grilla dias x turnos; aqui es el cuadro de una
       plantilla, sin personas.
     context: Programacion
     date_added: 2026-09-04
+    date_updated: 2026-09-05
     rejected_synonyms: [FichaPlantillaSemanal, Vista de plantilla, Resumen de plantilla]
     rejection_reason: >
       "Ficha" NO es doctrina de naming (experto, 2026-09-04): nacio para resolver colaboradores y
@@ -434,13 +454,36 @@ terms:
       actor que la lee; las Ficha* existentes se quedan.
     note: >
       Codigo CuadroSemanalTurnos (simetrico con el aggregate PlantillaSemanalTurnos: el molde y su
-      cuadro). Receta N2 (MultiStreamProjection) con grouper custom: los eventos de diseno de turno y
-      TurnoRetirado traen TurnoId, no PlantillaId, y el grouper consulta la propia vista para abrirlos
-      en las plantillas que lo contienen; NombreTurno/Descripcion se leen de FichaTurno (mismo store).
-      Functions ObtenerCuadroSemanalTurnos / ListarCuadrosSemanalesTurnos sobre GET programacion/
+      cuadro). Receta N1 (SingleStreamProjection sobre el stream de la plantilla), enmienda 2026-09-05:
+      el N2 con grouper custom se rechazo porque obligaba a la proyeccion a consultar estado externo
+      (regla de procedencia del Skill projections) y tenia carrera de lote; la composicion con FichaTurno
+      ocurre en el GET (read-apis.md: DTO de respuesta para componer varias vistas). Functions
+      ObtenerCuadroSemanalTurnos / ListarCuadrosSemanalesTurnos sobre GET programacion/
       plantillas-semanales[/{id}] (misma ruta del recurso leida desde el read-side, criterio de
       FichaTurno). Sin filtro server-side; lista tambien las incompletas. Issues #624 (vista), #625
-      (GET), #629 (tools de Consultas). CA-ADR-0034.
+      (GET + composicion), #629 (tools de Consultas). CA-ADR-0034 (decision 5 enmendada).
+
+  - name: Dia de la semana
+    definition: >
+      Posicion de un dia dentro de la semana lunes-domingo de una Plantilla semanal de turnos, codificada
+      como numero ISO 8601: 1 = lunes ... 7 = domingo. Es un CODIGO neutral (viaja igual en la ruta
+      PUT/DELETE .../dias/{semana}/{dia} y en los eventos DiaDePlantillaSemanalAsignado/Quitado); la
+      etiqueta en el idioma del usuario ("lunes", "Monday") es presentacion y se localiza por .resx o en
+      el asistente, nunca se persiste.
+    context: Programacion
+    date_added: 2026-09-05
+    rejected_synonyms: ["System.DayOfWeek persistido", "lunes..domingo como codigo persistido"]
+    rejection_reason: >
+      DayOfWeek numera domingo = 0: sombra de la plataforma .NET que obliga a rotar el orden en cada
+      consumidor y contradice ISO. La palabra en espanol amarra el event store a un idioma (objecion del
+      experto, 2026-09-05): es etiqueta, no codigo. La friccion ISO <-> .NET se paga una sola vez, en
+      DiaSemana.Desde(DayOfWeek), cuando la asignacion futura la necesite.
+    note: >
+      VO DiaSemana (Programacion.DomainEvents), lista cerrada de 7 instancias canonicas (patron
+      TipoIdentificacion): Numero, Desde(int); Desde(DayOfWeek) y ToString() .resx llegan con su primer
+      consumidor. Persistido dentro del evento como su numero (ConfigurarSerializacion del evento, como
+      Identificacion persiste _tipo). En las tools MCP el asistente escribe lunes..domingo o 1..7 y la tool
+      traduce (DiaSemanaMcp). Issues #621 (nace), #622, #627-#629. CA-ADR-0034 decision 1 (enmendada).
 
   - name: Turno Diario
     definition: >
