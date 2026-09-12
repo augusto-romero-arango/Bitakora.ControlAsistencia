@@ -85,6 +85,7 @@ public class DesactivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.PostAsync(RutaDesactivar(codigo), null, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(

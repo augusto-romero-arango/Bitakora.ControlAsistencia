@@ -88,6 +88,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var response = await _client.DeleteAsync(RutaCentroDeCostos(codigo), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(

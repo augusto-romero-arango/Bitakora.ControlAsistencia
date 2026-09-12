@@ -69,6 +69,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         var response = await _client.PutAsJsonAsync(RutaUbicacion(codigo), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -98,6 +99,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         var response = await _client.PutAsJsonAsync(RutaUbicacion(codigo), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(

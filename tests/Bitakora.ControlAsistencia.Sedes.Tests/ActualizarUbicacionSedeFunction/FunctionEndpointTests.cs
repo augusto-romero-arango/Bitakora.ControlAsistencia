@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.ActualizarUbicacionSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.ActualizarUbicacionSedeFunction;
 
@@ -16,7 +17,7 @@ public class FunctionEndpointTests
 
     // CA-3
     [Fact]
-    public async Task ActualizarUbicacionSede_Retorna204_CuandoComandoEsValido()
+    public async Task ActualizarUbicacionSede_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<ActualizarUbicacionSedeBody>(BodyValido());
         var router = new FakeCommandRouter();
@@ -24,7 +25,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        result.Should().BeOfType<NoContentResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-4

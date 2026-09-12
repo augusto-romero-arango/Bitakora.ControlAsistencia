@@ -94,6 +94,7 @@ public class RetirarDispositivoSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await _client.DeleteAsync(RutaDispositivo(codigo, dispositivoId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(

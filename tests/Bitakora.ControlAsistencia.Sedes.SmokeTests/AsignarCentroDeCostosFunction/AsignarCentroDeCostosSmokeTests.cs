@@ -73,6 +73,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var response = await _client.PutAsJsonAsync(RutaCentroDeCostos(codigo), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -115,6 +116,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             RutaCentroDeCostos(codigo), new { centroDeCostos = "CC-REEMPLAZO" }, ct);
 
         segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await segundaAsignacion.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var existeReemplazo = await postgres.ExisteEventoAsync(
             SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado, Timeout,

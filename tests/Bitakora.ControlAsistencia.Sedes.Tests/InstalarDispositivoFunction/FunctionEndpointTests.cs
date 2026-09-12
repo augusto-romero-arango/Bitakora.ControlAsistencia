@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.InstalarDispositivoFunction;
 
@@ -24,8 +25,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        var creado = result.Should().BeOfType<CreatedResult>().Which;
-        creado.Location.Should().Be($"/api/sedes/fichas/{Codigo}");
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.As<CreatedResult>().Location.Should().Be($"/api/sedes/fichas/{Codigo}");
     }
 
     // CA-2: dispositivo ya instalado en esta sede -> 409

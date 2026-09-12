@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.ActivarSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.ActivarSedeFunction;
 
@@ -13,14 +14,16 @@ public class FunctionEndpointTests
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
     [Fact]
-    public async Task ActivarSede_Retorna204_CuandoComandoEsValido()
+    public async Task ActivarSede_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        result.Should().BeOfType<NoContentResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     [Fact]

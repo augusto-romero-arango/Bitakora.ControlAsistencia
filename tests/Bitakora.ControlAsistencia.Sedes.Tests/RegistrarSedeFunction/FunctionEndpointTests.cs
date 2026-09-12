@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.RegistrarSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.RegistrarSedeFunction;
 
@@ -23,8 +24,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        var creado = result.Should().BeOfType<CreatedResult>().Which;
-        creado.Location.Should().Be($"/api/sedes/fichas/{comando.Codigo}");
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.As<CreatedResult>().Location.Should().Be($"/api/sedes/fichas/{comando.Codigo}");
     }
 
     [Fact]
