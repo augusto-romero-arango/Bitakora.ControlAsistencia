@@ -24,7 +24,7 @@ public class AgregarSubFranjaToolTests
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
-        HttpStatusCode statusAgregar = HttpStatusCode.Accepted,
+        HttpStatusCode statusAgregar = HttpStatusCode.NoContent,
         string cuerpoAgregar = "")
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();

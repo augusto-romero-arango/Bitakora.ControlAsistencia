@@ -25,7 +25,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
     {
         var payload = new { turnoId, nombre = $"{nombreBase} {turnoId}" };
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -33,7 +33,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
     {
         var payload = new { inicio = "14:00:00", fin = "22:00:00" };
         var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
@@ -43,7 +43,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
     // retirar, FranjaSinSede).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSedeAFranja_DebeRetornar202YPersistirLaSede_CuandoLaFranjaNoTeniaSede()
+    public async Task AsignarSedeAFranja_DebeRetornar204YPersistirLaSede_CuandoLaFranjaNoTeniaSede()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -60,7 +60,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
         var respuestaAsignar = await _client.PostAsJsonAsync(
             RutaAsignarSedeAFranja(turnoId), payloadAsignar, ct);
 
-        respuestaAsignar.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        respuestaAsignar.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = turnoId.ToString();
         var eventoAsignado = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -74,7 +74,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
         var respuestaRetirar = await _client.PostAsJsonAsync(
             RutaAsignarSedeAFranja(turnoId), payloadRetirar, ct);
 
-        respuestaRetirar.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        respuestaRetirar.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var eventoRetirado = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaProgramacion, streamId, TipoEventoSedeRetirada,

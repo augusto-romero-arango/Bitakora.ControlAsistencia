@@ -7,6 +7,7 @@ using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.AgregarSubFranjaFunction;
@@ -40,8 +41,10 @@ public class FunctionEndpointTests
         trigger.Route.Should().Be("programacion/turnos/{id}:agregar-subfranja");
     }
 
+    // Issue #661: accion de negocio 4 -> 204 No Content, sin cuerpo (la transaccion confirma antes
+    // de responder).
     [Fact]
-    public async Task AgregarSubFranja_Retorna202_CuandoComandoEsValido()
+    public async Task AgregarSubFranja_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<AgregarSubFranjaBody>(BodyValido());
         var router = new FakeCommandRouter();
@@ -49,7 +52,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): el comando nunca debe

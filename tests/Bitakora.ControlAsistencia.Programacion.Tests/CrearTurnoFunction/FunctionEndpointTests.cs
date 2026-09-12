@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
@@ -13,7 +14,8 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 /// <summary>
 /// Tests del endpoint HTTP POST /programacion/turnos.
 /// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
-/// ADR-0007: InvalidOperationException -> 409, AggregateException -> 400, exito -> 202.
+/// ADR-0007: InvalidOperationException -> 409, AggregateException -> 400.
+/// CA-ADR-0035 / issue #661: exito -> 201 Created con Location a la ficha del turno.
 /// </summary>
 public class FunctionEndpointTests
 {
@@ -29,17 +31,21 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-7: POST exitoso retorna 202 Accepted
+    // Issue #661: POST exitoso retorna 201 Created con Location a la ficha del turno -- la
+    // transaccion (UnitOfWorkMiddleware + AutoApplyTransactions) confirma antes de responder.
     [Fact]
-    public async Task DebeRetornar202_CuandoComandoEsValido()
+    public async Task CrearTurno_Retorna201ConLocation_CuandoComandoEsValido()
     {
-        var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
+        var comando = ComandoValido();
+        var validator = new FakeRequestValidator<CrearTurno>(comando);
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        ((CreatedResult)result!).Location.Should().Be($"/api/programacion/turnos/{comando.TurnoId}");
     }
 
     // CA-8: POST con TurnoId duplicado retorna 409 Conflict

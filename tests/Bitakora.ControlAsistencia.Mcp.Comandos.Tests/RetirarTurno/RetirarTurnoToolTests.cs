@@ -21,7 +21,7 @@ public class RetirarTurnoToolTests
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
-        HttpStatusCode statusDelete = HttpStatusCode.Accepted,
+        HttpStatusCode statusDelete = HttpStatusCode.NoContent,
         string cuerpoDelete = "")
     {
         var (cliente, handler) = ClienteFalso.ConRutas();

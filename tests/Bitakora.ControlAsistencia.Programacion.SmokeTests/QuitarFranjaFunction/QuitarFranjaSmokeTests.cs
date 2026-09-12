@@ -22,7 +22,7 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var payload = new { turnoId, nombre = $"{nombreBase} {turnoId}" };
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -35,7 +35,7 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             sede = new { id = "SEDE-SUBA", nombre = "[TEST] Suba" }
         };
         var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
@@ -43,7 +43,7 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // grabado. El segundo :quitar-franja sobre la misma hora cierra la regla de negocio -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarFranja_DebeRetornar202YPersistirLaFranjaQuitada_CuandoLaFranjaExiste()
+    public async Task QuitarFranja_DebeRetornar204YPersistirLaFranjaQuitada_CuandoLaFranjaExiste()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -55,7 +55,7 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var payload = new { franja = "15:00" };
         var response = await _client.PostAsJsonAsync(RutaQuitarFranja(turnoId), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

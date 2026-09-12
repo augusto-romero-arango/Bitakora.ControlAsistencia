@@ -45,7 +45,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     private async Task CrearTurnoAsync(object payload, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -64,7 +64,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     // verificable de este handler, mismo criterio que CrearTurnoSmokeTests para turno_creado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarTurno_DebeRetornar202YPersistirTurnoRetirado_CuandoElTurnoExiste()
+    public async Task RetirarTurno_DebeRetornar204YPersistirTurnoRetirado_CuandoElTurnoExiste()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -74,7 +74,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.DeleteAsync(Ruta(turnoId), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = turnoId.ToString();
         var existe = await postgres.ExisteEventoAsync(
@@ -89,7 +89,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     // franjas.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarTurno_DebeRetornar202YPersistirTurnoRetirado_CuandoElTurnoEsDescanso()
+    public async Task RetirarTurno_DebeRetornar204YPersistirTurnoRetirado_CuandoElTurnoEsDescanso()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -99,7 +99,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.DeleteAsync(Ruta(turnoId), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = turnoId.ToString();
         var existe = await postgres.ExisteEventoAsync(
@@ -131,7 +131,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         await CrearTurnoAsync(PayloadTurnoConFranja(turnoId, "[TEST] Turno Doble Retiro"), ct);
 
         var primeraRespuesta = await _client.DeleteAsync(Ruta(turnoId), ct);
-        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que el primer retiro funcione");
 
         var response = await _client.DeleteAsync(Ruta(turnoId), ct);

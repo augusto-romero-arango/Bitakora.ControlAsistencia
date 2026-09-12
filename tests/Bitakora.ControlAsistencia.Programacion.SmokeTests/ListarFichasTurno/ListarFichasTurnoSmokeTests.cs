@@ -58,7 +58,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
     private async Task CrearTurnoAsync(Guid turnoId, string nombre, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(RutaTurnos, PayloadTurno(turnoId, nombre), ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -66,7 +66,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
     private async Task CrearTurnoVacioAsync(Guid turnoId, string nombre, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(RutaTurnos, new { turnoId, nombre }, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -74,7 +74,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
     {
         var response = await _client.PostAsJsonAsync(
             $"{RutaTurnos}/{turnoId}:agregar-franja", new { inicio, fin }, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 

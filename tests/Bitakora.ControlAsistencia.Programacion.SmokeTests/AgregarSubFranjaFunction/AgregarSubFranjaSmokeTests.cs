@@ -23,7 +23,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
     {
         var payload = new { turnoId, nombre = $"{nombreBase} {turnoId}" };
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -31,7 +31,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
     {
         var payload = new { inicio = "22:00:00", fin = "06:00:00" };
         var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
@@ -40,7 +40,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
     // mt_events es la unica ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarSubFranja_DebeRetornar202YPersistirElDescansoDeMadrugada_CuandoLaFranjaEsNocturna()
+    public async Task AgregarSubFranja_DebeRetornar204YPersistirElDescansoDeMadrugada_CuandoLaFranjaEsNocturna()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -52,7 +52,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         var payload = new { franja = "22:00", tipo = "descanso", inicio = "02:00", fin = "02:30" };
         var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -70,7 +70,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
     // cubre el camino feliz del comando; este solo cierra que "tipo: extra" enruta al otro evento.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarSubFranja_DebeRetornar202YPersistirElExtraDeMadrugada_CuandoTipoEsExtra()
+    public async Task AgregarSubFranja_DebeRetornar204YPersistirElExtraDeMadrugada_CuandoTipoEsExtra()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -82,7 +82,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         var payload = new { franja = "22:00", tipo = "extra", inicio = "05:00", fin = "06:00" };
         var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

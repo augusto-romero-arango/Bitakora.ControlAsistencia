@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.QuitarFranjaFunction;
@@ -36,8 +37,10 @@ public class FunctionEndpointTests
         trigger.Route.Should().Be("programacion/turnos/{id}:quitar-franja");
     }
 
+    // Issue #661: accion de negocio 4 -> 204 No Content, sin cuerpo (la transaccion confirma antes
+    // de responder).
     [Fact]
-    public async Task QuitarFranja_Retorna202_CuandoComandoEsValido()
+    public async Task QuitarFranja_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<QuitarFranjaBody>(BodyValido());
         var router = new FakeCommandRouter();
@@ -45,7 +48,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     [Fact]
