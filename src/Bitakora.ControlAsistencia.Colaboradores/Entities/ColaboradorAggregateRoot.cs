@@ -325,10 +325,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoAsignacionEtiqueta.Exitosa;
     }
 
-    // Issue #663 (MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso"): retirar una categoria sin
-    // etiqueta en la vinculacion vigente es un no-op exitoso -- retorna antes de agregar eventos,
-    // gemelo de AsignarEtiqueta/ResultadoAsignacionEtiqueta.SinCambios (revierte la decision #2 de
-    // #355: el typo ya no aflora).
+    // MEF-ADR-0004 "Estado ya alcanzado": retirar una categoria sin etiqueta en la vinculacion
+    // vigente es un no-op exitoso -- retorna ANTES de agregar eventos, nunca un rechazo (gemelo de
+    // AsignarEtiqueta/ResultadoAsignacionEtiqueta.SinCambios).
     // Recibe la categoria YA NORMALIZADA (Tell-don't-Ask: el handler la obtiene de
     // Etiqueta.NormalizarCategoria, #355 -- el aggregate nunca normaliza strings por su cuenta,
     // mismo criterio que EsMismaCategoria decide "misma categoria" dentro del VO, no en el

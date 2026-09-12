@@ -6,9 +6,6 @@
 // (rename, merge que la pierde) GetString retorna null en silencio y los tests del handler pasan
 // en FALSO: sus aserciones son WithMessage($"*{Mensajes.X}*"), que con X == null se vuelve "**" y
 // matchea cualquier excepcion.
-//
-// Issue #663 (CA-4): CategoriaInexistente deja de ser un rechazo -- se elimina de este guardrail
-// junto con la clave .resx y la propiedad Mensajes.CategoriaInexistente.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction.CommandHandler;

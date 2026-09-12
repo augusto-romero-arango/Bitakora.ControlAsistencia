@@ -1,12 +1,10 @@
 namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 
-// Issue #663 (MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso"): retirar una categoria sin
-// etiqueta en la vinculacion vigente es un no-op exitoso -- SinCambios, gemelo de
-// ResultadoAsignacionEtiqueta.SinCambios, no un rechazo (revierte la decision #2 de #355: el typo
-// ya no aflora).
-// VinculacionTerminada sigue siendo la unica razon de rechazo real (CA-ADR-0030), evaluable solo
-// con la historia del stream: la ULTIMA vinculacion tiene terminacion registrada (incluye un
-// preaviso sin vencer) -- las etiquetas describen la relacion laboral ACTIVA.
+// SinCambios es el no-op exitoso de MEF-ADR-0004 ("Estado ya alcanzado"), no un rechazo: la
+// categoria no esta en la vinculacion vigente y no hay hecho nuevo que registrar.
+// VinculacionTerminada es la unica razon de rechazo real (CA-ADR-0030): la ULTIMA vinculacion
+// tiene terminacion registrada -- un preaviso SIN vencer bloquea igual, las etiquetas describen la
+// relacion laboral ACTIVA.
 // internal: mismo criterio de visibilidad que los resultados hermanos.
 internal enum ResultadoRetiroEtiqueta
 {
