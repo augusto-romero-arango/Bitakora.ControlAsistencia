@@ -14,7 +14,7 @@ public class CrearTurnoToolTests
     private static string Validacion400Json => Fixtures.Leer("CrearTurno", "validacion-400.json");
 
     private static (CrearTurnoTool Tool, HandlerEnlatado Handler) CrearTool(
-        HttpStatusCode status = HttpStatusCode.Accepted, string cuerpo = "")
+        HttpStatusCode status = HttpStatusCode.Created, string cuerpo = "")
     {
         var (cliente, handler) = ClienteFalso.Con(cuerpo, status);
         return (new CrearTurnoTool(new ProgramacionApi(cliente)), handler);

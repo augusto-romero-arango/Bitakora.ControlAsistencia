@@ -24,7 +24,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var payload = new { turnoId, nombre = $"{nombreBase} {turnoId}" };
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -32,7 +32,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var payload = new { inicio = "22:00:00", fin = "06:00:00" };
         var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
@@ -40,7 +40,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var payload = new { franja = "22:00", tipo = "descanso", inicio = "02:00", fin = "02:30" };
         var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarSubFranja funcione");
     }
 
@@ -48,7 +48,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var payload = new { franja = "22:00", tipo = "extra", inicio = "05:00", fin = "06:00" };
         var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AgregarSubFranja funcione");
     }
 
@@ -57,7 +57,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarSubFranja_DebeRetornar202YPersistirLaFranjaSinElDescanso_CuandoElDescansoExiste()
+    public async Task QuitarSubFranja_DebeRetornar204YPersistirLaFranjaSinElDescanso_CuandoElDescansoExiste()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -70,7 +70,8 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var payload = new { franja = "22:00", tipo = "descanso", inicio = "02:00" };
         var response = await _client.PostAsJsonAsync(RutaQuitarSubFranja(turnoId), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -89,7 +90,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // valor del discriminador enruta al evento gemelo extra_quitado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarSubFranja_DebeRetornar202YPersistirLaFranjaSinElExtra_CuandoTipoEsExtra()
+    public async Task QuitarSubFranja_DebeRetornar204YPersistirLaFranjaSinElExtra_CuandoTipoEsExtra()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -102,7 +103,8 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var payload = new { franja = "22:00", tipo = "extra", inicio = "05:00" };
         var response = await _client.PostAsJsonAsync(RutaQuitarSubFranja(turnoId), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

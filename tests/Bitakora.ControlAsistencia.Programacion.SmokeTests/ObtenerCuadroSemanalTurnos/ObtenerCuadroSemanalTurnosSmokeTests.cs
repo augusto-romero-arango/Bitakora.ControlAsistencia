@@ -191,7 +191,7 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         await EsperarCuadroAsync(plantillaId, c => c.Dias.Count == 1, ct);
 
         var retiroTurnoResponse = await _client.DeleteAsync($"{RutaTurnos}/{turnoId}", ct);
-        retiroTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        retiroTurnoResponse.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que RetirarTurno funcione");
 
         var cuadroConTurnoRetirado = await EsperarCuadroAsync(

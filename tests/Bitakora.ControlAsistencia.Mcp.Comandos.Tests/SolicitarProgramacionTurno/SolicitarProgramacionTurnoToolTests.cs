@@ -34,7 +34,7 @@ public class SolicitarProgramacionTurnoToolTests
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
-        HttpStatusCode statusSolicitud = HttpStatusCode.Accepted,
+        HttpStatusCode statusSolicitud = HttpStatusCode.Created,
         string cuerpoSolicitud = "",
         string? sedeJson = null,
         HttpStatusCode statusSede = HttpStatusCode.OK,
@@ -218,7 +218,7 @@ public class SolicitarProgramacionTurnoToolTests
                 {
                     Content = new StringContent(Validacion400Json, Encoding.UTF8, "application/json")
                 }
-                : new HttpResponseMessage(HttpStatusCode.Accepted));
+                : new HttpResponseMessage(HttpStatusCode.Created));
 
         var (clienteSedes, _) = ClienteFalso.Con(SedeJson, HttpStatusCode.OK);
         var (clienteColaboradores, _) = ClienteFalso.Con(DirectorioJson, HttpStatusCode.OK);

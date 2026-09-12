@@ -21,7 +21,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var payload = new { turnoId, nombre = $"{nombreBase} {turnoId}" };
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 
@@ -36,7 +36,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             esDescanso = true
         };
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
         return turnoId;
     }
@@ -44,7 +44,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     private async Task RetirarTurnoAsync(Guid turnoId, CancellationToken ct)
     {
         var response = await _client.DeleteAsync($"{RutaTurnos}/{turnoId}", ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que RetirarTurno funcione");
     }
 
@@ -64,7 +64,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // solapa (23:00-01:00 cae dentro de 22:00-06:00+1) cierra la regla de negocio -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarFranja_DebeRetornar202YPersistirLaFranja_CuandoElTurnoEstaVacio()
+    public async Task AgregarFranja_DebeRetornar204YPersistirLaFranja_CuandoElTurnoEstaVacio()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -80,7 +80,8 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         };
         var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

@@ -25,7 +25,7 @@ public class QuitarFranjaToolTests
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
-        HttpStatusCode statusQuitar = HttpStatusCode.Accepted,
+        HttpStatusCode statusQuitar = HttpStatusCode.NoContent,
         string cuerpoQuitar = "")
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();

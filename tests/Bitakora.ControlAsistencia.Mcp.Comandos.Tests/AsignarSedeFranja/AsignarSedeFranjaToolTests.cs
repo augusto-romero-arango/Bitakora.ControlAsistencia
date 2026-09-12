@@ -27,7 +27,7 @@ public class AsignarSedeFranjaToolTests
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
-        HttpStatusCode statusAsignar = HttpStatusCode.Accepted,
+        HttpStatusCode statusAsignar = HttpStatusCode.NoContent,
         string cuerpoAsignar = "",
         string? sedeJson = null,
         HttpStatusCode statusSede = HttpStatusCode.OK)

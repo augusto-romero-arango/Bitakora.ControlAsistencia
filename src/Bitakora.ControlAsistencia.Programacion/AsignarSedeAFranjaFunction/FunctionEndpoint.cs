@@ -46,6 +46,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new ConflictObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

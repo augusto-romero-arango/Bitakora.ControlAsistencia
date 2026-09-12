@@ -27,7 +27,7 @@ public class AgregarFranjaToolTests
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
-        HttpStatusCode statusAgregar = HttpStatusCode.Accepted,
+        HttpStatusCode statusAgregar = HttpStatusCode.NoContent,
         string cuerpoAgregar = "",
         string? sedeJson = null,
         HttpStatusCode statusSede = HttpStatusCode.OK)

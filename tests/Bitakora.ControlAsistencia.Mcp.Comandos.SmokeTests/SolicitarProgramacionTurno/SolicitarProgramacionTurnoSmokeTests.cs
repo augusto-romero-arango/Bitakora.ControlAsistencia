@@ -31,7 +31,7 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
     {
         var respuesta = await programacion.Client.PostAsJsonAsync(
             "/api/programacion/turnos", PayloadTurno(turnoId, nombre), ct);
-        respuesta.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione en Programacion");
     }
 

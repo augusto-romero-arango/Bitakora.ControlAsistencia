@@ -83,7 +83,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     private async Task CrearTurnoAsync(object payload, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
 

@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.QuitarSubFranjaFunction;
@@ -37,8 +38,10 @@ public class FunctionEndpointTests
         trigger.Route.Should().Be("programacion/turnos/{id}:quitar-subfranja");
     }
 
+    // Paso 4 de MEF-ADR-0043: la transaccion confirma antes de responder -> 204 sin cuerpo,
+    // nunca 202.
     [Fact]
-    public async Task QuitarSubFranja_Retorna202_CuandoComandoEsValido()
+    public async Task QuitarSubFranja_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<QuitarSubFranjaBody>(BodyValido());
         var router = new FakeCommandRouter();
@@ -46,7 +49,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): el comando nunca debe

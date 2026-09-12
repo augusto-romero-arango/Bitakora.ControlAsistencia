@@ -47,14 +47,21 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    // CA-2: el header Location apunta a la ruta canonica de lectura del turno (ObtenerFichaTurno).
+    // No se dereferencia aqui -- esa vista es una proyeccion Async y puede responder 404 mientras
+    // materializa (MEF-ADR-0004, MEF-ADR-0034); solo se verifica el contrato del header.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearTurno_DebeRetornar202_CuandoPayloadEsValido()
+    public async Task CrearTurno_DebeRetornar201ConLocation_CuandoPayloadEsValido()
     {
         var ct = TestContext.Current.CancellationToken;
-        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", PayloadValido(), ct);
+        var turnoId = Guid.CreateVersion7();
+        var response = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(turnoId), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(
+            new Uri($"/api/programacion/turnos/{turnoId}", UriKind.Relative));
     }
 
     [Fact]
@@ -93,7 +100,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var arrange = await _client.PostAsJsonAsync(
             "/api/programacion/turnos", PayloadValido(turnoExistenteId, nombreExistente), ct);
-        arrange.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
         await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
 
@@ -117,7 +124,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var arrange = await _client.PostAsJsonAsync(
             "/api/programacion/turnos", PayloadValido(turnoExistenteId, nombreExistente), ct);
-        arrange.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
         await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
 
@@ -131,7 +138,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     // experto: normalizar acentos abre falsos positivos, los acentos SON significativos).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearTurno_DebeRetornar202_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
+    public async Task CrearTurno_DebeRetornar201_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
     {
         var ct = TestContext.Current.CancellationToken;
         var sufijo = Guid.CreateVersion7();
@@ -141,7 +148,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var arrange = await _client.PostAsJsonAsync(
             "/api/programacion/turnos", PayloadValido(turnoExistenteId, nombreConAcento), ct);
-        arrange.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
         await EsperarTurnoMaterializadoAsync(turnoExistenteId, ct);
 
@@ -149,8 +156,8 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.PostAsJsonAsync(
             "/api/programacion/turnos", PayloadValido(turnoSinAcentoId, nombreSinAcento), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        // El 202 solo dice que el comando fue aceptado: el efecto secundario real de este handler
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        // El 201 solo dice que la transaccion confirmo: el efecto secundario real de este handler
         // (StartStream -> turno visible en el catalogo) es lo que cierra MEF-ADR-0013.
         await EsperarTurnoMaterializadoAsync(turnoSinAcentoId, ct);
     }
@@ -174,11 +181,11 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     // Issue #335 CA-1/CA-2: turno "partido" con sede prearmada por franja (narrativa del issue:
     // "Vigilante partido" -> manana en Suba, tarde en Chapinero) mas una tercera franja SIN sede.
-    // Verifica los dos efectos del handler: el 202 del endpoint y la persistencia en el event store
+    // Verifica los dos efectos del handler: el 201 del endpoint y la persistencia en el event store
     // (CrearTurnoCommandHandler -> IEventStore.StartStream). turno_creado no cruza ningun bus, asi
     // que mt_events es la unica ventana black-box a lo que quedo grabado -- y es la que cierra el
     // riesgo real de este issue: que el resolver de serializacion del Function App desplegado no
-    // registre la clave "sede" y el dato se pierda en silencio con un 202 igual de verde.
+    // registre la clave "sede" y el dato se pierda en silencio con un 201 igual de verde.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_PersisteLaSedePrearmadaDeCadaFranja_CuandoAlgunasFranjasTraenSede()
@@ -222,7 +229,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // CatalogoTurnos.Apply asigna Id = evento.TurnoId.ToString() -- el stream id es el guid
         // canonico, sin formato explicito (MEF-ADR-0037).
@@ -314,7 +321,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     // secundario verificable de este handler.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearTurno_DebeRetornar202YPersistirCeroFranjas_CuandoEsDescanso()
+    public async Task CrearTurno_DebeRetornar201YPersistirCeroFranjas_CuandoEsDescanso()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -331,7 +338,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -353,7 +360,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     // descanso, que persiste la misma lista vacia pero con EsDescanso = true.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearTurno_DebeRetornar202YPersistirTurnoIncompleto_CuandoNoTraeFranjasNiMarca()
+    public async Task CrearTurno_DebeRetornar201YPersistirTurnoIncompleto_CuandoNoTraeFranjasNiMarca()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -364,7 +371,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -432,7 +439,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -473,7 +480,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync("/api/programacion/turnos", payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

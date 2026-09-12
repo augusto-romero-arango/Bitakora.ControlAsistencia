@@ -50,7 +50,7 @@ public class CancelarProgramacionSmokeTests(
         };
 
         var response = await _client.PostAsJsonAsync("/api/programacion/cancelaciones", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert: fan-out, un CancelacionTurnoDiarioSolicitada por fecha (CA-1)
         var evento1 = await serviceBus.WaitForMessageAsync<CancelacionTurnoDiarioSolicitada>(
@@ -103,7 +103,7 @@ public class CancelarProgramacionSmokeTests(
         };
 
         var primeraRespuesta = await _client.PostAsJsonAsync("/api/programacion/cancelaciones", payload, ct);
-        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Created);
 
         await serviceBus.WaitForMessageAsync<CancelacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);

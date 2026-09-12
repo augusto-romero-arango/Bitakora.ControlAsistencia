@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CancelarProgramacionFunction;
 
@@ -20,9 +21,10 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: POST exitoso retorna 202 Accepted
+    // Persiste SolicitudCancelacion antes de responder -> 201 Created sin Location (la solicitud
+    // no tiene GET canonico; el efecto en ControlHoras es posterior al commit).
     [Fact]
-    public async Task DebeRetornar202_CuandoComandoEsValido()
+    public async Task CancelarProgramacion_Retorna201SinLocation_CuandoComandoEsValido()
     {
         var validator = new FakeCancelacionRequestValidator(ComandoValido());
         var router = new FakeCancelacionCommandRouter();
@@ -30,7 +32,10 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.Should().BeAssignableTo<CreatedResult>()
+            .Which.Location.Should().BeNull();
     }
 
     // CA-3: falla de validacion retorna 400 Bad Request

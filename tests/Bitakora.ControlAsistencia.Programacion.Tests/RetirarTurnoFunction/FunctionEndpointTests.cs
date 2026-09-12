@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.RetirarTurnoFunction;
 
@@ -14,16 +15,19 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-1
+    // CA-1: DELETE exitoso -> 204 No Content, sin cuerpo (la transaccion confirma antes de
+    // responder). Turno ya retirado sigue 409 aqui: se corrige en #665.
     [Fact]
-    public async Task RetirarTurno_Retorna202_CuandoComandoEsValido()
+    public async Task RetirarTurno_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-3: turno ya retirado -> 409

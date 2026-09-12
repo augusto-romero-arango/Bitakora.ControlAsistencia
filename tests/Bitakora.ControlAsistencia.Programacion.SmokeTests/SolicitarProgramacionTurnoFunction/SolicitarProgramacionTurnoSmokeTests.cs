@@ -121,7 +121,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             }
         };
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Arrange: preparar solicitud con dos fechas para verificar emision de un evento por fecha
         var solicitudId = Guid.CreateVersion7();
@@ -145,7 +145,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Act: enviar solicitud via HTTP
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert: consumir los 2 eventos publicados desde la suscripcion smoke-tests
         var evento1 = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
@@ -217,7 +217,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             }
         };
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Arrange: solicitud con sede -- issue #331 CA-1
         var solicitudId = Guid.CreateVersion7();
@@ -240,7 +240,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Act: enviar solicitud via HTTP
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert: el evento diario publicado lleva la sede resuelta por el cliente
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
@@ -287,7 +287,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos",
             TurnoConFranjasMixtasPayload(turnoId, sedeSuba.Id, sedeSuba.Nombre), ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Arrange: solicitud CON sede -- issue #341 CA-1
         var solicitudId = Guid.CreateVersion7();
@@ -308,7 +308,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Act: enviar solicitud via HTTP
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert: cada franja resuelve su cascada de forma independiente. La franja1 conserva su
         // sede propia del catalogo (le gana al default); la franja2 (sin sede propia) adopta la
@@ -346,7 +346,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var turnoId = Guid.CreateVersion7();
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC"), ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var solicitudId = Guid.CreateVersion7();
         var sedeEsperada = new DetalleSede("SEDE-CC-01", "[TEST] Sede Con Costeo", "CC-100-VENTAS");
@@ -365,7 +365,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         };
 
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -395,7 +395,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos",
             TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Normalizacion"), ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var sedeEsperada = new DetalleSede("SEDE-CC-02", "[TEST] Sede Sin Costeo Real");
 
@@ -417,7 +417,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             };
 
             var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
 
             var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
                 TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -428,7 +428,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
     }
 
     // Cierra el riesgo de que el centro de costos llegue bien al bus pero se pierda en el JSON
-    // persistido: un 202 verde no distingue los dos casos (mismo criterio que
+    // persistido: un 201 verde no distingue los dos casos (mismo criterio que
     // SolicitarProgramacionTurno_PersisteLaSedeEfectivaDeCadaFranja).
     [Fact]
     [Trait("Category", "Smoke")]
@@ -442,7 +442,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos",
             TurnoSimplePayload(turnoId, "[TEST] Turno Smoke CC Persistencia"), ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var solicitudId = Guid.CreateVersion7();
         var sedeMinima = new SedeMinima("SEDE-CC-03", "[TEST] Sede Persistencia CC", "CC-200-NOMINA");
@@ -461,7 +461,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         };
 
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = solicitudId.ToString();
 
@@ -484,7 +484,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
     // pide verificar "en el evento persistido" ademas de "en cada evento diario del bus".
     // mt_events es la unica ventana black-box a lo que quedo grabado -- y cierra el riesgo real:
     // que la sede efectiva llegue bien al bus pero se pierda en silencio en el JSON persistido,
-    // con un 202 igual de verde. Mismo patron que CrearTurnoSmokeTests para turno_creado (#335).
+    // con un 201 igual de verde. Mismo patron que CrearTurnoSmokeTests para turno_creado (#335).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_PersisteLaSedeEfectivaDeCadaFranja_CuandoElTurnoTraeFranjasMixtas()
@@ -500,7 +500,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var crearTurnoResponse = await _client.PostAsJsonAsync(
             "/api/programacion/turnos",
             TurnoConFranjasMixtasPayload(turnoId, sedeSuba.Id, sedeSuba.Nombre), ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var solicitudId = Guid.CreateVersion7();
         var payload = new
@@ -519,7 +519,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Act
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // SolicitudProgramacionAggregateRoot.Apply asigna Id = evento.Id.ToString() -- el stream id
         // es el guid canonico de la solicitud, sin formato explicito (MEF-ADR-0037).
@@ -573,7 +573,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             }
         };
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Arrange: solicitud SIN sede -- issue #341 CA-2: la franja con sede del catalogo la
         // conserva (el catalogo le gana al "sin sede" de la solicitud tambien).
@@ -594,7 +594,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Act: enviar solicitud via HTTP
         var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert: el nivel de solicitud sigue siendo null (lo solicitado), pero la franja conserva
         // la sede del catalogo (la verdad efectiva ya resuelta por la cascada).
@@ -642,7 +642,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         // Act 1: primera solicitud (exitosa)
         var primeraRespuesta = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
-        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert: consumir los 2 eventos ProgramacionTurnoDiarioSolicitada publicados
         var evento1 = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
@@ -698,11 +698,11 @@ public class SolicitarProgramacionTurnoSmokeTests(
             }
         };
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
 
         var retirarTurnoResponse = await _client.DeleteAsync($"/api/programacion/turnos/{turnoId}", ct);
-        retirarTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        retirarTurnoResponse.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que RetirarTurno funcione");
 
         var payload = PayloadValido(turnoId: turnoId);
@@ -727,7 +727,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             nombre = $"[TEST] Incompleto {turnoId}"
         };
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
-        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de #599 (turno sin ordinarias) desplegado en dev");
 
         var payload = PayloadValido(turnoId: turnoId);

@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
@@ -14,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTur
 /// Verifica el mapeo de excepciones del handler a respuestas HTTP:
 /// - InvalidOperationException -> 409 (solicitud duplicada)
 /// - KeyNotFoundException -> 404 (turno no encontrado en catalogo)
-/// - Exito -> 202 Accepted
+/// - Exito -> 201 Created sin Location (CA-ADR-0035)
 /// - Error de validacion -> 400 Bad Request
 /// </summary>
 public class FunctionEndpointTests
@@ -31,9 +32,11 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-13: POST exitoso retorna 202 Accepted
+    // Persiste SolicitudProgramacion antes de responder -> 201 Created sin Location (la
+    // solicitud no tiene GET canonico; el turno diario en ControlHoras es un efecto posterior al
+    // commit, no el recurso pedido).
     [Fact]
-    public async Task DebeRetornar202_CuandoComandoEsValido()
+    public async Task SolicitarProgramacionTurno_Retorna201SinLocation_CuandoComandoEsValido()
     {
         var validator = new FakeSolicitudRequestValidator(ComandoValido());
         var router = new FakeSolicitudCommandRouter();
@@ -41,7 +44,10 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.Should().BeAssignableTo<CreatedResult>()
+            .Which.Location.Should().BeNull();
     }
 
     // CA-5: Falla de validacion retorna 400 Bad Request
