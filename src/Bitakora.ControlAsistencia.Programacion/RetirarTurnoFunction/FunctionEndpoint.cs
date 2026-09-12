@@ -6,7 +6,8 @@ using Microsoft.Azure.Functions.Worker;
 namespace Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction;
 
 // DELETE que retira el turno del catalogo -- remocion veraz y SIN body (MEF-ADR-0043 paso 3), asi
-// que el {id} de ruta es lo unico que validar (MEF-ADR-0037 seccion 2).
+// que el {id} de ruta es lo unico que validar (MEF-ADR-0037 seccion 2). Exito -> 204 No Content
+// (CA-ADR-0035 / issue #661); turno ya retirado sigue 409 aqui, se corrige en #665.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarTurno")]
@@ -32,6 +33,6 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

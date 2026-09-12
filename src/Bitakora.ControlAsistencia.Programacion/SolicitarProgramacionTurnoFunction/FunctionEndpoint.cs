@@ -6,6 +6,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 
+// Persiste SolicitudProgramacion antes de responder -> 201 Created sin Location: la solicitud no
+// tiene GET canonico; el turno diario en ControlHoras es un efecto posterior al commit, no el
+// recurso pedido (CA-ADR-0035 / issue #661).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function(nameof(SolicitarProgramacionTurno))]
@@ -31,6 +34,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new CreatedResult((string?)null, null);
     }
 }

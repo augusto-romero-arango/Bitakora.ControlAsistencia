@@ -7,9 +7,10 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 
 // HU-4: Endpoint HTTP POST para crear un turno de trabajo
 // ADR-0008: [Function("CrearTurno")] como convencion de nombrado
-// Flujo: validar request -> despachar comando -> retornar 202 o error
+// Flujo: validar request -> despachar comando -> retornar 201 o error
 // ADR-0007: InvalidOperationException -> 409 Conflict
 //           AggregateException (del factory) -> 400 Bad Request con mensajes
+// CA-ADR-0035 / issue #661: exito -> 201 Created con Location a la ficha del turno (ObtenerFichaTurno)
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CrearTurno")]
@@ -36,6 +37,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
                 ex.InnerExceptions.Select(e => e.Message));
         }
 
-        return new AcceptedResult();
+        return new CreatedResult($"/api/programacion/turnos/{comando!.TurnoId}", null);
     }
 }
