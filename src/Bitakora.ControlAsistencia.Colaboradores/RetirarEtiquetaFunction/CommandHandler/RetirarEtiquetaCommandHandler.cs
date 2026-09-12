@@ -4,14 +4,13 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction.CommandHandler;
 
-// Issue #355: handler del comando RetirarEtiqueta. Mecanismo "declinar con resultado" puro
-// (CA-ADR-0030, precedente CorregirFechaInicioVinculacionCommandHandler #352) -- sin variante
-// silenciosa, a diferencia de AsignarEtiqueta: tanto CategoriaInexistente (CA-4, el typo debe
-// aflorar) como VinculacionTerminada se traducen a InvalidOperationException/409 con mensaje .resx.
-// El 404 es precondicion de orquestacion (MEF-ADR-0004 capa 2), no regla del aggregate. En el
-// camino de exito el aggregate ya dejo EtiquetaRetirada en _uncommittedEvents -- el middleware
-// persiste via SaveChanges. Sin publicacion a bus (event-sourcing puro, issue #355 "Consumidores:
-// ninguno").
+// SinCambios NO se traduce: es el no-op exitoso de MEF-ADR-0004 ("Estado ya alcanzado") -- el
+// aggregate ya retorno sin agregar eventos y el handler debe terminar sin lanzar.
+// VinculacionTerminada es la unica razon de rechazo real (CA-ADR-0030) -> InvalidOperationException
+// /409 con mensaje .resx. El 404 es precondicion de orquestacion (MEF-ADR-0004 capa 2), no regla
+// del aggregate. En el camino de exito el aggregate ya dejo EtiquetaRetirada en
+// _uncommittedEvents -- el middleware persiste via SaveChanges. Sin publicacion a bus
+// (event-sourcing puro: este evento no tiene consumidores).
 public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<RetirarEtiqueta>
 {
     private readonly IEventStore _eventStore;
@@ -36,12 +35,7 @@ public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<Retira
         var categoriaNormalizada = Etiqueta.NormalizarCategoria(command.Categoria);
 
         var resultado = colaborador.RetirarEtiqueta(categoriaNormalizada);
-        switch (resultado)
-        {
-            case ResultadoRetiroEtiqueta.CategoriaInexistente:
-                throw new InvalidOperationException(Mensajes.CategoriaInexistente);
-            case ResultadoRetiroEtiqueta.VinculacionTerminada:
-                throw new InvalidOperationException(Mensajes.VinculacionTerminada);
-        }
+        if (resultado == ResultadoRetiroEtiqueta.VinculacionTerminada)
+            throw new InvalidOperationException(Mensajes.VinculacionTerminada);
     }
 }

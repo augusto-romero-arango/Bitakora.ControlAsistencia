@@ -17,8 +17,5 @@ public partial class RetirarEtiquetaCommandHandler
 
         public static string VinculacionTerminada =>
             ResourceManager.GetString(nameof(VinculacionTerminada))!;
-
-        public static string CategoriaInexistente =>
-            ResourceManager.GetString(nameof(CategoriaInexistente))!;
     }
 }

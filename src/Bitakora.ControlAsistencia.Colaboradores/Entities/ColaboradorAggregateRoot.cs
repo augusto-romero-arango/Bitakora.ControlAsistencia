@@ -325,10 +325,9 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         return ResultadoAsignacionEtiqueta.Exitosa;
     }
 
-    // Issue #355: mecanismo "declinar con resultado" puro (CA-ADR-0030) -- retirar una categoria
-    // inexistente SIEMPRE rechaza (CA-4, decision de refinamiento 2026-08-11: con categorias
-    // libres, un typo como "aera" por "area" debe aflorar al instante, nunca un 202 silencioso que
-    // lo esconda).
+    // MEF-ADR-0004 "Estado ya alcanzado": retirar una categoria sin etiqueta en la vinculacion
+    // vigente es un no-op exitoso -- retorna ANTES de agregar eventos, nunca un rechazo (gemelo de
+    // AsignarEtiqueta/ResultadoAsignacionEtiqueta.SinCambios).
     // Recibe la categoria YA NORMALIZADA (Tell-don't-Ask: el handler la obtiene de
     // Etiqueta.NormalizarCategoria, #355 -- el aggregate nunca normaliza strings por su cuenta,
     // mismo criterio que EsMismaCategoria decide "misma categoria" dentro del VO, no en el
@@ -340,7 +339,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
             return ResultadoRetiroEtiqueta.VinculacionTerminada;
 
         if (!_etiquetas.ContainsKey(categoriaNormalizada))
-            return ResultadoRetiroEtiqueta.CategoriaInexistente;
+            return ResultadoRetiroEtiqueta.SinCambios;
 
         var evento = new EtiquetaRetirada(categoriaNormalizada);
         _uncommittedEvents.Add(evento);

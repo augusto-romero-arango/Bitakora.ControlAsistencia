@@ -19,6 +19,5 @@ public class RetirarEtiquetaCommandHandlerMensajesTests
     {
         RetirarEtiquetaCommandHandler.Mensajes.ColaboradorNoEncontrado.Should().NotBeNullOrWhiteSpace();
         RetirarEtiquetaCommandHandler.Mensajes.VinculacionTerminada.Should().NotBeNullOrWhiteSpace();
-        RetirarEtiquetaCommandHandler.Mensajes.CategoriaInexistente.Should().NotBeNullOrWhiteSpace();
     }
 }

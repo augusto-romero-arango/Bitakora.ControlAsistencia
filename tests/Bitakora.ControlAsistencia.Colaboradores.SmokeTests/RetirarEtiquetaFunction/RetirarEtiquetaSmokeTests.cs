@@ -24,31 +24,16 @@
 // PostgresFixture.ExisteEventoAsync/ObtenerEventoAsync, incluso en streams que acumulan mas de un
 // evento etiqueta_retirada.
 //
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): RetirarEtiqueta confirma
-// el evento en el event store antes de responder -- 204, nunca 202. El DELETE de una categoria sin
-// etiqueta sigue respondiendo 409 (CA-4 de #376): pasa a no-op 204 en el issue #663, no en este.
+// Contrato del endpoint (MEF-ADR-0004 "Respuestas HTTP" y "Estado ya alcanzado"): el evento queda
+// confirmado en el event store ANTES de responder, asi que el exito es 204, nunca 202. Una
+// categoria SIN etiqueta en la vinculacion vigente -- nunca asignada, transcrita con typo, o
+// heredada de una vinculacion anterior tras un reingreso -- tambien responde 204, sin evento nuevo:
+// es no-op exitoso, no 409. Quedan en rechazo la vinculacion con terminacion registrada (409, un
+// preaviso sin vencer bloquea igual) y el colaborador inexistente (404); un {id} de ruta malformado
+// da 400 sin tocar el event store.
 //
-// CA-3 (ruta de exito, #355): 204 + el stream recibe etiqueta_retirada con la categoria normalizada,
-// retirando por una forma de la URL distinta a la asignada ("área" retira lo asignado como "Area") --
-// evidencia black-box de que el direccionamiento por categoria normalizada (CA-4 de #376) tambien
-// aplica al retiro.
-// CA-4 (rutas de rechazo, decision #2 -- SIN idempotencia silenciosa): categoria nunca asignada, o
-// un error de transcripcion sobre una categoria existente ("Aera" vs "Area") -> 409, sin evento
-// nuevo, la etiqueta existente (si la hay) queda intacta.
-// CA-5 (rutas de rechazo): la ultima vinculacion tiene terminacion registrada -- pasada o un
-// preaviso cuya fecha no ha llegado, sin distincion -> 409, sin evento.
-// CA-6: la etiqueta pertenecia a la vinculacion ANTERIOR (congelada tras la terminacion) -- la
-// vinculacion vigente (el reingreso) no la hereda, asi que retirarla encuentra la categoria
-// inexistente -> 409, igual que cualquier categoria nunca asignada.
-// CA-7: colaborador inexistente -> 404.
-// CA-3 (issue #376): {id} de ruta invalido -- sin guion, tipo fuera de la lista PILA, o numero vacio
-// tras el guion -> 400, con Identificacion.Parsear como unico punto de traduccion (precedente
-// ObtenerFichaColaborador), sin tocar el event store.
-//
-// Fuera de alcance (no forma parte de la lista cerrada de CA-3): una {categoria} de ruta vacia no es
-// una validacion de aplicacion sino un segmento de ruta ausente -- el propio host/routing de Azure
-// Functions decide que hacer con "DELETE .../etiquetas/" (trailing slash), no el codigo del
-// endpoint; no hay CA que lo exija y no se testea aqui.
+// Fuera de alcance: una {categoria} de ruta vacia no es validacion de aplicacion sino un segmento
+// ausente -- lo resuelve el routing de Azure Functions ("DELETE .../etiquetas/"), no el endpoint.
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
@@ -68,9 +53,8 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // La ausencia de evento tras un rechazo es sincrona (sin proyeccion downstream, event-sourcing
-    // puro) -- un timeout corto alcanza para probarla sin alargar la suite (mismo criterio que
-    // CorregirNombresSmokeTests.TimeoutAusencia).
+    // La ausencia de evento es sincrona (sin proyeccion downstream, event-sourcing puro) -- un
+    // timeout corto alcanza para probarla sin alargar la suite.
     private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(3);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
@@ -191,10 +175,10 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-3 (#355): camino feliz -- retirar por una forma de la URL distinta de la que se asigno
-    // ("área" retira lo asignado como "Area", misma categoria normalizada, CA-4 de #376) -> 204 y el
-    // stream recibe etiqueta_retirada con la categoria normalizada. Sin Service Bus (event-sourcing
-    // puro): mt_events es la unica ventana black-box a lo que quedo grabado.
+    // Camino feliz: retirar por una forma de la URL distinta de la que se asigno ("área" retira lo
+    // asignado como "Area", misma categoria normalizada) -> 204 y el stream recibe etiqueta_retirada
+    // con la categoria normalizada. Sin Service Bus (event-sourcing puro): mt_events es la unica
+    // ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarEtiqueta_Retorna204YPersisteEtiquetaRetirada_CuandoLaRutaLlegaConCategoriaEnOtraForma()
@@ -221,13 +205,13 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             $"el evento {TipoEventoEtiquetaRetirada} con CategoriaNormalizada 'area' deberia existir en el stream {id}");
     }
 
-    // CA-4 (decision #2, sin idempotencia silenciosa): retirar una categoria que nunca se asigno
-    // -> 409, sin evento nuevo. No requiere Postgres: el status code ya prueba que el aggregate
-    // declino con resultado y el handler lo tradujo (CA-ADR-0030).
+    // Retirar una categoria que nunca se asigno -> 204, sin evento nuevo.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarEtiqueta_Retorna409_CuandoCategoriaNoExiste()
+    public async Task RetirarEtiqueta_Retorna204SinEvento_CuandoCategoriaNoExiste()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var id = ComputarStreamId(numeroIdentificacion);
@@ -236,16 +220,50 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await RetirarEtiquetaAsync(id, "Área", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var existeRetiro = await postgres.ExisteEventoAsync(
+            SchemaColaboradores, id, TipoEventoEtiquetaRetirada, TimeoutAusencia);
+        existeRetiro.Should().BeFalse(
+            "retirar una categoria sin etiqueta es un no-op exitoso -- no deberia persistir etiqueta_retirada");
     }
 
-    // CA-4 (el typo debe aflorar, decision #2 del issue #355): "Aera" no es "Area" -- categorias
-    // distintas normalizadas, aunque exista una etiqueta para "Area" -> 409 igual, ninguna
-    // etiqueta_retirada nueva; la etiqueta existente ("Area") queda intacta (el conteo de
-    // etiqueta_asignada se mantiene en 1).
+    // Repetir el MISMO DELETE tras uno exitoso: el estado ya alcanzado canonico (MEF-ADR-0004).
+    // El conteo de etiqueta_retirada se mantiene en 1 -- el segundo llamado no agrega nada al
+    // stream. Los demas no-op parten de una categoria que nunca estuvo en la vinculacion vigente.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarEtiqueta_Retorna409_CuandoHayUnErrorDeTranscripcionEnLaCategoriaDeLaRuta()
+    public async Task RetirarEtiqueta_Retorna204SinEvento_CuandoLaCategoriaYaFueRetirada()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = ComputarStreamId(numeroIdentificacion);
+
+        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 3, 1), ct);
+        await AsignarEtiquetaAsync(id, "Area", "Ventas", ct);
+
+        var primerRetiro = await RetirarEtiquetaAsync(id, "Área", ct);
+        primerRetiro.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var segundoRetiro = await RetirarEtiquetaAsync(id, "Área", ct);
+
+        segundoRetiro.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await segundoRetiro.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
+
+        var retiros = await postgres.ContarEventosAsync(
+            SchemaColaboradores, id, TipoEventoEtiquetaRetirada);
+        retiros.Should().Be(1,
+            "el segundo retiro es un no-op exitoso -- no deberia agregar un etiqueta_retirada mas");
+    }
+
+    // "Aera" no es "Area": categorias distintas normalizadas, asi que un error de transcripcion NO
+    // aflora -> 204 igual, ninguna etiqueta_retirada nueva, y la etiqueta existente ("Area") queda
+    // intacta (etiqueta_asignada sigue en 1). Decision deliberada, no un descuido.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task RetirarEtiqueta_Retorna204SinEvento_CuandoHayUnErrorDeTranscripcionEnLaCategoriaDeLaRuta()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -258,7 +276,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await RetirarEtiquetaAsync(id, "Aera", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var existeRetiro = await postgres.ExisteEventoAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaRetirada, TimeoutAusencia);
@@ -268,11 +286,10 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaAsignada);
         asignaciones.Should().Be(1,
-            "la etiqueta original ('Area') deberia quedar intacta -- el rechazo no la toca");
+            "la etiqueta original ('Area') deberia quedar intacta -- el no-op no la toca");
     }
 
-    // CA-5 (regla estricta de apertura): la ULTIMA vinculacion tiene terminacion registrada -> 409,
-    // sin evento nuevo.
+    // Regla estricta de apertura: la ULTIMA vinculacion tiene terminacion registrada -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarEtiqueta_Retorna409_CuandoUltimaVinculacionTieneTerminacionRegistrada()
@@ -290,7 +307,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-5 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual -- las
+    // Preaviso no vencido: un preaviso con fecha futura ya registrado bloquea igual -- las
     // etiquetas describen la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
     [Fact]
     [Trait("Category", "Smoke")]
@@ -310,14 +327,14 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-6 (reingreso nace limpio): la etiqueta pertenecia a la vinculacion ANTERIOR (congelada
-    // tras la terminacion) -- la vinculacion vigente (el reingreso) no la hereda, asi que
-    // retirarla encuentra la categoria inexistente -> 409, igual que cualquier categoria nunca
-    // asignada.
+    // El reingreso nace limpio: la etiqueta pertenecia a la vinculacion ANTERIOR (congelada tras la
+    // terminacion) y la vigente no la hereda, asi que retirarla es un no-op exitoso.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarEtiqueta_Retorna409_CuandoEtiquetaPerteneceALaVinculacionAnteriorTrasReingreso()
+    public async Task RetirarEtiqueta_Retorna204SinEvento_CuandoEtiquetaPerteneceALaVinculacionAnteriorTrasReingreso()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var id = ComputarStreamId(numeroIdentificacion);
@@ -329,10 +346,15 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await RetirarEtiquetaAsync(id, "Área", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var existeRetiro = await postgres.ExisteEventoAsync(
+            SchemaColaboradores, id, TipoEventoEtiquetaRetirada, TimeoutAusencia);
+        existeRetiro.Should().BeFalse(
+            "la etiqueta de la vinculacion anterior no existe en la vigente: el retiro es un no-op, sin evento nuevo");
     }
 
-    // CA-7: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
+    // Colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
     // consultar: la ausencia de escritura la garantiza el propio 404 -- el handler lanza antes de
     // llegar al aggregate).
     [Fact]
@@ -348,8 +370,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-3 (issue #376): {id} de ruta sin guion -> 400, Identificacion.Parsear como unico punto de
-    // traduccion (precedente ObtenerFichaColaborador.FunctionEndpoint).
+    // {id} de ruta sin guion -> 400, con Identificacion.Parsear como unico punto de traduccion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarEtiqueta_Retorna400_CuandoIdDeRutaNoTraeGuion()
@@ -362,8 +383,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3: tipo de identificacion fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) dentro del
-    // {id} de ruta -> 400.
+    // Tipo de identificacion fuera de la lista cerrada (PILA: CC, CE, TI, PA, PT) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarEtiqueta_Retorna400_CuandoTipoDeLaIdentificacionEnLaRutaNoEsReconocido()
@@ -376,8 +396,8 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3: numero vacio tras el guion del {id} de ruta -> 400 (Identificacion.Crear rechaza un
-    // numero vacio tras la limpieza).
+    // Numero vacio tras el guion del {id} de ruta -> 400 (Identificacion.Crear lo rechaza tras la
+    // limpieza).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarEtiqueta_Retorna400_CuandoNumeroDeLaIdentificacionEnLaRutaQuedaVacio()
