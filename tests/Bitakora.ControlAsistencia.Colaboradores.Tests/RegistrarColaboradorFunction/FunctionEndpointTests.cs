@@ -1,12 +1,16 @@
 // Issue #330: tests del endpoint HTTP POST Colaboradores (registrar colaborador).
-// MEF-ADR-0004: InvalidOperationException -> 409, exito -> 202. Precedente: CrearTurnoFunction.
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 1): create -> 201 Created con Location a la ficha del colaborador registrado; 409 Conflict se
+// conserva sin cambios.
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction;
 
@@ -28,9 +32,10 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: POST exitoso retorna 202 Accepted
+    // CA-1: POST exitoso retorna 201 Created con Location a la ficha del colaborador -- compuesta
+    // via el VO Identificacion (unico punto de conversion, MEF-ADR-0037), no concatenando strings.
     [Fact]
-    public async Task RegistrarColaborador_Retorna202_CuandoComandoEsValido()
+    public async Task RegistrarColaborador_Retorna201ConLocation_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<RegistrarColaborador>(ComandoValido());
         var router = new FakeCommandRouter();
@@ -38,7 +43,11 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+
+        var identificacion = Identificacion.Crear(TipoIdentificacion.Desde("CC"), "79543210");
+        ((CreatedResult)result).Location.Should().Be($"/api/colaboradores/fichas/{identificacion}");
     }
 
     // CA-2: POST con identificacion ya registrada retorna 409 Conflict

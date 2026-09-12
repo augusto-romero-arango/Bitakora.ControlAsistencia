@@ -1,9 +1,20 @@
+// PUT porque reemplaza completo un valor atomico direccionable (MEF-ADR-0043 paso 2): asignar y
+// reasignar son el mismo reemplazo. El codigo de sede viaja en el body, no como segmento de ruta --
+// es un dato de tercero sin invariante URL-safe propia (MEF-ADR-0043 seccion 1.2).
+// {id} se parsea UNA vez via IdentificacionDeRuta.TryParsear, con 400 explicito si falla
+// (MEF-ADR-0037 seccion 2).
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 2: PUT reemplaza -> 204 siempre): el slot de sede existe por construccion, vacio o lleno -- PUT
+// lo reemplaza, nunca lo crea. La sede identica a la vigente (SinCambios) y el slot vacio responden
+// ambos 204, nunca 201.
+
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarSedeFunction;
 
@@ -21,7 +32,7 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task AsignarSede_Retorna202_CuandoIdDeRutaYBodySonValidos()
+    public async Task AsignarSede_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
     {
         var validator = new FakeAsignarSedeBodyRequestValidator(BodyValido());
         var router = new FakeAsignarSedeCommandRouter();
@@ -29,7 +40,27 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
+    }
+
+    // Estado ya alcanzado (MEF-ADR-0004, "PUT reemplaza"): la sede solicitada ya es la vigente, o
+    // el slot esta vacio y PUT lo llena por primera vez -- en ambos casos el slot existe por
+    // construccion y el router retorna normalmente (SinCambios sin evento, o el reemplazo mismo).
+    // El endpoint sigue respondiendo 204, nunca 201/404/409.
+    [Fact]
+    public async Task AsignarSede_Retorna204SinCuerpo_CuandoLaSedeYaEsLaVigente()
+    {
+        var validator = new FakeAsignarSedeBodyRequestValidator(BodyValido());
+        var router = new FakeAsignarSedeCommandRouter();
+        var function = new FunctionEndpoint(validator, router);
+
+        var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
+
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     [Fact]

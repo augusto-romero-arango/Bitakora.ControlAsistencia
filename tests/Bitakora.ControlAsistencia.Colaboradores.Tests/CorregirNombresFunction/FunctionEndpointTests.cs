@@ -2,11 +2,13 @@
 // (corregir los nombres de un colaborador existente -- reemplazo completo del VO atomico
 // NombreColaborador, direccionable por {id}). Reemplaza el POST Colaboradores/Nombres (issue #351):
 // la ruta vieja deja de existir (CA-5, verificado por la ausencia de esta ruta en este archivo).
-// CA-1: 202, con composicion exacta del comando interno CorregirNombres desde {id} + body; CA-2:
-// colaborador inexistente -> 404 (sin 409: este comando no tiene reglas de estado, CA-ADR-0030);
-// CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
-// AsignarEtiquetaFunction.FunctionEndpoint post-#376); CA-4: body invalido (PrimerNombre/
-// PrimerApellido vacios) -> 400.
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 2: PUT reemplaza -> 204): CA-1: 204 No Content, con composicion exacta del comando interno
+// CorregirNombres desde {id} + body (incluye el no-op cuando el nombre ya es el solicitado --
+// SinCambios sin evento, precedente #351); CA-2: colaborador inexistente -> 404 (sin 409: este
+// comando no tiene reglas de estado, CA-ADR-0030); CA-3: id de ruta invalido -> 400 (parseo tipado
+// unico, precedente AsignarEtiquetaFunction.FunctionEndpoint post-#376); CA-4: body invalido
+// (PrimerNombre/PrimerApellido vacios) -> 400.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
@@ -14,6 +16,7 @@ using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.CorregirNombresFunction;
 
@@ -33,9 +36,9 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 202 Accepted
+    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
-    public async Task CorregirNombres_Retorna202_CuandoIdDeRutaYBodySonValidos()
+    public async Task CorregirNombres_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
     {
         var validator = new FakeCorregirNombresBodyRequestValidator(BodyValido());
         var router = new FakeCorregirNombresCommandRouter();
@@ -43,7 +46,26 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
+    }
+
+    // Estado ya alcanzado (MEF-ADR-0004, "PUT reemplaza"): el nombre solicitado ya es el vigente --
+    // el aggregate declina en silencio (SinCambios, sin evento, precedente #351) y el router
+    // retorna normalmente. El endpoint sigue respondiendo 204, nunca 404/409.
+    [Fact]
+    public async Task CorregirNombres_Retorna204SinCuerpo_CuandoElNombreYaEsElSolicitado()
+    {
+        var validator = new FakeCorregirNombresBodyRequestValidator(BodyValido());
+        var router = new FakeCorregirNombresCommandRouter();
+        var function = new FunctionEndpoint(validator, router);
+
+        var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
+
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-1: el endpoint compone el comando interno CorregirNombres desde {id} + los 4 campos del

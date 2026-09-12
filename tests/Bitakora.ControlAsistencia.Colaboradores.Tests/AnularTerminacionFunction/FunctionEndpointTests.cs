@@ -5,9 +5,10 @@
 // comando -- la comparacion contra el codigo vigente vive en el aggregate. SIN body: los tres
 // campos del comando interno viajan completos en la ruta -- el endpoint NO depende de
 // IRequestValidator (AnularTerminacionValidator se elimino junto con el body).
-// CA-3: 202, con composicion exacta del comando interno desde {id} + {codigo}; CA-4/CA-5: reglas
-// de estado y de codigo conservadas -> 409; CA-6: colaborador inexistente -> 404, {id} de ruta
-// invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377).
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 4): CA-3: 204 No Content, con composicion exacta del comando interno desde {id} + {codigo};
+// CA-4/CA-5: reglas de estado y de codigo conservadas -> 409; CA-6: colaborador inexistente -> 404,
+// {id} de ruta invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377).
 // Reemplaza el POST Colaboradores/Terminaciones/Anulaciones (issue #354): la ruta vieja deja de
 // existir (CA-7, verificado por la ausencia de esa ruta en este archivo).
 
@@ -16,6 +17,7 @@ using Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AnularTerminacionFunction;
 
@@ -30,16 +32,18 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-3: POST exitoso retorna 202 Accepted
+    // CA-3: POST exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
-    public async Task AnularTerminacion_Retorna202_CuandoIdDeRutaYCodigoSonValidos()
+    public async Task AnularTerminacion_Retorna204SinCuerpo_CuandoIdDeRutaYCodigoSonValidos()
     {
         var router = new FakeAnularTerminacionCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-3: el endpoint compone el comando interno AnularTerminacion desde {id} + {codigo} --
