@@ -16,10 +16,13 @@
 // entorno real: un TipoIdentificacion con espacios y minusculas debe seguir colapsando a la MISMA
 // clave de stream canonica ("CC-<numero>"), nunca abrir una segunda clave ("cc-<numero>").
 //
-// CA-1 (ruta de exito): identificacion nueva -> 202 y el stream recibe, en un solo commit,
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): RegistrarColaborador es un
+// create (paso 1) -- confirma el evento antes de responder -- 201, nunca 202.
+//
+// CA-1 (ruta de exito): identificacion nueva -> 201 y el stream recibe, en un solo commit,
 // ColaboradorRegistrado + VinculacionIniciada (issue #330).
 // CA-1-bis (#371): mismo camino feliz, pero con TipoIdentificacion sin normalizar en el payload ->
-// 202 y el evento aparece en el stream CANONICO, no en uno alterno por casing.
+// 201 y el evento aparece en el stream CANONICO, no en uno alterno por casing.
 // CA-2 (duplicado exacto): misma Identificacion ya registrada -> 409, sin escribir un segundo
 // colaborador_registrado.
 // CA-2-bis (#371, corazon del refactor): el duplicado tambien se detecta cuando el segundo request
@@ -30,13 +33,13 @@
 // fuera de la lista cerrada) -> 400, sin tocar el event store.
 //
 // Issue #387 (CodigoColaborador URL-safe): CA-1 con caracteres unreserved no alfanumericos (. _ ~)
-// -> 202 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
+// -> 201 (el set permitido no se limita a alfanumerico+guion); CA-2/CA-3 con ":" (separador de
 // accion reservado, MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
 //
 // Issue #520 (CodigoSede opcional en el ingreso): la vinculacion nace con su sede -- el dato viaja
 // DENTRO de VinculacionIniciada, nunca como un SedeAsignada adicional en el commit. CA-1 (con
-// CodigoSede): 202 y VinculacionIniciada.CodigoSede queda asentado. CA-2 (sin el campo, body
-// existente): 202 y VinculacionIniciada.CodigoSede es null -- compatibilidad con clientes actuales.
+// CodigoSede): 201 y VinculacionIniciada.CodigoSede queda asentado. CA-2 (sin el campo, body
+// existente): 201 y VinculacionIniciada.CodigoSede es null -- compatibilidad con clientes actuales.
 // CA-6: CodigoSede presente pero vacio/blanco -> 400 (opcional = ausente valido; presente exige
 // valor).
 //
@@ -124,12 +127,12 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- identificacion nueva -> 202 y el stream recibe, en un solo commit,
+    // CA-1: camino feliz -- identificacion nueva -> 201 y el stream recibe, en un solo commit,
     // ColaboradorRegistrado + VinculacionIniciada. Sin Service Bus (event-sourcing puro): mt_events
     // es la unica ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarColaborador_Retorna202YPersisteColaboradorRegistradoYVinculacionIniciada_CuandoIdentificacionNoExiste()
+    public async Task RegistrarColaborador_Retorna201YPersisteColaboradorRegistradoYVinculacionIniciada_CuandoIdentificacionNoExiste()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -140,9 +143,11 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
+        response.Headers.Location.Should().Be(
+            new Uri($"/api/colaboradores/fichas/{streamId}", UriKind.Relative));
 
         var existeRegistrado = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoColaboradorRegistrado, Timeout);
@@ -164,7 +169,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
     // test dejaria de encontrar el evento en el stream canonico.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarColaborador_Retorna202YPersisteEnElStreamCanonico_CuandoTipoIdentificacionLlegaEnMinusculasConEspacios()
+    public async Task RegistrarColaborador_Retorna201YPersisteEnElStreamCanonico_CuandoTipoIdentificacionLlegaEnMinusculasConEspacios()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -177,7 +182,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             PayloadRegistro(numeroIdentificacion, fechaInicio, tipoIdentificacion: " cc "),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamIdCanonico = ComputarStreamId(numeroIdentificacion);
 
@@ -202,7 +207,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 
         var primerRegistro = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
-        primerRegistro.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primerRegistro.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el primer registro funcione");
 
         var streamId = ComputarStreamId(numeroIdentificacion);
@@ -241,7 +246,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             RutaRegistrar,
             PayloadRegistro(numeroIdentificacion, fechaInicio, tipoIdentificacion: TipoIdentificacionCc),
             ct);
-        primerRegistro.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primerRegistro.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el primer registro (con 'CC') funcione");
 
         var streamId = ComputarStreamId(numeroIdentificacion);
@@ -321,13 +326,13 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~) tambien produce 202 --
+    // CA-1 (#387): codigo con caracteres unreserved no alfanumericos (. _ ~) tambien produce 201 --
     // el set permitido no se limita a alfanumerico+guion, que es lo unico que ejercita el helper
     // compartido NuevoCodigoColaborador ("TEST-<guid>"). Verificacion end-to-end de que el regex
     // desplegado en dev no es mas restrictivo que el unreserved de RFC 3986 seccion 2.3.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarColaborador_Retorna202_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
+    public async Task RegistrarColaborador_Retorna201_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -340,7 +345,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             PayloadRegistro(numeroIdentificacion, new DateOnly(2026, 4, 1), codigoColaborador: codigoColaborador),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -386,10 +391,10 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
     }
 
     // CA-1 (#520): la vinculacion nace con su sede -- CodigoSede viaja DENTRO de VinculacionIniciada,
-    // nunca como un SedeAsignada adicional en el commit. 202 y el evento persistido trae la sede.
+    // nunca como un SedeAsignada adicional en el commit. 201 y el evento persistido trae la sede.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarColaborador_Retorna202YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
+    public async Task RegistrarColaborador_Retorna201YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -402,7 +407,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
             PayloadRegistroConSede(numeroIdentificacion, fechaInicio, codigoSede: "BOG"),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -412,11 +417,11 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         eventoPersistido.GetProperty("CodigoSede").GetString().Should().Be("BOG");
     }
 
-    // CA-2 (#520): body SIN el campo CodigoSede (clientes actuales, sin cambios) -> 202 y
+    // CA-2 (#520): body SIN el campo CodigoSede (clientes actuales, sin cambios) -> 201 y
     // VinculacionIniciada.CodigoSede queda null -- evolucion aditiva compatible.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarColaborador_Retorna202YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
+    public async Task RegistrarColaborador_Retorna201YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -427,7 +432,7 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 

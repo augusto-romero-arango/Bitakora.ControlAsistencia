@@ -29,17 +29,20 @@
 // categoria, nunca duplica" en el diccionario rehidratado ya lo cubre
 // AsignarEtiquetaCommandHandlerTests (*.Tests, unit), no se duplica aqui.
 //
-// CA-1 (ruta de exito): 202 + el stream recibe etiqueta_asignada con la doble forma (original y
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): AsignarEtiqueta es un PUT
+// que confirma el evento (o declina en silencio, SinCambios) antes de responder -- 204, nunca 202.
+//
+// CA-1 (ruta de exito): 204 + el stream recibe etiqueta_asignada con la doble forma (original y
 // normalizada) de categoria y valor.
 // CA-2/CA-4 (rutas de exito): la categoria de la URL se normaliza con Etiqueta.NormalizarCategoria
 // -- PUT .../etiquetas/Área y .../etiquetas/area direccionan la MISMA etiqueta (EsMismaCategoria),
 // asi que un valor distinto sobrescribe (un evento nuevo se agrega, conteo pasa de 1 a 2); una
-// etiqueta identica por valor -> 202 sin evento nuevo (idempotencia silenciosa, conteo se mantiene
+// etiqueta identica por valor -> 204 sin evento nuevo (idempotencia silenciosa, conteo se mantiene
 // en 1).
 // CA-5 (rutas de rechazo): la ultima vinculacion tiene terminacion registrada -- pasada o un
 // preaviso cuya fecha no ha llegado, sin distincion -> 409, sin evento.
 // CA-6: tras un reingreso, la vinculacion nueva no hereda las etiquetas de la anterior -- asignar
-// sobre la vinculacion vigente crea la categoria desde cero -> 202.
+// sobre la vinculacion vigente crea la categoria desde cero -> 204.
 // CA-7: colaborador inexistente -> 404.
 // CA-3 (issue #376): {id} de ruta invalido -- sin guion, tipo fuera de la lista PILA, o numero vacio
 // tras el guion -> 400, con Identificacion.Parsear como unico punto de traduccion (precedente
@@ -137,7 +140,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -154,7 +157,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
@@ -169,7 +172,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
@@ -187,13 +190,13 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- colaborador con vinculacion abierta + categoria nueva -> 202 y el
+    // CA-1: camino feliz -- colaborador con vinculacion abierta + categoria nueva -> 204 y el
     // stream recibe etiqueta_asignada con la doble forma (original y normalizada) de categoria y
     // valor. Sin Service Bus (event-sourcing puro): mt_events es la unica ventana black-box a lo
     // que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna202YPersisteEtiquetaAsignada_CuandoCategoriaEsNueva()
+    public async Task AsignarEtiqueta_Retorna204YPersisteEtiquetaAsignada_CuandoCategoriaEsNueva()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -205,7 +208,8 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaAsignada, Timeout);
@@ -230,7 +234,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // de la categoria y persiste otro evento.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna202YAgregaOtroEvento_CuandoLaRutaLlegaConCategoriaEnOtraFormaYValorDistinto()
+    public async Task AsignarEtiqueta_Retorna204YAgregaOtroEvento_CuandoLaRutaLlegaConCategoriaEnOtraFormaYValorDistinto()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -241,7 +245,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 20), ct);
 
         var primeraAsignacion = await AsignarEtiquetaAsync(id, "area", "Medellín", ct);
-        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraEtiqueta = await postgres.ExisteEventoAsync(
@@ -252,7 +256,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         // Misma categoria normalizada, forma cruda distinta en la URL ("Área" vs "area").
         var segundaAsignacion = await AsignarEtiquetaAsync(id, "Área", "Bogotá", ct);
 
-        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaAsignada);
@@ -267,7 +271,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // normalizado, CA-4).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna202SinNuevoEvento_CuandoEtiquetaEsIdenticaPorValorALaExistente()
+    public async Task AsignarEtiqueta_Retorna204SinNuevoEvento_CuandoEtiquetaEsIdenticaPorValorALaExistente()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -278,7 +282,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 25), ct);
 
         var primeraAsignacion = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
-        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraEtiqueta = await postgres.ExisteEventoAsync(
@@ -289,7 +293,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         // Misma etiqueta por valor, con otra combinacion de mayusculas/tildes en la ruta y el body.
         var segundaAsignacion = await AsignarEtiquetaAsync(id, "area", "tecnologia", ct);
 
-        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaAsignada);
@@ -345,7 +349,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     // mismo criterio que la sobrescritura (ver comentario del encabezado del archivo).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarEtiqueta_Retorna202_CuandoVinculacionEsUnReingresoTrasTerminacionConEtiquetasPrevias()
+    public async Task AsignarEtiqueta_Retorna204_CuandoVinculacionEsUnReingresoTrasTerminacionConEtiquetasPrevias()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -356,7 +360,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 10), ct);
 
         var asignacionPrevia = await AsignarEtiquetaAsync(id, "Área", "Ventas", ct);
-        asignacionPrevia.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        asignacionPrevia.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la asignacion previa al reingreso funcione");
 
         await TerminarVinculacionAsync(
@@ -365,7 +369,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaAsignada);

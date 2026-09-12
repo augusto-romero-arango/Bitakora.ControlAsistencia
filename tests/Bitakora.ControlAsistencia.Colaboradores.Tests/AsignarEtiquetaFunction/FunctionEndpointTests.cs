@@ -1,6 +1,9 @@
 // Issue #376 (MEF-ADR-0043 paso 2): tests del endpoint HTTP PUT
 // colaboradores/{id}/etiquetas/{categoria} (asignar o sobrescribir la etiqueta de una categoria).
-// CA-1: 202; CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 2: PUT reemplaza -> 204 siempre): CA-1: 204 No Content (incluye la sede/etiqueta identica a la
+// vigente -- SinCambios sin evento -- y la categoria nueva, ambos casos el slot existe por
+// construccion); CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
 // ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: InvalidOperationException -> 409,
 // KeyNotFoundException -> 404.
 
@@ -10,6 +13,7 @@ using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarEtiquetaFunction;
 
@@ -27,9 +31,12 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 202 Accepted
+    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo -- mismo resultado cuando la etiqueta
+    // ya es la vigente y el aggregate declina en silencio (SinCambios sin evento, MEF-ADR-0004
+    // "PUT reemplaza"): el endpoint no distingue ambos caminos, el router retorna normalmente en
+    // los dos. El no-op sin evento lo cubre AsignarEtiquetaCommandHandlerTests.
     [Fact]
-    public async Task AsignarEtiqueta_Retorna202_CuandoIdDeRutaYBodySonValidos()
+    public async Task AsignarEtiqueta_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
     {
         var validator = new FakeAsignarEtiquetaBodyRequestValidator(BodyValido());
         var router = new FakeAsignarEtiquetaCommandRouter();
@@ -37,7 +44,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-1: el endpoint compone el comando interno AsignarEtiqueta desde {id} + {categoria} + Valor

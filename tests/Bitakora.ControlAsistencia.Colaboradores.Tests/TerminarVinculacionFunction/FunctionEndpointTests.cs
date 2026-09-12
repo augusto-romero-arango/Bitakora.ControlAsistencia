@@ -6,10 +6,11 @@
 // (TerminarVinculacionBody). El comando interno TerminarVinculacion conserva sus 4 campos (mismo
 // criterio que CorregirNombres/IniciarVinculacion post-#377/#378): el endpoint lo compone desde
 // ruta + body.
-// CA-2: 202, con composicion exacta del comando interno desde {id} + {codigo} + body; CA-3/CA-4/
-// CA-5: reglas de estado y de codigo conservadas -> 409; CA-6: colaborador inexistente -> 404,
-// {id} de ruta invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377),
-// body invalido -> 400.
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 4): CA-2: 204 No Content, con composicion exacta del comando interno desde {id} + {codigo} +
+// body; CA-3/CA-4/CA-5: reglas de estado y de codigo conservadas -> 409; CA-6: colaborador
+// inexistente -> 404, {id} de ruta invalido -> 400 (precedente
+// CorregirNombresFunction.FunctionEndpoint post-#377), body invalido -> 400.
 // Reemplaza el POST Colaboradores/Terminaciones (issue #349): la ruta vieja deja de existir (CA-7,
 // verificado por la ausencia de esa ruta en este archivo).
 
@@ -19,6 +20,7 @@ using Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.TerminarVinculacionFunction;
 
@@ -35,9 +37,9 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-2: POST exitoso retorna 202 Accepted
+    // CA-2: POST exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
-    public async Task TerminarVinculacion_Retorna202_CuandoIdDeRutaCodigoYBodySonValidos()
+    public async Task TerminarVinculacion_Retorna204SinCuerpo_CuandoIdDeRutaCodigoYBodySonValidos()
     {
         var validator = new FakeTerminarVinculacionBodyRequestValidator(BodyValido());
         var router = new FakeTerminarVinculacionCommandRouter();
@@ -45,7 +47,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-2: el endpoint compone el comando interno TerminarVinculacion desde {id} + {codigo} + el

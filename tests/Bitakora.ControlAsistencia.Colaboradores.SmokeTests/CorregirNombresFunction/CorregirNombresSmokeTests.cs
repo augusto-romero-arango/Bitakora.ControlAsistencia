@@ -34,10 +34,13 @@
 // (#356) y AsignarEtiquetaSmokeTests post-migracion: el CI de PR no los ejecuta (solo corre
 // *.Tests); su veredicto real se lee despues del deploy.
 //
-// CA-1 (ruta de exito): 202 + el stream recibe NombresCorregidos con el Nombre corregido -- ya sea
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): CorregirNombres confirma
+// el evento (o declina en silencio, SinCambios) antes de responder -- 204, nunca 202.
+//
+// CA-1 (ruta de exito): 204 + el stream recibe NombresCorregidos con el Nombre corregido -- ya sea
 // con la vinculacion abierta o con la ultima vinculacion TERMINADA (prueba que la correccion solo
 // exige existencia del colaborador, nunca vigencia de su vinculacion); nombre igual por valor al
-// actual -> 202 sin evento nuevo en el stream (idempotencia silenciosa, mecanismo "declinar en
+// actual -> 204 sin evento nuevo en el stream (idempotencia silenciosa, mecanismo "declinar en
 // silencio" -- precedente ControlDiarioAggregateRoot.AdicionarMarcacion). La ausencia se verifica
 // con un timeout corto (3s, no el estandar de 30s): este comando es event-sourcing puro sin
 // proyeccion asincrona downstream -- si el evento no llego ya en la respuesta HTTP, nunca va a
@@ -150,7 +153,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             PayloadRegistro(numeroIdentificacion, fechaInicio, primerNombre, segundoNombre, primerApellido, segundoApellido, codigo),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -167,7 +170,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
@@ -212,12 +215,12 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- colaborador con vinculacion abierta + nombre distinto por valor -> 202
+    // CA-1: camino feliz -- colaborador con vinculacion abierta + nombre distinto por valor -> 204
     // y el stream recibe NombresCorregidos con el Nombre corregido. Sin Service Bus (event-sourcing
     // puro): mt_events es la unica ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CorregirNombres_Retorna202YPersisteNombresCorregidos_CuandoNombreEsDistintoPorValor()
+    public async Task CorregirNombres_Retorna204YPersisteNombresCorregidos_CuandoNombreEsDistintoPorValor()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -231,7 +234,8 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await CorregirNombresAsync(
             IdDeRuta(numeroIdentificacion), "[TEST]", "Corregido", "Smoke", "Segundo", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         await ElStreamRecibioElNombreAsync(
             ComputarStreamId(numeroIdentificacion),
@@ -243,7 +247,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
     // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CorregirNombres_Retorna202YPersisteNombresCorregidos_CuandoVinculacionEstaTerminada()
+    public async Task CorregirNombres_Retorna204YPersisteNombresCorregidos_CuandoVinculacionEstaTerminada()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -259,7 +263,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await CorregirNombresAsync(
             IdDeRuta(numeroIdentificacion), "[TEST]", "Reingreso", "Terminada", null, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // La correccion procede sobre un colaborador con vinculacion terminada: solo exige
         // existencia, nunca vigencia.
@@ -268,12 +272,12 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             NombreColaborador.Crear("[TEST]", "Reingreso", "Terminada", null));
     }
 
-    // CA-1: nombre igual por valor al actual -> 202 sin evento nuevo en el stream (idempotencia
+    // CA-1: nombre igual por valor al actual -> 204 sin evento nuevo en el stream (idempotencia
     // silenciosa). Verificacion de ausencia con timeout corto -- ver el porque en el comentario de
     // TimeoutAusencia (arriba).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CorregirNombres_Retorna202SinNuevoEvento_CuandoNombreEsIgualPorValorAlActual()
+    public async Task CorregirNombres_Retorna204SinNuevoEvento_CuandoNombreEsIgualPorValorAlActual()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -287,7 +291,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await CorregirNombresAsync(
             IdDeRuta(numeroIdentificacion), "[TEST]", "Igual", "Smoke", null, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, ComputarStreamId(numeroIdentificacion), TipoEventoNombresCorregidos,

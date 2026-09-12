@@ -30,12 +30,15 @@
 // que existe y este archivo -- que solo referencia la ruta nueva -- fallaria por completo (404 del
 // host, no el 409/404 de dominio). Mismo precedente que IniciarVinculacionSmokeTests post-#378.
 //
-// CA-1 (ruta de exito): 202 + el stream recibe terminacion_anulada. Que la vinculacion reabra con
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): AnularTerminacion confirma
+// el evento en el event store antes de responder -- 204, no 202.
+//
+// CA-1 (ruta de exito): 204 + el stream recibe terminacion_anulada. Que la vinculacion reabra con
 // su codigo y fecha de inicio ORIGINALES intactos se verifica black-box via composicion (CA-2): sin
 // un endpoint de consulta, la unica ventana observable a "quedo abierta otra vez" es que
 // TerminarVinculacion (que exige una vinculacion abierta y el mismo codigo) vuelva a tener exito.
 // CA-2: composicion de la correccion -- anular la terminacion errada y volver a terminar con la
-// fecha correcta -> 202 + una SEGUNDA VinculacionTerminada persistida con la fecha corregida (las
+// fecha correcta -> 204 + una SEGUNDA VinculacionTerminada persistida con la fecha corregida (las
 // reglas de #349/#379 se re-aplican; el flujo completo "corregir fecha de terminacion" funciona en
 // dos comandos).
 // CA-3 (rutas de rechazo, "vinculacion abierta"): nunca fue terminada, o ya fue anulada antes (dos
@@ -124,7 +127,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -148,7 +151,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     {
         var response = await PostTerminarAsync(id, codigo, fechaEfectiva, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
@@ -165,7 +168,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             PayloadIniciarVinculacion(codigoNuevo, fechaInicio),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
 
         return codigoNuevo;
@@ -185,12 +188,12 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     }
 
     // CA-1: camino feliz -- la ultima vinculacion tiene terminacion registrada + {codigo} correcto
-    // -> 202 y el stream recibe terminacion_anulada. Sin Service Bus (event-sourcing puro):
+    // -> 204 y el stream recibe terminacion_anulada. Sin Service Bus (event-sourcing puro):
     // mt_events es la unica ventana black-box a lo que quedo grabado. El evento no tiene payload --
     // no hay contenido que comparar por valor, solo su existencia en el stream.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AnularTerminacion_Retorna202YPersisteTerminacionAnulada_CuandoUltimaVinculacionTieneTerminacionRegistrada()
+    public async Task AnularTerminacion_Retorna204YPersisteTerminacionAnulada_CuandoUltimaVinculacionTieneTerminacionRegistrada()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -203,7 +206,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
 
         var response = await AnularTerminacionAsync(id, codigo, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -219,7 +223,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     // ya paso o no.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AnularTerminacion_Retorna202YPersisteTerminacionAnulada_CuandoTerminacionEsUnPreavisoFuturo()
+    public async Task AnularTerminacion_Retorna204YPersisteTerminacionAnulada_CuandoTerminacionEsUnPreavisoFuturo()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -235,7 +239,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
 
         var response = await AnularTerminacionAsync(id, codigo, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, ComputarStreamId(numeroIdentificacion), TipoEventoTerminacionAnulada, Timeout);
@@ -245,7 +249,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     }
 
     // CA-2: composicion de la correccion de una fecha de terminacion errada -- anular la
-    // terminacion errada y volver a terminar con la fecha correcta -> 202 y una SEGUNDA
+    // terminacion errada y volver a terminar con la fecha correcta -> 204 y una SEGUNDA
     // VinculacionTerminada persistida con la fecha corregida. La reapertura de la vinculacion (que
     // TerminarVinculacion exige junto con el mismo codigo) es la unica ventana black-box observable
     // a que la anulacion tuvo el efecto esperado -- sin un endpoint de consulta, no hay otra forma
@@ -266,12 +270,12 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         await TerminarVinculacionAsync(id, codigo, fechaEfectivaErrada, ct);
 
         var anulacion = await AnularTerminacionAsync(id, codigo, ct);
-        anulacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        anulacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AnularTerminacion funcione");
 
         var response = await PostTerminarAsync(id, codigo, fechaEfectivaCorregida, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "tras anular, la vinculacion deberia quedar abierta y aceptar una nueva terminacion con el mismo codigo");
 
         var streamId = ComputarStreamId(numeroIdentificacion);
@@ -318,7 +322,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         await TerminarVinculacionAsync(id, codigo, new DateOnly(2026, 7, 1), ct);
 
         var primeraAnulacion = await AnularTerminacionAsync(id, codigo, ct);
-        primeraAnulacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraAnulacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la primera anulacion funcione");
 
         var segundaAnulacion = await AnularTerminacionAsync(id, codigo, ct);

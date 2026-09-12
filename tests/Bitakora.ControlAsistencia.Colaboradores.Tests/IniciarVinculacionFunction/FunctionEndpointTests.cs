@@ -6,10 +6,12 @@
 // CodigoColaborador + FechaInicio (IniciarVinculacionBody). El comando interno IniciarVinculacion
 // conserva sus 4 campos (mismo criterio que CorregirNombres post-#377): el endpoint lo compone
 // desde ruta + body.
-// CA-1: 202, con composicion exacta del comando interno desde {id} + body; CA-2: reglas de estado
-// conservadas -> 409 (vinculacion abierta / fecha solapa); CA-3: colaborador inexistente -> 404,
-// {id} de ruta invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377),
-// body invalido -> 400.
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 1): CA-1: 201 Created con Location a la ficha del colaborador -- {id} tal como llego en la ruta,
+// composicion exacta del comando interno desde {id} + body; CA-2: reglas de estado conservadas ->
+// 409 (vinculacion abierta / fecha solapa); CA-3: colaborador inexistente -> 404, {id} de ruta
+// invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377), body invalido ->
+// 400.
 // Reemplaza el POST Colaboradores/Reingresos (issue #350): la ruta vieja deja de existir (CA-6,
 // verificado por la ausencia de esa ruta en este archivo).
 
@@ -19,6 +21,7 @@ using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.IniciarVinculacionFunction;
 
@@ -36,9 +39,10 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: POST exitoso retorna 202 Accepted
+    // CA-1: POST exitoso retorna 201 Created con Location a la ficha del padre -- {id} tal como
+    // llego en la ruta, sin re-parsear.
     [Fact]
-    public async Task IniciarVinculacion_Retorna202_CuandoIdDeRutaYBodySonValidos()
+    public async Task IniciarVinculacion_Retorna201ConLocation_CuandoIdDeRutaYBodySonValidos()
     {
         var validator = new FakeIniciarVinculacionBodyRequestValidator(BodyValido());
         var router = new FakeIniciarVinculacionCommandRouter();
@@ -46,7 +50,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.As<CreatedResult>().Location.Should().Be($"/api/colaboradores/fichas/{IdValido}");
     }
 
     // CA-1: el endpoint compone el comando interno IniciarVinculacion desde {id} + los 2 campos del

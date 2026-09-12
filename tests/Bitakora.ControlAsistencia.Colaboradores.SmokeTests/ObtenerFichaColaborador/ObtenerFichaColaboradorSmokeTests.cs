@@ -131,7 +131,7 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigoColaborador, codigoSede), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
@@ -143,7 +143,7 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         var response = await _client.PutAsJsonAsync(
             $"/api/colaboradores/{id}/sede", new { codigoSede }, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AsignarSede funcione");
     }
 
@@ -158,7 +158,7 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
             new { codigoColaborador, fechaInicio, codigoSede },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
@@ -174,7 +174,7 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 

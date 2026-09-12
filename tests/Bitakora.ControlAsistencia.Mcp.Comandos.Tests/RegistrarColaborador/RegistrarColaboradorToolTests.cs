@@ -41,9 +41,9 @@ public class RegistrarColaboradorToolTests
     }
 
     [Fact]
-    public async Task RegistrarColaborador_EnviaElBodyCamelCaseYDevuelveElEcoCompacto_Cuando202()
+    public async Task RegistrarColaborador_EnviaElBodyCamelCaseYDevuelveElEcoCompacto_Cuando201()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(cliente, ct: TestContext.Current.CancellationToken);
 
@@ -75,7 +75,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_OmiteCodigoSedeEnElEcoYArmaElNombreSinSegundos_CuandoNoSeEnvian()
     {
-        var (cliente, _) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, _) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente,
@@ -94,7 +94,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_PreservaLaIdentificacionSinNormalizar_CuandoLlegaEnMinusculas()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, tipoIdentificacion: "cc", ct: TestContext.Current.CancellationToken);
@@ -131,7 +131,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoTipoIdentificacionEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, tipoIdentificacion: "   ", ct: TestContext.Current.CancellationToken);
@@ -144,7 +144,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoNumeroIdentificacionEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, numeroIdentificacion: "   ", ct: TestContext.Current.CancellationToken);
@@ -157,7 +157,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoPrimerNombreEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, primerNombre: "   ", ct: TestContext.Current.CancellationToken);
@@ -170,7 +170,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoPrimerApellidoEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, primerApellido: "   ", ct: TestContext.Current.CancellationToken);
@@ -183,7 +183,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoCodigoColaboradorEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, codigoColaborador: "   ", ct: TestContext.Current.CancellationToken);
@@ -196,7 +196,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoFechaInicioEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, fechaInicio: "   ", ct: TestContext.Current.CancellationToken);
@@ -211,7 +211,7 @@ public class RegistrarColaboradorToolTests
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoFechaInicioTieneFormatoInvalido()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
 
         var resultado = await Ejecutar(
             cliente, fechaInicio: "2026-99-99", ct: TestContext.Current.CancellationToken);

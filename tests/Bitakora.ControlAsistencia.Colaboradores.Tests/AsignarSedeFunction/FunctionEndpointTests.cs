@@ -1,9 +1,14 @@
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 2): exito -> 204 No Content siempre -- el slot de sede existe por construccion, vacio o lleno, asi
+// que PUT lo reemplaza y nunca lo crea (nunca 201).
+
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarSedeFunction;
 
@@ -20,8 +25,10 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
+    // 204 tanto si reemplaza la sede como si el aggregate declina en silencio (SinCambios sin
+    // evento): el endpoint no distingue ambos caminos. El no-op lo cubre AsignarSedeCommandHandlerTests.
     [Fact]
-    public async Task AsignarSede_Retorna202_CuandoIdDeRutaYBodySonValidos()
+    public async Task AsignarSede_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
     {
         var validator = new FakeAsignarSedeBodyRequestValidator(BodyValido());
         var router = new FakeAsignarSedeCommandRouter();
@@ -29,7 +36,9 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     [Fact]

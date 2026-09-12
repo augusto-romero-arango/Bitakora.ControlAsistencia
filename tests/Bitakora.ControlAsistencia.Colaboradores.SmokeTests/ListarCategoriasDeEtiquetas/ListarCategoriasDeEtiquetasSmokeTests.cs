@@ -121,7 +121,7 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             fechaInicio
         }, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
@@ -134,7 +134,7 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         var id = ComputarStreamId(numeroIdentificacion);
         var response = await _client.PutAsJsonAsync(RutaEtiqueta(id, categoria), new { valor }, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AsignarEtiqueta funcione");
     }
 
@@ -146,7 +146,7 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         var id = ComputarStreamId(numeroIdentificacion);
         var response = await _client.DeleteAsync(RutaEtiqueta(id, categoria), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que RetirarEtiqueta funcione");
     }
 

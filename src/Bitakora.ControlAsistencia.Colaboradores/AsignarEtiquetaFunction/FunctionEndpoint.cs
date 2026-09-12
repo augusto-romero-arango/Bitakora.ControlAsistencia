@@ -19,11 +19,12 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 // de vida). El body se redujo a { "valor": "..." } (AsignarEtiquetaBody); el endpoint compone el
 // comando interno AsignarEtiqueta (que conserva sus 4 campos primitivos, MEF-ADR-0039 decision 6)
 // a partir de {id} + {categoria} + Valor.
-// CA-ADR-0030 / MEF-ADR-0004 (precedente AnularTerminacionFunction.FunctionEndpoint; MEF-ADR-0043
-// seccion 2 paso 2: el 409 de un PUT es una instancia mas de "declinar con resultado", RFC 9110
-// §9.3.4): validar id de ruta (400) -> validar categoria de ruta (400) -> validar body (400 via
-// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict,
-// KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849; MEF-ADR-0043 seccion 2 paso
+// 2: el 409 de un PUT es una instancia mas de "declinar con resultado", RFC 9110 §9.3.4): validar id
+// de ruta (400) -> validar categoria de ruta (400) -> validar body (400 via IRequestValidator) ->
+// despachar comando -> InvalidOperationException -> 409 Conflict, KeyNotFoundException -> 404
+// NotFound; exito -> 204 No Content (el slot de la categoria existe por construccion, PUT lo
+// reemplaza, nunca lo crea).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarEtiqueta")]
@@ -69,6 +70,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

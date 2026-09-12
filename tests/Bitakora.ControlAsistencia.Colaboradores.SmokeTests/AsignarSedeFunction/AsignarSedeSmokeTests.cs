@@ -2,6 +2,9 @@
 // verificacion black-box de sus efectos es leer mt_events via PostgresFixture.
 // El arrange registra el colaborador (y termina o reinicia su vinculacion cuando aplica) via los
 // mismos comandos HTTP que originan esos hechos, nunca sembrando el event store por fuera del API.
+//
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): AsignarSede es un PUT que
+// confirma el evento (o declina en silencio, SinCambios) antes de responder -- 204, nunca 202.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -66,7 +69,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -80,7 +83,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
@@ -93,7 +96,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
@@ -112,7 +115,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSede_Retorna202YPersisteSedeAsignada_CuandoColaboradorNoTieneSede()
+    public async Task AsignarSede_Retorna204YPersisteSedeAsignada_CuandoColaboradorNoTieneSede()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -124,7 +127,8 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await AsignarSedeAsync(id, "BOG", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaColaboradores, id, TipoEventoSedeAsignada, Timeout);
@@ -135,7 +139,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     // Reemplazo puro: el conteo pasa de 1 a 2, sin evento de retiro intermedio.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSede_Retorna202YAgregaOtroEvento_CuandoSedeEsDistintaALaVigente()
+    public async Task AsignarSede_Retorna204YAgregaOtroEvento_CuandoSedeEsDistintaALaVigente()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -146,7 +150,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 20), ct);
 
         var primeraAsignacion = await AsignarSedeAsync(id, "BOG", ct);
-        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraSede = await postgres.ExisteEventoAsync(
@@ -156,7 +160,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var segundaAsignacion = await AsignarSedeAsync(id, "MED", ct);
 
-        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoSedeAsignada);
@@ -172,7 +176,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSede_Retorna202SinNuevoEvento_CuandoSedeEsIdenticaALaVigente()
+    public async Task AsignarSede_Retorna204SinNuevoEvento_CuandoSedeEsIdenticaALaVigente()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -183,7 +187,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 25), ct);
 
         var primeraAsignacion = await AsignarSedeAsync(id, "BOG", ct);
-        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraSede = await postgres.ExisteEventoAsync(
@@ -193,7 +197,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var segundaAsignacion = await AsignarSedeAsync(id, "BOG", ct);
 
-        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoSedeAsignada);
@@ -242,7 +246,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     // black-box disponible mientras el dominio no exponga una vista de la sede vigente.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSede_Retorna202YAgregaOtroEvento_CuandoVinculacionEsUnReingresoConLaMismaSedeQueTeniaAntesDeTerminar()
+    public async Task AsignarSede_Retorna204YAgregaOtroEvento_CuandoVinculacionEsUnReingresoConLaMismaSedeQueTeniaAntesDeTerminar()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -253,7 +257,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 10), ct);
 
         var asignacionPrevia = await AsignarSedeAsync(id, "BOG", ct);
-        asignacionPrevia.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        asignacionPrevia.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la asignacion previa al reingreso funcione");
 
         await TerminarVinculacionAsync(
@@ -262,7 +266,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await AsignarSedeAsync(id, "BOG", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var asignaciones = await postgres.ContarEventosAsync(
             SchemaColaboradores, id, TipoEventoSedeAsignada);

@@ -24,7 +24,11 @@
 // PostgresFixture.ExisteEventoAsync/ObtenerEventoAsync, incluso en streams que acumulan mas de un
 // evento etiqueta_retirada.
 //
-// CA-3 (ruta de exito, #355): 202 + el stream recibe etiqueta_retirada con la categoria normalizada,
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): RetirarEtiqueta confirma
+// el evento en el event store antes de responder -- 204, nunca 202. El DELETE de una categoria sin
+// etiqueta sigue respondiendo 409 (CA-4 de #376): pasa a no-op 204 en el issue #663, no en este.
+//
+// CA-3 (ruta de exito, #355): 204 + el stream recibe etiqueta_retirada con la categoria normalizada,
 // retirando por una forma de la URL distinta a la asignada ("área" retira lo asignado como "Area") --
 // evidencia black-box de que el direccionamiento por categoria normalizada (CA-4 de #376) tambien
 // aplica al retiro.
@@ -125,7 +129,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -139,7 +143,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var response = await _client.PutAsJsonAsync(RutaEtiqueta(id, categoria), PayloadValor(valor), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que AsignarEtiqueta funcione");
     }
 
@@ -154,7 +158,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
@@ -169,7 +173,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
@@ -188,12 +192,12 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
     }
 
     // CA-3 (#355): camino feliz -- retirar por una forma de la URL distinta de la que se asigno
-    // ("área" retira lo asignado como "Area", misma categoria normalizada, CA-4 de #376) -> 202 y el
+    // ("área" retira lo asignado como "Area", misma categoria normalizada, CA-4 de #376) -> 204 y el
     // stream recibe etiqueta_retirada con la categoria normalizada. Sin Service Bus (event-sourcing
     // puro): mt_events es la unica ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarEtiqueta_Retorna202YPersisteEtiquetaRetirada_CuandoLaRutaLlegaConCategoriaEnOtraForma()
+    public async Task RetirarEtiqueta_Retorna204YPersisteEtiquetaRetirada_CuandoLaRutaLlegaConCategoriaEnOtraForma()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -206,7 +210,8 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await RetirarEtiquetaAsync(id, "área", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaRetirada, Timeout,

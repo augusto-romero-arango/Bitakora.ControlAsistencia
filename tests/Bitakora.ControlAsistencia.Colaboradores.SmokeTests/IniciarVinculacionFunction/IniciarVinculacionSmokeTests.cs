@@ -27,7 +27,10 @@
 // completo (404 del host, no el 404 de dominio de CA-3). Mismo precedente que
 // CorregirNombresSmokeTests post-#377.
 //
-// CA-1 (rutas de exito): 202 + una segunda VinculacionIniciada persistida con el Codigo y la
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): IniciarVinculacion es un
+// create disfrazado (paso 1) -- confirma el evento antes de responder -- 201, nunca 202.
+//
+// CA-1 (rutas de exito): 201 + una segunda VinculacionIniciada persistida con el Codigo y la
 // FechaInicio exactos del request -- ya sea sobre una terminacion pasada o sobre un preaviso
 // registrado a futuro, sin ninguna validacion contra el reloj del servidor.
 // CA-2 (rutas de rechazo, reglas conservadas identicas del comando absorbido): el aggregate declina
@@ -44,13 +47,13 @@
 // ausencia de referencias, que no distingue "se elimino" de "sigue viva y nadie la llama").
 //
 // Issue #387 (CodigoColaborador URL-safe, invariante heredada sin cambios): CA-1 con caracteres
-// unreserved no alfanumericos (. _ ~) -> 202; CA-2/CA-3 con ":" (separador de accion reservado,
+// unreserved no alfanumericos (. _ ~) -> 201; CA-2/CA-3 con ":" (separador de accion reservado,
 // MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
 //
 // Issue #520 (CodigoSede opcional en el reingreso): la vinculacion nueva nace con su sede -- viaja
 // DENTRO de VinculacionIniciada, nunca como un SedeAsignada adicional en el commit. CA-3 (con
-// CodigoSede): 202 y VinculacionIniciada.CodigoSede queda asentado con la sede nueva, aunque la
-// vinculacion anterior tuviera otra. CA-4 (sin el campo): 202 y CodigoSede null -- "reingreso nace
+// CodigoSede): 201 y VinculacionIniciada.CodigoSede queda asentado con la sede nueva, aunque la
+// vinculacion anterior tuviera otra. CA-4 (sin el campo): 201 y CodigoSede null -- "reingreso nace
 // limpio" sigue siendo el default. CA-6: CodigoSede presente pero vacio/blanco -> 400. CA-7: los
 // rechazos existentes (VinculacionAbierta) se conservan intactos aunque el body traiga sede.
 using System.Globalization;
@@ -141,7 +144,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -158,7 +161,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
@@ -187,12 +190,12 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     }
 
     // CA-1: camino feliz -- ultima vinculacion terminada + FechaInicio estrictamente posterior a la
-    // FechaEfectiva -> 202 y el stream recibe otra VinculacionIniciada con el codigo nuevo. Sin
+    // FechaEfectiva -> 201 y el stream recibe otra VinculacionIniciada con el codigo nuevo. Sin
     // Service Bus (event-sourcing puro): mt_events es la unica ventana black-box a lo que quedo
     // grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task IniciarVinculacion_Retorna202YPersisteVinculacionIniciada_CuandoFechaInicioEsPosteriorATerminacion()
+    public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciada_CuandoFechaInicioEsPosteriorATerminacion()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -210,7 +213,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(
+            new Uri($"/api/colaboradores/fichas/{IdDeRuta(numeroIdentificacion)}", UriKind.Relative));
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -229,11 +234,11 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     }
 
     // CA-1: la ultima terminacion fue un preaviso registrado a futuro y la FechaInicio de la nueva
-    // vinculacion es posterior a ese preaviso -> 202, sin ninguna consulta al reloj del servidor
+    // vinculacion es posterior a ese preaviso -> 201, sin ninguna consulta al reloj del servidor
     // (doctrina bitemporal del BC, en cualquier direccion).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task IniciarVinculacion_Retorna202YPersisteVinculacionIniciada_CuandoTerminacionFuePreavisoFuturo()
+    public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciada_CuandoTerminacionFuePreavisoFuturo()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -253,7 +258,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -303,7 +308,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var primeraVinculacionNueva = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), fechaPrimeraVinculacionNueva, ct);
 
-        primeraVinculacionNueva.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraVinculacionNueva.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que la primera vinculacion nueva funcione");
 
         var segundaVinculacionNueva = await IniciarVinculacionAsync(
@@ -496,13 +501,13 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     }
 
     // CA-1 (#387, invariante heredada): codigo con caracteres unreserved no alfanumericos (. _ ~)
-    // tambien produce 202 -- el set permitido no se limita a alfanumerico+guion, que es lo unico
+    // tambien produce 201 -- el set permitido no se limita a alfanumerico+guion, que es lo unico
     // que ejercita el helper compartido NuevoCodigoColaborador ("TEST-<guid>"). Verificacion
     // end-to-end de que el regex desplegado en dev no es mas restrictivo que el unreserved de RFC
     // 3986 seccion 2.3.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task IniciarVinculacion_Retorna202_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
+    public async Task IniciarVinculacion_Retorna201_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -519,7 +524,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -563,12 +568,12 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3 (#520): reingreso CON CodigoSede -> 202 y VinculacionIniciada.CodigoSede queda asentado
+    // CA-3 (#520): reingreso CON CodigoSede -> 201 y VinculacionIniciada.CodigoSede queda asentado
     // con la sede nueva, aunque la vinculacion anterior tuviera otra (no se verifica aqui la sede
     // anterior: el dominio no expone una vista de la sede vigente, ver AsignarSedeSmokeTests).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task IniciarVinculacion_Retorna202YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
+    public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -585,7 +590,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await IniciarVinculacionConSedeAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, codigoSede: "MED", ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -596,11 +601,11 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         eventoPersistido.GetProperty("CodigoSede").GetString().Should().Be("MED");
     }
 
-    // CA-4 (#520): reingreso SIN CodigoSede (body actual, sin cambios) -> 202 y CodigoSede null --
+    // CA-4 (#520): reingreso SIN CodigoSede (body actual, sin cambios) -> 201 y CodigoSede null --
     // "reingreso nace limpio" sigue siendo el default.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task IniciarVinculacion_Retorna202YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
+    public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -617,7 +622,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 

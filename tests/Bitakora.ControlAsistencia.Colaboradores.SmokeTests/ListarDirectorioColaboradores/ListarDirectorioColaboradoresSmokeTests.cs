@@ -89,7 +89,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             codigoSede
         }, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
@@ -102,7 +102,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             new { fechaEfectiva },
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 

@@ -1,14 +1,17 @@
 // Issue #376 (MEF-ADR-0043 paso 3): tests del endpoint HTTP DELETE
 // colaboradores/{id}/etiquetas/{categoria} (retirar la etiqueta de una categoria, sin body).
-// CA-2: 202; CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 3): CA-2: 204 No Content; CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
 // ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: InvalidOperationException -> 409,
-// KeyNotFoundException -> 404.
+// KeyNotFoundException -> 404. Categoria sin etiqueta sigue respondiendo 409 en este issue -- pasa
+// a no-op 204 en el issue #663 (depende de este), no aqui.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RetirarEtiquetaFunction;
 
@@ -23,16 +26,18 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-2: DELETE exitoso retorna 202 Accepted
+    // CA-2: DELETE exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
-    public async Task RetirarEtiqueta_Retorna202_CuandoIdDeRutaEsValido()
+    public async Task RetirarEtiqueta_Retorna204SinCuerpo_CuandoIdDeRutaEsValido()
     {
         var router = new FakeRetirarEtiquetaCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-2: el endpoint compone el comando interno RetirarEtiqueta ENTERAMENTE desde la ruta ({id} +
@@ -97,7 +102,8 @@ public class FunctionEndpointTests
     }
 
     // CA-2 (rutas de rechazo): categoria inexistente o vinculacion con terminacion registrada
-    // retorna 409 Conflict.
+    // retorna 409 Conflict. Categoria sin etiqueta sigue siendo 409 en este issue -- el no-op 204
+    // es #663 (depende de este), no aqui.
     [Fact]
     public async Task RetirarEtiqueta_Retorna409_CuandoLaCategoriaNoExisteOLaVinculacionEstaTerminada()
     {

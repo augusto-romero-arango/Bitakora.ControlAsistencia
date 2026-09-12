@@ -23,7 +23,10 @@
 // y este archivo -- que solo referencia la ruta nueva -- fallaria por completo (404 del host, no
 // el 409/404 de dominio). Mismo precedente que IniciarVinculacionSmokeTests post-#378.
 //
-// CA-1/CA-2 (rutas de exito): 202 + una VinculacionTerminada persistida en el stream
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): TerminarVinculacion
+// confirma el evento en el event store antes de responder -- 204, nunca 202.
+//
+// CA-1/CA-2 (rutas de exito): 204 + una VinculacionTerminada persistida en el stream
 // "{Tipo}-{Numero}" con la FechaEfectiva exacta del request -- pasada, futura (preaviso, sin
 // validacion contra el reloj del servidor en ninguna direccion) o igual a la FechaInicio
 // (vinculacion de un solo dia).
@@ -108,7 +111,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
         var response = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(numeroIdentificacion, fechaInicio, codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
 
         return codigo;
@@ -132,12 +135,12 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
     }
 
     // CA-1: camino feliz -- colaborador con vinculacion abierta + FechaEfectiva valida (pasada) ->
-    // 202 y el stream recibe vinculacion_terminada con la FechaEfectiva exacta del request. Sin
+    // 204 y el stream recibe vinculacion_terminada con la FechaEfectiva exacta del request. Sin
     // Service Bus (event-sourcing puro): mt_events es la unica ventana black-box a lo que quedo
     // grabado.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task TerminarVinculacion_Retorna202YPersisteFechaEfectiva_CuandoVinculacionEstaAbierta()
+    public async Task TerminarVinculacion_Retorna204YPersisteFechaEfectiva_CuandoVinculacionEstaAbierta()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -151,7 +154,8 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
         var response = await TerminarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigo, fechaEfectiva, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -173,7 +177,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
     // el reloj del servidor en ninguna direccion (doctrina bitemporal del BC).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task TerminarVinculacion_Retorna202YPersisteFechaEfectiva_CuandoFechaEfectivaEsFutura()
+    public async Task TerminarVinculacion_Retorna204YPersisteFechaEfectiva_CuandoFechaEfectivaEsFutura()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -189,7 +193,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
         var response = await TerminarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigo, fechaEfectivaFutura, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
@@ -205,7 +209,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
     // de un solo dia, valida.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task TerminarVinculacion_Retorna202YPersisteFechaEfectiva_CuandoFechaEfectivaEsIgualAFechaInicio()
+    public async Task TerminarVinculacion_Retorna204YPersisteFechaEfectiva_CuandoFechaEfectivaEsIgualAFechaInicio()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -218,7 +222,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
         var response = await TerminarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), codigo, fechaUnicoDia, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
