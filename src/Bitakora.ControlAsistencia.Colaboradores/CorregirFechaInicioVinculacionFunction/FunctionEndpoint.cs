@@ -24,11 +24,11 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacio
 // comando interno CorregirFechaInicioVinculacion (que conserva sus 4 campos primitivos,
 // MEF-ADR-0039 decision 6) a partir de {id} + {codigo} + el body.
 // Reemplaza el POST Colaboradores/FechasInicio (issue #352): la ruta vieja deja de existir (CA-7).
-// CA-ADR-0030 / MEF-ADR-0004 (precedente TerminarVinculacionFunction.FunctionEndpoint post-#379):
-// validar id de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 4): validar id de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
 // InvalidOperationException -> 409 Conflict (incluye CodigoNoCorresponde, CA-5, evaluada primero
 // por el aggregate, ANTES incluso de la idempotencia SinCambios), KeyNotFoundException -> 404
-// NotFound; exito -> 202 Accepted (incluye el silencio de SinCambios).
+// NotFound; exito -> 204 No Content (incluye el silencio de SinCambios).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CorregirFechaInicioVinculacion")]
@@ -68,6 +68,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

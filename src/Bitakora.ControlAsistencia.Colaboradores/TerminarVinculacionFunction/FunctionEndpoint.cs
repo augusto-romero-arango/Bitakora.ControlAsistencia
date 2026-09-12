@@ -26,10 +26,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction;
 // interno TerminarVinculacion (que conserva sus 4 campos primitivos, MEF-ADR-0039 decision 6) a
 // partir de {id} + {codigo} + el body.
 // Reemplaza el POST Colaboradores/Terminaciones (issue #349): la ruta vieja deja de existir (CA-7).
-// CA-ADR-0030 / MEF-ADR-0004 (precedente CorregirNombresFunction.FunctionEndpoint): validar id de
-// ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 4): validar id de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
 // InvalidOperationException -> 409 Conflict (incluye CodigoNoCorresponde, CA-5, evaluada primero
-// por el aggregate), KeyNotFoundException -> 404 NotFound; exito -> 202 Accepted.
+// por el aggregate), KeyNotFoundException -> 404 NotFound; exito -> 204 No Content.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("TerminarVinculacion")]
@@ -69,6 +69,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

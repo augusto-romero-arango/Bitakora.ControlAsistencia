@@ -132,3 +132,9 @@ que el handler vuelva a interrogar el estado del aggregate para averiguar cual f
 - 2026-08-11: creacion (issue #349). Fija el patron "declinar con resultado + status code sincrono"
   para comandos HTTP sin consumidores downstream, descartando el evento de fallo persistido que el
   borrador original proponia.
+- 2026-09-12: issue #659 (Colaboradores, desglose de #640) corrige los 9 endpoints HTTP de comando
+  del dominio de 202 Accepted a 201/204 segun MEF-ADR-0004 "Respuestas HTTP" (enmienda
+  harness#849/#850): el codigo de exito lo rige ese ADR, y las menciones a 202 en el texto de este
+  documento son historicas. El mecanismo "declinar con resultado" (aggregate decide, handler
+  traduce) sigue vigente sin cambios; el tipo de excepcion que el handler lanza para traducir a
+  404/409 se revisara en #666.

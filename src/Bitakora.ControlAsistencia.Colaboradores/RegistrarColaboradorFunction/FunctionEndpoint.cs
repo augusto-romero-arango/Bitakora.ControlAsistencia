@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -15,8 +16,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 // Route = "colaboradores" (kebab-case minusculo, MEF-ADR-0043 seccion 3 / issue #378 CA-5): antes
 // "Colaboradores" (PascalCase) -- dominio y recurso son homonimos, un segundo segmento seria
 // redundante; unico cambio, sin tocar el resto del endpoint.
-// MEF-ADR-0004 (precedente CrearTurnoFunction.FunctionEndpoint): validar request (400 via
-// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict; exito -> 202.
+// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
+// 1): validar request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException
+// -> 409 Conflict; exito -> 201 Created con Location a la ficha del colaborador registrado, compuesta
+// via el VO Identificacion (unico punto de conversion, MEF-ADR-0037).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarColaborador")]
@@ -38,6 +41,9 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new ConflictObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        var identificacion = Identificacion.Crear(
+            TipoIdentificacion.Desde(comando!.TipoIdentificacion), comando.NumeroIdentificacion);
+
+        return new CreatedResult($"/api/colaboradores/fichas/{identificacion}", null);
     }
 }
