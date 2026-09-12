@@ -3,9 +3,9 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction.CommandHandler;
 
-// Mecanismo "declinar con resultado" (CA-ADR-0030): sin CC vigente el aggregate declina sin mutar
-// ni emitir, y este handler traduce esa razon a InvalidOperationException/409. Sede inexistente es
-// precondicion de orquestacion (KeyNotFoundException/404), sin evento de fallo persistido.
+// Estado ya alcanzado (MEF-ADR-0004): sin CC vigente el aggregate declina sin mutar ni emitir, y
+// este handler termina sin lanzar -- no-op exitoso. Sede inexistente es precondicion de
+// orquestacion (KeyNotFoundException/404), sin evento de fallo persistido.
 public partial class RetirarCentroDeCostosCommandHandler : ICommandHandlerAsync<RetirarCentroDeCostos>
 {
     private readonly IEventStore _eventStore;
@@ -20,8 +20,6 @@ public partial class RetirarCentroDeCostosCommandHandler : ICommandHandlerAsync<
         if (sede is null)
             throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
 
-        var resultado = sede.RetirarCentroDeCostos();
-        if (resultado == ResultadoRetiroCentroDeCostos.SinCentroDeCostosVigente)
-            throw new InvalidOperationException(Mensajes.SinCentroDeCostosVigente);
+        sede.RetirarCentroDeCostos();
     }
 }

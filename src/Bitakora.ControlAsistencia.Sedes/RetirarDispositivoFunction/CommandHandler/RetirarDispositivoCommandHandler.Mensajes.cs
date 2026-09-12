@@ -13,8 +13,5 @@ public partial class RetirarDispositivoCommandHandler
     {
         public static string SedeNoEncontrada =>
             ResourceManager.GetString(nameof(SedeNoEncontrada))!;
-
-        public static string DispositivoNoInstalado =>
-            ResourceManager.GetString(nameof(DispositivoNoInstalado))!;
     }
 }

@@ -25,7 +25,6 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
 
     private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
 
-    // CA-3
     [Fact]
     public async Task RetirarDispositivo_EmiteDispositivoRetirado_CuandoElDispositivoEstaInstalado()
     {
@@ -37,7 +36,7 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // CA-3: retirar un dispositivo deja intactos los demas instalados en la misma sede.
+    // Retirar un dispositivo deja intactos los demas instalados en la misma sede.
     [Fact]
     public async Task RetirarDispositivo_EmiteDispositivoRetirado_CuandoLaSedeTieneOtroDispositivoInstalado()
     {
@@ -53,26 +52,23 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // CA-4: declina sin emitir (CA-ADR-0030). El dispositivo-id de ruta direcciona un sub-recurso
-    // de una coleccion que no existe en esta sede -> 404, no 409 (a diferencia de
-    // RetirarCentroDeCostos, VO singular).
+    // Estado ya alcanzado (MEF-ADR-0004): un id nunca instalado no se distingue de uno ya
+    // retirado -- el aggregate declina sin agregar eventos y el handler termina sin lanzar.
     [Fact]
-    public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoElDispositivoNoEstaInstaladoEnEstaSede()
+    public async Task RetirarDispositivo_NoEmiteEvento_CuandoElDispositivoNoEstaInstaladoEnEstaSede()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada());
 
-        var act = async () => await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
+        await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
-            .WithMessage($"*{RetirarDispositivoCommandHandler.Mensajes.DispositivoNoInstalado}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // El retiro no es idempotente hacia arriba: retirar dos veces el mismo dispositivo declina el
-    // segundo intento igual que si nunca se hubiera instalado.
+    // El retiro SI es idempotente hacia arriba: retirar dos veces el mismo dispositivo es el mismo
+    // no-op exitoso que si nunca se hubiera instalado.
     [Fact]
-    public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoElDispositivoYaFueRetirado()
+    public async Task RetirarDispositivo_NoEmiteEvento_CuandoElDispositivoYaFueRetirado()
     {
         Given(
             StreamIdEsperado,
@@ -80,10 +76,8 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
             new DispositivoInstalado(DispositivoId),
             new DispositivoRetirado(DispositivoId));
 
-        var act = async () => await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
+        await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
-            .WithMessage($"*{RetirarDispositivoCommandHandler.Mensajes.DispositivoNoInstalado}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }

@@ -13,8 +13,5 @@ public partial class RetirarCentroDeCostosCommandHandler
     {
         public static string SedeNoEncontrada =>
             ResourceManager.GetString(nameof(SedeNoEncontrada))!;
-
-        public static string SinCentroDeCostosVigente =>
-            ResourceManager.GetString(nameof(SinCentroDeCostosVigente))!;
     }
 }

@@ -28,20 +28,8 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-4: dispositivo no instalado en esta sede -> 404
-    [Fact]
-    public async Task RetirarDispositivo_Retorna404_CuandoElDispositivoNoEstaInstalado()
-    {
-        var router = new FakeCommandRouter(
-            new KeyNotFoundException("El dispositivo no esta instalado en esta sede"));
-        var function = new FunctionEndpoint(router);
-
-        var result = await function.Run(FakeHttpRequest(), Codigo, DispositivoId, CancellationToken.None);
-
-        result.Should().BeOfType<NotFoundObjectResult>();
-    }
-
-    // Sede inexistente -> 404 (precondicion de orquestacion, no un CA propio del issue)
+    // Sede inexistente -> 404 (precondicion de orquestacion). Dispositivo no instalado NO tiene test
+    // de endpoint propio: es un no-op exitoso que sale por el mismo 204 del camino de cambio (#664).
     [Fact]
     public async Task RetirarDispositivo_Retorna404_CuandoSedeNoExiste()
     {

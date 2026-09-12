@@ -23,7 +23,4 @@
   <data name="SedeNoEncontrada" xml:space="preserve">
     <value>No existe una sede registrada con este codigo</value>
   </data>
-  <data name="SinCentroDeCostosVigente" xml:space="preserve">
-    <value>La sede no tiene un centro de costos vigente para retirar</value>
-  </data>
 </root>

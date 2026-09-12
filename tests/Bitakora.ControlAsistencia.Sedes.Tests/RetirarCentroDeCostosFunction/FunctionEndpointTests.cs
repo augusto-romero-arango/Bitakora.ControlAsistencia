@@ -27,20 +27,8 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-4: sin CC vigente -> 409 Conflict
-    [Fact]
-    public async Task RetirarCentroDeCostos_Retorna409_CuandoLaSedeNoTieneCentroVigente()
-    {
-        var router = new FakeCommandRouter(
-            new InvalidOperationException("La sede no tiene un centro de costos vigente"));
-        var function = new FunctionEndpoint(router);
-
-        var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
-
-        result.Should().BeOfType<ConflictObjectResult>();
-    }
-
-    // CA-5: sede inexistente -> 404
+    // Sede inexistente -> 404 (precondicion de orquestacion). Sin CC vigente NO tiene test de
+    // endpoint propio: es un no-op exitoso que sale por el mismo 204 del camino de cambio (#664).
     [Fact]
     public async Task RetirarCentroDeCostos_Retorna404_CuandoSedeNoExiste()
     {
