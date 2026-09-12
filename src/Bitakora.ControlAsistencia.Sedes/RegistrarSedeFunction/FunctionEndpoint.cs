@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Sedes.RegistrarSedeFunction;
 // "Function" porque el record del comando es homonimo del feature folder.
 // Route = "sedes" (kebab-case minusculo, MEF-ADR-0043 seccion 3): dominio y recurso son homonimos.
 // MEF-ADR-0004 (precedente RegistrarColaboradorFunction.FunctionEndpoint): validar request (400 via
-// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict; exito -> 202.
+// IRequestValidator) -> despachar comando -> InvalidOperationException -> 409 Conflict; exito -> 201.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarSede")]
@@ -33,6 +33,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new ConflictObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new CreatedResult($"/api/sedes/fichas/{comando!.Codigo}", null);
     }
 }

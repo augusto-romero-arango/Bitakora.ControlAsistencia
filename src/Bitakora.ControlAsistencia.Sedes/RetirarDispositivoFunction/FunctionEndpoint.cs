@@ -6,8 +6,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction;
 
-// DELETE que remueve verazmente un sub-recurso direccionable sin payload -- MEF-ADR-0043 paso 3.
-// Sin IRequestValidator: no hay body que deserializar ni validar en este punto. El {codigo} de
+// DELETE que remueve verazmente un sub-recurso direccionable sin payload -- MEF-ADR-0043 paso 3,
+// exito 204. No instalado sigue siendo 404 (#664 lo pasa a 204 sin evento, no aqui). Sin
+// IRequestValidator: no hay body que deserializar ni validar en este punto. El {codigo} de
 // ruta es lo unico que se valida aqui (MEF-ADR-0037 seccion 2); {dispositivoId} no lleva invariante
 // propia en este endpoint -- la URL-safe del DispositivoId se gano en el borde del POST
 // (InstalarDispositivo), no se re-valida al retirar.
@@ -38,6 +39,6 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

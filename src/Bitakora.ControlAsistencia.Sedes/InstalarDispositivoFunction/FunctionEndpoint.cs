@@ -6,9 +6,10 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 
-// POST que agrega una entidad (interna) a la coleccion del aggregate -- MEF-ADR-0043 paso 1. El
-// {codigo} de ruta se valida aqui porque IRequestValidator solo cubre el body (MEF-ADR-0037
-// seccion 2: un unico chequeo del componente, con 400 explicito).
+// POST que agrega una entidad (interna) a la coleccion del aggregate -- MEF-ADR-0043 paso 1, exito
+// 201 con Location hacia la ficha de la sede (el dispositivo no tiene GET propio). El {codigo} de
+// ruta se valida aqui porque IRequestValidator solo cubre el body (MEF-ADR-0037 seccion 2: un
+// unico chequeo del componente, con 400 explicito).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("InstalarDispositivo")]
@@ -40,6 +41,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new CreatedResult($"/api/sedes/fichas/{codigo}", null);
     }
 }
