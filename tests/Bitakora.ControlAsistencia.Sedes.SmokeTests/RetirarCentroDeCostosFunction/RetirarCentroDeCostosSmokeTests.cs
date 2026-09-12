@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 
@@ -19,6 +20,26 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     private const string TipoEventoCentroDeCostosRetirado = "centro_de_costos_retirado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
+    // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
+    // JsonNamingPolicy.CamelCase), mientras que la forma local de este archivo es PascalCase.
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    // Forma local DESACOPLADA del read model de produccion (ReadModels.Sedes.FichaSede): replica
+    // solo el shape JSON de GET sedes/fichas/{codigo}, usado aqui como oraculo de "la ficha queda
+    // identica" -- no como sujeto de este archivo (issue #664 no toca ObtenerFichaSede).
+    private sealed record FichaSedeRespuestaSmoke(
+        string Id,
+        string Codigo,
+        string Nombre,
+        string? Ciudad,
+        string? Direccion,
+        string? CentroDeCostos,
+        bool Activa,
+        IReadOnlyList<string> Dispositivos);
+
     // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
     // del que "[", "]" y el espacio quedan fuera.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
@@ -27,6 +48,23 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     private static string ComputarStreamId(string codigo) => $"s:{codigo}";
 
     private static string RutaCentroDeCostos(string codigo) => $"/api/sedes/{codigo}/centro-de-costos";
+
+    private static string RutaFicha(string codigo) => $"/api/sedes/fichas/{codigo}";
+
+    // Reintenta el GET hasta que la proyeccion asincrona materialice la ficha (404 = el worker
+    // todavia no la aplico). Solo se usa para la primera lectura de cada test; la segunda lectura
+    // (tras el no-op) ya sabe que la ficha existe y consulta directo.
+    private Task<FichaSedeRespuestaSmoke> EsperarFichaAsync(string codigo, CancellationToken ct) =>
+        Polling.WaitUntilAsync(async () =>
+        {
+            var response = await _client.GetAsync(RutaFicha(codigo), ct);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return null;
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            return await response.Content.ReadFromJsonAsync<FichaSedeRespuestaSmoke>(
+                JsonOptions, cancellationToken: ct);
+        }, Timeout);
 
     private async Task<string> RegistrarSedeDePruebaAsync(CancellationToken ct)
     {
@@ -98,25 +136,35 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             $"el evento {TipoEventoCentroDeCostosRetirado} deberia existir en el stream {streamId}");
     }
 
-    // CA-4: declina sin persistir evento (CA-ADR-0030).
+    // CA-4/#664: estado ya alcanzado (MEF-ADR-0004) -- sin CC vigente el DELETE es un no-op
+    // exitoso, sin evento y sin alterar la ficha de la sede (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarCentroDeCostos_Retorna409YNoPersisteEvento_CuandoNoHayCentroDeCostosVigente()
+    public async Task RetirarCentroDeCostos_Retorna204SinEvento_CuandoNoHayCentroDeCostosVigente()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
         var codigo = await RegistrarSedeDePruebaAsync(ct);
         var streamId = ComputarStreamId(codigo);
+        var fichaPrevia = await EsperarFichaAsync(codigo, ct);
 
         var response = await _client.DeleteAsync(RutaCentroDeCostos(codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var registros = await postgres.ContarEventosAsync(
             SchemaSedes, streamId, TipoEventoCentroDeCostosRetirado);
         registros.Should().Be(0,
-            "la declinacion por 409 no debe haber persistido un evento de retiro (CA-ADR-0030)");
+            "el estado ya alcanzado no debe persistir un evento de retiro (MEF-ADR-0004)");
+
+        var fichaTrasNoOp = await _client.GetAsync(RutaFicha(codigo), ct);
+        fichaTrasNoOp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var contenido = await fichaTrasNoOp.Content.ReadFromJsonAsync<FichaSedeRespuestaSmoke>(
+            JsonOptions, ct);
+        contenido.Should().BeEquivalentTo(fichaPrevia,
+            "el no-op no debe alterar la ficha de la sede");
     }
 
     // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
