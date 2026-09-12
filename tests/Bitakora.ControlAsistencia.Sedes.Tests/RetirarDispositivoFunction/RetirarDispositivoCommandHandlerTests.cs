@@ -53,26 +53,24 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // CA-4: declina sin emitir (CA-ADR-0030). El dispositivo-id de ruta direcciona un sub-recurso
-    // de una coleccion que no existe en esta sede -> 404, no 409 (a diferencia de
-    // RetirarCentroDeCostos, VO singular).
+    // CA-2 (#664): estado ya alcanzado -- MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso". Ningun
+    // id nunca instalado distingue de uno ya retirado (decision del experto, 2026-09-12): el
+    // aggregate declina sin agregar eventos y el handler termina sin lanzar.
     [Fact]
-    public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoElDispositivoNoEstaInstaladoEnEstaSede()
+    public async Task RetirarDispositivo_NoEmiteEvento_CuandoElDispositivoNoEstaInstaladoEnEstaSede()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada());
 
-        var act = async () => await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
+        await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
-            .WithMessage($"*{RetirarDispositivoCommandHandler.Mensajes.DispositivoNoInstalado}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // El retiro no es idempotente hacia arriba: retirar dos veces el mismo dispositivo declina el
-    // segundo intento igual que si nunca se hubiera instalado.
+    // CA-2 (#664): el retiro SI es idempotente hacia arriba -- retirar dos veces el mismo
+    // dispositivo es el mismo no-op exitoso que si nunca se hubiera instalado.
     [Fact]
-    public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoElDispositivoYaFueRetirado()
+    public async Task RetirarDispositivo_NoEmiteEvento_CuandoElDispositivoYaFueRetirado()
     {
         Given(
             StreamIdEsperado,
@@ -80,16 +78,14 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
             new DispositivoInstalado(DispositivoId),
             new DispositivoRetirado(DispositivoId));
 
-        var act = async () => await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
+        await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
-            .WithMessage($"*{RetirarDispositivoCommandHandler.Mensajes.DispositivoNoInstalado}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // Precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin escribir
-    // nada al event store.
+    // CA-3 (#664): precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin
+    // escribir nada al event store.
     [Fact]
     public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {

@@ -36,21 +36,20 @@ public class RetirarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, null);
     }
 
-    // CA-4: declina sin emitir ningun evento nuevo (CA-ADR-0030).
+    // CA-1 (#664): estado ya alcanzado -- MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso". El
+    // aggregate declina sin agregar eventos y el handler termina sin lanzar; la ficha no cambia.
     [Fact]
-    public async Task RetirarCentroDeCostos_LanzaInvalidOperationException_CuandoLaSedeNoTieneCentroVigente()
+    public async Task RetirarCentroDeCostos_NoEmiteEvento_CuandoLaSedeNoTieneCentroVigente()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada());
 
-        var act = async () => await WhenAsync(new RetirarCentroDeCostos(Codigo));
+        await WhenAsync(new RetirarCentroDeCostos(Codigo));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{RetirarCentroDeCostosCommandHandler.Mensajes.SinCentroDeCostosVigente}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, null);
     }
 
-    // CA-5: sede inexistente -> KeyNotFoundException, sin escribir nada al event store.
+    // CA-3 (#664): sede inexistente -> KeyNotFoundException, sin escribir nada al event store.
     [Fact]
     public async Task RetirarCentroDeCostos_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {
