@@ -16,7 +16,8 @@ public class FunctionEndpointTests
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
     // CA-1: DELETE exitoso -> 204 No Content, sin cuerpo (la transaccion confirma antes de
-    // responder). Turno ya retirado sigue 409 aqui: se corrige en #665.
+    // responder). Cubre tanto el retiro real como el no-op de retirar un turno ya retirado
+    // (#665, MEF-ADR-0004): el router no distingue -- ambos terminan sin lanzar.
     [Fact]
     public async Task RetirarTurno_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
@@ -30,11 +31,12 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-3: turno ya retirado -> 409
+    // Camino generico de error del dominio: cualquier InvalidOperationException del router se
+    // traduce a 409 -- ya no ligado al escenario "turno ya retirado" (#665: ese ahora es 204).
     [Fact]
-    public async Task RetirarTurno_Retorna409_CuandoElTurnoYaEstaRetirado()
+    public async Task RetirarTurno_Retorna409_CuandoElComandoLanzaInvalidOperationException()
     {
-        var router = new FakeCommandRouter(new InvalidOperationException("El turno ya fue retirado del catalogo"));
+        var router = new FakeCommandRouter(new InvalidOperationException("Rechazo generico del dominio"));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);

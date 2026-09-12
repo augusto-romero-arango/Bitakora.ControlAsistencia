@@ -50,16 +50,15 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
-    // CA-3: idempotencia -- retirar un turno ya retirado declina sin re-emitir (CA-ADR-0030)
+    // CA-2 (#665): retirar un turno ya retirado es un no-op exitoso (MEF-ADR-0004 "Estado ya
+    // alcanzado") -- el handler termina sin lanzar y sin agregar eventos al stream.
     [Fact]
-    public async Task RetirarTurno_LanzaInvalidOperationException_CuandoElTurnoYaEstaRetirado()
+    public async Task RetirarTurno_NoEmiteEventos_CuandoElTurnoYaEstaRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurno(), TurnoRetirado.Crear(TurnoId));
 
-        var act = async () => await WhenAsync(new RetirarTurno(TurnoId));
+        await WhenAsync(new RetirarTurno(TurnoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{RetirarTurnoCommandHandler.Mensajes.TurnoYaRetirado}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);

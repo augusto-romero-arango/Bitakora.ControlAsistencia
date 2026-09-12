@@ -120,7 +120,7 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
     }
 
     // CA-3: retirar dos veces -- nada que retirar, sin evento (mismo criterio que
-    // ResultadoRetiroTurno.YaEstabaRetirado).
+    // ResultadoRetiroTurno.SinCambios).
     [Fact]
     public async Task AsignarSedeAFranja_LanzaInvalidOperationException_CuandoLaFranjaYaNoTieneSede()
     {

@@ -5,5 +5,5 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 internal enum ResultadoRetiroTurno
 {
     Retirado,
-    YaEstabaRetirado
+    SinCambios
 }

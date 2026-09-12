@@ -69,6 +69,14 @@ public class PostgresFixture : IAsyncLifetime
         }, timeout);
     }
 
+    // Issue #665 CA-3: cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
+    // agrego un evento adicional al stream, algo que ExisteEventoAsync (>= 1) no distingue.
+    public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento)
+    {
+        var eventos = await ObtenerEventosInternoAsync(schema, streamId, tipoEvento);
+        return eventos.Count;
+    }
+
     public async Task<T> ObtenerEventoAsync<T>(
         string schema, string streamId, string tipoEvento,
         string campoJson, string valorJson, TimeSpan timeout)

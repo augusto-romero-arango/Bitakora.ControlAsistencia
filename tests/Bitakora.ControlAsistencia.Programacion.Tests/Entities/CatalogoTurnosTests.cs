@@ -604,7 +604,7 @@ public class CatalogoTurnosTests
     }
 
     // Nada que retirar: la franja ya no tiene sede -- mismo criterio que
-    // ResultadoRetiroTurno.YaEstabaRetirado.
+    // ResultadoRetiroTurno.SinCambios.
     [Fact]
     public void AsignarSedeAFranja_RetornaFranjaSinSede_CuandoLaFranjaYaNoTieneSedeQueRetirar()
     {
@@ -663,5 +663,32 @@ public class CatalogoTurnosTests
         var resultado = catalogo.AsignarSedeAFranja(new TimeOnly(14, 0), Chapinero);
 
         resultado.Should().Be(ResultadoAsignarSedeAFranja.TurnoRetirado);
+    }
+
+    // ---------- Issue #665 CA-1: Retirar() y el no-op cuando ya esta retirado ----------
+
+    [Fact]
+    public void Retirar_RetornaRetirado_CuandoElTurnoEstaActivo()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+        var resultado = catalogo.Retirar();
+
+        resultado.Should().Be(ResultadoRetiroTurno.Retirado);
+        catalogo.UncommittedEvents.OfType<TurnoRetirado>().Should().ContainSingle();
+    }
+
+    // MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso": retirar dos veces no agrega un segundo
+    // TurnoRetirado al stream.
+    [Fact]
+    public void Retirar_RetornaSinCambios_CuandoElTurnoYaEstaRetirado()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
+        catalogo.Retirar();
+
+        var resultado = catalogo.Retirar();
+
+        resultado.Should().Be(ResultadoRetiroTurno.SinCambios);
+        catalogo.UncommittedEvents.OfType<TurnoRetirado>().Should().ContainSingle();
     }
 }
