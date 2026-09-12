@@ -1,9 +1,12 @@
 // Issue #355: retirar una etiqueta dinamica -- octavo comando del ciclo de vida de
 // ColaboradorAggregateRoot (desglose #348-#357), gemelo de AsignarEtiqueta sobre el mismo
-// diccionario. CA-ADR-0030: no hay eventos de fallo -- el aggregate declina CON RESULTADO tanto la
-// regla de apertura estricta (decision #1) como la categoria inexistente (decision #2: con
-// categorias libres, un typo debe aflorar al instante -- SIN idempotencia silenciosa, a diferencia
-// de AsignarEtiqueta).
+// diccionario.
+// Issue #663 (MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso"): la categoria inexistente ya NO
+// es un rechazo -- el aggregate la declina EN SILENCIO (idempotencia silenciosa, gemela de
+// AsignarEtiqueta/ResultadoAsignacionEtiqueta.SinCambios): retorna sin agregar evento y el handler
+// termina sin lanzar. La regla de apertura estricta (VinculacionTerminada, decision #1 de #355)
+// sigue siendo la unica razon de rechazo con resultado (CA-ADR-0030), traducida a
+// InvalidOperationException/409.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -108,33 +111,31 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // CA-4: retirar una categoria que nunca se asigno -> 409, ningun evento nuevo, el diccionario
-    // de etiquetas queda intacto (vacio).
+    // CA-1 (issue #663, MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso"): retirar una categoria
+    // que nunca se asigno termina sin lanzar y sin agregar eventos -- el diccionario de etiquetas
+    // queda intacto (vacio).
     [Fact]
-    public async Task RetirarEtiqueta_LanzaInvalidOperationException_CuandoLaCategoriaNoExiste()
+    public async Task RetirarEtiqueta_NoEmiteEvento_CuandoLaCategoriaNoExiste()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
-        var act = async () => await WhenAsync(ComandoValido());
+        await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.CategoriaInexistente}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // CA-4 (el typo debe aflorar, decision #2 del issue): "Aera" no es "Area" -- categorias
-    // distintas normalizadas, aunque exista una etiqueta para "Area" -> 409 igual, ningun evento,
-    // la etiqueta existente ("Area") queda intacta.
+    // CA-1 (issue #663): "Aera" no es "Area" -- categorias distintas normalizadas, aunque exista
+    // una etiqueta para "Area" -> no-op exitoso igual, ningun evento, la etiqueta existente
+    // ("Area") queda intacta. Un error de transcripcion en la categoria ya no aflora (decision del
+    // experto 2026-09-05/2026-09-12, revierte la decision #2 de #355).
     [Fact]
-    public async Task RetirarEtiqueta_LanzaInvalidOperationException_CuandoHayUnErrorDeTranscripcionEnLaCategoria()
+    public async Task RetirarEtiqueta_NoEmiteEvento_CuandoHayUnErrorDeTranscripcionEnLaCategoria()
     {
         DadoUnColaboradorConEtiquetaAsignada(Etiqueta.Crear("Area", "Ventas"));
 
-        var act = async () => await WhenAsync(ComandoValido() with { Categoria = "Aera" });
+        await WhenAsync(ComandoValido() with { Categoria = "Aera" });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.CategoriaInexistente}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
     }
@@ -194,11 +195,11 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
             StreamIdEsperado, c => c.Etiquetas["sede"], etiquetaConservada);
     }
 
-    // CA-6 (reingreso nace limpio): la etiqueta pertenecia a la vinculacion ANTERIOR (congelada
-    // tras la terminacion) -- la vinculacion vigente (el reingreso) no la hereda, asi que retirarla
-    // encuentra la categoria inexistente -> 409, igual que cualquier categoria nunca asignada.
+    // CA-1 (reingreso nace limpio, issue #663): la etiqueta pertenecia a la vinculacion ANTERIOR
+    // (congelada tras la terminacion) -- la vinculacion vigente (el reingreso) no la hereda, asi
+    // que retirarla es un no-op exitoso, igual que cualquier categoria nunca asignada.
     [Fact]
-    public async Task RetirarEtiqueta_LanzaInvalidOperationException_CuandoLaEtiquetaPerteneceALaVinculacionAnteriorTrasUnReingreso()
+    public async Task RetirarEtiqueta_NoEmiteEvento_CuandoLaEtiquetaPerteneceALaVinculacionAnteriorTrasUnReingreso()
     {
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -207,10 +208,8 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
             new VinculacionTerminada(FechaEfectivaTerminacion),
             new VinculacionIniciada(CodigoVinculacionReingreso, FechaInicioReingreso));
 
-        var act = async () => await WhenAsync(ComandoValido());
+        await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
-            .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.CategoriaInexistente}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
