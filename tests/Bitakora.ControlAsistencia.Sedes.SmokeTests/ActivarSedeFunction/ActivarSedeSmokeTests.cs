@@ -34,7 +34,7 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el registro previo funcione");
 
         var streamId = ComputarStreamId(codigo);
@@ -54,7 +54,7 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         var streamId = ComputarStreamId(codigo);
 
         var desactivacion = await _client.PostAsync(RutaDesactivar(codigo), null, ct);
-        desactivacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        desactivacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la desactivacion previa funcione");
 
         var existeDesactivacion = await postgres.ExisteEventoAsync(
@@ -77,7 +77,7 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ActivarSede_Retorna202YPersisteSedeActivada_CuandoSedeEstaInactiva()
+    public async Task ActivarSede_Retorna204YPersisteSedeActivada_CuandoSedeEstaInactiva()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -86,7 +86,8 @@ public class ActivarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsync(RutaActivar(codigo), null, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(

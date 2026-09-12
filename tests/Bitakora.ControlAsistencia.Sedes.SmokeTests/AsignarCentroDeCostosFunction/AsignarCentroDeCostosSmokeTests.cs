@@ -37,7 +37,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el registro previo funcione");
 
         var streamId = ComputarStreamId(codigo);
@@ -62,7 +62,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarCentroDeCostos_Retorna202YPersisteCentroDeCostosAsignado_CuandoCentroDeCostosEsValido()
+    public async Task AsignarCentroDeCostos_Retorna204YPersisteCentroDeCostosAsignado_CuandoCentroDeCostosEsValido()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -72,7 +72,8 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var payload = new { centroDeCostos = CentroDeCostosSinNormalizar };
         var response = await _client.PutAsJsonAsync(RutaCentroDeCostos(codigo), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -92,7 +93,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     // CA-2
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarCentroDeCostos_Retorna202YPersisteSegundoEvento_CuandoYaTieneCentroDeCostosVigente()
+    public async Task AsignarCentroDeCostos_Retorna204YPersisteSegundoEvento_CuandoYaTieneCentroDeCostosVigente()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -102,7 +103,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
 
         var primeraAsignacion = await _client.PutAsJsonAsync(
             RutaCentroDeCostos(codigo), new { centroDeCostos = "CC-ORIGINAL" }, ct);
-        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la primera asignacion funcione");
 
         var existePrimeraAsignacion = await postgres.ExisteEventoAsync(
@@ -114,7 +115,8 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var segundaAsignacion = await _client.PutAsJsonAsync(
             RutaCentroDeCostos(codigo), new { centroDeCostos = "CC-REEMPLAZO" }, ct);
 
-        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        segundaAsignacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await segundaAsignacion.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var existeReemplazo = await postgres.ExisteEventoAsync(
             SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado, Timeout,

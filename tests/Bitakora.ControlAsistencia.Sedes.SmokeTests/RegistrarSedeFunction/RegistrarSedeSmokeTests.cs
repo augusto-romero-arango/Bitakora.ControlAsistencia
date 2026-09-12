@@ -48,11 +48,11 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: codigo y nombre validos, con ciudad y direccion -> 202 y SedeRegistrada persistido con
-    // los cuatro campos.
+    // CA-1: codigo y nombre validos, con ciudad y direccion -> 201 con Location y SedeRegistrada
+    // persistido con los cuatro campos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarSede_Retorna202YPersisteSedeRegistrada_CuandoCodigoYNombreSonValidos()
+    public async Task RegistrarSede_Retorna201YPersisteSedeRegistrada_CuandoCodigoYNombreSonValidos()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -63,7 +63,8 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(new Uri($"/api/sedes/fichas/{codigo}", UriKind.Relative));
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -85,7 +86,7 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     // campos nulos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RegistrarSede_Retorna202YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
+    public async Task RegistrarSede_Retorna201YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -95,7 +96,7 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -124,7 +125,7 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var primerRegistro = await _client.PostAsJsonAsync(
             RutaRegistrar, PayloadRegistro(codigo, "[TEST] Sede Original"), ct);
-        primerRegistro.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primerRegistro.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el primer registro funcione");
 
         var streamId = ComputarStreamId(codigo);

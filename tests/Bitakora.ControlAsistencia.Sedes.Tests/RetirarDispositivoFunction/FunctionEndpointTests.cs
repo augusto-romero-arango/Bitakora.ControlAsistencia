@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.RetirarDispositivoFunction;
 
@@ -15,14 +16,16 @@ public class FunctionEndpointTests
 
     // CA-3
     [Fact]
-    public async Task RetirarDispositivo_Retorna202_CuandoComandoEsValido()
+    public async Task RetirarDispositivo_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, DispositivoId, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-4: dispositivo no instalado en esta sede -> 404

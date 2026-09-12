@@ -34,7 +34,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el registro previo funcione");
 
         var streamId = ComputarStreamId(codigo);
@@ -53,7 +53,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
 
         var asignacion = await _client.PutAsJsonAsync(
             RutaCentroDeCostos(codigo), new { centroDeCostos = "CC-VIGENTE" }, ct);
-        asignacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        asignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que la asignacion previa funcione");
 
         var existeAsignacion = await postgres.ExisteEventoAsync(
@@ -78,7 +78,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarCentroDeCostos_Retorna202YPersisteCentroDeCostosRetirado_CuandoHayCentroDeCostosVigente()
+    public async Task RetirarCentroDeCostos_Retorna204YPersisteCentroDeCostosRetirado_CuandoHayCentroDeCostosVigente()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -87,7 +87,8 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
 
         var response = await _client.DeleteAsync(RutaCentroDeCostos(codigo), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
