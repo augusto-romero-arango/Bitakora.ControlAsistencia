@@ -36,26 +36,12 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo.
+    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo -- mismo resultado cuando el nombre ya
+    // es el vigente y el aggregate declina en silencio (SinCambios sin evento, precedente #351):
+    // el endpoint no distingue ambos caminos. El no-op sin evento lo cubre
+    // CorregirNombresCommandHandlerTests.
     [Fact]
     public async Task CorregirNombres_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
-    {
-        var validator = new FakeCorregirNombresBodyRequestValidator(BodyValido());
-        var router = new FakeCorregirNombresCommandRouter();
-        var function = new FunctionEndpoint(validator, router);
-
-        var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
-
-        result.Should().BeAssignableTo<IStatusCodeActionResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
-        result.Should().NotBeAssignableTo<ObjectResult>();
-    }
-
-    // Estado ya alcanzado (MEF-ADR-0004, "PUT reemplaza"): el nombre solicitado ya es el vigente --
-    // el aggregate declina en silencio (SinCambios, sin evento, precedente #351) y el router
-    // retorna normalmente. El endpoint sigue respondiendo 204, nunca 404/409.
-    [Fact]
-    public async Task CorregirNombres_Retorna204SinCuerpo_CuandoElNombreYaEsElSolicitado()
     {
         var validator = new FakeCorregirNombresBodyRequestValidator(BodyValido());
         var router = new FakeCorregirNombresCommandRouter();

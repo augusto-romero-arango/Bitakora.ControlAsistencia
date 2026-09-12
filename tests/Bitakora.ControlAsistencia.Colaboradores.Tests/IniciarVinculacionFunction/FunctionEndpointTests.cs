@@ -52,7 +52,7 @@ public class FunctionEndpointTests
 
         result.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
-        ((CreatedResult)result).Location.Should().Be($"/api/colaboradores/fichas/{IdValido}");
+        result.As<CreatedResult>().Location.Should().Be($"/api/colaboradores/fichas/{IdValido}");
     }
 
     // CA-1: el endpoint compone el comando interno IniciarVinculacion desde {id} + los 2 campos del

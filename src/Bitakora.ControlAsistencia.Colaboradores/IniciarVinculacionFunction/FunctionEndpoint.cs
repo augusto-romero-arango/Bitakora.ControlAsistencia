@@ -25,8 +25,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
 // Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
 // 1): validar id de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
 // InvalidOperationException -> 409 Conflict (invariante de no-solape violada), KeyNotFoundException
-// -> 404 NotFound; exito -> 201 Created con Location a la ficha del padre ({id} tal como llego en la
-// ruta, sin re-parsear).
+// -> 404 NotFound; exito -> 201 Created con Location a la ficha del padre, reemitida desde el VO
+// Identificacion ya parseado (punto unico de conversion, MEF-ADR-0037) para que el header apunte
+// siempre a la URI canonica, aunque el cliente haya escrito el {id} en otra forma.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("IniciarVinculacion")]
@@ -63,6 +64,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new NotFoundObjectResult(ex.Message);
         }
 
-        return new CreatedResult($"/api/colaboradores/fichas/{id}", null);
+        return new CreatedResult($"/api/colaboradores/fichas/{identificacion}", null);
     }
 }

@@ -146,7 +146,6 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var streamId = ComputarStreamId(numeroIdentificacion);
-
         response.Headers.Location.Should().Be(
             new Uri($"/api/colaboradores/fichas/{streamId}", UriKind.Relative));
 

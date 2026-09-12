@@ -47,7 +47,7 @@ public class FunctionEndpointTests
             .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
 
         var identificacion = Identificacion.Crear(TipoIdentificacion.Desde("CC"), "79543210");
-        ((CreatedResult)result).Location.Should().Be($"/api/colaboradores/fichas/{identificacion}");
+        result.As<CreatedResult>().Location.Should().Be($"/api/colaboradores/fichas/{identificacion}");
     }
 
     // CA-2: POST con identificacion ya registrada retorna 409 Conflict

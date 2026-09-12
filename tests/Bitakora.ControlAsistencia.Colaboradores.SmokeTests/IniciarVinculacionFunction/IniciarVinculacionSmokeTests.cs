@@ -214,11 +214,10 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             IdDeRuta(numeroIdentificacion), codigoNuevo, fechaNuevaVinculacion, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-        var streamId = ComputarStreamId(numeroIdentificacion);
-
         response.Headers.Location.Should().Be(
             new Uri($"/api/colaboradores/fichas/{IdDeRuta(numeroIdentificacion)}", UriKind.Relative));
+
+        var streamId = ComputarStreamId(numeroIdentificacion);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoVinculacionIniciada, Timeout,

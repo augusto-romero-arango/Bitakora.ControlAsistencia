@@ -31,26 +31,12 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo.
+    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo -- mismo resultado cuando la etiqueta
+    // ya es la vigente y el aggregate declina en silencio (SinCambios sin evento, MEF-ADR-0004
+    // "PUT reemplaza"): el endpoint no distingue ambos caminos, el router retorna normalmente en
+    // los dos. El no-op sin evento lo cubre AsignarEtiquetaCommandHandlerTests.
     [Fact]
     public async Task AsignarEtiqueta_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
-    {
-        var validator = new FakeAsignarEtiquetaBodyRequestValidator(BodyValido());
-        var router = new FakeAsignarEtiquetaCommandRouter();
-        var function = new FunctionEndpoint(validator, router);
-
-        var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
-
-        result.Should().BeAssignableTo<IStatusCodeActionResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
-        result.Should().NotBeAssignableTo<ObjectResult>();
-    }
-
-    // Estado ya alcanzado (MEF-ADR-0004, "PUT reemplaza"): la etiqueta solicitada ya es la vigente
-    // para esa categoria -- el aggregate declina en silencio (SinCambios, sin evento) y el router
-    // retorna normalmente. El endpoint sigue respondiendo 204, nunca 404/409.
-    [Fact]
-    public async Task AsignarEtiqueta_Retorna204SinCuerpo_CuandoLaEtiquetaYaEsLaVigente()
     {
         var validator = new FakeAsignarEtiquetaBodyRequestValidator(BodyValido());
         var router = new FakeAsignarEtiquetaCommandRouter();
