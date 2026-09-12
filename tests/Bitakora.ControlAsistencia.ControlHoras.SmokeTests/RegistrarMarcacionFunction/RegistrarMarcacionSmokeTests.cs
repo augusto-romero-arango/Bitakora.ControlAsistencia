@@ -90,7 +90,6 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP: 201 Created (CA-6)
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: el evento marcacion_registrada debe existir en el stream
@@ -148,7 +147,6 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: el evento debe existir aunque los campos opcionales sean null
@@ -186,7 +184,7 @@ public class RegistrarMarcacionSmokeTests(
         // Act 2: duplicado exacto (mismo codigoColaborador + mismo timestamp = mismo stream ID)
         var segundaRespuesta = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // CA-4, CA-6: duplicado silencioso -> 201 Created (no 409)
+        // Duplicado silencioso: mismo exito que la creacion, nunca 409.
         segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
@@ -349,7 +347,6 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP: 201 Created
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: marcacion_adicionada en el stream del ControlDiario.
@@ -557,7 +554,6 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP: 201 Created
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: marcacion_adicionada en el stream del ControlDiario, nacido solo por

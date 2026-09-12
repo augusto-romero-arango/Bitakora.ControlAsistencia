@@ -1,5 +1,3 @@
-// HU-105: Tests del FunctionEndpoint HTTP POST RegistrarMarcacion
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
@@ -11,10 +9,8 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFunction;
 
 /// <summary>
-/// Tests del endpoint HTTP POST control-horas/marcaciones.
-/// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
-/// Issue #662: responde 201 Created sin Location tanto en creacion exitosa como en duplicado
-/// silencioso (CA-6) -- la marcacion no tiene GET canonico ni id en el comando.
+/// Tests del endpoint HTTP POST control-horas/marcaciones: 201 sin Location -- la marcacion no
+/// tiene GET canonico ni id en el comando.
 /// </summary>
 public class FunctionEndpointTests
 {
@@ -27,7 +23,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-6, CA-7: POST exitoso retorna 201 Created sin Location.
     // Cubre tanto marcacion nueva como duplicado silencioso: el endpoint no los distingue
     // porque el handler retorna sin lanzar excepcion en ambos casos.
     [Fact]
@@ -45,7 +40,6 @@ public class FunctionEndpointTests
             .Which.Location.Should().BeNull();
     }
 
-    // CA-6: request invalido (validacion falla) retorna 400 Bad Request
     [Fact]
     public async Task DebeRetornar400_CuandoRequestEsInvalido()
     {
@@ -62,10 +56,6 @@ public class FunctionEndpointTests
 
 // ---- Fakes manuales - NO NSubstitute ----
 
-/// <summary>
-/// Fake de IRequestValidator para RegistrarMarcacion.
-/// Retorna un comando pre-configurado o un error segun lo que se pase en el constructor.
-/// </summary>
 internal class FakeRequestValidatorMarcacion : IRequestValidator
 {
     private readonly RegistrarMarcacion? _comando;
@@ -92,10 +82,7 @@ internal class FakeRequestValidatorMarcacion : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake de ICommandRouter para RegistrarMarcacion.
-/// Siempre completa exitosamente (simula tanto nueva marcacion como duplicado silencioso).
-/// </summary>
+// Siempre completa: simula por igual la marcacion nueva y el duplicado silencioso.
 internal class FakeCommandRouterMarcacion : ICommandRouter
 {
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)

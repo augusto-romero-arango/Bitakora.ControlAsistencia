@@ -6,11 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 
-// HU-105: Endpoint HTTP POST para registrar marcaciones de entrada o salida
-// Issue #662: responde 201 Created sin Location tanto en creacion exitosa como en duplicado
-// silencioso (CA-6); la marcacion no tiene GET canonico ni id en el comando (MEF-ADR-0043 paso 1)
-// CA-7: Route: control-horas/marcaciones
-// ADR-0008: [Function("RegistrarMarcacion")] como convencion de nombrado
+// 201 sin Location: la marcacion no tiene GET canonico ni id en el comando (MEF-ADR-0043 paso 1).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarMarcacion")]
@@ -23,10 +19,10 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         if (error is not null)
             return error;
 
-        // CA-6: tanto creacion exitosa como duplicado silencioso terminan en 201 Created.
-        // El handler retorna sin excepcion en ambos casos (ver CA-4).
+        // El duplicado silencioso termina en el mismo 201: el handler retorna sin excepcion
+        // tanto si creo la marcacion como si ya existia.
         await commandRouter.InvokeAsync(comando!, ct);
 
-        return new CreatedResult((string?)null, null);
+        return new CreatedResult();
     }
 }
