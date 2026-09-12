@@ -25,7 +25,6 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
 
     private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
 
-    // CA-3
     [Fact]
     public async Task RetirarDispositivo_EmiteDispositivoRetirado_CuandoElDispositivoEstaInstalado()
     {
@@ -37,7 +36,7 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // CA-3: retirar un dispositivo deja intactos los demas instalados en la misma sede.
+    // Retirar un dispositivo deja intactos los demas instalados en la misma sede.
     [Fact]
     public async Task RetirarDispositivo_EmiteDispositivoRetirado_CuandoLaSedeTieneOtroDispositivoInstalado()
     {
@@ -53,9 +52,8 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // CA-2 (#664): estado ya alcanzado -- MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso". Ningun
-    // id nunca instalado distingue de uno ya retirado (decision del experto, 2026-09-12): el
-    // aggregate declina sin agregar eventos y el handler termina sin lanzar.
+    // Estado ya alcanzado (MEF-ADR-0004): un id nunca instalado no se distingue de uno ya
+    // retirado -- el aggregate declina sin agregar eventos y el handler termina sin lanzar.
     [Fact]
     public async Task RetirarDispositivo_NoEmiteEvento_CuandoElDispositivoNoEstaInstaladoEnEstaSede()
     {
@@ -67,8 +65,8 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // CA-2 (#664): el retiro SI es idempotente hacia arriba -- retirar dos veces el mismo
-    // dispositivo es el mismo no-op exitoso que si nunca se hubiera instalado.
+    // El retiro SI es idempotente hacia arriba: retirar dos veces el mismo dispositivo es el mismo
+    // no-op exitoso que si nunca se hubiera instalado.
     [Fact]
     public async Task RetirarDispositivo_NoEmiteEvento_CuandoElDispositivoYaFueRetirado()
     {
@@ -84,8 +82,8 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // CA-3 (#664): precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin
-    // escribir nada al event store.
+    // Precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin escribir
+    // nada al event store.
     [Fact]
     public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoSedeNoExiste()
     {
