@@ -67,7 +67,7 @@ public class RegistrarMarcacionSmokeTests(
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebeRetornar202YPersistirEvento_CuandoMarcacionEsValida()
+    public async Task DebeRetornar201YPersistirEvento_CuandoMarcacionEsValida()
     {
         Assert.SkipWhen(!postgres.IsConfigured,
             postgres.SkipReason ?? "Postgres no disponible.");
@@ -90,8 +90,8 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP: 202 Accepted (CA-6)
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // Assert HTTP: 201 Created (CA-6)
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: el evento marcacion_registrada debe existir en el stream
         var streamId = ComputarStreamId(codigoColaborador, timestamp);
@@ -126,7 +126,7 @@ public class RegistrarMarcacionSmokeTests(
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebeRetornar202YPersistirEvento_CuandoMarcacionEsValidaSinCamposOpcionales()
+    public async Task DebeRetornar201YPersistirEvento_CuandoMarcacionEsValidaSinCamposOpcionales()
     {
         Assert.SkipWhen(!postgres.IsConfigured,
             postgres.SkipReason ?? "Postgres no disponible.");
@@ -149,7 +149,7 @@ public class RegistrarMarcacionSmokeTests(
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
         // Assert HTTP
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: el evento debe existir aunque los campos opcionales sean null
         var streamId = ComputarStreamId(codigoColaborador, timestamp);
@@ -163,7 +163,7 @@ public class RegistrarMarcacionSmokeTests(
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DebeRetornar202_CuandoMarcacionDuplicadaExacta()
+    public async Task DebeRetornar201_CuandoMarcacionDuplicadaExacta()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -181,13 +181,13 @@ public class RegistrarMarcacionSmokeTests(
 
         // Act 1: primera marcacion
         var primeraRespuesta = await _client.PostAsJsonAsync(Ruta, payload, ct);
-        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Act 2: duplicado exacto (mismo codigoColaborador + mismo timestamp = mismo stream ID)
         var segundaRespuesta = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // CA-4, CA-6: duplicado silencioso -> 202 Accepted (no 409)
-        segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // CA-4, CA-6: duplicado silencioso -> 201 Created (no 409)
+        segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -349,8 +349,8 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP: 202 Accepted
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // Assert HTTP: 201 Created
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: marcacion_adicionada en el stream del ControlDiario.
         var marcacionAdicionada = await postgres.ExisteEventoAsync(
@@ -463,7 +463,7 @@ public class RegistrarMarcacionSmokeTests(
             tipoMarcacion = "ENTRADA",
             dispositivoId = "[TEST] DEV-SMOKE-HU181"
         }, ct);
-        entradaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        entradaResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Esperar a que la entrada quede persistida: garantiza que su DiaDepurado ya fue publicado
         // antes de purgar, de modo que el purge elimine el evento de la entrada (no el de la salida).
@@ -487,7 +487,7 @@ public class RegistrarMarcacionSmokeTests(
             tipoMarcacion = "SALIDA",
             dispositivoId = "[TEST] DEV-SMOKE-HU181"
         }, ct);
-        salidaResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        salidaResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert publicacion: el DiaDepurado posterior a la salida lleva el desglose real,
         // filtrado por CodigoColaborador (unico por ejecucion).
@@ -557,8 +557,8 @@ public class RegistrarMarcacionSmokeTests(
         // Act
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
-        // Assert HTTP: 202 Accepted
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // Assert HTTP: 201 Created
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // Assert persistencia: marcacion_adicionada en el stream del ControlDiario, nacido solo por
         // marcacion (sin turno_diario_asignado previo).

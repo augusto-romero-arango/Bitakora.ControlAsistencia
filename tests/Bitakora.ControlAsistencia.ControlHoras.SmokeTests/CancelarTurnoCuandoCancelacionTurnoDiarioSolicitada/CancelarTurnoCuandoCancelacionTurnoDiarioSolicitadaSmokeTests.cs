@@ -124,7 +124,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         var timestampEntrada = new DateTime(fecha, new TimeOnly(8, 3, 0), DateTimeKind.Utc);
         var marcacionResponse = await PostMarcacionAsync(
             codigoColaborador, timestampEntrada, "[TEST] DEV-SMOKE-CANCELACION-1");
-        marcacionResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        marcacionResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var marcacionPersistida = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,
@@ -282,7 +282,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         var timestampEntrada = new DateTime(fecha, new TimeOnly(7, 15, 0), DateTimeKind.Utc);
         var marcacionResponse = await PostMarcacionAsync(
             codigoColaborador, timestampEntrada, "[TEST] DEV-SMOKE-CANCELACION-4");
-        marcacionResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        marcacionResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var marcacionPersistida = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoMarcacionAdicionada, Timeout,

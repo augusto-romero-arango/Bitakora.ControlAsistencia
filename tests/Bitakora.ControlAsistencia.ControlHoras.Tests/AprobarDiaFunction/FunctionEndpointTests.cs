@@ -1,7 +1,8 @@
 // Issue #489 (MEF-ADR-0043 paso 4): tests del endpoint HTTP POST
-// control-horas/depuraciones/{codigoColaborador}/{fecha}:aprobar. CA-1/CA-7: 202 con Decisiones
-// vacia o ausente; CA-3..CA-6: 409 Conflict via InvalidOperationException (CA-ADR-0030); fecha con
-// formato invalido -> 400, mismo criterio que ObtenerDepuracionDelDia.FunctionEndpoint.
+// control-horas/depuraciones/{codigoColaborador}/{fecha}:aprobar. Issue #662: CA-1/CA-7: 204 sin
+// cuerpo con Decisiones vacia o ausente; CA-3..CA-6: 409 Conflict via InvalidOperationException
+// (CA-ADR-0030); fecha con formato invalido -> 400, mismo criterio que
+// ObtenerDepuracionDelDia.FunctionEndpoint.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
@@ -10,6 +11,7 @@ using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AprobarDiaFunction;
 
@@ -26,9 +28,9 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1/CA-7: POST exitoso retorna 202 Accepted.
+    // CA-1/CA-7: POST exitoso retorna 204 sin cuerpo (dia_aprobado ya quedo durable).
     [Fact]
-    public async Task AprobarDia_Retorna202_CuandoFechaYBodySonValidos()
+    public async Task AprobarDia_Retorna204SinCuerpo_CuandoFechaYBodySonValidos()
     {
         var validator = new FakeAprobarDiaBodyRequestValidator(BodySinDecisiones());
         var router = new FakeAprobarDiaCommandRouter();
@@ -37,7 +39,9 @@ public class FunctionEndpointTests
         var result = await function.Run(
             FakeHttpRequest(), CodigoColaboradorValido, FechaValida, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
     // CA-2: el endpoint compone el comando interno desde {codigoColaborador} + {fecha} de ruta y

@@ -10,6 +10,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
 // MEF-ADR-0043 paso 4: accion de negocio con verbo propio -- aprobar el dia completo, nunca un
 // create/replace/remove. Mismo formato de fecha que el GET existente (ObtenerDepuracionDelDia).
 // Sin caso 404: el aval del vacio (CA-7) hace que aprobar un dia sin stream sea un acto valido.
+// Issue #662: dia_aprobado queda durable antes de responder -> 204 No Content sin cuerpo.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -46,6 +47,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new ConflictObjectResult(ex.Message);
         }
 
-        return new AcceptedResult();
+        return new NoContentResult();
     }
 }

@@ -6,13 +6,15 @@ using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFunction;
 
 /// <summary>
 /// Tests del endpoint HTTP POST control-horas/marcaciones.
 /// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
-/// CA-6: responde 202 Accepted tanto en creacion exitosa como en duplicado silencioso.
+/// Issue #662: responde 201 Created sin Location tanto en creacion exitosa como en duplicado
+/// silencioso (CA-6) -- la marcacion no tiene GET canonico ni id en el comando.
 /// </summary>
 public class FunctionEndpointTests
 {
@@ -25,11 +27,11 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-6, CA-7: POST exitoso retorna 202 Accepted.
+    // CA-6, CA-7: POST exitoso retorna 201 Created sin Location.
     // Cubre tanto marcacion nueva como duplicado silencioso: el endpoint no los distingue
     // porque el handler retorna sin lanzar excepcion en ambos casos.
     [Fact]
-    public async Task DebeRetornar202_CuandoHandlerRetornaSinExcepcion()
+    public async Task RegistrarMarcacion_Retorna201SinLocation_CuandoHandlerRetornaSinExcepcion()
     {
         var validator = new FakeRequestValidatorMarcacion(ComandoValido());
         var router = new FakeCommandRouterMarcacion();
@@ -37,7 +39,10 @@ public class FunctionEndpointTests
 
         var result = await endpoint.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.Should().BeAssignableTo<CreatedResult>()
+            .Which.Location.Should().BeNull();
     }
 
     // CA-6: request invalido (validacion falla) retorna 400 Bad Request
