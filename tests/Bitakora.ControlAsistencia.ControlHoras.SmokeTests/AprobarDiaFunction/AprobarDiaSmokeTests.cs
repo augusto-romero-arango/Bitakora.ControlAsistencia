@@ -146,11 +146,11 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: dia Provisional sin conflictos de sede, sin decisiones -> 202 + dia_aprobado con
+    // CA-1: dia Provisional sin conflictos de sede, sin decisiones -> 204 + dia_aprobado con
     // SedesDecididas vacia.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AprobarDia_Retorna202YPersisteDiaAprobado_CuandoElDiaNoTieneConflictosDeSede()
+    public async Task AprobarDia_Retorna204YPersisteDiaAprobado_CuandoElDiaNoTieneConflictosDeSede()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
@@ -170,7 +170,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         var payload = new { decisiones = Array.Empty<object>() };
         var response = await _client.PostAsJsonAsync(RutaAprobar(codigoColaborador, fecha), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoDiaAprobado, Timeout,
@@ -186,11 +186,11 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         eventoPersistido.GetProperty("SedesDecididas").GetArrayLength().Should().Be(0);
     }
 
-    // CA-2: franja en conflicto con decision valida -> 202 + dia_aprobado carga la candidata completa
+    // CA-2: franja en conflicto con decision valida -> 204 + dia_aprobado carga la candidata completa
     // (codigo + nombre + CC del estampado de la MARCACION, que es la fuente elegida en este arrange).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AprobarDia_Retorna202YPersisteLaCandidataCompleta_CuandoLaDecisionResuelveElConflicto()
+    public async Task AprobarDia_Retorna204YPersisteLaCandidataCompleta_CuandoLaDecisionResuelveElConflicto()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
@@ -216,7 +216,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         };
         var response = await _client.PostAsJsonAsync(RutaAprobar(codigoColaborador, fecha), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaControlHoras, streamId, TipoEventoDiaAprobado,
@@ -340,7 +340,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         var payload = new { decisiones = Array.Empty<object>() };
 
         var primeraRespuesta = await _client.PostAsJsonAsync(RutaAprobar(codigoColaborador, fecha), payload, ct);
-        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var segundaRespuesta = await _client.PostAsJsonAsync(RutaAprobar(codigoColaborador, fecha), payload, ct);
 
@@ -352,7 +352,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
     // que nunca llego ninguna DepuracionDiaRecibida.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AprobarDia_Retorna202YCreaElStream_CuandoElDiaNoTieneStreamPrevio()
+    public async Task AprobarDia_Retorna204YCreaElStream_CuandoElDiaNoTieneStreamPrevio()
     {
         Assert.SkipWhen(!postgres.IsConfigured,
             postgres.SkipReason ?? "Postgres no disponible.");
@@ -365,7 +365,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         var response = await _client.PostAsJsonAsync(
             RutaAprobar(codigoColaborador, fecha), new { decisiones = Array.Empty<object>() }, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoDiaAprobado, Timeout,
@@ -417,7 +417,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
 
         var response = await _client.PostAsJsonAsync(
             RutaAprobar(codigoColaborador, fecha), new { decisiones = Array.Empty<object>() }, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var aprobado = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoDiaAprobado, Timeout,

@@ -1,7 +1,5 @@
-// Issue #489 (MEF-ADR-0043 paso 4): tests del endpoint HTTP POST
-// control-horas/depuraciones/{codigoColaborador}/{fecha}:aprobar. CA-1/CA-7: 202 con Decisiones
-// vacia o ausente; CA-3..CA-6: 409 Conflict via InvalidOperationException (CA-ADR-0030); fecha con
-// formato invalido -> 400, mismo criterio que ObtenerDepuracionDelDia.FunctionEndpoint.
+// El 409 lo traduce el endpoint desde la InvalidOperationException del handler (CA-ADR-0030);
+// el formato de fecha es el mismo que valida ObtenerDepuracionDelDia.FunctionEndpoint.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
@@ -10,6 +8,7 @@ using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AprobarDiaFunction;
 
@@ -26,9 +25,9 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1/CA-7: POST exitoso retorna 202 Accepted.
+    // 204 sin cuerpo: dia_aprobado ya quedo durable al responder (MEF-ADR-0043 paso 4).
     [Fact]
-    public async Task AprobarDia_Retorna202_CuandoFechaYBodySonValidos()
+    public async Task AprobarDia_Retorna204SinCuerpo_CuandoFechaYBodySonValidos()
     {
         var validator = new FakeAprobarDiaBodyRequestValidator(BodySinDecisiones());
         var router = new FakeAprobarDiaCommandRouter();
@@ -37,11 +36,11 @@ public class FunctionEndpointTests
         var result = await function.Run(
             FakeHttpRequest(), CodigoColaboradorValido, FechaValida, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-2: el endpoint compone el comando interno desde {codigoColaborador} + {fecha} de ruta y
-    // Decisiones del body.
     [Fact]
     public async Task AprobarDia_ComponeElComando_DesdeRutaYBody()
     {
@@ -56,7 +55,6 @@ public class FunctionEndpointTests
             CodigoColaboradorValido, new DateOnly(2026, 8, 24), [decision]));
     }
 
-    // Fecha con formato invalido -> 400, sin llegar a invocar el router.
     [Fact]
     public async Task AprobarDia_Retorna400_CuandoLaFechaNoTieneElFormatoEsperado()
     {
@@ -71,7 +69,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con una fecha invalida");
     }
 
-    // Body invalido o malformado -> 400 Bad Request.
     [Fact]
     public async Task AprobarDia_Retorna400_CuandoElBodyEsInvalido()
     {
@@ -86,8 +83,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-3/CA-4/CA-5/CA-6: violacion de una regla de negocio (traducida por el handler a
-    // InvalidOperationException) retorna 409 Conflict.
     [Fact]
     public async Task AprobarDia_Retorna409_CuandoElComandoEsRechazado()
     {
