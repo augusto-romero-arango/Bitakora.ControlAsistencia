@@ -154,7 +154,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             PayloadIniciarVinculacion(codigoNuevo, fechaInicio),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
 
         return codigoNuevo;
@@ -198,6 +198,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             IdDeRuta(numeroIdentificacion), codigo, fechaCorregida, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 

@@ -209,6 +209,7 @@ public class AsignarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await AsignarEtiquetaAsync(id, "Área", "Tecnología", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaAsignada, Timeout);

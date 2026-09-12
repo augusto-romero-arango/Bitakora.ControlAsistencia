@@ -128,6 +128,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await AsignarSedeAsync(id, "BOG", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaColaboradores, id, TipoEventoSedeAsignada, Timeout);

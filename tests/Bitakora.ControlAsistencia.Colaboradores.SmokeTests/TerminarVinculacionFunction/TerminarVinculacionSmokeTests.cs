@@ -155,6 +155,7 @@ public class TerminarVinculacionSmokeTests(ApiFixture api, PostgresFixture postg
             IdDeRuta(numeroIdentificacion), codigo, fechaEfectiva, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 

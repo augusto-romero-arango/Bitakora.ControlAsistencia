@@ -217,6 +217,9 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
+        response.Headers.Location.Should().Be(
+            new Uri($"/api/colaboradores/fichas/{IdDeRuta(numeroIdentificacion)}", UriKind.Relative));
+
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoVinculacionIniciada, Timeout,
             campoJson: "Codigo", valorJson: codigoNuevo);

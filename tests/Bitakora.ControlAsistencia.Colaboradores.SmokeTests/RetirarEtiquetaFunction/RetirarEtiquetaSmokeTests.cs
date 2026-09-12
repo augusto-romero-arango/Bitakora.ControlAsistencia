@@ -173,7 +173,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
             PayloadIniciarVinculacion(NuevoCodigoColaborador(), fechaInicio),
             ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que IniciarVinculacion funcione");
     }
 
@@ -211,6 +211,7 @@ public class RetirarEtiquetaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await RetirarEtiquetaAsync(id, "área", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, id, TipoEventoEtiquetaRetirada, Timeout,

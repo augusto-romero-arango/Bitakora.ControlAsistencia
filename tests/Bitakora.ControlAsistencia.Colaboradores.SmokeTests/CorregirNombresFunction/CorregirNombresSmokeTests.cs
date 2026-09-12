@@ -235,6 +235,7 @@ public class CorregirNombresSmokeTests(ApiFixture api, PostgresFixture postgres)
             IdDeRuta(numeroIdentificacion), "[TEST]", "Corregido", "Smoke", "Segundo", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         await ElStreamRecibioElNombreAsync(
             ComputarStreamId(numeroIdentificacion),

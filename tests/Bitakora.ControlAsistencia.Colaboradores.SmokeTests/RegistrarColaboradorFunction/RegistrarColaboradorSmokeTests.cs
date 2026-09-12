@@ -147,6 +147,9 @@ public class RegistrarColaboradorSmokeTests(ApiFixture api, PostgresFixture post
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
+        response.Headers.Location.Should().Be(
+            new Uri($"/api/colaboradores/fichas/{streamId}", UriKind.Relative));
+
         var existeRegistrado = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoColaboradorRegistrado, Timeout);
 
