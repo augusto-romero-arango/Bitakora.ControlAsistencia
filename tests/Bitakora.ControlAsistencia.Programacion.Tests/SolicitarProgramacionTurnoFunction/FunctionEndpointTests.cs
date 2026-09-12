@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTur
 /// Verifica el mapeo de excepciones del handler a respuestas HTTP:
 /// - InvalidOperationException -> 409 (solicitud duplicada)
 /// - KeyNotFoundException -> 404 (turno no encontrado en catalogo)
-/// - Exito -> 201 Created sin Location (issue #661: CA-ADR-0035)
+/// - Exito -> 201 Created sin Location (CA-ADR-0035)
 /// - Error de validacion -> 400 Bad Request
 /// </summary>
 public class FunctionEndpointTests
@@ -32,7 +32,7 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // Issue #661: persiste SolicitudProgramacion antes de responder -> 201 Created sin Location (la
+    // Persiste SolicitudProgramacion antes de responder -> 201 Created sin Location (la
     // solicitud no tiene GET canonico; el turno diario en ControlHoras es un efecto posterior al
     // commit, no el recurso pedido).
     [Fact]
@@ -46,7 +46,8 @@ public class FunctionEndpointTests
 
         result.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
-        ((CreatedResult)result!).Location.Should().BeNull();
+        result.Should().BeAssignableTo<CreatedResult>()
+            .Which.Location.Should().BeNull();
     }
 
     // CA-5: Falla de validacion retorna 400 Bad Request

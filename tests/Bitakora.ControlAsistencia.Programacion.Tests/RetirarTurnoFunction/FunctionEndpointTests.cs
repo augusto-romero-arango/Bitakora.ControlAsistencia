@@ -15,8 +15,8 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-1 (issue #661): DELETE exitoso -> 204 No Content, sin cuerpo (la transaccion confirma
-    // antes de responder). Turno ya retirado sigue 409 aqui: se corrige en #665.
+    // CA-1: DELETE exitoso -> 204 No Content, sin cuerpo (la transaccion confirma antes de
+    // responder). Turno ya retirado sigue 409 aqui: se corrige en #665.
     [Fact]
     public async Task RetirarTurno_Retorna204SinCuerpo_CuandoComandoEsValido()
     {

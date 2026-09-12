@@ -21,8 +21,8 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // Issue #661: persiste SolicitudCancelacion antes de responder -> 201 Created sin Location (la
-    // solicitud no tiene GET canonico; el efecto en ControlHoras es posterior al commit).
+    // Persiste SolicitudCancelacion antes de responder -> 201 Created sin Location (la solicitud
+    // no tiene GET canonico; el efecto en ControlHoras es posterior al commit).
     [Fact]
     public async Task CancelarProgramacion_Retorna201SinLocation_CuandoComandoEsValido()
     {
@@ -34,7 +34,8 @@ public class FunctionEndpointTests
 
         result.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
-        ((CreatedResult)result!).Location.Should().BeNull();
+        result.Should().BeAssignableTo<CreatedResult>()
+            .Which.Location.Should().BeNull();
     }
 
     // CA-3: falla de validacion retorna 400 Bad Request

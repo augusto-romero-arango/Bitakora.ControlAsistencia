@@ -7,7 +7,7 @@ using Microsoft.Azure.Functions.Worker;
 namespace Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction;
 
 // Persiste SolicitudCancelacion antes de responder -> 201 Created sin Location: el efecto en
-// ControlHoras es posterior al commit (CA-ADR-0035 / issue #661).
+// ControlHoras es posterior al commit (CA-ADR-0035).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function(nameof(CancelarProgramacion))]
@@ -29,6 +29,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             return new ConflictObjectResult(ex.Message);
         }
 
-        return new CreatedResult((string?)null, null);
+        return new CreatedResult();
     }
 }

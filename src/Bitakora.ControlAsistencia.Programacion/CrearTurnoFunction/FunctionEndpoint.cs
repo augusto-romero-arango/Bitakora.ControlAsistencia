@@ -3,14 +3,13 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 
-// HU-4: Endpoint HTTP POST para crear un turno de trabajo
-// ADR-0008: [Function("CrearTurno")] como convencion de nombrado
-// Flujo: validar request -> despachar comando -> retornar 201 o error
 // ADR-0007: InvalidOperationException -> 409 Conflict
 //           AggregateException (del factory) -> 400 Bad Request con mensajes
-// CA-ADR-0035 / issue #661: exito -> 201 Created con Location a la ficha del turno (ObtenerFichaTurno)
+// CA-ADR-0035: exito -> 201 Created con Location a la ficha del turno (ObtenerFichaTurno); la
+// transaccion confirma antes de responder, nunca 202.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CrearTurno")]

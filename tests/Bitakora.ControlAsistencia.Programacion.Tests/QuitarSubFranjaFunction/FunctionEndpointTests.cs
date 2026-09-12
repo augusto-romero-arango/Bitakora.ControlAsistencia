@@ -38,8 +38,8 @@ public class FunctionEndpointTests
         trigger.Route.Should().Be("programacion/turnos/{id}:quitar-subfranja");
     }
 
-    // Issue #661: accion de negocio 4 -> 204 No Content, sin cuerpo (la transaccion confirma antes
-    // de responder).
+    // Paso 4 de MEF-ADR-0043: la transaccion confirma antes de responder -> 204 sin cuerpo,
+    // nunca 202.
     [Fact]
     public async Task QuitarSubFranja_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
