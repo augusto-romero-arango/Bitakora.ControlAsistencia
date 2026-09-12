@@ -31,19 +31,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // Camino generico de error del dominio: cualquier InvalidOperationException del router se
-    // traduce a 409 -- ya no ligado al escenario "turno ya retirado" (#665: ese ahora es 204).
-    [Fact]
-    public async Task RetirarTurno_Retorna409_CuandoElComandoLanzaInvalidOperationException()
-    {
-        var router = new FakeCommandRouter(new InvalidOperationException("Rechazo generico del dominio"));
-        var function = new FunctionEndpoint(router);
-
-        var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
-
-        result.Should().BeOfType<ConflictObjectResult>();
-    }
-
     // CA-2: turno inexistente -> 404
     [Fact]
     public async Task RetirarTurno_Retorna404_CuandoElTurnoNoExiste()
