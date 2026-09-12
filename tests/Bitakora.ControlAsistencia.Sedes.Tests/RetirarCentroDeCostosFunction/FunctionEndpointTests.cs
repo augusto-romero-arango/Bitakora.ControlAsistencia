@@ -14,14 +14,14 @@ public class FunctionEndpointTests
 
     // CA-3
     [Fact]
-    public async Task RetirarCentroDeCostos_Retorna202_CuandoComandoEsValido()
+    public async Task RetirarCentroDeCostos_Retorna204_CuandoComandoEsValido()
     {
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeOfType<NoContentResult>();
     }
 
     // CA-4: sin CC vigente -> 409 Conflict

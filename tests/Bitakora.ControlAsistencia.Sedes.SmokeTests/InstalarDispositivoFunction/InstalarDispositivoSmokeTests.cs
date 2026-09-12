@@ -44,7 +44,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
 
         var response = await _client.PostAsJsonAsync(RutaRegistrarSede, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el registro previo de la sede funcione");
 
         var streamId = ComputarStreamId(codigo);
@@ -69,7 +69,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
     // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task InstalarDispositivo_Retorna202YPersisteDispositivoInstalado_CuandoDispositivoIdEsValido()
+    public async Task InstalarDispositivo_Retorna201YPersisteDispositivoInstalado_CuandoDispositivoIdEsValido()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -80,7 +80,8 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         var response = await _client.PostAsJsonAsync(
             RutaDispositivos(codigo), new { dispositivoId }, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(new Uri($"/api/sedes/fichas/{codigo}", UriKind.Relative));
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -111,7 +112,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
 
         var primeraInstalacion = await _client.PostAsJsonAsync(
             RutaDispositivos(codigo), new { dispositivoId }, ct);
-        primeraInstalacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        primeraInstalacion.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que la primera instalacion funcione");
 
         var existePrimeraInstalacion = await postgres.ExisteEventoAsync(
@@ -153,7 +154,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
 
         var instalacionOrigen = await _client.PostAsJsonAsync(
             RutaDispositivos(codigoOrigen), new { dispositivoId }, ct);
-        instalacionOrigen.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        instalacionOrigen.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que la instalacion en la sede origen funcione");
 
         var existeEnOrigen = await postgres.ExisteEventoAsync(
@@ -184,7 +185,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
     // invariante de exclusividad que CA-2 (ese dispositivo ya no esta instalado en esta sede).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task InstalarDispositivo_Retorna202YPersisteSegundoEvento_CuandoReinstalaDispositivoPreviamenteRetirado()
+    public async Task InstalarDispositivo_Retorna201YPersisteSegundoEvento_CuandoReinstalaDispositivoPreviamenteRetirado()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -195,11 +196,11 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
 
         var instalacion = await _client.PostAsJsonAsync(
             RutaDispositivos(codigo), new { dispositivoId }, ct);
-        instalacion.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        instalacion.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que la instalacion inicial funcione");
 
         var retiro = await _client.DeleteAsync(RutaDispositivo(codigo, dispositivoId), ct);
-        retiro.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        retiro.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que el retiro previo funcione");
 
         var existeRetiro = await postgres.ExisteEventoAsync(
@@ -211,7 +212,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         var reinstalacion = await _client.PostAsJsonAsync(
             RutaDispositivos(codigo), new { dispositivoId }, ct);
 
-        reinstalacion.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        reinstalacion.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var registros = await postgres.ContarEventosAsync(
             SchemaSedes, streamId, TipoEventoDispositivoInstalado);

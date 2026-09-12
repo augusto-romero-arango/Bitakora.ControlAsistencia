@@ -10,9 +10,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Tests.RegistrarSede;
 public class RegistrarSedeToolTests
 {
     [Fact]
-    public async Task RegistrarSede_EnviaElBodyCamelCaseYDevuelveElEcoCompacto_Cuando202()
+    public async Task RegistrarSede_EnviaElBodyCamelCaseYDevuelveElEcoCompacto_Cuando201()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
@@ -39,7 +39,7 @@ public class RegistrarSedeToolTests
     [Fact]
     public async Task RegistrarSede_OmiteCiudadYDireccionEnElEco_CuandoNoSeEnvian()
     {
-        var (cliente, _) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, _) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
@@ -79,7 +79,7 @@ public class RegistrarSedeToolTests
     [Fact]
     public async Task RegistrarSede_RechazaSinLlamarAlDominio_CuandoElCodigoEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(
@@ -92,7 +92,7 @@ public class RegistrarSedeToolTests
     [Fact]
     public async Task RegistrarSede_RechazaSinLlamarAlDominio_CuandoElNombreEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Accepted);
+        var (cliente, handler) = ClienteFalso.Con(string.Empty, HttpStatusCode.Created);
         var tool = new RegistrarSedeTool(new SedesApi(cliente));
 
         var resultado = await tool.Run(

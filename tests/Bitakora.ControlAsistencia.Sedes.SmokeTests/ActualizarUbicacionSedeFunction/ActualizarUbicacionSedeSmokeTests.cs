@@ -33,7 +33,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el registro previo funcione");
 
         var streamId = ComputarStreamId(codigo);
@@ -58,7 +58,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
     // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ActualizarUbicacionSede_Retorna202YPersisteUbicacionActualizada_CuandoAmbosCamposLlegan()
+    public async Task ActualizarUbicacionSede_Retorna204YPersisteUbicacionActualizada_CuandoAmbosCamposLlegan()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -68,7 +68,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         var payload = new { ciudad = "Medellin", direccion = "Carrera 50 # 10-20" };
         var response = await _client.PutAsJsonAsync(RutaUbicacion(codigo), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
@@ -87,7 +87,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
     // CA-3: los opcionales ausentes se persisten como null, no se omiten del evento.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ActualizarUbicacionSede_Retorna202YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
+    public async Task ActualizarUbicacionSede_Retorna204YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -97,7 +97,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         var payload = new { ciudad = (string?)null, direccion = (string?)null };
         var response = await _client.PutAsJsonAsync(RutaUbicacion(codigo), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(

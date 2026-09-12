@@ -13,14 +13,14 @@ public class FunctionEndpointTests
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
     [Fact]
-    public async Task DesactivarSede_Retorna202_CuandoComandoEsValido()
+    public async Task DesactivarSede_Retorna204_CuandoComandoEsValido()
     {
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeOfType<NoContentResult>();
     }
 
     [Fact]

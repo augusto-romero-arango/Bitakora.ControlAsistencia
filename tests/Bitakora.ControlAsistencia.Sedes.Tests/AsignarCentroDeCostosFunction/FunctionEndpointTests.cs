@@ -16,7 +16,7 @@ public class FunctionEndpointTests
 
     // CA-1
     [Fact]
-    public async Task AsignarCentroDeCostos_Retorna202_CuandoComandoEsValido()
+    public async Task AsignarCentroDeCostos_Retorna204_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<AsignarCentroDeCostosBody>(BodyValido());
         var router = new FakeCommandRouter();
@@ -24,7 +24,7 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeOfType<NoContentResult>();
     }
 
     // CA-5: sede inexistente -> 404

@@ -14,15 +14,17 @@ public class FunctionEndpointTests
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
     [Fact]
-    public async Task RegistrarSede_Retorna202_CuandoComandoEsValido()
+    public async Task RegistrarSede_Retorna201ConLocation_CuandoComandoEsValido()
     {
-        var validator = new FakeRequestValidator<RegistrarSede>(ComandoValido());
+        var comando = ComandoValido();
+        var validator = new FakeRequestValidator<RegistrarSede>(comando);
         var router = new FakeCommandRouter();
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        var creado = result.Should().BeOfType<CreatedResult>().Which;
+        creado.Location.Should().Be($"/api/sedes/fichas/{comando.Codigo}");
     }
 
     [Fact]

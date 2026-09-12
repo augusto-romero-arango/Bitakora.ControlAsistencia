@@ -70,7 +70,7 @@ public class ObtenerFichaSedeSmokeTests(ApiFixture api)
     private async Task RegistrarSedeAsync(string codigo, string nombre, CancellationToken ct)
     {
         var response = await _client.PostAsJsonAsync(RutaRegistrar, PayloadRegistro(codigo, nombre), ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que RegistrarSede funcione");
     }
 

@@ -16,7 +16,7 @@ public class FunctionEndpointTests
 
     // CA-3
     [Fact]
-    public async Task ActualizarUbicacionSede_Retorna202_CuandoComandoEsValido()
+    public async Task ActualizarUbicacionSede_Retorna204_CuandoComandoEsValido()
     {
         var validator = new FakeRequestValidator<ActualizarUbicacionSedeBody>(BodyValido());
         var router = new FakeCommandRouter();
@@ -24,7 +24,7 @@ public class FunctionEndpointTests
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
 
-        result.Should().BeOfType<AcceptedResult>();
+        result.Should().BeOfType<NoContentResult>();
     }
 
     // CA-4

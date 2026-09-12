@@ -33,7 +33,7 @@ public class ModificarNombreSedeSmokeTests(ApiFixture api, PostgresFixture postg
         var payload = new { codigo, nombre = "[TEST] Sede Original", ciudad = (string?)null, direccion = (string?)null };
 
         var response = await _client.PostAsJsonAsync(RutaRegistrar, payload, ct);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted,
+        response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que el registro previo funcione");
 
         var streamId = ComputarStreamId(codigo);
@@ -58,7 +58,7 @@ public class ModificarNombreSedeSmokeTests(ApiFixture api, PostgresFixture postg
     // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ModificarNombreSede_Retorna202YPersisteNombreSedeModificado_CuandoNombreEsValido()
+    public async Task ModificarNombreSede_Retorna204YPersisteNombreSedeModificado_CuandoNombreEsValido()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -68,7 +68,7 @@ public class ModificarNombreSedeSmokeTests(ApiFixture api, PostgresFixture postg
         var payload = new { nombre = "[TEST] Sede Renombrada" };
         var response = await _client.PutAsJsonAsync(RutaNombre(codigo), payload, ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var streamId = ComputarStreamId(codigo);
         var existe = await postgres.ExisteEventoAsync(
