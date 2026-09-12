@@ -47,14 +47,21 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    // CA-2: el header Location apunta a la ruta canonica de lectura del turno (ObtenerFichaTurno).
+    // No se dereferencia aqui -- esa vista es una proyeccion Async y puede responder 404 mientras
+    // materializa (MEF-ADR-0004, MEF-ADR-0034); solo se verifica el contrato del header.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearTurno_DebeRetornar201_CuandoPayloadEsValido()
+    public async Task CrearTurno_DebeRetornar201ConLocation_CuandoPayloadEsValido()
     {
         var ct = TestContext.Current.CancellationToken;
-        var response = await _client.PostAsJsonAsync("/api/programacion/turnos", PayloadValido(), ct);
+        var turnoId = Guid.CreateVersion7();
+        var response = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", PayloadValido(turnoId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().Be(
+            new Uri($"/api/programacion/turnos/{turnoId}", UriKind.Relative));
     }
 
     [Fact]
@@ -174,11 +181,11 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     // Issue #335 CA-1/CA-2: turno "partido" con sede prearmada por franja (narrativa del issue:
     // "Vigilante partido" -> manana en Suba, tarde en Chapinero) mas una tercera franja SIN sede.
-    // Verifica los dos efectos del handler: el 202 del endpoint y la persistencia en el event store
+    // Verifica los dos efectos del handler: el 201 del endpoint y la persistencia en el event store
     // (CrearTurnoCommandHandler -> IEventStore.StartStream). turno_creado no cruza ningun bus, asi
     // que mt_events es la unica ventana black-box a lo que quedo grabado -- y es la que cierra el
     // riesgo real de este issue: que el resolver de serializacion del Function App desplegado no
-    // registre la clave "sede" y el dato se pierda en silencio con un 202 igual de verde.
+    // registre la clave "sede" y el dato se pierda en silencio con un 201 igual de verde.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_PersisteLaSedePrearmadaDeCadaFranja_CuandoAlgunasFranjasTraenSede()

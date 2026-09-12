@@ -81,6 +81,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

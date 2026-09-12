@@ -38,8 +38,8 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
     }
 
     // CA-6: cuarto paso del diseno de turno por pasos -- crear el turno, agregarle una franja sin
-    // sede, asignarle una sede prearmada (202 + sede_de_franja_asignada en mt_events), retirarla
-    // (202 + sede_de_franja_retirada sin la clave "sede") y un tercer retiro -> 409 (nada que
+    // sede, asignarle una sede prearmada (204 + sede_de_franja_asignada en mt_events), retirarla
+    // (204 + sede_de_franja_retirada sin la clave "sede") y un tercer retiro -> 409 (nada que
     // retirar, FranjaSinSede).
     [Fact]
     [Trait("Category", "Smoke")]
@@ -61,6 +61,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
             RutaAsignarSedeAFranja(turnoId), payloadAsignar, ct);
 
         respuestaAsignar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await respuestaAsignar.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoAsignado = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -75,6 +76,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
             RutaAsignarSedeAFranja(turnoId), payloadRetirar, ct);
 
         respuestaRetirar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await respuestaRetirar.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var eventoRetirado = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaProgramacion, streamId, TipoEventoSedeRetirada,

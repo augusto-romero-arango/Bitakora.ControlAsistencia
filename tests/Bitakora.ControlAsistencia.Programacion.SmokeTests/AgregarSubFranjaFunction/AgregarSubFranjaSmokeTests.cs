@@ -53,6 +53,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(
@@ -83,6 +84,7 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         var response = await _client.PostAsJsonAsync(RutaAgregarSubFranja(turnoId), payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var eventoPersistido = await postgres.ObtenerEventoAsync<JsonElement>(

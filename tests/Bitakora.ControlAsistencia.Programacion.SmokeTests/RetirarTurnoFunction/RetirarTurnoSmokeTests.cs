@@ -75,6 +75,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.DeleteAsync(Ruta(turnoId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var existe = await postgres.ExisteEventoAsync(
@@ -100,6 +101,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         var response = await _client.DeleteAsync(Ruta(turnoId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
 
         var streamId = turnoId.ToString();
         var existe = await postgres.ExisteEventoAsync(
