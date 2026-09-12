@@ -7,7 +7,9 @@ using Microsoft.Azure.Functions.Worker;
 namespace Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction;
 
 // DELETE que remueve el centro de costos -- remocion veraz y SIN body (MEF-ADR-0043 paso 3), exito
-// 204. Sin CC vigente sigue siendo 409 (#664 lo pasa a 204 sin evento, no aqui): no hay
+// 204. Sin CC vigente es estado ya alcanzado (#664, MEF-ADR-0004): el handler ya no lanza para ese
+// caso, tambien responde 204 sin evento. El catch de InvalidOperationException se conserva por si
+// una razon de rechazo futura lo necesita -- hoy este comando no tiene ninguna. No hay
 // IRequestValidator, el {codigo} de ruta es lo unico que validar (MEF-ADR-0037 seccion 2).
 // Comparte segmento con AsignarCentroDeCostos (PUT): ambos deben declarar su verbo o uno
 // capturaria al otro (MEF-ADR-0006).

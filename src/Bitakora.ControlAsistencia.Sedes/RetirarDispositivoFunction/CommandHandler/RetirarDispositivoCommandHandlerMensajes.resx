@@ -23,7 +23,4 @@
   <data name="SedeNoEncontrada" xml:space="preserve">
     <value>No existe una sede registrada con este codigo</value>
   </data>
-  <data name="DispositivoNoInstalado" xml:space="preserve">
-    <value>El dispositivo no esta instalado en esta sede</value>
-  </data>
 </root>

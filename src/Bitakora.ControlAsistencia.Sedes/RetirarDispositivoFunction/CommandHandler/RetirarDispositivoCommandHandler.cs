@@ -3,9 +3,9 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction.CommandHandler;
 
-// Traduce el resultado declinado del aggregate a KeyNotFoundException/404 (CA-ADR-0030):
-// sub-recurso inexistente, a diferencia de RetirarCentroDeCostos que es un VO singular -> 409.
-// Sede inexistente cae en la misma respuesta, como precondicion de orquestacion.
+// Estado ya alcanzado (MEF-ADR-0004): dispositivo no instalado (ya retirado o nunca instalado) es
+// no-op exitoso -- el aggregate declina sin mutar ni emitir, y este handler termina sin lanzar.
+// Sede inexistente sigue siendo precondicion de orquestacion (KeyNotFoundException/404).
 public partial class RetirarDispositivoCommandHandler : ICommandHandlerAsync<RetirarDispositivo>
 {
     private readonly IEventStore _eventStore;
@@ -20,8 +20,6 @@ public partial class RetirarDispositivoCommandHandler : ICommandHandlerAsync<Ret
         if (sede is null)
             throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
 
-        var resultado = sede.RetirarDispositivo(command.DispositivoId);
-        if (resultado == ResultadoRetiroDispositivo.NoInstalado)
-            throw new KeyNotFoundException(Mensajes.DispositivoNoInstalado);
+        sede.RetirarDispositivo(command.DispositivoId);
     }
 }

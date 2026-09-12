@@ -99,7 +99,7 @@ public partial class SedeAggregateRoot : AggregateRoot
     internal ResultadoRetiroCentroDeCostos RetirarCentroDeCostos()
     {
         if (_centroDeCostos is null)
-            return ResultadoRetiroCentroDeCostos.SinCentroDeCostosVigente;
+            return ResultadoRetiroCentroDeCostos.SinCambios;
 
         var evento = new CentroDeCostosRetirado();
         _uncommittedEvents.Add(evento);
@@ -161,7 +161,7 @@ public partial class SedeAggregateRoot : AggregateRoot
     internal ResultadoRetiroDispositivo RetirarDispositivo(string dispositivoId)
     {
         if (!_dispositivosInstalados.Contains(dispositivoId))
-            return ResultadoRetiroDispositivo.NoInstalado;
+            return ResultadoRetiroDispositivo.SinCambios;
 
         var evento = new DispositivoRetirado(dispositivoId);
         _uncommittedEvents.Add(evento);
