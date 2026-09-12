@@ -7,7 +7,9 @@ namespace Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction;
 
 // DELETE que retira el turno del catalogo -- remocion veraz y SIN body (MEF-ADR-0043 paso 3), asi
 // que el {id} de ruta es lo unico que validar (MEF-ADR-0037 seccion 2). Exito -> 204 No Content
-// (CA-ADR-0035); turno ya retirado sigue 409 aqui, se corrige en #665.
+// (CA-ADR-0035); un turno ya retirado responde 204 igual (no-op, MEF-ADR-0004 #665). El handler ya
+// no lanza InvalidOperationException, asi que aqui no se mapea a 409: si alguna llegara seria un
+// fallo de infraestructura y debe subir como 500 (MEF-ADR-0004, "Respuestas HTTP").
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarTurno")]
@@ -23,10 +25,6 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
         try
         {
             await commandRouter.InvokeAsync(new RetirarTurno(turnoId), ct);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return new ConflictObjectResult(ex.Message);
         }
         catch (KeyNotFoundException ex)
         {

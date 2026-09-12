@@ -65,7 +65,7 @@ public partial class CatalogoTurnos : AggregateRoot
     internal ResultadoRetiroTurno Retirar()
     {
         if (!_estaActivo)
-            return ResultadoRetiroTurno.YaEstabaRetirado;
+            return ResultadoRetiroTurno.SinCambios;
 
         var evento = TurnoRetirado.Crear(Guid.Parse(Id!));
         _uncommittedEvents.Add(evento);

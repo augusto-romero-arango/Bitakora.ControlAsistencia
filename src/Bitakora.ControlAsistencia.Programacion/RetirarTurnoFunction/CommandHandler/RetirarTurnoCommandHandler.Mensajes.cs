@@ -13,8 +13,5 @@ public partial class RetirarTurnoCommandHandler
     {
         public static string TurnoNoEncontrado =>
             ResourceManager.GetString(nameof(TurnoNoEncontrado))!;
-
-        public static string TurnoYaRetirado =>
-            ResourceManager.GetString(nameof(TurnoYaRetirado))!;
     }
 }

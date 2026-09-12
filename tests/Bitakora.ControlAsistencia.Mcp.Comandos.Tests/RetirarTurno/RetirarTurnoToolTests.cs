@@ -89,10 +89,13 @@ public class RetirarTurnoToolTests
         resultado.Should().Be(string.Format(RetirarTurnoTool.Mensajes.RechazoDelDominio, cuerpo));
     }
 
+    // Camino generico de error del dominio (#665): "turno ya retirado" ya no produce 409 -- el
+    // DELETE responde 204 sin evento (MEF-ADR-0004). Este 409 representa cualquier otro rechazo
+    // del catalogo que la tool deba traducir igual.
     [Fact]
     public async Task RetirarTurno_TraduceElRechazoDelDominio_Cuando409DelDelete()
     {
-        const string cuerpo = "El turno ya fue retirado";
+        const string cuerpo = "El turno no puede retirarse en este momento";
         var fakes = CrearTool(statusDelete: HttpStatusCode.Conflict, cuerpoDelete: cuerpo);
 
         var resultado = await fakes.Tool.Run(

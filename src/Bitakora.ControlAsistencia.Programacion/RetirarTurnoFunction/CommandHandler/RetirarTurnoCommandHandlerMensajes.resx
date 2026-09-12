@@ -23,7 +23,4 @@
   <data name="TurnoNoEncontrado" xml:space="preserve">
     <value>No se encontro el turno con el Id especificado en el catalogo</value>
   </data>
-  <data name="TurnoYaRetirado" xml:space="preserve">
-    <value>El turno ya fue retirado del catalogo</value>
-  </data>
 </root>

@@ -119,8 +119,8 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 0);
     }
 
-    // CA-3: retirar dos veces -- nada que retirar, sin evento (mismo criterio que
-    // ResultadoRetiroTurno.YaEstabaRetirado).
+    // CA-3: retirar dos veces la sede -- el aggregate declina sin evento, pero el handler lo
+    // traduce a 409, a diferencia del no-op exitoso de RetirarTurno (MEF-ADR-0004, #665).
     [Fact]
     public async Task AsignarSedeAFranja_LanzaInvalidOperationException_CuandoLaFranjaYaNoTieneSede()
     {

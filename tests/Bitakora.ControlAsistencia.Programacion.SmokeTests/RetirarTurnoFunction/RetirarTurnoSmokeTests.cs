@@ -123,11 +123,14 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-3: DELETE de un turno ya retirado -> 409 con mensaje .resx.
+    // CA-3 (#665): DELETE de un turno ya retirado es un no-op exitoso (MEF-ADR-0004 "Estado ya
+    // alcanzado") -- 204 sin evento nuevo, la ficha sigue retirada.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarTurno_DebeRetornar409_CuandoElTurnoYaEstaRetirado()
+    public async Task RetirarTurno_DebeRetornar204SinEvento_CuandoElTurnoYaEstaRetirado()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
         var ct = TestContext.Current.CancellationToken;
         var turnoId = Guid.CreateVersion7();
         await CrearTurnoAsync(PayloadTurnoConFranja(turnoId, "[TEST] Turno Doble Retiro"), ct);
@@ -138,7 +141,15 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         var response = await _client.DeleteAsync(Ruta(turnoId), ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
+
+        var streamId = turnoId.ToString();
+        var cantidadDeEventos = await postgres.ContarEventosAsync(
+            SchemaProgramacion, streamId, TipoEventoTurnoRetirado);
+
+        cantidadDeEventos.Should().Be(1,
+            $"el segundo retiro no debe agregar un {TipoEventoTurnoRetirado} adicional al stream {streamId}");
     }
 
     // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): un id no-Guid nunca llega

@@ -16,7 +16,8 @@ public class FunctionEndpointTests
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
     // CA-1: DELETE exitoso -> 204 No Content, sin cuerpo (la transaccion confirma antes de
-    // responder). Turno ya retirado sigue 409 aqui: se corrige en #665.
+    // responder). Cubre tanto el retiro real como el no-op de retirar un turno ya retirado
+    // (#665, MEF-ADR-0004): el router no distingue -- ambos terminan sin lanzar.
     [Fact]
     public async Task RetirarTurno_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
@@ -28,18 +29,6 @@ public class FunctionEndpointTests
         result.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
         result.Should().NotBeAssignableTo<ObjectResult>();
-    }
-
-    // CA-3: turno ya retirado -> 409
-    [Fact]
-    public async Task RetirarTurno_Retorna409_CuandoElTurnoYaEstaRetirado()
-    {
-        var router = new FakeCommandRouter(new InvalidOperationException("El turno ya fue retirado del catalogo"));
-        var function = new FunctionEndpoint(router);
-
-        var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
-
-        result.Should().BeOfType<ConflictObjectResult>();
     }
 
     // CA-2: turno inexistente -> 404
