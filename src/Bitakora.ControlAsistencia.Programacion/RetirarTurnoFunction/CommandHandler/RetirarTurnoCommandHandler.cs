@@ -15,8 +15,6 @@ public partial class RetirarTurnoCommandHandler : ICommandHandlerAsync<RetirarTu
         if (catalogo is null)
             throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
 
-        var resultado = catalogo.Retirar();
-        if (resultado == ResultadoRetiroTurno.SinCambios)
-            throw new InvalidOperationException(Mensajes.TurnoYaRetirado);
+        catalogo.Retirar();
     }
 }
