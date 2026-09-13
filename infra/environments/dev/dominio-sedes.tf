@@ -58,6 +58,7 @@ module "function_app_sedes" {
   storage_account_name           = module.storage_sedes.name
   app_insights_connection_string = module.monitoring.connection_string
   always_on                      = module.service_plan_sedes.always_on
+  log_analytics_workspace_id     = module.monitoring.log_analytics_workspace_id
   app_settings = {
     SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "sedes"

@@ -48,6 +48,7 @@ module "function_app_mcp_comandos" {
   storage_account_name           = module.storage_mcp_comandos.name
   app_insights_connection_string = module.monitoring.connection_string
   always_on                      = module.service_plan_mcp_comandos.always_on
+  log_analytics_workspace_id     = module.monitoring.log_analytics_workspace_id
   # Convencion Api:BaseUrl (el codigo del servidor la lee en ConfiguracionClientesHttp): una linea
   # por dominio ya scaffoldeado que este servidor consume. Agregar una tool nueva que consuma otro
   # dominio exige agregar aqui su linea a mano, igual que en el codigo.
