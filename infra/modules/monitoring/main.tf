@@ -19,6 +19,20 @@ variable "daily_data_cap_in_gb" {
   default     = 0.5
 }
 
+variable "log_analytics_daily_quota_gb" {
+  description = <<-EOT
+    Daily cap en GB del Log Analytics workspace (capa 3 de CA-ADR-0009,
+    extendida al workspace en el issue #675 por la ingesta nueva de
+    FunctionAppLogs vía diagnostic settings). "For workspace-based
+    Application Insights resources, the effective daily cap is the minimum
+    of the two settings" (Set daily cap on Log Analytics workspace): con 1 GB
+    aqui el cap efectivo de Application Insights sigue siendo el 0.5 GB de
+    daily_data_cap_in_gb y FunctionAppLogs queda acotado a ~0.5 GB/dia.
+  EOT
+  type        = number
+  default     = 1
+}
+
 variable "alert_action_group_email" {
   description = "Email para recibir alertas de costos y picos de excepciones"
   type        = string
@@ -43,6 +57,7 @@ resource "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.resource_group_name
   sku                 = "PerGB2018"
   retention_in_days   = 30
+  daily_quota_gb      = var.log_analytics_daily_quota_gb
   tags                = var.tags
 }
 

@@ -54,6 +54,7 @@ module "function_app_mcp_consultas" {
   storage_account_name           = module.storage_mcp_consultas.name
   app_insights_connection_string = module.monitoring.connection_string
   always_on                      = module.service_plan_mcp_consultas.always_on
+  log_analytics_workspace_id     = module.monitoring.log_analytics_workspace_id
   # Convencion Api:BaseUrl de los smoke tests (Api__X__BaseUrl como variable de entorno). El
   # codigo del servidor MCP (#502) consume estos settings; si cambian los nombres, cambiar en
   # ambos lados.

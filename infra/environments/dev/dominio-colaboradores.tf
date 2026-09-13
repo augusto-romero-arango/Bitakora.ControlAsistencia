@@ -58,6 +58,7 @@ module "function_app_colaboradores" {
   storage_account_name           = module.storage_colaboradores.name
   app_insights_connection_string = module.monitoring.connection_string
   always_on                      = module.service_plan_colaboradores.always_on
+  log_analytics_workspace_id     = module.monitoring.log_analytics_workspace_id
   app_settings = {
     SERVICE_BUS_CONNECTION = local.service_bus_connection_kv_ref
     DOMINIO                = "colaboradores"

@@ -54,6 +54,17 @@ variable "tags" {
   default     = {}
 }
 
+variable "log_analytics_workspace_id" {
+  description = <<-EOT
+    ID del Log Analytics Workspace destino del diagnostic setting que envia la
+    categoria FunctionAppLogs (issue #675). Default null: sin workspace no se
+    crea el diagnostic setting -- mantiene validas las invocaciones del modulo
+    que genera el domain-scaffolder sin este input (contrato de MEF-ADR-0021).
+  EOT
+  type        = string
+  default     = null
+}
+
 resource "azurerm_linux_function_app" "this" {
   name                = var.name
   resource_group_name = var.resource_group_name
@@ -119,6 +130,26 @@ resource "azurerm_linux_function_app" "this" {
   }
 
   tags = var.tags
+}
+
+# Envia la categoria FunctionAppLogs (logs del host de Functions en Linux
+# dedicado, LinuxAppServiceEventGenerator -> FUNCTIONS_LOGS_MOUNT_PATH) al Log
+# Analytics workspace del BC (issue #675). log_analytics_destination_type =
+# "Dedicated" escribe en la tabla especifica FunctionAppLogs ("Azure Functions
+# writes all logs to the FunctionAppLogs table", Monitor Azure Functions).
+# Sin enabled_metric: las metricas ya viven en Application Insights y
+# AllMetrics sumaria ingesta sin necesidad declarada.
+resource "azurerm_monitor_diagnostic_setting" "this" {
+  count = var.log_analytics_workspace_id == null ? 0 : 1
+
+  name                           = "diag-${var.name}"
+  target_resource_id             = azurerm_linux_function_app.this.id
+  log_analytics_workspace_id     = var.log_analytics_workspace_id
+  log_analytics_destination_type = "Dedicated"
+
+  enabled_log {
+    category = "FunctionAppLogs"
+  }
 }
 
 output "id" {
