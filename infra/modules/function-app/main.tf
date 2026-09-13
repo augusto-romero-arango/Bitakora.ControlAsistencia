@@ -96,11 +96,20 @@ resource "azurerm_linux_function_app" "this" {
     application_insights_connection_string = var.app_insights_connection_string
   }
 
+  # WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED NO se declara aqui: es una
+  # optimizacion de cold start exclusiva del plan Consumption (doc oficial,
+  # "App settings reference for Azure Functions", entrada
+  # WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED), inerte en Linux dedicado (B1,
+  # MEF-ADR-0020) porque ahi no existe la fase de worker placeholder que la
+  # plataforma reutiliza al especializar el sitio; ademas la plataforma la fija
+  # sola cuando aplica (Azure/azure-functions-host#10445, kshyju, 2024-09-04:
+  # "This app setting entry is automatically set by the platform now. So, no
+  # user action needed."). Se retiro en el issue #677 tras copiarse sin fuente
+  # propia de otro repo (commit 382e67c).
   app_settings = merge(
     {
-      FUNCTIONS_WORKER_RUNTIME               = "dotnet-isolated"
-      WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED = "1"
-      WEBSITE_RUN_FROM_PACKAGE               = "1"
+      FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
+      WEBSITE_RUN_FROM_PACKAGE = "1"
     },
     var.app_settings
   )
