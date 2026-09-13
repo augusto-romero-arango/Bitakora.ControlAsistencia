@@ -23,7 +23,7 @@ variable "log_analytics_daily_quota_gb" {
   description = <<-EOT
     Daily cap en GB del Log Analytics workspace (capa 3 de CA-ADR-0009,
     extendida al workspace en el issue #675 por la ingesta nueva de
-    FunctionAppLogs vía diagnostic settings). "For workspace-based
+    FunctionAppLogs via diagnostic settings). "For workspace-based
     Application Insights resources, the effective daily cap is the minimum
     of the two settings" (Set daily cap on Log Analytics workspace): con 1 GB
     aqui el cap efectivo de Application Insights sigue siendo el 0.5 GB de
