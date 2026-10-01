@@ -26,9 +26,16 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando!, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
+            switch (ex)
+            {
+                case RecursoYaExisteException:
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
         catch (AggregateException ex)
         {

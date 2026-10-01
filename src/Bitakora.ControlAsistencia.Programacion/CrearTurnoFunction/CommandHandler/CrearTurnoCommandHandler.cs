@@ -1,14 +1,12 @@
 using System.Text.RegularExpressions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CrearTurno;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
-// La excepcion ES el canal de respuesta: InvalidOperationException -> 409 Conflict, y la
-// AggregateException del factory se deja propagar -> 400 Bad Request (MEF-ADR-0004/CA-ADR-0030,
-// comando HTTP sin consumidores downstream). No envolver en try/catch ni degradar a resultado.
 public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrearTurno>
 {
     private readonly IEventStore _eventStore;
@@ -24,14 +22,14 @@ public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrea
     {
         var existe = await _eventStore.ExistsAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (existe)
-            throw new InvalidOperationException(Mensajes.TurnoYaExiste);
+            throw new RecursoYaExisteException(Mensajes.TurnoYaExiste);
 
         var nombresVigentes = await _lectorNombres.ObtenerNombresAsync(ct);
         var nombreNormalizado = NormalizarNombre(command.Nombre);
         var duplicado = nombresVigentes.Any(nombre =>
             string.Equals(NormalizarNombre(nombre), nombreNormalizado, StringComparison.Ordinal));
         if (duplicado)
-            throw new InvalidOperationException(Mensajes.NombreDuplicado);
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
 
         var evento = command.EsDescanso
             ? TurnoCreado.CrearDescanso(command.TurnoId, command.Nombre)

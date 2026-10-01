@@ -37,13 +37,17 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             return new BadRequestObjectResult(ex.Message);
         }
-        catch (KeyNotFoundException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new NotFoundObjectResult(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return new ConflictObjectResult(ex.Message);
+            switch (ex)
+            {
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new NoContentResult();

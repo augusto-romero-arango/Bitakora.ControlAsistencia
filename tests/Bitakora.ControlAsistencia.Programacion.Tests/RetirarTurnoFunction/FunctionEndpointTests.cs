@@ -2,6 +2,8 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,12 +37,23 @@ public class FunctionEndpointTests
     [Fact]
     public async Task RetirarTurno_Retorna404_CuandoElTurnoNoExiste()
     {
-        var router = new FakeCommandRouter(new KeyNotFoundException("No se encontro el turno con el Id especificado"));
+        var router = new FakeCommandRouter(new RecursoNoEncontradoException(RetirarTurnoCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task RetirarTurno_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 
     // El {id} de ruta se valida en el borde (MEF-ADR-0037 seccion 2): el comando nunca debe

@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction.CommandHandler;
@@ -20,10 +21,8 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
 
         var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (catalogo is null)
-            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
-        // El arm final vuelve ruidoso un miembro nuevo del enum: sin el, un rechazo sin mensaje
-        // mapeado saldria 202 como si la franja se hubiera agregado.
         var mensajeDeRechazo = catalogo.AgregarFranja(franja) switch
         {
             ResultadoAgregarFranja.Agregada => null,
@@ -34,6 +33,6 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
         };
 
         if (mensajeDeRechazo is not null)
-            throw new InvalidOperationException(mensajeDeRechazo);
+            throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
     }
 }

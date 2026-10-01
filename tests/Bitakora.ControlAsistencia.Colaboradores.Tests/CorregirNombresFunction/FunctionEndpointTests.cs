@@ -12,6 +12,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
+using Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -138,12 +139,25 @@ public class FunctionEndpointTests
     {
         var validator = new FakeCorregirNombresBodyRequestValidator(BodyValido());
         var router = new FakeCorregirNombresCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                CorregirNombresCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task CorregirNombres_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeCorregirNombresBodyRequestValidator(BodyValido()),
+            new FakeCorregirNombresCommandRouter(new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 
@@ -182,8 +196,7 @@ internal class FakeCorregirNombresBodyRequestValidator : IRequestValidator
 /// <summary>
 /// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
 /// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada (KeyNotFoundException -> 404). Sin caso InvalidOperationException/409: este comando
-/// no tiene reglas de estado (CA-ADR-0030).
+/// configurada.
 /// </summary>
 internal class FakeCorregirNombresCommandRouter : ICommandRouter
 {

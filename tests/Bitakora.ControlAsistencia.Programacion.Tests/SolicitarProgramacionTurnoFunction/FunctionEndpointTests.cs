@@ -1,8 +1,7 @@
-// HU-10: Solicitar programacion de turno del catalogo - tests del endpoint HTTP
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,14 +9,6 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
-/// <summary>
-/// Tests del endpoint HTTP POST /programacion/solicitudes.
-/// Verifica el mapeo de excepciones del handler a respuestas HTTP:
-/// - InvalidOperationException -> 409 (solicitud duplicada)
-/// - KeyNotFoundException -> 404 (turno no encontrado en catalogo)
-/// - Exito -> 201 Created sin Location (CA-ADR-0035)
-/// - Error de validacion -> 400 Bad Request
-/// </summary>
 public class FunctionEndpointTests
 {
     private static SolicitarProgramacionTurno ComandoValido() => new(
@@ -64,13 +55,13 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-6: Solicitud ya existe retorna 409 Conflict
     [Fact]
-    public async Task DebeRetornar409_CuandoSolicitudYaExiste()
+    public async Task SolicitarProgramacionTurno_Retorna409_CuandoSolicitudYaExiste()
     {
         var validator = new FakeSolicitudRequestValidator(ComandoValido());
         var router = new FakeSolicitudCommandRouter(
-            lanzar: new InvalidOperationException("La solicitud ya existe"));
+            lanzar: new RecursoYaExisteException(
+                SolicitarProgramacionTurnoCommandHandler.Mensajes.SolicitudYaExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
@@ -78,22 +69,47 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-7: Turno no encontrado en el catalogo retorna 404 Not Found
     [Fact]
-    public async Task DebeRetornar404_CuandoTurnoNoExisteEnElCatalogo()
+    public async Task SolicitarProgramacionTurno_Retorna404_CuandoTurnoNoExisteEnElCatalogo()
     {
         var validator = new FakeSolicitudRequestValidator(ComandoValido());
         var router = new FakeSolicitudCommandRouter(
-            lanzar: new KeyNotFoundException("Turno no encontrado"));
+            lanzar: new RecursoNoEncontradoException(
+                SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
     }
-}
 
-// ---- Fakes manuales - NO NSubstitute ----
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna409_CuandoElTurnoEstaRetirado()
+    {
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(new ReglaDeNegocioDeclinadaException(
+                SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>()
+            .Which.Value.Should().Be(SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
+    }
+}
 
 internal class FakeSolicitudRequestValidator : IRequestValidator
 {

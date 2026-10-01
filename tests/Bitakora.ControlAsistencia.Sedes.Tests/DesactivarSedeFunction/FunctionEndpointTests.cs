@@ -1,5 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction;
+using Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +31,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task DesactivarSede_Retorna409_CuandoLaSedeYaEstaInactiva()
     {
-        var router = new FakeCommandRouter(new InvalidOperationException("La sede ya esta inactiva"));
+        var router = new FakeCommandRouter(new ReglaDeNegocioDeclinadaException(DesactivarSedeCommandHandler.Mensajes.SedeYaInactiva));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
@@ -40,7 +42,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task DesactivarSede_Retorna404_CuandoSedeNoExiste()
     {
-        var router = new FakeCommandRouter(new KeyNotFoundException("La sede no existe"));
+        var router = new FakeCommandRouter(new RecursoNoEncontradoException(DesactivarSedeCommandHandler.Mensajes.SedeNoEncontrada));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
@@ -54,11 +56,21 @@ public class FunctionEndpointTests
     public async Task DesactivarSede_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
     {
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("el comando nunca debe despacharse con un codigo invalido"));
+            new Exception());
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), "SEDE:001", CancellationToken.None);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task DesactivarSede_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(new FakeCommandRouter(new InvalidOperationException()));
+
+        var act = () => function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }

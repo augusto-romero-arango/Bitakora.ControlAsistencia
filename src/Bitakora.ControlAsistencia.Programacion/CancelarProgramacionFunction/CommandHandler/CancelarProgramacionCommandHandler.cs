@@ -2,6 +2,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -26,7 +27,7 @@ public partial class CancelarProgramacionCommandHandler
         var solicitudExiste = await _eventStore.ExistsAsync<SolicitudCancelacionAggregateRoot>(
             command.Id, ct);
         if (solicitudExiste)
-            throw new InvalidOperationException(Mensajes.SolicitudYaExiste);
+            throw new RecursoYaExisteException(Mensajes.SolicitudYaExiste);
 
         var colaboradorDominio = MapearColaboradorProgramado(command.Colaborador);
         var fechas = command.Fechas.AsReadOnly();

@@ -3,6 +3,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -66,11 +67,11 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
 
     // CA-2: turno inexistente -> 404, sin escribir nada al event store
     [Fact]
-    public async Task RetirarTurno_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
+    public async Task RetirarTurno_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(new RetirarTurno(TurnoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{RetirarTurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
     }

@@ -109,13 +109,13 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
     }
 
     [Fact]
-    public async Task AsignarSede_LanzaInvalidOperationException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
+    public async Task AsignarSede_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
         DadoUnColaboradorConTerminacionRegistrada(FechaEfectivaTerminacion);
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
@@ -123,14 +123,14 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
 
     // La terminacion bloquea aunque su fecha efectiva no haya llegado: no se consulta el reloj.
     [Fact]
-    public async Task AsignarSede_LanzaInvalidOperationException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
+    public async Task AsignarSede_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         DadoUnColaboradorConTerminacionRegistrada(fechaPreavisoFutura);
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
@@ -139,7 +139,7 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
     // Cruce de las dos guardas: el rechazo por terminacion gana sobre la idempotencia silenciosa,
     // asi que el orden de las guardas en AsignarSede no es intercambiable.
     [Fact]
-    public async Task AsignarSede_LanzaInvalidOperationException_CuandoElCodigoEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
+    public async Task AsignarSede_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
     {
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -149,7 +149,7 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
@@ -191,11 +191,11 @@ public class AsignarSedeCommandHandlerTests : CommandHandlerAsyncTest<AsignarSed
     }
 
     [Fact]
-    public async Task AsignarSede_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task AsignarSede_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{AsignarSedeCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

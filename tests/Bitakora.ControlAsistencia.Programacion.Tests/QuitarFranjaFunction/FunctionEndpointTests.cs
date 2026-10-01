@@ -2,6 +2,7 @@ using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction;
+using Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -83,7 +84,7 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<QuitarFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro el turno con el Id especificado"));
+            new RecursoNoEncontradoException(QuitarFranjaCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
@@ -96,12 +97,24 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<QuitarFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new InvalidOperationException("Ninguna franja del turno empieza a la hora especificada"));
+            new ReglaDeNegocioDeclinadaException(QuitarFranjaCommandHandler.Mensajes.FranjaNoExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task QuitarFranja_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<QuitarFranjaBody>(BodyValido()), new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
 

@@ -7,6 +7,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
+using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -55,12 +56,25 @@ public class FunctionEndpointTests
     public async Task RegistrarColaborador_Retorna409_CuandoIdentificacionYaExiste()
     {
         var validator = new FakeRequestValidator<RegistrarColaborador>(ComandoValido());
-        var router = new FakeCommandRouter(lanzarInvalidOperationException: true);
+        var router = new FakeCommandRouter(new RecursoYaExisteException(
+            RegistrarColaboradorCommandHandler.Mensajes.ColaboradorYaRegistrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task RegistrarColaborador_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<RegistrarColaborador>(ComandoValido()),
+            new FakeCommandRouter(new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 
     // CA-3: POST con JSON invalido o campos faltantes retorna 400 Bad Request
@@ -109,21 +123,19 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
 }
 
 /// <summary>
-/// Fake configurable de ICommandRouter. Puede configurarse para completar exitosamente o lanzar
-/// InvalidOperationException (identificacion duplicada).
+/// Fake configurable de ICommandRouter.
 /// </summary>
 internal class FakeCommandRouter : ICommandRouter
 {
-    private readonly bool _lanzarInvalidOperation;
+    private readonly Exception? _excepcion;
 
-    public FakeCommandRouter(bool lanzarInvalidOperationException = false) =>
-        _lanzarInvalidOperation = lanzarInvalidOperationException;
+    public FakeCommandRouter(Exception? lanzar = null) => _excepcion = lanzar;
 
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
         where TCommand : class
     {
-        if (_lanzarInvalidOperation)
-            throw new InvalidOperationException("El colaborador ya existe");
+        if (_excepcion is not null)
+            throw _excepcion;
 
         return Task.CompletedTask;
     }

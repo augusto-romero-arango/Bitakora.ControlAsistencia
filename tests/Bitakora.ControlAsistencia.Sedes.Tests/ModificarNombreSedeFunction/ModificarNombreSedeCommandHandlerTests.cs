@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.ModificarNombreSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.ModificarNombreSedeFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -42,11 +43,11 @@ public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<Mo
     // CA-4: sin Given -- el stream no existe. El Then sin eventos esperados es la asercion de que
     // nada se escribio al event store.
     [Fact]
-    public async Task ModificarNombreSede_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task ModificarNombreSede_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new ModificarNombreSede(Codigo, NombreNuevo));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{ModificarNombreSedeCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

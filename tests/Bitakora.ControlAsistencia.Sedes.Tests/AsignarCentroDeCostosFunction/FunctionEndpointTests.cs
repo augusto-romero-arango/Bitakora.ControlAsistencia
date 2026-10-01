@@ -1,5 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction;
+using Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,7 +37,7 @@ public class FunctionEndpointTests
     public async Task AsignarCentroDeCostos_Retorna404_CuandoSedeNoExiste()
     {
         var validator = new FakeRequestValidator<AsignarCentroDeCostosBody>(BodyValido());
-        var router = new FakeCommandRouter(new KeyNotFoundException("La sede no existe"));
+        var router = new FakeCommandRouter(new RecursoNoEncontradoException(AsignarCentroDeCostosCommandHandler.Mensajes.SedeNoEncontrada));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
@@ -64,11 +66,23 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<AsignarCentroDeCostosBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("el comando nunca debe despacharse con un codigo invalido"));
+            new Exception());
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), "SEDE:001", CancellationToken.None);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task AsignarCentroDeCostos_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<AsignarCentroDeCostosBody>(BodyValido()),
+            new FakeCommandRouter(new InvalidOperationException()));
+
+        var act = () => function.Run(FakeHttpRequest(), Codigo, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }

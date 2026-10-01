@@ -32,13 +32,17 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return new NotFoundObjectResult(ex.Message);
+            switch (ex)
+            {
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new CreatedResult($"/api/sedes/fichas/{codigo}", null);

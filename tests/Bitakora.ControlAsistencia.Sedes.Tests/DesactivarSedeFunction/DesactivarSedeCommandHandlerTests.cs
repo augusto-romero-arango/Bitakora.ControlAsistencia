@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.DesactivarSedeFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -46,24 +47,24 @@ public class DesactivarSedeCommandHandlerTests : CommandHandlerAsyncTest<Desacti
     }
 
     [Fact]
-    public async Task DesactivarSede_LanzaInvalidOperationException_CuandoLaSedeYaEstaInactiva()
+    public async Task DesactivarSede_LanzaReglaDeNegocioDeclinadaException_CuandoLaSedeYaEstaInactiva()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada(), new SedeDesactivada());
 
         var act = async () => await WhenAsync(new DesactivarSede(Codigo));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{DesactivarSedeCommandHandler.Mensajes.SedeYaInactiva}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, bool>(StreamIdEsperado, s => s.Activa, false);
     }
 
     [Fact]
-    public async Task DesactivarSede_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task DesactivarSede_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new DesactivarSede(Codigo));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{DesactivarSedeCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

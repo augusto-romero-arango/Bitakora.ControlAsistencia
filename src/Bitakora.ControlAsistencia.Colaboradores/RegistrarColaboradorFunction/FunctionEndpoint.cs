@@ -16,10 +16,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 // Route = "colaboradores" (kebab-case minusculo, MEF-ADR-0043 seccion 3 / issue #378 CA-5): antes
 // "Colaboradores" (PascalCase) -- dominio y recurso son homonimos, un segundo segmento seria
 // redundante; unico cambio, sin tocar el resto del endpoint.
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 1): validar request (400 via IRequestValidator) -> despachar comando -> InvalidOperationException
-// -> 409 Conflict; exito -> 201 Created con Location a la ficha del colaborador registrado, compuesta
-// via el VO Identificacion (unico punto de conversion, MEF-ADR-0037).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarColaborador")]
@@ -36,9 +32,15 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando!, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
+            switch (ex)
+            {
+                case RecursoYaExisteException:
+                    return new ConflictObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         var identificacion = Identificacion.Crear(
