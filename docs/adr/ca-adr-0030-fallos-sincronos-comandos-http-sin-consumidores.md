@@ -81,8 +81,10 @@ no se comparten tipos entre Function Apps (MEF-ADR-0039). Conforme a MEF-ADR-000
 | `RecursoNoEncontradoException` | El recurso requerido no existe | 404 Not Found |
 | `ReglaDeNegocioDeclinadaException` | Cualquier otra regla de negocio que declina, incluida la unicidad de un atributo (`NombreDuplicado`), sin confundirla con la existencia del stream a crear | 409 Conflict |
 
-El handler lanza la derivada apropiada al traducir el resultado del aggregate; no cambia la regla
-de que el aggregate nunca lanza. El endpoint captura **solo** `PrecondicionComandoException` y
+El handler lanza `ReglaDeNegocioDeclinadaException` al traducir un rechazo de regla del aggregate;
+para precondiciones de orquestacion (stream a crear ya existente o recurso requerido inexistente)
+lanza `RecursoYaExisteException` o `RecursoNoEncontradoException`, respectivamente. No cambia la
+regla de que el aggregate nunca lanza. El endpoint captura **solo** `PrecondicionComandoException` y
 mapea exhaustivamente por tipo concreto. Una derivada no mapeada se relanza (500); toda excepcion
 ajena a la jerarquia sube como 500. En particular, `InvalidOperationException` ya no es un tipo
 reconocido por el endpoint: capturarlo como 409 repetiria el incidente del 2026-09-01.
@@ -167,7 +169,7 @@ que el handler vuelva a interrogar el estado del aggregate para averiguar cual f
   harness#849/#850): el codigo de exito lo rige ese ADR, y las menciones a 202 en el texto de este
   documento son historicas. El mecanismo "declinar con resultado" (aggregate decide, handler
   traduce) sigue vigente sin cambios; el tipo de excepcion que el handler lanza para traducir a
-  404/409 se revisa en #666.
+  404/409 quedo pendiente para #666.
 - 2026-10-01: issue #666. Alinea la traduccion del handler y el catch del endpoint con las
   precondiciones tipadas de MEF-ADR-0004 (enmienda harness#805), sin cambiar el mecanismo del
   aggregate ni el contrato de status HTTP; documenta la derivada local para reglas declinadas.
