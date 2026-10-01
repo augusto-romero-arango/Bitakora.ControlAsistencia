@@ -3,6 +3,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction;
+using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -106,7 +107,7 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<AgregarFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro el turno con el Id especificado"));
+            new RecursoNoEncontradoException(AgregarFranjaCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
@@ -120,12 +121,24 @@ public class FunctionEndpointTests
         var validator = new FakeRequestValidator<AgregarFranjaBody>(
             new AgregarFranjaBody(new TimeOnly(10, 0), new TimeOnly(12, 0)));
         var router = new FakeCommandRouter(
-            new InvalidOperationException("La franja se solapa con otra franja ya existente en el turno"));
+            new ReglaDeNegocioDeclinadaException(AgregarFranjaCommandHandler.Mensajes.FranjaSeSolapa));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task AgregarFranja_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<AgregarFranjaBody>(BodyValido()), new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
 

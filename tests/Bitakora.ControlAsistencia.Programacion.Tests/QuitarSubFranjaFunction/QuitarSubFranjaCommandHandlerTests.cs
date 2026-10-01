@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -62,19 +63,19 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
     // Sin And<>: el aggregate no existe (ningun Given) y reconstruirlo lanzaria
     // ArgumentNullException.
     [Fact]
-    public async Task QuitarSubFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
+    public async Task QuitarSubFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(new QuitarSubFranja(
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso, new TimeOnly(2, 0)));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{QuitarSubFranjaCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
     }
 
     // Precedencia: retirado gana sobre franja-no-existe y sobre subfranja-no-existe.
     [Fact]
-    public async Task QuitarSubFranja_LanzaInvalidOperationException_CuandoElTurnoFueRetirado()
+    public async Task QuitarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna(), CrearEventoDescansoAgregado(),
             TurnoRetirado.Crear(TurnoId));
@@ -82,7 +83,7 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
         var act = async () => await WhenAsync(new QuitarSubFranja(
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso, new TimeOnly(2, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarSubFranjaCommandHandler.Mensajes.TurnoRetirado}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -90,14 +91,14 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
     }
 
     [Fact]
-    public async Task QuitarSubFranja_LanzaInvalidOperationException_CuandoNingunaFranjaEmpiezaAEsaHora()
+    public async Task QuitarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoNingunaFranjaEmpiezaAEsaHora()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna());
 
         var act = async () => await WhenAsync(new QuitarSubFranja(
             TurnoId, new TimeOnly(23, 0), TipoSubFranja.Descanso, new TimeOnly(2, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarSubFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -106,14 +107,14 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
 
     // Un descanso no tiene franjas ordinarias: cae en franja-no-existe, sin resultado propio.
     [Fact]
-    public async Task QuitarSubFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
+    public async Task QuitarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEsDescanso()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeDescanso());
 
         var act = async () => await WhenAsync(new QuitarSubFranja(
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso, new TimeOnly(2, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarSubFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), true);
@@ -121,14 +122,14 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
 
     // La franja existe, pero ninguna hija de ese tipo empieza a esa hora.
     [Fact]
-    public async Task QuitarSubFranja_LanzaInvalidOperationException_CuandoLaSubFranjaNoExiste()
+    public async Task QuitarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaSubFranjaNoExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna(), CrearEventoDescansoAgregado());
 
         var act = async () => await WhenAsync(new QuitarSubFranja(
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Extra, new TimeOnly(2, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarSubFranjaCommandHandler.Mensajes.SubFranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),

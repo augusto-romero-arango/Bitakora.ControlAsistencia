@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -61,24 +62,24 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
     }
 
     [Fact]
-    public async Task QuitarFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
+    public async Task QuitarFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(6, 0)));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
     }
 
     // La hora 06:00 si existe entre las franjas: lo que decide es la precedencia del retiro.
     [Fact]
-    public async Task QuitarFranja_LanzaInvalidOperationException_CuandoElTurnoFueRetirado()
+    public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConDosFranjas(), TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(6, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.TurnoRetirado}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -86,13 +87,13 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
     }
 
     [Fact]
-    public async Task QuitarFranja_LanzaInvalidOperationException_CuandoLaFranjaNoExiste()
+    public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaNoExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConDosFranjas());
 
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(7, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -101,13 +102,13 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
 
     // Un descanso no tiene franjas: cae en "franja no existe", sin resultado propio.
     [Fact]
-    public async Task QuitarFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
+    public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEsDescanso()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeDescanso());
 
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(6, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), true);

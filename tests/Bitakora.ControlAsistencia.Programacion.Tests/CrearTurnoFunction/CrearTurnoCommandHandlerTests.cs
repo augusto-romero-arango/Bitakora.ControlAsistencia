@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -59,7 +60,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 
     // CA-4: handler lanza excepcion cuando turno ya existe (idempotencia -> 409 Conflict)
     [Fact]
-    public async Task DebeLanzarExcepcion_CuandoTurnoYaExiste()
+    public async Task CrearTurno_LanzaRecursoYaExisteException_CuandoTurnoYaExiste()
     {
         var comando = ComandoConUnaFranja(GuidAggregateId);
         var eventoPrevio = TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas());
@@ -67,7 +68,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         Given(eventoPrevio);
 
         var act = async () => await WhenAsync(comando);
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.TurnoYaExiste}*");
     }
 
@@ -128,7 +129,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 
     // CA-1: nombre coincide EXACTAMENTE con uno existente en el catalogo -> 409, sin escribir nada.
     [Fact]
-    public async Task CrearTurno_LanzaInvalidOperationException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
+    public async Task CrearTurno_LanzaReglaDeNegocioDeclinadaException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
     {
         const string nombreExistente = "Limpieza mañana";
         var turnoExistenteId = SembrarTurnoEnCatalogo(nombreExistente);
@@ -136,7 +137,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<CatalogoTurnos, string>(
@@ -146,7 +147,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
     // existente -> 409, sin escribir nada.
     [Fact]
-    public async Task CrearTurno_LanzaInvalidOperationException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
+    public async Task CrearTurno_LanzaReglaDeNegocioDeclinadaException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
     {
         const string nombreExistente = "Limpieza mañana";
         const string nombreConEspaciosYMayusculas = "  limpieza  MAÑANA ";
@@ -155,7 +156,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<CatalogoTurnos, string>(

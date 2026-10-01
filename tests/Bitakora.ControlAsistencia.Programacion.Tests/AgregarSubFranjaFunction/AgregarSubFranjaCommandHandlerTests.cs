@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -63,20 +64,20 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
     // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
     // AgregarFranjaCommandHandlerTests para el mismo escenario.
     [Fact]
-    public async Task AgregarSubFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
+    public async Task AgregarSubFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(new AgregarSubFranja(
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso,
             new TimeOnly(2, 0), new TimeOnly(2, 30)));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{AgregarSubFranjaCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
     }
 
     // CA-3: precedencia -- retirado gana sobre descanso y sobre franja-no-existe.
     [Fact]
-    public async Task AgregarSubFranja_LanzaInvalidOperationException_CuandoElTurnoFueRetirado()
+    public async Task AgregarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna(), TurnoRetirado.Crear(TurnoId));
 
@@ -84,7 +85,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso,
             new TimeOnly(2, 0), new TimeOnly(2, 30)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AgregarSubFranjaCommandHandler.Mensajes.TurnoRetirado}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
@@ -92,7 +93,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
     }
 
     [Fact]
-    public async Task AgregarSubFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
+    public async Task AgregarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEsDescanso()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeDescanso());
 
@@ -100,7 +101,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso,
             new TimeOnly(2, 0), new TimeOnly(2, 30)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AgregarSubFranjaCommandHandler.Mensajes.TurnoEsDescanso}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -108,7 +109,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
     }
 
     [Fact]
-    public async Task AgregarSubFranja_LanzaInvalidOperationException_CuandoNingunaFranjaEmpiezaAEsaHora()
+    public async Task AgregarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoNingunaFranjaEmpiezaAEsaHora()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna());
 
@@ -116,7 +117,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             TurnoId, new TimeOnly(23, 0), TipoSubFranja.Descanso,
             new TimeOnly(2, 0), new TimeOnly(2, 30)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AgregarSubFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
