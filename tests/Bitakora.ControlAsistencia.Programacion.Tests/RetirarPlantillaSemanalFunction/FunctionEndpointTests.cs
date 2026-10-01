@@ -1,6 +1,8 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -71,15 +73,42 @@ public class FunctionEndpointTests
 
     // CA-6
     [Fact]
-    public async Task RetirarPlantillaSemanal_Retorna404_CuandoElRouterLanzaKeyNotFoundException()
+    public async Task RetirarPlantillaSemanal_Retorna404_CuandoElRouterLanzaRecursoNoEncontradoException()
     {
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro la plantilla semanal con el Id especificado"));
+            new RecursoNoEncontradoException(
+                RetirarPlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), PlantillaId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task RetirarPlantillaSemanal_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(
+            FakeHttpRequest(), PlantillaId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
+    }
+
+    [Fact]
+    public async Task RetirarPlantillaSemanal_PropagaReglaDeNegocioDeclinadaException_CuandoLaDerivadaNoEstaMapeada()
+    {
+        var fallo = new ReglaDeNegocioDeclinadaException(
+            RetirarPlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada);
+        var function = new FunctionEndpoint(new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(
+            FakeHttpRequest(), PlantillaId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>())
+            .Which.Should().BeSameAs(fallo);
     }
 }
 

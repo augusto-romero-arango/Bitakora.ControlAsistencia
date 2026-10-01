@@ -7,6 +7,7 @@ using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanal
 using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -61,33 +62,33 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaKeyNotFoundException_CuandoLaPlantillaNoExiste()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaRecursoNoEncontradoException_CuandoLaPlantillaNoExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada}*");
         Then(TurnoId.ToString());
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaKeyNotFoundException_CuandoElTurnoNoExiste()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExiste()
     {
         Given(CrearEventoPlantilla());
 
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(GuidAggregateId.ToString());
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoElTurnoEstaRetirado()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaRetirado()
     {
         Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto(), TurnoRetirado.Crear(TurnoId));
@@ -95,13 +96,13 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoElTurnoEstaIncompleto()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaIncompleto()
     {
         Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoIncompleto());
@@ -109,13 +110,13 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.TurnoIncompleto}*");
         Then(GuidAggregateId.ToString());
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
     {
         Given(CrearEventoPlantilla(semanas: 2));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
@@ -123,14 +124,14 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 3, DiaSemana.Desde(5), TurnoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.SemanaFueraDeRango}*");
         Then(GuidAggregateId.ToString());
     }
 
     // CA-5 (issue #623): la plantilla retirada gana a cualquier otra evaluacion del handler.
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoLaPlantillaEstaRetirada()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaPlantillaEstaRetirada()
     {
         Given(CrearEventoPlantilla(), PlantillaSemanalRetirada.Crear(GuidAggregateId));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
@@ -138,7 +139,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaRetirada}*");
         Then(GuidAggregateId.ToString());
         Then(TurnoId.ToString());

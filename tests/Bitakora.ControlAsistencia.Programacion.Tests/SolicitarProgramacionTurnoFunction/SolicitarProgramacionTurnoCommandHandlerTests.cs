@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -485,7 +486,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
     // CA-6: idempotencia - solicitud ya existe lanza excepcion que el endpoint mapea a 409
     [Fact]
-    public async Task DebeLanzarExcepcion_CuandoSolicitudYaExiste()
+    public async Task SolicitarProgramacionTurno_LanzaRecursoYaExisteException_CuandoSolicitudYaExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(new ProgramacionTurnoSolicitada(
@@ -494,35 +495,35 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.SolicitudYaExiste}*");
     }
 
     // CA-7: turno no existe en el catalogo - lanza excepcion que el endpoint mapea a 404
     [Fact]
-    public async Task DebeLanzarExcepcion_CuandoTurnoNoExisteEnElCatalogo()
+    public async Task SolicitarProgramacionTurno_LanzaRecursoNoEncontradoException_CuandoTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");
     }
 
     // Issue #500 CA-4: turno retirado del catalogo -- declina con 409, sin escribir la solicitud
     // (CA-ADR-0030). Sin And<>(): SolicitudProgramacionAggregateRoot nunca se crea en este camino,
     // y And<>() sobre un stream inexistente lanza ArgumentNullException (TestStore), no una
-    // asercion legible -- mismo motivo por el que DebeLanzarExcepcion_CuandoTurnoNoExisteEnElCatalogo
+    // asercion legible -- mismo motivo por el que SolicitarProgramacionTurno_LanzaRecursoNoEncontradoException_CuandoTurnoNoExisteEnElCatalogo
     // tampoco lo usa.
     [Fact]
-    public async Task SolicitarProgramacionTurno_LanzaInvalidOperationException_CuandoElTurnoDelCatalogoEstaRetirado()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoDelCatalogoEstaRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurno(), TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
     }
@@ -531,14 +532,14 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // hermano exacto de la guarda de turno retirado (CA-ADR-0030). Sin And<>(): igual que el test
     // de retirado de arriba, la solicitud nunca se crea en este camino.
     [Fact]
-    public async Task SolicitarProgramacionTurno_LanzaInvalidOperationException_CuandoElTurnoDelCatalogoEstaIncompleto()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoDelCatalogoEstaIncompleto()
     {
         Given(TurnoIncompletoId.ToString(), CrearEventoTurnoIncompleto());
 
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoIncompletoId, Colaborador, [Fecha1]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoIncompleto}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
@@ -569,7 +570,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // Issue #613 CA-3: precedencia -- un turno retirado que ademas nace vacio (seria Incompleto
     // por completitud) sigue declinando con el mensaje de TurnoRetirado, no el de TurnoIncompleto.
     [Fact]
-    public async Task SolicitarProgramacionTurno_LanzaInvalidOperationExceptionConMensajeDeRetirado_CuandoElTurnoRetiradoAdemasEstaIncompleto()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaExceptionConMensajeDeRetirado_CuandoElTurnoRetiradoAdemasEstaIncompleto()
     {
         Given(TurnoRetiradoSinFranjasId.ToString(),
             CrearEventoTurnoRetiradoSinFranjas(), TurnoRetirado.Crear(TurnoRetiradoSinFranjasId));
@@ -577,7 +578,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoRetiradoSinFranjasId, Colaborador, [Fecha1]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();

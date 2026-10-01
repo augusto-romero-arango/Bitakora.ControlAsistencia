@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSemanalFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -33,18 +34,18 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
     }
 
     [Fact]
-    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaKeyNotFoundException_CuandoLaPlantillaNoExiste()
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaRecursoNoEncontradoException_CuandoLaPlantillaNoExiste()
     {
         var act = async () => await WhenAsync(
             new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5)));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada}*");
         Then(GuidAggregateId.ToString());
     }
 
     [Fact]
-    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
     {
         Given(CrearEventoPlantilla(semanas: 2),
             DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
@@ -52,7 +53,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
         var act = async () => await WhenAsync(
             new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 3, DiaSemana.Desde(5)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.SemanaFueraDeRango}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
@@ -60,7 +61,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
 
     // CA-5 (issue #623): la plantilla retirada gana a cualquier otra evaluacion del handler.
     [Fact]
-    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaInvalidOperationException_CuandoLaPlantillaEstaRetirada()
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaPlantillaEstaRetirada()
     {
         Given(CrearEventoPlantilla(),
             DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId),
@@ -69,7 +70,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
         var act = async () => await WhenAsync(
             new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaRetirada}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());

@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -58,7 +59,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
     }
 
     [Fact]
-    public async Task CrearPlantillaSemanal_LanzaInvalidOperationException_CuandoPlantillaYaExiste()
+    public async Task CrearPlantillaSemanal_LanzaRecursoYaExisteException_CuandoPlantillaYaExiste()
     {
         var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2);
         var eventoPrevio = PlantillaSemanalCreada.Crear(comando.PlantillaId, comando.Nombre, comando.Semanas);
@@ -67,7 +68,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.PlantillaYaExiste}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
@@ -85,7 +86,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.PlantillaYaExiste}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
@@ -124,14 +125,14 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
     // CA-1: nombre coincide EXACTAMENTE con uno vigente del catalogo -> 409, sin escribir nada.
     [Fact]
-    public async Task CrearPlantillaSemanal_LanzaInvalidOperationException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
+    public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
     {
         var plantillaExistenteId = SembrarPlantillaEnCatalogo(NombrePlantilla);
         var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2);
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(
@@ -141,7 +142,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
     // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
     // vigente -> 409.
     [Fact]
-    public async Task CrearPlantillaSemanal_LanzaInvalidOperationException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
+    public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
     {
         const string nombreConEspaciosYMayusculas = "  semana   COCINA ";
         var plantillaExistenteId = SembrarPlantillaEnCatalogo(NombrePlantilla);
@@ -149,7 +150,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(
@@ -159,14 +160,14 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
     // CA-2, lado espejo: la normalizacion se aplica tambien al nombre QUE VIENE DEL CATALOGO, no
     // solo al del comando -- un cuadro guardado con espacios/mayusculas de sobra igual colisiona.
     [Fact]
-    public async Task CrearPlantillaSemanal_LanzaInvalidOperationException_CuandoElNombreDelCatalogoDifiereSoloEnMayusculasYEspacios()
+    public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoElNombreDelCatalogoDifiereSoloEnMayusculasYEspacios()
     {
         var plantillaExistenteId = SembrarPlantillaEnCatalogo("  SEMANA   cocina ");
         var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2);
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(
@@ -200,7 +201,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
         var act = async () => await WhenAsync(comando);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, string>(

@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction;
 using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -76,10 +77,8 @@ public class CancelarProgramacionCommandHandlerTests
             s => s.Colaborador, ColaboradorProgramadoEsperado);
     }
 
-    // CA-2: el aggregate declina con excepcion que el endpoint traduce a 409, sin evento de fallo
-    // persistido -- no hay consumidor downstream que reaccione (CA-ADR-0030).
     [Fact]
-    public async Task CancelarProgramacion_LanzaInvalidOperationException_CuandoSolicitudYaExiste()
+    public async Task CancelarProgramacion_LanzaRecursoYaExisteException_CuandoSolicitudYaExiste()
     {
         Given(new CancelacionProgramacionSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1]));
@@ -87,7 +86,7 @@ public class CancelarProgramacionCommandHandlerTests
         var act = async () => await WhenAsync(
             new CancelarProgramacion(GuidAggregateId, Colaborador, [Fecha1]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{CancelarProgramacionCommandHandler.Mensajes.SolicitudYaExiste}*");
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
