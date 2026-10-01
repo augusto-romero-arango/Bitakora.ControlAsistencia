@@ -6,10 +6,6 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 
-// ADR-0007: InvalidOperationException -> 409 Conflict
-//           AggregateException (del factory) -> 400 Bad Request con mensajes
-// CA-ADR-0035: exito -> 201 Created con Location a la ficha del turno (ObtenerFichaTurno); la
-// transaccion confirma antes de responder, nunca 202.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CrearTurno")]
@@ -26,9 +22,16 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando!, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
+            switch (ex)
+            {
+                case RecursoYaExisteException:
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
         catch (AggregateException ex)
         {

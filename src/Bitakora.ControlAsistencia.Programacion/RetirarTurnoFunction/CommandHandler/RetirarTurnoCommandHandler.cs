@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHandler;
@@ -13,7 +14,7 @@ public partial class RetirarTurnoCommandHandler : ICommandHandlerAsync<RetirarTu
     {
         var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (catalogo is null)
-            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
         catalogo.Retirar();
     }

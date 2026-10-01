@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction.CommandHandler;
@@ -16,7 +17,7 @@ public partial class QuitarSubFranjaCommandHandler : ICommandHandlerAsync<Quitar
     {
         var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (catalogo is null)
-            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
         var resultado = command.Tipo switch
         {
@@ -35,6 +36,6 @@ public partial class QuitarSubFranjaCommandHandler : ICommandHandlerAsync<Quitar
         };
 
         if (mensajeDeRechazo is not null)
-            throw new InvalidOperationException(mensajeDeRechazo);
+            throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
     }
 }
