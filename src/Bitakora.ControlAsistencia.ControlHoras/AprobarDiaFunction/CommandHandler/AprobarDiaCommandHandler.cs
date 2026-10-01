@@ -1,10 +1,11 @@
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction.CommandHandler;
 
 // CA-ADR-0030: el aggregate declina con resultado y este handler traduce la razon a
-// InvalidOperationException (-> 409, MEF-ADR-0004 capa 2). Aval del vacio (CA-7): un stream
+// ReglaDeNegocioDeclinadaException (-> 409, MEF-ADR-0004 capa 2). Aval del vacio (CA-7): un stream
 // inexistente tambien es un acto valido, no un 404 -- se crea con DiaAprobado como primer evento.
 // partial: la clase Mensajes vive en archivo separado (MEF-ADR-0009).
 public partial class AprobarDiaCommandHandler : ICommandHandlerAsync<AprobarDia>
@@ -25,7 +26,7 @@ public partial class AprobarDiaCommandHandler : ICommandHandlerAsync<AprobarDia>
         var resultado = dia.Aprobar(streamId, command.CodigoColaborador, command.Fecha, command.Decisiones);
 
         if (resultado != ResultadoAprobacion.Aprobado)
-            throw new InvalidOperationException(MensajesPorResultado.Value[resultado]);
+            throw new ReglaDeNegocioDeclinadaException(MensajesPorResultado.Value[resultado]);
 
         if (!existe)
             _eventStore.StartStream(dia);
