@@ -14,6 +14,8 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction;
+using Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -109,8 +111,8 @@ public class FunctionEndpointTests
     public async Task AnularTerminacion_Retorna409_CuandoLaVinculacionEstaAbierta()
     {
         var router = new FakeAnularTerminacionCommandRouter(
-            lanzar: new InvalidOperationException(
-                "La vinculacion vigente del colaborador no tiene una terminacion registrada"));
+            lanzar: new ReglaDeNegocioDeclinadaException(
+                AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
@@ -123,12 +125,24 @@ public class FunctionEndpointTests
     public async Task AnularTerminacion_Retorna404_CuandoColaboradorNoExiste()
     {
         var router = new FakeAnularTerminacionCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                AnularTerminacionCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task AnularTerminacion_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(new FakeAnularTerminacionCommandRouter(
+            new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 
@@ -137,7 +151,7 @@ public class FunctionEndpointTests
 /// <summary>
 /// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
 /// verificar la composicion desde la ruta, y puede completar exitosamente o lanzar la excepcion
-/// configurada (InvalidOperationException -> 409, KeyNotFoundException -> 404).
+/// configurada.
 /// </summary>
 internal class FakeAnularTerminacionCommandRouter : ICommandRouter
 {

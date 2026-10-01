@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -11,7 +12,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 /// <summary>
 /// Tests del endpoint HTTP POST /programacion/turnos.
 /// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
-/// ADR-0007: InvalidOperationException -> 409, AggregateException -> 400.
+/// AggregateException -> 400.
 /// CA-ADR-0035: exito -> 201 Created con Location a la ficha del turno.
 /// </summary>
 public class FunctionEndpointTests
@@ -46,17 +47,40 @@ public class FunctionEndpointTests
             .Which.Location.Should().Be($"/api/programacion/turnos/{comando.TurnoId}");
     }
 
-    // CA-8: POST con TurnoId duplicado retorna 409 Conflict
     [Fact]
-    public async Task DebeRetornar409_CuandoTurnoYaExiste()
+    public async Task CrearTurno_Retorna409_CuandoTurnoYaExiste()
     {
         var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
-        var router = new FakeCommandRouter(lanzarInvalidOperationException: true);
+        var router = new FakeCommandRouter(new RecursoYaExisteException(CrearTurnoCommandHandler.Mensajes.TurnoYaExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task CrearTurno_Retorna409_CuandoNombreEstaDuplicado()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<CrearTurno>(ComandoValido()),
+            new FakeCommandRouter(new ReglaDeNegocioDeclinadaException(CrearTurnoCommandHandler.Mensajes.NombreDuplicado)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task CrearTurno_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<CrearTurno>(ComandoValido()), new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 
     // CA-9: POST con JSON invalido o campos faltantes retorna 400 Bad Request
@@ -79,7 +103,7 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<CrearTurno>(ComandoValido());
         var erroresDeNegocio = new ArgumentException[] { new("La franja ordinaria es invalida") };
-        var router = new FakeCommandRouter(erroresAggregateException: erroresDeNegocio);
+        var router = new FakeCommandRouter(new AggregateException(erroresDeNegocio));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
@@ -119,30 +143,18 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
 }
 
 /// <summary>
-/// Fake configurable de ICommandRouter. Puede configurarse para completar exitosamente,
-/// lanzar InvalidOperationException (turno duplicado) o AggregateException (franjas invalidas).
+/// Fake configurable de ICommandRouter.
 /// </summary>
 internal class FakeCommandRouter : ICommandRouter
 {
-    private readonly bool _lanzarInvalidOperation;
-    private readonly ArgumentException[]? _erroresAggregate;
+    private readonly Exception? _excepcion;
 
-    public FakeCommandRouter(
-        bool lanzarInvalidOperationException = false,
-        ArgumentException[]? erroresAggregateException = null)
-    {
-        _lanzarInvalidOperation = lanzarInvalidOperationException;
-        _erroresAggregate = erroresAggregateException;
-    }
+    public FakeCommandRouter(Exception? excepcion = null) => _excepcion = excepcion;
 
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
         where TCommand : class
     {
-        if (_lanzarInvalidOperation)
-            throw new InvalidOperationException("El turno ya existe");
-
-        if (_erroresAggregate is not null)
-            throw new AggregateException(_erroresAggregate);
+        if (_excepcion is not null) throw _excepcion;
 
         return Task.CompletedTask;
     }

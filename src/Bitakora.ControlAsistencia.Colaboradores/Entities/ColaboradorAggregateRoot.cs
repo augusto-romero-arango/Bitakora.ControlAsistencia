@@ -199,7 +199,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
     // Issue #351: mecanismo "declinar en silencio" (precedente ControlDiarioAggregateRoot.
     // AdicionarMarcacion) -- nunca lanza ni emite un evento de fallo persistido, y a diferencia de
     // TerminarVinculacion/IniciarVinculacion no responde razon: sin reglas de estado que violar,
-    // la unica causa de no emitir es que no haya nada que corregir, y el borde responde 202 igual.
+    // la unica causa de no emitir es que no haya nada que corregir, y el borde responde 204 igual.
     // La idempotencia es por igualdad de VALOR (NombreColaborador.Equals, #348), no por los
     // primitivos crudos del comando: el handler ya construyo el VO, que normaliza trim y opcionales
     // ausentes antes de que esta comparacion ocurra.

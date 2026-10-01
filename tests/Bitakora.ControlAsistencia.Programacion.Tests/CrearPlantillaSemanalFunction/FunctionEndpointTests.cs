@@ -1,6 +1,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -66,12 +67,40 @@ public class FunctionEndpointTests
     public async Task CrearPlantillaSemanal_Retorna409_CuandoPlantillaYaExiste()
     {
         var validator = new FakeRequestValidator<CrearPlantillaSemanal>(ComandoValido());
-        var router = new FakeCommandRouter(lanzarInvalidOperationException: true);
+        var router = new FakeCommandRouter(excepcion: new RecursoYaExisteException(
+            CrearPlantillaSemanalCommandHandler.Mensajes.PlantillaYaExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_Retorna409_CuandoElNombreEstaDuplicado()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<CrearPlantillaSemanal>(ComandoValido()),
+            new FakeCommandRouter(excepcion: new ReglaDeNegocioDeclinadaException(
+                CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>()
+            .Which.Value.Should().Be(CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<CrearPlantillaSemanal>(ComandoValido()),
+            new FakeCommandRouter(excepcion: fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 
     [Fact]
@@ -103,8 +132,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {
     private readonly TComando? _comando;
@@ -131,22 +158,22 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
 
 internal class FakeCommandRouter : ICommandRouter
 {
-    private readonly bool _lanzarInvalidOperation;
+    private readonly Exception? _excepcion;
     private readonly ArgumentException[]? _erroresAggregate;
 
     public FakeCommandRouter(
-        bool lanzarInvalidOperationException = false,
+        Exception? excepcion = null,
         ArgumentException[]? erroresAggregateException = null)
     {
-        _lanzarInvalidOperation = lanzarInvalidOperationException;
+        _excepcion = excepcion;
         _erroresAggregate = erroresAggregateException;
     }
 
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
         where TCommand : class
     {
-        if (_lanzarInvalidOperation)
-            throw new InvalidOperationException("La plantilla semanal ya existe");
+        if (_excepcion is not null)
+            throw _excepcion;
 
         if (_erroresAggregate is not null)
             throw new AggregateException(_erroresAggregate);

@@ -17,6 +17,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
+using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -136,8 +137,8 @@ public class FunctionEndpointTests
     {
         var validator = new FakeCorregirFechaInicioVinculacionBodyRequestValidator(BodyValido());
         var router = new FakeCorregirFechaInicioVinculacionCommandRouter(
-            lanzar: new InvalidOperationException(
-                "La fecha de inicio corregida no puede ser posterior a la fecha efectiva de terminacion de la vinculacion"));
+            lanzar: new ReglaDeNegocioDeclinadaException(
+                CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaPosteriorATerminacionPropia));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
@@ -151,12 +152,25 @@ public class FunctionEndpointTests
     {
         var validator = new FakeCorregirFechaInicioVinculacionBodyRequestValidator(BodyValido());
         var router = new FakeCorregirFechaInicioVinculacionCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                CorregirFechaInicioVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task CorregirFechaInicioVinculacion_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeCorregirFechaInicioVinculacionBodyRequestValidator(BodyValido()),
+            new FakeCorregirFechaInicioVinculacionCommandRouter(new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CodigoValido, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 
@@ -195,7 +209,7 @@ internal class FakeCorregirFechaInicioVinculacionBodyRequestValidator : IRequest
 /// <summary>
 /// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
 /// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada (InvalidOperationException -> 409, KeyNotFoundException -> 404).
+/// configurada.
 /// </summary>
 internal class FakeCorregirFechaInicioVinculacionCommandRouter : ICommandRouter
 {

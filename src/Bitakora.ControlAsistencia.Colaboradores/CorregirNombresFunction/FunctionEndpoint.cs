@@ -20,10 +20,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 // interno CorregirNombres (que conserva sus 6 campos primitivos, MEF-ADR-0039 decision 6) a partir
 // de {id} + los 4 campos del body.
 // Reemplaza el POST Colaboradores/Nombres (issue #351): la ruta vieja deja de existir (CA-5).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 2: PUT reemplaza -> 204): validar id de ruta (400) -> validar body (400 via IRequestValidator) ->
-// despachar comando -> KeyNotFoundException -> 404 NotFound (sin 409: este comando no tiene reglas
-// de estado, CA-2); exito -> 204 No Content.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CorregirNombres")]
@@ -52,9 +48,15 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (KeyNotFoundException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new NotFoundObjectResult(ex.Message);
+            switch (ex)
+            {
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new NoContentResult();

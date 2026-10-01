@@ -26,10 +26,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction;
 // en el body, precedente muerto: AnularTerminacionValidator se elimino junto con el body).
 // Reemplaza el POST Colaboradores/Terminaciones/Anulaciones (issue #354): la ruta vieja deja de
 // existir (CA-7).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 4): validar id de ruta (400) -> despachar comando -> InvalidOperationException -> 409 Conflict
-// (incluye CodigoNoCorresponde, CA-5, evaluada primero por el aggregate), KeyNotFoundException -> 404
-// NotFound; exito -> 204 No Content.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("AnularTerminacion")]
@@ -55,13 +51,17 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return new NotFoundObjectResult(ex.Message);
+            switch (ex)
+            {
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new NoContentResult();

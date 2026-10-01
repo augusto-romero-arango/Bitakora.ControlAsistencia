@@ -2,12 +2,13 @@
 // colaboradores/{id}/etiquetas/{categoria} (retirar la etiqueta de una categoria, sin body).
 // Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
 // 3): CA-2: 204 No Content; CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
-// ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: InvalidOperationException -> 409,
-// KeyNotFoundException -> 404. Categoria sin etiqueta sigue respondiendo 409 en este issue -- pasa
-// a no-op 204 en el issue #663 (depende de este), no aqui.
+// ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: ReglaDeNegocioDeclinadaException -> 409,
+// RecursoNoEncontradoException -> 404. Categoria sin etiqueta es un no-op exitoso.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction;
+using Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -101,14 +102,13 @@ public class FunctionEndpointTests
             "el router nunca deberia invocarse con una categoria en blanco");
     }
 
-    // CA-2 (rutas de rechazo): categoria inexistente o vinculacion con terminacion registrada
-    // retorna 409 Conflict. Categoria sin etiqueta sigue siendo 409 en este issue -- el no-op 204
-    // es #663 (depende de este), no aqui.
+    // CA-2: vinculacion con terminacion registrada retorna 409 Conflict.
     [Fact]
-    public async Task RetirarEtiqueta_Retorna409_CuandoLaCategoriaNoExisteOLaVinculacionEstaTerminada()
+    public async Task RetirarEtiqueta_Retorna409_CuandoLaVinculacionEstaTerminada()
     {
         var router = new FakeRetirarEtiquetaCommandRouter(
-            lanzar: new InvalidOperationException("No existe una etiqueta asignada con esa categoria"));
+            lanzar: new ReglaDeNegocioDeclinadaException(
+                RetirarEtiquetaCommandHandler.Mensajes.VinculacionTerminada));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
@@ -121,12 +121,24 @@ public class FunctionEndpointTests
     public async Task RetirarEtiqueta_Retorna404_CuandoColaboradorNoExiste()
     {
         var router = new FakeRetirarEtiquetaCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                RetirarEtiquetaCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task RetirarEtiqueta_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(new FakeRetirarEtiquetaCommandRouter(
+            new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 
@@ -135,7 +147,7 @@ public class FunctionEndpointTests
 /// <summary>
 /// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
 /// verificar la composicion integramente desde la ruta, y puede completar exitosamente o lanzar la
-/// excepcion configurada (InvalidOperationException -> 409, KeyNotFoundException -> 404).
+/// excepcion configurada.
 /// </summary>
 internal class FakeRetirarEtiquetaCommandRouter : ICommandRouter
 {

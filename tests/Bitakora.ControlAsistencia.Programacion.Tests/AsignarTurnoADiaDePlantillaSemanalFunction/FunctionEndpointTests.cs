@@ -1,6 +1,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -154,11 +155,12 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_Retorna404_CuandoElRouterLanzaKeyNotFoundException()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_Retorna404_CuandoElRouterLanzaRecursoNoEncontradoException()
     {
         var validator = new FakeRequestValidator<AsignarTurnoADiaDePlantillaSemanalBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro la plantilla semanal con el Id especificado"));
+            new RecursoNoEncontradoException(
+                AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(
@@ -168,17 +170,32 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaSemanal_Retorna409_CuandoElRouterLanzaInvalidOperationException()
+    public async Task AsignarTurnoADiaDePlantillaSemanal_Retorna409_CuandoElRouterLanzaReglaDeNegocioDeclinadaException()
     {
         var validator = new FakeRequestValidator<AsignarTurnoADiaDePlantillaSemanalBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new InvalidOperationException("El turno fue retirado del catalogo"));
+            new ReglaDeNegocioDeclinadaException(
+                AsignarTurnoADiaDePlantillaSemanalCommandHandler.Mensajes.TurnoRetirado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(
             FakeHttpRequest(), PlantillaId.ToString(), "1", "5", CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaSemanal_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<AsignarTurnoADiaDePlantillaSemanalBody>(BodyValido()),
+            new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(
+            FakeHttpRequest(), PlantillaId.ToString(), "1", "5", CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
 

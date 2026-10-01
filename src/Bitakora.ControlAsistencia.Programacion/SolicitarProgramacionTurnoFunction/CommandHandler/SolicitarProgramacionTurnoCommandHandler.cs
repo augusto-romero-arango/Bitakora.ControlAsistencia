@@ -2,6 +2,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -26,20 +27,20 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         var solicitudExiste = await _eventStore.ExistsAsync<SolicitudProgramacionAggregateRoot>(
             command.Id, ct);
         if (solicitudExiste)
-            throw new InvalidOperationException(Mensajes.SolicitudYaExiste);
+            throw new RecursoYaExisteException(Mensajes.SolicitudYaExiste);
 
         var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (catalogo is null)
-            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
         // Guarda transaccional contra el aggregate ya cargado (Tell-don't-Ask, MEF-ADR-0012): un
         // turno solo es asignable a una nueva solicitud si esta activo y completo (CA-ADR-0033).
         switch (catalogo.EvaluarAsignabilidad())
         {
             case ResultadoAsignabilidadTurno.Retirado:
-                throw new InvalidOperationException(Mensajes.TurnoRetirado);
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.TurnoRetirado);
             case ResultadoAsignabilidadTurno.Incompleto:
-                throw new InvalidOperationException(Mensajes.TurnoIncompleto);
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.TurnoIncompleto);
         }
 
         // Unico punto de normalizacion de la sede entrante: aguas abajo (cascada, evento

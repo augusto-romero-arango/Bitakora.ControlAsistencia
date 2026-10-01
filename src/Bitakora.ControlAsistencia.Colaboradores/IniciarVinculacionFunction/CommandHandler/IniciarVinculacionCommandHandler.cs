@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction.CommandHandler;
@@ -28,16 +29,16 @@ public partial class IniciarVinculacionCommandHandler : ICommandHandlerAsync<Ini
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
         var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
         if (colaborador is null)
-            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.ColaboradorNoEncontrado);
 
         var resultado = colaborador.IniciarVinculacion(
             command.CodigoColaborador, command.FechaInicio, command.CodigoSede);
         switch (resultado)
         {
             case ResultadoInicioVinculacion.VinculacionAbierta:
-                throw new InvalidOperationException(Mensajes.VinculacionAbierta);
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.VinculacionAbierta);
             case ResultadoInicioVinculacion.FechaSolapaVinculacionAnterior:
-                throw new InvalidOperationException(Mensajes.FechaSolapaVinculacionAnterior);
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.FechaSolapaVinculacionAnterior);
         }
     }
 }

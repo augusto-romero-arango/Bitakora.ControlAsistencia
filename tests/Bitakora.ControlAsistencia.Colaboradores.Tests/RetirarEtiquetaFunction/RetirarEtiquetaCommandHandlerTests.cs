@@ -1,6 +1,6 @@
 // Retirar una etiqueta sobre una categoria ausente de la vinculacion vigente es un no-op exitoso
 // (MEF-ADR-0004 "Estado ya alcanzado"): sin evento y sin excepcion. VinculacionTerminada es la
-// unica razon de rechazo (CA-ADR-0030) -> InvalidOperationException.
+// unica razon de rechazo (CA-ADR-0030) -> ReglaDeNegocioDeclinadaException.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -152,14 +152,14 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
     // Regla estricta de apertura: la ULTIMA vinculacion tiene terminacion registrada -> 409,
     // ningun evento nuevo, la etiqueta existente queda intacta.
     [Fact]
-    public async Task RetirarEtiqueta_LanzaInvalidOperationException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
+    public async Task RetirarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
         DadoUnColaboradorConEtiquetaYTerminacionRegistrada(
             Etiqueta.Crear("Area", "Ventas"), FechaEfectivaTerminacion);
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
@@ -168,7 +168,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
     // Preaviso no vencido: un preaviso con fecha futura ya registrado bloquea igual -- las
     // etiquetas describen la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
     [Fact]
-    public async Task RetirarEtiqueta_LanzaInvalidOperationException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
+    public async Task RetirarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         DadoUnColaboradorConEtiquetaYTerminacionRegistrada(
@@ -176,7 +176,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
@@ -221,15 +221,15 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // Colaborador inexistente -> 404 (KeyNotFoundException). Sin Given: el stream no existe. Sin
+    // Colaborador inexistente -> 404 (RecursoNoEncontradoException). Sin Given: el stream no existe. Sin
     // And<>: el aggregate no existe en el TestStore (GetAggregateRoot lanzaria
     // ArgumentNullException) -- el Then vacio es lo que demuestra que no se escribio nada.
     [Fact]
-    public async Task RetirarEtiqueta_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task RetirarEtiqueta_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{RetirarEtiquetaCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

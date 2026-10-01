@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -63,25 +64,25 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
     // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
     // AgregarFranjaCommandHandlerTests para el mismo escenario.
     [Fact]
-    public async Task AsignarSedeAFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
+    public async Task AsignarSedeAFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(
             new AsignarSedeAFranja(TurnoId, new TimeOnly(14, 0), Chapinero));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{AsignarSedeAFranjaCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
     }
 
     [Fact]
-    public async Task AsignarSedeAFranja_LanzaInvalidOperationException_CuandoElTurnoFueRetirado()
+    public async Task AsignarSedeAFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaSinSede(), TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(
             new AsignarSedeAFranja(TurnoId, new TimeOnly(14, 0), Chapinero));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeAFranjaCommandHandler.Mensajes.TurnoRetirado}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
@@ -89,14 +90,14 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
     }
 
     [Fact]
-    public async Task AsignarSedeAFranja_LanzaInvalidOperationException_CuandoNingunaFranjaEmpiezaAEsaHora()
+    public async Task AsignarSedeAFranja_LanzaReglaDeNegocioDeclinadaException_CuandoNingunaFranjaEmpiezaAEsaHora()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaSinSede());
 
         var act = async () => await WhenAsync(
             new AsignarSedeAFranja(TurnoId, new TimeOnly(15, 0), Chapinero));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeAFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -105,14 +106,14 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
 
     // Un descanso no tiene franjas ordinarias -- misma razon que QuitarFranja/QuitarDescanso.
     [Fact]
-    public async Task AsignarSedeAFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
+    public async Task AsignarSedeAFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEsDescanso()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeDescanso());
 
         var act = async () => await WhenAsync(
             new AsignarSedeAFranja(TurnoId, new TimeOnly(14, 0), Chapinero));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeAFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -122,14 +123,14 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
     // CA-3: retirar dos veces la sede -- el aggregate declina sin evento, pero el handler lo
     // traduce a 409, a diferencia del no-op exitoso de RetirarTurno (MEF-ADR-0004, #665).
     [Fact]
-    public async Task AsignarSedeAFranja_LanzaInvalidOperationException_CuandoLaFranjaYaNoTieneSede()
+    public async Task AsignarSedeAFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaYaNoTieneSede()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranjaSinSede());
 
         var act = async () => await WhenAsync(
             new AsignarSedeAFranja(TurnoId, new TimeOnly(14, 0), null));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarSedeAFranjaCommandHandler.Mensajes.FranjaSinSede}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),

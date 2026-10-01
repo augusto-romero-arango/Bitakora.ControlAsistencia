@@ -144,13 +144,13 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
     // CA-5 (decision #1, regla estricta de apertura): la ULTIMA vinculacion tiene terminacion
     // registrada -> 409, ningun evento nuevo, el diccionario de etiquetas queda intacto.
     [Fact]
-    public async Task AsignarEtiqueta_LanzaInvalidOperationException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
+    public async Task AsignarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
         DadoUnColaboradorConTerminacionRegistrada(FechaEfectivaTerminacion);
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
@@ -159,14 +159,14 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
     // CA-5 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual -- las
     // etiquetas describen la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
     [Fact]
-    public async Task AsignarEtiqueta_LanzaInvalidOperationException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
+    public async Task AsignarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         DadoUnColaboradorConTerminacionRegistrada(fechaPreavisoFutura);
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
@@ -202,7 +202,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
     // una vinculacion cerrada. Aqui no: escribir etiquetas sobre una relacion laboral congelada se
     // rechaza aunque el estado deseado coincida.
     [Fact]
-    public async Task AsignarEtiqueta_LanzaInvalidOperationException_CuandoLaEtiquetaEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
+    public async Task AsignarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaEtiquetaEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
     {
         var etiquetaExistente = Etiqueta.Crear("Área", "Tecnología");
         Given(StreamIdEsperado,
@@ -213,7 +213,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AsignarEtiquetaCommandHandler.Mensajes.VinculacionTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, Etiqueta>(
@@ -242,16 +242,16 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaEsperada);
     }
 
-    // CA-7: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-7: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que AnularTerminacionCommandHandlerTests CA-5). Sin
     // And<>: el aggregate no existe en el TestStore (GetAggregateRoot lanzaria ArgumentNullException).
     [Fact]
-    public async Task AsignarEtiqueta_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task AsignarEtiqueta_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{AsignarEtiquetaCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

@@ -5,9 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 
-// Fakes manuales del borde HTTP compartidos por los tests de los tres FunctionEndpoint del dominio
-// (NSubstitute proscrito por el pipeline).
-
 internal sealed class FakeRequestValidator<TComando>(
     TComando? comando = default, IActionResult? error = null) : IRequestValidator
 {
@@ -22,8 +19,6 @@ internal sealed class FakeRequestValidator<TComando>(
     }
 }
 
-// La excepcion se inyecta como instancia (no como bandera bool por tipo): cada endpoint traduce una
-// excepcion distinta -- KeyNotFoundException a 404, InvalidOperationException a 409.
 internal sealed class FakeCommandRouter(Exception? excepcionAlInvocar = null) : ICommandRouter
 {
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)

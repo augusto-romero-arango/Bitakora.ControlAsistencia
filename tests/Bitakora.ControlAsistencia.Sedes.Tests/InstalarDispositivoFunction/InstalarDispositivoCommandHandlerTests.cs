@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 using Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -77,7 +78,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
 
     // CA-1: la vista ubica al dispositivo en OTRA sede -> 409, sin tocar el aggregate destino.
     [Fact]
-    public async Task InstalarDispositivo_LanzaInvalidOperationException_CuandoDispositivoEstaInstaladoEnOtraSede()
+    public async Task InstalarDispositivo_LanzaReglaDeNegocioDeclinadaException_CuandoDispositivoEstaInstaladoEnOtraSede()
     {
         Given(OtroStreamIdEsperado, CrearSedeRegistrada(OtroCodigo), new DispositivoInstalado(DispositivoId));
         Given(StreamIdEsperado, CrearSedeRegistrada());
@@ -85,7 +86,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
 
         var act = async () => await WhenAsync(new InstalarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{InstalarDispositivoCommandHandler.Mensajes.DispositivoInstaladoEnOtraSede}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
@@ -96,14 +97,14 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
     // El And afirma sobre el ORIGEN, no sobre el destino: el destino nunca entra al store en este
     // escenario y And<> exige un aggregate existente (lanza si GetAggregateRoot devuelve null).
     [Fact]
-    public async Task InstalarDispositivo_LanzaInvalidOperationException_CuandoDispositivoEstaInstaladoEnOtraSede_AunqueLaSedeDestinoNoExista()
+    public async Task InstalarDispositivo_LanzaReglaDeNegocioDeclinadaException_CuandoDispositivoEstaInstaladoEnOtraSede_AunqueLaSedeDestinoNoExista()
     {
         Given(OtroStreamIdEsperado, CrearSedeRegistrada(OtroCodigo), new DispositivoInstalado(DispositivoId));
         _lector = new FakeLectorUbicacionDispositivo(new UbicacionDispositivo(DispositivoId, OtroStreamIdEsperado));
 
         var act = async () => await WhenAsync(new InstalarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{InstalarDispositivoCommandHandler.Mensajes.DispositivoInstaladoEnOtraSede}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(OtroStreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
@@ -112,14 +113,14 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
     // CA-2: la vista ya ubica al dispositivo en la MISMA sede destino -> la validacion cross-sede
     // no interviene, sigue el flujo actual (declina por YaInstalado, sin emitir).
     [Fact]
-    public async Task InstalarDispositivo_LanzaInvalidOperationException_CuandoElDispositivoYaEstaInstaladoEnEstaSede()
+    public async Task InstalarDispositivo_LanzaReglaDeNegocioDeclinadaException_CuandoElDispositivoYaEstaInstaladoEnEstaSede()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada(), new DispositivoInstalado(DispositivoId));
         _lector = new FakeLectorUbicacionDispositivo(new UbicacionDispositivo(DispositivoId, StreamIdEsperado));
 
         var act = async () => await WhenAsync(new InstalarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{InstalarDispositivoCommandHandler.Mensajes.DispositivoYaInstalado}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
@@ -128,11 +129,11 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
     // Precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin escribir
     // nada al event store. Sin ubicacion previa del dispositivo.
     [Fact]
-    public async Task InstalarDispositivo_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task InstalarDispositivo_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new InstalarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{InstalarDispositivoCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

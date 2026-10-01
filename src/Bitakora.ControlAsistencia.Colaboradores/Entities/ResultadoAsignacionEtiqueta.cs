@@ -5,7 +5,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 //   - "declinar con resultado" (ResultadoTerminacionVinculacion #349 y hermanos): VinculacionTerminada
 //     es la unica razon de rechazo evaluable con la historia del stream, sin reloj (decision de
 //     refinamiento 2026-08-11: las etiquetas describen la relacion laboral ACTIVA, incluido un
-//     preaviso sin vencer) -- el handler la traduce a InvalidOperationException/409 con mensaje
+//     preaviso sin vencer) -- el handler la traduce a ReglaDeNegocioDeclinadaException/409 con mensaje
 //     .resx.
 //   - "declinar en silencio" (ColaboradorAggregateRoot.CorregirNombres #351 / CorregirFechaInicio
 //     #352): SinCambios es la variante de EXITO silenciosa -- la etiqueta nueva es igual por valor
