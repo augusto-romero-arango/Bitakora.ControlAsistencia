@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.RetirarPlantillaSemanalFunction.CommandHandler;
@@ -33,11 +34,11 @@ public class RetirarPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTes
 
     // CA-4: plantilla sin stream -> 404
     [Fact]
-    public async Task RetirarPlantillaSemanal_LanzaKeyNotFoundException_CuandoLaPlantillaNoExiste()
+    public async Task RetirarPlantillaSemanal_LanzaRecursoNoEncontradoException_CuandoLaPlantillaNoExiste()
     {
         var act = async () => await WhenAsync(new RetirarPlantillaSemanal(PlantillaId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{RetirarPlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada}*");
         Then(PlantillaId.ToString());
     }

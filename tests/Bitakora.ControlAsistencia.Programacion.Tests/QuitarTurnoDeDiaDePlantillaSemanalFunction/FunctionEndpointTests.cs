@@ -1,7 +1,9 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSemanalFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -127,10 +129,11 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task QuitarTurnoDeDiaDePlantillaSemanal_Retorna404_CuandoElRouterLanzaKeyNotFoundException()
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_Retorna404_CuandoElRouterLanzaRecursoNoEncontradoException()
     {
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro la plantilla semanal con el Id especificado"));
+            new RecursoNoEncontradoException(
+                QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.PlantillaNoEncontrada));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(
@@ -140,16 +143,29 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task QuitarTurnoDeDiaDePlantillaSemanal_Retorna409_CuandoElRouterLanzaInvalidOperationException()
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_Retorna409_CuandoElRouterLanzaReglaDeNegocioDeclinadaException()
     {
         var router = new FakeCommandRouter(
-            new InvalidOperationException("La semana especificada supera el numero de semanas de la plantilla"));
+            new ReglaDeNegocioDeclinadaException(
+                QuitarTurnoDeDiaDePlantillaSemanalCommandHandler.Mensajes.SemanaFueraDeRango));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(
             FakeHttpRequest(), PlantillaId.ToString(), "1", "5", CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task QuitarTurnoDeDiaDePlantillaSemanal_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(
+            FakeHttpRequest(), PlantillaId.ToString(), "1", "5", CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
 

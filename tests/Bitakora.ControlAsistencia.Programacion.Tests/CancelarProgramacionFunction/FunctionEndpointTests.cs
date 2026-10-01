@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction;
+using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -52,22 +53,33 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-2: solicitud ya existe retorna 409 Conflict
     [Fact]
-    public async Task DebeRetornar409_CuandoSolicitudYaExiste()
+    public async Task CancelarProgramacion_Retorna409_CuandoSolicitudYaExiste()
     {
         var validator = new FakeCancelacionRequestValidator(ComandoValido());
         var router = new FakeCancelacionCommandRouter(
-            lanzar: new InvalidOperationException("La solicitud ya existe"));
+            lanzar: new RecursoYaExisteException(
+                CancelarProgramacionCommandHandler.Mensajes.SolicitudYaExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
     }
-}
 
-// ---- Fakes manuales - NO NSubstitute ----
+    [Fact]
+    public async Task CancelarProgramacion_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeCancelacionRequestValidator(ComandoValido()),
+            new FakeCancelacionCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
+    }
+}
 
 internal class FakeCancelacionRequestValidator : IRequestValidator
 {
