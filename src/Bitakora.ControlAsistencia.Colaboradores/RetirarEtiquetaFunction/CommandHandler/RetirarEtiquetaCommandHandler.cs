@@ -1,16 +1,10 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction.CommandHandler;
 
-// SinCambios NO se traduce: es el no-op exitoso de MEF-ADR-0004 ("Estado ya alcanzado") -- el
-// aggregate ya retorno sin agregar eventos y el handler debe terminar sin lanzar.
-// VinculacionTerminada es la unica razon de rechazo real (CA-ADR-0030) -> InvalidOperationException
-// /409 con mensaje .resx. El 404 es precondicion de orquestacion (MEF-ADR-0004 capa 2), no regla
-// del aggregate. En el camino de exito el aggregate ya dejo EtiquetaRetirada en
-// _uncommittedEvents -- el middleware persiste via SaveChanges. Sin publicacion a bus
-// (event-sourcing puro: este evento no tiene consumidores).
 public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<RetirarEtiqueta>
 {
     private readonly IEventStore _eventStore;
@@ -28,7 +22,7 @@ public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<Retira
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
         var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
         if (colaborador is null)
-            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.ColaboradorNoEncontrado);
 
         // Tell-don't-Ask: la normalizacion de una categoria aislada (sin Valor) vive en el VO
         // Etiqueta (#355), nunca en este handler.
@@ -36,6 +30,6 @@ public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<Retira
 
         var resultado = colaborador.RetirarEtiqueta(categoriaNormalizada);
         if (resultado == ResultadoRetiroEtiqueta.VinculacionTerminada)
-            throw new InvalidOperationException(Mensajes.VinculacionTerminada);
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.VinculacionTerminada);
     }
 }

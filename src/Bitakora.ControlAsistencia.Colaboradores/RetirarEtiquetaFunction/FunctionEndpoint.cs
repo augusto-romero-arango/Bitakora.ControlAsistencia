@@ -20,10 +20,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction;
 // (Tell-don't-Ask). SIN body: no hay IRequestValidator involucrado (RetirarEtiquetaValidator, que
 // validaba el body viejo, se elimino junto con este cambio -- sin body no hay nada que
 // deserializar ni validar en ese punto).
-// MEF-ADR-0043 seccion 2 paso 3: validar id de ruta (400) -> validar categoria de ruta (400) ->
-// despachar comando -> InvalidOperationException -> 409 Conflict, KeyNotFoundException -> 404
-// NotFound; exito -> 204 No Content. Una categoria SIN etiqueta en la vinculacion vigente tambien
-// sale por 204: es un no-op exitoso (MEF-ADR-0004 "Estado ya alcanzado"), el handler no lanza.
 public class FunctionEndpoint(ICommandRouter commandRouter)
 {
     [Function("RetirarEtiqueta")]
@@ -52,13 +48,17 @@ public class FunctionEndpoint(ICommandRouter commandRouter)
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return new NotFoundObjectResult(ex.Message);
+            switch (ex)
+            {
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new NoContentResult();

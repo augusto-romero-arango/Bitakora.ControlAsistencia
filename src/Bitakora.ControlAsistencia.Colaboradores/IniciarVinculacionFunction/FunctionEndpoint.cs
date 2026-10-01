@@ -22,12 +22,6 @@ namespace Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
 // el comando interno IniciarVinculacion (que conserva sus 4 campos primitivos, MEF-ADR-0039
 // decision 6) a partir de {id} + esos 2 campos del body.
 // Reemplaza el POST Colaboradores/Reingresos (issue #350): la ruta vieja deja de existir (CA-6).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 1): validar id de ruta (400) -> validar body (400 via IRequestValidator) -> despachar comando ->
-// InvalidOperationException -> 409 Conflict (invariante de no-solape violada), KeyNotFoundException
-// -> 404 NotFound; exito -> 201 Created con Location a la ficha del padre, reemitida desde el VO
-// Identificacion ya parseado (punto unico de conversion, MEF-ADR-0037) para que el header apunte
-// siempre a la URI canonica, aunque el cliente haya escrito el {id} en otra forma.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("IniciarVinculacion")]
@@ -55,13 +49,17 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (InvalidOperationException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new ConflictObjectResult(ex.Message);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return new NotFoundObjectResult(ex.Message);
+            switch (ex)
+            {
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new CreatedResult($"/api/colaboradores/fichas/{identificacion}", null);

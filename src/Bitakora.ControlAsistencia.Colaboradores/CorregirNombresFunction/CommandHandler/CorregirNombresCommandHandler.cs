@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction.CommandHandler;
@@ -30,7 +31,7 @@ public partial class CorregirNombresCommandHandler : ICommandHandlerAsync<Correg
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
         var colaborador = await _eventStore.GetAggregateRootAsync<ColaboradorAggregateRoot>(streamId, ct);
         if (colaborador is null)
-            throw new KeyNotFoundException(Mensajes.ColaboradorNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.ColaboradorNoEncontrado);
 
         colaborador.CorregirNombres(nombre);
     }
