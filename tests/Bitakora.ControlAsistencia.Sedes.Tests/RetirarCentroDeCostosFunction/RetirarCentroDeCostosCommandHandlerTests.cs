@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction;
 using Bitakora.ControlAsistencia.Sedes.RetirarCentroDeCostosFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -48,14 +49,12 @@ public class RetirarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, null);
     }
 
-    // Precondicion de orquestacion: sede inexistente -> KeyNotFoundException, sin escribir nada
-    // al event store.
     [Fact]
-    public async Task RetirarCentroDeCostos_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task RetirarCentroDeCostos_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new RetirarCentroDeCostos(Codigo));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{RetirarCentroDeCostosCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

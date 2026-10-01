@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction;
 using Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -85,11 +86,11 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
     // Precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin escribir
     // nada al event store.
     [Fact]
-    public async Task RetirarDispositivo_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task RetirarDispositivo_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new RetirarDispositivo(Codigo, DispositivoId));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{RetirarDispositivoCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction;
 using Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -53,13 +54,12 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, CentroDeCostosNuevo);
     }
 
-    // CA-5: sede inexistente -> KeyNotFoundException, sin escribir nada al event store.
     [Fact]
-    public async Task AsignarCentroDeCostos_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task AsignarCentroDeCostos_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new AsignarCentroDeCostos(Codigo, CentroDeCostosNuevo));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{AsignarCentroDeCostosCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

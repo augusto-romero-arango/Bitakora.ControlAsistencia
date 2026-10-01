@@ -4,6 +4,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.RegistrarSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.RegistrarSedeFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -56,18 +57,18 @@ public class RegistrarSedeCommandHandlerTests : CommandHandlerAsyncTest<Registra
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.Direccion, null);
     }
 
-    // CA-5: codigo ya registrado -> 409 (InvalidOperationException, sin evento de fallo persistido,
+    // CA-5: codigo ya registrado -> 409 (sin evento de fallo persistido,
     // CA-ADR-0030). Then sin eventos esperados verifica la segunda mitad del CA -- el stream
     // existente no recibe ningun evento nuevo -- y el And que el estado sigue siendo el previo, no
     // el del comando rechazado (el 409 no puede dejar el stream a medio escribir).
     [Fact]
-    public async Task RegistrarSede_LanzaInvalidOperationException_CuandoCodigoYaExiste()
+    public async Task RegistrarSede_LanzaRecursoYaExisteException_CuandoCodigoYaExiste()
     {
         Given(StreamIdEsperado, new SedeRegistrada(Codigo, "Sede Original", Ciudad, Direccion));
 
         var act = async () => await WhenAsync(ComandoValido() with { Nombre = "Otro Nombre" });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{RegistrarSedeCommandHandler.Mensajes.SedeYaRegistrada}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, string>(StreamIdEsperado, s => s.Nombre, "Sede Original");
