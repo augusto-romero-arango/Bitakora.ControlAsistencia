@@ -1,5 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction;
+using Bitakora.ControlAsistencia.Sedes.RetirarDispositivoFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Bitakora.ControlAsistencia.Sedes.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -33,7 +35,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task RetirarDispositivo_Retorna404_CuandoSedeNoExiste()
     {
-        var router = new FakeCommandRouter(new KeyNotFoundException("La sede no existe"));
+        var router = new FakeCommandRouter(new RecursoNoEncontradoException(RetirarDispositivoCommandHandler.Mensajes.SedeNoEncontrada));
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), Codigo, DispositivoId, CancellationToken.None);
@@ -47,11 +49,21 @@ public class FunctionEndpointTests
     public async Task RetirarDispositivo_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
     {
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("el comando nunca debe despacharse con un codigo invalido"));
+            new Exception());
         var function = new FunctionEndpoint(router);
 
         var result = await function.Run(FakeHttpRequest(), "SEDE:001", DispositivoId, CancellationToken.None);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task RetirarDispositivo_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(new FakeCommandRouter(new InvalidOperationException()));
+
+        var act = () => function.Run(FakeHttpRequest(), Codigo, DispositivoId, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }

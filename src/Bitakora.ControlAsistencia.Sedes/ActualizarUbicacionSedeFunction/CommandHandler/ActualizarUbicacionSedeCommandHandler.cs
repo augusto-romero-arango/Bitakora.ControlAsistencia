@@ -1,10 +1,9 @@
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Sedes.ActualizarUbicacionSedeFunction.CommandHandler;
 
-// Sede inexistente se declina con KeyNotFoundException (el endpoint la traduce a 404), sin
-// persistir ningun evento de fallo -- CA-ADR-0030.
 public partial class ActualizarUbicacionSedeCommandHandler : ICommandHandlerAsync<ActualizarUbicacionSede>
 {
     private readonly IEventStore _eventStore;
@@ -17,7 +16,7 @@ public partial class ActualizarUbicacionSedeCommandHandler : ICommandHandlerAsyn
         var streamId = SedeAggregateRoot.ComputarStreamId(command.Codigo);
         var sede = await _eventStore.GetAggregateRootAsync<SedeAggregateRoot>(streamId, ct);
         if (sede is null)
-            throw new KeyNotFoundException(Mensajes.SedeNoEncontrada);
+            throw new RecursoNoEncontradoException(Mensajes.SedeNoEncontrada);
 
         sede.ActualizarUbicacion(command.Ciudad, command.Direccion);
     }

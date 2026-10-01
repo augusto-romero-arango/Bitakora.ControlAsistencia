@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Sedes.ActivarSedeFunction;
 using Bitakora.ControlAsistencia.Sedes.ActivarSedeFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
 using Bitakora.ControlAsistencia.Sedes.Entities;
+using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -35,37 +36,37 @@ public class ActivarSedeCommandHandlerTests : CommandHandlerAsyncTest<ActivarSed
     }
 
     [Fact]
-    public async Task ActivarSede_LanzaInvalidOperationException_CuandoLaSedeYaEstaActivaPorNacimiento()
+    public async Task ActivarSede_LanzaReglaDeNegocioDeclinadaException_CuandoLaSedeYaEstaActivaPorNacimiento()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada());
 
         var act = async () => await WhenAsync(new ActivarSede(Codigo));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ActivarSedeCommandHandler.Mensajes.SedeYaActiva}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, bool>(StreamIdEsperado, s => s.Activa, true);
     }
 
     [Fact]
-    public async Task ActivarSede_LanzaInvalidOperationException_CuandoLaSedeYaFueReactivadaAntes()
+    public async Task ActivarSede_LanzaReglaDeNegocioDeclinadaException_CuandoLaSedeYaFueReactivadaAntes()
     {
         Given(StreamIdEsperado, CrearSedeRegistrada(), new SedeDesactivada(), new SedeActivada());
 
         var act = async () => await WhenAsync(new ActivarSede(Codigo));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ActivarSedeCommandHandler.Mensajes.SedeYaActiva}*");
         Then(StreamIdEsperado);
         And<SedeAggregateRoot, bool>(StreamIdEsperado, s => s.Activa, true);
     }
 
     [Fact]
-    public async Task ActivarSede_LanzaKeyNotFoundException_CuandoSedeNoExiste()
+    public async Task ActivarSede_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {
         var act = async () => await WhenAsync(new ActivarSede(Codigo));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{ActivarSedeCommandHandler.Mensajes.SedeNoEncontrada}*");
         Then(StreamIdEsperado);
     }

@@ -31,9 +31,15 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (KeyNotFoundException ex)
+        catch (PrecondicionComandoException ex)
         {
-            return new NotFoundObjectResult(ex.Message);
+            switch (ex)
+            {
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
         }
 
         return new NoContentResult();
