@@ -93,20 +93,46 @@ jobs:
         run: |
           expected_sha="${{ inputs.expected_sha }}"
           if [ -n "$expected_sha" ]; then
+            # MEF-ADR-0031 seccion 3 (enmienda 2026-09-12, run 34722573915): 230s del
+            # WEBSITES_CONTAINER_START_TIME_LIMIT + ~95s de teardown/reinicio + 92s del peor
+            # swap sano = ~417s, redondeados a 420s. NO fallar rapido ante el primer arranque
+            # fallido: App Service reintenta el mismo artefacto; mas de un reintento sale rojo.
             echo "Esperando que ${{ inputs.base_url }}/api/version reporte el SHA ${expected_sha}..."
+            TIMEOUT_VERSION=420
+            INTERVALO_VERSION=5
+            inicio_version=$SECONDS
+            intento=0
+            ultimo_cuerpo=""
             version_ok=0
-            for i in $(seq 1 60); do
-              body=$(curl -s "${{ inputs.base_url }}/api/version" || echo "")
+            while true; do
+              restante=$((TIMEOUT_VERSION - (SECONDS - inicio_version)))
+              if [ "$restante" -le 0 ]; then
+                break
+              fi
+              max_time=$((restante < 15 ? restante : 15))
+              intento=$((intento + 1))
+              body=$(curl -s --max-time "$max_time" "${{ inputs.base_url }}/api/version" || echo "")
+              ultimo_cuerpo="$body"
               if [[ "$body" == *"$expected_sha"* ]]; then
-                echo "Version OK tras ${i} intento(s) (~$((i*2))s): ${body}"
+                echo "Version OK tras ${intento} intento(s) ($((SECONDS - inicio_version))s): ${body}"
                 version_ok=1
                 break
               fi
-              echo "Intento ${i}: version desplegada '${body}' no coincide con '${expected_sha}'. Reintentando en 2s..."
-              sleep 2
+              restante=$((TIMEOUT_VERSION - (SECONDS - inicio_version)))
+              if [ "$restante" -le 0 ]; then
+                break
+              fi
+              espera=$((restante < INTERVALO_VERSION ? restante : INTERVALO_VERSION))
+              echo "Intento ${intento}: version desplegada '${body}' no coincide con '${expected_sha}'. Reintentando en ${espera}s..."
+              sleep "$espera"
             done
             if [ "$version_ok" -eq 0 ]; then
-              echo "Timeout: /api/version no reporto el SHA esperado (${expected_sha}) en 120s"
+              app_name="${{ inputs.base_url }}"
+              app_name="${app_name#https://}"
+              app_name="${app_name%%/*}"
+              app_name="${app_name%.azurewebsites.net}"
+              startup_logs_url="https://${app_name}.scm.azurewebsites.net/api/vfs/LogFiles/StartupLogs/"
+              echo "Timeout: /api/version no reporto el SHA esperado (${expected_sha}) en 420s. Ultimo cuerpo observado: '${ultimo_cuerpo}'. StartupLogs de Kudu: ${startup_logs_url}"
               exit 1
             fi
           fi
