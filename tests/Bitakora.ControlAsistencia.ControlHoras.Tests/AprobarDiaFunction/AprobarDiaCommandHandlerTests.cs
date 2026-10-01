@@ -223,8 +223,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
 
     // CA-7, contracara: dia sin stream + payload con decisiones -> 409 (caso CA-5, el expediente
     // vacio no tiene ninguna franja que decidir). Sin And<>: el aggregate nunca llega a crearse
-    // (declina antes de StartStream) -- mismo criterio que
-    // el resto de tests de este handler.
+    // (declina antes de StartStream), no hay estado que verificar.
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElDiaNoTieneStreamYElPayloadTraeDecisiones()
     {
