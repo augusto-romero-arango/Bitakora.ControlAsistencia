@@ -4,11 +4,12 @@
 // 2: PUT reemplaza -> 204 siempre): CA-1: 204 No Content (incluye la sede/etiqueta identica a la
 // vigente -- SinCambios sin evento -- y la categoria nueva, ambos casos el slot existe por
 // construccion); CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
-// ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: InvalidOperationException -> 409,
-// KeyNotFoundException -> 404.
+// ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: ReglaDeNegocioDeclinadaException -> 409,
+// RecursoNoEncontradoException -> 404.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
+using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -137,8 +138,8 @@ public class FunctionEndpointTests
     {
         var validator = new FakeAsignarEtiquetaBodyRequestValidator(BodyValido());
         var router = new FakeAsignarEtiquetaCommandRouter(
-            lanzar: new InvalidOperationException(
-                "La vinculacion vigente del colaborador tiene una terminacion registrada"));
+            lanzar: new ReglaDeNegocioDeclinadaException(
+                AsignarEtiquetaCommandHandler.Mensajes.VinculacionTerminada));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
@@ -152,12 +153,25 @@ public class FunctionEndpointTests
     {
         var validator = new FakeAsignarEtiquetaBodyRequestValidator(BodyValido());
         var router = new FakeAsignarEtiquetaCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                AsignarEtiquetaCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task AsignarEtiqueta_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeAsignarEtiquetaBodyRequestValidator(BodyValido()),
+            new FakeAsignarEtiquetaCommandRouter(new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CategoriaValida, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 
@@ -196,7 +210,7 @@ internal class FakeAsignarEtiquetaBodyRequestValidator : IRequestValidator
 /// <summary>
 /// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
 /// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada (InvalidOperationException -> 409, KeyNotFoundException -> 404).
+/// configurada.
 /// </summary>
 internal class FakeAsignarEtiquetaCommandRouter : ICommandRouter
 {

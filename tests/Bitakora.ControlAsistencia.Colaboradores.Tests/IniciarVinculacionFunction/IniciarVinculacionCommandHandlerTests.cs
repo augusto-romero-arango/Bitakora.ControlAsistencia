@@ -3,7 +3,7 @@
 // de exito es VinculacionIniciada, EL MISMO del registro (#330) y del reingreso original (#350) --
 // cero tipos nuevos (CA-ADR-0029: un evento no conoce su comando). CA-ADR-0030: el aggregate
 // declina con resultado (nunca lanza, nunca emite evento de fallo); el handler traduce la razon a
-// InvalidOperationException (409) o KeyNotFoundException (404). Reemplaza a
+// ReglaDeNegocioDeclinadaException (409) o RecursoNoEncontradoException (404). Reemplaza a
 // ReingresarColaboradorCommandHandlerTests (issue #350) -- mismos escenarios, comando/handler/
 // aggregate/enum renombrados en terminos de iniciar vinculacion (CA-4); "reingreso" sigue nombrando
 // el escenario de negocio en nombres de test y comentarios (no la operacion).
@@ -128,13 +128,13 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // CA-2: la vinculacion vigente esta abierta (recien registrada, nunca terminada) -> 409,
     // ningun evento nuevo en el stream, el estado conserva el codigo original.
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoLaVinculacionVigenteEstaAbierta()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionVigenteEstaAbierta()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -145,7 +145,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // registro-terminacion-reingreso) -> 409 igual, la invariante de no-solape aplica sobre
     // CUALQUIER vinculacion vigente sin terminar, no solo la primera.
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoElReingresoPrevioSigueAbierto()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElReingresoPrevioSigueAbierto()
     {
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -156,7 +156,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
         var segundoReingreso = ComandoValido() with { CodigoColaborador = "COL-003" };
         var act = async () => await WhenAsync(segundoReingreso);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -166,14 +166,14 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // CA-2: FechaInicio igual a la FechaEfectiva de la ultima terminacion -> 409 por no-solape (el
     // mismo dia se rechaza -- el dia de la fecha efectiva pertenece a la vinculacion que termina).
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaInicioEsIgualALaFechaEfectivaDeTerminacion()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaInicioEsIgualALaFechaEfectivaDeTerminacion()
     {
         DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
 
         var act = async () => await WhenAsync(
             ComandoValido() with { FechaInicio = FechaEfectivaTerminacionOriginal });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -183,14 +183,14 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // CA-2 (segunda direccion): FechaInicio anterior a la FechaEfectiva de terminacion -> 409
     // igual, con mayor margen de solape.
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaInicioEsAnteriorALaFechaEfectivaDeTerminacion()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaInicioEsAnteriorALaFechaEfectivaDeTerminacion()
     {
         DadoUnColaboradorConVinculacionTerminada(FechaEfectivaTerminacionOriginal);
         var fechaAnterior = FechaEfectivaTerminacionOriginal.AddDays(-1);
 
         var act = async () => await WhenAsync(ComandoValido() with { FechaInicio = fechaAnterior });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -201,14 +201,14 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // si su FechaInicio no supera la fecha del preaviso -- la regla de no-solape se compone sin
     // reloj (decision de refinamiento 2026-08-11, heredada de #350).
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaInicioNoSuperaElPreavisoRegistrado()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaInicioNoSuperaElPreavisoRegistrado()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         DadoUnColaboradorConVinculacionTerminada(fechaPreavisoFutura);
 
         var act = async () => await WhenAsync(ComandoValido() with { FechaInicio = fechaPreavisoFutura });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -267,7 +267,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // CA-7: la sede en el comando no agrega ni quita razones de rechazo -- vinculacion abierta
     // sigue en 409 sin eventos nuevos, y la sede vigente NO absorbe la del comando rechazado.
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoLaVinculacionVigenteEstaAbiertaYElComandoTraeSede()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionVigenteEstaAbiertaYElComandoTraeSede()
     {
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -276,7 +276,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
 
         var act = async () => await WhenAsync(ComandoValido() with { CodigoSede = CodigoSedeNueva });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeAnterior);
@@ -285,7 +285,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     // CA-7 (segunda razon de rechazo): el solape con la vinculacion anterior sigue en 409 aunque el
     // comando traiga sede, y la sede vigente queda intacta.
     [Fact]
-    public async Task IniciarVinculacion_LanzaInvalidOperationException_CuandoFechaSolapaYElComandoTraeSede()
+    public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaSolapaYElComandoTraeSede()
     {
         DadoUnColaboradorConVinculacionTerminadaYSedeAsignada(
             FechaEfectivaTerminacionOriginal, CodigoSedeAnterior);
@@ -296,22 +296,22 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             CodigoSede = CodigoSedeNueva
         });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeAnterior);
     }
 
-    // CA-3: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-3: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Sin And<>: el aggregate no existe en el TestStore
     // (GetAggregateRoot retorna null) -- Then sin eventos esperados ya demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5).
     [Fact]
-    public async Task IniciarVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task IniciarVinculacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{IniciarVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

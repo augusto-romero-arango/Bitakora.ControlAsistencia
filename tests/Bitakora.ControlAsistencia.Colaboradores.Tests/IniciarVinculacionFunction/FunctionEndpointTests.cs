@@ -17,6 +17,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
+using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -158,8 +159,8 @@ public class FunctionEndpointTests
     {
         var validator = new FakeIniciarVinculacionBodyRequestValidator(BodyValido());
         var router = new FakeIniciarVinculacionCommandRouter(
-            lanzar: new InvalidOperationException(
-                "La vinculacion vigente del colaborador no tiene una terminacion registrada"));
+            lanzar: new ReglaDeNegocioDeclinadaException(
+                IniciarVinculacionCommandHandler.Mensajes.VinculacionAbierta));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
@@ -173,12 +174,25 @@ public class FunctionEndpointTests
     {
         var validator = new FakeIniciarVinculacionBodyRequestValidator(BodyValido());
         var router = new FakeIniciarVinculacionCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                IniciarVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task IniciarVinculacion_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeIniciarVinculacionBodyRequestValidator(BodyValido()),
+            new FakeIniciarVinculacionCommandRouter(new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 
@@ -217,7 +231,7 @@ internal class FakeIniciarVinculacionBodyRequestValidator : IRequestValidator
 /// <summary>
 /// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
 /// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada (InvalidOperationException -> 409, KeyNotFoundException -> 404).
+/// configurada.
 /// </summary>
 internal class FakeIniciarVinculacionCommandRouter : ICommandRouter
 {

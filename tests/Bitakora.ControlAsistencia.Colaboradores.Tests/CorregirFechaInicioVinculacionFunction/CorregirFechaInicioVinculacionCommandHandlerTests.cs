@@ -149,14 +149,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
     // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
+    public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
     {
         DadoUnColaboradorConVinculacionAbierta();
         var fechaCorregida = FechaInicioOriginal.AddDays(-5);
 
         var act = async () => await WhenAsync(ComandoCon("COL-999", fechaCorregida));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage(
                 $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
@@ -168,13 +168,13 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // AUNQUE la FechaCorregida sea IGUAL a la actual -- la idempotencia (SinCambios) NUNCA se
     // evalua si el codigo no corresponde, ni siquiera para responder "no habia nada que corregir".
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaFechaEsIgualALaActual()
+    public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaFechaEsIgualALaActual()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoCon("COL-999", FechaInicioOriginal));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage(
                 $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
@@ -218,14 +218,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // CA-2 (borde invalido): FechaCorregida POSTERIOR a la FechaEfectiva propia -> 409, ningun
     // evento nuevo, el estado conserva la fecha de inicio original.
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoFechaCorregidaEsPosteriorALaFechaEfectivaPropia()
+    public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaEsPosteriorALaFechaEfectivaPropia()
     {
         DadoUnColaboradorConVinculacionTerminada();
 
         var act = async () => await WhenAsync(
             ComandoCon(CodigoVinculacionOriginal, FechaEfectivaTerminacionOriginal.AddDays(1)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage(
                 $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaPosteriorATerminacionPropia}*");
         Then(StreamIdEsperado);
@@ -254,14 +254,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // de la vinculacion anterior -> 409 por no-solape (el mismo dia se rechaza -- el dia de la
     // fecha efectiva pertenece a la vinculacion que termino, misma frontera que IniciarVinculacion #378).
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoFechaCorregidaEsIgualALaFechaEfectivaDeLaVinculacionAnterior()
+    public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaEsIgualALaFechaEfectivaDeLaVinculacionAnterior()
     {
         DadoUnColaboradorConVinculacionAnteriorYReingresoAbierto();
 
         var act = async () => await WhenAsync(
             ComandoCon(CodigoReingreso, FechaEfectivaTerminacionOriginal));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage(
                 $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
@@ -272,14 +272,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // CA-3 (segunda direccion, mayor margen): FechaCorregida ANTERIOR a la FechaEfectiva de la
     // vinculacion anterior -> 409 igual.
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoFechaCorregidaEsAnteriorALaFechaEfectivaDeLaVinculacionAnterior()
+    public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaEsAnteriorALaFechaEfectivaDeLaVinculacionAnterior()
     {
         DadoUnColaboradorConVinculacionAnteriorYReingresoAbierto();
 
         var act = async () => await WhenAsync(
             ComandoCon(CodigoReingreso, FechaEfectivaTerminacionOriginal.AddDays(-1)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage(
                 $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
@@ -316,14 +316,14 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     // terminacion anterior se congelara en la primera, este comando pasaria y dejaria dos
     // vinculaciones solapadas en el stream.
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaInvalidOperationException_CuandoFechaCorregidaSolapaElReingresoPrevioYNoLaVinculacionOriginal()
+    public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaSolapaElReingresoPrevioYNoLaVinculacionOriginal()
     {
         DadoUnColaboradorConDosReingresos();
         var fechaCorregida = new DateOnly(2026, 7, 1); // > 2026-06-01 pero < 2026-09-01
 
         var act = async () => await WhenAsync(ComandoCon(CodigoSegundoReingreso, fechaCorregida));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage(
                 $"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.FechaSolapaVinculacionAnterior}*");
         Then(StreamIdEsperado);
@@ -360,16 +360,16 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-6: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-6: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-6 /
     // IniciarVinculacionCommandHandlerTests CA-3 / CorregirNombresCommandHandlerTests CA-4).
     [Fact]
-    public async Task CorregirFechaInicioVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task CorregirFechaInicioVinculacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoCon(CodigoVinculacionOriginal, FechaInicioOriginal));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{CorregirFechaInicioVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

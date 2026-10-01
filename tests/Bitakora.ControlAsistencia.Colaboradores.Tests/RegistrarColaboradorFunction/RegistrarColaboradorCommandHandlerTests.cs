@@ -4,6 +4,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 using Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -100,19 +101,19 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeBogota);
     }
 
-    // CA-2: identificacion ya registrada -> 409 Conflict (InvalidOperationException, no evento de
+    // CA-2: identificacion ya registrada -> 409 Conflict (RecursoYaExisteException, no evento de
     // fallo persistido -- MEF-ADR-0004 capa 2, precedente CrearTurnoCommandHandler). Then sin eventos
     // esperados verifica la segunda mitad del CA -- el stream existente no recibe ningun evento
     // nuevo -- y el And que la vinculacion vigente sigue siendo la previa, no la del comando
     // rechazado (el 409 no puede dejar el stream a medio escribir).
     [Fact]
-    public async Task RegistrarColaborador_LanzaInvalidOperationException_CuandoIdentificacionYaExiste()
+    public async Task RegistrarColaborador_LanzaRecursoYaExisteException_CuandoIdentificacionYaExiste()
     {
         DadoUnColaboradorYaRegistrado();
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{RegistrarColaboradorCommandHandler.Mensajes.ColaboradorYaRegistrado}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -128,7 +129,7 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
     // computaria otra clave, no encontraria el stream y nacerian dos personas -- un throw esperado
     // por si solo no distingue "no se registro nada" de "se registro en la clave equivocada".
     [Fact]
-    public async Task RegistrarColaborador_LanzaInvalidOperationException_CuandoTipoYNumeroLleganSinNormalizarParaUnaIdentificacionYaRegistrada()
+    public async Task RegistrarColaborador_LanzaRecursoYaExisteException_CuandoTipoYNumeroLleganSinNormalizarParaUnaIdentificacionYaRegistrada()
     {
         DadoUnColaboradorYaRegistrado();
         var comandoSinNormalizar = ComandoValido() with
@@ -139,7 +140,7 @@ public class RegistrarColaboradorCommandHandlerTests : CommandHandlerAsyncTest<R
 
         var act = async () => await WhenAsync(comandoSinNormalizar);
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{RegistrarColaboradorCommandHandler.Mensajes.ColaboradorYaRegistrado}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(

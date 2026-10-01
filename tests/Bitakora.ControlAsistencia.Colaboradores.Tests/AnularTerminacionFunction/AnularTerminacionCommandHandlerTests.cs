@@ -1,8 +1,8 @@
 // Issue #354: anular la terminacion de una vinculacion -- sexto comando del ciclo de vida de
 // ColaboradorAggregateRoot (desglose #348-#357) y el mas simple de la cadena: una sola regla, cero
 // fechas en el payload. CA-ADR-0030: el aggregate declina con resultado (nunca lanza, nunca emite
-// evento de fallo); el handler traduce la razon a InvalidOperationException (409) o
-// KeyNotFoundException (404). Resuelve el arrepentimiento del preaviso (Maria anuncio su salida al
+// evento de fallo); el handler traduce la razon a ReglaDeNegocioDeclinadaException (409) o
+// RecursoNoEncontradoException (404). Resuelve el arrepentimiento del preaviso (Maria anuncio su salida al
 // 30 y el 27 decide quedarse) y compone con TerminarVinculacion (#349) la correccion de una fecha
 // de terminacion errada -- ver ComposicionAnularYTerminarVinculacionTests para el segundo tramo de
 // esa composicion (CA-2).
@@ -172,13 +172,13 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
     // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
     [Fact]
-    public async Task AnularTerminacion_LanzaInvalidOperationException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
+    public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
     {
         DadoUnColaboradorConTerminacionRegistrada(FechaEfectivaTerminacion);
 
         var act = async () => await WhenAsync(ComandoValido() with { Codigo = "COL-999" });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -189,13 +189,13 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // este abierta -- el direccionamiento precede a las reglas de estado; un comando dirigido a la
     // vinculacion equivocada no debe filtrar que la vigente esta abierta.
     [Fact]
-    public async Task AnularTerminacion_LanzaInvalidOperationExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaVinculacionEstaAbierta()
+    public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaVinculacionEstaAbierta()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoValido() with { Codigo = "COL-999" });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -208,7 +208,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // repararlo; aqui simplemente vuelve a dejar la vinculacion abierta, y el comando se rechaza
     // por la unica regla, como cualquier otra vinculacion abierta.
     [Fact]
-    public async Task AnularTerminacion_LanzaInvalidOperationException_CuandoElStreamTraeUnaAnulacionSinTerminacionPrevia()
+    public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoElStreamTraeUnaAnulacionSinTerminacionPrevia()
     {
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -217,7 +217,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, string>(
@@ -229,13 +229,13 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // CA-4: la ultima vinculacion nunca ha sido terminada (recien registrada) -> 409, ningun evento
     // nuevo en el stream, el estado conserva la vinculacion abierta.
     [Fact]
-    public async Task AnularTerminacion_LanzaInvalidOperationException_CuandoLaVinculacionNuncaHaSidoTerminada()
+    public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionNuncaHaSidoTerminada()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -246,13 +246,13 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // encuentra la vinculacion abierta (por la primera anulacion) -> 409 igual, sin distincion
     // respecto de "nunca terminada".
     [Fact]
-    public async Task AnularTerminacion_LanzaInvalidOperationException_CuandoLaTerminacionYaFueAnuladaAntes()
+    public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionYaFueAnuladaAntes()
     {
         DadoUnColaboradorConTerminacionYaAnulada(FechaEfectivaTerminacion);
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -264,7 +264,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     // cuenta, y esta abierta -> 409. Anularla reabriria una vinculacion teniendo otra abierta, lo
     // que la invariante de no-solape prohibe.
     [Fact]
-    public async Task AnularTerminacion_LanzaInvalidOperationException_CuandoLaUltimaVinculacionNacioDeUnReingresoSinTerminar()
+    public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionNacioDeUnReingresoSinTerminar()
     {
         var fechaTerminacionAnterior = new DateOnly(2026, 3, 1);
         var fechaInicioReingreso = new DateOnly(2026, 4, 1);
@@ -276,7 +276,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
 
         var act = async () => await WhenAsync(ComandoValido() with { Codigo = CodigoVinculacionReingreso });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.VinculacionAbierta}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -285,16 +285,16 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionReingreso);
     }
 
-    // CA-6: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-6: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-6 /
     // IniciarVinculacionCommandHandlerTests CA-3).
     [Fact]
-    public async Task AnularTerminacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task AnularTerminacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{AnularTerminacionCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }
