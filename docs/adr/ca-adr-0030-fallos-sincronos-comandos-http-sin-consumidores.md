@@ -32,12 +32,18 @@ Este ADR fija la decision para que los comandos hermanos de la misma cadena (#35
 #352 ajuste de fechas, #355) la apliquen sin volver a discutirla, y para que `reviewer` no la marque
 como desviacion cuando la vea repetida.
 
+La enmienda de MEF-ADR-0004 del 2026-09-01 reserva `InvalidOperationException` a fallos de
+infraestructura. El incidente de este BC de ese dia (PR #545, hotfix #546) mostro por que: el
+`ProxyTenantResolver` lanzaba `InvalidOperationException` y el catch del endpoint respondia 409
+"ya existe" en los POST, ocultando el fallo de infraestructura. El handler debe distinguir las
+precondiciones de comando de los fallos inesperados mediante excepciones tipadas.
+
 ## Decision
 
 **Un comando HTTP sin consumidores downstream que reciba de un aggregate el rechazo de una regla de
 negocio responde ese rechazo con un status code sincrono (409 Conflict via
-`InvalidOperationException`, o 404 Not Found via `KeyNotFoundException` cuando la precondicion es
-"el recurso no existe"), nunca con un evento de fallo persistido.**
+`ReglaDeNegocioDeclinadaException`, o 404 Not Found via `RecursoNoEncontradoException` cuando la
+precondicion es "el recurso no existe"), nunca con un evento de fallo persistido.**
 
 Los eventos de fallo persistidos (MEF-ADR-0004 capa 3) se reservan para flujos donde existe un
 consumidor que reacciona a la falla -- un handler de Service Bus, una saga, un proceso downstream
@@ -54,13 +60,37 @@ rechazo -- y dos causas ya no requieren un evento para comunicarse:
 
 - El aggregate no muta nada y no agrega eventos a `_uncommittedEvents` cuando declina.
 - El handler consulta unicamente ese resultado (nunca el estado interno) y traduce la razon de
-  rechazo a la excepcion correspondiente, con mensaje `.resx` (MEF-ADR-0009).
+  rechazo a la excepcion tipada correspondiente, con mensaje `.resx` del handler (MEF-ADR-0009).
 
 Precedente interno de "declinar sin emitir": `ControlDiarioAggregateRoot.AdicionarMarcacion`
 (idempotencia de marcaciones duplicadas) ya ignora silenciosamente sin lanzar ni emitir. Este ADR
 generaliza ese mecanismo para el caso en que el handler **si** necesita distinguir la razon del
 rechazo (aqui, "ya terminada" vs "fecha anterior al inicio"), usando el valor de retorno del metodo
 en vez de un booleano o un efecto silencioso.
+
+### Jerarquia de precondiciones HTTP del BC
+
+Cada Function App de dominio declara su propia jerarquia en
+`Infraestructura/PrecondicionComandoException.cs`, junto a `IRequestValidator` en el mismo layout;
+no se comparten tipos entre Function Apps (MEF-ADR-0039). Conforme a MEF-ADR-0004 seccion 2 y
+"Respuestas HTTP", la base es `PrecondicionComandoException` **abstracta** y sus derivadas son:
+
+| Derivada | Cuando aplica | Respuesta HTTP |
+|---|---|---|
+| `RecursoYaExisteException` | Solo cuando ya existe el stream que este comando pretende **crear** | 409 Conflict |
+| `RecursoNoEncontradoException` | El recurso requerido no existe | 404 Not Found |
+| `ReglaDeNegocioDeclinadaException` | Cualquier otra regla de negocio que declina, incluida la unicidad de un atributo (`NombreDuplicado`), sin confundirla con la existencia del stream a crear | 409 Conflict |
+
+El handler lanza la derivada apropiada al traducir el resultado del aggregate; no cambia la regla
+de que el aggregate nunca lanza. El endpoint captura **solo** `PrecondicionComandoException` y
+mapea exhaustivamente por tipo concreto. Una derivada no mapeada se relanza (500); toda excepcion
+ajena a la jerarquia sube como 500. En particular, `InvalidOperationException` ya no es un tipo
+reconocido por el endpoint: capturarlo como 409 repetiria el incidente del 2026-09-01.
+
+La tipificacion no cambia por si sola los contratos HTTP existentes: los rechazos que ya se
+responden 409 siguen en 409. La semantica de `CodigoNoCorresponde`, `SemanaFueraDeRango` y
+`SedeYaActiva`/`SedeYaInactiva` no se decide aqui; cualquier cambio de status para ellos requiere
+un issue de contrato propio. Los no-ops idempotentes siguen rigiendose por CA-ADR-0035.
 
 ### Cuando SI corresponde un evento de fallo persistido
 
@@ -137,4 +167,7 @@ que el handler vuelva a interrogar el estado del aggregate para averiguar cual f
   harness#849/#850): el codigo de exito lo rige ese ADR, y las menciones a 202 en el texto de este
   documento son historicas. El mecanismo "declinar con resultado" (aggregate decide, handler
   traduce) sigue vigente sin cambios; el tipo de excepcion que el handler lanza para traducir a
-  404/409 se revisara en #666.
+  404/409 se revisa en #666.
+- 2026-10-01: issue #666. Alinea la traduccion del handler y el catch del endpoint con las
+  precondiciones tipadas de MEF-ADR-0004 (enmienda harness#805), sin cambiar el mecanismo del
+  aggregate ni el contrato de status HTTP; documenta la derivada local para reglas declinadas.
