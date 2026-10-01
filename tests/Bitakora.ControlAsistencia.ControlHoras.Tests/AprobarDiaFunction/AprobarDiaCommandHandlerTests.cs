@@ -2,13 +2,14 @@
 // usa un stream ID compuesto (dc:{codigo}:{yyyyMMdd}), no el GuidAggregateId del harness --
 // overloads explicitos de Given/Then/And (regla 18 del test-writer, mismo criterio que
 // DiaDepuradoEventHandlerTests). CA-ADR-0030: el aggregate declina con resultado; el handler
-// traduce a InvalidOperationException (-> 409, verificada por FunctionEndpoint como 409 Conflict).
+// traduce a ReglaDeNegocioDeclinadaException (-> 409 en el endpoint).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
 using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -118,13 +119,13 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     // CA-3: conflicto de sede sin decidir (payload vacio) -> 409, sin evento persistido, estado
     // sin cambios.
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoHayConflictosSinDecidir()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoHayConflictosSinDecidir()
     {
         Given(StreamId, DepuracionConFranjaEnConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.ConflictosSinDecidir}*");
         Then(StreamId);
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
@@ -133,13 +134,13 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     // CA-3, variante "incompleto": el dia tiene DOS franjas en conflicto y el payload decide solo
     // una -- el acto sigue exigiendo decision donde la maquina se abstuvo (409, sin evento).
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoElPayloadDecideSoloUnaDeLasFranjasEnConflicto()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElPayloadDecideSoloUnaDeLasFranjasEnConflicto()
     {
         Given(StreamId, DepuracionConDosFranjasEnConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, [DecisionValida()]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.ConflictosSinDecidir}*");
         Then(StreamId);
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
@@ -147,14 +148,14 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
 
     // CA-4: CodigoSede que no es candidata de esa franja -> 409, sin evento persistido.
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoElCodigoSedeNoEsCandidata()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoSedeNoEsCandidata()
     {
         Given(StreamId, DepuracionConFranjaEnConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(
             CodigoColaborador, Fecha, [new DecisionDeSede(HoraInicioFranjaEnConflicto, "SEDE-99")]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.CodigoSedeNoCandidata}*");
         Then(StreamId);
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
@@ -163,14 +164,14 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     // CA-5, primera variante: decision para una franja SIN conflicto -> 409 (el payload afirma
     // algo que el expediente contradice).
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoLaDecisionEsParaUnaFranjaSinConflicto()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoLaDecisionEsParaUnaFranjaSinConflicto()
     {
         Given(StreamId, DepuracionSinConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(
             CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida}*");
         Then(StreamId);
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
@@ -179,14 +180,14 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     // CA-5, segunda variante: HoraInicioProgramada que no corresponde a NINGUNA franja del dia ->
     // 409.
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoLaHoraInicioProgramadaNoCorrespondeAUnaFranja()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoLaHoraInicioProgramadaNoCorrespondeAUnaFranja()
     {
         Given(StreamId, DepuracionConFranjaEnConflicto());
 
         var act = async () => await WhenAsync(new AprobarDia(
             CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(22, 0), "SEDE-02")]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida}*");
         Then(StreamId);
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
@@ -195,13 +196,13 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     // CA-6: dia ya Aprobado -> 409, re-aprobar es error (las aprobaciones son definitivas), sin
     // evento nuevo, el estado se conserva Aprobado.
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoElDiaYaEstaAprobado()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElDiaYaEstaAprobado()
     {
         Given(StreamId, DepuracionSinConflicto(), DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
 
         var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DiaYaAprobado}*");
         Then(StreamId);
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
@@ -222,17 +223,16 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
 
     // CA-7, contracara: dia sin stream + payload con decisiones -> 409 (caso CA-5, el expediente
     // vacio no tiene ninguna franja que decidir). Sin And<>: el aggregate nunca llega a crearse
-    // (declina antes de StartStream) -- mismo criterio que
-    // TerminarVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste.
+    // (declina antes de StartStream), no hay estado que verificar.
     [Fact]
-    public async Task AprobarDia_LanzaInvalidOperationException_CuandoElDiaNoTieneStreamYElPayloadTraeDecisiones()
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElDiaNoTieneStreamYElPayloadTraeDecisiones()
     {
         // Sin Given - el stream dc:EMP-001:20260824 no existe
 
         var act = async () => await WhenAsync(new AprobarDia(
             CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida}*");
         Then(StreamId);
     }
