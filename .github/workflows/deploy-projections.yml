@@ -256,7 +256,7 @@ jobs:
       test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
       # expected_sha vacio a proposito (CA-2): /api/version lo expone el Function App de
       # ControlHoras, no el worker de proyecciones -- un deploy de este worker no cambia ese
-       # valor, asi que esperar un SHA aca solo agotaria el timeout de 420s sin motivo. El
+      # valor, asi que esperar un SHA aca solo agotaria el timeout de 420s sin motivo. El
       # reusable ya degrada a esperar HTTP 200 en /api/health cuando expected_sha llega vacio.
       #
       # Consecuencia a vigilar (la carrera worker/consulta que anticipa el issue): ese health check
