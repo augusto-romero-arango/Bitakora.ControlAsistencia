@@ -1,4 +1,4 @@
-// El 409 lo traduce el endpoint desde la InvalidOperationException del handler (CA-ADR-0030);
+// El 409 lo traduce el endpoint desde la ReglaDeNegocioDeclinadaException del handler (CA-ADR-0030);
 // el formato de fecha es el mismo que valida ObtenerDepuracionDelDia.FunctionEndpoint.
 
 using AwesomeAssertions;
@@ -84,17 +84,43 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task AprobarDia_Retorna409_CuandoElComandoEsRechazado()
+    public async Task AprobarDia_Retorna409_CuandoLaReglaDeNegocioDeclinaElComando()
     {
         var validator = new FakeAprobarDiaBodyRequestValidator(BodySinDecisiones());
         var router = new FakeAprobarDiaCommandRouter(
-            lanzar: new InvalidOperationException("El dia ya fue aprobado; las aprobaciones son definitivas"));
+            lanzar: new ReglaDeNegocioDeclinadaException("El dia ya fue aprobado; las aprobaciones son definitivas"));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(
             FakeHttpRequest(), CodigoColaboradorValido, FechaValida, CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task AprobarDia_PropagaInvalidOperationException_CuandoElRouterLaLanza()
+    {
+        var validator = new FakeAprobarDiaBodyRequestValidator(BodySinDecisiones());
+        var router = new FakeAprobarDiaCommandRouter(lanzar: new InvalidOperationException("fallo de infraestructura"));
+        var function = new FunctionEndpoint(validator, router);
+
+        var act = async () => await function.Run(
+            FakeHttpRequest(), CodigoColaboradorValido, FechaValida, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task AprobarDia_PropagaLaExcepcion_CuandoElRouterLanzaUnaDerivadaNoMapeada()
+    {
+        var validator = new FakeAprobarDiaBodyRequestValidator(BodySinDecisiones());
+        var router = new FakeAprobarDiaCommandRouter(lanzar: new RecursoYaExisteException("ya existe"));
+        var function = new FunctionEndpoint(validator, router);
+
+        var act = async () => await function.Run(
+            FakeHttpRequest(), CodigoColaboradorValido, FechaValida, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>();
     }
 }
 
