@@ -3,6 +3,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
+using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -105,7 +106,7 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<AsignarSedeAFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro el turno con el Id especificado en el catalogo"));
+            new RecursoNoEncontradoException(AsignarSedeAFranjaCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
@@ -114,16 +115,28 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task AsignarSedeAFranja_Retorna409_CuandoElRouterLanzaInvalidOperationException()
+    public async Task AsignarSedeAFranja_Retorna409_CuandoLaFranjaNoExiste()
     {
         var validator = new FakeRequestValidator<AsignarSedeAFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new InvalidOperationException("Ninguna franja del turno empieza a la hora especificada"));
+            new ReglaDeNegocioDeclinadaException(AsignarSedeAFranjaCommandHandler.Mensajes.FranjaNoExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task AsignarSedeAFranja_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<AsignarSedeAFranjaBody>(BodyValido()), new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 
     // CA-5: el body sin la clave "sede" (retirar) se acepta y compone Sede = null -- el record no

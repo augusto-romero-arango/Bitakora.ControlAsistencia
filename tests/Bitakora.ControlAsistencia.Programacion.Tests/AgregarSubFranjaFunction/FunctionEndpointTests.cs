@@ -3,6 +3,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
+using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -122,7 +123,7 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<AgregarSubFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro el turno con el Id especificado"));
+            new RecursoNoEncontradoException(AgregarSubFranjaCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
@@ -135,13 +136,24 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<AgregarSubFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new InvalidOperationException(
-                "No existe una franja ordinaria que empiece a la hora especificada"));
+            new ReglaDeNegocioDeclinadaException(AgregarSubFranjaCommandHandler.Mensajes.FranjaNoExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task AgregarSubFranja_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<AgregarSubFranjaBody>(BodyValido()), new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
 

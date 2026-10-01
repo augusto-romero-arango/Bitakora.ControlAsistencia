@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.CommandHandler;
@@ -16,7 +17,7 @@ public partial class AgregarSubFranjaCommandHandler : ICommandHandlerAsync<Agreg
     {
         var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (catalogo is null)
-            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
         var resultado = command.Tipo switch
         {
@@ -37,6 +38,6 @@ public partial class AgregarSubFranjaCommandHandler : ICommandHandlerAsync<Agreg
         };
 
         if (mensajeDeRechazo is not null)
-            throw new InvalidOperationException(mensajeDeRechazo);
+            throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
     }
 }

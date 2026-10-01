@@ -2,6 +2,7 @@ using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction;
+using Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -103,7 +104,7 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<QuitarSubFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new KeyNotFoundException("No se encontro el turno con el Id especificado"));
+            new RecursoNoEncontradoException(QuitarSubFranjaCommandHandler.Mensajes.TurnoNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
@@ -116,13 +117,24 @@ public class FunctionEndpointTests
     {
         var validator = new FakeRequestValidator<QuitarSubFranjaBody>(BodyValido());
         var router = new FakeCommandRouter(
-            new InvalidOperationException(
-                "La franja no tiene ninguna sub-franja de ese tipo que empiece a la hora especificada"));
+            new ReglaDeNegocioDeclinadaException(QuitarSubFranjaCommandHandler.Mensajes.SubFranjaNoExiste));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
 
         result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task QuitarSubFranja_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<QuitarSubFranjaBody>(BodyValido()), new FakeCommandRouter(fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), TurnoId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
 

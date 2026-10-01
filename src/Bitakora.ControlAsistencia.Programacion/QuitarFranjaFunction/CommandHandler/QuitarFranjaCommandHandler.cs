@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler;
@@ -15,10 +16,8 @@ public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFra
     {
         var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId, ct);
         if (catalogo is null)
-            throw new KeyNotFoundException(Mensajes.TurnoNoEncontrado);
+            throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
-        // El arm final vuelve ruidoso un miembro nuevo del enum: sin el, un rechazo sin mensaje
-        // mapeado saldria 202 como si la franja se hubiera quitado.
         var mensajeDeRechazo = catalogo.QuitarFranja(command.Franja) switch
         {
             ResultadoQuitarFranja.Quitada => null,
@@ -28,6 +27,6 @@ public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFra
         };
 
         if (mensajeDeRechazo is not null)
-            throw new InvalidOperationException(mensajeDeRechazo);
+            throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
     }
 }

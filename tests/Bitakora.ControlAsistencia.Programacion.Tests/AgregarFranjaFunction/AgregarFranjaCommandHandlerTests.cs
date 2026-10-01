@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -50,26 +51,26 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
     // RetirarTurnoCommandHandlerTests para el mismo escenario.
     [Fact]
-    public async Task AgregarFranja_LanzaKeyNotFoundException_CuandoElTurnoNoExisteEnElCatalogo()
+    public async Task AgregarFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(14, 0), new TimeOnly(22, 0)));
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
     }
 
     // CA-5/CA-4: retirado gana la precedencia sobre solape/descanso.
     [Fact]
-    public async Task AgregarFranja_LanzaInvalidOperationException_CuandoElTurnoFueRetirado()
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranja(), TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(14, 0), new TimeOnly(22, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.TurnoRetirado}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
@@ -77,14 +78,14 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     }
 
     [Fact]
-    public async Task AgregarFranja_LanzaInvalidOperationException_CuandoElTurnoEsDescanso()
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEsDescanso()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeDescanso());
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(14, 0), new TimeOnly(22, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.TurnoEsDescanso}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
@@ -92,14 +93,14 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     }
 
     [Fact]
-    public async Task AgregarFranja_LanzaInvalidOperationException_CuandoLaFranjaSeSolapaConOtraExistente()
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaSeSolapaConOtraExistente()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranja());
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(10, 0), new TimeOnly(12, 0)));
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.FranjaSeSolapa}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
