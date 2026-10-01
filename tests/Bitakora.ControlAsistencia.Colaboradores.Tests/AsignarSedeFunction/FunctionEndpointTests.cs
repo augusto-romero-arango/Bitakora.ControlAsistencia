@@ -4,6 +4,7 @@
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;
+using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
@@ -100,8 +101,8 @@ public class FunctionEndpointTests
     {
         var validator = new FakeAsignarSedeBodyRequestValidator(BodyValido());
         var router = new FakeAsignarSedeCommandRouter(
-            lanzar: new InvalidOperationException(
-                "La vinculacion vigente del colaborador tiene una terminacion registrada"));
+            lanzar: new ReglaDeNegocioDeclinadaException(
+                AsignarSedeCommandHandler.Mensajes.VinculacionTerminada));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
@@ -114,12 +115,25 @@ public class FunctionEndpointTests
     {
         var validator = new FakeAsignarSedeBodyRequestValidator(BodyValido());
         var router = new FakeAsignarSedeCommandRouter(
-            lanzar: new KeyNotFoundException("No existe un colaborador registrado con esa identificacion"));
+            lanzar: new RecursoNoEncontradoException(
+                AsignarSedeCommandHandler.Mensajes.ColaboradorNoEncontrado));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task AsignarSede_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var function = new FunctionEndpoint(
+            new FakeAsignarSedeBodyRequestValidator(BodyValido()),
+            new FakeAsignarSedeCommandRouter(new InvalidOperationException()));
+
+        var act = async () => await function.Run(FakeHttpRequest(), IdValido, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 }
 

@@ -1,7 +1,7 @@
 // Issue #349: terminar la vinculacion de un colaborador -- segundo comando del ciclo de vida de
 // ColaboradorAggregateRoot (desglose #348-#357). CA-ADR-0030: el aggregate declina con resultado
-// (nunca lanza, nunca emite evento de fallo); el handler traduce la razon a InvalidOperationException
-// (409) o KeyNotFoundException (404).
+// (nunca lanza, nunca emite evento de fallo); el handler traduce la razon a ReglaDeNegocioDeclinadaException
+// (409) o RecursoNoEncontradoException (404).
 // Issue #379 (MEF-ADR-0043 paso 4, CA-5): el comando gana el campo Codigo -- el {codigo} de la ruta
 // HTTP, comparado por el aggregate contra la vinculacion vigente ANTES que las demas reglas de
 // estado. CodigoNoCorresponde -> 409 (no 404: es conflicto con el estado vigente, no un recurso
@@ -106,13 +106,13 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
     // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoValido() with { Codigo = "COL-999" });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -123,7 +123,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // una terminacion registrada -- el direccionamiento precede a las reglas de estado; un comando
     // dirigido a la vinculacion equivocada no debe filtrar que la vigente ya esta terminada.
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaVinculacionYaEstaTerminada()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaVinculacionYaEstaTerminada()
     {
         var fechaTerminacionPrevia = new DateOnly(2026, 3, 1);
         Given(StreamIdEsperado,
@@ -133,7 +133,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
 
         var act = async () => await WhenAsync(ComandoValido() with { Codigo = "COL-999" });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -143,13 +143,13 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // CA-5 (borde de caso, case-sensitive): el codigo vigente en minusculas no es igual al mismo
     // codigo en mayusculas -- #387 preserva el case del codigo, la comparacion es exacta.
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoElCodigoDifiereSoloEnMayusculas()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoDifiereSoloEnMayusculas()
     {
         DadoUnColaboradorConVinculacionAbierta();
 
         var act = async () => await WhenAsync(ComandoValido() with { Codigo = CodigoVinculacionVigente.ToLowerInvariant() });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.CodigoNoCorresponde}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -159,7 +159,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // CA-3: la ultima vinculacion ya tiene terminacion registrada -> 409, ningun evento nuevo en
     // el stream, y el estado conserva la terminacion previa (no la del comando rechazado).
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoLaVinculacionYaTieneTerminacionRegistrada()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionYaTieneTerminacionRegistrada()
     {
         var fechaTerminacionPrevia = new DateOnly(2026, 3, 1);
         Given(StreamIdEsperado,
@@ -169,7 +169,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.VinculacionYaTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -179,7 +179,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // CA-3 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual una
     // segunda terminacion -- "ya terminada" se evalua solo con la historia del stream, sin reloj.
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoYaExisteUnPreavisoConFechaFutura()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoYaExisteUnPreavisoConFechaFutura()
     {
         var fechaPreavisoFutura = new DateOnly(2030, 1, 1);
         Given(StreamIdEsperado,
@@ -189,7 +189,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
 
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.VinculacionYaTerminada}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -199,14 +199,14 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // CA-4: FechaEfectiva anterior a FechaInicio -> 409 (duracion negativa); el estado no cambia
     // (la vinculacion sigue abierta, sin terminacion).
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoFechaEfectivaEsAnteriorAFechaInicio()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaEfectivaEsAnteriorAFechaInicio()
     {
         DadoUnColaboradorConVinculacionAbierta();
         var fechaAnterior = FechaInicioVinculacionVigente.AddDays(-1);
 
         var act = async () => await WhenAsync(ComandoValido() with { FechaEfectiva = fechaAnterior });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.FechaAnteriorAInicio}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
@@ -254,7 +254,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     // mueve con el reingreso. Una FechaEfectiva posterior al inicio ORIGINAL pero anterior al inicio
     // del REINGRESO produce duracion negativa sobre la vinculacion vigente -> 409.
     [Fact]
-    public async Task TerminarVinculacion_LanzaInvalidOperationException_CuandoFechaEfectivaEsAnteriorAlInicioDelReingreso()
+    public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaEfectivaEsAnteriorAlInicioDelReingreso()
     {
         var fechaTerminacionAnterior = new DateOnly(2026, 3, 1);
         var fechaInicioReingreso = new DateOnly(2026, 4, 1);
@@ -268,23 +268,23 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
         var act = async () => await WhenAsync(
             ComandoValido() with { Codigo = codigoReingreso, FechaEfectiva = fechaInicioReingreso.AddDays(-1) });
 
-        await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.FechaAnteriorAInicio}*");
         Then(StreamIdEsperado);
         And<ColaboradorAggregateRoot, DateOnly?>(
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-6: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-6: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Sin And<>: el aggregate no existe en el TestStore
     // (GetAggregateRoot retorna null), invocarlo lanzaria ArgumentNullException -- Then sin
     // eventos esperados ya demuestra "sin escribir nada al event store".
     [Fact]
-    public async Task TerminarVinculacion_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task TerminarVinculacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoValido());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{TerminarVinculacionCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

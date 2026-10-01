@@ -1,7 +1,7 @@
 // Issue #351: corregir los nombres de un colaborador -- cuarto comando del ciclo de vida de
 // ColaboradorAggregateRoot (desglose #348-#357) y el mas simple: sin reglas de estado.
 // CA-ADR-0030: no hay eventos de fallo -- el handler solo traduce "colaborador inexistente" a
-// KeyNotFoundException (404). El aggregate declina en SILENCIO (idempotencia por igualdad de
+// RecursoNoEncontradoException (404). El aggregate declina en SILENCIO (idempotencia por igualdad de
 // valor, decision de refinamiento 2026-08-11) cuando el nombre nuevo es igual por valor al actual.
 
 using AwesomeAssertions;
@@ -164,16 +164,16 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Augusto Barreto");
     }
 
-    // CA-4: colaborador inexistente -> 404 (KeyNotFoundException), sin escribir nada al event
+    // CA-4: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
     // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
     // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5 /
     // IniciarVinculacionCommandHandlerTests CA-5).
     [Fact]
-    public async Task CorregirNombres_LanzaKeyNotFoundException_CuandoColaboradorNoExiste()
+    public async Task CorregirNombres_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {
         var act = async () => await WhenAsync(ComandoConNombreDistinto());
 
-        await act.Should().ThrowExactlyAsync<KeyNotFoundException>()
+        await act.Should().ThrowExactlyAsync<Bitakora.ControlAsistencia.Colaboradores.Infraestructura.RecursoNoEncontradoException>()
             .WithMessage($"*{CorregirNombresCommandHandler.Mensajes.ColaboradorNoEncontrado}*");
         Then(StreamIdEsperado);
     }

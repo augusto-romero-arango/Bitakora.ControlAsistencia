@@ -1,14 +1,10 @@
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
+using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction.CommandHandler;
 
-// Issue #330: handler del comando RegistrarColaborador (precedente CrearTurnoCommandHandler).
-// MEF-ADR-0004 capa 2: comando de creacion sobre stream existente -> InvalidOperationException con
-// mensaje .resx, que el FunctionEndpoint traduce a 409 Conflict. Ningun evento de fallo persistido:
-// contaminaria el stream del colaborador legitimo.
-// Sin publicacion a bus (event-sourcing puro, issue #330 "Consumidores: ninguno").
 public partial class RegistrarColaboradorCommandHandler : ICommandHandlerAsync<RegistrarColaborador>
 {
     private readonly IEventStore _eventStore;
@@ -27,7 +23,7 @@ public partial class RegistrarColaboradorCommandHandler : ICommandHandlerAsync<R
         var streamId = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
         var existe = await _eventStore.ExistsAsync<ColaboradorAggregateRoot>(streamId, ct);
         if (existe)
-            throw new InvalidOperationException(Mensajes.ColaboradorYaRegistrado);
+            throw new RecursoYaExisteException(Mensajes.ColaboradorYaRegistrado);
 
         var nombre = NombreColaborador.Crear(
             command.PrimerNombre, command.SegundoNombre, command.PrimerApellido, command.SegundoApellido);

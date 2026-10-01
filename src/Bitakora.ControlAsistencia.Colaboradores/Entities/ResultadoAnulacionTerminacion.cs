@@ -4,7 +4,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Entities;
 // ResultadoTerminacionVinculacion/ResultadoInicioVinculacion/ResultadoCorreccionFechaInicioVinculacion
 // (#349/#378/#352) -- mismo mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca
 // lanza y nunca emite un evento de fallo persistido -- responde el resultado de la operacion
-// (exito o razon del rechazo) y el handler traduce la razon a InvalidOperationException con
+// (exito o razon del rechazo) y el handler traduce la razon a ReglaDeNegocioDeclinadaException con
 // mensaje .resx en el borde (MEF-ADR-0004 capa 2).
 // Unica razon de rechazo (unica regla del comando, issue #354 -- el mas simple de la cadena): la
 // ULTIMA vinculacion no tiene terminacion registrada. Cubre tres casos que el handler no necesita
