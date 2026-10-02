@@ -1,7 +1,10 @@
+using System.Globalization;
+using System.Security.Claims;
 using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
@@ -11,7 +14,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 // McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo sirve el
 // paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
 public sealed partial class IdentidadTenantMcpMiddleware(
-    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
+    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador,
+    ILogger<IdentidadTenantMcpMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";
@@ -54,8 +58,22 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         var principal = await validador.ValidarAsync(token, cancellationToken)
                         ?? throw new InvalidOperationException(Mensajes.TokenNoValidado);
 
+        RegistrarFormaDelToken(principal);
         return derivador.Derivar(principal);
     }
+
+    private void RegistrarFormaDelToken(ClaimsPrincipal principal) =>
+        logger.LogInformation(
+            "Forma del token MCP: claims {ClaimsDelToken}, sid {TieneSid}, iss {Emisor}, duracion {DuracionTokenSegundos} s",
+            string.Join(",", principal.Claims.Select(c => c.Type).Distinct()),
+            principal.HasClaim(c => c.Type == "sid"),
+            principal.FindFirst("iss")?.Value,
+            LeerSegundos(principal, "exp") - LeerSegundos(principal, "iat"));
+
+    private static long? LeerSegundos(ClaimsPrincipal principal, string tipo) =>
+        long.TryParse(principal.FindFirst(tipo)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var segundos)
+            ? segundos
+            : null;
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)
     {

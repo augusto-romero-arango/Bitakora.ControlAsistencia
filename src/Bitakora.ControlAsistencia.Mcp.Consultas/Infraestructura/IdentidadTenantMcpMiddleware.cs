@@ -1,7 +1,10 @@
+using System.Globalization;
+using System.Security.Claims;
 using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
@@ -16,7 +19,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 // al tenant fijo -- el reemplazo es estampar org_id/sub como X-Tenant-Id/X-User-Id en la politica
 // de APIM (MEF-ADR-0032 seccion 4) y leer esos headers aqui.
 public sealed class IdentidadTenantMcpMiddleware(
-    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
+    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador,
+    ILogger<IdentidadTenantMcpMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";
@@ -51,8 +55,23 @@ public sealed class IdentidadTenantMcpMiddleware(
             return null;
 
         var token = encabezadoAutorizacion[EsquemaBearer.Length..];
-        return derivador.Derivar(await validador.ValidarAsync(token, cancellationToken));
+        var principal = await validador.ValidarAsync(token, cancellationToken);
+        RegistrarFormaDelToken(principal);
+        return derivador.Derivar(principal);
     }
+
+    private void RegistrarFormaDelToken(ClaimsPrincipal principal) =>
+        logger.LogInformation(
+            "Forma del token MCP: claims {ClaimsDelToken}, sid {TieneSid}, iss {Emisor}, duracion {DuracionTokenSegundos} s",
+            string.Join(",", principal.Claims.Select(c => c.Type).Distinct()),
+            principal.HasClaim(c => c.Type == "sid"),
+            principal.FindFirst("iss")?.Value,
+            LeerSegundos(principal, "exp") - LeerSegundos(principal, "iat"));
+
+    private static long? LeerSegundos(ClaimsPrincipal principal, string tipo) =>
+        long.TryParse(principal.FindFirst(tipo)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var segundos)
+            ? segundos
+            : null;
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)
     {
