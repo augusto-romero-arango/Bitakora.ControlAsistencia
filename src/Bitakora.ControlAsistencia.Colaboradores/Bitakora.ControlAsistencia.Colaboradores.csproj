@@ -22,7 +22,7 @@
     <PackageReference Include="Cosmos.EventDriven.CritterStack.AzureServiceBus" Version="3.1.0" />
     <PackageReference Include="Cosmos.EventSourcing.Abstractions" Version="3.1.0" />
     <PackageReference Include="Cosmos.EventSourcing.CritterStack" Version="3.1.0" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.*" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
   </ItemGroup>
 
