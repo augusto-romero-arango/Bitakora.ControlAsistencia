@@ -2,6 +2,7 @@ using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
@@ -11,7 +12,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 // McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo sirve el
 // paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
 public sealed partial class IdentidadTenantMcpMiddleware(
-    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
+    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador,
+    ILogger<IdentidadTenantMcpMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";
