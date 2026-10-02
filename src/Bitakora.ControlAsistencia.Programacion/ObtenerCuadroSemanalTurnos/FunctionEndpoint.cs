@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos;
 // GET del cuadro semanal RESUELTO: composicion en lectura con FichaTurno (CA-ADR-0034 decision 5
 // enmendada). Comparte el segmento con el DELETE de RetirarPlantillaSemanal; cada uno declara su
 // verbo (MEF-ADR-0006).
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ObtenerCuadroSemanalTurnos")]
     public async Task<IActionResult> Run(
@@ -26,8 +26,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
             return new BadRequestObjectResult("El id de la plantilla no es un Guid valido");
 
         // MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por ruta o query string.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        // ITenantContext -- nunca a un tenant id que llegara por ruta o query string.
+        await using var session = store.QuerySession(tenantContext.TenantId);
         var cuadro = await session.LoadAsync<CuadroSemanalTurnos>(plantillaId.ToString(), ct);
 
         if (cuadro is null)

@@ -9,8 +9,8 @@ namespace Bitakora.ControlAsistencia.TenantResolver;
 /// Puebla el <see cref="TenantExecutionContext"/> de la invocacion, leyendo la identidad del contexto
 /// de ejecucion del trigger:
 /// <list type="bullet">
-///   <item>HTTP: headers confiables X-Tenant-Id/X-User-Id (via <c>FunctionContext.GetHttpContext()</c>).</item>
-///   <item>Service Bus: ApplicationProperties tenant-id/user_id del mensaje, obtenido tipado con
+///   <item>HTTP: headers confiables X-Tenant-Id/X-User-Id/X-Organization-Membership-Id (via <c>FunctionContext.GetHttpContext()</c>).</item>
+///   <item>Service Bus: ApplicationProperties tenant-id/user_id/organization_membership_id del mensaje, obtenido tipado con
 ///     <c>BindInputAsync</c> (la maquinaria de binding cachea el resultado, no re-convierte ni
 ///     settlea el mensaje).</item>
 /// </list>
@@ -28,10 +28,10 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
     private const string TenantHeaderHttp = "X-Tenant-Id";
     private const string UserHeaderHttp = "X-User-Id";
     private const string MembershipHeaderHttp = "X-Organization-Membership-Id";
-    private const string MembershipPropertyAsb = "organization_membership_id";
 
     // Llave con que Wolverine serializa el TenantId del envelope a ApplicationProperties
-    // (Wolverine.EnvelopeConstants.TenantIdKey). El user_id viaja bajo Cosmos.MultiTenancy.TenancyHeaders.UserId.
+    // (Wolverine.EnvelopeConstants.TenantIdKey). user_id y organization_membership_id viajan bajo las llaves de
+    // Cosmos.MultiTenancy.TenancyHeaders.
     private const string TenantPropertyAsb = "tenant-id";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
@@ -64,7 +64,7 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
         => TenantExecutionContext.Set(
             Leer(applicationProperties, TenantPropertyAsb),
             Leer(applicationProperties, TenancyHeaders.UserId),
-            Leer(applicationProperties, MembershipPropertyAsb));
+            Leer(applicationProperties, TenancyHeaders.OrganizationMembershipId));
 
     private static string? Leer(IReadOnlyDictionary<string, object> propiedades, string llave)
         => propiedades.TryGetValue(llave, out var valor) ? valor?.ToString() : null;

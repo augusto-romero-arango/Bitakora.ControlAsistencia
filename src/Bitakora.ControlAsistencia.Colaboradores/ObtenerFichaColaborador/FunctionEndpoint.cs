@@ -34,7 +34,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
 // string->Identificacion -- nunca se parte el {id} de ruta a mano. Un ArgumentException (sin guion,
 // tipo fuera de la lista cerrada PILA, numero vacio tras la limpieza) se traduce aqui, y solo aqui,
 // a 400 explicito, antes de tocar Marten.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ObtenerFichaColaborador")]
     public async Task<IActionResult> Run(
@@ -48,11 +48,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 
         var streamKey = ColaboradorAggregateRoot.ComputarStreamId(identificacion);
 
-        // CA-6: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // CA-6: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantContext --
         // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
         // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). El {id} de ruta es el recurso,
         // no el tenant.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
         var ficha = await session.LoadAsync<FichaColaborador>(streamKey, ct);
 
         if (ficha is null)

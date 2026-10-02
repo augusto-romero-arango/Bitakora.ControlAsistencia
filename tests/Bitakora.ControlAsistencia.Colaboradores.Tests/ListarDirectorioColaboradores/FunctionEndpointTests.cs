@@ -1,5 +1,5 @@
 // Validacion del borde HTTP del endpoint QUERY ListarDirectorioColaboradores (MEF-ADR-0042, RFC
-// 10008). Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y tenantResolver se
+// 10008). Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y tenantContext se
 // pasan nulos a proposito: si un cambio futuro moviera la validacion DESPUES de tocar Marten, estos
 // tests se pondrian rojos por la razon correcta.
 //
@@ -19,7 +19,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ListarDirectorioColabor
 
 public class FunctionEndpointTests
 {
-    private static FunctionEndpoint Endpoint() => new(store: null!, tenantResolver: null!);
+    private static FunctionEndpoint Endpoint() => new(store: null!, tenantContext: null!);
 
     private static HttpRequest FakeHttpRequest(string? contentType, string? body)
     {

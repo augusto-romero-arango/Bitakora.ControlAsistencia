@@ -9,7 +9,7 @@
   <!-- Isla de eventos (CA-ADR-0029 decision #2): solo el paquete de markers IPrivateEvent.
        Ninguna dependencia de proyecto, tampoco hacia los otros ensamblados de eventos. -->
   <ItemGroup>
-    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
+    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="3.1.0" />
   </ItemGroup>
 
 </Project>

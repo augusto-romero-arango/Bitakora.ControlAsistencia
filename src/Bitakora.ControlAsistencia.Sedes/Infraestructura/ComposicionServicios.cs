@@ -25,7 +25,7 @@ namespace Bitakora.ControlAsistencia.Sedes.Infraestructura;
 // Issue #455: composicion del contenedor DI del dominio Sedes, extraida de Program.cs a un metodo
 // testeable. Unica fuente de verdad: Program.cs y el test de composicion (Sedes.Tests) invocan
 // este mismo metodo -- mismo patron que ComposicionServicios de Programacion/ControlHoras/
-// Colaboradores (issue #221/#360), asi que un wiring roto (p.ej. el hueco de ITenantResolver de
+// Colaboradores (issue #221/#360), asi que un wiring roto (p.ej. el hueco de ITenantContext de
 // #219) no puede desincronizarse entre el host real y el guardrail de CI.
 public static class ComposicionServicios
 {
@@ -71,7 +71,7 @@ public static class ComposicionServicios
         services.AgregarMartenEventStore();
         // Tenancy (MEF-ADR-0028 etapa b): identidad ambiente por AsyncLocal, poblada por
         // TenantContextMiddleware en Program.cs (patron de Cosmos.ControlPlane, MEF-ADR-0032). NO usar
-        // AgregarTenantResolverHibrido(): su ProxyTenantResolver decide la rama en el constructor
+        // AgregarTenantContextHibrido(): su ProxyTenantContext decide la rama en el constructor
         // segun IHttpContextAccessor.HttpContext, que es null cuando el grafo de DI lo construye en el
         // worker aislado -- toda request HTTP caia en la rama de Wolverine y fallaba (hotfix 2026-09-01).
         services.AgregarTenantResolverControlAsistencia();

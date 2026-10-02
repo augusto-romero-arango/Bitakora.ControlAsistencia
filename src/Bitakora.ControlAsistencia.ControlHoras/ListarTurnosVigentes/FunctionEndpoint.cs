@@ -22,7 +22,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // igualdad dentro de una coleccion hija a containment JSONB -- data -> 'Bloques' @> '[{"SedeId":
 // ...}]' --, la unica forma elegible para indice GIN. Esa misma semantica excluye sin rama
 // explicita los bloques que no traen la clave SedeId.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarTurnosVigentes")]
     public async Task<IActionResult> Run(
@@ -62,9 +62,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         var sedeId = filtro.SedeId;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
 
-        // Sesion acotada al tenant que resuelve ITenantResolver, nunca a un dato de la request
+        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
         // (mitigacion estructural contra BOLA/IDOR, MEF-ADR-0028).
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<TurnoVigente> query = session.Query<TurnoVigente>()
             .Where(v => v.Fecha >= desde && v.Fecha <= rangoAplicado.HastaAplicado);

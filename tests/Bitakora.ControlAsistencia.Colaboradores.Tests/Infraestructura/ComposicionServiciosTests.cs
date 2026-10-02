@@ -3,7 +3,7 @@
 // ComposicionServicios.AgregarServiciosColaboradores) y valida que el grafo completo es resoluble,
 // sin infra desplegada (connection strings dummy).
 //
-// Root cause que este guardrail atrapa (issue #219): un ITenantResolver sin registrar compila y
+// Root cause que este guardrail atrapa (issue #219): un ITenantContext sin registrar compila y
 // pasa los tests unitarios existentes -- ni "dotnet build" ni un test que no construya el grafo de
 // DI del host detectan el hueco -- y solo aparece DESPUES del deploy, en los smoke tests contra
 // dev (HTTP 500 en toda funcion).
@@ -338,7 +338,7 @@ public class ComposicionServiciosTests
     // misma activacion sin levantar el host real (Alt 1 de MEF-ADR-0029: no existe un
     // WebApplicationFactory para Functions isolated worker).
     //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
     // comportamiento de Run (issue #386: parseo del {id} de ruta con 400 explicito,
     // session.LoadAsync y el 200/404, la traduccion centinela -> vacio de CA-6), que es
     // responsabilidad del endpoint (parcialmente unit-testeado, ver ObtenerFichaColaborador/
@@ -417,7 +417,7 @@ public class ComposicionServiciosTests
     // issue consulta la MISMA vista materializada FichaColaborador via (a') (session.Query, en vez
     // de LoadAsync por id).
     //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
     // comportamiento de Run (415/400/422, filtro AND por etiquetas, paginacion keyset), que es
     // responsabilidad del endpoint y cubre FunctionEndpointTests.cs (validacion) y el smoke test
     // contra dev (CA-6, camino feliz + Marten real).
@@ -435,7 +435,7 @@ public class ComposicionServiciosTests
     // Issue #357: test de composicion de la Function GET del catalogo CategoriaDeEtiquetas, mismo
     // patron que #356 dejo para ObtenerFichaColaborador (MEF-ADR-0029: ActivatorUtilities
     // .CreateInstance, sin host real -- no existe un WebApplicationFactory para Functions isolated
-    // worker). El endpoint recibe IDocumentStore/ITenantResolver por constructor, ya registrados por
+    // worker). El endpoint recibe IDocumentStore/ITenantContext por constructor, ya registrados por
     // AgregarServiciosColaboradores desde el issue #360 -- no hace falta ningun registro nuevo para
     // que este guardrail de wiring resuelva.
     //
@@ -564,7 +564,7 @@ public class ComposicionServiciosTests
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
     }
 
-    // Solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor (MEF-ADR-0029). El
+    // Solo la RESOLUCION de IDocumentStore/ITenantContext por constructor (MEF-ADR-0029). El
     // comportamiento de Run lo cubren FunctionEndpointTests.cs y el smoke test contra dev.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarDirectorioColaboradores_CuandoElContenedorEstaCompuesto()

@@ -18,7 +18,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas;
 // La vista se serializa tal cual (sin DTO de respuesta): a diferencia de FichaColaborador (#356),
 // CategoriaDeEtiquetas no tiene ningun campo interno de indexacion/filtrado que ocultar (ni
 // centinela ni equivalente) -- MEF-ADR-0041 decision 4, "el DTO de respuesta es excepcion".
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarCategoriasDeEtiquetas")]
     public async Task<IActionResult> Run(
@@ -27,10 +27,10 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         CancellationToken ct)
     {
         // CA-6/MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por ruta o query string (mitigacion
+        // ITenantContext -- nunca a un tenant id que llegara por ruta o query string (mitigacion
         // estructural contra BOLA/IDOR, skills/projections/read-apis.md). Este GET no recibe ningun
         // segmento de ruta que pudiera confundirse con un tenant.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         // Opcion B (decision de refinamiento): catalogo entero de un tiro, sin filtros ni
         // paginacion. CA-6: sin ninguna etiqueta asignada, coleccion vacia con 200 (nunca 404 --

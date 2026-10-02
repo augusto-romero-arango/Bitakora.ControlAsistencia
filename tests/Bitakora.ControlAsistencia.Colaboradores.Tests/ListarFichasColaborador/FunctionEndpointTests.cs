@@ -1,6 +1,6 @@
 // Issue #373 CA-4: validacion del borde HTTP del endpoint QUERY ListarFichasColaborador (MEF-ADR-
 // 0042, RFC 10008). Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y
-// tenantResolver se pasan nulos a proposito, mismo patron que ListarTurnosVigentes/
+// tenantContext se pasan nulos a proposito, mismo patron que ListarTurnosVigentes/
 // FunctionEndpointTests.cs (ControlHoras.Tests, issue #329): si un cambio futuro moviera la
 // validacion DESPUES de tocar Marten, estos tests se pondrian rojos por la razon correcta.
 //
@@ -28,7 +28,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ListarFichasColaborador
 
 public class FunctionEndpointTests
 {
-    private static FunctionEndpoint Endpoint() => new(store: null!, tenantResolver: null!);
+    private static FunctionEndpoint Endpoint() => new(store: null!, tenantContext: null!);
 
     private static HttpRequest FakeHttpRequest(string? contentType, string? body)
     {

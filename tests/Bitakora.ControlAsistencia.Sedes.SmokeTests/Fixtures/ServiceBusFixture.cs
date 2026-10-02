@@ -17,7 +17,7 @@ public class ServiceBusFixture : IAsyncLifetime
     //
     // Advertencia para el flip a etapa (b): hoy los dominios NO montan un listener de Wolverine. Cada
     // evento entra por [ServiceBusTrigger] de Azure Functions y se despacha con IPrivateEventRouter,
-    // que arma DeliveryOptions desde el ITenantResolver del proceso -- nadie lee estas claves del
+    // que arma DeliveryOptions desde el ITenantContext del proceso -- nadie lee estas claves del
     // mensaje entrante, asi que la metadata queda declarada pero inerte. Sirve para no romper la
     // ventana el dia que exista ese puente; verificarlo al correr /install-auth.
     private const string TenantIdApplicationProperty = "tenant-id";

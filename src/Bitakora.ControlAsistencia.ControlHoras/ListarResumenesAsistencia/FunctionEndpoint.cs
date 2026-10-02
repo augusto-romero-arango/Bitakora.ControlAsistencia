@@ -17,7 +17,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 // memoria. Verificado contra Marten 9.12.0 + Postgres 16 (revision de este PR): el paso de
 // descubrimiento -- Select + Distinct + OrderBy + Take, con el filtro de cursor CompareTo(...) > 0
 // aplicado antes del Select -- traduce y pagina sobre codigos distintos, no sobre filas.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarResumenesAsistencia")]
     public async Task<IActionResult> Run(
@@ -55,9 +55,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         var hastaAplicado = rangoAplicado.HastaAplicado;
         var take = PaginaDeCodigos.AcotarTake(filtro.Take);
 
-        // Sesion acotada al tenant que resuelve ITenantResolver, nunca a un dato de la request
+        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
         // (mitigacion estructural contra BOLA/IDOR, MEF-ADR-0028).
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         var codigosPagina = await DeterminarCodigosPaginaAsync(
             session, filtro.CodigosColaborador, filtro.Cursor, desde, hastaAplicado, take, ct);

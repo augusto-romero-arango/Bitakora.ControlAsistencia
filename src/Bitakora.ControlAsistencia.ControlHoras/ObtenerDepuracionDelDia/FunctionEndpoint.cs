@@ -12,7 +12,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerDepuracionDelDia;
 // (skills/projections/read-apis.md, MEF-ADR-0035). Feature folder sin sufijo Function, un namespace
 // por query (skills/projections/naming.md): esta clase FunctionEndpoint no colisiona con las demas
 // del ensamblado porque cada una vive en su propio namespace.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
 
@@ -33,9 +33,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 
         var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(codigoColaborador, fechaParseada);
 
-        // La QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver -- nunca a
+        // La QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantContext -- nunca a
         // un tenant id que llegara por ruta o query string (MEF-ADR-0028).
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
         var dia = await session.Events.AggregateStreamAsync<DiaCalculadoAggregateRoot>(streamId, token: ct);
 
         // 404 sin body: nada creo la depuracion de ese dia, no es un error.

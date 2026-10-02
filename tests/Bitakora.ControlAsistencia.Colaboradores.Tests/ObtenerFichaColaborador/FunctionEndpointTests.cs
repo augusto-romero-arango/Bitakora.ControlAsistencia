@@ -8,7 +8,7 @@
 // CA-3: id de ruta invalido (sin guion, tipo fuera de la lista cerrada PILA, numero vacio tras el
 // guion) -> 400 -- parseo tipado unico (Identificacion.Parsear), mismo mecanismo que
 // CorregirNombresFunction.FunctionEndpoint (precedente post-#376/#377). Los tres casos se
-// cortocircuitan ANTES de tocar Marten -- store y tenantResolver se pasan nulos a proposito, mismo
+// cortocircuitan ANTES de tocar Marten -- store y tenantContext se pasan nulos a proposito, mismo
 // patron que ListarFichasColaborador/FunctionEndpointTests.cs: si un cambio futuro moviera la
 // validacion DESPUES de abrir la QuerySession, estos tests se pondrian rojos por la razon correcta
 // (NullReferenceException en vez de 400), nunca en verde por accidente.
@@ -35,9 +35,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ObtenerFichaColaborador
 
 public class FunctionEndpointTests
 {
-    // store/tenantResolver nulos a proposito: los tres casos de este archivo deben resolverse
+    // store/tenantContext nulos a proposito: los tres casos de este archivo deben resolverse
     // ANTES de que el endpoint toque Marten (ver comentario de archivo).
-    private static FunctionEndpoint Endpoint() => new(store: null!, tenantResolver: null!);
+    private static FunctionEndpoint Endpoint() => new(store: null!, tenantContext: null!);
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 

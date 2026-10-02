@@ -1,7 +1,7 @@
 // Issue #429: tests del endpoint HTTP GET control-horas/depuraciones/{codigoColaborador}/{fecha}.
 // CA-5: fecha con formato invalido -> 400 con mensaje que indique el formato esperado (yyyy-MM-dd).
 // Mismo patron que Colaboradores.Tests/ObtenerFichaColaborador/FunctionEndpointTests.cs: store y
-// tenantResolver nulos a proposito -- el parseo debe cortocircuitar ANTES de tocar Marten. Si un
+// tenantContext nulos a proposito -- el parseo debe cortocircuitar ANTES de tocar Marten. Si un
 // cambio futuro moviera la validacion despues de abrir la QuerySession, este test se pondria rojo
 // por la razon correcta (excepcion de referencia nula), nunca en verde por accidente.
 //
@@ -10,7 +10,7 @@
 // session.Events.AggregateStreamAsync contra Marten real -- black-box del smoke test
 // (ObtenerDepuracionDelDiaSmokeTests, MEF-ADR-0013), mismo criterio que el precedente de
 // ObtenerFichaColaborador documenta para su 200/404. La RESOLUCION por constructor de
-// IDocumentStore/ITenantResolver (la mitad de wiring de CA-7) la cubre el test de composicion en
+// IDocumentStore/ITenantContext (la mitad de wiring de CA-7) la cubre el test de composicion en
 // ComposicionServiciosTests.cs (hermano de MEF-ADR-0029).
 
 using AwesomeAssertions;
@@ -22,8 +22,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ObtenerDepuracionDelDia;
 
 public class FunctionEndpointTests
 {
-    // store/tenantResolver nulos a proposito: el 400 debe resolverse antes de tocar Marten.
-    private static FunctionEndpoint Endpoint() => new(store: null!, tenantResolver: null!);
+    // store/tenantContext nulos a proposito: el 400 debe resolverse antes de tocar Marten.
+    private static FunctionEndpoint Endpoint() => new(store: null!, tenantContext: null!);
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 

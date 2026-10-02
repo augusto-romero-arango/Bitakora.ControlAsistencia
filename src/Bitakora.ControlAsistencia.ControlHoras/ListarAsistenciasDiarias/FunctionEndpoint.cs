@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 // (front-end de App Service y APIM reenviando un verbo no estandar) solo los cierra el smoke test
 // contra dev despues del deploy -- un 404 en dev puede significar tanto "no desplegado" como "el
 // borde filtro el verbo".
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarAsistenciasDiarias")]
     public async Task<IActionResult> Run(
@@ -60,9 +60,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         var desde = filtro.DesdeFecha.Value;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
 
-        // Sesion acotada al tenant que resuelve ITenantResolver, nunca a un dato de la request
+        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
         // (mitigacion estructural contra BOLA/IDOR, MEF-ADR-0028).
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         var documentos = await session.Query<AsistenciaDiaria>()
             .Where(a => a.CodigoColaborador == codigoColaborador

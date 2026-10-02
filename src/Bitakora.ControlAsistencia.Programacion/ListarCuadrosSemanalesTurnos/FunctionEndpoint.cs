@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos;
 // Listado sin filtro server-side ni paginacion: el catalogo de plantillas es acotado y el cliente
 // filtra (MEF-ADR-0042 seccion 1). Comparte el segmento "programacion/plantillas-semanales" con el
 // POST de CrearPlantillaSemanal; cada uno declara su verbo (MEF-ADR-0006).
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarCuadrosSemanalesTurnos")]
     public async Task<IActionResult> Run(
@@ -20,8 +20,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         CancellationToken ct)
     {
         // MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por query string.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        // ITenantContext -- nunca a un tenant id que llegara por query string.
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         // Orden estable (Nombre, Id) como contrato de la respuesta. Lista tambien las incompletas;
         // las retiradas no aparecen porque su cuadro se borro con la plantilla (ausencia = borrado,

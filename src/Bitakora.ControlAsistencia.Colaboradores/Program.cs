@@ -15,7 +15,7 @@ builder.Services.AgregarServiciosColaboradores(
     builder.Environment.IsDevelopment());
 
 // Middleware del worker: no es IServiceCollection, asi que no puede vivir en el seam.
-// UsarTenantContextMiddleware puebla la identidad que el ITenantResolver del seam luego lee.
+// UsarTenantContextMiddleware puebla la identidad que el ITenantContext del seam luego lee.
 builder.UsarTenantContextMiddleware();
 
 await builder.Build().RunAsync();
