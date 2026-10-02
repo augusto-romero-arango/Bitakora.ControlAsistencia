@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
@@ -59,23 +60,17 @@ public sealed class IdentidadTenantMcpMiddleware(
         return derivador.Derivar(principal);
     }
 
-    private void RegistrarFormaDelToken(ClaimsPrincipal principal)
-    {
-        var claims = principal.Claims.ToList();
-        var nombres = string.Join(",", claims.Select(c => c.Type).Distinct());
-        var tieneSid = claims.Any(c => c.Type == "sid");
-        var emisor = claims.FirstOrDefault(c => c.Type == "iss")?.Value;
-        long? duracion = LeerSegundos(claims, "exp") - LeerSegundos(claims, "iat");
-
+    private void RegistrarFormaDelToken(ClaimsPrincipal principal) =>
         logger.LogInformation(
             "Forma del token MCP: claims {ClaimsDelToken}, sid {TieneSid}, iss {Emisor}, duracion {DuracionTokenSegundos} s",
-            nombres, tieneSid, emisor, duracion);
-    }
+            string.Join(",", principal.Claims.Select(c => c.Type).Distinct()),
+            principal.HasClaim(c => c.Type == "sid"),
+            principal.FindFirst("iss")?.Value,
+            LeerSegundos(principal, "exp") - LeerSegundos(principal, "iat"));
 
-    private static long? LeerSegundos(IEnumerable<Claim> claims, string tipo) =>
-        long.TryParse(claims.FirstOrDefault(c => c.Type == tipo)?.Value,
-            System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var v)
-            ? v
+    private static long? LeerSegundos(ClaimsPrincipal principal, string tipo) =>
+        long.TryParse(principal.FindFirst(tipo)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var segundos)
+            ? segundos
             : null;
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)
