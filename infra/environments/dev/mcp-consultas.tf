@@ -81,6 +81,9 @@ module "function_app_mcp_consultas" {
     # fijo.
     Tenant__Id     = "tenant-smoke"
     Tenant__UserId = "smoke@bitakora.dev"
+    # Preparado para la identidad interina de membership de Cosmos 3.x. Este servidor aun
+    # usa Tenant__* para tenant/usuario; no se renombran en este cambio.
+    Identidad__OrganizationMembershipIdInterino = "om-smoke"
 
     # Identidad publica de este servidor como OAuth protected resource (issue #554): alimenta el
     # documento PRM y el parametro resource_metadata del WWW-Authenticate. Setting obligatorio --
