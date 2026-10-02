@@ -28,6 +28,10 @@ public sealed partial class DerivadorIdentidadTenantMcp : IDerivadorIdentidadTen
         if (string.IsNullOrWhiteSpace(usuario))
             throw new InvalidOperationException(Mensajes.UsuarioAusente);
 
-        return new IdentidadTenant(organizacion, usuario, string.Empty);
+        var membership = principal.FindFirstValue(ClaimOrganizationMembership);
+        if (string.IsNullOrWhiteSpace(membership))
+            throw new InvalidOperationException(Mensajes.OrganizationMembershipAusente);
+
+        return new IdentidadTenant(organizacion, usuario, membership);
     }
 }

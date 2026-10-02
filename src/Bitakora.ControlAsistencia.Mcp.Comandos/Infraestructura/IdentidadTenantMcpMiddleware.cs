@@ -29,7 +29,7 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         // el contexto de ejecucion al retornar de un metodo async, asi que una mutacion hecha
         // adentro no la ve el llamador -- ni siquiera cuando el await interno resuelve sincronico.
         if (identidad is not null)
-            TenantExecutionContext.SetDerivedIdentity(identidad.TenantId, identidad.UserId);
+            TenantExecutionContext.SetDerivedIdentity(identidad.TenantId, identidad.UserId, identidad.OrganizationMembershipId);
 
         await next(context);
     }
