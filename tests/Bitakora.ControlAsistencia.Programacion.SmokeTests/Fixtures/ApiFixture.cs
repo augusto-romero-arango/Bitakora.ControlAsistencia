@@ -9,6 +9,7 @@ public class ApiFixture : IAsyncLifetime
     // Cosmos.MultiTenancy.AspNetCore en MEF-ADR-0028. Los valores salen de IdentidadDePrueba.
     private const string HeaderTenantId = "X-Tenant-Id";
     private const string HeaderUserId = "X-User-Id";
+    private const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";
 
     public HttpClient Client { get; private set; } = null!;
 
@@ -29,6 +30,7 @@ public class ApiFixture : IAsyncLifetime
         var identidad = IdentidadDePrueba.Desde(configuration);
         Client.DefaultRequestHeaders.Add(HeaderTenantId, identidad.TenantId);
         Client.DefaultRequestHeaders.Add(HeaderUserId, identidad.UserId);
+        Client.DefaultRequestHeaders.Add(HeaderOrganizationMembershipId, identidad.OrganizationMembershipId);
 
         // Fail-fast: verificar que el entorno esta disponible
         var response = await Client.GetAsync("/api/health");
