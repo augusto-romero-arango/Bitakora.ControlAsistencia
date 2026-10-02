@@ -22,7 +22,7 @@
   <ItemGroup>
     <!-- Contrato ITenantResolver + TenancyHeaders (UserId). Version alineada con la que
          Cosmos.EventSourcing.CritterStack 2.3.1 trae transitiva a los dominios. -->
-    <PackageReference Include="Cosmos.MultiTenancy" Version="2.3.1" />
+    <PackageReference Include="Cosmos.MultiTenancy" Version="3.1.0" />
     <!-- Worker aislado: IFunctionsWorkerMiddleware, IFunctionsWorkerApplicationBuilder, UseMiddleware,
          FunctionContext y BindInputAsync. Version alineada con los dominios. -->
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />

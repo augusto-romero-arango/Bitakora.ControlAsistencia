@@ -21,7 +21,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador;
 // Mismo segmento de recurso que ObtenerFichaColaborador ("colaboradores/fichas") -- el verbo QUERY
 // distingue, el nombre/ruta no cambian (MEF-ADR-0006 enmienda MEF-ADR-0042 seccion 5,
 // skills/projections/naming.md).
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     // CA-3: tope de pagina (MEF-ADR-0042 seccion 2) -- el Take del cliente jamas llega crudo a
     // Marten.
@@ -89,8 +89,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
             return NoProcesable("Una etiqueta del filtro es invalida (categoria o valor vacios)");
 
         // CA-1/CA-2 (MEF-ADR-0028): la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por el body.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        // ITenantContext -- nunca a un tenant id que llegara por el body.
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         // CA-1: vigente a FechaReferencia = VigenteHasta >= FechaReferencia (el dia efectivo de
         // terminacion es el ULTIMO dia vigente, inclusive -- semantica verificada en el aggregate,

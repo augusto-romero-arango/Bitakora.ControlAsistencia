@@ -20,7 +20,7 @@ namespace Bitakora.ControlAsistencia.Sedes.ObtenerFichaSede;
 // los comandos del ciclo de vida de la sede (ActivarSedeFunction, etc.): rechaza con 400 antes de
 // tocar Marten, y SedeAggregateRoot.ComputarStreamId(codigo) es la unica forma de construir el
 // stream key -- nunca una concatenacion propia del endpoint.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ObtenerFichaSede")]
     public async Task<IActionResult> Run(
@@ -35,8 +35,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         var streamKey = SedeAggregateRoot.ComputarStreamId(codigo);
 
         // CA-5/MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por ruta o query string.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        // ITenantContext -- nunca a un tenant id que llegara por ruta o query string.
+        await using var session = store.QuerySession(tenantContext.TenantId);
         var ficha = await session.LoadAsync<FichaSede>(streamKey, ct);
 
         return ficha is null ? new NotFoundResult() : new OkObjectResult(ficha);

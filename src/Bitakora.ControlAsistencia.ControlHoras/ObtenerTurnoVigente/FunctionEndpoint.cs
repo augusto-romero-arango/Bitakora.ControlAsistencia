@@ -20,7 +20,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente;
 // concatenacion propia del endpoint (MEF-ADR-0037). CA-4: fecha invalida -> 400 explicito; 200 con
 // la vista completa (Id incluido -- la UI lo necesita como ancla de comandos, ver issue "Notas
 // tecnicas") o 404 sin body cuando no hay turno vigente.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
 
@@ -42,11 +42,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
 
         var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(codigoColaborador, fechaParseada);
 
-        // CA-4: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // CA-4: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantContext --
         // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
         // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). codigoColaborador y fecha SI vienen de
         // la ruta: son el recurso, no el tenant.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
         var vista = await session.LoadAsync<TurnoVigente>(streamKey, ct);
 
         // CA-4: 404 sin body cuando no hay turno vigente para ese (colaborador, fecha) -- no es un

@@ -3,7 +3,7 @@
 // que invoca Program.cs, ver ComposicionServicios.AgregarServiciosSedes) y valida que el grafo
 // completo es resoluble, sin infra desplegada (connection strings dummy).
 //
-// Root cause que este guardrail atrapa (issue #219): un ITenantResolver sin registrar compila y
+// Root cause que este guardrail atrapa (issue #219): un ITenantContext sin registrar compila y
 // pasa los tests unitarios existentes -- ni "dotnet build" ni un test que no construya el grafo de
 // DI del host detectan el hueco -- y solo aparece DESPUES del deploy, en los smoke tests contra
 // dev (HTTP 500 en toda funcion).
@@ -294,7 +294,7 @@ public class ComposicionServiciosTests
     // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
     // Functions isolated worker).
     //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
     // comportamiento de Run (recomputar el stream key, session.LoadAsync y el 200/404, CA-5), que
     // es responsabilidad de projection-implementer y del smoke test. Por eso este test queda en
     // verde tan pronto exista el FunctionEndpoint stub con el constructor correcto -- no es la
@@ -432,7 +432,7 @@ public class ComposicionServiciosTests
     }
 
     // El lector del read-side propio (los dos lookups de MEF-ADR-0046 paso 2) depende de
-    // IDocumentStore + ITenantResolver por constructor: si alguno faltara, el hueco solo aparece al
+    // IDocumentStore + ITenantContext por constructor: si alguno faltara, el hueco solo aparece al
     // procesar el primer mensaje.
     [Fact]
     public async Task AgregarServiciosSedes_ResuelveElLectorDelReadSide_CuandoElContenedorEstaCompuesto()

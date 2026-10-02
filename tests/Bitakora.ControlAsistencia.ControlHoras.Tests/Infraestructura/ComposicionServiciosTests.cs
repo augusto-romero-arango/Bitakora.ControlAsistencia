@@ -3,7 +3,7 @@
 // completo es resoluble, sin infra desplegada (connection strings dummy).
 //
 // Root cause que cierra este guardrail (issue #219): el upgrade de Cosmos.Event* 0.1.9 -> 2.1.0
-// (issue #207) dejo de auto-registrar un ITenantResolver, y ni "dotnet build" ni los tests
+// (issue #207) dejo de auto-registrar un ITenantContext, y ni "dotnet build" ni los tests
 // unitarios existentes construyen el grafo de DI del host, asi que el hueco solo se detecto
 // DESPUES del deploy, en los smoke tests contra dev (HTTP 500 en toda funcion).
 //
@@ -277,7 +277,7 @@ public class ComposicionServiciosTests
     // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
     // Functions isolated worker).
     //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
     // comportamiento de Run (parseo de codigoColaborador/fecha con 400 explicito, session.LoadAsync y el
     // 200/404, CA-4), que es responsabilidad de projection-implementer y del smoke test (CA-8), no
     // de este guardrail de wiring. Por eso este test queda en verde tan pronto exista el
@@ -388,7 +388,7 @@ public class ComposicionServiciosTests
     // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
     // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
     // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
-    // ITenantResolver por constructor -- no el comportamiento de Run (parseo de fecha con 400,
+    // ITenantContext por constructor -- no el comportamiento de Run (parseo de fecha con 400,
     // DiaCalculadoAggregateRoot.ComputarStreamId, AggregateStreamAsync y el 200/404, CA-5/CA-6/
     // CA-7), que es responsabilidad de projection-implementer y del smoke test. Este issue no crea
     // proyeccion nueva ni toca el seam del worker ("Necesidad de lectura", via (b1)): junto con la
@@ -411,7 +411,7 @@ public class ComposicionServiciosTests
     // .CreateInstance reproduce la activacion por tipo que hace el host de Azure Functions isolated
     // worker, sin levantar el host real (Alt 1 de MEF-ADR-0029).
     //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantResolver por constructor -- no el
+    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
     // comportamiento de Run (parseo de desde/hasta/codigoColaborador, recorte de rango, session.Query y
     // mapeo al envelope de respuesta), que es responsabilidad de projection-implementer y del smoke
     // test, no de este guardrail de wiring. Este issue no crea proyeccion nueva ni toca el seam del
@@ -432,7 +432,7 @@ public class ComposicionServiciosTests
     }
 
     // Hermano del de ListarTurnosVigentes (arriba) y de MEF-ADR-0029: verifica la RESOLUCION por
-    // constructor de IDocumentStore/ITenantResolver, no el comportamiento de Run (guards 415/422,
+    // constructor de IDocumentStore/ITenantContext, no el comportamiento de Run (guards 415/422,
     // recorte, sintesis), que cubren los unit tests puros del feature folder y el smoke test.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarAsistenciasDiarias_CuandoElContenedorEstaCompuesto()
@@ -446,7 +446,7 @@ public class ComposicionServiciosTests
     }
 
     // Hermano de los de ListarTurnosVigentes/ListarAsistenciasDiarias (MEF-ADR-0029). Prueba solo la
-    // RESOLUCION de IDocumentStore/ITenantResolver por constructor; el comportamiento de Run
+    // RESOLUCION de IDocumentStore/ITenantContext por constructor; el comportamiento de Run
     // (guards, agregacion, keyset, recorte) lo cubren los unit tests puros del feature folder.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarResumenesAsistencia_CuandoElContenedorEstaCompuesto()

@@ -15,7 +15,7 @@
        vivo como la isla donde nace el primer evento que salga del bounded context
        (MEF-ADR-0039 decision 2), con el paquete que expone IPublicEvent ya en su sitio. -->
   <ItemGroup>
-    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="2.3.1" />
+    <PackageReference Include="Cosmos.EventDriven.Abstractions" Version="3.1.0" />
   </ItemGroup>
 
 </Project>

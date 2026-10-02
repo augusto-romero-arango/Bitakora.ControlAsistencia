@@ -3,7 +3,7 @@
 // completo es resoluble, sin infra desplegada (connection strings dummy).
 //
 // Root cause que cierra este guardrail (issue #219): el upgrade de Cosmos.Event* 0.1.9 -> 2.1.0
-// (issue #207) dejo de auto-registrar un ITenantResolver, y ni "dotnet build" ni los tests
+// (issue #207) dejo de auto-registrar un ITenantContext, y ni "dotnet build" ni los tests
 // unitarios existentes construyen el grafo de DI del host, asi que el hueco solo se detecto
 // DESPUES del deploy, en los smoke tests contra dev (HTTP 500 en toda funcion).
 //

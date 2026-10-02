@@ -3,10 +3,10 @@ using Cosmos.MultiTenancy;
 namespace Bitakora.ControlAsistencia.TenantResolver;
 
 /// <summary>
-/// Identidad (tenant + usuario) de la invocacion en curso. La puebla <see cref="TenantContextMiddleware"/>
+/// Identidad (tenant + usuario + membership de organizacion) de la invocacion en curso. La puebla <see cref="TenantContextMiddleware"/>
 /// al inicio de cada invocacion desde el contexto de ejecucion del trigger (headers HTTP o
 /// ApplicationProperties del mensaje de Service Bus); los routers/senders de Wolverine la consumen via
-/// <see cref="ITenantResolver"/>.
+/// <see cref="ITenantContext"/>.
 ///
 /// El estado vive en <see cref="AsyncLocal{T}"/> (ambiente por invocacion), no en campos de instancia,
 /// a proposito (MEF-ADR-0032, patron de la implementacion de referencia Cosmos.ControlPlane): Wolverine
@@ -18,7 +18,7 @@ namespace Bitakora.ControlAsistencia.TenantResolver;
 /// handler) sin depender del scope de DI, asi que la identidad cruza ese limite. Mismo patron que
 /// <c>IHttpContextAccessor</c>.
 ///
-/// Este mismo limite de scope es el que rompio a <c>ProxyTenantResolver</c> de
+/// Este mismo limite de scope es el que rompio a <c>ProxyTenantContext</c> (2.x: <c>ProxyTenantResolver</c>) de
 /// Cosmos.MultiTenancy.CritterStack en el worker aislado: decide la rama (headers vs IMessageContext)
 /// en su CONSTRUCTOR segun <c>IHttpContextAccessor.HttpContext</c>, que es null en el momento en que
 /// el grafo de DI lo construye, asi que toda request HTTP caia en la rama de Wolverine y fallaba.
@@ -28,10 +28,10 @@ namespace Bitakora.ControlAsistencia.TenantResolver;
 /// <see cref="Set"/> (el middleware, caso normal) y <see cref="SetDerivedIdentity"/> (triggers sin
 /// identidad del gateway).
 ///
-/// Los getters de <see cref="ITenantResolver"/> fallan ruidosamente si la identidad no se resolvio,
+/// Los getters de <see cref="ITenantContext"/> fallan ruidosamente si la identidad no se resolvio,
 /// para que un fallo del gateway o un mensaje sin identidad no pase desapercibido.
 /// </summary>
-public sealed class TenantExecutionContext : ITenantResolver
+public sealed class TenantExecutionContext : ITenantContext
 {
     private static readonly AsyncLocal<string?> _tenantId = new();
     private static readonly AsyncLocal<string?> _userId = new();
@@ -41,11 +41,11 @@ public sealed class TenantExecutionContext : ITenantResolver
     /// Puebla la identidad de la invocacion en curso desde el contexto del trigger. Unico escritor:
     /// <see cref="TenantContextMiddleware"/>.
     /// </summary>
-    internal static void Set(string? tenantId, string? userId)
+    internal static void Set(string? tenantId, string? userId, string? organizationMembershipId = null)
     {
         _tenantId.Value = tenantId;
         _userId.Value = userId;
-        _organizationMembershipId.Value = null;
+        _organizationMembershipId.Value = organizationMembershipId;
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public sealed class TenantExecutionContext : ITenantResolver
     /// resto de las Functions, y que decide la particion de Marten. El <paramref name="actor"/> nombra
     /// al proceso que escribe, porque no hay usuario detras.
     ///
-    /// Hace falta porque el sender del harness lee <c>ITenantResolver.TenantId</c> y <c>.UserId</c> en
+    /// Hace falta porque el sender del harness lee <c>ITenantContext.TenantId</c> y <c>.UserId</c> en
     /// cada publish (<c>Cosmos.EventDriven.CritterStack.TenancyDelivery</c>): sin identidad ambiente
     /// no se puede publicar. De ahi que ambos parametros sean obligatorios -- un actor nulo haria
     /// fallar el publish, no el caller.
@@ -68,13 +68,16 @@ public sealed class TenantExecutionContext : ITenantResolver
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(actor);
 
-        Set(tenantId, actor);
-        _organizationMembershipId.Value = organizationMembershipId;
+        Set(tenantId, actor, organizationMembershipId);
     }
 
-    public string TenantId => AssertValue(_tenantId.Value, "tenant");
+    public string TenantId => AssertValue(_tenantId.Value, "tenant", "X-Tenant-Id", "tenant-id");
 
-    public string UserId => AssertValue(_userId.Value, "usuario");
+    public string UserId => AssertValue(_userId.Value, "usuario", "X-User-Id", "user_id");
+
+    public string OrganizationMembershipId => AssertValue(
+        _organizationMembershipId.Value, "membership de organización",
+        "X-Organization-Membership-Id", "organization_membership_id");
 
     /// <summary>
     /// Version sin lanzar de los getters, para un consumidor que decide entre la identidad ambiente
@@ -97,9 +100,9 @@ public sealed class TenantExecutionContext : ITenantResolver
     }
 
     /// <summary>
-    /// Membership id de organizacion de la invocacion en curso, poblado solo por
-    /// <see cref="SetDerivedIdentity"/> (los MCP lo derivan del token, issue #697). <see cref="Set"/> lo
-    /// limpia para que no se filtre de una invocacion anterior.
+    /// Version sin lanzar de <see cref="OrganizationMembershipId"/>. <see cref="Set"/> siempre lo
+    /// sobreescribe (con <c>null</c> si la fuente no lo trae), asi que no se filtra de una invocacion
+    /// anterior.
     /// </summary>
     public static bool TryObtenerMembershipId(out string? organizationMembershipId)
     {
@@ -109,11 +112,11 @@ public sealed class TenantExecutionContext : ITenantResolver
         return organizationMembershipId is not null;
     }
 
-    private static string AssertValue(string? value, string contextField)
+    private static string AssertValue(string? value, string contextField, string headerHttp, string propertyAsb)
         => string.IsNullOrWhiteSpace(value)
             ? throw new InvalidOperationException(
                 $"No se pudo resolver el {contextField} de la invocación actual. En HTTP debe venir del header " +
-                "confiable del gateway (X-Tenant-Id/X-User-Id); en Service Bus, de las ApplicationProperties " +
-                "del mensaje (tenant-id/user_id, que estampan los senders de Cosmos).")
+                $"confiable del gateway ({headerHttp}); en Service Bus, de la ApplicationProperty del mensaje " +
+                $"({propertyAsb}, que estampan los senders de Cosmos).")
             : value;
 }

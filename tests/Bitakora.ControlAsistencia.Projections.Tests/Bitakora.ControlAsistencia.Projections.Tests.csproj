@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" Version="*" />
-    <PackageReference Include="Marten" Version="9.12.0" />
+    <PackageReference Include="Marten" Version="9.23.0" />
     <!-- Issue #517: InMemoryExporter para el guardrail de supresion selectiva de metricas OTel
          (patron del issue hermano #515, OpenTelemetry.Exporter.InMemory 1.16.0 en
          ControlHoras.Tests), sin red ni Azure Monitor real. -->

@@ -14,7 +14,7 @@ namespace Bitakora.ControlAsistencia.Sedes.ListarFichasSede;
 //
 // CA-6: sin filtro devuelve todas las fichas; "?activa=true"/"?activa=false" filtra por la bandera
 // de asignabilidad.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarFichasSede")]
     public async Task<IActionResult> Run(
@@ -33,8 +33,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         }
 
         // CA-6/MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por query string.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        // ITenantContext -- nunca a un tenant id que llegara por query string.
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<FichaSede> query = session.Query<FichaSede>();
 

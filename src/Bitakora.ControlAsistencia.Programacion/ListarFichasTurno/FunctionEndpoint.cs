@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarFichasTurno;
 // Listado sin filtro server-side ni paginacion: el catalogo es acotado (decenas por empresa) y el
 // cliente filtra (MEF-ADR-0042 seccion 1). Comparte el segmento "programacion/turnos" con el POST
 // de CrearTurno, que declara su propio verbo.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarFichasTurno")]
     public async Task<IActionResult> Run(
@@ -19,8 +19,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
         CancellationToken ct)
     {
         // MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantResolver -- nunca a un tenant id que llegara por query string.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        // ITenantContext -- nunca a un tenant id que llegara por query string.
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         // Orden estable como contrato de la respuesta (CA-4): sin el, dos consultas consecutivas
         // podrian devolver el mismo catalogo permutado.

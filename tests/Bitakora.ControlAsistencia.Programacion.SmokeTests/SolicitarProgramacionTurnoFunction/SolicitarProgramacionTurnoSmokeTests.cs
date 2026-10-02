@@ -19,6 +19,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoProgramacionSolicitada = "programacion_turno_solicitada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+    private const string ClaveOrganizationMembershipId = "organization_membership_id";
 
     // Formas minimas del evento persistido, para asertar sobre el JSON de mt_events sin referenciar
     // Programacion.DomainEvents desde los smoke tests (mismo criterio que DeadLetterMinimos). Solo
@@ -89,6 +90,53 @@ public class SolicitarProgramacionTurnoSmokeTests(
         },
         fechas = new[] { "2025-08-01", "2025-08-02" }
     };
+
+    // Issue #700 CA-4: Cosmos 3.x estampa el tercer dato de identidad en la metadata del evento
+    // persistido (UnitOfWorkMiddleware) y en cada mensaje publicado (TenancyDelivery). Este comando
+    // tiene ambos efectos, asi que un solo escenario cubre los dos planos.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_EstampaElMembershipEnElEventoYEnElMensaje_CuandoLaSolicitudEsAceptada()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurnoResponse = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke Membership"), ct);
+        crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var solicitudId = Guid.CreateVersion7();
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            colaborador = new
+            {
+                identificacion = "CC-700700700",
+                codigoColaborador = Guid.CreateVersion7().ToString(),
+                nombreCompleto = "[TEST] Smoke Membership"
+            },
+            fechas = new[] { "2026-10-01" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var membershipPersistido = await postgres.ObtenerHeaderDeEventoAsync(
+            SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada,
+            ClaveOrganizationMembershipId, Timeout);
+        membershipPersistido.Should().Be(api.OrganizationMembershipId);
+
+        var (_, propiedades) = await serviceBus.WaitForMessageConPropiedadesAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+        propiedades.Should().ContainKey(ClaveOrganizationMembershipId)
+            .WhoseValue.ToString().Should().Be(api.OrganizationMembershipId);
+    }
 
     [Fact]
     [Trait("Category", "Smoke")]

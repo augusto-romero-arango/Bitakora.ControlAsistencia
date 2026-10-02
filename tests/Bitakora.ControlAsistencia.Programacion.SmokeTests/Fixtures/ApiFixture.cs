@@ -13,6 +13,9 @@ public class ApiFixture : IAsyncLifetime
 
     public HttpClient Client { get; private set; } = null!;
 
+    // Issue #700 CA-4: el oraculo con que se compara la identidad que estampan el event store y el bus.
+    public string OrganizationMembershipId { get; private set; } = null!;
+
     public async ValueTask InitializeAsync()
     {
         var configuration = new ConfigurationBuilder()
@@ -31,6 +34,7 @@ public class ApiFixture : IAsyncLifetime
         Client.DefaultRequestHeaders.Add(HeaderTenantId, identidad.TenantId);
         Client.DefaultRequestHeaders.Add(HeaderUserId, identidad.UserId);
         Client.DefaultRequestHeaders.Add(HeaderOrganizationMembershipId, identidad.OrganizationMembershipId);
+        OrganizationMembershipId = identidad.OrganizationMembershipId;
 
         // Fail-fast: verificar que el entorno esta disponible
         var response = await Client.GetAsync("/api/health");

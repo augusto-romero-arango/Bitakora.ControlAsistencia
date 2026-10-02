@@ -52,6 +52,14 @@ public class ServiceBusFixture : IAsyncLifetime
         string subscriptionName,
         Func<T, bool> match,
         TimeSpan timeout)
+        => (await WaitForMessageConPropiedadesAsync(topicName, subscriptionName, match, timeout)).Mensaje;
+
+    // Issue #700 CA-4: la identidad de tenancy viaja en las ApplicationProperties, no en el body.
+    public async Task<(T Mensaje, IReadOnlyDictionary<string, object> Propiedades)> WaitForMessageConPropiedadesAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
+        TimeSpan timeout)
     {
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
@@ -82,7 +90,7 @@ public class ServiceBusFixture : IAsyncLifetime
                 if (match(deserialized))
                 {
                     await receiver.CompleteMessageAsync(received);
-                    return deserialized;
+                    return (deserialized, received.ApplicationProperties);
                 }
 
                 await receiver.CompleteMessageAsync(received);

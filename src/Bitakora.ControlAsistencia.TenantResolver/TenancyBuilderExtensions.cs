@@ -11,7 +11,7 @@ public static class TenancyBuilderExtensions
     /// </summary>
     /// <remarks>
     /// Es la mitad de nivel builder de la tenancy; la otra mitad -- el registro de
-    /// <c>ITenantResolver</c> en DI -- vive en
+    /// <c>ITenantContext</c> en DI -- vive en
     /// <see cref="TenancyServiceCollectionExtensions.AgregarTenantResolverControlAsistencia"/>, dentro
     /// del seam de composicion del dominio. Se necesitan las dos: sin este middleware el resolver
     /// resuelve pero nunca se puebla.

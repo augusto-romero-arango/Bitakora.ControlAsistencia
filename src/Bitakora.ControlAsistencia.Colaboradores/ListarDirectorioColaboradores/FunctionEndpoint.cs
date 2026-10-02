@@ -14,7 +14,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarDirectorioColaboradores
 // QUERY colaboradores/directorio (MEF-ADR-0042) sobre la vista DirectorioColaborador que el worker
 // ya materializa -- via (a'), session.Query<T>(). No crea proyeccion ni read model: mismo corte que
 // ListarFichasColaborador hizo sobre la ficha.
-public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolver)
+public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     // Tope de pagina (MEF-ADR-0042 seccion 2): el Take del cliente jamas llega crudo a Marten.
     private const int TakeMaximo = 200;
@@ -103,9 +103,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantResolver tenantResolv
             && (cursorRecibido.NombreCompleto is null || cursorRecibido.Identificacion is null))
             return NoProcesable("El cursor debe traer NombreCompleto e Identificacion, o ninguno de los dos");
 
-        // MEF-ADR-0028: la sesion se abre SIEMPRE acotada al tenant que resuelve ITenantResolver --
+        // MEF-ADR-0028: la sesion se abre SIEMPRE acotada al tenant que resuelve ITenantContext --
         // nunca a un tenant id que llegara por el body.
-        await using var session = store.QuerySession(tenantResolver.TenantId);
+        await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<DirectorioColaborador> query = session.Query<DirectorioColaborador>();
 
