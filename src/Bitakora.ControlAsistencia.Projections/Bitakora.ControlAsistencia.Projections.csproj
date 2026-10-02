@@ -14,8 +14,8 @@
     <!-- Issue #250: mismas versiones que ControlHoras (patron de referencia). Se usa el exporter,
          no el distro Azure.Monitor.OpenTelemetry.AspNetCore, porque este worker no es ASP.NET Core
          y no recibe requests. Ver ConfiguracionObservabilidadProjections. -->
-    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.8.1" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
   </ItemGroup>
 
   <!-- Issue #237: los dos DomainEvents le dan al worker los tipos de evento que
