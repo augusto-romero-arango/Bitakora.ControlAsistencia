@@ -5,8 +5,9 @@
 > `ProxyTenantContext`, `AgregarTenantContext*`). En 2.x se llamaban `ITenantResolver`,
 > `TrustedHeadersTenantResolver`, `WolverineMessageContextTenantResolver`, `ProxyTenantResolver` y
 > `AgregarTenantResolver*`. El analisis del incidente del 2026-09-01 (2.x) es igualmente valido con
-> los nombres nuevos: el fallo del proxy es el mismo. La biblioteca local conserva el nombre
-> `Bitakora.ControlAsistencia.TenantResolver`.
+> los nombres nuevos: el fallo del proxy es el mismo. La biblioteca local y su API conservan sus nombres
+> (`Bitakora.ControlAsistencia.TenantResolver`, `AgregarTenantResolverControlAsistencia()`); renombrarlos
+> no es parte de esta enmienda.
 
 ## Estado
 
@@ -119,12 +120,13 @@ trigger en dos planos:
 
 - **HTTP**: headers confiables `X-Tenant-Id`/`X-User-Id`/`X-Organization-Membership-Id` (via `FunctionContext.GetHttpContext()`)
   -- los mismos que la politica global de APIM estampa desde los claims `tenant_id`/`user_email`
-  del JWT (MEF-ADR-0032 del marco, seccion 4/5).
+  (y el claim de membresia de organizacion, #696) del JWT (MEF-ADR-0032 del marco, seccion 4/5).
 - **Service Bus**: `ApplicationProperties` `tenant-id`/`user_id`/`organization_membership_id` del mensaje, obtenidas tipadas con
   `BindInputAsync` (la maquinaria de binding cachea el resultado, no re-convierte ni settlea el
   mensaje). `tenant-id` es la llave con que Wolverine serializa el `TenantId` del envelope
   (`Wolverine.EnvelopeConstants.TenantIdKey`); `user_id` viaja bajo
-  `Cosmos.MultiTenancy.TenancyHeaders.UserId`.
+  `Cosmos.MultiTenancy.TenancyHeaders.UserId` y `organization_membership_id` es la llave con que
+  `TenancyDelivery` de Cosmos 3.x estampa el membership id en cada mensaje.
 
 Es el unico punto de poblacion para los triggers que reciben identidad del gateway o del mensaje.
 Los que no la reciben la derivan de su payload ya verificado y la pueblan con
@@ -132,7 +134,7 @@ Los que no la reciben la derivan de su payload ya verificado y la pueblan con
 
 ### 3. Wiring
 
-- `TenancyServiceCollectionExtensions.AgregarTenantContextControlAsistencia()`: registra
+- `TenancyServiceCollectionExtensions.AgregarTenantResolverControlAsistencia()`: registra
   `TenantExecutionContext` como `ITenantContext` (`RemoveAll` + `AddSingleton`) dentro del seam
   `Infraestructura/ComposicionServicios.cs` de cada dominio (MEF-ADR-0029 del marco).
 - `TenancyBuilderExtensions.UsarTenantContextMiddleware()`: registra `TenantContextMiddleware` en
@@ -190,7 +192,7 @@ etapa perderia esa capacidad, no solo el bug.
   `.claude/harness.config.json` (MEF-ADR-0028 seccion 3), que `/install-apim` ya dejo en
   `"multi-tenant-header"` en este proyecto -- la rama etapa (b), que genera
   `AgregarTenantContextHibrido()` en el seam de composicion que produce. Quien
-  scaffoldee un dominio nuevo aqui debe migrarlo a `AgregarTenantContextControlAsistencia()` +
+  scaffoldee un dominio nuevo aqui debe migrarlo a `AgregarTenantResolverControlAsistencia()` +
   `UsarTenantContextMiddleware()`, siguiendo este ADR en vez del scaffold generado. El gate de
   composicion DI (MEF-ADR-0029) no lo detecta: `ProxyTenantContext` **se construye** sin error, y
   es justamente al invocarlo cuando falla.
@@ -209,7 +211,7 @@ etapa perderia esa capacidad, no solo el bug.
   transicion automatizada (a)->(b) via WorkOS+APIM, que auto-cablea
   `AgregarTenantContextHibrido()`.
 - MEF-ADR-0032 del marco (identidad y autenticacion en el borde WorkOS+APIM): fuente de los headers
-  canonicos `X-Tenant-Id`/`X-User-Id` que puebla `TenantContextMiddleware` en el plano HTTP.
+  canonicos `X-Tenant-Id`/`X-User-Id`/`X-Organization-Membership-Id` que puebla `TenantContextMiddleware` en el plano HTTP.
 - CA-ADR-0027 (tenancy conjoined con tenant unico): historia previa de la tenancy local de este
   proyecto -- este ADR documenta el resolver de la etapa (b) que sucede a
   `TenantResolverMonoTenantPorDefecto` de la etapa (a).
