@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Marten" Version="9.23.0" />
+    <PackageReference Include="Marten" Version="9.45.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
     <!-- Issue #250: mismas versiones que ControlHoras (patron de referencia). Se usa el exporter,
          no el distro Azure.Monitor.OpenTelemetry.AspNetCore, porque este worker no es ASP.NET Core
