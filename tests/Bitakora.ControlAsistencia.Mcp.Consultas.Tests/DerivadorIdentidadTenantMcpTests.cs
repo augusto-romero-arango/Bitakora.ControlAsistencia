@@ -8,13 +8,15 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 // derivador no revalida nada, solo traduce org_id/sub.
 public class DerivadorIdentidadTenantMcpTests
 {
-    private static ClaimsPrincipal PrincipalCon(string? orgId, string? sub)
+    private static ClaimsPrincipal PrincipalCon(string? orgId, string? sub, string? membership = "membership_01")
     {
         var claims = new List<Claim>();
         if (orgId is not null)
             claims.Add(new Claim(DerivadorIdentidadTenantMcp.ClaimOrganizacion, orgId));
         if (sub is not null)
             claims.Add(new Claim(DerivadorIdentidadTenantMcp.ClaimUsuario, sub));
+        if (membership is not null)
+            claims.Add(new Claim(DerivadorIdentidadTenantMcp.ClaimOrganizationMembership, membership));
         return new ClaimsPrincipal(new ClaimsIdentity(claims));
     }
 
@@ -26,7 +28,7 @@ public class DerivadorIdentidadTenantMcpTests
 
         var identidad = derivador.Derivar(principal);
 
-        identidad.Should().Be(new IdentidadTenant("org_acme", "usuario_123"));
+        identidad.Should().Be(new IdentidadTenant("org_acme", "usuario_123", "membership_01"));
     }
 
     [Fact]
@@ -53,5 +55,29 @@ public class DerivadorIdentidadTenantMcpTests
 
         act.Should().ThrowExactly<InvalidOperationException>()
             .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.UsuarioAusente}*");
+    }
+
+    [Fact]
+    public void Derivar_LanzaInvalidOperationException_CuandoFaltaOrganizationMembershipId()
+    {
+        var derivador = new DerivadorIdentidadTenantMcp();
+        var principal = PrincipalCon("org_acme", "usuario_123", null);
+
+        var act = () => derivador.Derivar(principal);
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.OrganizationMembershipAusente}*");
+    }
+
+    [Fact]
+    public void Derivar_LanzaInvalidOperationException_CuandoOrganizationMembershipIdEstaEnBlanco()
+    {
+        var derivador = new DerivadorIdentidadTenantMcp();
+        var principal = PrincipalCon("org_acme", "usuario_123", "   ");
+
+        var act = () => derivador.Derivar(principal);
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage($"*{DerivadorIdentidadTenantMcp.Mensajes.OrganizationMembershipAusente}*");
     }
 }

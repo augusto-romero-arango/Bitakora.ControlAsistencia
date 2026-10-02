@@ -6,4 +6,4 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 /// registrada en el contenedor es el valor fijo por despliegue con el que el propagador responde a
 /// una invocacion sin Bearer (issue #572).
 /// </summary>
-public sealed record IdentidadTenant(string TenantId, string UserId);
+public sealed record IdentidadTenant(string TenantId, string UserId, string OrganizationMembershipId);

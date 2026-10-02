@@ -59,7 +59,7 @@ builder.Services.AddSingleton<IDerivadorIdentidadTenantMcp, DerivadorIdentidadTe
 builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
 
 builder.Services.AddSingleton(ConfiguracionIdentidadTenant.Leer(
-    builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"]));
+    builder.Configuration["Tenant:Id"], builder.Configuration["Tenant:UserId"], builder.Configuration["Identidad:OrganizationMembershipIdInterino"]));
 // Transient, no Singleton: HttpClientFactory desecha la cadena de handlers cada vez que rota el
 // pipeline de un cliente, asi que un Singleton quedaria desechado para los pipelines siguientes.
 builder.Services.AddTransient<PropagadorIdentidadTenantHandler>();

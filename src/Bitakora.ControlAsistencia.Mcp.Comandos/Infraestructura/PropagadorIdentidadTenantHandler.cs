@@ -16,12 +16,16 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
 {
     internal const string HeaderTenantId = "X-Tenant-Id";
     internal const string HeaderUserId = "X-User-Id";
+    internal const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var (tenantId, userId) = TenantExecutionContext.TryObtener(out var tenantAmbiente, out var userAmbiente)
             ? (tenantAmbiente!, userAmbiente!)
             : (identidad.TenantId, identidad.UserId);
+        var membershipId = TenantExecutionContext.TryObtenerMembershipId(out var membershipAmbiente)
+            ? membershipAmbiente!
+            : identidad.OrganizationMembershipId;
 
         // Remove antes de agregar: el pipeline de HttpClientFactory reusa el HttpRequestMessage en
         // un reintento, y un header repetido llegaria al BC como dos valores.
@@ -29,6 +33,8 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
         request.Headers.TryAddWithoutValidation(HeaderTenantId, tenantId);
         request.Headers.Remove(HeaderUserId);
         request.Headers.TryAddWithoutValidation(HeaderUserId, userId);
+        request.Headers.Remove(HeaderOrganizationMembershipId);
+        request.Headers.TryAddWithoutValidation(HeaderOrganizationMembershipId, membershipId);
 
         return base.SendAsync(request, cancellationToken);
     }

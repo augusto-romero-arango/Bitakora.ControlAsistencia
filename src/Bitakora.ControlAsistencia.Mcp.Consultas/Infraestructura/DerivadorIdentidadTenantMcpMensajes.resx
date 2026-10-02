@@ -26,4 +26,7 @@
   <data name="UsuarioAusente" xml:space="preserve">
     <value>El token del usuario autenticado no identifica al usuario (claim sub ausente); no es posible determinar la identidad de la llamada</value>
   </data>
+  <data name="OrganizationMembershipAusente" xml:space="preserve">
+    <value>El token del usuario autenticado no trae la membresia de organizacion (claim organization_membership_id ausente); no es posible determinar la identidad de la llamada</value>
+  </data>
 </root>

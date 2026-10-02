@@ -78,4 +78,28 @@ public class TenantExecutionContextTests
         Assert.Equal("tenant-C", tenantId);
         Assert.Equal("user-C", userId);
     }
+
+    [Fact]
+    public async Task TryObtenerMembershipId_RetornaElValorDerivado_CuandoSetDerivedIdentityLoPoblo()
+    {
+        TenantExecutionContext.SetDerivedIdentity("tenant-D", "user-D", "om_derivado");
+
+        await Task.Yield();
+        var obtuvo = TenantExecutionContext.TryObtenerMembershipId(out var membershipId);
+
+        Assert.True(obtuvo);
+        Assert.Equal("om_derivado", membershipId);
+    }
+
+    [Fact]
+    public void TryObtenerMembershipId_RetornaFalse_CuandoSetLimpiaElMembershipPrevio()
+    {
+        TenantExecutionContext.SetDerivedIdentity("tenant-E", "user-E", "om_previo");
+
+        TenantExecutionContext.Set("tenant-F", "user-F");
+        var obtuvo = TenantExecutionContext.TryObtenerMembershipId(out var membershipId);
+
+        Assert.False(obtuvo);
+        Assert.Null(membershipId);
+    }
 }

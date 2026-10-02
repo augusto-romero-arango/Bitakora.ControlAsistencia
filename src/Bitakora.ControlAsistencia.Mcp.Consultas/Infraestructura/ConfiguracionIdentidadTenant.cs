@@ -6,13 +6,15 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 /// </summary>
 public static partial class ConfiguracionIdentidadTenant
 {
-    public static IdentidadTenant Leer(string? tenantId, string? userId)
+    public static IdentidadTenant Leer(string? tenantId, string? userId, string? organizationMembershipId)
     {
         if (string.IsNullOrWhiteSpace(tenantId))
             throw new InvalidOperationException(Mensajes.TenantIdAusente);
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException(Mensajes.UserIdAusente);
+        if (string.IsNullOrWhiteSpace(organizationMembershipId))
+            throw new InvalidOperationException(Mensajes.OrganizationMembershipIdAusente);
 
-        return new IdentidadTenant(tenantId, userId);
+        return new IdentidadTenant(tenantId, userId, organizationMembershipId);
     }
 }

@@ -11,7 +11,7 @@ public class PropagadorIdentidadTenantHandlerTests
     public async Task Send_PropagaTenantIdYUserId_EnCadaRequestSaliente()
     {
         HttpRequestMessage? requestCapturado = null;
-        var handler = new PropagadorIdentidadTenantHandler(new IdentidadTenant("tenant-123", "usuario-456"))
+        var handler = new PropagadorIdentidadTenantHandler(new IdentidadTenant("tenant-123", "usuario-456", "membership-fijo"))
         {
             InnerHandler = new HandlerCapturador(r => requestCapturado = r)
         };
@@ -33,7 +33,7 @@ public class PropagadorIdentidadTenantHandlerTests
     {
         TenantExecutionContext.SetDerivedIdentity("org_acme", "usuario_123");
         HttpRequestMessage? requestCapturado = null;
-        var handler = new PropagadorIdentidadTenantHandler(new IdentidadTenant("tenant-fijo-interino", "mcp-sin-usuario-autenticado"))
+        var handler = new PropagadorIdentidadTenantHandler(new IdentidadTenant("tenant-fijo-interino", "mcp-sin-usuario-autenticado", "membership-fijo"))
         {
             InnerHandler = new HandlerCapturador(r => requestCapturado = r)
         };
@@ -44,6 +44,37 @@ public class PropagadorIdentidadTenantHandlerTests
         requestCapturado.Should().NotBeNull();
         requestCapturado!.Headers.GetValues("X-Tenant-Id").Should().ContainSingle().Which.Should().Be("org_acme");
         requestCapturado.Headers.GetValues("X-User-Id").Should().ContainSingle().Which.Should().Be("usuario_123");
+    }
+
+    [Fact]
+    public async Task Send_PropagaElMembershipId_CuandoNoHayIdentidadAmbiente()
+    {
+        HttpRequestMessage? requestCapturado = null;
+        var handler = new PropagadorIdentidadTenantHandler(new IdentidadTenant("tenant-123", "usuario-456", "om_fijo_01"))
+        {
+            InnerHandler = new HandlerCapturador(r => requestCapturado = r)
+        };
+        var cliente = new HttpClient(handler) { BaseAddress = new Uri("https://dominio.falso.local") };
+
+        await cliente.GetAsync("api/recurso", TestContext.Current.CancellationToken);
+
+        requestCapturado!.Headers.GetValues("X-Organization-Membership-Id").Should().ContainSingle().Which.Should().Be("om_fijo_01");
+    }
+
+    [Fact]
+    public async Task Send_PrefiereElMembershipAmbiente_CuandoElMiddlewareMcpLoPoblo()
+    {
+        TenantExecutionContext.SetDerivedIdentity("org_acme", "usuario_123", "om_ambiente_01");
+        HttpRequestMessage? requestCapturado = null;
+        var handler = new PropagadorIdentidadTenantHandler(new IdentidadTenant("tenant-fijo", "mcp", "om_fijo_01"))
+        {
+            InnerHandler = new HandlerCapturador(r => requestCapturado = r)
+        };
+        var cliente = new HttpClient(handler) { BaseAddress = new Uri("https://dominio.falso.local") };
+
+        await cliente.GetAsync("api/recurso", TestContext.Current.CancellationToken);
+
+        requestCapturado!.Headers.GetValues("X-Organization-Membership-Id").Should().ContainSingle().Which.Should().Be("om_ambiente_01");
     }
 }
 

@@ -13,6 +13,7 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
 {
     internal const string HeaderTenantId = "X-Tenant-Id";
     internal const string HeaderUserId = "X-User-Id";
+    internal const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
@@ -20,9 +21,13 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
         var (tenantId, userId) = TenantExecutionContext.TryObtener(out var tenantAmbiente, out var userAmbiente)
             ? (tenantAmbiente!, userAmbiente!)
             : (identidad.TenantId, identidad.UserId);
+        var membershipId = TenantExecutionContext.TryObtenerMembershipId(out var membershipAmbiente)
+            ? membershipAmbiente!
+            : identidad.OrganizationMembershipId;
 
         request.Headers.Add(HeaderTenantId, tenantId);
         request.Headers.Add(HeaderUserId, userId);
+        request.Headers.Add(HeaderOrganizationMembershipId, membershipId);
         return base.SendAsync(request, cancellationToken);
     }
 }

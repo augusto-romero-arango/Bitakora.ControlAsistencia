@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Tests;
 
 public class PropagadorIdentidadTenantHandlerTests
 {
-    private static readonly IdentidadTenant Identidad = new("tenant-fijo-01", "usuario-mcp");
+    private static readonly IdentidadTenant Identidad = new("tenant-fijo-01", "usuario-mcp", "membership-fijo");
 
     private static void AfirmarHeadersDeIdentidad(HandlerEnlatado handler)
     {
@@ -34,7 +34,7 @@ public class PropagadorIdentidadTenantHandlerTests
     [Fact]
     public async Task PropagadorIdentidadTenant_AgregaAmbosHeaders_CuandoLaIdentidadEsLaDelTenantFijoDeOperacion()
     {
-        var identidadDeOperacion = new IdentidadTenant("*DEFAULT*", "sin-identificar");
+        var identidadDeOperacion = new IdentidadTenant("*DEFAULT*", "sin-identificar", "membership-fijo");
         var (cliente, handler) = ClienteFalso.ConIdentidadTenant("{}", identidadDeOperacion);
 
         await cliente.GetAsync("api/cualquier-ruta", TestContext.Current.CancellationToken);
@@ -104,5 +104,28 @@ public class PropagadorIdentidadTenantHandlerTests
             .Should().ContainSingle().Which.Should().Be("org_acme");
         handler.UltimaRequest.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderUserId)
             .Should().ContainSingle().Which.Should().Be("usuario_123");
+    }
+
+    [Fact]
+    public async Task PropagadorIdentidadTenant_AgregaElHeaderDeMembership_CuandoNoHayIdentidadAmbiente()
+    {
+        var (cliente, handler) = ClienteFalso.ConIdentidadTenant("{}", Identidad);
+
+        await cliente.GetAsync("api/cualquier-ruta", TestContext.Current.CancellationToken);
+
+        handler.UltimaRequest!.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderOrganizationMembershipId)
+            .Should().ContainSingle().Which.Should().Be("membership-fijo");
+    }
+
+    [Fact]
+    public async Task PropagadorIdentidadTenant_PrefiereElMembershipAmbiente_CuandoElMiddlewareMcpLoPoblo()
+    {
+        TenantExecutionContext.SetDerivedIdentity("org_acme", "usuario_123", "om_ambiente_01");
+        var (cliente, handler) = ClienteFalso.ConIdentidadTenant("{}", Identidad);
+
+        await cliente.GetAsync("api/cualquier-ruta", TestContext.Current.CancellationToken);
+
+        handler.UltimaRequest!.Headers.GetValues(PropagadorIdentidadTenantHandler.HeaderOrganizationMembershipId)
+            .Should().ContainSingle().Which.Should().Be("om_ambiente_01");
     }
 }

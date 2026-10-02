@@ -7,4 +7,4 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 /// tenancy (MEF-ADR-0028 seccion 4) los Function Apps resuelven el tenant desde estos headers, y
 /// un valor distinto consultaria un tenant sin ninguno de los datos ya persistidos.
 /// </summary>
-public sealed record IdentidadTenant(string TenantId, string UserId);
+public sealed record IdentidadTenant(string TenantId, string UserId, string OrganizationMembershipId);

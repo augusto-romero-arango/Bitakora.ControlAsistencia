@@ -15,5 +15,8 @@ public static partial class ConfiguracionIdentidadTenant
 
         public static string UserIdAusente =>
             ResourceManager.GetString(nameof(UserIdAusente))!;
+
+        public static string OrganizationMembershipIdAusente =>
+            ResourceManager.GetString(nameof(OrganizationMembershipIdAusente))!;
     }
 }

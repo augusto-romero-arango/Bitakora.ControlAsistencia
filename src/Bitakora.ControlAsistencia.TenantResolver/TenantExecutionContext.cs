@@ -35,6 +35,7 @@ public sealed class TenantExecutionContext : ITenantResolver
 {
     private static readonly AsyncLocal<string?> _tenantId = new();
     private static readonly AsyncLocal<string?> _userId = new();
+    private static readonly AsyncLocal<string?> _organizationMembershipId = new();
 
     /// <summary>
     /// Puebla la identidad de la invocacion en curso desde el contexto del trigger. Unico escritor:
@@ -44,6 +45,7 @@ public sealed class TenantExecutionContext : ITenantResolver
     {
         _tenantId.Value = tenantId;
         _userId.Value = userId;
+        _organizationMembershipId.Value = null;
     }
 
     /// <summary>
@@ -61,12 +63,13 @@ public sealed class TenantExecutionContext : ITenantResolver
     /// No usar desde Functions HTTP detras del gateway: ahi la identidad ya la puebla el middleware a
     /// partir de los headers, y sobreescribirla solo la enmascara.
     /// </summary>
-    public static void SetDerivedIdentity(string tenantId, string actor)
+    public static void SetDerivedIdentity(string tenantId, string actor, string? organizationMembershipId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(actor);
 
         Set(tenantId, actor);
+        _organizationMembershipId.Value = organizationMembershipId;
     }
 
     public string TenantId => AssertValue(_tenantId.Value, "tenant");
@@ -91,6 +94,19 @@ public sealed class TenantExecutionContext : ITenantResolver
         tenantId = _tenantId.Value;
         userId = _userId.Value;
         return true;
+    }
+
+    /// <summary>
+    /// Membership id de organizacion de la invocacion en curso, poblado solo por
+    /// <see cref="SetDerivedIdentity"/> (los MCP lo derivan del token, issue #697). <see cref="Set"/> lo
+    /// limpia para que no se filtre de una invocacion anterior.
+    /// </summary>
+    public static bool TryObtenerMembershipId(out string? organizationMembershipId)
+    {
+        organizationMembershipId = string.IsNullOrWhiteSpace(_organizationMembershipId.Value)
+            ? null
+            : _organizationMembershipId.Value;
+        return organizationMembershipId is not null;
     }
 
     private static string AssertValue(string? value, string contextField)
