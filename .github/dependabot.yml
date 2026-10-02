@@ -1,0 +1,68 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directories:
+      - "/src/*"
+      - "/tests/*"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      cosmos:
+        patterns:
+          - "Cosmos.*"
+      critter-stack:
+        patterns:
+          - "Marten"
+          - "Npgsql"
+          - "WolverineFx*"
+          - "JasperFx*"
+      azure-functions:
+        patterns:
+          - "Microsoft.Azure.Functions.*"
+          - "Microsoft.Azure.WebJobs.*"
+          - "Microsoft.NET.Sdk.Functions"
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry*"
+          - "Azure.Monitor.OpenTelemetry*"
+      testing:
+        patterns:
+          - "xunit*"
+          - "AwesomeAssertions"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "terraform"
+    directories:
+      - "/infra/environments/*"
+      - "/infra/modules/*"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      terraform:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/src/Bitakora.ControlAsistencia.Projections"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
