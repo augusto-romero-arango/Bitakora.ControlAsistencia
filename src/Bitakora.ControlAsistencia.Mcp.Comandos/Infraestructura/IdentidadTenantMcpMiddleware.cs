@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -56,8 +57,28 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         var principal = await validador.ValidarAsync(token, cancellationToken)
                         ?? throw new InvalidOperationException(Mensajes.TokenNoValidado);
 
+        RegistrarFormaDelToken(principal);
         return derivador.Derivar(principal);
     }
+
+    private void RegistrarFormaDelToken(ClaimsPrincipal principal)
+    {
+        var claims = principal.Claims.ToList();
+        var nombres = string.Join(",", claims.Select(c => c.Type).Distinct());
+        var tieneSid = claims.Any(c => c.Type == "sid");
+        var emisor = claims.FirstOrDefault(c => c.Type == "iss")?.Value;
+        long? duracion = LeerSegundos(claims, "exp") - LeerSegundos(claims, "iat");
+
+        logger.LogInformation(
+            "Forma del token MCP: claims {ClaimsDelToken}, sid {TieneSid}, iss {Emisor}, duracion {DuracionTokenSegundos} s",
+            nombres, tieneSid, emisor, duracion);
+    }
+
+    private static long? LeerSegundos(IEnumerable<Claim> claims, string tipo) =>
+        long.TryParse(claims.FirstOrDefault(c => c.Type == tipo)?.Value,
+            System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var v)
+            ? v
+            : null;
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)
     {
