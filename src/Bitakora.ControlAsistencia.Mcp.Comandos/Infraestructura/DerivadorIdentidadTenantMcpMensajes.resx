@@ -27,6 +27,6 @@
     <value>El token del usuario autenticado no trae usuario (sub): no hay identidad que derivar.</value>
   </data>
   <data name="OrganizationMembershipAusente" xml:space="preserve">
-    <value>El token no trae el claim organization_membership_id</value>
+    <value>El token del usuario autenticado no trae membresia de organizacion (organization_membership_id): no hay identidad que derivar.</value>
   </data>
 </root>

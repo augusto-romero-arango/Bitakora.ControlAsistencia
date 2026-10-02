@@ -12,7 +12,6 @@ public static partial class ConfiguracionIdentidadTenant
             throw new InvalidOperationException(Mensajes.TenantIdAusente);
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException(Mensajes.UserIdAusente);
-
         if (string.IsNullOrWhiteSpace(organizationMembershipId))
             throw new InvalidOperationException(Mensajes.OrganizationMembershipIdAusente);
 

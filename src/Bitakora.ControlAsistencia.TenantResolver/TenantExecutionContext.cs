@@ -96,6 +96,11 @@ public sealed class TenantExecutionContext : ITenantResolver
         return true;
     }
 
+    /// <summary>
+    /// Membership id de organizacion de la invocacion en curso, poblado solo por
+    /// <see cref="SetDerivedIdentity"/> (los MCP lo derivan del token, issue #697). <see cref="Set"/> lo
+    /// limpia para que no se filtre de una invocacion anterior.
+    /// </summary>
     public static bool TryObtenerMembershipId(out string? organizationMembershipId)
     {
         organizationMembershipId = string.IsNullOrWhiteSpace(_organizationMembershipId.Value)
