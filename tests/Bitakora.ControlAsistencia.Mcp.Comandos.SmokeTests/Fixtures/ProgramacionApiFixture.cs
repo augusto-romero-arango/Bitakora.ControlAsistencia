@@ -8,14 +8,17 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.Fixtures;
 // necesita sembrar un turno directo en Programacion -- esta tool no tiene create-turno -- asi que
 // este fixture abre un SEGUNDO HttpClient, directo al Function App de Programacion, con la MISMA
 // identidad interina que usa el propio servidor de Comandos para sus HttpClients tipados
-// (Identidad__TenantIdInterino = tenant-smoke, issue #572). No pasa por el MCP: es un atajo de
-// arrange, no la cadena que el smoke test ejercita.
+// (Identidad__TenantIdInterino = tenant-smoke, issue #572; Identidad__OrganizationMembershipIdInterino
+// = om-smoke, issue #696). No pasa por el MCP: es un atajo de arrange, no la cadena que el smoke
+// test ejercita.
 public class ProgramacionApiFixture : IAsyncLifetime
 {
     private const string HeaderTenantId = "X-Tenant-Id";
     private const string HeaderUserId = "X-User-Id";
+    private const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";
     private const string TenantId = "tenant-smoke";
     private const string UserId = "smoke@bitakora.dev";
+    private const string OrganizationMembershipId = "om-smoke";
 
     public HttpClient Client { get; private set; } = null!;
 
@@ -35,6 +38,7 @@ public class ProgramacionApiFixture : IAsyncLifetime
         Client = new HttpClient { BaseAddress = new Uri(baseUrl) };
         Client.DefaultRequestHeaders.Add(HeaderTenantId, TenantId);
         Client.DefaultRequestHeaders.Add(HeaderUserId, UserId);
+        Client.DefaultRequestHeaders.Add(HeaderOrganizationMembershipId, OrganizationMembershipId);
 
         return ValueTask.CompletedTask;
     }

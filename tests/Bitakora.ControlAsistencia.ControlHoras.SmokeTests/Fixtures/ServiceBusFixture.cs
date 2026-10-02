@@ -6,12 +6,14 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
-    // Issue #538: claves de wire verificadas por decompilacion (ilspycmd) de los ensamblados vigentes
+    // Issues #538 y #698: claves de wire verificadas por decompilacion (ilspycmd) de los ensamblados vigentes
     // -- Wolverine 6.16.0 (EnvelopeMapper<> mapea Envelope.TenantId al header "tenant-id" sin prefijo,
     // y AzureServiceBusEnvelopeMapper copia cada ApplicationProperty a Envelope.Headers tal cual) y
     // Cosmos.MultiTenancy.CritterStack 2.3.0 (WolverineMessageContextTenantResolver lee UserId de
-    // Envelope.Headers["user_id"]). Son otro plano que los headers HTTP X-Tenant-Id/X-User-Id de
-    // MEF-ADR-0028: viajan en ApplicationProperties del mensaje, no en la request.
+    // Envelope.Headers["user_id"]). Issue #698 suma "organization_membership_id"
+    // (TenancyHeaders.OrganizationMembershipId de Cosmos 3.x), que viaja por el mismo camino que
+    // "user_id" y Cosmos 2.3.1 ignora. Son otro plano que los headers HTTP X-Tenant-Id/X-User-Id/
+    // X-Organization-Membership-Id de MEF-ADR-0028: viajan en ApplicationProperties del mensaje, no en la request.
     //
     // Advertencia para el flip a etapa (b): hoy los dominios NO montan un listener de Wolverine. Cada
     // evento entra por [ServiceBusTrigger] de Azure Functions y se despacha con IPrivateEventRouter,
@@ -20,6 +22,7 @@ public class ServiceBusFixture : IAsyncLifetime
     // ventana el dia que exista ese puente; verificarlo al correr /install-auth.
     private const string TenantIdApplicationProperty = "tenant-id";
     private const string UserIdApplicationProperty = "user_id";
+    private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";
 
     private ServiceBusClient? _client;
     private JsonSerializerOptions _jsonOptions = null!;
@@ -88,6 +91,7 @@ public class ServiceBusFixture : IAsyncLifetime
         };
         sbMessage.ApplicationProperties[TenantIdApplicationProperty] = _identidad.TenantId;
         sbMessage.ApplicationProperties[UserIdApplicationProperty] = _identidad.UserId;
+        sbMessage.ApplicationProperties[OrganizationMembershipIdApplicationProperty] = _identidad.OrganizationMembershipId;
 
         if (correlationId is not null)
             sbMessage.CorrelationId = correlationId;
