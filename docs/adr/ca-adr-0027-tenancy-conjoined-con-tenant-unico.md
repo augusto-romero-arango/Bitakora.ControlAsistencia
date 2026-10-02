@@ -1,5 +1,13 @@
 # CA-ADR-0027: Tenancy conjoined operando con un unico tenant
 
+> **Nomenclatura (enmienda 2026-10-01, #699)**: en Cosmos.BuildingBlocks 3.x los nombres de este ADR
+> cambian: `ITenantResolver` -> `ITenantContext`, `AgregarTenantResolverHibrido()` ->
+> `AgregarTenantContextHibrido()`, `ProxyTenantResolver` -> `ProxyTenantContext`,
+> `TrustedHeadersTenantResolver` -> `TrustedHeadersTenantContext`,
+> `WolverineMessageContextTenantResolver` -> `WolverineMessageTenantContext`. El texto historico
+> conserva los nombres 2.x. `AgregarTenantContextHibrido()` sigue prohibido en el worker aislado
+> (CA-ADR-0032). 3.x exige ademas `OrganizationMembershipId` (ver CA-ADR-0032).
+
 ## Estado
 
 Aceptado
@@ -128,3 +136,5 @@ valores fijos, en vez de adoptar los resolvers header-based de 2.x.**
   en el constructor segun `IHttpContextAccessor.HttpContext`, `null` en el worker aislado al momento
   de construirse, y toda request HTTP fallaba. Detalle completo, causa raiz y consecuencias en
   **CA-ADR-0032**, que sucede a este ADR para la etapa (b) vigente del proyecto.
+
+- **2026-10-01 (issue #699)**: nombres actualizados a Cosmos 3.x (nota de nomenclatura al inicio); identidad de tres datos en CA-ADR-0032.
