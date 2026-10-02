@@ -98,6 +98,33 @@ public class PostgresFixture : IAsyncLifetime
         return JsonSerializer.Deserialize<T>(json)!;
     }
 
+    // Issue #700 CA-4: lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
+    // write-side), donde UnitOfWorkMiddleware de Cosmos 3.x estampa la identidad de tenancy.
+    public Task<string> ObtenerHeaderDeEventoAsync(
+        string schema, string streamId, string tipoEvento, string header, TimeSpan timeout)
+    {
+        return Polling.WaitUntilAsync(async () =>
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT headers ->> @header
+                FROM {EscaparSchema(schema)}.mt_events
+                WHERE stream_id = @streamId
+                  AND type = @tipoEvento
+                ORDER BY seq_id
+                LIMIT 1
+                """;
+            cmd.Parameters.AddWithValue("header", header);
+            cmd.Parameters.AddWithValue("streamId", streamId);
+            cmd.Parameters.AddWithValue("tipoEvento", tipoEvento);
+
+            return await cmd.ExecuteScalarAsync() as string;
+        }, timeout);
+    }
+
     private async Task<List<JsonElement>> ObtenerEventosInternoAsync(
         string schema, string streamId, string tipoEvento)
     {
