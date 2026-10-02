@@ -76,6 +76,8 @@ public sealed class TenantExecutionContext : ITenantResolver
 
     public string UserId => AssertValue(_userId.Value, "usuario");
 
+    public string OrganizationMembershipId => throw new NotImplementedException();
+
     /// <summary>
     /// Version sin lanzar de los getters, para un consumidor que decide entre la identidad ambiente
     /// y un fallback propio sin usar <see cref="InvalidOperationException"/> como control de flujo.

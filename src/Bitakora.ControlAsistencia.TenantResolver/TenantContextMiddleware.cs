@@ -56,6 +56,12 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
         await next(context);
     }
 
+    internal static void PoblarDesdeHttp(Func<string, string?> leerHeader)
+        => throw new NotImplementedException();
+
+    internal static void PoblarDesdeServiceBus(IReadOnlyDictionary<string, object> applicationProperties)
+        => throw new NotImplementedException();
+
     private static string? Leer(IReadOnlyDictionary<string, object> propiedades, string llave)
         => propiedades.TryGetValue(llave, out var valor) ? valor?.ToString() : null;
 }
