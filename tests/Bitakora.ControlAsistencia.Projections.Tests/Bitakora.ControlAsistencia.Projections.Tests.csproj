@@ -15,7 +15,7 @@
          (patron del issue hermano #515, OpenTelemetry.Exporter.InMemory 1.16.0 en
          ControlHoras.Tests), sin red ni Azure Monitor real. -->
     <PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.19.1" />
-    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="4.*" />
   </ItemGroup>
 
   <ItemGroup>
