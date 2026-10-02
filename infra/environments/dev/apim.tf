@@ -44,6 +44,12 @@ variable "apim_claim_tenant_id" {
   default     = "tenant_id"
 }
 
+variable "apim_claim_organization_membership_id" {
+  description = "Nombre EXACTO del claim del JWT mapeado a X-Organization-Membership-Id (B10 -- confirmado en un access token real de WorkOS AuthKit del proyecto, sesion planner 2026-10-01)"
+  type        = string
+  default     = "organization_membership_id"
+}
+
 variable "apim_publisher_email" {
   description = "Email del publisher de la instancia APIM (requerido por azurerm_api_management). Este proyecto no tiene var.alert_email de nivel raiz (ver nota arriba); default = mismo email que ya recibe las alertas de costo de Application Insights (infra/modules/monitoring, alert_action_group_email)."
   type        = string
@@ -74,9 +80,10 @@ module "api_management" {
   # discrepancia sin resolver, la politica <issuers> de la global policy quedaria construida
   # sobre un issuer que ningun JWT real de este proyecto WorkOS emite, y validate-jwt
   # rechazaria con 401 absolutamente todos los logins.
-  workos_client_id = var.workos_client_id
-  claim_user_id    = var.apim_claim_user_id
-  claim_tenant_id  = var.apim_claim_tenant_id
+  workos_client_id                 = var.workos_client_id
+  claim_user_id                    = var.apim_claim_user_id
+  claim_tenant_id                  = var.apim_claim_tenant_id
+  claim_organization_membership_id = var.apim_claim_organization_membership_id
 
   tags = local.tags
 }

@@ -72,8 +72,9 @@ module "function_app_mcp_comandos" {
     Api__ControlHoras__BaseUrl  = "https://${module.function_app_control_horas.default_hostname}"
     Api__Colaboradores__BaseUrl = "https://${module.function_app_colaboradores.default_hostname}"
 
-    Identidad__TenantIdInterino = "tenant-smoke"
-    Identidad__UserIdInterino   = "smoke@bitakora.dev"
+    Identidad__TenantIdInterino                 = "tenant-smoke"
+    Identidad__UserIdInterino                   = "smoke@bitakora.dev"
+    Identidad__OrganizationMembershipIdInterino = "om-smoke"
 
     Mcp__ResourceUri         = module.apim_mcp_comandos.resource_uri
     Mcp__AuthorizationServer = var.mcp_authorization_server_url

@@ -58,6 +58,12 @@ variable "claim_tenant_id" {
   default     = "tenant_id"
 }
 
+variable "claim_organization_membership_id" {
+  description = "Nombre EXACTO del claim del JWT mapeado a X-Organization-Membership-Id. B10: confirmado decodificando un access token real del proyecto WorkOS AuthKit de login de este BC (sesion planner 2026-10-01)."
+  type        = string
+  default     = "organization_membership_id"
+}
+
 variable "tags" {
   description = "Tags comunes del proyecto"
   type        = map(string)
@@ -119,8 +125,8 @@ resource "azurerm_api_management" "this" {
 #   B6: orden estricto openid-config -> issuers -> required-claims dentro de <validate-jwt>.
 #   B10: los <set-header> de identidad van DESPUES de </validate-jwt> (usan context.Variables["jwt"],
 #        capturado por output-token-variable-name="jwt") y SIEMPRE con exists-action="override"
-#        (anti-spoofing: sin override, un cliente que manda su propio X-User-Id/X-Tenant-Id lo
-#        cuela intacto hasta el backend).
+#        (anti-spoofing: sin override, un cliente que manda sus propios headers de identidad
+#        los cuela intactos hasta el backend).
 #
 # B7 (diagnostico): si `terraform apply` falla aca con un 400 ValidationError generico/truncado
 # ("One or more fields contain incorrect values:" sin decir que campo), reproduce el PUT de la
@@ -168,6 +174,9 @@ resource "azurerm_api_management_policy" "global" {
     </set-header>
     <set-header name="X-Tenant-Id" exists-action="override">
       <value>@(((Jwt)context.Variables["jwt"]).Claims.GetValueOrDefault("${var.claim_tenant_id}", ""))</value>
+    </set-header>
+    <set-header name="X-Organization-Membership-Id" exists-action="override">
+      <value>@(((Jwt)context.Variables["jwt"]).Claims.GetValueOrDefault("${var.claim_organization_membership_id}", ""))</value>
     </set-header>
   </inbound>
   <backend>
