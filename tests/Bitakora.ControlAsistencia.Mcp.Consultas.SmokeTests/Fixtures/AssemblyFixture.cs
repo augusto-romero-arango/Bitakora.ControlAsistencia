@@ -1,4 +1,6 @@
+using Xunit.Sdk;
+using Xunit.v3;
 using Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.Fixtures;
 
-[assembly: CollectionBehavior(DisableTestParallelization = true)]
+[assembly: Parallelization(Mode = ParallelMode.None)]
 [assembly: AssemblyFixture(typeof(McpFixture))]
