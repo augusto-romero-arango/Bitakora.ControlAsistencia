@@ -41,11 +41,11 @@ public sealed class TenantExecutionContext : ITenantResolver
     /// Puebla la identidad de la invocacion en curso desde el contexto del trigger. Unico escritor:
     /// <see cref="TenantContextMiddleware"/>.
     /// </summary>
-    internal static void Set(string? tenantId, string? userId)
+    internal static void Set(string? tenantId, string? userId, string? organizationMembershipId = null)
     {
         _tenantId.Value = tenantId;
         _userId.Value = userId;
-        _organizationMembershipId.Value = null;
+        _organizationMembershipId.Value = organizationMembershipId;
     }
 
     /// <summary>
@@ -76,7 +76,12 @@ public sealed class TenantExecutionContext : ITenantResolver
 
     public string UserId => AssertValue(_userId.Value, "usuario");
 
-    public string OrganizationMembershipId => throw new NotImplementedException();
+    public string OrganizationMembershipId => string.IsNullOrWhiteSpace(_organizationMembershipId.Value)
+        ? throw new InvalidOperationException(
+            "No se pudo resolver el membership de organización de la invocación actual. En HTTP debe venir del " +
+            "header confiable del gateway (X-Organization-Membership-Id); en Service Bus, de la " +
+            "ApplicationProperty del mensaje (organization_membership_id).")
+        : _organizationMembershipId.Value;
 
     /// <summary>
     /// Version sin lanzar de los getters, para un consumidor que decide entre la identidad ambiente

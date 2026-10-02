@@ -27,6 +27,8 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
     // Headers confiables que estampa el gateway APIM (MEF-ADR-0032).
     private const string TenantHeaderHttp = "X-Tenant-Id";
     private const string UserHeaderHttp = "X-User-Id";
+    private const string MembershipHeaderHttp = "X-Organization-Membership-Id";
+    private const string MembershipPropertyAsb = "organization_membership_id";
 
     // Llave con que Wolverine serializa el TenantId del envelope a ApplicationProperties
     // (Wolverine.EnvelopeConstants.TenantIdKey). El user_id viaja bajo Cosmos.MultiTenancy.TenancyHeaders.UserId.
@@ -37,9 +39,7 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
         var httpContext = context.GetHttpContext();
         if (httpContext is not null)
         {
-            TenantExecutionContext.Set(
-                httpContext.Request.Headers[TenantHeaderHttp],
-                httpContext.Request.Headers[UserHeaderHttp]);
+            PoblarDesdeHttp(h => httpContext.Request.Headers[h].ToString());
         }
         else if (context.FunctionDefinition.InputBindings.Values
                      .FirstOrDefault(b => b.Type == "serviceBusTrigger") is { } serviceBusBinding)
@@ -47,9 +47,7 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
             var message = (await context.BindInputAsync<ServiceBusReceivedMessage>(serviceBusBinding)).Value;
             if (message is not null)
             {
-                TenantExecutionContext.Set(
-                    Leer(message.ApplicationProperties, TenantPropertyAsb),
-                    Leer(message.ApplicationProperties, TenancyHeaders.UserId));
+                PoblarDesdeServiceBus(message.ApplicationProperties);
             }
         }
 
@@ -57,10 +55,16 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
     }
 
     internal static void PoblarDesdeHttp(Func<string, string?> leerHeader)
-        => throw new NotImplementedException();
+        => TenantExecutionContext.Set(
+            leerHeader(TenantHeaderHttp),
+            leerHeader(UserHeaderHttp),
+            leerHeader(MembershipHeaderHttp));
 
     internal static void PoblarDesdeServiceBus(IReadOnlyDictionary<string, object> applicationProperties)
-        => throw new NotImplementedException();
+        => TenantExecutionContext.Set(
+            Leer(applicationProperties, TenantPropertyAsb),
+            Leer(applicationProperties, TenancyHeaders.UserId),
+            Leer(applicationProperties, MembershipPropertyAsb));
 
     private static string? Leer(IReadOnlyDictionary<string, object> propiedades, string llave)
         => propiedades.TryGetValue(llave, out var valor) ? valor?.ToString() : null;
