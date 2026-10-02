@@ -61,7 +61,7 @@ public sealed class TenantExecutionContext : ITenantResolver
     /// No usar desde Functions HTTP detras del gateway: ahi la identidad ya la puebla el middleware a
     /// partir de los headers, y sobreescribirla solo la enmascara.
     /// </summary>
-    public static void SetDerivedIdentity(string tenantId, string actor)
+    public static void SetDerivedIdentity(string tenantId, string actor, string? organizationMembershipId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(actor);
@@ -92,6 +92,9 @@ public sealed class TenantExecutionContext : ITenantResolver
         userId = _userId.Value;
         return true;
     }
+
+    public static bool TryObtenerMembershipId(out string? organizationMembershipId)
+        => throw new NotImplementedException();
 
     private static string AssertValue(string? value, string contextField)
         => string.IsNullOrWhiteSpace(value)

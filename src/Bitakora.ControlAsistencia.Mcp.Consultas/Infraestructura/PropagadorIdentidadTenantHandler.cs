@@ -13,6 +13,7 @@ public sealed class PropagadorIdentidadTenantHandler(IdentidadTenant identidad) 
 {
     internal const string HeaderTenantId = "X-Tenant-Id";
     internal const string HeaderUserId = "X-User-Id";
+    internal const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)

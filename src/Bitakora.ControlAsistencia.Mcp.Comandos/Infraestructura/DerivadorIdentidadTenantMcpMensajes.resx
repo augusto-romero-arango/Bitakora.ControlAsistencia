@@ -26,4 +26,7 @@
   <data name="UsuarioAusente" xml:space="preserve">
     <value>El token del usuario autenticado no trae usuario (sub): no hay identidad que derivar.</value>
   </data>
+  <data name="OrganizationMembershipAusente" xml:space="preserve">
+    <value>El token no trae el claim organization_membership_id</value>
+  </data>
 </root>

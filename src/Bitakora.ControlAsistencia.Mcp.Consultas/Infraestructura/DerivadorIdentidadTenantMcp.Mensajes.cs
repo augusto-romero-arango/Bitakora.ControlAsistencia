@@ -13,5 +13,7 @@ public sealed partial class DerivadorIdentidadTenantMcp
         public static string OrganizacionAusente => ResourceManager.GetString(nameof(OrganizacionAusente))!;
 
         public static string UsuarioAusente => ResourceManager.GetString(nameof(UsuarioAusente))!;
+
+        public static string OrganizationMembershipAusente => ResourceManager.GetString(nameof(OrganizationMembershipAusente))!;
     }
 }

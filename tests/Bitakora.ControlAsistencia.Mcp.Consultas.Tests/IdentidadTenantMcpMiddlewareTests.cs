@@ -19,7 +19,7 @@ public class IdentidadTenantMcpMiddlewareTests
     [Fact]
     public async Task DerivarIdentidad_RetornaLaIdentidadDelToken_CuandoElBearerTraeOrganizacion()
     {
-        var identidadEsperada = new IdentidadTenant("org_acme", "usuario_123");
+        var identidadEsperada = new IdentidadTenant("org_acme", "usuario_123", "membership-fijo");
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueAutoriza(PrincipalDeEjemplo),
             DerivadorIdentidadTenantMcpFalso.QueDeriva(identidadEsperada));
