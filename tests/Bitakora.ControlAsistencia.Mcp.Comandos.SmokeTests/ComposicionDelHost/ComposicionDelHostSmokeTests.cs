@@ -280,7 +280,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         {
             var meta = tool.ProtocolTool.Meta;
             var esDestructiva = tool.Name is "retirar_turno" or "quitar_franja" or "quitar_subfranja"
-                or "retirar_plantilla_semanal" or "quitar_turno_de_dia";
+                or "retirar_plantilla_semanal" or "quitar_turno_de_dia" or "cancelar_ausencia";
             meta.Should().NotBeNull($"{tool.Name} debe publicar su _meta con los hints");
             var esSoloLectura = tool.Name == "cerrar_sesion";
             meta!["readOnlyHint"]?.GetValue<bool>().Should().Be(
