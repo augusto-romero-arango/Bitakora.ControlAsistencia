@@ -58,6 +58,11 @@ public static class AgregadorResumenAsistencia
                 totalHorasPorConcepto[concepto] =
                     totalHorasPorConcepto.GetValueOrDefault(concepto) + horas;
 
+        var diasConAusencia = documentos
+            .Where(d => d.Plan == PlanDelDia.Ausencia && d.MotivoAusencia is not null)
+            .GroupBy(d => d.MotivoAusencia!)
+            .ToDictionary(g => g.Key, g => g.Count());
+
         return new ResumenAsistencia(
             codigo,
             documentos.Count(d => d.Plan == PlanDelDia.ConJornada),
@@ -72,7 +77,7 @@ public static class AgregadorResumenAsistencia
             documentos.Count(d => d.Estado == EstadoAsistencia.Provisional),
             diasSinFila,
             totalHorasPorConcepto,
-            new Dictionary<string, int>(),
-            0);
+            diasConAusencia,
+            documentos.Count(d => d.VinoEnAusencia));
     }
 }
