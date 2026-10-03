@@ -19,7 +19,21 @@ public partial class ObtenerSesionTool(IdentidadTenant tenantFijo)
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         FunctionContext functionContext)
-        => throw new NotImplementedException();
+        => Task.FromResult(Describir(
+            functionContext.Items.TryGetValue(SesionUsuario.ClaveItems, out var valor)
+                ? valor as SesionUsuario
+                : null));
 
-    internal string Describir(SesionUsuario? sesion) => throw new NotImplementedException();
+    internal string Describir(SesionUsuario? sesion) =>
+        sesion is null
+            ? RespuestaJson.Serializar(new RespuestaSesion(
+                "tenant_fijo", null, new Empresa(tenantFijo.TenantId, null), null, Mensajes.SinSesionDeUsuario))
+            : RespuestaJson.Serializar(new RespuestaSesion(
+                "sesion", sesion.Correo, new Empresa(sesion.OrganizacionId, sesion.OrganizacionNombre),
+                sesion.MembershipId, null));
+
+    internal sealed record Empresa(string Id, string? Nombre);
+
+    internal sealed record RespuestaSesion(
+        string Origen, string? Correo, Empresa Empresa, string? Membership, string? Advertencia);
 }
