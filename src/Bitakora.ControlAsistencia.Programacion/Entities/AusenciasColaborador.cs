@@ -50,7 +50,11 @@ public partial class AusenciasColaborador : AggregateRoot
     }
 
     internal IReadOnlyList<AusenciaDelColaborador> ListarAusenciasVigentes(DateOnly desde, DateOnly hasta)
-        => throw new NotImplementedException();
+        => [.. Ausencias
+            .Where(a => a.FechaInicio <= hasta && desde <= a.FechaFin)
+            .OrderBy(a => a.FechaInicio)
+            .Select(a => new AusenciaDelColaborador(
+                a.Id, a.Motivo, a.FechaInicio, a.FechaFin, [new TramoVigente(a.FechaInicio, a.FechaFin)]))];
 
     internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
     {
