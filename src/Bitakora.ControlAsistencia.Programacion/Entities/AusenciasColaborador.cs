@@ -15,13 +15,27 @@ public partial class AusenciasColaborador : AggregateRoot
     public void Apply(AusenciaProgramada e)
     {
         Id = ComputarStreamId(e.Colaborador.CodigoColaborador);
-        Ausencias = [.. Ausencias, new AusenciaVigente(e.AusenciaId, e.FechaInicio, e.FechaFin, e.Motivo)];
+        Ausencias = [.. Ausencias, AusenciaVigente.Nueva(e.AusenciaId, e.Colaborador, e.FechaInicio, e.FechaFin, e.Motivo)];
     }
 
-    public void Apply(AusenciaCancelada e) => throw new NotImplementedException();
+    public void Apply(AusenciaCancelada e) =>
+        Ausencias = [.. Ausencias.Select(a => a.Id == e.AusenciaId ? a.SinFechas(e.Fechas) : a)];
 
     internal ResultadoCancelarAusencia CancelarFechas(Guid ausenciaId, IReadOnlyList<DateOnly> fechas)
-        => throw new NotImplementedException();
+    {
+        var ausencia = Ausencias.FirstOrDefault(a => a.Id == ausenciaId);
+        if (ausencia is null)
+            return new ResultadoCancelarAusencia.AusenciaInexistente();
+
+        var vigentes = fechas.Distinct().Where(ausencia.Cubre).Order().ToList();
+        if (vigentes.Count == 0)
+            return new ResultadoCancelarAusencia.SinCambios();
+
+        var evento = new AusenciaCancelada(ausenciaId, ausencia.Colaborador, vigentes);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return new ResultadoCancelarAusencia.Canceladas(ausencia.Colaborador, vigentes);
+    }
 
     internal static AusenciasColaborador Iniciar(AusenciaProgramada evento)
     {
@@ -37,14 +51,14 @@ public partial class AusenciasColaborador : AggregateRoot
         if (Ausencias.Any(a => a.Id == id))
             return new ResultadoProgramarAusencia.IdDuplicado();
 
-        var choque = Ausencias.FirstOrDefault(a => a.FechaInicio <= fechaFin && fechaInicio <= a.FechaFin);
-        if (choque is not null)
+        var fechasEnConflicto = Enumerable
+            .Range(0, fechaFin.DayNumber - fechaInicio.DayNumber + 1)
+            .Select(fechaInicio.AddDays)
+            .Where(fecha => Ausencias.Any(a => a.Cubre(fecha)))
+            .ToList();
+        if (fechasEnConflicto.Count > 0)
         {
-            var fechasEnConflicto = Enumerable
-                .Range(0, fechaFin.DayNumber - fechaInicio.DayNumber + 1)
-                .Select(fechaInicio.AddDays)
-                .Where(fecha => Ausencias.Any(a => a.Cubre(fecha)))
-                .ToList();
+            var choque = Ausencias.First(a => a.Cubre(fechasEnConflicto[0]));
             return new ResultadoProgramarAusencia.ChocaConAusencia(fechasEnConflicto, choque.Motivo);
         }
 
@@ -56,10 +70,10 @@ public partial class AusenciasColaborador : AggregateRoot
 
     internal IReadOnlyList<AusenciaDelColaborador> ListarAusenciasVigentes(DateOnly desde, DateOnly hasta)
         => [.. Ausencias
-            .Where(a => a.FechaInicio <= hasta && desde <= a.FechaFin)
-            .OrderBy(a => a.FechaInicio)
+            .Where(a => a.Fechas.Count > 0 && a.Fechas[0] <= hasta && desde <= a.Fechas[^1])
+            .OrderBy(a => a.Fechas[0])
             .Select(a => new AusenciaDelColaborador(
-                a.Id, a.Motivo.Nombre, a.FechaInicio, a.FechaFin, [new TramoVigente(a.FechaInicio, a.FechaFin)]))];
+                a.Id, a.Motivo.Nombre, a.Fechas[0], a.Fechas[^1], a.Tramos()))];
 
     internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
     {
@@ -75,8 +89,30 @@ public partial class AusenciasColaborador : AggregateRoot
         return new ClasificacionFechas(libres, conAusencia);
     }
 
-    internal sealed record AusenciaVigente(Guid Id, DateOnly FechaInicio, DateOnly FechaFin, MotivoAusencia Motivo)
+    internal sealed record AusenciaVigente(
+        Guid Id, ColaboradorProgramado Colaborador, IReadOnlyList<DateOnly> Fechas, MotivoAusencia Motivo)
     {
-        public bool Cubre(DateOnly fecha) => FechaInicio <= fecha && fecha <= FechaFin;
+        public static AusenciaVigente Nueva(
+            Guid id, ColaboradorProgramado colaborador, DateOnly inicio, DateOnly fin, MotivoAusencia motivo)
+            => new(id, colaborador,
+                [.. Enumerable.Range(0, fin.DayNumber - inicio.DayNumber + 1).Select(inicio.AddDays)], motivo);
+
+        public bool Cubre(DateOnly fecha) => Fechas.Contains(fecha);
+
+        public AusenciaVigente SinFechas(IReadOnlyList<DateOnly> canceladas) =>
+            this with { Fechas = [.. Fechas.Except(canceladas)] };
+
+        public IReadOnlyList<TramoVigente> Tramos()
+        {
+            var tramos = new List<TramoVigente>();
+            foreach (var fecha in Fechas)
+            {
+                if (tramos.Count > 0 && tramos[^1].Hasta.AddDays(1) == fecha)
+                    tramos[^1] = tramos[^1] with { Hasta = fecha };
+                else
+                    tramos.Add(new TramoVigente(fecha, fecha));
+            }
+            return tramos;
+        }
     }
 }

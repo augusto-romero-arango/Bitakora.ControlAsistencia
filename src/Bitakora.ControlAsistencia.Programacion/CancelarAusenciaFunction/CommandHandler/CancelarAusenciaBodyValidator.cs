@@ -4,4 +4,8 @@ namespace Bitakora.ControlAsistencia.Programacion.CancelarAusenciaFunction.Comma
 
 public class CancelarAusenciaBodyValidator : AbstractValidator<CancelarAusenciaBody>
 {
+    public CancelarAusenciaBodyValidator()
+    {
+        RuleFor(x => x.Fechas).NotEmpty();
+    }
 }
