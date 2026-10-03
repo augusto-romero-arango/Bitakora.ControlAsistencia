@@ -27,4 +27,22 @@ public class SesionUsuarioTests
 
         sesion.Should().Be(new SesionUsuario(null, "org_acme", null, "om_123"));
     }
+
+    [Fact]
+    public void SesionUsuario_LeeElSid_CuandoElPrincipalTraeElClaimSid()
+    {
+        var sesion = SesionUsuario.Desde(Principal(
+            ("org_id", "org_acme"), ("organization_membership_id", "om_123"), ("sid", "session_01ABC")));
+
+        sesion.Should().Be(new SesionUsuario(null, "org_acme", null, "om_123", "session_01ABC"));
+    }
+
+    [Fact]
+    public void SesionUsuario_DejaNuloElSid_CuandoElPrincipalNoTraeElClaimSid()
+    {
+        var sesion = SesionUsuario.Desde(Principal(
+            ("org_id", "org_acme"), ("organization_membership_id", "om_123")));
+
+        sesion!.SesionId.Should().BeNull();
+    }
 }

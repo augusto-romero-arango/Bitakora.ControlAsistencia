@@ -13,7 +13,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
     // CA-5 (issue #629): pin de tools/list re-ejecutado con las 8 tools del catalogo.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasNueveToolsDeConsulta_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasDiezToolsDeConsulta_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -21,7 +21,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         tools.Select(t => t.Name).Should().BeEquivalentTo(
             "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
             "listar_colaboradores", "buscar_colaboradores",
-            "listar_plantillas_semanales", "obtener_plantilla_semanal", "obtener_sesion");
+            "listar_plantillas_semanales", "obtener_plantilla_semanal", "obtener_sesion", "cerrar_sesion");
     }
 
     [Fact]
@@ -43,6 +43,16 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
         Requeridas(tools.Single(t => t.Name == "obtener_sesion")).Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CerrarSesion_NoDeclaraParametrosObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+
+        Requeridas(tools.Single(t => t.Name == "cerrar_sesion")).Should().BeEmpty();
     }
 
     [Fact]

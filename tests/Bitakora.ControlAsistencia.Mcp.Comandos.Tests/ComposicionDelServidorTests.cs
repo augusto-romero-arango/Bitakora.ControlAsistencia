@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarSedeFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarTurnoADia;
+using Bitakora.ControlAsistencia.Mcp.Comandos.CerrarSesion;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
@@ -42,7 +43,7 @@ public class ComposicionDelServidorTests
             CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool,
             AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool, AsignarSedeFranjaTool.NombreTool,
             CrearPlantillaSemanalTool.NombreTool, RetirarPlantillaSemanalTool.NombreTool,
-            AsignarTurnoADiaTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool);
+            AsignarTurnoADiaTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool, CerrarSesionTool.NombreTool);
     }
 
     [Fact]
@@ -54,8 +55,8 @@ public class ComposicionDelServidorTests
     }
 
     // idempotentHint se omite a proposito: repetir el mismo codigo no es idempotente, da 409.
-    // readOnlyHint es false en toda tool de este ensamblado: es el servidor Mcp.Comandos, ninguna
-    // es de solo lectura (MEF-ADR-0047 decision 2).
+    // readOnlyHint es false en toda tool de este ensamblado salvo cerrar_sesion: solo construye una
+    // URL publica, no cambia estado ni agrega privilegio (MEF-ADR-0047 decision 2).
     [Fact]
     public void ServidorMcp_DeclaraReadOnlyHintFalseEnCadaTool_CuandoSeInspeccionaElEnsamblado()
     {
@@ -65,7 +66,9 @@ public class ComposicionDelServidorTests
 
             metadata.Should().NotBeNull(
                 $"la tool de {metodo.DeclaringType!.Name} debe declarar sus hints de escritura");
-            metadata!.Json.Should().Contain("\"readOnlyHint\": false");
+            var esCerrarSesion = ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == CerrarSesionTool.NombreTool;
+            metadata!.Json.Should().Contain(esCerrarSesion ? "\"readOnlyHint\": true" : "\"readOnlyHint\": false");
         }
     }
 
@@ -106,6 +109,16 @@ public class ComposicionDelServidorTests
                 .Where(a => a is not null))
                 propiedad!.Description.Should().NotBeNullOrWhiteSpace();
         }
+    }
+
+    [Fact]
+    public void CerrarSesion_NoDeclaraParametros_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == CerrarSesionTool.NombreTool);
+
+        metodo.GetParameters().Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null).Should().BeEmpty();
     }
 
     [Fact]

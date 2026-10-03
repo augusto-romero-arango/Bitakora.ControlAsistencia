@@ -42,14 +42,14 @@ public class ComposicionDelServidorTests
 
     // CA-4 (issue #629): catalogo 6 -> 8 con el par listar_plantillas_semanales/obtener_plantilla_semanal.
     [Fact]
-    public void ServidorMcp_ExponeLasNueveToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasDiezToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool.Select(m => Trigger(m).ToolName);
 
         nombres.Should().BeEquivalentTo(
             "listar_turnos", "obtener_turno", "listar_sedes", "consultar_programacion",
             "listar_colaboradores", "buscar_colaboradores",
-            "listar_plantillas_semanales", "obtener_plantilla_semanal", "obtener_sesion");
+            "listar_plantillas_semanales", "obtener_plantilla_semanal", "obtener_sesion", "cerrar_sesion");
     }
 
     [Fact]
@@ -103,6 +103,12 @@ public class ComposicionDelServidorTests
     public void ObtenerSesion_NoDeclaraParametros_CuandoSeInspeccionaLaTool()
     {
         Propiedades(Tool("obtener_sesion")).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CerrarSesion_NoDeclaraParametros_CuandoSeInspeccionaLaTool()
+    {
+        Propiedades(Tool("cerrar_sesion")).Should().BeEmpty();
     }
 
     [Fact]

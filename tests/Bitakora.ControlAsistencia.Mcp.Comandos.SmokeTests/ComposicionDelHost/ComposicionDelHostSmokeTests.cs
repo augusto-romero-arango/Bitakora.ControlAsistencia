@@ -17,7 +17,22 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "crear_turno", "retirar_turno", "agregar_franja", "quitar_franja",
             "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
             "crear_plantilla_semanal", "retirar_plantilla_semanal",
-            "asignar_turno_a_dia", "quitar_turno_de_dia");
+            "asignar_turno_a_dia", "quitar_turno_de_dia", "cerrar_sesion");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CerrarSesion_NoDeclaraParametrosObligatorios_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "cerrar_sesion");
+
+        var requeridas = tool.JsonSchema.TryGetProperty("required", out var r)
+            ? r.EnumerateArray().Select(e => e.GetString())
+            : [];
+
+        requeridas.Should().BeEmpty();
     }
 
     [Fact]
