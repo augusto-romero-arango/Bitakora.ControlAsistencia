@@ -109,6 +109,96 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
         resultado.TryGetProperty("fallidos", out _).Should().BeFalse("no debe haber fallidos");
     }
 
+    // CA-4: la ausencia registrada dentro de la ventana se respeta y el eco la informa.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_InformaLosDiasRespetados_CuandoElColaboradorTieneUnaAusenciaEnLaVentana()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var codigoSede = $"TEST-{sufijo}";
+        var codigoColaborador = $"TEST-{sufijo}";
+        var numeroIdentificacion = sufijo.ToString("N").ToUpperInvariant();
+        var identificacion = $"CC-{numeroIdentificacion}";
+        var nombreTurno = $"[TEST] Turno MCP {sufijo}";
+
+        await mcp.Cliente.CallToolAsync(
+            "registrar_sede",
+            new Dictionary<string, object?>
+            {
+                ["codigo"] = codigoSede,
+                ["nombre"] = "[TEST] Sede MCP Programacion"
+            },
+            cancellationToken: ct);
+        await mcp.Cliente.CallToolAsync(
+            "registrar_colaborador",
+            new Dictionary<string, object?>
+            {
+                ["tipo_identificacion"] = "CC",
+                ["numero_identificacion"] = numeroIdentificacion,
+                ["primer_nombre"] = "[TEST]",
+                ["primer_apellido"] = "MCP",
+                ["codigo_colaborador"] = codigoColaborador,
+                ["fecha_inicio"] = "2026-09-01"
+            },
+            cancellationToken: ct);
+        await SembrarTurnoAsync(Guid.CreateVersion7(), nombreTurno, ct);
+
+        using var ausencia = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var respuesta = await mcp.Cliente.CallToolAsync(
+                    "programar_ausencia",
+                    new Dictionary<string, object?>
+                    {
+                        ["identificacion"] = identificacion,
+                        ["desde"] = "2026-09-02",
+                        ["hasta"] = "2026-09-02",
+                        ["motivo"] = "Vacaciones"
+                    },
+                    cancellationToken: ct);
+                var candidato = JsonDocument.Parse(respuesta.Content.OfType<TextContentBlock>().Single().Text);
+                if (candidato.RootElement.TryGetProperty("motivo", out _))
+                    return candidato;
+                candidato.Dispose();
+                return null;
+            },
+            TimeoutPolling);
+
+        var argumentos = new Dictionary<string, object?>
+        {
+            ["desde"] = "2026-09-01",
+            ["hasta"] = "2026-09-03",
+            ["turno"] = nombreTurno,
+            ["sede_de_programacion"] = codigoSede,
+            ["identificaciones"] = identificacion
+        };
+
+        using var documento = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var respuesta = await mcp.Cliente.CallToolAsync(
+                    "solicitar_programacion_turno", argumentos, cancellationToken: ct);
+                var candidato = JsonDocument.Parse(respuesta.Content.OfType<TextContentBlock>().Single().Text);
+
+                var contieneAlColaborador = candidato.RootElement.GetProperty("programados").EnumerateArray()
+                    .Any(p => p.GetProperty("codigoColaborador").GetString() == codigoColaborador);
+                if (contieneAlColaborador)
+                    return candidato;
+
+                candidato.Dispose();
+                return null;
+            },
+            TimeoutPolling);
+
+        var programado = documento.RootElement.GetProperty("programados").EnumerateArray()
+            .Single(p => p.GetProperty("codigoColaborador").GetString() == codigoColaborador);
+        programado.GetProperty("dias").GetInt32().Should().Be(2, "el dia 2026-09-02 se respeta por ausencia");
+        var respetado = programado.GetProperty("respetados").EnumerateArray().Single();
+        respetado.GetProperty("motivo").GetString().Should().Be("Vacaciones");
+        respetado.GetProperty("tramos").GetString().Should().Contain("2");
+    }
+
     // Error path que no toca ningun dominio: la ventana de 32 dias corta en el worker y responde el
     // mensaje del .resx VentanaExcedeMaximo -- prueba que los recursos embebidos viajaron en el
     // publish, mismo criterio que el resto de error paths de esta suite.
