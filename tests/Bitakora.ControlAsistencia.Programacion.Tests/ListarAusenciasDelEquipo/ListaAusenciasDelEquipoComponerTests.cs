@@ -64,15 +64,25 @@ public class ListaAusenciasDelEquipoComponerTests
         }, o => o.WithStrictOrdering());
     }
 
-    // CA-4: el periodo aplicado y la senal viajan en la respuesta; los tramos se recortan al aplicado.
     [Fact]
     public void Componer_RecortaLosTramosAlHastaAplicado_CuandoElRangoFueRecortado()
     {
-        var lista = ListaAusenciasDelEquipo.Componer(Oct(1), new RangoAplicado(Oct(20), true), [AnaVacaciones1Al30()]);
+        var desde = Oct(7);
+        var hastaPedido = new DateOnly(2026, 11, 11);
+        var ausenciaEnElBorde = Vista(VacacionesAna, "EMP-001", "Ana Ramirez", "Vacaciones",
+            new TramoDeAusencia(new DateOnly(2026, 11, 7), new DateOnly(2026, 11, 11)));
+        var ausenciaPosterior = Vista(LicenciaAna, "EMP-001", "Ana Ramirez", "LicenciaRemunerada",
+            new TramoDeAusencia(new DateOnly(2026, 11, 12), new DateOnly(2026, 11, 13)));
 
-        lista.Hasta.Should().Be(Oct(20));
+        var lista = ListaAusenciasDelEquipo.Componer(desde, RangoConsulta.Recortar(desde, hastaPedido),
+            [ausenciaEnElBorde, ausenciaPosterior]);
+
+        lista.Desde.Should().Be(Oct(7));
+        lista.Hasta.Should().Be(new DateOnly(2026, 11, 10));
         lista.RangoRecortado.Should().BeTrue();
-        lista.Colaboradores.Single().Ausencias.Single().Tramos.Should().Equal(new TramoAplicado(Oct(1), Oct(20)));
+        lista.Colaboradores.Single().Ausencias.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new AusenciaDelPeriodo(VacacionesAna, "Vacaciones",
+                [new TramoAplicado(new DateOnly(2026, 11, 7), new DateOnly(2026, 11, 10))]));
     }
 
     // CA-6: periodo sin ausencias -> lista vacia.
