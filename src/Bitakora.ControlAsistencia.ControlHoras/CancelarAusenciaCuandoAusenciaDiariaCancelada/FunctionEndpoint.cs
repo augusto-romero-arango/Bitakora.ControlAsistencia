@@ -14,7 +14,7 @@ public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<Fu
     public async Task Run(
         [ServiceBusTrigger(
             topicName: "ausencia-diaria-cancelada",
-            subscriptionName: "control-horas-escucha-ausencia-cancelada",
+            subscriptionName: "control-horas-escucha-cancelacion-ausencia",
             Connection = "SERVICE_BUS_CONNECTION")]
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,

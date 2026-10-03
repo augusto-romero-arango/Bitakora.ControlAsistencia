@@ -34,6 +34,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private Guid? _ausenciaId;
     private string? _motivoAusencia;
 
+    // El bus no garantiza orden: la cancelacion puede llegar antes que su ausencia, que entonces se
+    // ignora al llegar. Por eso el dia recuerda toda AusenciaId cancelada, este o no vigente.
+    private readonly HashSet<Guid> _ausenciasCanceladas = [];
+
     // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
     private void Depurar()
     {
@@ -227,7 +231,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return control;
     }
 
-    // Misma AusenciaId = reentrega del bus: no-op. Otra distinta reemplaza a la vigente.
+    // Ya cancelada = llego despues de su cancelacion: se ignora. Misma AusenciaId = reentrega del
+    // bus: no-op. Otra distinta reemplaza a la vigente.
     internal ResultadoAsignarAusencia AsignarAusencia(AusenciaDiariaAsignada evento)
     {
         if (_ausenciasCanceladas.Contains(evento.AusenciaId)) return ResultadoAsignarAusencia.Ignorada;
@@ -237,8 +242,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
         return ResultadoAsignarAusencia.Asignada;
     }
-
-    private readonly HashSet<Guid> _ausenciasCanceladas = [];
 
     public void Apply(CancelacionAusenciaDiariaRegistrada e)
     {
@@ -262,6 +265,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return control;
     }
 
+    // Solo libera el dia si la cancelada es la vigente; si no, la recuerda sin cambiar el dia.
     internal ResultadoCancelarAusencia CancelarAusencia(CancelacionAusenciaDiariaRegistrada evento)
     {
         if (_ausenciasCanceladas.Contains(evento.AusenciaId)) return ResultadoCancelarAusencia.SinCambios;

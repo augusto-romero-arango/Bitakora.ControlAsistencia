@@ -8,7 +8,7 @@ using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradore
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarAusenciaCuandoAusenciaDiariaProgramada;
 
-// CA-4 (parte 2) del #747: la ausencia que llega despues de su cancelacion se ignora.
+// CA-4 (parte 2): la ausencia que llega despues de su cancelacion se ignora.
 public class AusenciaDiariaProgramadaSobreCancelacionPreviaTests
     : PrivateEventHandlerAsyncTest<AusenciaDiariaProgramada>
 {
