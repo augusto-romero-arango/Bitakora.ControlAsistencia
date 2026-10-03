@@ -14,7 +14,8 @@ public enum PlanDelDia
 {
     ConJornada,
     Descanso,
-    SinProgramar
+    SinProgramar,
+    Ausencia
 }
 
 /// <summary>
@@ -30,7 +31,7 @@ public enum PlanDelDia
 /// Id es el stream key que computa el write-side (DiaCalculadoAggregateRoot.ComputarStreamId): la
 /// vista lo consume tal cual, nunca lo re-computa (MEF-ADR-0037).
 ///
-/// Las cinco banderas se derivan una sola vez en Create/Apply; ninguna consulta las recalcula en
+/// Las seis banderas se derivan una sola vez en Create/Apply; ninguna consulta las recalcula en
 /// query-time -- la fila no carga los datos que harian falta para hacerlo. HorasPorConcepto llega ya
 /// filtrada desde el productor (DesgloseHoras.Discriminar): no re-filtrar aqui.
 ///
@@ -50,4 +51,6 @@ public sealed record AsistenciaDiaria(
     bool VinoEnDescanso,
     bool TrabajoSinProgramacion,
     bool ConflictoDeSedePendiente,
-    IReadOnlyDictionary<string, decimal> HorasPorConcepto);
+    IReadOnlyDictionary<string, decimal> HorasPorConcepto,
+    string? MotivoAusencia = null,
+    bool VinoEnAusencia = false);

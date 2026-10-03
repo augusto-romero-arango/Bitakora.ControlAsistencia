@@ -58,6 +58,8 @@ public class DiaDepuradoIgualdadTests : IgualdadTestBase<DiaDepurado>
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
         yield return ("Franjas (sede programada)",
             new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [FranjaConSedeProgramada()], [Marcacion()], Horas()));
+        yield return ("MotivoAusencia",
+            new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [Marcacion()], Horas(), "Vacaciones"));
         yield return ("Marcaciones (sede)",
             new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [MarcacionConSede()], Horas()));
     }

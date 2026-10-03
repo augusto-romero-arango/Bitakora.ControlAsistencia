@@ -38,6 +38,14 @@ on:
     types: [completed]
   workflow_dispatch:
 
+# Piso de permisos del workflow: aplica a los jobs que no declaran los suyos (build-and-test),
+# que solo necesitan leer el repo para el checkout. Los permisos declarados por un job
+# reemplazan por completo a estos, asi que sus concesiones siguen vigentes:
+# id-token: write en deploy y smoke-tests (OIDC, MEF-ADR-0022).
+# pull-requests: read en determinar-alcance.
+permissions:
+  contents: read
+
 jobs:
   # El apply de infra (infra-cd.yml, MEF-ADR-0022) y el deploy de codigo pueden correr en el
   # mismo push a main. Encadenar por workflow_run (en vez de un 'push' que dispare ambos)
@@ -69,6 +77,8 @@ jobs:
           EVENTO: ${{ github.event_name }}
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           RUN_RAMA: ${{ github.event.workflow_run.head_branch }}
+          RUN_EVENTO: ${{ github.event.workflow_run.event }}
+          RUN_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           REPO: ${{ github.repository }}
         run: |
@@ -77,8 +87,11 @@ jobs:
             echo "debe_desplegar=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # ...y la corrida de 'Infra CD - Terraform Apply' fue un apply exitoso sobre main.
-          if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ]; then
+          # ...y la corrida de 'Infra CD - Terraform Apply' fue un apply exitoso de un push a main
+          # de este mismo repositorio (#775; los jobs que hacen checkout repiten la condicion
+          # de origen en su if:).
+          if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ] \
+             || [ "$RUN_EVENTO" != "push" ] || [ "$RUN_REPO" != "$REPO" ]; then
             echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -96,7 +109,17 @@ jobs:
 
   build-and-test:
     needs: determinar-alcance
-    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    # Origen confiable (#775): este job hace checkout de workflow_run.head_sha y ejecuta
+    # dotnet con privilegios. Hoy es latente (infra-cd.yml solo corre en push a main), pero
+    # la proteccion va aqui y no solo en determinar-alcance (que no hace checkout): si infra-cd
+    # ganara un disparador por PR, head_sha podria ser codigo no confiable. Ver el comentario
+    # de determinar-alcance.
+    if: >-
+      needs.determinar-alcance.outputs.debe_desplegar == 'true' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -121,7 +144,17 @@ jobs:
 
   deploy:
     needs: [determinar-alcance, build-and-test]
-    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    # Origen confiable (#775): este job hace checkout de workflow_run.head_sha y ejecuta
+    # dotnet con privilegios. Hoy es latente (infra-cd.yml solo corre en push a main), pero
+    # la proteccion va aqui y no solo en determinar-alcance (que no hace checkout): si infra-cd
+    # ganara un disparador por PR, head_sha podria ser codigo no confiable. Ver el comentario
+    # de determinar-alcance.
+    if: >-
+      needs.determinar-alcance.outputs.debe_desplegar == 'true' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     permissions:
       contents: read

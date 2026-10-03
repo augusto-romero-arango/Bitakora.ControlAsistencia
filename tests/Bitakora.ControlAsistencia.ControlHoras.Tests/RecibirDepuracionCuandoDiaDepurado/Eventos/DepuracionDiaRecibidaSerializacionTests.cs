@@ -140,4 +140,38 @@ public class DepuracionDiaRecibidaSerializacionTests
         marcacion.NombreSede.Should().BeNull();
         marcacion.CentroDeCostos.Should().BeNull();
     }
+
+    // CA-1
+    [Fact]
+    public void Deserializar_ReconstruyeMotivoAusencia_CuandoElEventoLoTrae()
+    {
+        var evento = new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, null, [], [MarcacionSinSedeEstampada],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "IncapacidadMedica");
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<DepuracionDiaRecibida>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.MotivoAusencia.Should().Be("IncapacidadMedica");
+    }
+
+    // CA-3: JSON de un stream escrito antes de que existiera el campo.
+    [Fact]
+    public void Deserializar_DejaMotivoAusenciaNulo_CuandoElJsonNoTraeElCampo()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var json = """
+            {"Id":"dc:EMP-001:20260315","CodigoColaborador":"EMP-001","Fecha":"2026-03-15",
+             "Colaborador":null,"NombreTurno":"Turno Manana","Franjas":[],"Marcaciones":[],
+             "HorasDiscriminadas":{"HorasPorConcepto":{},"Trazabilidad":[]}}
+            """;
+
+        var deserializado = JsonSerializer.Deserialize<DepuracionDiaRecibida>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.MotivoAusencia.Should().BeNull();
+        deserializado.NombreTurno.Should().Be("Turno Manana");
+    }
 }

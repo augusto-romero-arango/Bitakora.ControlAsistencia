@@ -1,5 +1,6 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
+using Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.MultiTenancy;
 using Marten;
@@ -54,6 +55,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (vista is null)
             return new NotFoundResult();
 
-        return new OkObjectResult(vista);
+        return new OkObjectResult(TurnoVigenteRespuesta.Desde(vista));
     }
 }

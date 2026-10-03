@@ -189,4 +189,147 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    private const string TopicCancelacionEntrada = "cancelacion-turno-diario-solicitada";
+    private const string TopicAusenciaEntrada = "ausencia-diaria-programada";
+    private const string MotivoAusencia = "Vacaciones";
+
+    private sealed record AusenciaRespuestaSmoke(
+        string CodigoColaborador,
+        DateOnly Fecha,
+        string? MotivoAusencia,
+        IReadOnlyList<BloqueSmoke> Bloques);
+
+    private async Task PublicarTurnoAsync(
+        ResumenColaborador colaborador, DateOnly fecha, string nombreTurno)
+    {
+        var solicitudId = Guid.CreateVersion7();
+        var evento = new
+        {
+            SolicitudId = solicitudId,
+            Colaborador = colaborador,
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = nombreTurno,
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = "08:00:00",
+                        HoraFin = "16:00:00",
+                        DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(),
+                        Extras = Array.Empty<object>(),
+                        Descripcion = (string?)null
+                    }
+                },
+                Descripcion = "[TEST] Turno 08:00-16:00"
+            }
+        };
+
+        await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
+    }
+
+    private async Task<bool> EsperarVistaAsync(
+        string ruta, Func<string, bool> condicionSobreJson, CancellationToken ct) =>
+        await Polling.WaitUntilTrueAsync(async () =>
+        {
+            using var response = await _client.GetAsync(ruta, ct);
+            if (response.StatusCode != HttpStatusCode.OK)
+                return false;
+            return condicionSobreJson(await response.Content.ReadAsStringAsync(ct));
+        }, Timeout);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerTurnoVigente_Retorna404_CuandoElTurnoFueCancelado()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 11);
+        var colaborador = new ResumenColaborador(
+            "CC-756000001", codigoColaborador, NombreCompletoSembrado);
+        var ruta = Ruta(codigoColaborador, fecha);
+
+        await PublicarTurnoAsync(colaborador, fecha, "[TEST] Turno A Cancelar Vigente");
+        (await EsperarVistaAsync(ruta, _ => true, ct)).Should().BeTrue(
+            "la vista deberia materializarse antes de cancelar el turno");
+
+        var solicitudCancelacionId = Guid.CreateVersion7();
+        await serviceBus.PublishAsync(
+            TopicCancelacionEntrada,
+            new
+            {
+                SolicitudId = solicitudCancelacionId,
+                Colaborador = colaborador,
+                Fecha = fecha.ToString("yyyy-MM-dd")
+            },
+            solicitudCancelacionId.ToString());
+
+        var desaparecio = await Polling.WaitUntilTrueAsync(async () =>
+        {
+            using var response = await _client.GetAsync(ruta, ct);
+            return response.StatusCode == HttpStatusCode.NotFound;
+        }, Timeout);
+
+        desaparecio.Should().BeTrue(
+            "un dia con el turno cancelado y sin ausencia no tiene programacion vigente");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerTurnoVigente_MuestraLaAusenciaSinBloquesNiTurnoCubierto_CuandoSeRegistraAusenciaSobreElTurno()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 12);
+        var colaborador = new ResumenColaborador(
+            "CC-756000002", codigoColaborador, NombreCompletoSembrado);
+        var ruta = Ruta(codigoColaborador, fecha);
+        const string nombreTurnoCubierto = "[TEST] Turno Cubierto Por Ausencia";
+
+        await PublicarTurnoAsync(colaborador, fecha, nombreTurnoCubierto);
+        (await EsperarVistaAsync(ruta, json => json.Contains(nombreTurnoCubierto), ct)).Should().BeTrue(
+            "la vista del turno deberia materializarse antes de registrar la ausencia");
+
+        var ausenciaId = Guid.CreateVersion7();
+        await serviceBus.PublishAsync(TopicAusenciaEntrada, new
+        {
+            AusenciaId = ausenciaId,
+            Colaborador = colaborador,
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Motivo = MotivoAusencia
+        }, ausenciaId.ToString());
+
+        string? json = null;
+        var conAusencia = await EsperarVistaAsync(ruta, contenido =>
+        {
+            json = contenido;
+            return contenido.Contains(MotivoAusencia);
+        }, ct);
+
+        conAusencia.Should().BeTrue("la vista deberia mostrar la ausencia dentro del timeout");
+
+        var respuesta = JsonSerializer.Deserialize<AusenciaRespuestaSmoke>(json!, JsonOptions)!;
+        respuesta.CodigoColaborador.Should().Be(codigoColaborador);
+        respuesta.Fecha.Should().Be(fecha);
+        respuesta.MotivoAusencia.Should().Be(MotivoAusencia);
+        respuesta.Bloques.Should().BeEmpty("el dia de ausencia no muestra bloques");
+
+        json.Should().NotContain(nombreTurnoCubierto,
+            "la respuesta no expone el turno que la ausencia cubre");
+        using var documento = JsonDocument.Parse(json!);
+        documento.RootElement.EnumerateObject()
+            .Select(p => p.Name.ToLowerInvariant())
+            .Should().NotContain("turnocubierto");
+    }
 }

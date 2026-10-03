@@ -61,4 +61,17 @@ public class IdentidadTenantMcpMiddlewareTests
 
         identidad.Should().BeNull();
     }
+
+    [Fact]
+    public async Task DerivarIdentidad_PropagaElRechazoDelValidador_CuandoElBearerEsInvalido()
+    {
+        var middleware = new IdentidadTenantMcpMiddleware(
+            ValidadorTokenFalso.QueFalla(new SecurityTokenException("firma invalida")),
+            DerivadorIdentidadTenantMcpFalso.QueDeriva(new IdentidadTenant("o", "u", "m")));
+
+        var act = async () => await middleware.DerivarIdentidadAsync(
+            $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-no-validable", TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowExactlyAsync<SecurityTokenException>().WithMessage("*firma invalida*");
+    }
 }

@@ -16,7 +16,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Colaboradores;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;

@@ -24,7 +24,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
 {
     public static AsistenciaDiaria Create(DepuracionDiaRecibida evento)
     {
-        var plan = ClasificarPlan(evento.NombreTurno, evento.Franjas);
+        var plan = ClasificarPlan(evento.MotivoAusencia, evento.NombreTurno, evento.Franjas);
 
         return new AsistenciaDiaria(
             evento.Id,
@@ -38,7 +38,9 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             VinoEnDescanso: EsVinoEnDescanso(plan, evento.Marcaciones),
             TrabajoSinProgramacion: EsTrabajoSinProgramacion(plan, evento.Marcaciones),
             ConflictoDeSedePendiente: EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
-            evento.HorasDiscriminadas.HorasPorConcepto);
+            evento.HorasDiscriminadas.HorasPorConcepto,
+            evento.MotivoAusencia,
+            EsVinoEnAusencia(plan, evento.Marcaciones));
     }
 
     // "El ultimo gana": cada foto reemplaza plan, banderas y horas. Id/CodigoColaborador/Fecha se
@@ -46,7 +48,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
     // Estado tampoco se toca: ningun evento produce todavia un valor distinto de Provisional.
     public static AsistenciaDiaria Apply(DepuracionDiaRecibida evento, AsistenciaDiaria vista)
     {
-        var plan = ClasificarPlan(evento.NombreTurno, evento.Franjas);
+        var plan = ClasificarPlan(evento.MotivoAusencia, evento.NombreTurno, evento.Franjas);
 
         return vista with
         {
@@ -57,7 +59,9 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             VinoEnDescanso = EsVinoEnDescanso(plan, evento.Marcaciones),
             TrabajoSinProgramacion = EsTrabajoSinProgramacion(plan, evento.Marcaciones),
             ConflictoDeSedePendiente = EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
-            HorasPorConcepto = evento.HorasDiscriminadas.HorasPorConcepto
+            HorasPorConcepto = evento.HorasDiscriminadas.HorasPorConcepto,
+            MotivoAusencia = evento.MotivoAusencia,
+            VinoEnAusencia = EsVinoEnAusencia(plan, evento.Marcaciones)
         };
     }
 
@@ -94,13 +98,20 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
     // el source generator no lo dispatchea y el daemon lo salta. No agregar uno "para completar" --
     // un dia ya aprobado no debe volver a moverse en esta vista.
 
-    private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<EventoFranjaDepurada> franjas) =>
-        nombreTurno switch
+    // El motivo tiene precedencia sobre turno y marcaciones (CA-ADR-0036; replica de
+    // DiaCalculadoAggregateRoot.ClasificarPlan, MEF-ADR-0018).
+    private static PlanDelDia ClasificarPlan(
+        string? motivoAusencia, string? nombreTurno, IReadOnlyList<EventoFranjaDepurada> franjas) =>
+        (motivoAusencia, nombreTurno) switch
         {
-            null => PlanDelDia.SinProgramar,
+            (not null, _) => PlanDelDia.Ausencia,
+            (_, null) => PlanDelDia.SinProgramar,
             _ when franjas.Count == 0 => PlanDelDia.Descanso,
             _ => PlanDelDia.ConJornada
         };
+
+    private static bool EsVinoEnAusencia(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
+        plan == PlanDelDia.Ausencia && marcaciones.Count > 0;
 
     private static bool EsNoSePresento(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.ConJornada && marcaciones.Count == 0;

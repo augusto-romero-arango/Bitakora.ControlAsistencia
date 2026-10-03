@@ -160,4 +160,32 @@ public class SintesisCalendarioAsistenciaTests
 
         filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().BeFalse();
     }
+
+    [Fact]
+    public void Completar_ExponeMotivoYVinoEnAusencia_CuandoElDocumentoEsDeAusencia()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+        var documento = DocumentoDePrueba(fecha, plan: PlanDelDia.Ausencia, nombreTurno: null,
+                horasPorConcepto: new Dictionary<string, decimal>()) with
+        { MotivoAusencia = "Vacaciones", VinoEnAusencia = true };
+
+        var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, [documento]);
+
+        var fila = filas.Should().ContainSingle().Which;
+        fila.Plan.Should().Be(PlanDelDia.Ausencia);
+        fila.MotivoAusencia.Should().Be("Vacaciones");
+        fila.VinoEnAusencia.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Completar_FilaSinteticaSinMotivoNiVinoEnAusencia_CuandoElDiaNoTieneDocumento()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+
+        var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, []);
+
+        var fila = filas.Should().ContainSingle().Which;
+        fila.MotivoAusencia.Should().BeNull();
+        fila.VinoEnAusencia.Should().BeFalse();
+    }
 }
