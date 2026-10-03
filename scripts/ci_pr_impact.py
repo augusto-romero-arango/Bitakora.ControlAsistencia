@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 PAGE_SIZE = 100
 MAX_FILES = 3000  # Limite documentado de la API REST de archivos de un PR.
-STATUSES = {"added", "modified", "removed", "renamed", "copied", "changed", "unchanged"}
+STATUSES = {"added", "modified", "removed", "renamed", "copied"}
 
 
 def api_json(url, token):
@@ -50,16 +50,16 @@ def classify(fetch, repo, number, token):
             if not isinstance(item, dict):
                 raise ValueError(f"Entrada invalida en pagina {page}")
             path, status = item.get("filename"), item.get("status")
-            if not isinstance(path, str) or not path or status not in STATUSES:
+            if not isinstance(path, str) or not path or not isinstance(status, str) or status not in STATUSES:
                 raise ValueError(f"Ruta o estado invalido en pagina {page}")
             if path in seen:
                 raise ValueError(f"Ruta duplicada en pagina {page}: {path!r}")
             seen.add(path)
             paths = [path]
-            if status == "renamed":
-                previous = item.get("previous_filename")
+            previous = item.get("previous_filename")
+            if status in ("renamed", "copied") or "previous_filename" in item:
                 if not isinstance(previous, str) or not previous:
-                    raise ValueError(f"Renombrado sin ruta anterior: {path!r}")
+                    raise ValueError(f"Ruta anterior invalida: {path!r}")
                 paths.append(previous)
             if not all(map(documentary, paths)):
                 all_docs = False

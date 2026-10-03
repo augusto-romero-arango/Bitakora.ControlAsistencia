@@ -54,6 +54,10 @@ class PolicyTests(unittest.TestCase):
     def test_renombrados_en_ambos_sentidos(self):
         self.assertFalse(classify([file("docs/codigo.cs", "renamed", "src/codigo.cs")]))
         self.assertFalse(classify([file("src/codigo.cs", "renamed", "docs/codigo.cs")]))
+        self.assertFalse(classify([file("docs/copia.cs", "copied", "src/codigo.cs")]))
+        self.assertTrue(classify([file("docs/copia.md", "copied", "docs/original.md")]))
+        # Si la API agrega una ruta anterior a otro estado, tampoco se ignora.
+        self.assertFalse(classify([file("docs/codigo.cs", "modified", "src/codigo.cs")]))
 
     def test_archivo_no_documental_en_pagina_posterior(self):
         self.assertFalse(classify([file(f"docs/{n}.md") for n in range(100)] +
@@ -72,6 +76,8 @@ class PolicyTests(unittest.TestCase):
             classify([file("docs/a.md", "renamed")])
         with self.assertRaises(ValueError):
             classify([file("docs/a.md"), file("docs/a.md")])
+        # Una pagina completa exige consultar la siguiente, incluso si el total coincide.
+        self.assertTrue(classify(files))
 
     def test_respuestas_invalidas(self):
         for response in (None, {}, {"changed_files": "1"}, {"changed_files": True}):
@@ -80,6 +86,11 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             impact.classify(lambda url, token: {"changed_files": 1} if "/files?" not in url else {},
                             "owner/repo", "42", "token")
+        for status in ("unchanged", "desconocido", []):
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                classify([file("docs/a.md", status)])
+        with self.assertRaises(ValueError):
+            classify([file("docs/a.md", "copied")])
 
     def test_wiring_workflow(self):
         text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
