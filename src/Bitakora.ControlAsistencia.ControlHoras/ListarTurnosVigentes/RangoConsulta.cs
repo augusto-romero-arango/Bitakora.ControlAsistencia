@@ -23,13 +23,13 @@ public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRe
 /// </summary>
 public static class RangoConsulta
 {
-    /// <summary>Cota maxima del rango, en dias, INCLUSIVE (CA-3): desde y desde + 30 dias caben.</summary>
-    public const int CotaDias = 31;
+    /// <summary>Cota maxima del rango, en dias, INCLUSIVE (issue #785): desde y desde + 34 dias caben.</summary>
+    public const int CotaDias = 35;
 
     public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)
     {
         // CotaDias es INCLUSIVE: desde + (CotaDias - 1) dias es el limite exacto que todavia no
-        // excede la cota (31 dias inclusive = desde + 30 dias).
+        // excede la cota (35 dias inclusive = desde + 34 dias).
         var hastaMaxima = desde.AddDays(CotaDias - 1);
 
         return hasta > hastaMaxima
