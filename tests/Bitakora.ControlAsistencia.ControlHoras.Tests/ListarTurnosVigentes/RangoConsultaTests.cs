@@ -1,14 +1,3 @@
-// Issue #329 CA-3: logica pura de recorte del rango de ListarTurnosVigentes. Sin Marten, sin
-// Postgres, sin QuerySession -- funciona sobre DateOnly (skills/projections/read-apis.md: la cota
-// y el recorte son logica de la Function, no de la proyeccion, que este issue no toca). Cada
-// oraculo se arma a mano (MEF-ADR-0002): nunca se deriva ejecutando RangoConsulta.Recortar sobre
-// si mismo.
-//
-// Agregado en la revision de #329: la fase verde escribio RangoConsulta sin sus tests, asi que
-// CA-3 quedaba cubierto UNICAMENTE por el smoke test contra dev -- que exige deploy y no corre en
-// el CI del PR. La cota y su direccion de recorte son reglas de negocio de la consulta: necesitan
-// una guarda que corra en cada PR.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 
@@ -30,7 +19,6 @@ public class RangoConsultaTests
     [Fact]
     public void Recortar_DevuelveHastaSinCambios_CuandoElRangoEsDe31DiasInclusive()
     {
-        // Regresion: 31 dias inclusivos continuan dentro del horizonte permitido.
         var desde = new DateOnly(2026, 8, 1);
         var hasta = new DateOnly(2026, 8, 31);
 
@@ -53,7 +41,6 @@ public class RangoConsultaTests
     [Fact]
     public void Recortar_DevuelveHastaSinCambios_CuandoElRangoEsDe35DiasInclusive()
     {
-        // Miercoles 7 de octubre hasta martes 10 de noviembre: sin alineacion semanal.
         var desde = new DateOnly(2026, 10, 7);
         var hasta = new DateOnly(2026, 11, 10);
 
@@ -81,17 +68,12 @@ public class RangoConsultaTests
 
         var resultado = RangoConsulta.Recortar(desde, hasta);
 
-        // CA-2: hastaAplicado = 4 de septiembre (35 dias inclusive), rangoRecortado: true. El
-        // recorte es hacia ADELANTE desde `desde` -- nunca hacia atras desde `hasta`, y nunca
-        // relativo a la fecha de hoy.
         resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 9, 4), true));
     }
 
     [Fact]
     public void Recortar_DevuelveElMismoDia_CuandoDesdeYHastaCoinciden()
     {
-        // Consulta de un solo dia (desde == hasta): el panorama del programador para una fecha
-        // puntual, forma que el smoke test usa como sensor de materializacion.
         var desde = new DateOnly(2026, 8, 5);
 
         var resultado = RangoConsulta.Recortar(desde, desde);
