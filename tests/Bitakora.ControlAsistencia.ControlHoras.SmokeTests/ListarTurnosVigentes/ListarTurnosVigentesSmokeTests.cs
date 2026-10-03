@@ -636,4 +636,109 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         respuesta!.Turnos.Should().ContainSingle(t => t.CodigoColaborador == codigoColaboradorA && t.Fecha == fecha);
         respuesta.Turnos.Should().NotContain(t => t.CodigoColaborador == codigoColaboradorB);
     }
+
+    private const string TopicCancelacionEntrada = "cancelacion-turno-diario-solicitada";
+    private const string TopicAusenciaEntrada = "ausencia-diaria-programada";
+    private const string MotivoAusencia = "Vacaciones";
+
+    private sealed record AusenciaListadaSmoke(
+        string CodigoColaborador,
+        DateOnly Fecha,
+        string? MotivoAusencia,
+        IReadOnlyList<BloqueSmoke> Bloques);
+
+    private sealed record ListaAusenciasSmoke(IReadOnlyList<AusenciaListadaSmoke> Turnos);
+
+    private async Task PublicarAusenciaAsync(
+        string codigoColaborador, DateOnly fecha)
+    {
+        var ausenciaId = Guid.CreateVersion7();
+        await serviceBus.PublishAsync(TopicAusenciaEntrada, new
+        {
+            AusenciaId = ausenciaId,
+            Colaborador = new ResumenColaborador(
+                "CC-444555666", codigoColaborador, NombreCompletoSembrado),
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Motivo = MotivoAusencia
+        }, ausenciaId.ToString());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_ExcluyeElDia_CuandoElTurnoFueCancelado()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 6, 8);
+
+        await PublicarTurnoAsync(
+            Guid.CreateVersion7(), codigoColaborador, fecha, "[TEST] Turno A Cancelar Listado");
+        (await EsperarTurnoEnLaListaAsync(codigoColaborador, fecha, ct)).Should().BeTrue(
+            "la vista deberia materializarse antes de cancelar el turno");
+
+        var solicitudCancelacionId = Guid.CreateVersion7();
+        await serviceBus.PublishAsync(
+            TopicCancelacionEntrada,
+            new
+            {
+                SolicitudId = solicitudCancelacionId,
+                Colaborador = new ResumenColaborador(
+                    "CC-444555666", codigoColaborador, NombreCompletoSembrado),
+                Fecha = fecha.ToString("yyyy-MM-dd")
+            },
+            solicitudCancelacionId.ToString());
+
+        var respuesta = await ConsultarHastaQueAsync(
+            Filtro(fecha, fecha, codigoColaborador), body => body.Turnos.Count == 0, ct);
+
+        respuesta.Turnos.Should().BeEmpty("un dia con turno cancelado y sin ausencia no aparece");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_MuestraLaAusenciaSinBloques_CuandoSeFiltraPorColaboradorYLaExcluyePorSede()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 6, 9);
+        var sedeId = Guid.CreateVersion7().ToString();
+
+        await PublicarTurnoConSedeAsync(
+            Guid.CreateVersion7(), codigoColaborador, fecha, "[TEST] Turno Cubierto Listado",
+            sedeId, "[TEST] Sede Ausencia");
+        (await EsperarTurnoEnLaListaAsync(codigoColaborador, fecha, ct)).Should().BeTrue(
+            "la vista del turno deberia materializarse antes de registrar la ausencia");
+
+        await PublicarAusenciaAsync(codigoColaborador, fecha);
+
+        var filtroColaborador = Filtro(fecha, fecha, codigoColaborador);
+        var respuesta = await ConsultarHastaQueAsync(
+            filtroColaborador,
+            body => body.Turnos.Any(t => t.CodigoColaborador == codigoColaborador && t.Bloques.Count == 0),
+            ct);
+
+        respuesta.Turnos.Should().ContainSingle();
+
+        using var response = await ConsultarAsync(filtroColaborador, ct);
+        var json = await response.Content.ReadAsStringAsync(ct);
+        json.Should().NotContain("[TEST] Turno Cubierto Listado",
+            "la respuesta no expone el turno que la ausencia cubre");
+        var ausencias = JsonSerializer.Deserialize<ListaAusenciasSmoke>(json, JsonOptions)!;
+        ausencias.Turnos.Single().MotivoAusencia.Should().Be(MotivoAusencia);
+        ausencias.Turnos.Single().Bloques.Should().BeEmpty();
+
+        using var porSede = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador, sedeId), ct);
+        porSede.StatusCode.Should().Be(HttpStatusCode.OK);
+        var listaPorSede = await porSede.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        listaPorSede!.Turnos.Should().BeEmpty("un dia de ausencia no tiene bloques y no aparece al filtrar por sede");
+    }
 }
