@@ -40,7 +40,6 @@ public class ComposicionDelServidorTests
     private static MethodInfo Tool(string nombreTool) =>
         MetodosDeTool.Single(m => Trigger(m).ToolName == nombreTool);
 
-    // CA-4 (issue #629): catalogo 6 -> 8 con el par listar_plantillas_semanales/obtener_plantilla_semanal.
     [Fact]
     public void ServidorMcp_ExponeLasOnceToolsDeConsulta_CuandoSeInspeccionaElEnsamblado()
     {

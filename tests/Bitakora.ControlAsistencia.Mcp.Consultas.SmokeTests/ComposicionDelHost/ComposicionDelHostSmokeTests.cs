@@ -10,7 +10,6 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.SmokeTests.ComposicionDelHost
 // materializo en dev.
 public class ComposicionDelHostSmokeTests(McpFixture mcp)
 {
-    // CA-5 (issue #629): pin de tools/list re-ejecutado con las 8 tools del catalogo.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ServidorMcp_MaterializaLasOnceToolsDeConsulta_CuandoSeListanLasTools()
