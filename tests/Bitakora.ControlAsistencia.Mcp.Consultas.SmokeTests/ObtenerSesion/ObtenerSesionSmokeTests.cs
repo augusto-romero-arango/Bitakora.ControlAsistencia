@@ -22,5 +22,7 @@ public class ObtenerSesionSmokeTests(McpFixture mcp)
 
         raiz.GetProperty("origen").GetString().Should().Be("tenant_fijo");
         raiz.TryGetProperty("correo", out _).Should().BeFalse();
+        raiz.GetProperty("empresa").GetProperty("id").GetString().Should().NotBeNullOrWhiteSpace();
+        raiz.GetProperty("advertencia").GetString().Should().NotBeNullOrWhiteSpace();
     }
 }
