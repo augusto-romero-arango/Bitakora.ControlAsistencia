@@ -1,10 +1,7 @@
-using System.Globalization;
-using System.Security.Claims;
 using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 using Microsoft.Azure.Functions.Worker.Middleware;
-using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 
@@ -14,8 +11,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 // McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo sirve el
 // paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
 public sealed partial class IdentidadTenantMcpMiddleware(
-    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador,
-    ILogger<IdentidadTenantMcpMiddleware> logger) : IFunctionsWorkerMiddleware
+    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";
@@ -26,8 +22,11 @@ public sealed partial class IdentidadTenantMcpMiddleware(
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        var identidad = await DerivarIdentidadAsync(
+        var (identidad, sesion) = await DerivarAsync(
             await LeerEncabezadoAutorizacionAsync(context), context.CancellationToken);
+
+        if (sesion is not null)
+            context.Items[SesionUsuario.ClaveItems] = sesion;
 
         // La mutacion del AsyncLocal va aqui y no dentro de un metodo async propio: el CLR restaura
         // el contexto de ejecucion al retornar de un metodo async, asi que una mutacion hecha
@@ -43,11 +42,15 @@ public sealed partial class IdentidadTenantMcpMiddleware(
     // un unit test de nivel 1 (MEF-ADR-0048 seccion 1). Sin Bearer no hay identidad que derivar y
     // retorna null: el propagador cae al tenant fijo de ConfiguracionIdentidadTenant.
     internal async Task<IdentidadTenant?> DerivarIdentidadAsync(
-        string? encabezadoAutorizacion, CancellationToken cancellationToken = default)
+        string? encabezadoAutorizacion, CancellationToken cancellationToken = default) =>
+        (await DerivarAsync(encabezadoAutorizacion, cancellationToken)).Identidad;
+
+    private async Task<(IdentidadTenant? Identidad, SesionUsuario? Sesion)> DerivarAsync(
+        string? encabezadoAutorizacion, CancellationToken cancellationToken)
     {
         if (encabezadoAutorizacion is null ||
             !encabezadoAutorizacion.StartsWith(EsquemaBearer, StringComparison.OrdinalIgnoreCase))
-            return null;
+            return (null, null);
 
         var token = encabezadoAutorizacion[EsquemaBearer.Length..];
         // Bearer presente pero no validable (firma invalida, expirado, discovery doc inalcanzable,
@@ -58,22 +61,8 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         var principal = await validador.ValidarAsync(token, cancellationToken)
                         ?? throw new InvalidOperationException(Mensajes.TokenNoValidado);
 
-        RegistrarFormaDelToken(principal);
-        return derivador.Derivar(principal);
+        return (derivador.Derivar(principal), SesionUsuario.Desde(principal));
     }
-
-    private void RegistrarFormaDelToken(ClaimsPrincipal principal) =>
-        logger.LogInformation(
-            "Forma del token MCP: claims {ClaimsDelToken}, sid {TieneSid}, iss {Emisor}, duracion {DuracionTokenSegundos} s",
-            string.Join(",", principal.Claims.Select(c => c.Type).Distinct()),
-            principal.HasClaim(c => c.Type == "sid"),
-            principal.FindFirst("iss")?.Value,
-            LeerSegundos(principal, "exp") - LeerSegundos(principal, "iat"));
-
-    private static long? LeerSegundos(ClaimsPrincipal principal, string tipo) =>
-        long.TryParse(principal.FindFirst(tipo)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var segundos)
-            ? segundos
-            : null;
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)
     {
