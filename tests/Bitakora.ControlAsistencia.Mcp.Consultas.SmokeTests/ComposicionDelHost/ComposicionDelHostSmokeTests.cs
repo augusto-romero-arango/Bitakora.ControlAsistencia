@@ -41,8 +41,11 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
 
-        Requeridas(tools.Single(t => t.Name == "consultar_ausencias"))
+        var tool = tools.Single(t => t.Name == "consultar_ausencias");
+        Requeridas(tool)
             .Should().BeEquivalentTo("desde", "hasta");
+        Propiedades(tool).Should().BeEquivalentTo("desde", "hasta", "codigos_colaborador");
+        tool.ProtocolTool.Description.Should().Contain("Periodo de maximo 35 dias.");
     }
 
     [Fact]
