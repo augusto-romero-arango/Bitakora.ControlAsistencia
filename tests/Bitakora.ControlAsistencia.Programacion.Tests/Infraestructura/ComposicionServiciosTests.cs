@@ -27,6 +27,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.Comm
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
 using Marten;
@@ -38,6 +39,8 @@ using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.Listar
 using ObtenerCuadroSemanalTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos.FunctionEndpoint;
 using ListarCuadrosSemanalesTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos.FunctionEndpoint;
 
+using ListarAusenciasColaboradorEndpoint = Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador.FunctionEndpoint;
+
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class ComposicionServiciosTests
@@ -47,6 +50,14 @@ public class ComposicionServiciosTests
 
     private const string ServiceBusConnectionStringDummy =
         "Endpoint=sb://dummy.servicebus.windows.net/;SharedAccessKeyName=dummy;SharedAccessKey=dummy";
+
+    private static readonly (Type Tipo, string Topic)[] EventosPrivadosYTopics =
+    [
+        (typeof(ProgramacionTurnoDiarioSolicitada), "programacion-turno-diario-solicitada"),
+        (typeof(CancelacionTurnoDiarioSolicitada), "cancelacion-turno-diario-solicitada"),
+        (typeof(AusenciaDiariaProgramada), "ausencia-diaria-programada"),
+        (typeof(AusenciaDiariaCancelada), "ausencia-diaria-cancelada")
+    ];
 
     private static ServiceProvider ComponerServiceProvider()
     {
@@ -180,6 +191,32 @@ public class ComposicionServiciosTests
         });
     }
 
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeAusenciaProgramada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(AusenciaProgramada)).Alias;
+
+        alias.Should().Be("ausencia_programada");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeAusenciaCancelada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(AusenciaCancelada)).Alias;
+
+        alias.Should().Be("ausencia_cancelada");
+    }
+
     // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-2, CA-3) ---
     //
     // Mismo wiring que ControlHoras (AgregarWolverineParaComandosServerless): Programacion no emite
@@ -284,21 +321,32 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Sin PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(...) en el wiring, Wolverine se
-    // queda sin ruta de salida y PublishAsync no lanza: el POST responde 202 y el evento nunca cruza
-    // el ASB interno del BC. RoutingFor solo recorre WolverineOptions.RouteSources() y la Uri de
-    // AzureServiceBusTopic se arma en memoria ("asb://topic/{topic}") -- ninguna llamada de red.
-    // Describe().Endpoint porque IMessageRoute no expone Uri: solo la implementacion interna la tiene.
+    // Sin ruta de salida PublishAsync descarta el evento sin lanzar. Describe().Endpoint expone la
+    // URI que IMessageRoute no publica; RoutingFor la construye en memoria sin conectar al bus.
     [Fact]
-    public async Task AgregarServiciosProgramacion_MapeaCancelacionTurnoDiarioSolicitadaAlTopicDeAzureServiceBus_CuandoElContenedorEstaCompuesto()
+    public async Task AgregarServiciosProgramacion_MapeaCadaEventoPrivadoASuTopic_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();
 
         var runtime = provider.GetRequiredService<IWolverineRuntime>();
-        var router = runtime.RoutingFor(typeof(CancelacionTurnoDiarioSolicitada));
+        foreach (var (tipo, topic) in EventosPrivadosYTopics)
+        {
+            var router = runtime.RoutingFor(tipo);
 
-        router.Routes.Select(route => route.Describe().Endpoint).Should()
-            .Contain(new Uri("asb://topic/cancelacion-turno-diario-solicitada"));
+            router.Routes.Select(route => route.Describe().Endpoint).Should()
+                .Contain(new Uri($"asb://topic/{topic}"));
+        }
+    }
+
+    [Fact]
+    public void AgregarServiciosProgramacion_IncluyeTodosLosEventosPrivadosDeProgramacion_EnElInventarioDeTopics()
+    {
+        var tipos = typeof(AusenciaDiariaCancelada).Assembly.GetTypes()
+            .Where(tipo => tipo.Namespace == "Bitakora.ControlAsistencia.PrivateEvents.Programacion"
+                           && tipo.IsClass && !tipo.IsAbstract
+                           && typeof(IPrivateEvent).IsAssignableFrom(tipo));
+
+        EventosPrivadosYTopics.Select(par => par.Tipo).Should().BeEquivalentTo(tipos);
     }
 
     // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
@@ -341,6 +389,60 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ListarCuadrosSemanalesTurnosEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarAusenciasColaborador_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarAusenciasColaboradorEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveListarAusenciasDelEquipoEndpoint_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<
+            Bitakora.ControlAsistencia.Programacion.ListarAusenciasDelEquipo.FunctionEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Par 2 (MEF-ADR-0034 seccion 6) para AusenciaVigente: el write-side debe esperar mt_version
+    // bigint, igual que la tabla que materializa el worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAusenciaVigente()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AusenciaVigente));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del par 2 para AusenciaVigente: tabla, tenancy e IdMember del worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveAusenciaVigenteSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AusenciaVigente));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_ausenciavigente");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AusenciaVigente.Id));
     }
 
     // Issue #625 CA-4: mitad write-side del par 2 (MEF-ADR-0034 seccion 6) para CuadroSemanalTurnos

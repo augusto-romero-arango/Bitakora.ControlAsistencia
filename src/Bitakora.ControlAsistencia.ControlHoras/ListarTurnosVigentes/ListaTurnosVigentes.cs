@@ -1,5 +1,3 @@
-using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
-
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 
 /// <summary>
@@ -8,7 +6,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 /// de rango ya aplicado (CA-3) y el seam donde aterrizan paginacion y tope de resultados sin romper
 /// clientes existentes el dia que se agreguen (Rule of Three, MEF-ADR-0018).
 ///
-/// <c>Turnos</c> reutiliza <see cref="TurnoVigente"/> tal cual la materializa la proyeccion (#328),
+/// <c>Turnos</c> usa <see cref="TurnoVigenteRespuesta"/>: la vista materializada (#328) sin el turno
+/// cubierto por una ausencia (#756),
 /// ancla <c>Id</c> y <c>Bloques</c> incluidos -- decision de entrevista del issue #329 ("Notas
 /// tecnicas"): una sola proyeccion sirve grilla y calendario; el recorte resumido/detallado, si
 /// algun dia se necesita, aterriza en un DTO nuevo (Rule of Three), no en este.
@@ -17,4 +16,4 @@ public sealed record ListaTurnosVigentes(
     DateOnly DesdeAplicado,
     DateOnly HastaAplicado,
     bool RangoRecortado,
-    IReadOnlyList<TurnoVigente> Turnos);
+    IReadOnlyList<TurnoVigenteRespuesta> Turnos);

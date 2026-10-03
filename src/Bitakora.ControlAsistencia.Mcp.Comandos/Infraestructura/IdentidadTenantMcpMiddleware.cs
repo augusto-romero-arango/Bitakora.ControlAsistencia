@@ -22,8 +22,11 @@ public sealed partial class IdentidadTenantMcpMiddleware(
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
-        var identidad = await DerivarIdentidadAsync(
+        var (identidad, sesion) = await DerivarAsync(
             await LeerEncabezadoAutorizacionAsync(context), context.CancellationToken);
+
+        if (sesion is not null)
+            context.Items[SesionUsuario.ClaveItems] = sesion;
 
         // La mutacion del AsyncLocal va aqui y no dentro de un metodo async propio: el CLR restaura
         // el contexto de ejecucion al retornar de un metodo async, asi que una mutacion hecha
@@ -39,11 +42,15 @@ public sealed partial class IdentidadTenantMcpMiddleware(
     // un unit test de nivel 1 (MEF-ADR-0048 seccion 1). Sin Bearer no hay identidad que derivar y
     // retorna null: el propagador cae al tenant fijo de ConfiguracionIdentidadTenant.
     internal async Task<IdentidadTenant?> DerivarIdentidadAsync(
-        string? encabezadoAutorizacion, CancellationToken cancellationToken = default)
+        string? encabezadoAutorizacion, CancellationToken cancellationToken = default) =>
+        (await DerivarAsync(encabezadoAutorizacion, cancellationToken)).Identidad;
+
+    private async Task<(IdentidadTenant? Identidad, SesionUsuario? Sesion)> DerivarAsync(
+        string? encabezadoAutorizacion, CancellationToken cancellationToken)
     {
         if (encabezadoAutorizacion is null ||
             !encabezadoAutorizacion.StartsWith(EsquemaBearer, StringComparison.OrdinalIgnoreCase))
-            return null;
+            return (null, null);
 
         var token = encabezadoAutorizacion[EsquemaBearer.Length..];
         // Bearer presente pero no validable (firma invalida, expirado, discovery doc inalcanzable,
@@ -54,7 +61,7 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         var principal = await validador.ValidarAsync(token, cancellationToken)
                         ?? throw new InvalidOperationException(Mensajes.TokenNoValidado);
 
-        return derivador.Derivar(principal);
+        return (derivador.Derivar(principal), SesionUsuario.Desde(principal));
     }
 
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)

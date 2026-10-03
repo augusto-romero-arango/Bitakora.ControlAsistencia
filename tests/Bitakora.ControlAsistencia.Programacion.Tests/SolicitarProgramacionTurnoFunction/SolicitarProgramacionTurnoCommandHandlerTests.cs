@@ -14,7 +14,7 @@ using Cosmos.EventSourcing.Testing.Utilities;
 namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
 public class SolicitarProgramacionTurnoCommandHandlerTests
-    : CommandHandlerAsyncTest<SolicitarProgramacionTurno>
+    : CommandHandlerAsyncTest<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>
 {
     // --- Constantes de prueba ---
     private static readonly Guid TurnoId =
@@ -75,7 +75,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
     // --- Configuracion del handler ---
 
-    protected override ICommandHandlerAsync<SolicitarProgramacionTurno> Handler =>
+    protected override ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion> Handler =>
         new SolicitarProgramacionTurnoCommandHandler(EventStore, PrivateEventSender);
 
     // --- Factory methods ---
@@ -582,5 +582,95 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
+    }
+
+    // --- Issue #745: respetar las ausencias (CA-ADR-0036 decision 4) ---
+
+    private const string StreamAusencias = "ac:E001";
+    private static readonly Guid AusenciaId = Guid.Parse("019600a0-0000-7000-8000-000000000745");
+    private static readonly DateOnly Dia1 = new(2026, 10, 1);
+    private static readonly DateOnly Dia2 = new(2026, 10, 2);
+    private static readonly DateOnly Dia3 = new(2026, 10, 3);
+    private static readonly DateOnly Dia4 = new(2026, 10, 4);
+    private static readonly DateOnly Dia5 = new(2026, 10, 5);
+
+    private static AusenciaProgramada Ausencia(DateOnly inicio, DateOnly fin) =>
+        new(AusenciaId, ColaboradorProgramadoEsperado, inicio, fin, MotivoAusencia.Vacaciones);
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ProgramaTodasLasFechasYRespondeSinRespetadas_CuandoElColaboradorNoTieneAusencias()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado));
+        ThenIsPublishedPrivately(
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia1, DetalleEsperado),
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia2, DetalleEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
+        resultado.FechasRespetadas.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ProgramaSoloLasFechasLibresYInformaLasRespetadas_CuandoUnaAusenciaCubreParteDeLasFechas()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        Given(StreamAusencias, Ausencia(Dia2, Dia3));
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2, Dia3, Dia4, Dia5]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia4, Dia5], TurnoProgramadoEsperado));
+        ThenIsPublishedPrivately(
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia1, DetalleEsperado),
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia4, DetalleEsperado),
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia5, DetalleEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 3);
+        resultado.FechasRespetadas.Should().BeEquivalentTo(new[]
+        {
+            new FechaRespetada(Dia2, "Vacaciones"),
+            new FechaRespetada(Dia3, "Vacaciones"),
+        }, o => o.WithStrictOrdering());
+    }
+
+    // Sin And<>(): la solicitud nunca se crea en este camino (mismo criterio que turno retirado).
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoTodasLasFechasTienenAusencia()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        Given(StreamAusencias, Ausencia(Dia2, Dia3));
+
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia2, Dia3]));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TodasLasFechasConAusencia}*")
+            .WithMessage("*Vacaciones*");
+        Then(GuidAggregateId.ToString());
+        ThenIsPublishedPrivately();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_NoAfectaLasFechas_CuandoLaAusenciaEsDeOtroColaborador()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        Given("ac:E999", new AusenciaProgramada(
+            AusenciaId, new ColaboradorProgramado("CC-999", "E999", "Otra Persona"),
+            Dia1, Dia2, MotivoAusencia.Vacaciones));
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado));
+        ThenIsPublishedPrivately(
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia1, DetalleEsperado),
+            new ProgramacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Dia2, DetalleEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
+        resultado.FechasRespetadas.Should().BeEmpty();
     }
 }

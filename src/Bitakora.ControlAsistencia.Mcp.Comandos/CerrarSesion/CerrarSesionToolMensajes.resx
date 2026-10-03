@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="AbreElEnlace" xml:space="preserve">
+    <value>Abre este enlace en tu navegador para cerrar tu sesion de autenticacion.</value>
+  </data>
+  <data name="NotaCierre" xml:space="preserve">
+    <value>Al abrirlo termina tu sesion y se olvida la cuenta con la que entraste. El acceso del conector se corta en unos minutos, cuando vence el token actual. Al reconectar el conector podras elegir otra empresa.</value>
+  </data>
+  <data name="SinSesionQueCerrar" xml:space="preserve">
+    <value>No hay una sesion de usuario que cerrar: esta llamada no viene de una cuenta conectada.</value>
+  </data>
+</root>

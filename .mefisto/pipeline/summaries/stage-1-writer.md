@@ -1,11 +1,11 @@
 ## Implementado
-- CA-ADR-0032: nombres Cosmos 3.x, identidad de tres datos (tabla HTTP/Service Bus, obligatorios -> InvalidOperationException -> 500, #666), seccion 5 de orden de despliegue, control de cambios 2026-10-01 (#699).
-- CA-ADR-0027: nota de nomenclatura 3.x al inicio (texto historico intacto) y entrada de control de cambios.
-- CLAUDE.md: filas de indice de CA-ADR-0027 y CA-ADR-0032 con nombres nuevos.
+- `CI / build-and-test` clasifica todo el diff del PR mediante la API REST paginada, coteja `changed_files` y falla ante respuestas vacias, incompletas o invalidas. Evalua las dos rutas de renombrados. Solo omite pasos pesados para `docs/**`, `README.md` y `CLAUDE.md` raiz; emite un Job Summary explicito.
+- El camino no documental conserva restore, build, tests y cobertura, incluidos los pasos con `always()`. No se modificaron los otros workflows ni los triggers/permisos de CI.
+- `scripts/test_ci_pr_impact.py` prueba el clasificador real y el wiring; `scripts/verify-ci-policy.sh` ejecuta las pruebas y valida YAML.
 
 ## Verificacion
-Solo documentacion; sin build. Verificadas las aserciones de reemplazo.
+- `bash scripts/verify-ci-policy.sh`: 9 pruebas exitosas y sintaxis YAML valida con Ruby Psych. Incluye paginas posteriores, errores de API, diff incompleto, renombrados, borrados y rutas mixtas.
+- `git diff --check`: sin errores.
 
 ## Pendiente/bloqueos
-- Observacion: MEF-ADR-0028 puede seguir citando `ITenantResolver`; lo resuelve Mefisto al adoptar Cosmos 3.x.
-- La memoria `proxytenantresolver-roto-en-isolated-worker` usa el nombre viejo: tarea humana.
+- No se ejecuto un PR real en GitHub Actions desde este stage; pendiente evidencia del run de CI tras publicar el PR. No se ejecuto .NET (no se cambio C#).

@@ -99,4 +99,20 @@ public class AliasEventosControlHorasTests
 
         AliasDe<TurnoDiarioCancelado>(options).Should().Be("turno_diario_cancelado");
     }
+
+    [Fact]
+    public void AusenciaDiariaAsignada_TieneAliasAusenciaDiariaAsignada()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<AusenciaDiariaAsignada>(options).Should().Be("ausencia_diaria_asignada");
+    }
+
+    [Fact]
+    public void CancelacionAusenciaDiariaRegistrada_TieneAliasCancelacionAusenciaDiariaRegistrada()
+    {
+        var options = CrearOpcionesConEventosDeControlHorasRegistrados();
+
+        AliasDe<CancelacionAusenciaDiariaRegistrada>(options).Should().Be("cancelacion_ausencia_diaria_registrada");
+    }
 }

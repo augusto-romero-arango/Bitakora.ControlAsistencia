@@ -30,7 +30,7 @@ public class FunctionEndpointTests
     public async Task SolicitarProgramacionTurno_Retorna201SinLocation_CuandoComandoEsValido()
     {
         var validator = new FakeSolicitudRequestValidator(ComandoValido());
-        var router = new FakeSolicitudCommandRouter();
+        var router = new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([]));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
@@ -39,6 +39,50 @@ public class FunctionEndpointTests
             .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
         result.Should().BeAssignableTo<CreatedResult>()
             .Which.Location.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna201ConLasFechasRespetadasEnElBody_CuandoHuboAusencias()
+    {
+        var esperado = new ResultadoSolicitudProgramacion(
+            [new FechaRespetada(new DateOnly(2026, 10, 13), "Vacaciones")]);
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(resultado: esperado));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        var conBody = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        conBody.StatusCode.Should().Be(StatusCodes.Status201Created);
+        conBody.Value.Should().BeEquivalentTo(esperado);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna201ConListaVacia_CuandoNoHuboAusencias()
+    {
+        var esperado = new ResultadoSolicitudProgramacion([]);
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(resultado: esperado));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        var conBody = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        conBody.StatusCode.Should().Be(StatusCodes.Status201Created);
+        conBody.Value.Should().BeEquivalentTo(esperado);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna409_CuandoTodasLasFechasTienenAusencia()
+    {
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(new ReglaDeNegocioDeclinadaException(
+                SolicitarProgramacionTurnoCommandHandler.Mensajes.TodasLasFechasConAusencia)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>();
     }
 
     // CA-5: Falla de validacion retorna 400 Bad Request
@@ -141,9 +185,12 @@ internal class FakeSolicitudCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;
 
-    public FakeSolicitudCommandRouter(Exception? lanzar = null)
+    private readonly object? _resultado;
+
+    public FakeSolicitudCommandRouter(Exception? lanzar = null, object? resultado = null)
     {
         _excepcion = lanzar;
+        _resultado = resultado;
     }
 
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
@@ -157,5 +204,9 @@ internal class FakeSolicitudCommandRouter : ICommandRouter
     public Task<TResult> InvokeAsync<TCommand, TResult>(
         TCommand command, CancellationToken ct = default)
         where TCommand : class
-        => throw new NotImplementedException();
+    {
+        if (_excepcion is not null)
+            throw _excepcion;
+        return Task.FromResult((TResult)(_resultado ?? throw new NotImplementedException()));
+    }
 }

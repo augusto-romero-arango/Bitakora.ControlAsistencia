@@ -26,7 +26,8 @@ public sealed record DepuracionDelDia(
     IReadOnlyList<FranjaDepurada> Franjas,
     IReadOnlyList<MarcacionDelDia> Marcaciones,
     IReadOnlyDictionary<string, decimal> HorasPorConcepto,
-    IReadOnlyList<string> Trazabilidad);
+    IReadOnlyList<string> Trazabilidad,
+    string? MotivoAusencia = null);
 
 /// <summary>
 /// Espejo por rol del homonimo de ControlHoras.DomainEvents (MEF-ADR-0039 decision 6). Ningun campo

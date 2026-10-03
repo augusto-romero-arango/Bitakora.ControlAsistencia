@@ -948,4 +948,155 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    private sealed record FechaRespetadaMinima(string Fecha, string Motivo);
+    private sealed record RespuestaSolicitudMinima(IReadOnlyList<FechaRespetadaMinima> FechasRespetadas);
+    private sealed record SolicitudFechasMinima(IReadOnlyList<DateOnly> Fechas);
+
+    private static readonly JsonSerializerOptions OpcionesRespuesta = new(JsonSerializerDefaults.Web);
+
+    private static object ColaboradorPayload(string codigoColaborador) => new
+    {
+        identificacion = "CC-745745745",
+        codigoColaborador,
+        nombreCompleto = "[TEST] Smoke Ausencias"
+    };
+
+    private static object AusenciaPayload(string fechaInicio, string fechaFin) => new
+    {
+        id = Guid.CreateVersion7(),
+        identificacion = "CC-745745745",
+        nombreCompleto = "[TEST] Smoke Ausencias",
+        fechaInicio,
+        fechaFin,
+        motivo = "Vacaciones"
+    };
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_Retorna201ConListaVaciaDeRespetadas_CuandoElColaboradorNoTieneAusencias()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurno = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke Sin Ausencias"), ct);
+        crearTurno.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var payload = new
+        {
+            id = Guid.CreateVersion7(),
+            turnoId,
+            colaborador = ColaboradorPayload(Guid.CreateVersion7().ToString()),
+            fechas = new[] { "2026-12-01", "2026-12-02" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var cuerpo = await response.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
+        cuerpo!.FechasRespetadas.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_Retorna201ConLaFechaRespetadaYPublicaSoloLasLibres_CuandoUnaFechaTieneAusencia()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurno = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke Respeta Ausencia"), ct);
+        crearTurno.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var codigo = Guid.CreateVersion7().ToString();
+        var ausencia = await _client.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigo}/ausencias",
+            AusenciaPayload("2026-11-10", "2026-11-10"), ct);
+        ausencia.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var solicitudId = Guid.CreateVersion7();
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            colaborador = ColaboradorPayload(codigo),
+            fechas = new[] { "2026-11-09", "2026-11-10", "2026-11-11" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var cuerpo = await response.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
+        cuerpo!.FechasRespetadas.Should().ContainSingle()
+            .Which.Should().Be(new FechaRespetadaMinima("2026-11-10", "Vacaciones"));
+
+        var evento1 = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+        var evento2 = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
+
+        new[] { evento1.Fecha, evento2.Fecha }.Should()
+            .BeEquivalentTo(new[] { new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 11) });
+
+        var streamId = solicitudId.ToString();
+        var json = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
+            campoJson: "Id", valorJson: streamId, Timeout);
+        json.Deserialize<SolicitudFechasMinima>(EventoPersistido.OpcionesLectura)!.Fechas.Should()
+            .Equal(new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 11));
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+                TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, TimeSpan.FromSeconds(3)));
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_Retorna409SinPersistirNiPublicar_CuandoTodasLasFechasTienenAusencia()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        var turnoId = Guid.CreateVersion7();
+        var crearTurno = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, "[TEST] Turno Smoke Todas Ausentes"), ct);
+        crearTurno.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var codigo = Guid.CreateVersion7().ToString();
+        var ausencia = await _client.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigo}/ausencias",
+            AusenciaPayload("2026-11-16", "2026-11-17"), ct);
+        ausencia.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var solicitudId = Guid.CreateVersion7();
+        var payload = new
+        {
+            id = solicitudId,
+            turnoId,
+            colaborador = ColaboradorPayload(codigo),
+            fechas = new[] { "2026-11-16", "2026-11-17" }
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/solicitudes", payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var mensaje = await response.Content.ReadAsStringAsync(ct);
+        mensaje.Should().Contain("2026-11-16").And.Contain("Vacaciones");
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+                TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, TimeSpan.FromSeconds(3)));
+        (await postgres.ContarEventosAsync(
+            SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
+    }
 }

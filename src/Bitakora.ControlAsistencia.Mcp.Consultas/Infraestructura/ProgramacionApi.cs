@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
 /// <summary>
@@ -7,6 +9,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 /// </summary>
 public sealed class ProgramacionApi(HttpClient http)
 {
+    private static readonly HttpMethod Query = new("QUERY");
+
     public Task<HttpResponseMessage> ListarTurnos(CancellationToken ct) =>
         http.GetAsync("api/programacion/turnos", ct);
 
@@ -18,4 +22,23 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<HttpResponseMessage> ListarAusenciasDelEquipo(
+        DateOnly desde,
+        DateOnly hasta,
+        IReadOnlyList<string>? codigosColaborador,
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/programacion/ausencias")
+        {
+            Content = JsonContent.Create(new
+            {
+                desde,
+                hasta,
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }

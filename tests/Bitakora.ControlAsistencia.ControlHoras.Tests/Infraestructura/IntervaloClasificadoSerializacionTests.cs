@@ -2,7 +2,6 @@
 // CA-7: round-trip usando ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten().
 using System.Text.Json;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
