@@ -1,13 +1,11 @@
 ## Implementado
-- En los 6 workflows de deploy (colaboradores, control-horas, programacion, sedes, mcp-comandos, mcp-consultas):
-  - `build-and-test` y `deploy`: `if:` ahora exige `debe_desplegar == 'true'` Y (`event_name != 'workflow_run'` O (`workflow_run.event == 'push'` Y `head_branch == 'main'` Y `head_repository.full_name == github.repository`)). Se repite en cada job (no solo salida de `determinar-alcance`) para que CodeQL vea la guarda junto al checkout.
-  - Comentario breve junto a la condicion (latente, por que va en el job con checkout).
-  - `determinar-alcance`: `env` suma `RUN_EVENTO` y `RUN_REPO`; la guarda suma `event == push` y `head_repository == $REPO`. Sin `${{ }}` dentro del `run`.
-- push/workflow_dispatch: `event_name != 'workflow_run'` es verdadero, sin cambio. `smoke-tests` intacto.
+- `CI / build-and-test` clasifica todo el diff del PR mediante la API REST paginada, coteja `changed_files` y falla ante respuestas vacias, incompletas o invalidas. Evalua las dos rutas de renombrados. Solo omite pasos pesados para `docs/**`, `README.md` y `CLAUDE.md` raiz; emite un Job Summary explicito.
+- El camino no documental conserva restore, build, tests y cobertura, incluidos los pasos con `always()`. No se modificaron los otros workflows ni los triggers/permisos de CI.
+- `scripts/test_ci_pr_impact.py` prueba el clasificador real y el wiring; `scripts/verify-ci-policy.sh` ejecuta las pruebas y valida YAML.
 
 ## Verificacion
-- actionlint: sin errores nuevos. Unico reporte: `queue: max` en `concurrency` de deploy-mcp-comandos.yml (preexistente, fuera de alcance; actionlint no conoce la clave).
-- Los 6 YAML parsean.
+- `bash scripts/verify-ci-policy.sh`: 9 pruebas exitosas y sintaxis YAML valida con Ruby Psych. Incluye paginas posteriores, errores de API, diff incompleto, renombrados, borrados y rutas mixtas.
+- `git diff --check`: sin errores.
 
 ## Pendiente/bloqueos
-- Verificacion post-merge (alertas CodeQL #22-#33, run por workflow_run) queda fuera del pipeline, segun el issue.
+- No se ejecuto un PR real en GitHub Actions desde este stage; pendiente evidencia del run de CI tras publicar el PR. No se ejecuto .NET (no se cambio C#).
