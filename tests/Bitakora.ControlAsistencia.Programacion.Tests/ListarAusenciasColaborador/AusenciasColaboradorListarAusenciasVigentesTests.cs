@@ -31,7 +31,7 @@ public class AusenciasColaboradorListarAusenciasVigentesTests
         var vista = ac.ListarAusenciasVigentes(Oct(1), Oct(31));
 
         vista.Should().Equal(new AusenciaDelColaborador(
-            id, MotivoAusencia.Vacaciones, Oct(13), Oct(26), [new TramoVigente(Oct(13), Oct(26))]));
+            id, "Vacaciones", Oct(13), Oct(26), [new TramoVigente(Oct(13), Oct(26))]));
     }
 
     [Fact]

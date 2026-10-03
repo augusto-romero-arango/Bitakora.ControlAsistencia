@@ -19,7 +19,7 @@ public class ListarAusenciasColaboradorSmokeTests(ApiFixture api)
 
     private sealed record AusenciaSmoke(
         Guid Id,
-        JsonElement Motivo,
+        string Motivo,
         DateOnly FechaInicio,
         DateOnly FechaFin,
         IReadOnlyList<TramoSmoke> TramosVigentes);
@@ -74,7 +74,7 @@ public class ListarAusenciasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var ausencias = await response.Content.ReadFromJsonAsync<List<AusenciaSmoke>>(JsonOptions, ct);
         var ausencia = ausencias.Should().ContainSingle(a => a.Id == ausenciaId).Subject;
-        ausencia.Motivo.GetRawText().Should().Contain("Vacaciones");
+        ausencia.Motivo.Should().Be("Vacaciones");
         ausencia.FechaInicio.Should().Be(new DateOnly(2027, 5, 13));
         ausencia.FechaFin.Should().Be(new DateOnly(2027, 5, 26));
         ausencia.TramosVigentes.Should().Equal(new TramoSmoke(new DateOnly(2027, 5, 13), new DateOnly(2027, 5, 26)));

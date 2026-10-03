@@ -54,7 +54,7 @@ public partial class AusenciasColaborador : AggregateRoot
             .Where(a => a.FechaInicio <= hasta && desde <= a.FechaFin)
             .OrderBy(a => a.FechaInicio)
             .Select(a => new AusenciaDelColaborador(
-                a.Id, a.Motivo, a.FechaInicio, a.FechaFin, [new TramoVigente(a.FechaInicio, a.FechaFin)]))];
+                a.Id, a.Motivo.Nombre, a.FechaInicio, a.FechaFin, [new TramoVigente(a.FechaInicio, a.FechaFin)]))];
 
     internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
     {
