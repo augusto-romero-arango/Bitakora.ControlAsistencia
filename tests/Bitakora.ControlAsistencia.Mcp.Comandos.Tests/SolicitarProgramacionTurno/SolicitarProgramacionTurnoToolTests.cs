@@ -515,4 +515,21 @@ public class SolicitarProgramacionTurnoToolTests
         fallido["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
         fallido["motivo"]!.GetValue<string>().Should().Be(motivoDominio);
     }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_EscribeConFechaCompletaLosTramosFueraDelMesDeInicio_CuandoLaVentanaCruzaDeMes()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: CuerpoConRespetadas(
+            ("2026-09-29", "Vacaciones"), ("2026-09-30", "Vacaciones"),
+            ("2026-10-01", "Vacaciones"), ("2026-10-03", "Vacaciones")));
+
+        var resultado = await Ejecutar(
+            fakes.Tool, desde: "2026-09-25", hasta: "2026-10-05", identificaciones: "CC-1111",
+            ct: TestContext.Current.CancellationToken);
+
+        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!;
+        programado["dias"]!.GetValue<int>().Should().Be(7, "11 dias de ventana menos 4 respetados");
+        programado["respetados"]!.AsArray().Single()!["tramos"]!.GetValue<string>()
+            .Should().Be("29 a 2026-10-01, 2026-10-03");
+    }
 }

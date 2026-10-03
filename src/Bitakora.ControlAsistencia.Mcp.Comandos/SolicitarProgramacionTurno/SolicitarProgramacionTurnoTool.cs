@@ -40,8 +40,8 @@ public partial class SolicitarProgramacionTurnoTool(
             + "numeros sin tipo. A cada colaborador le programa solo los dias de la ventana que su "
             + "vinculacion cubre; los que no cubren ninguno o no se encuentran se omiten sin "
             + "detalle. Respeta las ausencias de cada colaborador: la respuesta dice cuales dias se "
-            + "respetaron y por que. Responde quienes quedaron programados y con que fechas. La programacion "
-            + "aparece en consultar_programacion unos segundos despues.")]
+            + "respetaron y por que. Responde quienes quedaron programados y con que fechas. La "
+            + "programacion aparece en consultar_programacion unos segundos despues.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -230,12 +230,18 @@ public partial class SolicitarProgramacionTurnoTool(
     }
 
     // Los extremos van como dia del mes cuando caen en el mes de referencia (primer dia
-    // programado del colaborador) y como yyyy-MM-dd cuando salen de el.
+    // programado del colaborador) y como yyyy-MM-dd cuando salen de el; en ese caso el tramo se
+    // une con " a " porque "30-2026-10-01" no se lee como rango.
     private static string ComprimirEnTramos(IEnumerable<DateOnly> fechas, DateOnly referencia)
     {
-        string Formato(DateOnly f) => f.Year == referencia.Year && f.Month == referencia.Month
+        bool EnMesDeReferencia(DateOnly f) => f.Year == referencia.Year && f.Month == referencia.Month;
+        string Formato(DateOnly f) => EnMesDeReferencia(f)
             ? f.Day.ToString(CultureInfo.InvariantCulture)
             : f.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        string Rango(DateOnly primero, DateOnly ultimo) =>
+            EnMesDeReferencia(primero) && EnMesDeReferencia(ultimo)
+                ? $"{Formato(primero)}-{Formato(ultimo)}"
+                : $"{Formato(primero)} a {Formato(ultimo)}";
 
         var ordenadas = fechas.Distinct().OrderBy(f => f).ToList();
         var tramos = new List<string>();
@@ -247,7 +253,7 @@ public partial class SolicitarProgramacionTurnoTool(
 
             var primero = ordenadas[inicio];
             var ultimo = ordenadas[i - 1];
-            tramos.Add(primero == ultimo ? Formato(primero) : $"{Formato(primero)}-{Formato(ultimo)}");
+            tramos.Add(primero == ultimo ? Formato(primero) : Rango(primero, ultimo));
             inicio = i;
         }
 
@@ -261,8 +267,8 @@ internal sealed record FechaRespetadaPorAusencia(DateOnly Fecha, string Motivo);
 
 /// <summary>
 /// Eco compacto de solicitar_programacion_turno hacia el asistente: cada solicitud del dominio
-/// responde 202 sin body, asi que el hecho programado se reconstruye con lo que entro a la tool y
-/// lo que devolvio el directorio.
+/// responde 201 con solo las fechas respetadas por ausencia, asi que el hecho programado se
+/// reconstruye con lo que entro a la tool, lo que devolvio el directorio y esas fechas.
 /// </summary>
 public sealed record ProgramacionSolicitadaResumen(
     string Resultado,
