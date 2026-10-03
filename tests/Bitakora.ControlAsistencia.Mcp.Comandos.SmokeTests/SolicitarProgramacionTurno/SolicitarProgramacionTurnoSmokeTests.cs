@@ -31,9 +31,6 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
             }, TimeoutPolling);
     }
 
-    // Recorre la cadena completa: host MCP -> worker -> 3 HttpClients tipados -> Function Apps de
-    // Sedes/Colaboradores/Programacion -> event store. El assert vive DENTRO del polling por el
-    // lifecycle Async del directorio -- ver Fixtures/Polling.cs.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_Programa35Dias_CuandoLaVentanaCubreSuVigencia()
@@ -98,8 +95,13 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
         using var documentoDisponible = documento;
         var resultado = documento.RootElement;
 
+        resultado.GetProperty("resultado").GetString().Should().Be("Programacion solicitada");
+        resultado.GetProperty("turno").GetString().Should().Be(nombreTurno);
+        resultado.GetProperty("sede").GetProperty("codigo").GetString().Should().Be(codigoSede);
+        resultado.GetProperty("programados").GetArrayLength().Should().Be(1);
         var programado = resultado.GetProperty("programados").EnumerateArray()
             .Single(p => p.GetProperty("codigoColaborador").GetString() == codigoColaborador);
+        programado.GetProperty("identificacion").GetString().Should().Be($"CC-{numeroIdentificacion}");
         programado.GetProperty("dias").GetInt32().Should().Be(35);
         programado.GetProperty("desde").GetString().Should().Be("2026-10-07");
         programado.GetProperty("hasta").GetString().Should().Be("2026-11-10");
@@ -108,7 +110,6 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
         resultado.TryGetProperty("fallidos", out _).Should().BeFalse("no debe haber fallidos");
     }
 
-    // CA-4: la ausencia registrada dentro de la ventana se respeta y el eco la informa.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_InformaLosDiasRespetados_CuandoElColaboradorTieneUnaAusenciaEnLaVentana()
