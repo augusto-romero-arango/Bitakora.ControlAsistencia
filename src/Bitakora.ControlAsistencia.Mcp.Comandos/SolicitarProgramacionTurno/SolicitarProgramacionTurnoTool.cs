@@ -39,7 +39,8 @@ public partial class SolicitarProgramacionTurnoTool(
             + "devuelven buscar_colaboradores o listar_colaboradores: no las inventes ni pases "
             + "numeros sin tipo. A cada colaborador le programa solo los dias de la ventana que su "
             + "vinculacion cubre; los que no cubren ninguno o no se encuentran se omiten sin "
-            + "detalle. Responde quienes quedaron programados y con que fechas. La programacion "
+            + "detalle. Respeta las ausencias de cada colaborador: la respuesta dice cuales dias se "
+            + "respetaron y por que. Responde quienes quedaron programados y con que fechas. La programacion "
             + "aparece en consultar_programacion unos segundos despues.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
@@ -172,13 +173,25 @@ public partial class SolicitarProgramacionTurnoTool(
 
                 if (respuestaSolicitud.IsSuccessStatusCode)
                 {
+                    var respetadas = await LeerRespetadasAsync(respuestaSolicitud, tokenInterno);
+                    var fechasRespetadas = respetadas.Select(r => r.Fecha).ToHashSet();
+                    var diasProgramados = candidato.Dias.Count(d => !fechasRespetadas.Contains(d));
+                    var respetados = respetadas
+                        .Where(r => candidato.Dias.Contains(r.Fecha))
+                        .GroupBy(r => r.Motivo)
+                        .OrderBy(g => g.Key, StringComparer.Ordinal)
+                        .Select(g => new DiasRespetadosResumen(
+                            g.Key, ComprimirEnTramos(g.Select(r => r.Fecha), candidato.Dias[0])))
+                        .ToList();
+
                     programados.Add(new ColaboradorProgramadoResumen(
                         candidato.Entrada.Identificacion,
                         candidato.Entrada.NombreCompleto,
                         candidato.Entrada.CodigoColaborador,
                         candidato.Dias[0],
                         candidato.Dias[^1],
-                        candidato.Dias.Count));
+                        diasProgramados,
+                        respetados.Count == 0 ? null : respetados));
                 }
                 else
                 {
@@ -197,7 +210,54 @@ public partial class SolicitarProgramacionTurnoTool(
             fallidos.IsEmpty ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)],
             Mensajes.NotaVisibilidadEventual));
     }
+
+    private static async Task<IReadOnlyList<FechaRespetadaPorAusencia>> LeerRespetadasAsync(
+        HttpResponseMessage respuesta, CancellationToken ct)
+    {
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(cuerpo))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<RespuestaSolicitudCreada>(cuerpo, OpcionesLectura)
+                ?.FechasRespetadas ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    // Los extremos van como dia del mes cuando caen en el mes de referencia (primer dia
+    // programado del colaborador) y como yyyy-MM-dd cuando salen de el.
+    private static string ComprimirEnTramos(IEnumerable<DateOnly> fechas, DateOnly referencia)
+    {
+        string Formato(DateOnly f) => f.Year == referencia.Year && f.Month == referencia.Month
+            ? f.Day.ToString(CultureInfo.InvariantCulture)
+            : f.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var ordenadas = fechas.Distinct().OrderBy(f => f).ToList();
+        var tramos = new List<string>();
+        var inicio = 0;
+        for (var i = 1; i <= ordenadas.Count; i++)
+        {
+            if (i < ordenadas.Count && ordenadas[i].DayNumber == ordenadas[i - 1].DayNumber + 1)
+                continue;
+
+            var primero = ordenadas[inicio];
+            var ultimo = ordenadas[i - 1];
+            tramos.Add(primero == ultimo ? Formato(primero) : $"{Formato(primero)}-{Formato(ultimo)}");
+            inicio = i;
+        }
+
+        return string.Join(", ", tramos);
+    }
 }
+
+internal sealed record RespuestaSolicitudCreada(IReadOnlyList<FechaRespetadaPorAusencia>? FechasRespetadas);
+
+internal sealed record FechaRespetadaPorAusencia(DateOnly Fecha, string Motivo);
 
 /// <summary>
 /// Eco compacto de solicitar_programacion_turno hacia el asistente: cada solicitud del dominio
@@ -217,6 +277,9 @@ public sealed record ProgramacionSolicitadaResumen(
 public sealed record SedeResumen(string Codigo, string Nombre);
 
 public sealed record ColaboradorProgramadoResumen(
-    string Identificacion, string Nombre, string CodigoColaborador, DateOnly Desde, DateOnly Hasta, int Dias);
+    string Identificacion, string Nombre, string CodigoColaborador, DateOnly Desde, DateOnly Hasta, int Dias,
+    IReadOnlyList<DiasRespetadosResumen>? Respetados = null);
+
+public sealed record DiasRespetadosResumen(string Motivo, string Tramos);
 
 public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo);
