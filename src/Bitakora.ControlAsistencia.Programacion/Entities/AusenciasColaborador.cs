@@ -48,5 +48,8 @@ public partial class AusenciasColaborador : AggregateRoot
         return new ResultadoProgramarAusencia.Programada();
     }
 
+    internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas) =>
+        throw new NotImplementedException();
+
     internal sealed record AusenciaVigente(Guid Id, DateOnly FechaInicio, DateOnly FechaFin, MotivoAusencia Motivo);
 }

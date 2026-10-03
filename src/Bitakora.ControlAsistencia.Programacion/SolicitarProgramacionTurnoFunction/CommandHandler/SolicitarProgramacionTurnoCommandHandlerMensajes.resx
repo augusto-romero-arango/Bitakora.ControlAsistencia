@@ -32,4 +32,7 @@
   <data name="TurnoIncompleto" xml:space="preserve">
     <value>El turno no tiene franjas ordinarias y aun no es programable</value>
   </data>
+  <data name="TodasLasFechasConAusencia" xml:space="preserve">
+    <value>Todas las fechas solicitadas tienen una ausencia vigente del colaborador</value>
+  </data>
 </root>

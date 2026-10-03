@@ -9,7 +9,7 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
 public partial class SolicitarProgramacionTurnoCommandHandler
-    : ICommandHandlerAsync<SolicitarProgramacionTurno>
+    : ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>
 {
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateEventSender;
@@ -22,7 +22,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         _privateEventSender = privateEventSender;
     }
 
-    public async Task HandleAsync(SolicitarProgramacionTurno command, CancellationToken ct = default)
+    public async Task<ResultadoSolicitudProgramacion> HandleAsync(SolicitarProgramacionTurno command, CancellationToken ct = default)
     {
         var solicitudExiste = await _eventStore.ExistsAsync<SolicitudProgramacionAggregateRoot>(
             command.Id, ct);
@@ -73,6 +73,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             .ToArray();
 
         await _privateEventSender.PublishAsync(eventosPrivados);
+        return new ResultadoSolicitudProgramacion([]);
     }
 
     // Issue #436 (fase B): la terna llega ya resuelta desde el body y fluye TAL CUAL a los dos
