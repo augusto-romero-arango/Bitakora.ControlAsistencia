@@ -519,9 +519,3 @@ tfplan
 
 # Smoke Tests - configuracion local
 **/appsettings.local.json
-
-# Slidev (presentaciones)
-docs/presentaciones/**/node_modules/
-docs/presentaciones/**/dist/
-docs/presentaciones/**/.slidev/
-docs/presentaciones/**/*.pdf
