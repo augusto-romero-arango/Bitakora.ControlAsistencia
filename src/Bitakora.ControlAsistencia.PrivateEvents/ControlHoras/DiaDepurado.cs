@@ -24,7 +24,8 @@ public record DiaDepurado(
     string? NombreTurno,
     IReadOnlyList<FranjaDepurada> Franjas,
     IReadOnlyList<MarcacionDelDia> Marcaciones,
-    HorasDiscriminadas HorasDiscriminadas) : IPrivateEvent
+    HorasDiscriminadas HorasDiscriminadas,
+    string? MotivoAusencia = null) : IPrivateEvent
 {
     // El record por defecto compara Franjas/Marcaciones por referencia; estos overrides las comparan
     // por valor. Todo campo nuevo del record debe sumarse a ambos a mano (MEF-ADR-0012, nota sobre
