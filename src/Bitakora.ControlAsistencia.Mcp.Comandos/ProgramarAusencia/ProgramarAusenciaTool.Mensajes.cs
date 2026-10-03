@@ -33,6 +33,5 @@ public partial class ProgramarAusenciaTool
 
         public static string ResultadoAusenciaRegistrada =>
             ResourceManager.GetString(nameof(ResultadoAusenciaRegistrada))!;
-
     }
 }

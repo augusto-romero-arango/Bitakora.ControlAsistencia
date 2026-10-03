@@ -76,14 +76,12 @@ public partial class CancelarAusenciaTool(ProgramacionApi programacion, Colabora
         var ausencias = await respuestaAusencias.Content
             .ReadFromJsonAsync<List<AusenciaListada>>(OpcionesLectura, ct) ?? [];
 
-        var esCompleta = completa == true;
         var porCancelar = ausencias
-            .Select(a => (
-                Ausencia: a,
-                EnPeriodo: DiasDe(a.TramosVigentes, fechaDesde, fechaHasta),
-                Todos: DiasDe(a.TramosVigentes, DateOnly.MinValue, DateOnly.MaxValue)))
-            .Where(x => x.EnPeriodo.Count > 0)
-            .Select(x => (x.Ausencia, Fechas: esCompleta ? x.Todos : x.EnPeriodo))
+            .Select(a => (Ausencia: a, Fechas: DiasDe(a.TramosVigentes, fechaDesde, fechaHasta)))
+            .Where(x => x.Fechas.Count > 0)
+            .Select(x => completa == true
+                ? x with { Fechas = DiasDe(x.Ausencia.TramosVigentes, DateOnly.MinValue, DateOnly.MaxValue) }
+                : x)
             .ToList();
 
         if (porCancelar.Count == 0)

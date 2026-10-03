@@ -30,6 +30,5 @@ public partial class CancelarAusenciaTool
 
         public static string ResultadoAusenciasCanceladas =>
             ResourceManager.GetString(nameof(ResultadoAusenciasCanceladas))!;
-
     }
 }

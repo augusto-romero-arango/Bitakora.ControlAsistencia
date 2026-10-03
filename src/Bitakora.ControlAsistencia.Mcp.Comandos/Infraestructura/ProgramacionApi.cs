@@ -243,7 +243,6 @@ public sealed record SedeProgramada(string Id, string Nombre, string? CentroDeCo
 /// </summary>
 public sealed record CuadroSemanalResumen(string Id, string Nombre, int Semanas, bool Completa);
 
-
 /// <summary>Payload propio de programar_ausencia hacia POST programacion/colaboradores/{codigo}/ausencias.</summary>
 public sealed record AusenciaAProgramar(
     Guid Id,
