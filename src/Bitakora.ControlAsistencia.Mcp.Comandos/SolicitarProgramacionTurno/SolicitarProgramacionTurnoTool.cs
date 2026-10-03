@@ -31,7 +31,7 @@ public partial class SolicitarProgramacionTurnoTool(
         [McpToolTrigger(
             NombreTool,
             "Programa un turno a una lista de colaboradores en una sede, para todos los dias de "
-            + "una ventana de trabajo de maximo 31 dias. Recibe la ventana (desde, hasta), el "
+            + "una ventana de trabajo de maximo 35 dias. Recibe la ventana (desde, hasta), el "
             + "nombre exacto del turno del catalogo (miralo con listar_turnos), el codigo de la "
             + "sede donde se registrara la programacion -- sede de programacion, distinta de la "
             + "sede de trabajo de cada colaborador; pidesela al usuario, nunca la asumas -- y las "
@@ -47,13 +47,13 @@ public partial class SolicitarProgramacionTurnoTool(
         [McpToolProperty(
             "desde",
             "Primer dia de la ventana de trabajo, formato yyyy-MM-dd. La ventana no puede pasar "
-            + "de 31 dias.",
+            + "de 35 dias.",
             isRequired: true)]
         string desde,
         [McpToolProperty(
             "hasta",
             "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd. La ventana no puede pasar "
-            + "de 31 dias.",
+            + "de 35 dias.",
             isRequired: true)]
         string hasta,
         [McpToolProperty(
@@ -103,8 +103,7 @@ public partial class SolicitarProgramacionTurnoTool(
             hasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaHasta))
             return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
 
-        // La ventana formatea su propio mensaje con el conteo de dias (no publico en el VO: su
-        // Crear solo asegura el invariante, MEF-ADR-0012) antes de delegarle la construccion.
+        // El mensaje de la tool incluye el conteo; el VO solo valida su invariante (MEF-ADR-0012).
         if (fechaDesde > fechaHasta)
             return Mensajes.VentanaInvertida;
 

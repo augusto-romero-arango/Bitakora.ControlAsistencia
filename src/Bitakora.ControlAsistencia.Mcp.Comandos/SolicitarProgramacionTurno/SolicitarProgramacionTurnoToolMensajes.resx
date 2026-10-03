@@ -30,7 +30,7 @@
     <value>La fecha 'desde' no puede ser posterior a 'hasta'.</value>
   </data>
   <data name="VentanaExcedeMaximo" xml:space="preserve">
-    <value>La ventana no puede superar 31 dias; se recibieron {0}.</value>
+    <value>La ventana no puede superar 35 dias; se recibieron {0}.</value>
   </data>
   <data name="DemasiadasIdentificaciones" xml:space="preserve">
     <value>'identificaciones' admite maximo {0} valores.</value>

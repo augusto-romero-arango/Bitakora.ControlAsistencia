@@ -14,11 +14,40 @@ public class VentanaDeProgramacionTests
     }
 
     [Fact]
-    public void Crear_Falla_CuandoTiene32Dias()
+    public void Crear_ConstruyeLaVentana_CuandoTiene32Dias()
     {
-        var act = () => VentanaDeProgramacion.Crear(new DateOnly(2026, 9, 1), new DateOnly(2026, 10, 2));
+        var ventana = VentanaDeProgramacion.Crear(new DateOnly(2026, 10, 7), new DateOnly(2026, 11, 7));
 
-        act.Should().Throw<ArgumentException>()
+        ventana.ToString().Should().Be("2026-10-07 a 2026-11-07");
+        ventana.DiasCubiertosPor(new DateOnly(2025, 1, 1), null).Should().HaveCount(32);
+    }
+
+    [Fact]
+    public void Crear_ConstruyeLaVentana_CuandoTiene35DiasSinAlineacionSemanal()
+    {
+        var ventana = VentanaDeProgramacion.Crear(new DateOnly(2026, 10, 7), new DateOnly(2026, 11, 10));
+
+        ventana.ToString().Should().Be("2026-10-07 a 2026-11-10");
+        ventana.DiasCubiertosPor(new DateOnly(2025, 1, 1), null).Should()
+            .Equal(Rango(new DateOnly(2026, 10, 7), new DateOnly(2026, 11, 10)));
+    }
+
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoTiene36Dias()
+    {
+        var act = () => VentanaDeProgramacion.Crear(new DateOnly(2026, 10, 7), new DateOnly(2026, 11, 11));
+
+        act.Should().ThrowExactly<ArgumentException>()
+            .WithMessage($"*{VentanaDeProgramacion.Mensajes.VentanaExcedeMaximo}*");
+        VentanaDeProgramacion.Mensajes.VentanaExcedeMaximo.Should().Contain("35 dias");
+    }
+
+    [Fact]
+    public void Crear_LanzaArgumentException_CuandoLaVentanaEsMasLargaQue36Dias()
+    {
+        var act = () => VentanaDeProgramacion.Crear(new DateOnly(2026, 10, 7), new DateOnly(2026, 11, 20));
+
+        act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{VentanaDeProgramacion.Mensajes.VentanaExcedeMaximo}*");
     }
 
