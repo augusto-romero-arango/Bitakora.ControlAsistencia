@@ -63,10 +63,12 @@ on:
     types: [completed]
   workflow_dispatch:
 
-# Piso de permisos del workflow: los jobs que no declaran los suyos (build-and-test,
-# discovery) solo necesitan leer el repo para el checkout. Los permisos declarados por un job
-# reemplazan por completo a estos, asi que las concesiones de los jobs (id-token: write,
-# pull-requests: read, actions: read) siguen vigentes.
+# Piso de permisos del workflow: aplica a los jobs que no declaran los suyos (build-and-test),
+# que solo necesitan leer el repo para el checkout. Los permisos declarados por un job
+# reemplazan por completo a estos, asi que sus concesiones siguen vigentes:
+# id-token: write en deploy (OIDC, MEF-ADR-0022).
+# pull-requests: read en determinar-alcance.
+# actions: read en smoke-tests (workflow reutilizable, MEF-ADR-0013).
 permissions:
   contents: read
 
