@@ -16,21 +16,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Clasificar archivos del PR
+        id: impact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/ci_pr_impact.py
+
+      - name: Resumir omision documental
+        if: steps.impact.outputs.only_docs == 'true'
+        run: |
+          echo 'CI pesado omitido: el PR solo cambia documentacion (docs/, README.md o CLAUDE.md).' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Setup .NET 10
+        if: steps.impact.outputs.only_docs == 'false'
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
       - name: Restore
+        if: steps.impact.outputs.only_docs == 'false'
         run: dotnet restore ControlAsistencias.slnx
 
       - name: Build
+        if: steps.impact.outputs.only_docs == 'false'
         run: dotnet build ControlAsistencias.slnx --no-restore --configuration Release
 
       - name: Instalar dotnet-coverage
+        if: steps.impact.outputs.only_docs == 'false'
         run: dotnet tool install --global dotnet-coverage
 
       - name: Instrumentar assemblies (cobertura estatica)
+        if: steps.impact.outputs.only_docs == 'false'
         run: |
           # El profiler dinamico de dotnet-coverage no se inicializa en .NET 10.
           # La instrumentacion estatica produce datos reales de cobertura.
@@ -41,6 +58,7 @@ jobs:
           done
 
       - name: Test con cobertura
+        if: steps.impact.outputs.only_docs == 'false'
         run: |
           mkdir -p coverage
           i=0
@@ -58,7 +76,7 @@ jobs:
             coverage/coverage-*.cobertura.xml
 
       - name: Generar reporte de cobertura
-        if: always()
+        if: always() && steps.impact.outputs.only_docs == 'false'
         uses: danielpalme/ReportGenerator-GitHub-Action@5
         with:
           reports: 'coverage/coverage.cobertura.xml'
@@ -68,7 +86,7 @@ jobs:
           classfilters: '-*DirectFunctionExecutor;-*WorkerExtensionStartupCodeExecutor;-*GeneratedFunctionMetadataProvider;-*FunctionExecutorAutoStartup;-*FunctionExecutorHostBuilderExtensions;-*FunctionMetadataProviderAutoStartup;-*WorkerHostBuilderFunctionMetadataProviderExtension;-*HealthCheck;-*Program'
 
       - name: Publicar resumen en Job Summary
-        if: always()
+        if: always() && steps.impact.outputs.only_docs == 'false'
         run: |
           if [ -f coverage/report/SummaryGithub.md ]; then
             cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
@@ -83,7 +101,7 @@ jobs:
           fi
 
       - name: Comentar cobertura en el PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.impact.outputs.only_docs == 'false'
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           path: coverage/report/SummaryGithub.md
