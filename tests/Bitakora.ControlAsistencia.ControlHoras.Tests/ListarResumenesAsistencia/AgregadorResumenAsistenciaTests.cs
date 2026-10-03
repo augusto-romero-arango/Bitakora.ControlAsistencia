@@ -41,6 +41,34 @@ public class AgregadorResumenAsistenciaTests
             horasPorConcepto ?? new Dictionary<string, decimal>());
 
     [Fact]
+    public void Agregar_IncluyeHorasYConteosDeLosDias32Al35_CuandoElRangoAplicadoEsDe35Dias()
+    {
+        const string codigo = "EMP-001";
+        var desde = new DateOnly(2026, 10, 7);
+        var hastaAplicado = new DateOnly(2026, 11, 10);
+        var documentos = new[]
+        {
+            DocumentoDePrueba(codigo, new DateOnly(2026, 11, 7),
+                horasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 2.25m }),
+            DocumentoDePrueba(codigo, new DateOnly(2026, 11, 10), EstadoAsistencia.Aprobado,
+                horasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 4.50m }),
+            DocumentoDePrueba(codigo, new DateOnly(2026, 11, 11),
+                horasPorConcepto: new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 100m }),
+        };
+
+        var filas = AgregadorResumenAsistencia.Agregar(desde, hastaAplicado, [codigo], documentos);
+
+        var fila = filas.Should().ContainSingle().Which;
+        fila.DiasConTurno.Should().Be(2);
+        fila.DiasSinProgramar.Should().Be(33);
+        fila.Aprobados.Should().Be(1);
+        fila.Pendientes.Should().Be(1);
+        fila.SinDatos.Should().Be(33);
+        fila.TotalHorasPorConcepto.Should().BeEquivalentTo(
+            new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 6.75m });
+    }
+
+    [Fact]
     public void Agregar_ProduceUnaFilaConLosTresEjesCerrandoContraLosDiasDelRango_CuandoTodosLosDiasTienenDocumento()
     {
         const string codigo = "EMP-001";
