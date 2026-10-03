@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ListarAsistenciasDiarias
 public class RangoConsultaTests
 {
     [Fact]
-    public void Recortar_DevuelveHastaSinCambios_CuandoElRangoEstaDentroDeLaCotaDe31Dias()
+    public void Recortar_DevuelveHastaSinCambios_CuandoElRangoEsCorto()
     {
         var desde = new DateOnly(2026, 8, 1);
         var hasta = new DateOnly(2026, 8, 10);
@@ -21,7 +21,7 @@ public class RangoConsultaTests
     }
 
     [Fact]
-    public void Recortar_DevuelveHastaSinCambios_CuandoElRangoEsExactamente31DiasInclusive()
+    public void Recortar_DevuelveHastaSinCambios_CuandoElRangoEsDe31DiasInclusive()
     {
         var desde = new DateOnly(2026, 8, 1);
         var hasta = new DateOnly(2026, 8, 31);
@@ -32,25 +32,47 @@ public class RangoConsultaTests
     }
 
     [Fact]
-    public void Recortar_RecortaHaciaAdelanteDesdeDesde_CuandoElRangoExcedeLargamenteLaCotaDe31Dias()
+    public void Recortar_ConservaHastaSolicitado_CuandoElRangoEsDe32DiasInclusive()
+    {
+        var desde = new DateOnly(2026, 10, 7);
+        var hasta = new DateOnly(2026, 11, 7);
+
+        var resultado = RangoConsulta.Recortar(desde, hasta);
+
+        resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 11, 7), false));
+    }
+
+    [Fact]
+    public void Recortar_ConservaHastaSolicitado_CuandoElRangoEsDe35DiasInclusiveSinEmpezarEnLunes()
+    {
+        var desde = new DateOnly(2026, 10, 7);
+        var hasta = new DateOnly(2026, 11, 10);
+
+        var resultado = RangoConsulta.Recortar(desde, hasta);
+
+        resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 11, 10), false));
+    }
+
+    [Fact]
+    public void Recortar_RecortaUnDiaHaciaAdelante_CuandoElRangoEsDe36DiasInclusive()
+    {
+        var desde = new DateOnly(2026, 10, 7);
+        var hasta = new DateOnly(2026, 11, 11);
+
+        var resultado = RangoConsulta.Recortar(desde, hasta);
+
+        resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 11, 10), true));
+    }
+
+    [Fact]
+    public void Recortar_RecortaHaciaAdelanteDesdeDesde_CuandoElRangoExcedeLargamenteLaCotaDe35Dias()
     {
         var desde = new DateOnly(2026, 8, 1);
         var hasta = new DateOnly(2026, 12, 31);
 
         var resultado = RangoConsulta.Recortar(desde, hasta);
 
-        resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 8, 31), true));
-    }
-
-    [Fact]
-    public void Recortar_RecortaUnSoloDiaDeExceso_CuandoElRangoSuperaLaCotaPorUnSoloDia()
-    {
-        var desde = new DateOnly(2026, 8, 1);
-        var hasta = new DateOnly(2026, 9, 1); // 32 dias inclusive: un dia por encima de la cota
-
-        var resultado = RangoConsulta.Recortar(desde, hasta);
-
-        resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 8, 31), true));
+        resultado.Should().Be(new RangoAplicado(new DateOnly(2026, 9, 4), true));
     }
 
     [Fact]
