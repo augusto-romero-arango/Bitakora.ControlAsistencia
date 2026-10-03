@@ -239,6 +239,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
     // Recorre TODO el catalogo, no una tool por nombre: MEF-ADR-0048 seccion 2 (verificacion 2,
     // componente 3) exige el pin del hint para toda tool, y la seccion 6 cuenta con que una tool
     // nueva lo hereda por esta via -- acotar el assert a un nombre rompe esa herencia en silencio.
+    // cerrar_sesion es la unica de solo lectura: solo construye el enlace, el cierre lo ejecuta el usuario.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ServidorMcp_PublicaElHintDeEscrituraEnCadaTool_CuandoSeListanLasTools()
@@ -252,7 +253,9 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             var esDestructiva = tool.Name is "retirar_turno" or "quitar_franja" or "quitar_subfranja"
                 or "retirar_plantilla_semanal" or "quitar_turno_de_dia";
             meta.Should().NotBeNull($"{tool.Name} debe publicar su _meta con los hints");
-            meta!["readOnlyHint"]?.GetValue<bool>().Should().BeFalse($"{tool.Name} escribe en el dominio");
+            var esSoloLectura = tool.Name == "cerrar_sesion";
+            meta!["readOnlyHint"]?.GetValue<bool>().Should().Be(
+                esSoloLectura, $"{tool.Name} readOnlyHint debe ser {esSoloLectura}");
             meta["destructiveHint"]?.GetValue<bool>().Should().Be(
                 esDestructiva, $"{tool.Name} destructiveHint debe ser {esDestructiva}");
         }
