@@ -2,16 +2,10 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 
 /// <summary>
 /// Una ausencia con al menos un dia vigente, tal como la consulta el Programador al preguntar
-/// "quien falta en este periodo" (MEF-ADR-0041: nombre del lenguaje ubicuo, sin sufijo de
-/// implementacion).
+/// "quien falta en este periodo". Id es el AusenciaId: el stream es por colaborador y el documento
+/// por ausencia (N2). PrimerDiaVigente/UltimoDiaVigente limitan TramosVigentes para filtrar por
+/// cruce con el periodo.
 /// </summary>
-/// <remarks>
-/// Record plano SIN partial ni comportamiento (MEF-ADR-0035): el mapeo evento -> vista vive en
-/// AusenciaVigenteProjection (worker). Id es el AusenciaId (N2: el stream es por colaborador, el
-/// documento por ausencia). Isla ReadModels: cero ProjectReference a DomainEvents.
-/// PrimerDiaVigente/UltimoDiaVigente son los limites de TramosVigentes, para filtrar por cruce con
-/// el periodo consultado.
-/// </remarks>
 public sealed record AusenciaVigente(
     Guid Id,
     string CodigoColaborador,

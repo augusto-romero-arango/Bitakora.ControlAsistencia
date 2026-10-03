@@ -369,7 +369,6 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #755: la Function QUERY ListarAusenciasDelEquipo resuelve sus dependencias del contenedor.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveListarAusenciasDelEquipoEndpoint_CuandoElContenedorEstaCompuesto()
     {
@@ -382,8 +381,8 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #755: par 2 (MEF-ADR-0034 seccion 6) para AusenciaVigente: el write-side que ahora la
-    // consulta debe esperar mt_version bigint, igual que la tabla que materializa el worker.
+    // Par 2 (MEF-ADR-0034 seccion 6) para AusenciaVigente: el write-side debe esperar mt_version
+    // bigint, igual que la tabla que materializa el worker.
     [Fact]
     public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAusenciaVigente()
     {
@@ -391,11 +390,26 @@ public class ComposicionServiciosTests
         await using var scope = provider.CreateAsyncScope();
 
         var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
-            .Options.FindOrResolveDocumentType(typeof(Bitakora.ControlAsistencia.ReadModels.Programacion.AusenciaVigente));
+            .Options.FindOrResolveDocumentType(typeof(AusenciaVigente));
 
         mapping.Metadata.Revision.Enabled.Should().BeTrue();
         mapping.Metadata.Revision.Type.Should().Be("bigint");
         mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del par 2 para AusenciaVigente: tabla, tenancy e IdMember del worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveAusenciaVigenteSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AusenciaVigente));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_ausenciavigente");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AusenciaVigente.Id));
     }
 
     // Issue #625 CA-4: mitad write-side del par 2 (MEF-ADR-0034 seccion 6) para CuadroSemanalTurnos

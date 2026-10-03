@@ -8,7 +8,6 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ListarAusenciasDelEquipo;
 
-// Function QUERY (MEF-ADR-0042) sobre la proyeccion AusenciaVigente (MEF-ADR-0035).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarAusenciasDelEquipo")]
@@ -55,27 +54,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var vigentes = await consulta.ToListAsync(ct);
 
-        var colaboradores = vigentes
-            .Select(a => (Vista: a, Tramos: Recortar(a.TramosVigentes, desde, hastaAplicado)))
-            .Where(x => x.Tramos.Count > 0)
-            .GroupBy(x => x.Vista.CodigoColaborador)
-            .Select(g => new AusenciasDeColaborador(
-                g.Key,
-                g.First().Vista.NombreCompleto,
-                g.OrderBy(x => x.Tramos[0].Desde)
-                    .Select(x => new AusenciaDelPeriodo(x.Vista.Id, x.Vista.Motivo, x.Tramos))
-                    .ToList()))
-            .OrderBy(c => c.NombreCompleto, StringComparer.Ordinal)
-            .ThenBy(c => c.CodigoColaborador, StringComparer.Ordinal)
-            .ToList();
-
-        return new OkObjectResult(
-            new ListaAusenciasDelEquipo(desde, hastaAplicado, rango.RangoRecortado, colaboradores));
+        return new OkObjectResult(ListaAusenciasDelEquipo.Componer(desde, rango, vigentes));
     }
-
-    private static List<TramoAplicado> Recortar(IReadOnlyList<TramoDeAusencia> tramos, DateOnly desde, DateOnly hasta) =>
-        tramos
-            .Where(t => t.Desde <= hasta && t.Hasta >= desde)
-            .Select(t => new TramoAplicado(t.Desde > desde ? t.Desde : desde, t.Hasta < hasta ? t.Hasta : hasta))
-            .ToList();
 }

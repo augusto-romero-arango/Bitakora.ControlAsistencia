@@ -2,6 +2,7 @@
 // funciones puras evento -> vista, sin abrir streams. Oraculos armados a mano (MEF-ADR-0002).
 // BeEquivalentTo: el record tiene colecciones sin igualdad por valor.
 
+using System.Runtime.CompilerServices;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Programacion;
@@ -36,7 +37,7 @@ public class AusenciaVigenteProjectionTests
 
     // CA-1: cancelar dias del medio parte el tramo en dos; los limites no cambian.
     [Fact]
-    public void Apply_PartaElTramoEnDos_CuandoSeCancelanDiasDelMedio()
+    public void Apply_ParteElTramoEnDos_CuandoSeCancelanDiasDelMedio()
     {
         var vista = AusenciaVigenteProjection.Apply(Cancelar(10, 11, 12), VistaDeVacaciones1Al30());
 
@@ -116,5 +117,15 @@ public class AusenciaVigenteProjectionTests
         };
 
         AusenciaVigenteProjection.Apply(Cancelar(4, 5), previa).Should().BeNull();
+    }
+
+    // El evolver generado invoca Apply con un objeto sin inicializar cuando el documento ya no existe
+    // (cancelacion posterior al borrado en el mismo lote): Apply nunca lanza (MEF-ADR-0004).
+    [Fact]
+    public void Apply_RetornaNull_CuandoElDocumentoYaNoExiste()
+    {
+        var sinInicializar = (AusenciaVigente)RuntimeHelpers.GetUninitializedObject(typeof(AusenciaVigente));
+
+        AusenciaVigenteProjection.Apply(Cancelar(4), sinInicializar).Should().BeNull();
     }
 }
