@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
+using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -15,6 +17,22 @@ public class AusenciaDiariaCanceladaEventHandler : IPrivateEventHandlerAsync<Aus
         _privateEventSender = privateEventSender;
     }
 
-    public Task HandleAsync(AusenciaDiariaCancelada @event, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task HandleAsync(AusenciaDiariaCancelada @event, CancellationToken ct = default)
+    {
+        var streamId = ControlDiarioAggregateRoot.ComputarStreamId(
+            @event.Colaborador.CodigoColaborador, @event.Fecha);
+        var evento = CancelacionAusenciaDiariaRegistrada.Crear(streamId, @event.AusenciaId, @event.Fecha);
+
+        var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
+        if (existe)
+        {
+            var control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
+            if (control.CancelarAusencia(evento) == ResultadoCancelarAusencia.Liberado)
+                await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+        }
+        else
+        {
+            _eventStore.StartStream(ControlDiarioAggregateRoot.Iniciar(evento));
+        }
+    }
 }

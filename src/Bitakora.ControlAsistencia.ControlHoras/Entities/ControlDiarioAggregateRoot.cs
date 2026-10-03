@@ -230,6 +230,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Misma AusenciaId = reentrega del bus: no-op. Otra distinta reemplaza a la vigente.
     internal ResultadoAsignarAusencia AsignarAusencia(AusenciaDiariaAsignada evento)
     {
+        if (_ausenciasCanceladas.Contains(evento.AusenciaId)) return ResultadoAsignarAusencia.Ignorada;
         if (_ausenciaId == evento.AusenciaId) return ResultadoAsignarAusencia.SinCambios;
 
         _uncommittedEvents.Add(evento);
@@ -237,13 +238,39 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return ResultadoAsignarAusencia.Asignada;
     }
 
-    public void Apply(CancelacionAusenciaDiariaRegistrada e) => throw new NotImplementedException();
+    private readonly HashSet<Guid> _ausenciasCanceladas = [];
+
+    public void Apply(CancelacionAusenciaDiariaRegistrada e)
+    {
+        Id = e.Id;
+        Fecha = e.Fecha;
+        _ausenciasCanceladas.Add(e.AusenciaId);
+        if (_ausenciaId == e.AusenciaId)
+        {
+            _ausenciaId = null;
+            _motivoAusencia = null;
+        }
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
 
     internal static ControlDiarioAggregateRoot Iniciar(CancelacionAusenciaDiariaRegistrada evento)
-        => throw new NotImplementedException();
+    {
+        var control = new ControlDiarioAggregateRoot();
+        control._uncommittedEvents.Add(evento);
+        control.Apply(evento);
+        return control;
+    }
 
     internal ResultadoCancelarAusencia CancelarAusencia(CancelacionAusenciaDiariaRegistrada evento)
-        => throw new NotImplementedException();
+    {
+        if (_ausenciasCanceladas.Contains(evento.AusenciaId)) return ResultadoCancelarAusencia.SinCambios;
+
+        var libera = _ausenciaId == evento.AusenciaId;
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return libera ? ResultadoCancelarAusencia.Liberado : ResultadoCancelarAusencia.CancelacionRecordada;
+    }
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()

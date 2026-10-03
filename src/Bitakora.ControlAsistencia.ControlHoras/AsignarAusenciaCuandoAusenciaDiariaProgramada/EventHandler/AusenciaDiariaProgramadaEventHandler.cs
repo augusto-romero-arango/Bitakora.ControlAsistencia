@@ -38,7 +38,7 @@ public partial class AusenciaDiariaProgramadaEventHandler : IPrivateEventHandler
         if (existe)
         {
             control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
-            if (control.AsignarAusencia(evento) == ResultadoAsignarAusencia.SinCambios)
+            if (control.AsignarAusencia(evento) != ResultadoAsignarAusencia.Asignada)
                 return;
         }
         else
