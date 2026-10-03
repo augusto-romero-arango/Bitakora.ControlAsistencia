@@ -1,7 +1,7 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 
 /// <summary>
-/// Rango efectivamente aplicado tras acotar el pedido a <see cref="RangoConsulta.CotaDias"/>.
+/// Rango efectivamente aplicado tras acotar el pedido.
 /// </summary>
 public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRecortado);
 
@@ -10,12 +10,12 @@ public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRe
 /// desde <c>hasta</c> ni relativo a la fecha de hoy, que haria que la misma consulta devolviera
 /// datos distintos segun el dia en que se ejecuta.
 ///
-/// Cota local de ListarAsistenciasDiarias: no se comparte con ListarTurnosVigentes.RangoConsulta.
-/// Los rangos de cada consulta evolucionan de forma independiente (MEF-ADR-0018).
+/// La cota no se comparte con ListarTurnosVigentes: ambas consultas evolucionan de forma
+/// independiente (MEF-ADR-0018).
 /// </summary>
 public static class RangoConsulta
 {
-    /// <summary>Cota maxima del rango, en dias, INCLUSIVE: desde y desde + 34 dias caben.</summary>
+    /// <summary>Cota en dias inclusivos.</summary>
     public const int CotaDias = 35;
 
     public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)

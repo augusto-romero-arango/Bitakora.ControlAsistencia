@@ -1,8 +1,3 @@
-// Funcion pura documentos+rango -> filas: se invoca directamente, sin QuerySession/Marten y sin el
-// DSL Given/When/Then de CommandHandlerTestBase, reservado a command handlers contra el event store
-// (MEF-ADR-0002). Cada oraculo se arma a mano, campo por campo: nunca se reusa el mapeo bajo prueba
-// para construir el esperado.
-//
 // HorasPorConcepto se verifica con BeEquivalentTo y nunca comparando la fila entera con
 // Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
 // compilador de records.

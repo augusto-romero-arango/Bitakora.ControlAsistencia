@@ -1,7 +1,3 @@
-// Duplicado a proposito del RangoConsultaTests de ListarTurnosVigentes -- ver el comentario de
-// clase de RangoConsulta.cs en este feature folder. Cada oraculo se arma a mano (MEF-ADR-0002):
-// nunca se deriva ejecutando Recortar sobre si mismo.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 
