@@ -25,6 +25,9 @@
 // mezcla de Usada true/false alcanza para verificar que el endpoint desplegado devuelve la vista
 // real que produce el aggregate, no solo el status code.
 //
+// CA-6 de #748 (dia de ausencia) si tiene smoke propio: Plan=Ausencia y el motivo solo existen si
+// la cadena desplegada ControlDiario -> DiaDepurado -> DiaCalculado transporta el motivo completo.
+//
 // CA-7 (tenant scoping de la QuerySession) no tiene superficie observable via HTTP negro-caja en un
 // entorno de un solo tenant (CA-ADR-0027): lo cubre el test de composicion de la Function.
 using System.Net;
@@ -40,6 +43,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
     private readonly HttpClient _client = api.Client;
 
     private const string TopicDiaDepurado = "dia-depurado";
+    private const string TopicAusenciaDiariaProgramada = "ausencia-diaria-programada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // La respuesta viaja en camelCase (ComposicionServicios fija JsonNamingPolicy.CamelCase) y las
@@ -59,7 +63,8 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
     {
         ConJornada,
         Descanso,
-        SinProgramar
+        SinProgramar,
+        Ausencia
     }
 
     private sealed record FranjaDepuradaSmoke(
@@ -83,7 +88,8 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
         IReadOnlyList<FranjaDepuradaSmoke> Franjas,
         IReadOnlyList<MarcacionDelDiaSmoke> Marcaciones,
         IReadOnlyDictionary<string, decimal> HorasPorConcepto,
-        IReadOnlyList<string> Trazabilidad);
+        IReadOnlyList<string> Trazabilidad,
+        string? MotivoAusencia);
 
     private static string Ruta(string codigoColaborador, DateOnly fecha) =>
         $"/api/control-horas/depuraciones/{codigoColaborador}/{fecha:yyyy-MM-dd}";
@@ -194,6 +200,59 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
 
         respuesta.HorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(8.00m);
         respuesta.Trazabilidad.Should().Equal("[TEST] regla aplicada");
+        respuesta.MotivoAusencia.Should().BeNull();
+    }
+
+    // CA-6 (#748): ausencia de un dia registrada -> la cadena desplegada (ControlDiario publica
+    // DiaDepurado con el motivo, DiaCalculado lo persiste) termina en Plan = Ausencia con el motivo.
+    // El Act publica el mismo payload plano que emite Programacion al registrar la ausencia (#743):
+    // este proyecto solo alcanza el host de ControlHoras.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerDepuracionDelDia_Retorna200ConPlanAusenciaYMotivo_CuandoSeRegistraUnaAusenciaDeUnDia()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 6, 16);
+        var ausenciaId = Guid.CreateVersion7();
+        const string motivo = "Vacaciones";
+
+        await serviceBus.PublishAsync(TopicAusenciaDiariaProgramada, new
+        {
+            AusenciaId = ausenciaId,
+            Colaborador = new
+            {
+                Identificacion = "CC-748748748",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Depuracion Ausencia"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Motivo = motivo
+        }, ausenciaId.ToString());
+
+        var ruta = Ruta(codigoColaborador, fecha);
+        var respuesta = await Polling.WaitUntilAsync(async () =>
+        {
+            var response = await _client.GetAsync(ruta, ct);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return null;
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            return await response.Content.ReadFromJsonAsync<DepuracionDelDiaSmoke>(
+                JsonOptions, cancellationToken: ct);
+        }, Timeout);
+
+        respuesta.CodigoColaborador.Should().Be(codigoColaborador);
+        respuesta.Fecha.Should().Be(fecha);
+        respuesta.Estado.Should().Be(EstadoAsistenciaSmoke.Provisional);
+        respuesta.Plan.Should().Be(PlanDelDiaSmoke.Ausencia);
+        respuesta.MotivoAusencia.Should().Be(motivo);
+        respuesta.Franjas.Should().BeEmpty();
+        respuesta.HorasPorConcepto.Should().BeEmpty();
     }
 
     [Fact]

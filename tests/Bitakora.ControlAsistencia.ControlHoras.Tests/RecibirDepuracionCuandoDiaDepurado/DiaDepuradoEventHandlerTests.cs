@@ -245,7 +245,7 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
             StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-1 (#748): el motivo del DiaDepurado se persiste en DepuracionDiaRecibida.
+    // CA-1
     [Fact]
     public async Task DiaDepurado_PersisteElMotivoDeAusencia_CuandoElDiaTraeMotivo()
     {
@@ -260,7 +260,7 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
             StreamId, d => d.GenerarDepuracionDelDia().MotivoAusencia!, "Vacaciones");
     }
 
-    // CA-4 (#748): tras una ausencia, un DiaDepurado sin motivo devuelve el plan del turno.
+    // CA-4: un DiaDepurado sin motivo tras una ausencia es su cancelacion.
     [Fact]
     public async Task DiaDepurado_DevuelveElPlanDelTurno_CuandoLlegaSinMotivoTrasUnaAusencia()
     {

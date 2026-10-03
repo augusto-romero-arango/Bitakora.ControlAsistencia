@@ -163,9 +163,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     }
 
     // Tell-don't-Ask (MEF-ADR-0012): el aggregate produce la vista de lectura desde su estado
-    // privado -- ninguna propiedad nueva se expone. Plan sale de la senal estructural del contrato
-    // de DiaDepurado (NombreTurno null -> SinProgramar; nombre + cero franjas -> Descanso), no de un
-    // campo propio del evento.
+    // privado -- ninguna propiedad nueva se expone. El motivo de ausencia manda sobre la senal
+    // estructural del contrato de DiaDepurado (NombreTurno null -> SinProgramar; nombre + cero
+    // franjas -> Descanso), que sigue decidiendo el plan cuando no hay motivo (CA-ADR-0036).
     public DepuracionDelDia GenerarDepuracionDelDia()
     {
         var plan = ClasificarPlan(_nombreTurno, _franjas, _motivoAusencia);
@@ -223,10 +223,10 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
 
     private static PlanDelDia ClasificarPlan(
         string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas, string? motivoAusencia) =>
-        nombreTurno switch
+        (motivoAusencia, nombreTurno) switch
         {
-            _ when motivoAusencia is not null => PlanDelDia.Ausencia,
-            null => PlanDelDia.SinProgramar,
+            (not null, _) => PlanDelDia.Ausencia,
+            (_, null) => PlanDelDia.SinProgramar,
             _ when franjas.Count == 0 => PlanDelDia.Descanso,
             _ => PlanDelDia.ConJornada
         };

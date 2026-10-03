@@ -237,7 +237,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         Then(StreamId);
     }
 
-    // CA-5 (#748): un dia de ausencia se aprueba como cualquier otro, con marcaciones ignoradas.
+    // CA-5: las marcaciones de un dia de ausencia no bloquean la aprobacion.
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoElDiaEsDeAusenciaConMarcaciones()
     {
@@ -252,7 +252,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-5 (#748): ausencia sin marcaciones.
+    // CA-5
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoElDiaEsDeAusenciaSinMarcaciones()
     {

@@ -141,7 +141,7 @@ public class DepuracionDiaRecibidaSerializacionTests
         marcacion.CentroDeCostos.Should().BeNull();
     }
 
-    // CA-1 (#748): el motivo sobrevive el roundtrip.
+    // CA-1
     [Fact]
     public void Deserializar_ReconstruyeMotivoAusencia_CuandoElEventoLoTrae()
     {
@@ -157,7 +157,7 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado!.MotivoAusencia.Should().Be("IncapacidadMedica");
     }
 
-    // CA-3 (#748): un stream ya escrito, sin el campo, se hidrata con motivo null.
+    // CA-3: JSON de un stream escrito antes de que existiera el campo.
     [Fact]
     public void Deserializar_DejaMotivoAusenciaNulo_CuandoElJsonNoTraeElCampo()
     {
