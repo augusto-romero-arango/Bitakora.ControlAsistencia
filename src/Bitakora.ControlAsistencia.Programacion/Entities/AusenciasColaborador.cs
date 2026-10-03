@@ -18,6 +18,11 @@ public partial class AusenciasColaborador : AggregateRoot
         Ausencias = [.. Ausencias, new AusenciaVigente(e.AusenciaId, e.FechaInicio, e.FechaFin, e.Motivo)];
     }
 
+    public void Apply(AusenciaCancelada e) => throw new NotImplementedException();
+
+    internal ResultadoCancelarAusencia CancelarFechas(Guid ausenciaId, IReadOnlyList<DateOnly> fechas)
+        => throw new NotImplementedException();
+
     internal static AusenciasColaborador Iniciar(AusenciaProgramada evento)
     {
         var ausencias = new AusenciasColaborador();
