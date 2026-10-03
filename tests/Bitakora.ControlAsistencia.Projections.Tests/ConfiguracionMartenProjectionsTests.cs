@@ -248,6 +248,16 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 
+    // Issue #755: la proyeccion N2 de ausencias se registra Async en el worker.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraAusenciaVigenteProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("AusenciaVigente");
+    }
+
     // CA-5, mismo criterio que el test de FichaTurno de arriba.
     [Fact]
     public void ConfigurarProgramacion_RegistraCuadroSemanalTurnosProjectionComoAsync()

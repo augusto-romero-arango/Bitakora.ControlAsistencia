@@ -369,6 +369,35 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
+    // Issue #755: la Function QUERY ListarAusenciasDelEquipo resuelve sus dependencias del contenedor.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveListarAusenciasDelEquipoEndpoint_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<
+            Bitakora.ControlAsistencia.Programacion.ListarAusenciasDelEquipo.FunctionEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Issue #755: par 2 (MEF-ADR-0034 seccion 6) para AusenciaVigente: el write-side que ahora la
+    // consulta debe esperar mt_version bigint, igual que la tabla que materializa el worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAusenciaVigente()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(Bitakora.ControlAsistencia.ReadModels.Programacion.AusenciaVigente));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
     // Issue #625 CA-4: mitad write-side del par 2 (MEF-ADR-0034 seccion 6) para CuadroSemanalTurnos
     // -- par espejo de FichaTurno de arriba. Hasta este issue solo el worker tocaba la tabla; este
     // GET es el primer consumidor write-side, y sin Schema.For<CuadroSemanalTurnos>()
