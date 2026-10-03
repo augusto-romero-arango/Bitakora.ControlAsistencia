@@ -196,7 +196,7 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
         programado.GetProperty("dias").GetInt32().Should().Be(2, "el dia 2026-09-02 se respeta por ausencia");
         var respetado = programado.GetProperty("respetados").EnumerateArray().Single();
         respetado.GetProperty("motivo").GetString().Should().Be("Vacaciones");
-        respetado.GetProperty("tramos").GetString().Should().Contain("2");
+        respetado.GetProperty("tramos").GetString().Should().Be("2");
     }
 
     // Error path que no toca ningun dominio: la ventana de 32 dias corta en el worker y responde el
