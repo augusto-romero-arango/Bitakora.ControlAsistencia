@@ -9,7 +9,7 @@ public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRe
 /// </summary>
 public static class RangoConsulta
 {
-    public const int CotaDias = 31;
+    public const int CotaDias = 35;
 
     public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)
     {
