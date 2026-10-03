@@ -244,4 +244,37 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
             StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
+
+    // CA-1 (#748): el motivo del DiaDepurado se persiste en DepuracionDiaRecibida.
+    [Fact]
+    public async Task DiaDepurado_PersisteElMotivoDeAusencia_CuandoElDiaTraeMotivo()
+    {
+        await WhenAsync(new EventoBus.DiaDepurado(
+            CodigoColaborador, Fecha, null, null, [], [MarcacionRecibida],
+            new EventoBus.HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"));
+
+        Then(StreamId, new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, null, [], [MarcacionEsperada()],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"));
+        And<DiaCalculadoAggregateRoot, string>(
+            StreamId, d => d.GenerarDepuracionDelDia().MotivoAusencia!, "Vacaciones");
+    }
+
+    // CA-4 (#748): tras una ausencia, un DiaDepurado sin motivo devuelve el plan del turno.
+    [Fact]
+    public async Task DiaDepurado_DevuelveElPlanDelTurno_CuandoLlegaSinMotivoTrasUnaAusencia()
+    {
+        Given(StreamId, new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, null, [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"));
+
+        await WhenAsync(CrearDiaDepurado(
+            ColaboradorRecibido, "Turno Manana", [FranjaRecibida], [MarcacionRecibida], HorasRecibidas()));
+
+        Then(StreamId, new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, ColaboradorEsperado(), "Turno Manana",
+            [FranjaEsperada()], [MarcacionEsperada()], HorasEsperadas()));
+        And<DiaCalculadoAggregateRoot, ReadModels.ControlHoras.PlanDelDia>(
+            StreamId, d => d.GenerarDepuracionDelDia().Plan, ReadModels.ControlHoras.PlanDelDia.ConJornada);
+    }
 }

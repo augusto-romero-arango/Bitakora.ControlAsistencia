@@ -14,7 +14,8 @@ public enum PlanDelDia
 {
     ConJornada,
     Descanso,
-    SinProgramar
+    SinProgramar,
+    Ausencia
 }
 
 /// <summary>
