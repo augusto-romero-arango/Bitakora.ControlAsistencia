@@ -188,6 +188,20 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void SolicitarProgramacionTurno_Anuncia35DiasEnToolYFechas_CuandoSeInspeccionanLasDescripciones()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName
+                == SolicitarProgramacionTurnoTool.NombreTool);
+
+        ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("35 dias");
+        foreach (var nombre in new[] { "desde", "hasta" })
+            metodo.GetParameters().Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()?.PropertyName == nombre)
+                .GetCustomAttribute<McpToolPropertyAttribute>()!.Description.Should().Contain("35 dias");
+    }
+
+    [Fact]
     public void ProgramarAusencia_DeclaraCuatroParametrosRequeridos_CuandoSeInspeccionaLaTool()
     {
         var metodo = MetodosDeTool.Single(m =>

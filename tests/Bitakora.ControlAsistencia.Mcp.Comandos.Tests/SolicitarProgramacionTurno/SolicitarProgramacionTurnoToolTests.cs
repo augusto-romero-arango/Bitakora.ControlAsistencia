@@ -363,15 +363,68 @@ public class SolicitarProgramacionTurnoToolTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoLaVentanaTiene32Dias()
+    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoLaVentanaTiene36Dias()
     {
         var fakes = CrearTool();
 
         var resultado = await Ejecutar(
-            fakes.Tool, desde: "2026-09-01", hasta: "2026-10-02", ct: TestContext.Current.CancellationToken);
+            fakes.Tool, desde: "2026-10-07", hasta: "2026-11-11", ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.VentanaExcedeMaximo, 32));
+        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.VentanaExcedeMaximo, 36));
+        resultado.Should().Contain("35 dias");
         AsegurarNingunaRequest(fakes);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoLaVentanaEsMasLargaQue36Dias()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(
+            fakes.Tool, desde: "2026-10-07", hasta: "2026-11-20", ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.VentanaExcedeMaximo, 45));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Envia32Fechas_CuandoLaVigenciaCubreTodaLaVentana()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(
+            fakes.Tool, desde: "2026-10-07", hasta: "2026-11-07", identificaciones: "CC-1111",
+            ct: TestContext.Current.CancellationToken);
+
+        var post = fakes.Programacion.Requests.Single(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes);
+        var fechas = JsonNode.Parse(post.Cuerpo!)!["fechas"]!.AsArray();
+        fechas.Should().HaveCount(32);
+        fechas[0]!.GetValue<string>().Should().Be("2026-10-07");
+        fechas[31]!.GetValue<string>().Should().Be("2026-11-07");
+        JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!["dias"]!.GetValue<int>().Should().Be(32);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Envia35FechasYEcoDe35Dias_CuandoLaVigenciaEsAbierta()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(
+            fakes.Tool, desde: "2026-10-07", hasta: "2026-11-10", identificaciones: "CC-1111",
+            ct: TestContext.Current.CancellationToken);
+
+        var post = fakes.Programacion.Requests.Single(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes);
+        var fechas = JsonNode.Parse(post.Cuerpo!)!["fechas"]!.AsArray();
+        fechas.Select(f => f!.GetValue<string>()).Should().Equal(
+            Enumerable.Range(0, 35).Select(i => new DateOnly(2026, 10, 7).AddDays(i).ToString("yyyy-MM-dd")));
+        var json = JsonNode.Parse(resultado)!;
+        json["ventana"]!.GetValue<string>().Should().Be("2026-10-07 a 2026-11-10");
+        json["omitidos"]!.GetValue<int>().Should().Be(0);
+        json.AsObject().ContainsKey("fallidos").Should().BeFalse();
+        var programado = json["programados"]!.AsArray().Single()!;
+        programado["desde"]!.GetValue<string>().Should().Be("2026-10-07");
+        programado["hasta"]!.GetValue<string>().Should().Be("2026-11-10");
+        programado["dias"]!.GetValue<int>().Should().Be(35);
     }
 
     [Fact]
