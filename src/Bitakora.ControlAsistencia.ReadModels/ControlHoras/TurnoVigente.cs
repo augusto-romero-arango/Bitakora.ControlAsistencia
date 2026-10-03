@@ -39,4 +39,14 @@ public sealed record TurnoVigente(
 public sealed record TurnoCubierto(
     string NombreTurno,
     string HorarioResumido,
-    IReadOnlyList<Bloque> Bloques);
+    IReadOnlyList<Bloque> Bloques)
+{
+    // Igualdad estructural: el equals sintetizado del record compara la lista por referencia.
+    public bool Equals(TurnoCubierto? other) =>
+        other is not null
+        && NombreTurno == other.NombreTurno
+        && HorarioResumido == other.HorarioResumido
+        && Bloques.SequenceEqual(other.Bloques);
+
+    public override int GetHashCode() => HashCode.Combine(NombreTurno, HorarioResumido, Bloques.Count);
+}
