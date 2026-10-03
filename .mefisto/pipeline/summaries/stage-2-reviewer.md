@@ -1,17 +1,21 @@
-# Stage 2 - Reviewer (issue #699)
+# Stage 2 - Reviewer (#741)
 
 ## Resultado
 
-Aprobado con correcciones. El writer cumple CA-1..CA-4 (identidad de tres datos con fuentes HTTP/Service Bus y obligatoriedad -> 500; nombres Cosmos 3.x en CA-ADR-0032/0027 con la prohibicion de `AgregarTenantContextHibrido()` conservada; orden de despliegue; control de cambios e indice de `CLAUDE.md`). Solo tocó rutas permitidas (`CLAUDE.md`, `docs/adr/ca-adr-*`).
+Aprobado con una correccion menor. El writer cumple CA-1..CA-5: ADR `docs/adr/ca-adr-0036-ausencias.md` con
+la estructura de los ADRs locales (Estado, Contexto, Decision, Alternativas consideradas, Consecuencias,
+Referencias, Control de cambios), 13 decisiones separadas en dominio (1-10) y arquitectura (11-13), sin
+identificadores de codigo, alternativas con razon de descarte, consecuencias del issue y fila nueva en el
+indice tematico de `CLAUDE.md`. Solo se tocaron rutas permitidas (`CLAUDE.md`, `docs/adr/`).
 
 ## Correcciones
 
-- CA-ADR-0032: el writer renombro el metodo local `AgregarTenantResolverControlAsistencia()` a `AgregarTenantContextControlAsistencia()`, que no existe en `src/` (los 4 `ComposicionServicios.cs` y `TenancyServiceCollectionExtensions.cs` usan el nombre viejo). Revertido: el rename del issue aplica solo a la API de Cosmos. La nota de nomenclatura ahora aclara que la biblioteca local y su API conservan sus nombres.
-- CA-ADR-0032 seccion 2: se añadio que APIM estampa tambien el claim de membresia (#696) y la llave `organization_membership_id` que estampa `TenancyDelivery` en Service Bus.
-- CA-ADR-0032 Referencias: se agrego `X-Organization-Membership-Id` a los headers canonicos.
+- Referencias del ADR: se aclara que Ausencia, Motivo de ausencia y Permiso llegan al glosario con el PR #734
+  (hoy no estan en `ubiquitous-language.yaml`), se agrega el termino Aprobado, se anota el rol de cada ADR
+  citado y se referencia la field note `2026-10-02-1802-planner` de origen.
 
 ## Verificacion
 
-- Solo cambios de documentacion, sin C#: no aplica build ni tests.
-- `grep` en `src/` confirmo el nombre real del metodo local.
-- Observacion (del issue): MEF-ADR-0028 (canon del marco, no esta en este repo) puede seguir citando `ITenantResolver`; lo resuelve Mefisto al adoptar Cosmos 3.x. La memoria `proxytenantresolver-roto-en-isolated-worker` sigue con el nombre viejo; actualizarla es tarea humana.
+- Diff revisado contra el issue; sin codigo C#, no aplica build/tests.
+- Glosario consultado: Programador de turnos y Aprobado existen; los terminos de ausencias aun no (PR #734).
+- No se cita el CST art. 186 (no verificado), conforme a las notas tecnicas.

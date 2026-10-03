@@ -72,8 +72,11 @@ se fijan al refinar cada issue del desglose (#742-#752).
 ## Referencias
 
 - Issues: #741 (este ADR), #742-#752 (desglose).
-- MEF-ADR-0046; CA-ADR-0030, CA-ADR-0033, CA-ADR-0034.
-- Glosario: Ausencia, Motivo de ausencia, Permiso, Programador de turnos.
+- MEF-ADR-0046 (dato ajeno entre dominios); CA-ADR-0030 (rechazos sin evento de fallo), CA-ADR-0033 (Turno),
+  CA-ADR-0034 (plantilla semanal).
+- Glosario (`docs/ddd/ubiquitous-language.yaml`): Ausencia, Motivo de ausencia y Permiso (llegan con el PR #734);
+  Programador de turnos, Aprobado.
+- Field note de la exploracion: `2026-10-02-1802-planner`.
 
 ## Control de cambios
 
