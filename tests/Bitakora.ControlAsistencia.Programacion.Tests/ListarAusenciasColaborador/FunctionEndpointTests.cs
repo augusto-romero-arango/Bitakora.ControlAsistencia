@@ -2,7 +2,6 @@ using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarAusenciasColaborador;
