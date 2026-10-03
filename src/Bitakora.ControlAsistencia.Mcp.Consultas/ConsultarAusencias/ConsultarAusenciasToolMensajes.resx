@@ -33,7 +33,7 @@
     <value>Nadie falta entre {0} y {1}.</value>
   </data>
   <data name="NotaRecorte" xml:space="preserve">
-    <value>El periodo pedido excedia 31 dias y fue recortado; periodo aplicado: {0} a {1}.</value>
+    <value>El periodo pedido excedia 35 dias y fue recortado; periodo aplicado: {0} a {1}.</value>
   </data>
   <data name="NotaTruncado" xml:space="preserve">
     <value>Mostrando {0} de {1} colaboradores con ausencias ({2} omitidos); filtra por codigos_colaborador.</value>
