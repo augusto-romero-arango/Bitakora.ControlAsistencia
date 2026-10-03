@@ -109,6 +109,9 @@ public static class ComposicionServicios
             // 500 permanente en el primer request real.
             options.Schema.For<CuadroSemanalTurnos>().UseNumericRevisions(true);
 
+            // Issue #755: par 2 para AusenciaVigente (ListarAusenciasDelEquipo), mismo motivo.
+            options.Schema.For<AusenciaVigente>().UseNumericRevisions(true);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>

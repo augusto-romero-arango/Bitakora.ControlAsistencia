@@ -113,6 +113,7 @@ public static class ConfiguracionMartenProjectionsProgramacion
                 // .UseNumericRevisions(true) el dia que consulte esa tabla.
                 opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<CuadroSemanalTurnosProjection>(ProjectionLifecycle.Async);
+                opts.Projections.Add<AusenciaVigenteProjection>(ProjectionLifecycle.Async);
             })
             // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
             // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
