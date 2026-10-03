@@ -45,8 +45,6 @@ public partial class FunctionEndpoint(IRequestValidator requestValidator, IComma
                 case RecursoYaExisteException:
                 case ReglaDeNegocioDeclinadaException:
                     return new ConflictObjectResult(ex.Message);
-                case RecursoNoEncontradoException:
-                    return new NotFoundObjectResult(ex.Message);
                 default:
                     throw;
             }
