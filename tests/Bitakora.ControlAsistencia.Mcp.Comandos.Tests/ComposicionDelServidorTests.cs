@@ -4,9 +4,11 @@ using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AgregarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarSedeFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.AsignarTurnoADia;
+using Bitakora.ControlAsistencia.Mcp.Comandos.CancelarAusencia;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CerrarSesion;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Comandos.CrearTurno;
+using Bitakora.ControlAsistencia.Mcp.Comandos.ProgramarAusencia;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarSubFranja;
 using Bitakora.ControlAsistencia.Mcp.Comandos.QuitarTurnoDeDia;
@@ -43,7 +45,8 @@ public class ComposicionDelServidorTests
             CrearTurnoTool.NombreTool, RetirarTurnoTool.NombreTool, AgregarFranjaTool.NombreTool, QuitarFranjaTool.NombreTool,
             AgregarSubFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool, AsignarSedeFranjaTool.NombreTool,
             CrearPlantillaSemanalTool.NombreTool, RetirarPlantillaSemanalTool.NombreTool,
-            AsignarTurnoADiaTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool, CerrarSesionTool.NombreTool);
+            AsignarTurnoADiaTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool, CerrarSesionTool.NombreTool,
+            ProgramarAusenciaTool.NombreTool, CancelarAusenciaTool.NombreTool);
     }
 
     [Fact]
@@ -81,7 +84,8 @@ public class ComposicionDelServidorTests
         var destructivas = new HashSet<string>
         {
             RetirarTurnoTool.NombreTool, QuitarFranjaTool.NombreTool, QuitarSubFranjaTool.NombreTool,
-            RetirarPlantillaSemanalTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool
+            RetirarPlantillaSemanalTool.NombreTool, QuitarTurnoDeDiaTool.NombreTool,
+            CancelarAusenciaTool.NombreTool
         };
 
         foreach (var metodo in MetodosDeTool)
@@ -181,6 +185,42 @@ public class ComposicionDelServidorTests
             ("turno", true),
             ("sede_de_programacion", true),
             ("identificaciones", true));
+    }
+
+    [Fact]
+    public void ProgramarAusencia_DeclaraCuatroParametrosRequeridos_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == ProgramarAusenciaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("identificacion", true),
+            ("desde", true),
+            ("hasta", true),
+            ("motivo", true));
+    }
+
+    [Fact]
+    public void CancelarAusencia_DeclaraTresRequeridosYCompletaOpcional_CuandoSeInspeccionaLaTool()
+    {
+        var metodo = MetodosDeTool.Single(m =>
+            ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName == CancelarAusenciaTool.NombreTool);
+
+        var propiedades = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Where(a => a is not null)
+            .Select(a => (a!.PropertyName, a.IsRequired));
+
+        propiedades.Should().Equal(
+            ("identificacion", true),
+            ("desde", true),
+            ("hasta", true),
+            ("completa", false));
     }
 
     [Fact]

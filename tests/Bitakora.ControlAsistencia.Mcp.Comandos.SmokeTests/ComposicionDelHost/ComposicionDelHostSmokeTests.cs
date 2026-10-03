@@ -17,7 +17,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "crear_turno", "retirar_turno", "agregar_franja", "quitar_franja",
             "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
             "crear_plantilla_semanal", "retirar_plantilla_semanal",
-            "asignar_turno_a_dia", "quitar_turno_de_dia", "cerrar_sesion");
+            "asignar_turno_a_dia", "quitar_turno_de_dia", "cerrar_sesion",
+            "programar_ausencia", "cancelar_ausencia");
     }
 
     [Fact]
@@ -78,6 +79,34 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
         requeridas.Should().BeEquivalentTo(
             "desde", "hasta", "turno", "sede_de_programacion", "identificaciones");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ProgramarAusencia_DeclaraCuatroRequeridos_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "programar_ausencia");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("identificacion", "desde", "hasta", "motivo");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CancelarAusencia_DeclaraTresRequeridos_CuandoSeLeeSuInputSchema()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
+        var tool = tools.Single(t => t.Name == "cancelar_ausencia");
+
+        var requeridas = tool.JsonSchema.GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString());
+
+        requeridas.Should().BeEquivalentTo("identificacion", "desde", "hasta");
     }
 
     [Fact]
