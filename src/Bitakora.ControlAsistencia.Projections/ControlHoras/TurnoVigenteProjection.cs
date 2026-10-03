@@ -51,6 +51,21 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             Bloques = MapearBloques(evento)
         };
 
+    // Issue #756 (stubs de fase roja): ausencias y cancelacion de turno.
+    public static TurnoVigente Create(AusenciaDiariaAsignada evento) =>
+        throw new NotImplementedException();
+
+    public static TurnoVigente Apply(AusenciaDiariaAsignada evento, TurnoVigente vista) =>
+        throw new NotImplementedException();
+
+    // Apply devuelve null para borrar el documento (dia sin turno ni ausencia): Apply y ShouldDelete
+    // del mismo evento no coexisten en el generador de Marten (CS8120).
+    public static TurnoVigente? Apply(TurnoDiarioCancelado evento, TurnoVigente vista) =>
+        throw new NotImplementedException();
+
+    public static TurnoVigente? Apply(CancelacionAusenciaDiariaRegistrada evento, TurnoVigente vista) =>
+        throw new NotImplementedException();
+
     private static IReadOnlyList<Bloque> MapearBloques(TurnoDiarioAsignado evento) =>
         evento.DetalleTurno.Segmentar(evento.Fecha).Select(MapearBloque).ToList();
 

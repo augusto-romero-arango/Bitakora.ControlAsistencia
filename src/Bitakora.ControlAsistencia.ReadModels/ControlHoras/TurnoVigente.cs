@@ -27,4 +27,16 @@ public sealed record TurnoVigente(
     DateOnly Fecha,
     string NombreTurno,
     string HorarioResumido,
+    IReadOnlyList<Bloque> Bloques,
+    string? MotivoAusencia = null,
+    Guid? AusenciaId = null,
+    TurnoCubierto? TurnoCubierto = null);
+
+/// <summary>
+/// Turno que una ausencia vigente cubre: estado interno del documento para restablecerlo al
+/// cancelar la ausencia. La respuesta de los endpoints no lo expone (issue #756).
+/// </summary>
+public sealed record TurnoCubierto(
+    string NombreTurno,
+    string HorarioResumido,
     IReadOnlyList<Bloque> Bloques);
