@@ -5,7 +5,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.SolicitarProgramacionTurno;
 // Desde/Hasta para que un helper externo calcule la interseccion.
 public sealed partial class VentanaDeProgramacion
 {
-    internal const int MaximoDias = 31;
+    internal const int MaximoDias = 35;
 
     private readonly DateOnly _desde;
     private readonly DateOnly _hasta;
