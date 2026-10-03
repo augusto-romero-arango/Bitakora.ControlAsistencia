@@ -237,6 +237,14 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return ResultadoAsignarAusencia.Asignada;
     }
 
+    public void Apply(CancelacionAusenciaDiariaRegistrada e) => throw new NotImplementedException();
+
+    internal static ControlDiarioAggregateRoot Iniciar(CancelacionAusenciaDiariaRegistrada evento)
+        => throw new NotImplementedException();
+
+    internal ResultadoCancelarAusencia CancelarAusencia(CancelacionAusenciaDiariaRegistrada evento)
+        => throw new NotImplementedException();
+
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
     // refresca al final de cada uno.
