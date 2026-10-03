@@ -1,8 +1,3 @@
-// Funcion pura documentos+rango -> filas: se invoca directamente, sin QuerySession/Marten y sin el
-// DSL Given/When/Then de CommandHandlerTestBase, reservado a command handlers contra el event store
-// (MEF-ADR-0002). Cada oraculo se arma a mano, campo por campo: nunca se reusa el mapeo bajo prueba
-// para construir el esperado.
-//
 // HorasPorConcepto se verifica con BeEquivalentTo y nunca comparando la fila entera con
 // Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
 // compilador de records.
@@ -125,6 +120,23 @@ public class SintesisCalendarioAsistenciaTests
 
         filas.Should().HaveCount(5);
         filas.Should().OnlyContain(f => f.Estado == EstadoAsistenciaPresentado.SinDatos);
+    }
+
+    [Fact]
+    public void Completar_Produce35FilasSinteticas_CuandoSeAplicaElHorizonteDeConsultaSinDocumentos()
+    {
+        var desde = new DateOnly(2026, 10, 7);
+        var hastaSolicitado = new DateOnly(2026, 11, 10);
+        var rango = RangoConsulta.Recortar(desde, hastaSolicitado);
+
+        var filas = SintesisCalendarioAsistencia.Completar(desde, rango.HastaAplicado, []);
+
+        rango.Should().Be(new RangoAplicado(new DateOnly(2026, 11, 10), false));
+        filas.Should().HaveCount(35);
+        filas.Select(f => f.Fecha).Should().Equal(
+            Enumerable.Range(0, 35).Select(i => desde.AddDays(i)));
+        filas.Should().OnlyContain(f => f.Estado == EstadoAsistenciaPresentado.SinDatos
+            && f.Plan == PlanDelDia.SinProgramar);
     }
 
     [Fact]

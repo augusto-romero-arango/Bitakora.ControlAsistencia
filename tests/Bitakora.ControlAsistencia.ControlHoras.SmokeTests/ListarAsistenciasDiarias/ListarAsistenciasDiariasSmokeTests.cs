@@ -360,15 +360,58 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarAsistenciasDiarias_RecortaHaciaAdelanteYSintetizaSoloElRangoAplicado_CuandoElRangoExcedeLaCotaDe31Dias()
+    public async Task ListarAsistenciasDiarias_Conserva35DiasYSintetizaTodasLasFechas_CuandoElColaboradorNoTieneDocumentos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var desde = new DateOnly(2026, 10, 7);
+        var hasta = new DateOnly(2026, 11, 10);
+
+        using var response = await ConsultarAsync(new { codigoColaborador, desdeFecha = desde, hastaFecha = hasta }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuesta = await response.Content.ReadFromJsonAsync<ListaAsistenciasDiariasSmoke>(JsonOptions, cancellationToken: ct);
+        respuesta.Should().NotBeNull();
+        respuesta!.DesdeAplicado.Should().Be(desde);
+        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
+        respuesta.RangoRecortado.Should().BeFalse();
+        respuesta.Filas.Should().HaveCount(35);
+        respuesta.Filas.Select(f => f.Fecha).Should().Equal(Enumerable.Range(0, 35).Select(desde.AddDays));
+        respuesta.Filas.Should().OnlyContain(f => f.Estado == EstadoAsistenciaPresentadoSmoke.SinDatos);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAsistenciasDiarias_Recorta36DiasYSintetizaSoloElRangoAplicado_CuandoElColaboradorNoTieneDocumentos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var desde = new DateOnly(2026, 10, 7);
+        var hastaSolicitado = new DateOnly(2026, 11, 11);
+
+        using var response = await ConsultarAsync(new { codigoColaborador, desdeFecha = desde, hastaFecha = hastaSolicitado }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuesta = await response.Content.ReadFromJsonAsync<ListaAsistenciasDiariasSmoke>(JsonOptions, cancellationToken: ct);
+        respuesta.Should().NotBeNull();
+        respuesta!.DesdeAplicado.Should().Be(desde);
+        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
+        respuesta.RangoRecortado.Should().BeTrue();
+        respuesta.Filas.Should().HaveCount(35);
+        respuesta.Filas.Select(f => f.Fecha).Should().Equal(Enumerable.Range(0, 35).Select(desde.AddDays));
+        respuesta.Filas.Should().OnlyContain(f => f.Estado == EstadoAsistenciaPresentadoSmoke.SinDatos);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAsistenciasDiarias_RecortaHaciaAdelanteYSintetizaSoloElRangoAplicado_CuandoElRangoExcedeLargamenteLaCota()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var desde = new DateOnly(2026, 8, 1);
         var hastaSolicitado = new DateOnly(2026, 12, 31);
-        // La cota son 31 dias INCLUSIVE; el literal se afirma a mano, nunca leyendo CotaDias.
-        var hastaAplicadaEsperada = desde.AddDays(30);
+        var hastaAplicadaEsperada = new DateOnly(2026, 9, 4);
 
         var filtro = new { codigoColaborador, desdeFecha = desde, hastaFecha = hastaSolicitado };
         var response = await ConsultarAsync(filtro, ct);
@@ -382,7 +425,7 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         respuesta.HastaAplicado.Should().Be(hastaAplicadaEsperada);
         respuesta.RangoRecortado.Should().BeTrue();
 
-        respuesta.Filas.Should().HaveCount(31);
+        respuesta.Filas.Should().HaveCount(35);
         respuesta.Filas.First().Fecha.Should().Be(desde);
         respuesta.Filas.Last().Fecha.Should().Be(hastaAplicadaEsperada);
     }
