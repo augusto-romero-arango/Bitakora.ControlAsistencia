@@ -32,6 +32,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     private DateOnly _fecha;
     private ResumenColaborador? _colaborador;
     private string? _nombreTurno;
+    private string? _motivoAusencia;
     private IReadOnlyList<FranjaDepurada> _franjas = [];
     private IReadOnlyList<MarcacionDelDia> _marcaciones = [];
     private HorasDiscriminadas? _horasDiscriminadas;
@@ -64,6 +65,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         _fecha = e.Fecha;
         _colaborador = e.Colaborador;
         _nombreTurno = e.NombreTurno;
+        _motivoAusencia = e.MotivoAusencia;
         _franjas = e.Franjas;
         _marcaciones = e.Marcaciones;
         _horasDiscriminadas = e.HorasDiscriminadas;
@@ -166,7 +168,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // campo propio del evento.
     public DepuracionDelDia GenerarDepuracionDelDia()
     {
-        var plan = ClasificarPlan(_nombreTurno, _franjas);
+        var plan = ClasificarPlan(_nombreTurno, _franjas, _motivoAusencia);
         var horas = _horasDiscriminadas;
 
         return new DepuracionDelDia(
@@ -215,12 +217,15 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                     marcacion.CentroDeCostos))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
-            horas?.Trazabilidad ?? []);
+            horas?.Trazabilidad ?? [],
+            _motivoAusencia);
     }
 
-    private static PlanDelDia ClasificarPlan(string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas) =>
+    private static PlanDelDia ClasificarPlan(
+        string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas, string? motivoAusencia) =>
         nombreTurno switch
         {
+            _ when motivoAusencia is not null => PlanDelDia.Ausencia,
             null => PlanDelDia.SinProgramar,
             _ when franjas.Count == 0 => PlanDelDia.Descanso,
             _ => PlanDelDia.ConJornada

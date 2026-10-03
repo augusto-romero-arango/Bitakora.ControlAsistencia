@@ -35,7 +35,8 @@ public partial class DiaDepuradoEventHandler : IPrivateEventHandlerAsync<DiaDepu
             @event.NombreTurno,
             @event.Franjas.Select(MapearFranja).ToList(),
             @event.Marcaciones.Select(MapearMarcacion).ToList(),
-            MapearHoras(@event.HorasDiscriminadas));
+            MapearHoras(@event.HorasDiscriminadas),
+            @event.MotivoAusencia);
 
         var existe = await _eventStore.ExistsAsync<DiaCalculadoAggregateRoot>(streamId, ct);
 
