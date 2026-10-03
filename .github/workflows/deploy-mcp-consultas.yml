@@ -96,8 +96,9 @@ jobs:
             exit 0
           fi
           # 'Infra CD - Terraform Apply' solo corre en push a main (el plan de PR vive en
-          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion y rama por
-          # defensividad -- si algun dia se unifican los dos archivos de infra como hizo el
+          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion, rama, evento de
+          # origen (push) y repositorio de origen (#775; los jobs que hacen checkout repiten
+          # la condicion de origen en su if:) por defensividad -- si algun dia se unifican los dos archivos de infra como hizo el
           # harness, esta guarda evita reaccionar a una corrida que no sea un apply exitoso.
           if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ] \
              || [ "$RUN_EVENTO" != "push" ] || [ "$RUN_REPO" != "$REPO" ]; then

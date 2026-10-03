@@ -112,8 +112,9 @@ jobs:
             exit 0
           fi
           # 'Infra CD - Terraform Apply' solo corre en push a main (el plan de PR vive en
-          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion y rama por
-          # defensividad.
+          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion, rama, evento de
+          # origen (push) y repositorio de origen por defensividad (#775). Los jobs que hacen
+          # checkout repiten la condicion de origen en su propio if:.
           if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ] \
              || [ "$RUN_EVENTO" != "push" ] || [ "$RUN_REPO" != "$REPO" ]; then
             echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
