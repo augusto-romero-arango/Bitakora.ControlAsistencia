@@ -289,10 +289,10 @@ public class AgregadorResumenAsistenciaTests
         var documentos = new List<AsistenciaDiaria>();
         for (var i = 0; i < 5; i++)
             documentos.Add(DocumentoDePrueba(codigo, desde.AddDays(i), plan: PlanDelDia.Ausencia) with
-                { MotivoAusencia = "Vacaciones", NombreTurno = null });
+            { MotivoAusencia = "Vacaciones", NombreTurno = null });
         for (var i = 5; i < 7; i++)
             documentos.Add(DocumentoDePrueba(codigo, desde.AddDays(i), plan: PlanDelDia.Ausencia) with
-                { MotivoAusencia = "IncapacidadMedica", NombreTurno = null, VinoEnAusencia = i == 6 });
+            { MotivoAusencia = "IncapacidadMedica", NombreTurno = null, VinoEnAusencia = i == 6 });
         documentos.Add(DocumentoDePrueba(codigo, desde.AddDays(7), plan: PlanDelDia.ConJornada));
 
         var filas = AgregadorResumenAsistencia.Agregar(desde, hasta, null, documentos);

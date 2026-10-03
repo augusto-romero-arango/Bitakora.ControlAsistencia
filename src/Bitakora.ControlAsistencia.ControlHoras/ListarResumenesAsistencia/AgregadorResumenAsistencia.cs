@@ -59,7 +59,7 @@ public static class AgregadorResumenAsistencia
                     totalHorasPorConcepto.GetValueOrDefault(concepto) + horas;
 
         var diasConAusencia = documentos
-            .Where(d => d.Plan == PlanDelDia.Ausencia && d.MotivoAusencia is not null)
+            .Where(d => d.MotivoAusencia is not null)
             .GroupBy(d => d.MotivoAusencia!)
             .ToDictionary(g => g.Key, g => g.Count());
 

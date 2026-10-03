@@ -167,7 +167,7 @@ public class SintesisCalendarioAsistenciaTests
         var fecha = new DateOnly(2026, 8, 3);
         var documento = DocumentoDePrueba(fecha, plan: PlanDelDia.Ausencia, nombreTurno: null,
                 horasPorConcepto: new Dictionary<string, decimal>()) with
-            { MotivoAusencia = "Vacaciones", VinoEnAusencia = true };
+        { MotivoAusencia = "Vacaciones", VinoEnAusencia = true };
 
         var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, [documento]);
 

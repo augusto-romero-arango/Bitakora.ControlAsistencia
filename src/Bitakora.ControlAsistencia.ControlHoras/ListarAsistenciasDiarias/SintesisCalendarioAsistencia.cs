@@ -47,7 +47,7 @@ public static class SintesisCalendarioAsistencia
             documento.VinoEnAusencia);
 
     // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
-    // cinco banderas van en false -- el vacio se avala, no se aprueba.
+    // banderas van en false y no hay motivo de ausencia -- el vacio se avala, no se aprueba.
     private static FilaAsistenciaDiaria FilaSintetica(DateOnly fecha) =>
         new(
             fecha,
