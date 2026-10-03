@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
@@ -47,6 +48,9 @@ public partial class AusenciasColaborador : AggregateRoot
         Apply(evento);
         return new ResultadoProgramarAusencia.Programada();
     }
+
+    internal IReadOnlyList<AusenciaDelColaborador> ListarAusenciasVigentes(DateOnly desde, DateOnly hasta)
+        => throw new NotImplementedException();
 
     internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
     {

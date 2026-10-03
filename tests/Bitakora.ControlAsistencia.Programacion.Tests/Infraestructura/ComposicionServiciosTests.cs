@@ -38,6 +38,8 @@ using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.Listar
 using ObtenerCuadroSemanalTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos.FunctionEndpoint;
 using ListarCuadrosSemanalesTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos.FunctionEndpoint;
 
+using ListarAusenciasColaboradorEndpoint = Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador.FunctionEndpoint;
+
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class ComposicionServiciosTests
@@ -352,6 +354,17 @@ public class ComposicionServiciosTests
         await using var scope = provider.CreateAsyncScope();
 
         var act = () => ActivatorUtilities.CreateInstance<ListarCuadrosSemanalesTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarAusenciasColaborador_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarAusenciasColaboradorEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }
