@@ -112,6 +112,14 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ConsultarAusencias_DescribeElHorizonteDe35Dias_CuandoSeInspeccionaLaTool()
+    {
+        var descripcion = Trigger(Tool("consultar_ausencias")).Description;
+
+        descripcion.Should().Contain("maximo 35 dias").And.NotContain("31 dias");
+    }
+
+    [Fact]
     public void ObtenerSesion_NoDeclaraParametros_CuandoSeInspeccionaLaTool()
     {
         Propiedades(Tool("obtener_sesion")).Should().BeEmpty();

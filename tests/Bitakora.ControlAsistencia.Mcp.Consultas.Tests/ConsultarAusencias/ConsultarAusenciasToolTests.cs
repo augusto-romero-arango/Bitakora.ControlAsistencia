@@ -109,9 +109,49 @@ public class ConsultarAusenciasToolTests
             TestContext.Current.CancellationToken);
 
         var json = JsonNode.Parse(resultado)!;
-        json["nota"]!.GetValue<string>().Should().Be(string.Format(
-            ConsultarAusenciasTool.Mensajes.NotaRecorte, "2026-10-01", "2026-10-31"));
-        json["hasta"]!.GetValue<string>().Should().Be("2026-10-31");
+        json["desde"]!.GetValue<string>().Should().Be("2026-10-01");
+        json["hasta"]!.GetValue<string>().Should().Be("2026-11-04");
+        json["nota"]!.GetValue<string>().Should().Be(
+            "El periodo pedido excedia 35 dias y fue recortado; periodo aplicado: 2026-10-01 a 2026-11-04.");
+        json["colaboradores"]![0]!["ausencias"]![0]!["tramos"]![0]!.GetValue<string>()
+            .Should().Be("2026-10-05 a 2026-10-09");
+    }
+
+    [Fact]
+    public async Task ConsultarAusencias_NoInventaRecorte_CuandoElDominioAplica35DiasSinRecorte()
+    {
+        var respuesta = JsonNode.Parse(Fixtures.Leer("ausencias-equipo-recortado.json"))!;
+        respuesta["rangoRecortado"] = false;
+        var (cliente, handler) = ClienteFalso.Con(respuesta.ToJsonString());
+
+        var resultado = await Tool(cliente).Run(null!, "2026-10-01", "2026-11-04", null,
+            TestContext.Current.CancellationToken);
+
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!;
+        body["desde"]!.GetValue<string>().Should().Be("2026-10-01");
+        body["hasta"]!.GetValue<string>().Should().Be("2026-11-04");
+        var json = JsonNode.Parse(resultado)!;
+        json["desde"]!.GetValue<string>().Should().Be("2026-10-01");
+        json["hasta"]!.GetValue<string>().Should().Be("2026-11-04");
+        json.AsObject().ContainsKey("nota").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ConsultarAusencias_DelegaElRecorteAlDominio_CuandoSePiden36Dias()
+    {
+        var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ausencias-equipo-recortado.json"));
+
+        var resultado = await Tool(cliente).Run(null!, "2026-10-01", "2026-11-05", null,
+            TestContext.Current.CancellationToken);
+
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!;
+        body["desde"]!.GetValue<string>().Should().Be("2026-10-01");
+        body["hasta"]!.GetValue<string>().Should().Be("2026-11-05");
+        var json = JsonNode.Parse(resultado)!;
+        json["desde"]!.GetValue<string>().Should().Be("2026-10-01");
+        json["hasta"]!.GetValue<string>().Should().Be("2026-11-04");
+        json["nota"]!.GetValue<string>().Should().Be(
+            "El periodo pedido excedia 35 dias y fue recortado; periodo aplicado: 2026-10-01 a 2026-11-04.");
     }
 
     [Fact]
