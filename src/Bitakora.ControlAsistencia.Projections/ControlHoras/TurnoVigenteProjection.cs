@@ -84,6 +84,12 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
                 : new TurnoCubierto(vista.NombreTurno, vista.HorarioResumido, vista.Bloques)
         };
 
+    // Una cancelacion como primer evento del stream (#747) no crea documento: sin este Create el
+    // evolver generado aplicaria Apply sobre un TurnoVigente sin inicializar.
+    public static TurnoVigente? Create(TurnoDiarioCancelado evento) => null;
+
+    public static TurnoVigente? Create(CancelacionAusenciaDiariaRegistrada evento) => null;
+
     // Apply devuelve null para borrar el documento (dia sin turno ni ausencia): Apply y ShouldDelete
     // del mismo evento no coexisten en el generador de Marten (CS8120).
     // Con ausencia vigente, el turno cancelado solo se descarta de TurnoCubierto.

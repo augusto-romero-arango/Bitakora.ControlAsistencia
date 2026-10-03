@@ -34,7 +34,7 @@ public sealed record TurnoVigente(
 
 /// <summary>
 /// Turno que una ausencia vigente cubre: estado interno del documento para restablecerlo al
-/// cancelar la ausencia. La respuesta de los endpoints no lo expone (issue #756).
+/// cancelar la ausencia. La respuesta de los endpoints no lo expone.
 /// </summary>
 public sealed record TurnoCubierto(
     string NombreTurno,

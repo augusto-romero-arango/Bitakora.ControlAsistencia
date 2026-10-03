@@ -6,7 +6,7 @@ using TipoBloqueVigente = Bitakora.ControlAsistencia.ReadModels.ControlHoras.Tip
 
 namespace Bitakora.ControlAsistencia.Projections.Tests.ControlHoras;
 
-// Issue #756: la programacion vigente refleja ausencias y cancelaciones de turno.
+// La programacion vigente refleja ausencias y cancelaciones de turno.
 // Oraculos armados a mano (MEF-ADR-0002).
 public class TurnoVigenteAusenciasProjectionTests
 {
@@ -105,6 +105,18 @@ public class TurnoVigenteAusenciasProjectionTests
     {
         TurnoVigenteProjection.Apply(CancelacionAusencia(), VistaConAusenciaSola())
             .Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_NoCreaDocumento_CuandoElStreamIniciaConCancelacionDeAusencia()
+    {
+        TurnoVigenteProjection.Create(CancelacionAusencia()).Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_NoCreaDocumento_CuandoElStreamIniciaConTurnoDiarioCancelado()
+    {
+        TurnoVigenteProjection.Create(TurnoCancelado()).Should().BeNull();
     }
 
     // CA-1
