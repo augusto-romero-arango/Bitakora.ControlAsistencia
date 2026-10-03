@@ -23,7 +23,6 @@ public class ProgramarAusenciaTrasCancelarTests : CommandHandlerAsyncTest<Progra
 
     private static DateOnly Oct(int dia) => new(2026, 10, dia);
 
-    // CA-6
     [Fact]
     public async Task ProgramarAusencia_AceptaElRango_CuandoLasFechasFueronCanceladas()
     {

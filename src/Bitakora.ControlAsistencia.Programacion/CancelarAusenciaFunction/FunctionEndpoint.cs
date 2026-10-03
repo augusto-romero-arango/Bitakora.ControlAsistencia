@@ -36,15 +36,9 @@ public partial class FunctionEndpoint(IRequestValidator requestValidator, IComma
         {
             await commandRouter.InvokeAsync(new CancelarAusencia(codigo!, ausenciaId, body!.Fechas!), ct);
         }
-        catch (PrecondicionComandoException ex)
+        catch (RecursoNoEncontradoException ex)
         {
-            switch (ex)
-            {
-                case RecursoNoEncontradoException:
-                    return new NotFoundObjectResult(ex.Message);
-                default:
-                    throw;
-            }
+            return new NotFoundObjectResult(ex.Message);
         }
 
         return new NoContentResult();

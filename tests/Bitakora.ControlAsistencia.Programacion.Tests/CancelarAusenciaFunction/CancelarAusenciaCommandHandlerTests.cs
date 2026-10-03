@@ -39,7 +39,6 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         string.Join(",", a.ListarAusenciasVigentes(Oct(1), Oct(31)).Single().TramosVigentes
             .Select(t => $"{t.Desde.Day}-{t.Hasta.Day}"));
 
-    // CA-1
     [Fact]
     public async Task CancelarAusencia_EmiteEventoYPublicaUnoPorFecha_CuandoLasFechasEstanVigentes()
     {
@@ -52,7 +51,6 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-19,23-26");
     }
 
-    // CA-2
     [Fact]
     public async Task CancelarAusencia_EmiteSoloLasVigentes_CuandoLaPeticionMezclaVigentesCanceladasYAjenas()
     {
@@ -102,7 +100,6 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 2);
     }
 
-    // CA-3
     [Fact]
     public async Task CancelarAusencia_NoEmiteNiPublicaNada_CuandoTodasLasFechasYaEstanCanceladas()
     {
@@ -127,7 +124,6 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-26");
     }
 
-    // CA-4
     [Fact]
     public async Task CancelarAusencia_LanzaRecursoNoEncontradoException_CuandoElIdNoExisteParaElColaborador()
     {
