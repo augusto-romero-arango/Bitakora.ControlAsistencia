@@ -1,0 +1,53 @@
+{
+  "desde": "2026-10-12",
+  "hasta": "2026-10-18",
+  "rangoRecortado": false,
+  "colaboradores": [
+    {
+      "codigoColaborador": "COL-1",
+      "nombreCompleto": "Ana Perez",
+      "ausencias": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "motivo": "Vacaciones",
+          "tramos": [
+            {
+              "desde": "2026-10-12",
+              "hasta": "2026-10-14"
+            }
+          ]
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000002",
+          "motivo": "IncapacidadMedica",
+          "tramos": [
+            {
+              "desde": "2026-10-16",
+              "hasta": "2026-10-16"
+            },
+            {
+              "desde": "2026-10-18",
+              "hasta": "2026-10-18"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigoColaborador": "COL-2",
+      "nombreCompleto": "Luis Gomez",
+      "ausencias": [
+        {
+          "id": "00000000-0000-0000-0000-000000000003",
+          "motivo": "LicenciaRemunerada",
+          "tramos": [
+            {
+              "desde": "2026-10-13",
+              "hasta": "2026-10-15"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -18,4 +18,11 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<HttpResponseMessage> ListarAusenciasDelEquipo(
+        DateOnly desde,
+        DateOnly hasta,
+        IReadOnlyList<string>? codigosColaborador,
+        CancellationToken ct) =>
+        throw new NotImplementedException();
 }
