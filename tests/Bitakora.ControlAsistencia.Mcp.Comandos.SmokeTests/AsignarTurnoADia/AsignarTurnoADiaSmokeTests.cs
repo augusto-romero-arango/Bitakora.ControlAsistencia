@@ -41,6 +41,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
         creadoTurno.IsError.Should().NotBeTrue();
 
         using var fichaTurno = await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
+        var turnoId = fichaTurno.RootElement.GetProperty("id").GetString()!;
 
         var conFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
@@ -59,9 +60,23 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         using var textoCreada = JsonDocument.Parse(TextoDe(creada));
         var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
+        textoCreada.RootElement.GetProperty("diasAsignados").GetInt32().Should().Be(1);
+        textoCreada.RootElement.TryGetProperty("diasRechazados", out _).Should().BeFalse();
 
-        using (var cuadroInicial = await programacion.EsperarCuadroAsync(plantillaId, ct))
-            cuadroInicial.RootElement.GetProperty("dias").GetArrayLength().Should().Be(1);
+        await Polling.WaitUntilAsync(
+            async () =>
+            {
+                using var candidato = await programacion.BuscarCuadroAsync(plantillaId, ct);
+                if (candidato is null)
+                    return null;
+
+                var diasDelCuadro = candidato.RootElement.GetProperty("dias");
+                return diasDelCuadro.GetArrayLength() == 1 && diasDelCuadro.EnumerateArray().Any(dia =>
+                    dia.GetProperty("semana").GetInt32() == 1
+                    && dia.GetProperty("dia").GetInt32() == 1
+                    && dia.GetProperty("turno").GetProperty("id").GetString() == turnoId) ? new object() : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
 
         var asignado = await mcp.Cliente.CallToolAsync(
             "asignar_turno_a_dia",

@@ -11,8 +11,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Comandos.SmokeTests.CrearPlantillaSeman
 public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
     // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> Function App de
-    // Programacion -> event store, para el POST y para los PUT secuenciales. El assert de
-    // creacion vive DENTRO del polling (materializacion asincronica del cuadro semanal);
+    // Programacion -> event store, para el POST y para los PUT secuenciales. La sonda exige
+    // ambos dias con sus turnos antes de terminar la espera de materializacion del cuadro;
     // retirar_plantilla_semanal limpia la plantilla sembrada por este mismo test.
     [Fact]
     [Trait("Category", "Smoke")]
@@ -23,6 +23,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         var turnoLunes = $"[TEST] Turno Lunes MCP {sufijo}";
         var turnoMartes = $"[TEST] Turno Martes MCP {sufijo}";
         var nombrePlantilla = $"[TEST] Plantilla MCP {sufijo}";
+        var idsDeTurnos = new Dictionary<string, string>();
 
         foreach (var turno in new[] { turnoLunes, turnoMartes })
         {
@@ -31,6 +32,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             creado.IsError.Should().NotBeTrue();
 
             using var ficha = await programacion.Client.EsperarFichaAsync(turno, ct);
+            idsDeTurnos.Add(turno, ficha.RootElement.GetProperty("id").GetString()!);
 
             var conFranja = await mcp.Cliente.CallToolAsync(
                 "agregar_franja",
@@ -51,9 +53,29 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         using var textoCreada = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
         var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
+        textoCreada.RootElement.GetProperty("diasAsignados").GetInt32().Should().Be(2);
+        textoCreada.RootElement.TryGetProperty("diasRechazados", out _).Should().BeFalse();
 
-        using (var cuadro = await programacion.EsperarCuadroAsync(plantillaId, ct))
-            cuadro.RootElement.GetProperty("dias").GetArrayLength().Should().Be(2);
+        await Polling.WaitUntilAsync(
+            async () =>
+            {
+                using var candidato = await programacion.BuscarCuadroAsync(plantillaId, ct);
+                if (candidato is null)
+                    return null;
+
+                var diasDelCuadro = candidato.RootElement.GetProperty("dias");
+                return diasDelCuadro.GetArrayLength() == 2
+                       && diasDelCuadro.EnumerateArray().Any(dia =>
+                           dia.GetProperty("semana").GetInt32() == 1
+                           && dia.GetProperty("dia").GetInt32() == 1
+                           && dia.GetProperty("turno").GetProperty("id").GetString() == idsDeTurnos[turnoLunes])
+                       && diasDelCuadro.EnumerateArray().Any(dia =>
+                           dia.GetProperty("semana").GetInt32() == 1
+                           && dia.GetProperty("dia").GetInt32() == 2
+                           && dia.GetProperty("turno").GetProperty("id").GetString() == idsDeTurnos[turnoMartes])
+                    ? new object() : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
 
         var retirada = await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
