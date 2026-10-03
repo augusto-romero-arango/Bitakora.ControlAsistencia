@@ -3,13 +3,20 @@ name: Smoke Tests (todos los dominios)
 on:
   workflow_dispatch:
 
+# Piso de permisos del workflow: aplica a los jobs que no declaran los suyos (discovery),
+# que solo necesitan leer el repo para el checkout. Los permisos declarados por un job
+# reemplazan por completo a estos, asi que sus concesiones siguen vigentes:
+# actions: read en smoke-test (workflow reutilizable, MEF-ADR-0013).
+permissions:
+  contents: read
+
 jobs:
   discovery:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: set-matrix
         run: echo "matrix=$(jq -c . .github/smoke-tests-dominios.json)" >> $GITHUB_OUTPUT
 

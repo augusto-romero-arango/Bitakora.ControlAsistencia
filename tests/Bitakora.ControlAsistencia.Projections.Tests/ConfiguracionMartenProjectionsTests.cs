@@ -248,6 +248,44 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 
+    // Issue #755: la proyeccion N2 de ausencias se registra Async en el worker.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraAusenciaVigenteProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("AusenciaVigente");
+    }
+
+    // Mitad worker del par 2 para AusenciaVigente (MEF-ADR-0034 seccion 6), espejo de
+    // AgregarServiciosProgramacion_*_ParaAusenciaVigente en Programacion.Tests.
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaAusenciaVigenteConRevisionNumerica()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(AusenciaVigente));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaAusenciaVigenteSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(AusenciaVigente));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_ausenciavigente");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AusenciaVigente.Id));
+    }
+
     // CA-5, mismo criterio que el test de FichaTurno de arriba.
     [Fact]
     public void ConfigurarProgramacion_RegistraCuadroSemanalTurnosProjectionComoAsync()

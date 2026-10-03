@@ -394,4 +394,141 @@ public class AsistenciaDiariaProjectionTests
         vista.HorasPorConcepto.Should().BeEquivalentTo(
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
     }
+
+    // --- Ausencias (CA-ADR-0036, issue #749) ---
+
+    private static DepuracionDiaRecibida CrearEventoDeAusencia(
+        string? motivo, string? nombreTurno, IReadOnlyList<EventoFranjaDepurada> franjas,
+        IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
+        new(StreamKey, CodigoColaborador, Fecha, new ResumenColaborador("CC-1098765432", CodigoColaborador,
+            "Ana Ramirez"), nombreTurno, franjas, marcaciones, SinHoras(), motivo);
+
+    [Fact]
+    public void Create_ProyectaAusenciaSinBanderas_CuandoHayMotivoYNoHayMarcaciones()
+    {
+        var evento = CrearEventoDeAusencia("Vacaciones", null, [], []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.MotivoAusencia.Should().Be("Vacaciones");
+        vista.NombreTurno.Should().BeNull();
+        vista.HorasPorConcepto.Should().BeEmpty();
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+        vista.VinoEnDescanso.Should().BeFalse();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.VinoEnAusencia.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_MarcaVinoEnAusenciaYNingunaOtraBandera_CuandoHayMotivoYMarcaciones()
+    {
+        var evento = CrearEventoDeAusencia("IncapacidadMedica", null, [], [MarcacionDePrueba()]);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.MotivoAusencia.Should().Be("IncapacidadMedica");
+        vista.VinoEnAusencia.Should().BeTrue();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.NoSePresento.Should().BeFalse();
+        vista.VinoEnDescanso.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_ClasificaAusenciaPorEncimaDelTurno_CuandoElMotivoCoexisteConTurnoYFranjas()
+    {
+        var evento = CrearEventoDeAusencia("LicenciaRemunerada", "Turno Manana", [FranjaValida()], []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.MotivoAusencia.Should().Be("LicenciaRemunerada");
+        vista.NoSePresento.Should().BeFalse();
+        vista.FranjasIncompletas.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_NoProyectaMotivoNiVinoEnAusencia_CuandoLaDepuracionNoTraeMotivo()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.ConJornada);
+        vista.MotivoAusencia.Should().BeNull();
+        vista.VinoEnAusencia.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ProyectaAusenciaYVinoEnAusencia_CuandoLlegaDepuracionConMotivoYMarcaciones()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", NoSePresento: true, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>());
+        var evento = CrearEventoDeAusencia("AusenciaNoRemunerada", null, [], [MarcacionDePrueba()]);
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.MotivoAusencia.Should().Be("AusenciaNoRemunerada");
+        vista.NombreTurno.Should().BeNull();
+        vista.VinoEnAusencia.Should().BeTrue();
+        vista.NoSePresento.Should().BeFalse();
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+        vista.VinoEnDescanso.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_VuelveAlPlanDelTurnoYApagaLaAusencia_CuandoLaDepuracionPosteriorNoTraeMotivo()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.Ausencia,
+            NombreTurno: null, NoSePresento: false, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>(),
+            MotivoAusencia: "Vacaciones", VinoEnAusencia: true);
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.Plan.Should().Be(PlanDelDia.ConJornada);
+        vista.MotivoAusencia.Should().BeNull();
+        vista.VinoEnAusencia.Should().BeFalse();
+        vista.NoSePresento.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_ConservaPlanMotivoYBanderasDeAusencia_CuandoLlegaDiaAprobado()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.Ausencia,
+            NombreTurno: null, NoSePresento: false, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>(),
+            MotivoAusencia: "Vacaciones", VinoEnAusencia: true);
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.Estado.Should().Be(EstadoAsistencia.Aprobado);
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.MotivoAusencia.Should().Be("Vacaciones");
+        vista.VinoEnAusencia.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_NoTrasladaMotivoAlAprobar_CuandoElStreamNaceConDiaAprobado()
+    {
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MotivoAusencia.Should().BeNull();
+        vista.VinoEnAusencia.Should().BeFalse();
+    }
 }

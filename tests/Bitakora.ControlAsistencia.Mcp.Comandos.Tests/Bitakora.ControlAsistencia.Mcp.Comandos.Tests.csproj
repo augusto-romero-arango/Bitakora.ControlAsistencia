@@ -14,7 +14,7 @@
        versionado de paquetes de test en este consumidor. -->
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" Version="*" />
-    <PackageReference Include="xunit.v3.mtp-v2" Version="3.*" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="4.*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,6 +40,8 @@
     <Content Include="CrearPlantillaSemanal\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="RetirarPlantillaSemanal\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="AsignarTurnoADia\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="ProgramarAusencia\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="CancelarAusencia\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

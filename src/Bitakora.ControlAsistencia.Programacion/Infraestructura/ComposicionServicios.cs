@@ -64,6 +64,10 @@ public static class ComposicionServicios
                     "programacion-turno-diario-solicitada");
                 options.PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(
                     "cancelacion-turno-diario-solicitada");
+                options.PublicarEventoServerless<AusenciaDiariaProgramada>(
+                    "ausencia-diaria-programada");
+                options.PublicarEventoServerless<AusenciaDiariaCancelada>(
+                    "ausencia-diaria-cancelada");
             });
 
         services.AgregarMartenEventStore();
@@ -106,6 +110,9 @@ public static class ComposicionServicios
             // mt_version uuid sobre la MISMA tabla que el worker ya escribe con mt_version bigint,
             // 500 permanente en el primer request real.
             options.Schema.For<CuadroSemanalTurnos>().UseNumericRevisions(true);
+
+            // Issue #755: par 2 para AusenciaVigente (ListarAusenciasDelEquipo), mismo motivo.
+            options.Schema.For<AusenciaVigente>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {

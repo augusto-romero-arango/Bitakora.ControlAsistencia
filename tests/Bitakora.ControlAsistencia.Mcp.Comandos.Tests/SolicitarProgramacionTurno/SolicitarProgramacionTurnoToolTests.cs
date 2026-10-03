@@ -438,4 +438,98 @@ public class SolicitarProgramacionTurnoToolTests
         resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.RechazoDelDominio, "500"));
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
+
+    private static string CuerpoConRespetadas(params (string Fecha, string Motivo)[] respetadas) =>
+        new JsonObject
+        {
+            ["fechasRespetadas"] = new JsonArray(respetadas
+                .Select(r => (JsonNode)new JsonObject { ["fecha"] = r.Fecha, ["motivo"] = r.Motivo })
+                .ToArray())
+        }.ToJsonString();
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_OmiteRespetados_CuandoElCreatedNoTraeFechasRespetadas()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: CuerpoConRespetadas());
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!.AsObject();
+        programado["dias"]!.GetValue<int>().Should().Be(30);
+        programado.ContainsKey("respetados").Should().BeFalse("sin respetadas la clave no viaja ni como null ni como vacia");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_CuentaSoloDiasProgramadosYAgrupaRespetadosEnTramos_CuandoElCreatedTraeFechasRespetadas()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: CuerpoConRespetadas(
+            ("2026-09-13", "Vacaciones"), ("2026-09-14", "Vacaciones"), ("2026-09-15", "Vacaciones"),
+            ("2026-09-16", "Vacaciones"), ("2026-09-17", "Vacaciones"), ("2026-09-20", "Vacaciones")));
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!;
+        programado["desde"]!.GetValue<string>().Should().Be("2026-09-01");
+        programado["hasta"]!.GetValue<string>().Should().Be("2026-09-30");
+        programado["dias"]!.GetValue<int>().Should().Be(24, "30 dias de ventana menos 6 respetados");
+        var respetados = programado["respetados"]!.AsArray();
+        respetados.Should().HaveCount(1);
+        respetados[0]!["motivo"]!.GetValue<string>().Should().Be("Vacaciones");
+        respetados[0]!["tramos"]!.GetValue<string>().Should().Be("13-17, 20");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_AgrupaRespetadosPorMotivo_CuandoLasFechasTienenMotivosDistintos()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: CuerpoConRespetadas(
+            ("2026-09-10", "IncapacidadMedica"), ("2026-09-11", "IncapacidadMedica"),
+            ("2026-09-20", "Vacaciones"), ("2026-09-22", "Vacaciones")));
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!;
+        programado["dias"]!.GetValue<int>().Should().Be(26);
+        var respetados = programado["respetados"]!.AsArray();
+        respetados.Should().HaveCount(2);
+        respetados.Single(r => r!["motivo"]!.GetValue<string>() == "IncapacidadMedica")!["tramos"]!
+            .GetValue<string>().Should().Be("10-11");
+        respetados.Single(r => r!["motivo"]!.GetValue<string>() == "Vacaciones")!["tramos"]!
+            .GetValue<string>().Should().Be("20, 22");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LlevaAFallidosConElMotivoDelDominio_CuandoTodasLasFechasEstanEnAusencia()
+    {
+        const string motivoDominio = "Todas las fechas solicitadas caen en ausencias del colaborador";
+        var fakes = CrearTool(statusSolicitud: HttpStatusCode.Conflict, cuerpoSolicitud: motivoDominio);
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Should().BeEmpty();
+        var fallido = json["fallidos"]!.AsArray().Single()!;
+        fallido["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
+        fallido["motivo"]!.GetValue<string>().Should().Be(motivoDominio);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_EscribeConFechaCompletaLosTramosFueraDelMesDeInicio_CuandoLaVentanaCruzaDeMes()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: CuerpoConRespetadas(
+            ("2026-09-29", "Vacaciones"), ("2026-09-30", "Vacaciones"),
+            ("2026-10-01", "Vacaciones"), ("2026-10-03", "Vacaciones")));
+
+        var resultado = await Ejecutar(
+            fakes.Tool, desde: "2026-09-25", hasta: "2026-10-05", identificaciones: "CC-1111",
+            ct: TestContext.Current.CancellationToken);
+
+        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!;
+        programado["dias"]!.GetValue<int>().Should().Be(7, "11 dias de ventana menos 4 respetados");
+        programado["respetados"]!.AsArray().Single()!["tramos"]!.GetValue<string>()
+            .Should().Be("29 a 2026-10-01, 2026-10-03");
+    }
 }

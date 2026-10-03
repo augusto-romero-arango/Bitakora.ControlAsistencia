@@ -7,14 +7,16 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 ///
 /// Los tres ejes del Aprobador no se mezclan y cada uno cierra por separado contra los dias del
 /// rango aplicado:
-/// - Programacion: DiasConTurno + DiasConDescanso + DiasSinProgramar = dias del rango.
+/// - Programacion: DiasConTurno + DiasConDescanso + DiasSinProgramar + suma de DiasConAusencia =
+///   dias del rango.
 /// - Aprobacion: Aprobados + Pendientes + SinDatos = dias del rango. Un dia vacio se AVALA
 ///   (SinDatos), un provisional se APRUEBA (Pendientes) -- colapsarlos en un solo contador
 ///   descuadraria el drill-down contra la pantalla de detalle, que presenta los tres estados.
 /// - Anomalias: conteo de cada bandera de AsistenciaDiaria; los dias sin fila no aportan ninguna
 ///   (no vino y no debia venir), asi que este eje NO cierra contra los dias del rango.
 ///
-/// TotalHorasPorConcepto es la suma sparse (union de claves) de las filas del colaborador.
+/// TotalHorasPorConcepto es la suma sparse (union de claves) de las filas del colaborador;
+/// DiasConAusencia es igual de sparse: solo motivos con al menos un dia.
 /// </summary>
 public sealed record ResumenAsistencia(
     string CodigoColaborador,
@@ -29,4 +31,6 @@ public sealed record ResumenAsistencia(
     int Aprobados,
     int Pendientes,
     int SinDatos,
-    IReadOnlyDictionary<string, decimal> TotalHorasPorConcepto);
+    IReadOnlyDictionary<string, decimal> TotalHorasPorConcepto,
+    IReadOnlyDictionary<string, int> DiasConAusencia,
+    int VinoEnAusencia);
