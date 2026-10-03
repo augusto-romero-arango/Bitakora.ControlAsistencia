@@ -24,13 +24,12 @@ public partial class ObtenerSesionTool(IdentidadTenant tenantFijo)
                 ? valor as SesionUsuario
                 : null));
 
-    internal string Describir(SesionUsuario? sesion) =>
-        sesion is null
-            ? RespuestaJson.Serializar(new RespuestaSesion(
-                "tenant_fijo", null, new Empresa(tenantFijo.TenantId, null), null, Mensajes.SinSesionDeUsuario))
-            : RespuestaJson.Serializar(new RespuestaSesion(
-                "sesion", sesion.Correo, new Empresa(sesion.OrganizacionId, sesion.OrganizacionNombre),
-                sesion.MembershipId, null));
+    internal string Describir(SesionUsuario? sesion) => RespuestaJson.Serializar(sesion is null
+        ? new RespuestaSesion(
+            "tenant_fijo", null, new Empresa(tenantFijo.TenantId, null), null, Mensajes.SinSesionDeUsuario)
+        : new RespuestaSesion(
+            "sesion", sesion.Correo, new Empresa(sesion.OrganizacionId, sesion.OrganizacionNombre),
+            sesion.MembershipId, null));
 
     internal sealed record Empresa(string Id, string? Nombre);
 

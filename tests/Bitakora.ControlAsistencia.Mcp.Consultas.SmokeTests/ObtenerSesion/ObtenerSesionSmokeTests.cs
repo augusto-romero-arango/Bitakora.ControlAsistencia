@@ -9,7 +9,7 @@ public class ObtenerSesionSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ObtenerSesion_ResponderTenantFijoSinCorreo_CuandoSeLlamaConSystemKeySinBearer()
+    public async Task ObtenerSesion_RespondeTenantFijoSinCorreo_CuandoSeLlamaConSystemKeySinBearer()
     {
         var ct = TestContext.Current.CancellationToken;
 

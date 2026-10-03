@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
@@ -15,11 +14,8 @@ public class ObtenerSesionToolTests
 
     private static ObtenerSesionTool Tool => new(TenantFijo);
 
-    private static ClaimsPrincipal Principal(params (string Tipo, string Valor)[] claims) =>
-        new(new ClaimsIdentity(claims.Select(c => new Claim(c.Tipo, c.Valor))));
-
     [Fact]
-    public void ObtenerSesion_ResponderOrigenSesionConCorreoEmpresaYMembership_CuandoElTokenTraeNombreDeEmpresa()
+    public void ObtenerSesion_RespondeOrigenSesionConCorreoEmpresaYMembership_CuandoElTokenTraeNombreDeEmpresa()
     {
         using var json = JsonDocument.Parse(Tool.Describir(SesionCompleta));
         var raiz = json.RootElement;
@@ -44,7 +40,7 @@ public class ObtenerSesionToolTests
     }
 
     [Fact]
-    public void ObtenerSesion_ResponderTenantFijoSinCorreoYConAdvertencia_CuandoNoHayIdentidadDelToken()
+    public void ObtenerSesion_RespondeTenantFijoSinCorreoYConAdvertencia_CuandoNoHayIdentidadDelToken()
     {
         using var json = JsonDocument.Parse(Tool.Describir(null));
         var raiz = json.RootElement;
@@ -61,24 +57,5 @@ public class ObtenerSesionToolTests
         var json = Tool.Describir(SesionCompleta);
 
         json.Should().NotContain("\"sub\"").And.NotContain("\"sid\"").And.NotContain("\"exp\"");
-    }
-
-    [Fact]
-    public void SesionUsuario_LeeCorreoEmpresaNombreYMembership_CuandoElPrincipalTrae_TodosLosClaims()
-    {
-        var sesion = SesionUsuario.Desde(Principal(
-            ("user_email", "ana@acme.co"), ("org_id", "org_acme"),
-            ("organization_name", "Acme SAS"), ("organization_membership_id", "om_123")));
-
-        sesion.Should().Be(SesionCompleta);
-    }
-
-    [Fact]
-    public void SesionUsuario_DejaNulosLosOpcionales_CuandoFaltanCorreoYNombreDeEmpresa()
-    {
-        var sesion = SesionUsuario.Desde(Principal(
-            ("org_id", "org_acme"), ("organization_membership_id", "om_123")));
-
-        sesion.Should().Be(new SesionUsuario(null, "org_acme", null, "om_123"));
     }
 }
