@@ -131,16 +131,40 @@ public class ListarAusenciasDelEquipoSmokeTests(ApiFixture api)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarAusenciasDelEquipo_RetornaRangoRecortado_CuandoElPeriodoSuperaTreintaYUnDias()
+    public async Task ListarAusenciasDelEquipo_ConservaLosDias32A35YRecortaEl36_CuandoConsultaElHorizonte()
     {
         var ct = TestContext.Current.CancellationToken;
+        var codigo = Guid.CreateVersion7().ToString();
+        var ausenciaId = Guid.CreateVersion7();
 
-        var lista = await ConsultarListaAsync(
-            new { desde = "2027-01-01", hasta = "2027-03-31", colaboradores = new[] { Guid.CreateVersion7().ToString() } }, ct);
+        (await ProgramarAsync(codigo, ausenciaId, "[TEST] Horizonte Ausencias", "2026-11-07", "2026-11-11", "Vacaciones", ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
 
-        lista!.RangoRecortado.Should().BeTrue();
-        lista.Desde.Should().Be(new DateOnly(2027, 1, 1));
-        lista.Hasta.Should().Be(new DateOnly(2027, 1, 31));
+        var filtro35 = new { desde = "2026-10-07", hasta = "2026-11-10", colaboradores = new[] { codigo } };
+        ListaSmoke? lista35 = await ConsultarListaAsync(filtro35, ct);
+        lista35!.Hasta.Should().Be(new DateOnly(2026, 11, 10),
+            "el backend desplegado debe incluir los 35 dias antes de esperar la proyeccion");
+        var materializada = await Polling.WaitUntilTrueAsync(async () =>
+        {
+            lista35 = await ConsultarListaAsync(filtro35, ct);
+            return lista35!.Colaboradores.Any(c => c.Ausencias.Any(a => a.Id == ausenciaId));
+        }, Timeout);
+
+        materializada.Should().BeTrue("la ausencia sembrada debe estar materializada antes de verificar sus tramos");
+        lista35!.Desde.Should().Be(new DateOnly(2026, 10, 7));
+        lista35.Hasta.Should().Be(new DateOnly(2026, 11, 10));
+        lista35.RangoRecortado.Should().BeFalse();
+        lista35.Colaboradores.Should().ContainSingle().Which.Ausencias.Should().ContainSingle(a => a.Id == ausenciaId)
+            .Which.Tramos.Should().Equal(new TramoSmoke(new DateOnly(2026, 11, 7), new DateOnly(2026, 11, 10)));
+
+        var lista36 = await ConsultarListaAsync(
+            new { desde = "2026-10-07", hasta = "2026-11-11", colaboradores = new[] { codigo } }, ct);
+
+        lista36!.Desde.Should().Be(new DateOnly(2026, 10, 7));
+        lista36.Hasta.Should().Be(new DateOnly(2026, 11, 10));
+        lista36.RangoRecortado.Should().BeTrue();
+        lista36.Colaboradores.Should().ContainSingle().Which.Ausencias.Should().ContainSingle(a => a.Id == ausenciaId)
+            .Which.Tramos.Should().Equal(new TramoSmoke(new DateOnly(2026, 11, 7), new DateOnly(2026, 11, 10)));
     }
 
     [Fact]

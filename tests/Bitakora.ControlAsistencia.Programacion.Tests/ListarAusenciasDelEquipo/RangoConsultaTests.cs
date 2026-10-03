@@ -3,7 +3,6 @@ using Bitakora.ControlAsistencia.Programacion.ListarAusenciasDelEquipo;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarAusenciasDelEquipo;
 
-// Cota local de 35 dias inclusive, recortada hacia adelante desde `desde`.
 public class RangoConsultaTests
 {
     [Fact]

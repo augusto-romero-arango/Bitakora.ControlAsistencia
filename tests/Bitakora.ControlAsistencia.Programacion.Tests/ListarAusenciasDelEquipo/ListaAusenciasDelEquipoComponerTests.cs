@@ -64,7 +64,6 @@ public class ListaAusenciasDelEquipoComponerTests
         }, o => o.WithStrictOrdering());
     }
 
-    // El periodo aplicado y la senal viajan en la respuesta; incluye dias 32 a 35, no el 36.
     [Fact]
     public void Componer_RecortaLosTramosAlHastaAplicado_CuandoElRangoFueRecortado()
     {
