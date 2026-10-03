@@ -1,8 +1,5 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 
-/// <summary>
-/// Rango efectivamente aplicado tras acotar el pedido a <see cref="RangoConsulta.CotaDias"/>.
-/// </summary>
 public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRecortado);
 
 /// <summary>
@@ -16,7 +13,7 @@ public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRe
 /// </summary>
 public static class RangoConsulta
 {
-    /// <summary>Cota maxima del rango, en dias, INCLUSIVE: desde y desde + 34 dias caben.</summary>
+    /// <summary>Cota maxima del rango en dias inclusivos.</summary>
     public const int CotaDias = 35;
 
     public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)

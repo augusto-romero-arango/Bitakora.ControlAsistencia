@@ -310,8 +310,7 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
             && f.TotalHorasPorConcepto.Count == 0);
     }
 
-    // Los tres dias reales (jornada, vino en descanso, trabajo sin programacion) mas los tres dias
-    // vacios del rango deben cerrar los tres ejes exactamente contra los 6 dias.
+    // Los dias reales y los vacios deben cerrar los tres ejes del rango inclusive.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarResumenesAsistencia_CalculaTresEjesAnomaliasYTotales_CuandoElColaboradorTieneDiasRealesYVaciosEnElRango()
@@ -322,15 +321,17 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         var ct = TestContext.Current.CancellationToken;
 
         var codigoColaborador = Guid.CreateVersion7().ToString();
-        var desde = new DateOnly(2026, 7, 20);
-        var hasta = new DateOnly(2026, 7, 25);
-        var fechaJornada = new DateOnly(2026, 7, 21);
-        var fechaVinoEnDescanso = new DateOnly(2026, 7, 22);
-        var fechaTrabajoSinProgramacion = new DateOnly(2026, 7, 23);
+        var desde = new DateOnly(2026, 10, 7);
+        var hasta = new DateOnly(2026, 11, 10);
+        var fechaJornada = new DateOnly(2026, 10, 8);
+        var fechaVinoEnDescanso = new DateOnly(2026, 10, 9);
+        var fechaTrabajoSinProgramacion = new DateOnly(2026, 10, 10);
+        var fechaJornadaDia35 = new DateOnly(2026, 11, 10);
 
         await PublicarDiaConJornadaAsync(codigoColaborador, fechaJornada, "[TEST] Turno Jornada");
         await PublicarDiaVinoEnDescansoAsync(codigoColaborador, fechaVinoEnDescanso, "[TEST] Turno Descanso");
         await PublicarDiaTrabajoSinProgramacionAsync(codigoColaborador, fechaTrabajoSinProgramacion);
+        await PublicarDiaConJornadaAsync(codigoColaborador, fechaJornadaDia35, "[TEST] Turno Dia 35");
 
         var filtro = new
         {
@@ -339,18 +340,19 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
             codigosColaborador = new[] { codigoColaborador }
         };
 
-        // Los tres dias reales son Provisional, asi que SinDatos baja de 6 (todo vacio) a 3 una vez
-        // que el worker materializa las tres filas.
         var respuesta = await ConsultarHastaQueAsync(
-            filtro, lista => lista.Filas.Single().SinDatos == 3, ct);
+            filtro, lista => lista.Filas.Single().SinDatos == 31, ct);
 
+        respuesta.DesdeAplicado.Should().Be(new DateOnly(2026, 10, 7));
+        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
+        respuesta.RangoRecortado.Should().BeFalse();
         var fila = respuesta.Filas.Single();
         fila.CodigoColaborador.Should().Be(codigoColaborador);
 
-        // Eje programacion: turno + descanso + sin programar (1 real + 3 vacios) = 6 dias del rango.
-        fila.DiasConTurno.Should().Be(1);
+        // Eje programacion: dos turnos + descanso + sin programar (1 real + 31 vacios).
+        fila.DiasConTurno.Should().Be(2);
         fila.DiasConDescanso.Should().Be(1);
-        fila.DiasSinProgramar.Should().Be(4);
+        fila.DiasSinProgramar.Should().Be(32);
 
         // Eje anomalias: solo las banderas sembradas a proposito, los vacios no aportan ninguna.
         fila.NoSePresento.Should().Be(0);
@@ -358,13 +360,12 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         fila.VinoEnDescanso.Should().Be(1);
         fila.TrabajoSinProgramacion.Should().Be(1);
 
-        // Eje aprobacion: Aprobado todavia no lo produce ningun evento (EstadoAsistencia); los tres
-        // dias reales son Pendientes y los tres vacios se avalan como SinDatos = 6 dias del rango.
+        // Eje aprobacion: los dias reales son Pendientes y los vacios son SinDatos.
         fila.Aprobados.Should().Be(0);
-        fila.Pendientes.Should().Be(3);
-        fila.SinDatos.Should().Be(3);
+        fila.Pendientes.Should().Be(4);
+        fila.SinDatos.Should().Be(31);
 
-        fila.TotalHorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(8.00m);
+        fila.TotalHorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(16.00m);
     }
 
     // Con CodigosColaborador explicito hay una fila por codigo pedido, incluida la sintetica del
@@ -499,20 +500,18 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarResumenesAsistencia_RecortaRangoHaciaAdelante_CuandoElRangoExcedeLaCotaDe31Dias()
+    public async Task ListarResumenesAsistencia_RecortaRangoHaciaAdelante_CuandoSePiden36Dias()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var desde = new DateOnly(2026, 1, 1);
-        var hastaSolicitado = new DateOnly(2026, 12, 31);
-        // La cota son 31 dias INCLUSIVE; el literal se afirma a mano, nunca leyendo CotaDias.
-        var hastaAplicadaEsperada = desde.AddDays(30);
+        var desde = new DateOnly(2026, 10, 7);
+        var hastaSolicitado = new DateOnly(2026, 11, 11);
 
         var filtro = new { desdeFecha = desde, hastaFecha = hastaSolicitado };
         var respuesta = await ConsultarOkAsync(filtro, ct);
 
         respuesta.DesdeAplicado.Should().Be(desde);
-        respuesta.HastaAplicado.Should().Be(hastaAplicadaEsperada);
+        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
         respuesta.RangoRecortado.Should().BeTrue();
     }
 }

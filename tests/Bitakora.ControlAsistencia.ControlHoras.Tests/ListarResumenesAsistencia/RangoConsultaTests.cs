@@ -1,7 +1,3 @@
-// Duplicado a proposito de los RangoConsultaTests de ListarTurnosVigentes/ListarAsistenciasDiarias
-// -- ver el comentario de clase de RangoConsulta.cs en este feature folder. Cada oraculo se arma a
-// mano (MEF-ADR-0002): nunca se deriva ejecutando Recortar sobre si mismo.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 
@@ -57,7 +53,7 @@ public class RangoConsultaTests
     public void Recortar_RecortaUnSoloDiaDeExceso_CuandoElRangoEsDe36DiasInclusive()
     {
         var desde = new DateOnly(2026, 10, 7);
-        var hasta = new DateOnly(2026, 11, 11); // 36 dias inclusive: un dia por encima de la cota
+        var hasta = new DateOnly(2026, 11, 11);
 
         var resultado = RangoConsulta.Recortar(desde, hasta);
 
