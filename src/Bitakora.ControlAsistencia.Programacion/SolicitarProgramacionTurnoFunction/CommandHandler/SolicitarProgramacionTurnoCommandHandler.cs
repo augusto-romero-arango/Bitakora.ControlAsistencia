@@ -52,7 +52,18 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // Sin ramificar por si la solicitud trae sede -- con command.Sede null la cascada es
         // identidad (Tell-don't-Ask, MEF-ADR-0012).
         var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(sedeSolicitada);
-        var fechas = command.Fechas.AsReadOnly();
+
+        var ausencias = await _eventStore.GetAggregateRootAsync<AusenciasColaborador>(
+            AusenciasColaborador.ComputarStreamId(command.Colaborador.CodigoColaborador), ct);
+        var clasificacion = ausencias?.ClasificarFechas(command.Fechas)
+            ?? new ClasificacionFechas(command.Fechas, []);
+        if (clasificacion.Libres.Count == 0)
+        {
+            var detalle = string.Join(", ", clasificacion.ConAusencia.Select(f => $"{f.Fecha:yyyy-MM-dd} ({f.Motivo})"));
+            throw new ReglaDeNegocioDeclinadaException($"{Mensajes.TodasLasFechasConAusencia}: {detalle}");
+        }
+
+        var fechas = clasificacion.Libres;
 
         var colaboradorDominio = MapearColaboradorProgramado(command.Colaborador);
         var evento = new ProgramacionTurnoSolicitada(
@@ -67,13 +78,14 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         var colaborador = MapearResumenColaborador(command.Colaborador);
         var detalleTurno = MapearTurno(turnoProgramado);
         var sede = MapearSede(sedeSolicitada);
-        var eventosPrivados = command.Fechas
+        var eventosPrivados = fechas
             .Select(fecha => new ProgramacionTurnoDiarioSolicitada(
                 command.Id, colaborador, fecha, detalleTurno, sede))
             .ToArray();
 
         await _privateEventSender.PublishAsync(eventosPrivados);
-        return new ResultadoSolicitudProgramacion([]);
+        return new ResultadoSolicitudProgramacion(
+            clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList());
     }
 
     // Issue #436 (fase B): la terna llega ya resuelta desde el body y fluye TAL CUAL a los dos

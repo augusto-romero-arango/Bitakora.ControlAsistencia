@@ -21,9 +21,10 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         if (error is not null)
             return error;
 
+        ResultadoSolicitudProgramacion resultado;
         try
         {
-            await commandRouter.InvokeAsync(comando!, ct);
+            resultado = await commandRouter.InvokeAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>(comando!, ct);
         }
         catch (PrecondicionComandoException ex)
         {
@@ -39,6 +40,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             }
         }
 
-        return new CreatedResult();
+        return new ObjectResult(resultado) { StatusCode = StatusCodes.Status201Created };
     }
 }

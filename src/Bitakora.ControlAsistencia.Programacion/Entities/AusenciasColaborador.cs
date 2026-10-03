@@ -48,8 +48,17 @@ public partial class AusenciasColaborador : AggregateRoot
         return new ResultadoProgramarAusencia.Programada();
     }
 
-    internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas) =>
-        throw new NotImplementedException();
+    internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
+    {
+        var cubiertas = fechas
+            .Select(fecha => (Fecha: fecha, Ausencia: Ausencias.FirstOrDefault(a => a.FechaInicio <= fecha && fecha <= a.FechaFin)))
+            .ToList();
+        return new ClasificacionFechas(
+            cubiertas.Where(c => c.Ausencia is null).Select(c => c.Fecha).ToList(),
+            cubiertas.Where(c => c.Ausencia is not null)
+                .Select(c => new FechaConAusencia(c.Fecha, c.Ausencia!.Motivo))
+                .ToList());
+    }
 
     internal sealed record AusenciaVigente(Guid Id, DateOnly FechaInicio, DateOnly FechaFin, MotivoAusencia Motivo);
 }
