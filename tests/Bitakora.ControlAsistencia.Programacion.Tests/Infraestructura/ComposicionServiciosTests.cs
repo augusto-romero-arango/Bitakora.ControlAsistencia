@@ -180,6 +180,19 @@ public class ComposicionServiciosTests
         });
     }
 
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeAusenciaProgramada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(AusenciaProgramada)).Alias;
+
+        alias.Should().Be("ausencia_programada");
+    }
+
     // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-2, CA-3) ---
     //
     // Mismo wiring que ControlHoras (AgregarWolverineParaComandosServerless): Programacion no emite
