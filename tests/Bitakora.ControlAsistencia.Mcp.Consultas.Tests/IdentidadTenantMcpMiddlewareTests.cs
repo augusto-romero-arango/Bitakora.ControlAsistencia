@@ -22,8 +22,7 @@ public class IdentidadTenantMcpMiddlewareTests
         var identidadEsperada = new IdentidadTenant("org_acme", "usuario_123", "membership-fijo");
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueAutoriza(PrincipalDeEjemplo),
-            DerivadorIdentidadTenantMcpFalso.QueDeriva(identidadEsperada),
-            new LoggerFalso<IdentidadTenantMcpMiddleware>());
+            DerivadorIdentidadTenantMcpFalso.QueDeriva(identidadEsperada));
 
         var identidad = await middleware.DerivarIdentidadAsync(
             $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-valido",
@@ -38,8 +37,7 @@ public class IdentidadTenantMcpMiddlewareTests
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueAutoriza(PrincipalDeEjemplo),
             DerivadorIdentidadTenantMcpFalso.QueFalla(
-                new InvalidOperationException(DerivadorIdentidadTenantMcp.Mensajes.OrganizacionAusente)),
-            new LoggerFalso<IdentidadTenantMcpMiddleware>());
+                new InvalidOperationException(DerivadorIdentidadTenantMcp.Mensajes.OrganizacionAusente)));
 
         var act = async () => await middleware.DerivarIdentidadAsync(
             $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-sin-org",
@@ -57,64 +55,23 @@ public class IdentidadTenantMcpMiddlewareTests
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueFalla(new SecurityTokenException("no deberia invocarse sin Bearer")),
             DerivadorIdentidadTenantMcpFalso.QueFalla(
-                new InvalidOperationException("no deberia invocarse sin Bearer")),
-            new LoggerFalso<IdentidadTenantMcpMiddleware>());
+                new InvalidOperationException("no deberia invocarse sin Bearer")));
 
         var identidad = await middleware.DerivarIdentidadAsync(null, TestContext.Current.CancellationToken);
 
         identidad.Should().BeNull();
     }
 
-    private static ClaimsPrincipal PrincipalConClaims(params Claim[] claims) => new(new ClaimsIdentity(claims));
-
-    private static IdentidadTenantMcpMiddleware CrearMiddleware(
-        ClaimsPrincipal principal, LoggerFalso<IdentidadTenantMcpMiddleware> logger) =>
-        new(ValidadorTokenFalso.QueAutoriza(principal),
-            DerivadorIdentidadTenantMcpFalso.QueDeriva(new IdentidadTenant("org", "usuario", "membership")),
-            logger);
-
     [Fact]
-    public async Task DerivarIdentidad_NoRegistraNada_CuandoElBearerEsValido()
+    public async Task DerivarIdentidad_PropagaElRechazoDelValidador_CuandoElBearerEsInvalido()
     {
-        var logger = new LoggerFalso<IdentidadTenantMcpMiddleware>();
-        var middleware = CrearMiddleware(PrincipalConClaims(
-            new Claim("sub", "centinela-sub-7f3a"),
-            new Claim("org_id", "centinela-org-9c1d"),
-            new Claim("sid", "centinela-sid-5d4c"),
-            new Claim("iss", "https://auth.ejemplo.test/authorize"),
-            new Claim("iat", "1700000000", ClaimValueTypes.Integer64),
-            new Claim("exp", "1700003600", ClaimValueTypes.Integer64)), logger);
-
-        await middleware.DerivarIdentidadAsync(
-            $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-valido", TestContext.Current.CancellationToken);
-
-        logger.Entradas.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task DerivarIdentidad_NoEmiteLinea_CuandoNoHayBearer()
-    {
-        var logger = new LoggerFalso<IdentidadTenantMcpMiddleware>();
-        var middleware = CrearMiddleware(PrincipalDeEjemplo, logger);
-
-        var identidad = await middleware.DerivarIdentidadAsync(null, TestContext.Current.CancellationToken);
-
-        identidad.Should().BeNull();
-        logger.Entradas.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task DerivarIdentidad_NoEmiteLinea_CuandoElValidadorLanzaPorBearerInvalido()
-    {
-        var logger = new LoggerFalso<IdentidadTenantMcpMiddleware>();
         var middleware = new IdentidadTenantMcpMiddleware(
             ValidadorTokenFalso.QueFalla(new SecurityTokenException("firma invalida")),
-            DerivadorIdentidadTenantMcpFalso.QueDeriva(new IdentidadTenant("o", "u", "m")), logger);
+            DerivadorIdentidadTenantMcpFalso.QueDeriva(new IdentidadTenant("o", "u", "m")));
 
         var act = async () => await middleware.DerivarIdentidadAsync(
             $"{IdentidadTenantMcpMiddleware.EsquemaBearer}token-no-validable", TestContext.Current.CancellationToken);
 
         await act.Should().ThrowExactlyAsync<SecurityTokenException>().WithMessage("*firma invalida*");
-        logger.Entradas.Should().BeEmpty();
     }
 }

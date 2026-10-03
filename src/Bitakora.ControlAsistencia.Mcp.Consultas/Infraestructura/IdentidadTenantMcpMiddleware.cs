@@ -1,9 +1,7 @@
-using System.Security.Claims;
 using Bitakora.ControlAsistencia.TenantResolver;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 using Microsoft.Azure.Functions.Worker.Middleware;
-using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 
@@ -18,8 +16,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Consultas.Infraestructura;
 // al tenant fijo -- el reemplazo es estampar org_id/sub como X-Tenant-Id/X-User-Id en la politica
 // de APIM (MEF-ADR-0032 seccion 4) y leer esos headers aqui.
 public sealed class IdentidadTenantMcpMiddleware(
-    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador,
-    ILogger<IdentidadTenantMcpMiddleware> logger) : IFunctionsWorkerMiddleware
+    IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";

@@ -5,7 +5,7 @@ using Bitakora.ControlAsistencia.Mcp.Comandos.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
-namespace Bitakora.ControlAsistencia.Mcp.Comandos.Tests;
+namespace Bitakora.ControlAsistencia.Mcp.Comandos.Tests.CerrarSesion;
 
 public class CerrarSesionToolTests
 {
