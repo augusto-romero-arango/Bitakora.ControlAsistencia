@@ -64,6 +64,8 @@ public static class ComposicionServicios
                     "programacion-turno-diario-solicitada");
                 options.PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(
                     "cancelacion-turno-diario-solicitada");
+                options.PublicarEventoServerless<AusenciaDiariaProgramada>(
+                    "ausencia-diaria-programada");
             });
 
         services.AgregarMartenEventStore();
