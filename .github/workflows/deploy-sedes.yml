@@ -101,6 +101,8 @@ jobs:
           EVENTO: ${{ github.event_name }}
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           RUN_RAMA: ${{ github.event.workflow_run.head_branch }}
+          RUN_EVENTO: ${{ github.event.workflow_run.event }}
+          RUN_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           REPO: ${{ github.repository }}
         run: |
@@ -110,9 +112,11 @@ jobs:
             exit 0
           fi
           # 'Infra CD - Terraform Apply' solo corre en push a main (el plan de PR vive en
-          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion y rama por
-          # defensividad.
-          if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ]; then
+          # infra-ci.yml, otro workflow), pero se filtra igual por conclusion, rama, evento de
+          # origen (push) y repositorio de origen por defensividad (#775). Los jobs que hacen
+          # checkout repiten la condicion de origen en su propio if:.
+          if [ "$RUN_CONCLUSION" != "success" ] || [ "$RUN_RAMA" != "main" ] \
+             || [ "$RUN_EVENTO" != "push" ] || [ "$RUN_REPO" != "$REPO" ]; then
             echo "debe_desplegar=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -130,7 +134,17 @@ jobs:
 
   build-and-test:
     needs: determinar-alcance
-    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    # Origen confiable (#775): este job hace checkout de workflow_run.head_sha y ejecuta
+    # dotnet con privilegios. Hoy es latente (infra-cd.yml solo corre en push a main), pero
+    # la proteccion va aqui y no solo en determinar-alcance (que no hace checkout): si infra-cd
+    # ganara un disparador por PR, head_sha podria ser codigo no confiable. Ver el comentario
+    # de determinar-alcance.
+    if: >-
+      needs.determinar-alcance.outputs.debe_desplegar == 'true' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -155,7 +169,17 @@ jobs:
 
   deploy:
     needs: [determinar-alcance, build-and-test]
-    if: needs.determinar-alcance.outputs.debe_desplegar == 'true'
+    # Origen confiable (#775): este job hace checkout de workflow_run.head_sha y ejecuta
+    # dotnet con privilegios. Hoy es latente (infra-cd.yml solo corre en push a main), pero
+    # la proteccion va aqui y no solo en determinar-alcance (que no hace checkout): si infra-cd
+    # ganara un disparador por PR, head_sha podria ser codigo no confiable. Ver el comentario
+    # de determinar-alcance.
+    if: >-
+      needs.determinar-alcance.outputs.debe_desplegar == 'true' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     permissions:
       # Declarar 'permissions' a nivel de job pone en 'none' todo scope que no se liste, asi

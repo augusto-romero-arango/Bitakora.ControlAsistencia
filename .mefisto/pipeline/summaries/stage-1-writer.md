@@ -1,11 +1,13 @@
 ## Implementado
-- CA-ADR-0032: nombres Cosmos 3.x, identidad de tres datos (tabla HTTP/Service Bus, obligatorios -> InvalidOperationException -> 500, #666), seccion 5 de orden de despliegue, control de cambios 2026-10-01 (#699).
-- CA-ADR-0027: nota de nomenclatura 3.x al inicio (texto historico intacto) y entrada de control de cambios.
-- CLAUDE.md: filas de indice de CA-ADR-0027 y CA-ADR-0032 con nombres nuevos.
+- En los 6 workflows de deploy (colaboradores, control-horas, programacion, sedes, mcp-comandos, mcp-consultas):
+  - `build-and-test` y `deploy`: `if:` ahora exige `debe_desplegar == 'true'` Y (`event_name != 'workflow_run'` O (`workflow_run.event == 'push'` Y `head_branch == 'main'` Y `head_repository.full_name == github.repository`)). Se repite en cada job (no solo salida de `determinar-alcance`) para que CodeQL vea la guarda junto al checkout.
+  - Comentario breve junto a la condicion (latente, por que va en el job con checkout).
+  - `determinar-alcance`: `env` suma `RUN_EVENTO` y `RUN_REPO`; la guarda suma `event == push` y `head_repository == $REPO`. Sin `${{ }}` dentro del `run`.
+- push/workflow_dispatch: `event_name != 'workflow_run'` es verdadero, sin cambio. `smoke-tests` intacto.
 
 ## Verificacion
-Solo documentacion; sin build. Verificadas las aserciones de reemplazo.
+- actionlint: sin errores nuevos. Unico reporte: `queue: max` en `concurrency` de deploy-mcp-comandos.yml (preexistente, fuera de alcance; actionlint no conoce la clave).
+- Los 6 YAML parsean.
 
 ## Pendiente/bloqueos
-- Observacion: MEF-ADR-0028 puede seguir citando `ITenantResolver`; lo resuelve Mefisto al adoptar Cosmos 3.x.
-- La memoria `proxytenantresolver-roto-en-isolated-worker` usa el nombre viejo: tarea humana.
+- Verificacion post-merge (alertas CodeQL #22-#33, run por workflow_run) queda fuera del pipeline, segun el issue.
