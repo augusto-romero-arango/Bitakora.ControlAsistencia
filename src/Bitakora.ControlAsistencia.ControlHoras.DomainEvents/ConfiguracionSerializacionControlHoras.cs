@@ -31,5 +31,6 @@ public static class ConfiguracionSerializacionControlHoras
         DiaAprobado.ConfigurarSerializacion(resolver);
         DepuracionPosAprobacionRecibida.ConfigurarSerializacion(resolver);
         TurnoDiarioCancelado.ConfigurarSerializacion(resolver);
+        AusenciaDiariaAsignada.ConfigurarSerializacion(resolver);
     }
 }

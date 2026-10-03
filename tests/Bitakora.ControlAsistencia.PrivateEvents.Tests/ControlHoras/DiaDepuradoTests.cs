@@ -82,4 +82,36 @@ public class DiaDepuradoTests
         restaurado.Franjas.Should().BeEmpty();
         restaurado.Marcaciones.Should().Equal(MarcacionEntrada);
     }
+
+    [Fact]
+    public void RoundTrip_PreservaMotivoAusencia_ConSerializadorPorDefectoDelBus()
+    {
+        var colaborador = new ResumenColaborador("CC-1234567890", "EMP-001", "Luis Augusto Barreto");
+        var evento = new DiaDepurado(
+            "EMP-001", Fecha, colaborador, null, [], [MarcacionEntrada],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones");
+        var opciones = CrearOpcionesDelBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        restaurado.Should().Be(evento);
+    }
+
+    // Evolucion aditiva: un DiaDepurado publicado antes de MotivoAusencia sigue deserializando.
+    [Fact]
+    public void Deserializar_DejaMotivoAusenciaNulo_CuandoElPayloadNoLoTrae()
+    {
+        var opciones = CrearOpcionesDelBus();
+        var json = JsonSerializer.Serialize(new DiaDepurado(
+            "EMP-001", Fecha, null, "Turno Manana", [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])), opciones)
+            .Replace(",\"motivoAusencia\":null", "");
+
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        json.Should().NotContain("motivoAusencia");
+        restaurado!.MotivoAusencia.Should().BeNull();
+        restaurado.NombreTurno.Should().Be("Turno Manana");
+    }
 }
