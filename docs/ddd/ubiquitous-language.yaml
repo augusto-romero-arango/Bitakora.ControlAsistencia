@@ -586,6 +586,43 @@ terms:
       capacidad la compondra el asistente encima de este atomo.
     date_added: 2026-08-29
 
+  - name: Ausencia
+    definition: >
+      Dia completo en que no se espera que el colaborador trabaje, con un Motivo de ausencia.
+      La registra el Programador por un rango de fechas y queda en firme (sin aprobacion).
+      Cubre TODAS las fechas del rango (incluye descansos y dias sin programar). No es un
+      Turno ni vive en el catalogo: CUBRE el turno del dia (hueco propio en el ControlDiario);
+      cancelarla restablece el turno de debajo, o deja el dia sin programar si no lo habia.
+      Se PROTEGE: programar un turno sobre un dia con ausencia no la sobrescribe (la solicitud
+      programa los dias libres e informa los respetados) y una ausencia que choca con otra se
+      rechaza completa. Se cancela por fechas. Marcar en un dia de ausencia es la anomalia
+      VinoEnAusencia (sin calculo de horas). Un dia Aprobado no cambia: la ausencia tardia
+      queda archivada en el expediente. Se guarda por colaborador (AusenciasColaborador).
+    context: Programacion
+    rejected_synonyms: [novedad, turno de ausencia]
+    rejection_reason: >
+      "Novedad" es jerga de nomina que mezcla ausencias, permisos, horas extra y mas; aqui
+      solo hablamos de dias completos sin trabajo esperado. "Turno de ausencia" contradice que
+      la ausencia no es un turno: lo cubre.
+    date_added: 2026-10-02
+    note: "Exploracion planner 2026-10-02; desglose #741-#752 (ADR #741)."
+
+  - name: Motivo de ausencia
+    definition: >
+      Razon por la que el colaborador no viene. Lista fija del sistema: Vacaciones,
+      IncapacidadMedica, LicenciaRemunerada, AusenciaNoRemunerada. El sistema entrega el
+      motivo, nunca el dinero: nomina decide pago y conteo (habiles o calendario).
+    context: Programacion
+    date_added: 2026-10-02
+
+  - name: Permiso
+    definition: >
+      Ausencia por horas dentro de un turno (cita medica, salida anticipada). TERMINO
+      RESERVADO, fuera de alcance: podria modelarse como modificacion de franjas por parte
+      del usuario. No usar "permiso" para otra cosa.
+    context: Programacion
+    date_added: 2026-10-02
+
   - name: FichaTurno
     definition: >
       Vista del catalogo de turnos (primera vista read-side del dominio Programacion, familia
@@ -1399,6 +1436,21 @@ terms:
       (fan-in con queue de sesion en el consumidor, MEF-ADR-0026); entre topics
       distintos la mitigacion es concurrencia optimista + retry.
 
+  - term: Sesion (de autenticacion)
+    definition: >
+      La sesion del usuario en WorkOS AuthKit, identificada por el claim sid del token que
+      el conector MCP envia en cada tool call. Fija con que usuario (user_email) y en que
+      Tenant (org_id) opera el asistente. Se consulta con obtener_sesion (#735) y se revoca
+      con cerrar_sesion (#736). El access token dura 300 s (medido en #737): revocar la
+      sesion corta el acceso en <= 5 min.
+    context: Transversal (servidores MCP)
+    rejected_synonyms: [identidad, mi organizacion]
+    rejection_reason: >
+      "Sesion" forma pareja con cerrar_sesion y es como el usuario nombra "con que cuenta y en
+      que empresa estoy". No confundir con la sesion de trabajo conversacional del asistente
+      (ver Ventana de trabajo), que es efimera del cliente y no tiene identidad.
+    date_added: 2026-10-02
+
   - term: Tenant (empresa cliente)
     definition: >
       Cada empresa cliente del producto. Se materializa como una organizacion de WorkOS
@@ -1519,6 +1571,7 @@ open_questions:
     priority: medium
 
   - question: "Novedades: permisos, incapacidades, ausencias justificadas. Como interactuan con el turno y la discriminacion?"
+    resolution: "Parcial 2026-10-02: dias completos resueltos como Ausencia (ver termino, desglose #741-#752); Permiso (por horas) reservado y pendiente."
     context: General
     date: 2026-04-04
     priority: medium

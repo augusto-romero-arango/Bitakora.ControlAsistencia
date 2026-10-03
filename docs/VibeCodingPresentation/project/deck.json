@@ -1,0 +1,90 @@
+{
+ "v": 4,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-03T14:56:10Z"
+ },
+ "lists": "css",
+ "title": "Codificación agéntica",
+ "cover": "cover",
+ "order": [
+  "cover",
+  "esencia-accidente",
+  "ia-accidental",
+  "esencia-intacta",
+  "meijer",
+  "karpathy",
+  "amodei",
+  "cherny",
+  "yegge-revenge",
+  "gas-town",
+  "pero",
+  "young",
+  "dora-2024",
+  "metr",
+  "libro",
+  "faafo",
+  "tres-loops",
+  "loop",
+  "principios-1",
+  "principios-2",
+  "adidas",
+  "dos-arquitecturas",
+  "habilidades-1",
+  "habilidades-2",
+  "empezar-hoy",
+  "happy-time",
+  "eda",
+  "event-sourcing",
+  "serverless",
+  "iac",
+  "dora-espejo",
+  "nuevo-junior",
+  "tres-capas",
+  "capa3-incluye",
+  "capa3-nuestra",
+  "accionables",
+  "ambiciosos",
+  "compromiso",
+  "fuentes-1",
+  "fuentes-2",
+  "gracias"
+ ],
+ "sections": {
+  "s0": {
+   "description": "Prólogo: Brooks, esencia y accidente; la IA resolvió lo accidental, la esencia sigue intacta.",
+   "start": "cover"
+  },
+  "s1": {
+   "description": "Acto I: las voces de la promesa y las voces críticas, con la evidencia de DORA y METR.",
+   "start": "meijer"
+  },
+  "s2": {
+   "description": "Acto II: vibe coding como oficio según Kim y Yegge — FAAFO, loops, principios, Adidas, habilidades.",
+   "start": "libro"
+  },
+  "s3": {
+   "description": "Acto III: los atributos arquitectónicos que favorecen al agente y DORA como espejo.",
+   "start": "happy-time"
+  },
+  "s4": {
+   "description": "Acto IV: el mandato — el nuevo junior, la capa 3 y nuestro compromiso.",
+   "start": "nuevo-junior"
+  },
+  "s5": {
+   "description": "Cierre: fuentes y preguntas.",
+   "start": "fuentes-1"
+  }
+ },
+ "faces": {
+  "manrope": {
+   "family": "Manrope",
+   "href": "https://fonts.googleapis.com/css2?family=Manrope:wght@500..800&display=swap"
+  },
+  "ibm-plex-sans": {
+   "family": "IBM Plex Sans",
+   "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+  }
+ },
+ "designSystems": []
+}
