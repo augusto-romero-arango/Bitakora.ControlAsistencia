@@ -1,8 +1,6 @@
 namespace Bitakora.ControlAsistencia.Mcp.Comandos.SolicitarProgramacionTurno;
 
-// Value object puro, sin dependencias de infraestructura (MEF-ADR-0012, Tell-don't-Ask): decide
-// que dias de una vigencia de colaborador caen dentro de la ventana de trabajo, en vez de exponer
-// Desde/Hasta para que un helper externo calcule la interseccion.
+// MEF-ADR-0012: la interseccion pertenece al VO; no exponer Desde/Hasta para un helper externo.
 public sealed partial class VentanaDeProgramacion
 {
     internal const int MaximoDias = 35;

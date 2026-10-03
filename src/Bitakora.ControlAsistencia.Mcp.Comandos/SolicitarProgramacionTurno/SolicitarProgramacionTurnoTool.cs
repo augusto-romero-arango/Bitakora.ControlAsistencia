@@ -103,8 +103,7 @@ public partial class SolicitarProgramacionTurnoTool(
             hasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaHasta))
             return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
 
-        // La ventana formatea su propio mensaje con el conteo de dias (no publico en el VO: su
-        // Crear solo asegura el invariante, MEF-ADR-0012) antes de delegarle la construccion.
+        // El mensaje de la tool incluye el conteo; el VO solo valida su invariante (MEF-ADR-0012).
         if (fechaDesde > fechaHasta)
             return Mensajes.VentanaInvertida;
 

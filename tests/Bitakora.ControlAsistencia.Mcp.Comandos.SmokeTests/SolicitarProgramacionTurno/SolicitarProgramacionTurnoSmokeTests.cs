@@ -73,7 +73,6 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
             ["identificaciones"] = $"CC-{numeroIdentificacion}"
         };
 
-        // JsonDocument (no JsonElement): WaitUntilAsync<T> exige T : class -- JsonElement es struct.
         var documento = await Polling.WaitUntilAsync(
             async () =>
             {
