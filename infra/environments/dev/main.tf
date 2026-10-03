@@ -64,6 +64,37 @@ module "service_bus" {
         }
       ]
     }
+    # Issue #742: topics de las ausencias diarias (CA-ADR-0036), espejo de los topics de turno diario.
+    # Programacion publica uno por fecha de una ausencia registrada (#743) o cancelada (#744);
+    # ControlHoras los consume (#746, #747). Fan-out simple, sin sesiones (MEF-ADR-0026): cada
+    # fecha es un stream distinto. Publicar sin consumidor es valido (MEF-ADR-0013); la
+    # subscription smoke-tests cubre la publicacion mientras tanto.
+    "ausencia-diaria-programada" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-ausencia"
+          correlation_filter = null
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
+    "ausencia-diaria-cancelada" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-cancelacion-ausencia"
+          correlation_filter = null
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
     "dia-depurado" = {
       subscriptions = [
         {
