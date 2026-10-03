@@ -16,8 +16,8 @@ public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRe
 /// </summary>
 public static class RangoConsulta
 {
-    /// <summary>Cota maxima del rango, en dias, INCLUSIVE: desde y desde + 30 dias caben.</summary>
-    public const int CotaDias = 31;
+    /// <summary>Cota maxima del rango, en dias, INCLUSIVE: desde y desde + 34 dias caben.</summary>
+    public const int CotaDias = 35;
 
     public static RangoAplicado Recortar(DateOnly desde, DateOnly hasta)
     {
