@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
@@ -47,6 +48,13 @@ public partial class AusenciasColaborador : AggregateRoot
         Apply(evento);
         return new ResultadoProgramarAusencia.Programada();
     }
+
+    internal IReadOnlyList<AusenciaDelColaborador> ListarAusenciasVigentes(DateOnly desde, DateOnly hasta)
+        => [.. Ausencias
+            .Where(a => a.FechaInicio <= hasta && desde <= a.FechaFin)
+            .OrderBy(a => a.FechaInicio)
+            .Select(a => new AusenciaDelColaborador(
+                a.Id, a.Motivo.Nombre, a.FechaInicio, a.FechaFin, [new TramoVigente(a.FechaInicio, a.FechaFin)]))];
 
     internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
     {
