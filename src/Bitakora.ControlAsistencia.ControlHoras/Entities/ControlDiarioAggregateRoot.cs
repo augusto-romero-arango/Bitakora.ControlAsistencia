@@ -47,12 +47,17 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private DesgloseHoras _desgloseHoras = DesgloseHoras.Vacio;
     public DesgloseHoras DesgloseHoras => _desgloseHoras;
 
+    // CA-ADR-0036 decision 3: la ausencia cubre el turno sin reemplazarlo; DetalleTurno se conserva.
+    private Guid? _ausenciaId;
+    private string? _motivoAusencia;
+
     // HU-123: recalculo reactivo invocado al final de cada Apply
     // Reemplaza completamente el contenido de _controlesDeFranja con el resultado del depurador.
     // Si DetalleTurno es null (marcacion llego antes que el turno), el depurador retorna lista vacia.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
+        if (_ausenciaId is not null) return;
         var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones);
         _controlesDeFranja.AddRange(resultado);
     }
@@ -64,6 +69,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // para las anomalas) y cuenta las anomalas para reportarlas en el consolidado.
     private void RecalcularDesgloseHoras()
     {
+        if (_ausenciaId is not null)
+        {
+            _desgloseHoras = DesgloseHoras.Vacio;
+            return;
+        }
         var desgloses = _controlesDeFranja
             .Select(cf => cf.CalcularDesglose(Fecha, CalendarioFestivosColombia.EsFestivo))
             .Where(d => d is not null)
@@ -238,13 +248,34 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return ResultadoCancelacionTurno.Cancelado;
     }
 
-    public void Apply(AusenciaDiariaAsignada e) => throw new NotImplementedException();
+    public void Apply(AusenciaDiariaAsignada e)
+    {
+        Id = e.Id;
+        InformacionColaborador = e.Colaborador;
+        Fecha = e.Fecha;
+        _ausenciaId = e.AusenciaId;
+        _motivoAusencia = e.Motivo;
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
 
-    internal static ControlDiarioAggregateRoot Iniciar(AusenciaDiariaAsignada evento) =>
-        throw new NotImplementedException();
+    internal static ControlDiarioAggregateRoot Iniciar(AusenciaDiariaAsignada evento)
+    {
+        var control = new ControlDiarioAggregateRoot();
+        control._uncommittedEvents.Add(evento);
+        control.Apply(evento);
+        return control;
+    }
 
-    internal ResultadoAsignarAusencia AsignarAusencia(AusenciaDiariaAsignada evento) =>
-        throw new NotImplementedException();
+    // Misma AusenciaId = reentrega del bus: no-op. Otra distinta reemplaza a la vigente.
+    internal ResultadoAsignarAusencia AsignarAusencia(AusenciaDiariaAsignada evento)
+    {
+        if (_ausenciaId == evento.AusenciaId) return ResultadoAsignarAusencia.SinCambios;
+
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAsignarAusencia.Asignada;
+    }
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
     // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
@@ -254,10 +285,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             ExtraerCodigoColaboradorDeStreamId(Id),
             Fecha,
             CrearResumenColaborador(),
-            DetalleTurno?.Nombre,
+            _ausenciaId is null ? DetalleTurno?.Nombre : null,
             _controlesDeFranja.Select(CrearFranjaDepurada).ToList(),
             CrearMarcacionesCronologicas(),
-            DesgloseHoras.Discriminar());
+            DesgloseHoras.Discriminar(),
+            _motivoAusencia);
 
     // El orden ascendente es contrato del evento, no un reflejo de _marcaciones: el aggregate las
     // guarda por orden de llegada, que puede no ser cronologico.
