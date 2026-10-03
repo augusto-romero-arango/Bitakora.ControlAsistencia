@@ -14,7 +14,7 @@
 // test no referencia ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5). TipoBloqueSmoke
 // replica el ORDEN de valores del enum de produccion porque STJ lo serializa como el entero
 // subyacente -- si produccion reordenara alguno, la comparacion falla y delata el cambio de
-// contrato. El limite de 31 dias se afirma como literal (desde + 30 dias), nunca leyendo
+// contrato. El limite de 35 dias se afirma con fechas literales, nunca leyendo
 // RangoConsulta.CotaDias.
 //
 // Sin PostgresFixture: la persistencia de turno_diario_asignado ya la cubre
@@ -353,7 +353,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fechaTurno = new DateOnly(2026, 5, 10);
         var desde = new DateOnly(2026, 5, 1);
-        var hasta = new DateOnly(2026, 5, 15); // 15 dias, dentro de la cota de 31
+        var hasta = new DateOnly(2026, 5, 15);
 
         await PublicarTurnoAsync(solicitudId, codigoColaborador, fechaTurno, "[TEST] Turno Vigente Trabajador");
 
@@ -425,7 +425,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarTurnosVigentes_RecortaHaciaAdelanteYExcluyeLoQueQuedaFuera_CuandoElRangoExcedeLaCotaDe31Dias()
+    public async Task ListarTurnosVigentes_RecortaHaciaAdelanteYExcluyeLoQueQuedaFuera_CuandoElRangoExcedeLaCotaDe35Dias()
     {
         // CA-3: se verifica que el recorte SI restringe la consulta, no solo que se declara en el
         // envelope.
@@ -437,7 +437,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var desde = new DateOnly(2026, 6, 1);
         var hastaSolicitado = new DateOnly(2026, 9, 30); // ~121 dias, muy por encima de la cota
-        var hastaAplicadaEsperada = desde.AddDays(30); // CA-3: cota de 31 dias inclusive
+        var hastaAplicadaEsperada = new DateOnly(2026, 7, 5);
 
         var solicitudDentro = Guid.CreateVersion7();
         var solicitudFuera = Guid.CreateVersion7();
@@ -473,6 +473,51 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         // este materializada (verificado arriba) -- prueba que el recorte restringe la consulta.
         respuesta.Turnos.Should().Contain(t => t.Fecha == fechaDentro);
         respuesta.Turnos.Should().NotContain(t => t.Fecha == fechaFuera);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_IncluyeElTurnoDelDia35_CuandoElRangoEsDe35Dias()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var desde = new DateOnly(2026, 10, 7);
+        var dia35 = new DateOnly(2026, 11, 10);
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoColaborador, dia35, "[TEST] Turno Dia 35");
+
+        var respuesta = await ConsultarHastaQueAsync(
+            Filtro(desde, dia35, codigoColaborador),
+            body => body.Turnos.Any(t => t.CodigoColaborador == codigoColaborador && t.Fecha == dia35), ct);
+
+        respuesta.DesdeAplicado.Should().Be(desde);
+        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
+        respuesta.RangoRecortado.Should().BeFalse();
+        respuesta.Turnos.Should().ContainSingle(t => t.CodigoColaborador == codigoColaborador && t.Fecha == dia35);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_RecortaAlDia35_CuandoElRangoEsDe36Dias()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var desde = new DateOnly(2026, 10, 7);
+        var hastaSolicitado = new DateOnly(2026, 11, 11);
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+
+        using var response = await ConsultarAsync(Filtro(desde, hastaSolicitado, codigoColaborador), ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+
+        respuesta.Should().NotBeNull();
+        respuesta!.DesdeAplicado.Should().Be(new DateOnly(2026, 10, 7));
+        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
+        respuesta.RangoRecortado.Should().BeTrue();
+        respuesta.Turnos.Should().BeEmpty();
     }
 
     [Fact]
