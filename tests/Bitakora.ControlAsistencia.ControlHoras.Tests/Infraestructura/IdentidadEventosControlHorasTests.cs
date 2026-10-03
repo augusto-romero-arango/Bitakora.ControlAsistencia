@@ -33,7 +33,8 @@ public class IdentidadEventosControlHorasTests
             typeof(DiaAprobado),
             typeof(DepuracionPosAprobacionRecibida),
             typeof(TurnoDiarioCancelado),
-            typeof(AusenciaDiariaAsignada)
+            typeof(AusenciaDiariaAsignada),
+            typeof(CancelacionAusenciaDiariaRegistrada)
         ]);
     }
 

@@ -34,6 +34,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private Guid? _ausenciaId;
     private string? _motivoAusencia;
 
+    // El bus no garantiza orden: la cancelacion puede llegar antes que su ausencia, que entonces se
+    // ignora al llegar. Por eso el dia recuerda toda AusenciaId cancelada, este o no vigente.
+    private readonly HashSet<Guid> _ausenciasCanceladas = [];
+
     // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
     private void Depurar()
     {
@@ -227,14 +231,49 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return control;
     }
 
-    // Misma AusenciaId = reentrega del bus: no-op. Otra distinta reemplaza a la vigente.
+    // Ya cancelada = llego despues de su cancelacion: se ignora. Misma AusenciaId = reentrega del
+    // bus: no-op. Otra distinta reemplaza a la vigente.
     internal ResultadoAsignarAusencia AsignarAusencia(AusenciaDiariaAsignada evento)
     {
+        if (_ausenciasCanceladas.Contains(evento.AusenciaId)) return ResultadoAsignarAusencia.Ignorada;
         if (_ausenciaId == evento.AusenciaId) return ResultadoAsignarAusencia.SinCambios;
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAsignarAusencia.Asignada;
+    }
+
+    public void Apply(CancelacionAusenciaDiariaRegistrada e)
+    {
+        Id = e.Id;
+        Fecha = e.Fecha;
+        _ausenciasCanceladas.Add(e.AusenciaId);
+        if (_ausenciaId == e.AusenciaId)
+        {
+            _ausenciaId = null;
+            _motivoAusencia = null;
+        }
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
+
+    internal static ControlDiarioAggregateRoot Iniciar(CancelacionAusenciaDiariaRegistrada evento)
+    {
+        var control = new ControlDiarioAggregateRoot();
+        control._uncommittedEvents.Add(evento);
+        control.Apply(evento);
+        return control;
+    }
+
+    // Solo libera el dia si la cancelada es la vigente; si no, la recuerda sin cambiar el dia.
+    internal ResultadoCancelarAusencia CancelarAusencia(CancelacionAusenciaDiariaRegistrada evento)
+    {
+        if (_ausenciasCanceladas.Contains(evento.AusenciaId)) return ResultadoCancelarAusencia.SinCambios;
+
+        var libera = _ausenciaId == evento.AusenciaId;
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return libera ? ResultadoCancelarAusencia.Liberado : ResultadoCancelarAusencia.CancelacionRecordada;
     }
 
     // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
