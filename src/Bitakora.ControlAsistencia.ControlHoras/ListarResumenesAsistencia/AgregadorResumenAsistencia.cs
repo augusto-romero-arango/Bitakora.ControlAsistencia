@@ -71,6 +71,8 @@ public static class AgregadorResumenAsistencia
             documentos.Count(d => d.Estado == EstadoAsistencia.Aprobado),
             documentos.Count(d => d.Estado == EstadoAsistencia.Provisional),
             diasSinFila,
-            totalHorasPorConcepto);
+            totalHorasPorConcepto,
+            new Dictionary<string, int>(),
+            0);
     }
 }

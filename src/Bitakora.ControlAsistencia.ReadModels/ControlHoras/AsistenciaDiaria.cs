@@ -51,4 +51,6 @@ public sealed record AsistenciaDiaria(
     bool VinoEnDescanso,
     bool TrabajoSinProgramacion,
     bool ConflictoDeSedePendiente,
-    IReadOnlyDictionary<string, decimal> HorasPorConcepto);
+    IReadOnlyDictionary<string, decimal> HorasPorConcepto,
+    string? MotivoAusencia = null,
+    bool VinoEnAusencia = false);

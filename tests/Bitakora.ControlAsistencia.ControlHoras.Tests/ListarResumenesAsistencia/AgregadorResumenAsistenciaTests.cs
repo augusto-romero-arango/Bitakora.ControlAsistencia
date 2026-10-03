@@ -279,4 +279,45 @@ public class AgregadorResumenAsistenciaTests
 
         filas.Should().ContainSingle().Which.ConflictoDeSedePendiente.Should().Be(1);
     }
+
+    [Fact]
+    public void Agregar_CuentaAusenciasPorMotivoYCierraElEjeDeProgramacion_CuandoHayVacacionesEIncapacidad()
+    {
+        const string codigo = "EMP-001";
+        var desde = new DateOnly(2026, 8, 1);
+        var hasta = new DateOnly(2026, 8, 10);
+        var documentos = new List<AsistenciaDiaria>();
+        for (var i = 0; i < 5; i++)
+            documentos.Add(DocumentoDePrueba(codigo, desde.AddDays(i), plan: PlanDelDia.Ausencia) with
+                { MotivoAusencia = "Vacaciones", NombreTurno = null });
+        for (var i = 5; i < 7; i++)
+            documentos.Add(DocumentoDePrueba(codigo, desde.AddDays(i), plan: PlanDelDia.Ausencia) with
+                { MotivoAusencia = "IncapacidadMedica", NombreTurno = null, VinoEnAusencia = i == 6 });
+        documentos.Add(DocumentoDePrueba(codigo, desde.AddDays(7), plan: PlanDelDia.ConJornada));
+
+        var filas = AgregadorResumenAsistencia.Agregar(desde, hasta, null, documentos);
+
+        var fila = filas.Should().ContainSingle().Which;
+        fila.DiasConAusencia.Should().BeEquivalentTo(
+            new Dictionary<string, int> { ["Vacaciones"] = 5, ["IncapacidadMedica"] = 2 });
+        fila.VinoEnAusencia.Should().Be(1);
+        fila.DiasConTurno.Should().Be(1);
+        fila.DiasConDescanso.Should().Be(0);
+        fila.DiasSinProgramar.Should().Be(2);
+        (fila.DiasConTurno + fila.DiasConDescanso + fila.DiasSinProgramar + fila.DiasConAusencia.Values.Sum())
+            .Should().Be(10);
+    }
+
+    [Fact]
+    public void Agregar_DejaDiasConAusenciaVacioYVinoEnAusenciaEnCero_CuandoNoHayAusencias()
+    {
+        var desde = new DateOnly(2026, 8, 1);
+        var documentos = new[] { DocumentoDePrueba("EMP-001", desde) };
+
+        var filas = AgregadorResumenAsistencia.Agregar(desde, desde, null, documentos);
+
+        var fila = filas.Should().ContainSingle().Which;
+        fila.DiasConAusencia.Should().BeEmpty();
+        fila.VinoEnAusencia.Should().Be(0);
+    }
 }

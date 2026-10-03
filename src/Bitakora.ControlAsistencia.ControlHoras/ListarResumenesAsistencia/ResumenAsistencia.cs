@@ -29,4 +29,6 @@ public sealed record ResumenAsistencia(
     int Aprobados,
     int Pendientes,
     int SinDatos,
-    IReadOnlyDictionary<string, decimal> TotalHorasPorConcepto);
+    IReadOnlyDictionary<string, decimal> TotalHorasPorConcepto,
+    IReadOnlyDictionary<string, int> DiasConAusencia,
+    int VinoEnAusencia);
