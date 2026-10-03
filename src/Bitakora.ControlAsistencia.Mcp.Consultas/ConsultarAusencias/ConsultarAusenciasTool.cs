@@ -17,7 +17,7 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api)
             NombreTool,
             "Consulta quien falta en un periodo: por colaborador, sus ausencias (vacaciones, "
             + "incapacidad medica, licencia remunerada o ausencia no remunerada) con los dias que "
-            + "caen en el periodo. Periodo de maximo 31 dias. Filtra opcionalmente por codigos de "
+            + "caen en el periodo. Periodo de maximo 35 dias. Filtra opcionalmente por codigos de "
             + "colaborador (para tu equipo, sacalos de listar_colaboradores por sede o etiquetas). "
             + "Para un solo colaborador, pasa solo su codigo.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
