@@ -54,6 +54,33 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
         http.GetAsync("api/programacion/plantillas-semanales", ct);
 
+    // Ausencias (CA-ADR-0036): registrar es POST (paso 1), cancelar es accion con verbo propio
+    // (paso 4) y la consulta es QUERY (MEF-ADR-0042).
+    public Task<HttpResponseMessage> ProgramarAusencia(
+        string codigoColaborador, AusenciaAProgramar ausencia, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/ausencias", ausencia, ct);
+
+    public Task<HttpResponseMessage> ListarAusenciasColaborador(
+        string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(
+            new HttpMethod("QUERY"),
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/ausencias")
+        {
+            Content = JsonContent.Create(new { desde, hasta })
+        };
+
+        return http.SendAsync(request, ct);
+    }
+
+    public Task<HttpResponseMessage> CancelarAusencia(
+        string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/ausencias/{Uri.EscapeDataString(id)}:cancelar",
+            new { fechas },
+            ct);
+
     // Acciones de negocio con verbo propio (paso 4 MEF-ADR-0043).
     public Task<HttpResponseMessage> AgregarFranja(string id, FranjaAAgregar franja, CancellationToken ct) =>
         http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", franja, ct);
@@ -215,3 +242,23 @@ public sealed record SedeProgramada(string Id, string Nombre, string? CentroDeCo
 /// (MEF-ADR-0047 decision 3, issue #625).
 /// </summary>
 public sealed record CuadroSemanalResumen(string Id, string Nombre, int Semanas, bool Completa);
+
+
+/// <summary>Payload propio de programar_ausencia hacia POST programacion/colaboradores/{codigo}/ausencias.</summary>
+public sealed record AusenciaAProgramar(
+    Guid Id,
+    string Identificacion,
+    string NombreCompleto,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    string Motivo);
+
+/// <summary>Ausencia tal como la devuelve QUERY programacion/colaboradores/{codigo}/ausencias.</summary>
+public sealed record AusenciaListada(
+    string Id,
+    string Motivo,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    IReadOnlyList<TramoAusencia> TramosVigentes);
+
+public sealed record TramoAusencia(DateOnly Desde, DateOnly Hasta);
