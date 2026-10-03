@@ -20,7 +20,8 @@ internal sealed record SesionUsuario(string? Correo, string OrganizacionId, stri
             Vacio(principal.FindFirstValue(ClaimCorreo)),
             organizacion,
             Vacio(principal.FindFirstValue(ClaimNombreOrganizacion)),
-            membership);
+            membership,
+            Vacio(principal.FindFirstValue(ClaimSesion)));
     }
 
     private static string? Vacio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor;

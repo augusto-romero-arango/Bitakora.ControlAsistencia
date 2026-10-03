@@ -20,7 +20,15 @@ public partial class CerrarSesionTool
         [McpMetadata("""{"readOnlyHint": true, "destructiveHint": false}""")]
         ToolInvocationContext context,
         FunctionContext functionContext)
-        => throw new NotImplementedException();
+        => Task.FromResult(Describir(
+            functionContext.Items.TryGetValue(SesionUsuario.ClaveItems, out var valor)
+                ? valor as SesionUsuario
+                : null));
 
-    internal string Describir(SesionUsuario? sesion) => throw new NotImplementedException();
+    internal string Describir(SesionUsuario? sesion) => sesion?.SesionId is { } sid
+        ? RespuestaJson.Serializar(new RespuestaCierre(
+            Mensajes.AbreElEnlace, $"{UrlBaseLogout}?session_id={Uri.EscapeDataString(sid)}", Mensajes.NotaCierre))
+        : RespuestaJson.Serializar(new RespuestaCierre(Mensajes.SinSesionQueCerrar, null, null));
+
+    internal sealed record RespuestaCierre(string Resultado, string? Url, string? Nota);
 }
