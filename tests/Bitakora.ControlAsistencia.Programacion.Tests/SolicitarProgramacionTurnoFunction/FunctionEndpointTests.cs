@@ -30,7 +30,7 @@ public class FunctionEndpointTests
     public async Task SolicitarProgramacionTurno_Retorna201SinLocation_CuandoComandoEsValido()
     {
         var validator = new FakeSolicitudRequestValidator(ComandoValido());
-        var router = new FakeSolicitudCommandRouter();
+        var router = new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([]));
         var function = new FunctionEndpoint(validator, router);
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);

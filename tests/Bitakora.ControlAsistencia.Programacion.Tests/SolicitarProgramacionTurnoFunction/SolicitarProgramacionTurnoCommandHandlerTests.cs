@@ -637,6 +637,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         }, o => o.WithStrictOrdering());
     }
 
+    // Sin And<>(): la solicitud nunca se crea en este camino (mismo criterio que turno retirado).
     [Fact]
     public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoTodasLasFechasTienenAusencia()
     {
@@ -649,6 +650,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TodasLasFechasConAusencia}*")
             .WithMessage("*Vacaciones*");
+        Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
     }
 

@@ -37,7 +37,7 @@ public partial class AusenciasColaborador : AggregateRoot
             var fechasEnConflicto = Enumerable
                 .Range(0, fechaFin.DayNumber - fechaInicio.DayNumber + 1)
                 .Select(fechaInicio.AddDays)
-                .Where(fecha => Ausencias.Any(a => a.FechaInicio <= fecha && fecha <= a.FechaFin))
+                .Where(fecha => Ausencias.Any(a => a.Cubre(fecha)))
                 .ToList();
             return new ResultadoProgramarAusencia.ChocaConAusencia(fechasEnConflicto, choque.Motivo);
         }
@@ -50,15 +50,20 @@ public partial class AusenciasColaborador : AggregateRoot
 
     internal ClasificacionFechas ClasificarFechas(IReadOnlyList<DateOnly> fechas)
     {
-        var cubiertas = fechas
-            .Select(fecha => (Fecha: fecha, Ausencia: Ausencias.FirstOrDefault(a => a.FechaInicio <= fecha && fecha <= a.FechaFin)))
-            .ToList();
-        return new ClasificacionFechas(
-            cubiertas.Where(c => c.Ausencia is null).Select(c => c.Fecha).ToList(),
-            cubiertas.Where(c => c.Ausencia is not null)
-                .Select(c => new FechaConAusencia(c.Fecha, c.Ausencia!.Motivo))
-                .ToList());
+        var libres = new List<DateOnly>();
+        var conAusencia = new List<FechaConAusencia>();
+        foreach (var fecha in fechas)
+        {
+            if (Ausencias.FirstOrDefault(a => a.Cubre(fecha)) is { } ausencia)
+                conAusencia.Add(new FechaConAusencia(fecha, ausencia.Motivo));
+            else
+                libres.Add(fecha);
+        }
+        return new ClasificacionFechas(libres, conAusencia);
     }
 
-    internal sealed record AusenciaVigente(Guid Id, DateOnly FechaInicio, DateOnly FechaFin, MotivoAusencia Motivo);
+    internal sealed record AusenciaVigente(Guid Id, DateOnly FechaInicio, DateOnly FechaFin, MotivoAusencia Motivo)
+    {
+        public bool Cubre(DateOnly fecha) => FechaInicio <= fecha && fecha <= FechaFin;
+    }
 }

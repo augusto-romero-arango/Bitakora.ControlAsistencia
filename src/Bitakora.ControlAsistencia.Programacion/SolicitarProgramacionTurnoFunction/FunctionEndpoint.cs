@@ -40,6 +40,6 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             }
         }
 
-        return new ObjectResult(resultado) { StatusCode = StatusCodes.Status201Created };
+        return new CreatedResult((string?)null, resultado);
     }
 }

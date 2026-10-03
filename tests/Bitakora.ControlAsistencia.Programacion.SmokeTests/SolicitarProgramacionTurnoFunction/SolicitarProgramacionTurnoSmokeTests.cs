@@ -951,6 +951,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
     private sealed record FechaRespetadaMinima(string Fecha, string Motivo);
     private sealed record RespuestaSolicitudMinima(IReadOnlyList<FechaRespetadaMinima> FechasRespetadas);
+    private sealed record SolicitudFechasMinima(IReadOnlyList<DateOnly> Fechas);
 
     private static readonly JsonSerializerOptions OpcionesRespuesta = new(JsonSerializerDefaults.Web);
 
@@ -1003,6 +1004,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
@@ -1042,6 +1044,13 @@ public class SolicitarProgramacionTurnoSmokeTests(
         new[] { evento1.Fecha, evento2.Fecha }.Should()
             .BeEquivalentTo(new[] { new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 11) });
 
+        var streamId = solicitudId.ToString();
+        var json = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
+            campoJson: "Id", valorJson: streamId, Timeout);
+        json.Deserialize<SolicitudFechasMinima>(EventoPersistido.OpcionesLectura)!.Fechas.Should()
+            .Equal(new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 11));
+
         await Assert.ThrowsAsync<TimeoutException>(() =>
             serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
                 TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, TimeSpan.FromSeconds(3)));
@@ -1049,10 +1058,11 @@ public class SolicitarProgramacionTurnoSmokeTests(
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_Retorna409SinPublicar_CuandoTodasLasFechasTienenAusencia()
+    public async Task SolicitarProgramacionTurno_Retorna409SinPersistirNiPublicar_CuandoTodasLasFechasTienenAusencia()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
@@ -1086,5 +1096,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         await Assert.ThrowsAsync<TimeoutException>(() =>
             serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
                 TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, TimeSpan.FromSeconds(3)));
+        (await postgres.ContarEventosAsync(
+            SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
     }
 }
