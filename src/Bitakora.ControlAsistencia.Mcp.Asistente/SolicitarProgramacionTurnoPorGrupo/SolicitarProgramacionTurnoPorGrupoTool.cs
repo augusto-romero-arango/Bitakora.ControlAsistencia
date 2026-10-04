@@ -5,12 +5,18 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurnoPorGrupo;
 
 public partial class SolicitarProgramacionTurnoPorGrupoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores)
+    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ILogger<SolicitarProgramacionTurnoPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
+    private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
+    private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
+
     internal const string NombreTool = "solicitar_programacion_turno_por_grupo";
     internal const int TamanoDePagina = 200;
 
@@ -43,6 +49,7 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         string? etiquetas,
         CancellationToken ct)
     {
+        var inicio = relojDeEjecucion.GetTimestamp();
         if (string.IsNullOrWhiteSpace(desde))
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
@@ -138,8 +145,23 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
                 f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta))
             .ToList();
 
-        var ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-            programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct);
+        var contadores = new ContadoresDeEjecucion();
+        ResultadoEjecucion ejecucion;
+        try
+        {
+            ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
+                programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, contadores, ct);
+        }
+        finally
+        {
+            IndicadorDeEjecucion.Emitir(
+                registro, relojDeEjecucion, inicio,
+                new DatosDeIndicador(
+                    "grupo", candidatos.Count, fichaTurno.Nombre, sedeProgramada.Id,
+                    fechaDesde, fechaHasta, codigoCanonicoSelector,
+                    filtros.Count == 0 ? null : string.Join(", ", filtros.Select(f => $"{f.Categoria}:{f.Valor}"))),
+                contadores);
+        }
 
         var selector = string.Join(
             ", ",

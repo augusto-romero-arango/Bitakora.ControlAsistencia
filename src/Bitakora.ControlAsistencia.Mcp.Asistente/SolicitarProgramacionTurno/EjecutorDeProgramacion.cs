@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
@@ -18,6 +19,71 @@ public sealed record ResultadoEjecucion(
     int Omitidos,
     IReadOnlyList<ColaboradorFallidoResumen>? Fallidos);
 
+/// <summary>Conteos de la ejecucion, visibles aunque esta termine por excepcion o cancelacion.</summary>
+internal sealed class ContadoresDeEjecucion
+{
+    public int Omitidos;
+    public int Programados;
+    public int Fallidos;
+}
+
+/// <summary>Lo que cada tool aporta al indicador por ejecucion.</summary>
+internal sealed record DatosDeIndicador(
+    string Modalidad,
+    int TamanoResuelto,
+    string Turno,
+    string SedeDeProgramacion,
+    DateOnly Desde,
+    DateOnly Hasta,
+    string? Sede,
+    string? Etiquetas);
+
+internal static class IndicadorDeEjecucion
+{
+    private const string Plantilla =
+        "Solicitud de programacion ejecutada por el asistente: {Modalidad}, {TamanoResuelto} colaboradores, "
+        + "{Programados} programados, {Omitidos} omitidos, {Fallidos} fallidos, {DuracionMs} ms";
+
+    private static readonly EventId Evento = new(1, "EjecucionSolicitudProgramacion");
+
+    // Log estructurado a mano: [LoggerMessage] solo publica como propiedades los placeholders de
+    // la plantilla, y el registro debe llevar tambien turno, sedes y ventana en customDimensions.
+    public static void Emitir(
+        ILogger logger, TimeProvider reloj, long inicio, DatosDeIndicador datos, ContadoresDeEjecucion contadores)
+    {
+        if (!logger.IsEnabled(LogLevel.Information))
+            return;
+
+        var duracionMs = (long)reloj.GetElapsedTime(inicio).TotalMilliseconds;
+        List<KeyValuePair<string, object?>> propiedades =
+        [
+            new("Modalidad", datos.Modalidad),
+            new("TamanoResuelto", datos.TamanoResuelto),
+            new("Programados", contadores.Programados),
+            new("Omitidos", contadores.Omitidos),
+            new("Fallidos", contadores.Fallidos),
+            new("DuracionMs", duracionMs),
+            new("Turno", datos.Turno),
+            new("SedeDeProgramacion", datos.SedeDeProgramacion),
+            new("Desde", datos.Desde),
+            new("Hasta", datos.Hasta),
+            new("DiasVentana", (datos.Hasta.DayNumber - datos.Desde.DayNumber) + 1),
+            new("Sede", datos.Sede),
+            new("Etiquetas", datos.Etiquetas),
+            new("{OriginalFormat}", Plantilla),
+        ];
+
+        logger.Log(
+            LogLevel.Information, Evento, propiedades, null,
+            (estado, _) => string.Format(
+                CultureInfo.InvariantCulture,
+                "Solicitud de programacion ejecutada por el asistente: {0}, {1} colaboradores, "
+                + "{2} programados, {3} omitidos, {4} fallidos, {5} ms",
+                estado[0].Value, estado[1].Value, estado[2].Value, estado[3].Value, estado[4].Value,
+                estado[5].Value));
+    }
+}
+
 // Parte comun de solicitar_programacion_turno y solicitar_programacion_turno_por_grupo (MEF-ADR-0018):
 // ambas difieren solo en como obtienen los candidatos.
 internal static class EjecutorDeProgramacion
@@ -32,6 +98,7 @@ internal static class EjecutorDeProgramacion
         Guid turnoId,
         SedeProgramada sedeProgramada,
         VentanaDeProgramacion ventana,
+        ContadoresDeEjecucion contadores,
         CancellationToken ct)
     {
         var candidatos = solicitados
@@ -40,6 +107,7 @@ internal static class EjecutorDeProgramacion
             .ToList();
 
         var omitidos = solicitados.Count - candidatos.Count;
+        contadores.Omitidos += omitidos;
 
         var programados = new ConcurrentBag<ColaboradorProgramadoResumen>();
         var fallidos = new ConcurrentBag<ColaboradorFallidoResumen>();
@@ -74,6 +142,7 @@ internal static class EjecutorDeProgramacion
                             g.Key, ComprimirEnTramos(g.Select(r => r.Fecha), candidato.Dias[0])))
                         .ToList();
 
+                    Interlocked.Increment(ref contadores.Programados);
                     programados.Add(new ColaboradorProgramadoResumen(
                         candidato.Entrada.Identificacion,
                         candidato.Entrada.NombreCompleto,
@@ -86,6 +155,7 @@ internal static class EjecutorDeProgramacion
                 else
                 {
                     var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
+                    Interlocked.Increment(ref contadores.Fallidos);
                     fallidos.Add(new ColaboradorFallidoResumen(candidato.Entrada.Identificacion, motivo));
                 }
             });

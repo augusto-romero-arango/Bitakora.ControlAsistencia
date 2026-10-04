@@ -4,6 +4,8 @@ using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
@@ -14,8 +16,12 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 // decision 4). Los rechazos del dominio en cada POST se traducen a texto (CA-ADR-0030) y no
 // detienen al resto del lote: el resto ya pudo haberse programado.
 public partial class SolicitarProgramacionTurnoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores)
+    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ILogger<SolicitarProgramacionTurnoTool>? logger = null, TimeProvider? reloj = null)
 {
+    private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
+    private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
+
     internal const string NombreTool = "solicitar_programacion_turno";
     internal const int MaximoIdentificaciones = 200;
 
@@ -74,6 +80,7 @@ public partial class SolicitarProgramacionTurnoTool(
         string identificaciones,
         CancellationToken ct)
     {
+        var inicio = relojDeEjecucion.GetTimestamp();
         if (string.IsNullOrWhiteSpace(desde))
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
@@ -149,8 +156,22 @@ public partial class SolicitarProgramacionTurnoTool(
             .ToList();
 
         var omitidosPorDirectorio = identificacionesSolicitadas.Count - solicitados.Count;
-        var ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-            programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct);
+        var contadores = new ContadoresDeEjecucion { Omitidos = omitidosPorDirectorio };
+        ResultadoEjecucion ejecucion;
+        try
+        {
+            ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
+                programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, contadores, ct);
+        }
+        finally
+        {
+            IndicadorDeEjecucion.Emitir(
+                registro, relojDeEjecucion, inicio,
+                new DatosDeIndicador(
+                    "lista", solicitados.Count, fichaTurno.Nombre, sedeProgramada.Id,
+                    fechaDesde, fechaHasta, null, null),
+                contadores);
+        }
 
         return RespuestaJson.Serializar(new ProgramacionSolicitadaResumen(
             Mensajes.ResultadoProgramacionSolicitada,
