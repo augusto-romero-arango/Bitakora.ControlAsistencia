@@ -112,7 +112,9 @@ public class SupresionMetricasOTelTests
     {
         ConVariableDeEntorno(VariableConnectionStringAppInsights, null, () =>
         {
-            var act = () => ComponerServiceProvider().GetRequiredService<MeterProvider>();
+            using var provider = ComponerServiceProvider();
+
+            var act = () => provider.GetRequiredService<MeterProvider>();
 
             act.Should().NotThrow();
         });
