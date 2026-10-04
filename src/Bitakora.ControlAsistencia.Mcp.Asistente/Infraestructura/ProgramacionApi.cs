@@ -121,7 +121,7 @@ public sealed record SolicitudProgramacionTurno(
     Guid TurnoId,
     ColaboradorSolicitado Colaborador,
     IReadOnlyList<DateOnly> Fechas,
-    SedeProgramada Sede);
+    SedeProgramada? Sede);
 
 public sealed record ColaboradorSolicitado(string Identificacion, string CodigoColaborador, string NombreCompleto);
 

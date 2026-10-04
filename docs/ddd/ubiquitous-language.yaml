@@ -8,6 +8,10 @@
 #   Plantilla semanal de turnos -- composicion del asistente sin asignacion persistida; semana 1 = la
 #   semana lunes-domingo que contiene `desde`, ciclica; misma regla de dias que programar un turno.
 #   Tocada: Plantilla semanal de turnos.)
+# Actualizacion previa: 2026-10-04 (sesion planner, refinamiento de #827: el experto REVOCA la
+#   decision del 2026-09-03 (#589) -- la Sede de programacion pasa a OPCIONAL y, si falta, la
+#   cascada usa la Sede del colaborador; sin ninguna, programa sin sede con aviso no bloqueante.
+#   Tocada: Sede de programacion.)
 # Actualizacion previa: 2026-10-04 (#805: Servidores MCP de Consultas y de Comandos marcados historicos;
 #   nace la entrada Servidor MCP Asistente, servidor unico del BC, CA-ADR-0037.)
 # Actualizacion previa: 2026-09-05 (sesion planner, refinar la cadena de la plantilla semanal #620-#629 a
@@ -732,17 +736,23 @@ terms:
   - name: Sede de programacion
     definition: >
       Sede donde se REGISTRA la programacion de un turno (la SedeProgramada de la solicitud: Id =
-      codigo de la sede, Nombre y CentroDeCostos copiados de FichaSede). La fija el Programador de
-      forma explicita y obligatoria al solicitar la programacion via el asistente; no se deriva
-      del colaborador. Debe existir y estar activa. Distinta de la Sede del colaborador (sede de
-      trabajo, filtro para ENCONTRAR grupos): en la conversacion hay que desambiguar las dos.
+      codigo de la sede, Nombre y CentroDeCostos copiados de FichaSede). OPCIONAL: el asistente la
+      sugiere al Programador y acepta que prefiera la sede de cada colaborador. Si se indica, debe
+      existir y estar activa (si no, rechaza toda la operacion). Cascada de resolucion por franja:
+      sede prearmada de la franja > Sede de programacion indicada > Sede del colaborador (si
+      existe y esta activa) > sin sede, con aviso no bloqueante (#827). Distinta de la Sede del
+      colaborador (sede de trabajo, filtro para ENCONTRAR grupos): en la conversacion hay que
+      desambiguar las dos.
     context: Programacion
-    rejected_synonyms: [sede (a secas, en la tool), derivarla de la sede del colaborador cuando no se indica]
+    rejected_synonyms: [sede (a secas, en la tool)]
     rejection_reason: >
-      Decision del experto (2026-09-03, #589): "debe fijarle al programador la sede donde se
-      registraran las programaciones". El default a la sede del colaborador se habia propuesto
-      y se revirtio: la intencion de programar siempre declara donde.
+      "sede" a secas confunde la Sede de programacion con la Sede del colaborador. Historia: el
+      2026-09-03 (#589) el experto la hizo obligatoria y rechazo derivarla de la Sede del
+      colaborador ("la intencion de programar siempre declara donde"); el 2026-10-04 (#827) el
+      experto REVOCO esa decision -- el dominio ya admitia sede opcional (#331) y la cascada debe
+      ser la misma para turnos y plantillas semanales.
     date_added: 2026-09-03
+    date_updated: 2026-10-04
 
   - name: Servidor MCP de Consultas
     status: historico

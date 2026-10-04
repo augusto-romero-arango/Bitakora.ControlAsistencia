@@ -153,17 +153,16 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task ListarDirectorioColaboradores_Retorna422_CuandoIdentificacionesTraeMasDe200Valores()
+    public async Task ListarDirectorioColaboradores_NoRechazaPorCantidad_CuandoIdentificacionesTraeMasDe200Valores()
     {
-        var masDe200 = Enumerable.Range(1, 201).Select(i => $"CC-{i:D8}").ToList();
+        var masDe200 = Enumerable.Range(1, 250).Select(i => $"CC-{i:D8}").ToList();
         var body = JsonSerializer.Serialize(new { identificaciones = masDe200 });
         var request = FakeHttpRequest(contentType: "application/json", body: body);
 
-        var resultado = await Endpoint().Run(request, CancellationToken.None);
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
 
-        var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
-        unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
-        unprocessable.Value.Should().BeOfType<string>();
+        // store nulo: superar la validacion del borde equivale a llegar a la QuerySession.
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
     }
 
     [Fact]
@@ -271,4 +270,25 @@ public class FunctionEndpointTests
             VigenteDesde: new DateOnly(2026, 1, 1),
             VigenteHasta: null));
     }
+
+    // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
+    [Fact]
+    public void TakeEfectivo_NoAplicaTope_CuandoHayIdentificacionesSinTake() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: null).Should().BeNull();
+
+    [Fact]
+    public void TakeEfectivo_RespetaElTakeSinTopeSuperior_CuandoHayIdentificaciones() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: 250).Should().Be(250);
+
+    [Fact]
+    public void TakeEfectivo_AcotaA1_CuandoHayIdentificacionesYTakeMenorQue1() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: 0).Should().Be(1);
+
+    [Fact]
+    public void TakeEfectivo_Devuelve50_CuandoSoloHayNombreSinTake() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: false, take: null).Should().Be(50);
+
+    [Fact]
+    public void TakeEfectivo_AcotaA200_CuandoSoloHayNombreYTakeMayorA200() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: false, take: 500).Should().Be(200);
 }
