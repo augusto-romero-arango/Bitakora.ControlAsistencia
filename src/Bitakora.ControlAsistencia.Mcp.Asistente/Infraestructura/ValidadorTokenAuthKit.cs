@@ -33,12 +33,18 @@ public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectCon
                 new OpenIdConnectConfigurationRetriever()))
             : new ValidadorTokenAuthKit(configManager: null);
 
-    public Task<ClaimsPrincipal?> ValidarAsync(string token, CancellationToken ct) => throw new NotImplementedException();
+    // MapInboundClaims=false: sin esto, el handler traduce "sub" al URI largo de
+    // ClaimTypes.NameIdentifier (mapeo heredado de WS-Federation) antes de que el derivador (issue
+    // #572) pueda leerlo.
+    private static readonly JwtSecurityTokenHandler Handler = new() { MapInboundClaims = false };
 
-    public async Task<bool> EsValidoAsync(string token, CancellationToken ct)
+    public async Task<bool> EsValidoAsync(string token, CancellationToken ct) =>
+        await ValidarAsync(token, ct) is not null;
+
+    public async Task<ClaimsPrincipal?> ValidarAsync(string token, CancellationToken ct)
     {
         if (configManager is null)
-            return false;
+            return null;
 
         try
         {
@@ -53,15 +59,14 @@ public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectCon
                 ValidateLifetime = true
             };
 
-            new JwtSecurityTokenHandler().ValidateToken(token, parametros, out _);
-            return true;
+            return Handler.ValidateToken(token, parametros, out _);
         }
         catch (Exception)
         {
             // Defensa en profundidad: cualquier fallo (token malformado, discovery doc no
             // alcanzable, firma invalida) se trata como "no valido", nunca propaga -- este
             // validador jamas debe tumbar el pipeline (MEF-ADR-0047 decision 7).
-            return false;
+            return null;
         }
     }
 }

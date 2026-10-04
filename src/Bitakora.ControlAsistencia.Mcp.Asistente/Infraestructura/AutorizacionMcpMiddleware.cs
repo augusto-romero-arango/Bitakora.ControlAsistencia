@@ -16,7 +16,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 /// endpoint propio fuera del protocolo MCP) -- nunca bloquea el pipeline.
 /// </summary>
 public sealed class AutorizacionMcpMiddleware(
-    ValidadorTokenAuthKit validador,
+    IValidadorTokenAuthKit validador,
     ILogger<AutorizacionMcpMiddleware> logger) : IFunctionsWorkerMiddleware
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
