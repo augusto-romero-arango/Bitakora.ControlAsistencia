@@ -1,5 +1,5 @@
 # Terraform del servidor MCP de Asistente (MEF-ADR-0047, MEF-ADR-0048): Service Plan, Storage
-# Account y Function App dedicados, mismo patron que mcp-consultas.tf/mcp-comandos.tf pero sin rol
+# Account y Function App dedicados, mismo patron que los Function Apps de dominio pero sin rol
 # sobre Key Vault -- este servidor es cliente HTTP puro de los Function Apps del BC (MEF-ADR-0047
 # decision 3), sin SERVICE_BUS_CONNECTION ni MartenConnectionString, y sus app settings
 # Api__*__BaseUrl no llevan ninguna referencia @Microsoft.KeyVault.
@@ -49,8 +49,8 @@ module "function_app_mcp_asistente" {
   #
   # Identidad__* (MEF-ADR-0047 decision 6): valor interino por despliegue, TODO(tenancy etapa b /
   # identidad derivada del token). El BC esta en multi-tenant-header: el valor apunta al tenant
-  # "tenant-smoke" con datos en dev (mismo criterio que mcp-consultas.tf/mcp-comandos.tf); cualquier
-  # otro valor consultaria un tenant sin datos y las tools responderian vacio en silencio.
+  # "tenant-smoke" con datos en dev (mismo criterio que los servidores MCP retirados en #806);
+  # cualquier otro valor consultaria un tenant sin datos y las tools responderian vacio en silencio.
   #
   # Mcp__* (MEF-ADR-0047 decision 7, MEF-ADR-0032 seccion 9): AuthorizationServer es el dominio
   # AuthKit del entorno (var.mcp_authorization_server_url). ResourceUri lo resuelve el modulo
