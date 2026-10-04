@@ -4,10 +4,10 @@ using System.Text.RegularExpressions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-// Calco de ResolutorPlantillaPorNombre de Mcp.Comandos (MEF-ADR-0018: criterio replicado como
-// texto/codigo propio, islas) sobre ListarPlantillasSemanales: mismo criterio de normalizacion
-// (trim + colapso de espacios + case-insensitive, acentos significativos) y mismo contrato de
-// NombresDisponibles para el mensaje PlantillaNoExiste de la tool consumidora (MEF-ADR-0009).
+// Fusion de los ResolutorPlantillaPorNombre de Mcp.Consultas y Mcp.Comandos (MEF-ADR-0018: criterio
+// replicado como codigo propio, islas) sobre ListarPlantillasSemanales: normalizacion trim + colapso
+// de espacios + case-insensitive, acentos significativos; NombresDisponibles alimenta el mensaje
+// PlantillaNoExiste de la tool consumidora (MEF-ADR-0009).
 public sealed partial class ResolutorPlantillaPorNombre(ProgramacionApi programacion)
 {
     public const int MaximoPlantillasEnMensaje = 20;

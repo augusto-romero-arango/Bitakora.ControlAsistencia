@@ -6,10 +6,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ObtenerPlantillaSe
 
 public class ObtenerPlantillaSemanalSmokeTests(McpFixture mcp)
 {
-    // CA-5 (issue #629): tool call real sin arrange -- el camino feliz (crear plantilla + 1 dia)
-    // queda cubierto por el smoke de #627 desde Comandos, ya que esta suite no cuenta con un
-    // arrange sobre Programacion. Aqui se confirma que un nombre inexistente responde el mensaje
-    // en espanol, no un error de protocolo.
+    // Tool call real sin arrange: un nombre inexistente responde el mensaje en espanol, no un error
+    // de protocolo.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerPlantillaSemanal_RespondeMensajeNoExiste_CuandoElNombreNoEstaEnElCatalogo()
