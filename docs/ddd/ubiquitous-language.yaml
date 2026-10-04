@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-04 (#805: Servidores MCP de Consultas y de Comandos marcados historicos;
+# Ultima actualizacion: 2026-10-04 (sesion planner, refinamiento de #828: se define APLICAR una
+#   Plantilla semanal de turnos -- composicion del asistente sin asignacion persistida; semana 1 = la
+#   semana lunes-domingo que contiene `desde`, ciclica; misma regla de dias que programar un turno.
+#   Tocada: Plantilla semanal de turnos.)
+# Actualizacion previa: 2026-10-04 (#805: Servidores MCP de Consultas y de Comandos marcados historicos;
 #   nace la entrada Servidor MCP Asistente, servidor unico del BC, CA-ADR-0037.)
 # Actualizacion previa: 2026-09-05 (sesion planner, refinar la cadena de la plantilla semanal #620-#629 a
 #   estado:listo. Decisiones del experto: tope 6 semanas; el dia de la semana se codifica como numero ISO 8601
@@ -415,9 +419,15 @@ terms:
       verificado contra el aggregate CatalogoTurnos del mismo store, no contra la vista); el POST responde
       201 Created y los PUT/DELETE 204 No Content (CA-ADR-0035); PUT con el mismo turno, DELETE sobre un dia
       ya vacio y retirar una plantilla ya retirada son no-ops: exito sin evento, nunca 409.
+      Enmienda 2026-10-04 (#828): APLICAR una plantilla completa a colaboradores durante una Ventana de
+      trabajo es una composicion del asistente -- emite una SolicitarProgramacionTurno por colaborador y
+      turno distinto (el snapshot ocurre ahi); NO se registra el hecho "tiene la plantilla X" ni hay
+      aggregate nuevo. La semana lunes-domingo que contiene `desde` es la semana 1 y avanza ciclicamente
+      cada lunes. Los dias a programar se deciden con la MISMA regla que programar un turno (ventana
+      intersecada con la vigencia de la vinculacion); el recorte no reinicia el molde.
     context: Programacion
     date_added: 2026-09-04
-    date_updated: 2026-09-05
+    date_updated: 2026-10-04
     rejected_synonyms: [PlantillaTurnos (sin modalidad), Ventana de trabajo, Periodo de programacion, turno inline sin nombre]
     rejection_reason: >
       El alias del evento persistido es el nombre simple de la clase y una futura PlantillaCiclica
