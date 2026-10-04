@@ -19,9 +19,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
     // Tope de pagina (MEF-ADR-0042 seccion 2): el Take del cliente jamas llega crudo a Marten.
     private const int TakeMaximo = 200;
 
-    // Tope de valores por request del filtro por identificaciones (contrato del endpoint): acota el
-    // tamano del `= ANY(...)` que Marten genera, independiente del tope de pagina.
-    private const int MaximoIdentificaciones = 200;
+    private const int TakeDefaultPorNombre = 50;
 
     // Containment JSONB del filtro por tokens: un array jsonb @> otro array jsonb es "el primero
     // contiene TODOS los elementos del segundo" -- la semantica exacta de "contiene todos los
@@ -72,9 +70,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         {
             if (identificaciones.Count == 0)
                 return NoProcesable("Identificaciones, si viene, no puede estar vacia");
-
-            if (identificaciones.Count > MaximoIdentificaciones)
-                return NoProcesable($"Identificaciones admite maximo {MaximoIdentificaciones} valores");
 
             if (identificaciones.Any(string.IsNullOrWhiteSpace))
                 return NoProcesable("Identificaciones no puede traer valores nulos ni en blanco");
@@ -151,16 +146,26 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 || (d.NombreCompleto == cursorNombre && d.Id.CompareTo(cursorId) > 0));
         }
 
-        var directorio = await query
-            .OrderBy(d => d.NombreCompleto).ThenBy(d => d.Id)
-            .Take(Math.Clamp(filtro.Take, 1, TakeMaximo))
-            .ToListAsync(ct);
+        var ordenada = query.OrderBy(d => d.NombreCompleto).ThenBy(d => d.Id);
+        var paginada = TakeEfectivo(tieneIdentificaciones, filtro.Take) is { } take
+            ? ordenada.Take(take)
+            : ordenada;
+        var directorio = await paginada.ToListAsync(ct);
 
         // Lista plana sin envoltura: el cliente deriva el cursor de la ultima fila y detecta el fin
         // por una pagina con menos de Take filas. Los colaboradores con vinculacion terminada SI
         // aparecen -- el directorio no filtra por vigencia.
         return new OkObjectResult(directorio.Select(DirectorioColaboradorRespuesta.DesdeVista).ToList());
     }
+
+    // CA-ADR-0038: con identificaciones el resultado queda acotado por la entrada, asi que sin Take
+    // devuelve todo (null) y con Take lo respeta sin tope superior. Solo por nombre conserva default y tope.
+    internal static int? TakeEfectivo(bool tieneIdentificaciones, int? take) => (tieneIdentificaciones, take) switch
+    {
+        (true, null) => null,
+        (true, { } valor) => Math.Max(valor, 1),
+        (false, _) => Math.Clamp(take ?? TakeDefaultPorNombre, 1, TakeMaximo),
+    };
 
     // MEF-ADR-0042 seccion 3: el 422 se emite con mensaje, nunca como codigo pelado.
     private static ObjectResult NoProcesable(string mensaje) =>
@@ -174,7 +179,7 @@ public sealed record FiltroListarDirectorioColaboradores(
     IReadOnlyList<string>? Identificaciones,
     string? Nombre,
     CursorDirectorio? Cursor,
-    int Take = 50);
+    int? Take = null);
 
 // Cursor keyset: los dos campos visibles de la ultima fila recibida, en el orden
 // OrderBy(NombreCompleto).ThenBy(Id).
