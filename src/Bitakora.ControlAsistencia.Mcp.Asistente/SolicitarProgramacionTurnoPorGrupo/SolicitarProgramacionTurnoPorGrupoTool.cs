@@ -150,14 +150,14 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         try
         {
             ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-                programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct, contadores);
+                programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, contadores, ct);
         }
         finally
         {
             IndicadorDeEjecucion.Emitir(
                 registro, relojDeEjecucion, inicio,
                 new DatosDeIndicador(
-                    "grupo", candidatos.Count, fichaTurno.Nombre, sedeProgramada.Id, ventana,
+                    "grupo", candidatos.Count, fichaTurno.Nombre, sedeProgramada.Id,
                     fechaDesde, fechaHasta, codigoCanonicoSelector,
                     filtros.Count == 0 ? null : string.Join(", ", filtros.Select(f => $"{f.Categoria}:{f.Valor}"))),
                 contadores);

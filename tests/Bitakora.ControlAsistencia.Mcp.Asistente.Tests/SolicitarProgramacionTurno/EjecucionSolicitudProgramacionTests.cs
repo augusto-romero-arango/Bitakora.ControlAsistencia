@@ -108,7 +108,6 @@ public class EjecucionSolicitudProgramacionTests
         CancellationToken ct = default) =>
         tool.Run(null!, desde, hasta, Turno, SedeProgramacion, sede, etiquetas, ct);
 
-    // CA-1 (lista)
     [Fact]
     public async Task SolicitarProgramacionTurno_EmiteUnRegistroConModalidadLista_CuandoLlegaALaFaseDeEjecucion()
     {
@@ -132,7 +131,6 @@ public class EjecucionSolicitudProgramacionTests
         registro.Propiedades.GetValueOrDefault("Etiquetas").Should().BeNull();
     }
 
-    // CA-1 (grupo)
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_EmiteUnRegistroConModalidadGrupo_CuandoLlegaALaFaseDeEjecucion()
     {
@@ -197,7 +195,6 @@ public class EjecucionSolicitudProgramacionTests
             .Should().Be(5000);
     }
 
-    // CA-2
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_NoEmiteRegistro_CuandoUnaEtiquetaEstaMalFormada()
     {
@@ -230,7 +227,6 @@ public class EjecucionSolicitudProgramacionTests
         Registros(entorno.Logger).Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_EmiteRegistroConCeros_CuandoElGrupoEstaVacio()
     {
@@ -244,7 +240,6 @@ public class EjecucionSolicitudProgramacionTests
         registro.Propiedades["Programados"].Should().Be(0);
     }
 
-    // CA-4
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_EmiteRegistroConConteosParciales_CuandoLaEjecucionLanza()
     {

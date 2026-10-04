@@ -33,7 +33,6 @@ internal sealed record DatosDeIndicador(
     int TamanoResuelto,
     string Turno,
     string SedeDeProgramacion,
-    VentanaDeProgramacion Ventana,
     DateOnly Desde,
     DateOnly Hasta,
     string? Sede,
@@ -99,10 +98,9 @@ internal static class EjecutorDeProgramacion
         Guid turnoId,
         SedeProgramada sedeProgramada,
         VentanaDeProgramacion ventana,
-        CancellationToken ct,
-        ContadoresDeEjecucion? contadores = null)
+        ContadoresDeEjecucion contadores,
+        CancellationToken ct)
     {
-        contadores ??= new ContadoresDeEjecucion();
         var candidatos = solicitados
             .Select(c => (Entrada: c, Dias: ventana.DiasCubiertosPor(c.VigenteDesde, c.VigenteHasta)))
             .Where(c => c.Dias.Count > 0)

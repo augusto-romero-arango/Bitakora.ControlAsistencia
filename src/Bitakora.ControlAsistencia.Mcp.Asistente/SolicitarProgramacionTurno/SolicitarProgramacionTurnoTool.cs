@@ -161,14 +161,14 @@ public partial class SolicitarProgramacionTurnoTool(
         try
         {
             ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-                programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct, contadores);
+                programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, contadores, ct);
         }
         finally
         {
             IndicadorDeEjecucion.Emitir(
                 registro, relojDeEjecucion, inicio,
                 new DatosDeIndicador(
-                    "lista", solicitados.Count, fichaTurno.Nombre, sedeProgramada.Id, ventana,
+                    "lista", solicitados.Count, fichaTurno.Nombre, sedeProgramada.Id,
                     fechaDesde, fechaHasta, null, null),
                 contadores);
         }
