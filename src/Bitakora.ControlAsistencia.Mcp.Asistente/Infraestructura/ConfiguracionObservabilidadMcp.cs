@@ -3,6 +3,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -28,7 +29,19 @@ public static class ConfiguracionObservabilidadMcp
             .UseFunctionsWorkerDefaults()
             .UseAzureMonitorExporter()
             .WithTracing(tracing => tracing
-                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))));
+                .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))))
+            .WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop));
+
+        // El reader de metricas del exporter se construye de forma sincronica y exige una connection
+        // string o lanza: sin este fallback, un arranque en frio con la Key Vault reference sin
+        // resolver tumbaria el host (CA-ADR-0009, actualizacion 2026-06-18). Nunca pisa una real.
+        services.PostConfigure<AzureMonitorExporterOptions>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+                options.ConnectionString =
+                    "InstrumentationKey=00000000-0000-0000-0000-000000000000;" +
+                    "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
+        });
 
         return services;
     }
