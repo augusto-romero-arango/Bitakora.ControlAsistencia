@@ -85,3 +85,13 @@ output "mcp_comandos_prm_url" {
   description = "URL publica de APIM del documento PRM (RFC 9728) de Comandos sobre la API compartida (issue #575), alcanzable anonimamente. Su campo 'resource' debe coincidir byte a byte con mcp_comandos_resource_uri (CA-5)."
   value       = module.apim_mcp_comandos.prm_url
 }
+
+output "mcp_asistente_resource_uri" {
+  description = "URL publica de APIM del endpoint del protocolo MCP (streamable HTTP) de Asistente (issue #800). Debe coincidir byte a byte con el Resource Indicator que se configura en el dashboard WorkOS y con el campo 'resource' del PRM (mcp_asistente_prm_url)."
+  value       = module.apim_mcp_asistente.resource_uri
+}
+
+output "mcp_asistente_prm_url" {
+  description = "URL publica de APIM del documento PRM (RFC 9728) de Asistente sobre la API compartida (issue #575), alcanzable anonimamente. Su campo 'resource' debe coincidir byte a byte con mcp_asistente_resource_uri (CA-5)."
+  value       = module.apim_mcp_asistente.prm_url
+}
