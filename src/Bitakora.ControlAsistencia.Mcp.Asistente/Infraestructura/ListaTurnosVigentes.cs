@@ -2,7 +2,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 /// <summary>
 /// Contrato upstream de QUERY control-horas/turnos-vigentes, redeclarado aqui (cero referencias a
-/// los ensamblados del BC, CA-1 del issue #502). NombreCompleto es anulable aunque el read model
+/// los ensamblados del BC). NombreCompleto es anulable aunque el read model
 /// upstream lo declare string: los datos de dev traen null en turnos anteriores al campo.
 /// </summary>
 public sealed record ListaTurnosVigentes(

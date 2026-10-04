@@ -77,14 +77,20 @@ seccion 2 verificacion 3) -- `ejemplo_listar` lo demuestra con `fecha_referencia
 
 ## Tools
 
-| Tool | Que responde | Parametros |
+27 tools, pineadas por reflexion en `ComposicionDelServidorTests` y en vivo en
+`ComposicionDelHostSmokeTests`:
+
+| Grupo | Lectura | Escritura |
 |---|---|---|
-| `ejemplo_listar` | **EJEMPLO** -- catalogo de Programacion: id, nombre | `filtro_nombre?`, `fecha_referencia?` |
+| Sesion | `obtener_sesion`, `cerrar_sesion` | -- |
+| Sedes | `listar_sedes` | `registrar_sede` |
+| Colaboradores | `listar_colaboradores` (por grupo), `buscar_colaboradores` (por persona) | `registrar_colaborador` |
+| Turnos | `listar_turnos`, `obtener_turno` | `crear_turno`, `retirar_turno`, `agregar_franja`, `quitar_franja`, `agregar_subfranja`, `quitar_subfranja`, `asignar_sede_franja` |
+| Plantillas semanales | `listar_plantillas_semanales`, `obtener_plantilla_semanal` | `crear_plantilla_semanal`, `retirar_plantilla_semanal`, `asignar_turno_a_dia`, `quitar_turno_de_dia` |
+| Programacion | `consultar_programacion` | `solicitar_programacion_turno` |
+| Ausencias | `consultar_ausencias` | `programar_ausencia`, `cancelar_ausencia` |
 
-Reemplaza `ejemplo_listar` por las tools reales de tu BC (lenguaje ubicuo, MEF-ADR-0040) antes
-de publicar este servidor.
-
-## Onboarding de un cliente MCP (una vez desplegado)
+## Acceso directo al Function App (diagnostico, sin gateway)
 
 ### 1. Obtener la system key
 
@@ -113,7 +119,7 @@ header: x-functions-key: <key del paso 1>
 ### 3. Verificar
 
 En una conversacion nueva: el servidor aparece conectado (`/mcp`) y lista las tools de la tabla
-de arriba; una consulta real debe invocar `ejemplo_listar` y devolver datos del entorno.
+de arriba; una consulta real (por ejemplo `listar_sedes`) debe devolver datos del entorno.
 
 ## Onboarding de un cliente MCP (`{gateway}/mcp-asistente`)
 

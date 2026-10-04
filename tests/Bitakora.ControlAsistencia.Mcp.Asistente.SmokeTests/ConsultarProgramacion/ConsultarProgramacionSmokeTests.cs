@@ -8,7 +8,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ConsultarProgramac
 
 public class ConsultarProgramacionSmokeTests(McpFixture mcp)
 {
-    // CA-3 (issue #586): primera tool call valida de consultar_programacion (MEF-ADR-0048 seccion 2
+    // Primera tool call valida de consultar_programacion (MEF-ADR-0048 seccion 2
     // verificacion 3). Antes del fix, desde/hasta con forma de fecha llegaban coercionados a
     // DateTimeOffset reformateado y el worker respondia siempre FechaInvalida -- la tool principal
     // de Consultas no podia responder ninguna consulta con fechas. Se afirma forma, no datos
@@ -40,6 +40,52 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         var mostrando = raiz.GetProperty("mostrando").GetInt32();
         raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
         raiz.GetProperty("turnos").EnumerateArray().ToList().Should().HaveCount(mostrando);
+    }
+
+    // MEF-ADR-0048 seccion 2 verificacion 3: los parametros identificador opcionales tambien
+    // necesitan su tool call valida. Se afirma el filtro aplicado, no datos puntuales.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_SoloDevuelveDiasDelColaborador_CuandoSeFiltraPorCodigoColaborador()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "consultar_programacion",
+            new Dictionary<string, object?>
+            {
+                ["desde"] = "2026-09-01",
+                ["hasta"] = "2026-09-07",
+                ["codigo_colaborador"] = "COL-1"
+            },
+            cancellationToken: ct);
+
+        resultado.IsError.Should().NotBeTrue();
+        using var json = JsonDocument.Parse(resultado.Content.OfType<TextContentBlock>().Single().Text);
+        json.RootElement.GetProperty("turnos").EnumerateArray()
+            .Select(t => t.GetProperty("colaborador").GetString())
+            .Should().AllBe("COL-1");
+    }
+
+    // sede_id con forma GUID: la extension lo coerciona y ArgumentosCrudosMcpMiddleware debe
+    // restaurarlo; una sede inexistente responde la programacion vacia, nunca un error.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_DevuelveProgramacionVacia_CuandoSeFiltraPorUnaSedeSinBloques()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "consultar_programacion",
+            new Dictionary<string, object?>
+            {
+                ["desde"] = "2026-09-01",
+                ["hasta"] = "2026-09-07",
+                ["sede_id"] = Guid.CreateVersion7().ToString()
+            },
+            cancellationToken: ct);
+
+        resultado.IsError.Should().NotBeTrue();
+        using var json = JsonDocument.Parse(resultado.Content.OfType<TextContentBlock>().Single().Text);
+        json.RootElement.GetProperty("total").GetInt32().Should().Be(0);
     }
 
     // Error path que NO toca los dominios: la validacion de fecha corta en el worker y responde

@@ -8,9 +8,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarProgramacion;
 
-// UNA sola tool de rango sobre QUERY control-horas/turnos-vigentes (decision de refinamiento
-// 2026-08-30 del issue #502: tools consolidadas): el caso puntual "que le toca a Juan el 3" es
-// desde = hasta + codigo_colaborador, sin tool aparte sobre ObtenerTurnoVigente.
+// UNA sola tool de rango sobre QUERY control-horas/turnos-vigentes (tools consolidadas):
+// el caso puntual "que le toca a Juan el 3" es desde = hasta + codigo_colaborador, sin tool aparte sobre ObtenerTurnoVigente.
 //
 // Remodelado: se podan el Id (stream key "cd:...") y el HorarioResumido (los bloques compactos son
 // la forma canonica y traen la sede); las fechas invalidas y el rango invertido se responden como
@@ -125,7 +124,7 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
 }
 
 /// <summary>
-/// Contrato de respuesta de consultar_programacion hacia el asistente (remodelado, issue #502).
+/// Contrato de respuesta de consultar_programacion hacia el asistente (remodelado).
 /// Desde/Hasta son los aplicados por el dominio, que pueden diferir de los pedidos si hubo recorte
 /// (la Nota lo senala).
 /// </summary>
