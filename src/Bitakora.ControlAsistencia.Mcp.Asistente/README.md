@@ -114,3 +114,16 @@ header: x-functions-key: <key del paso 1>
 
 En una conversacion nueva: el servidor aparece conectado (`/mcp`) y lista las tools de la tabla
 de arriba; una consulta real debe invocar `ejemplo_listar` y devolver datos del entorno.
+
+## Onboarding de un cliente MCP (`{gateway}/mcp-asistente`)
+
+Este servidor expone las 27 tools de lectura y escritura del BC y **reemplaza a los conectores
+de Consultas y Comandos**: desconectalos y conecta uno solo.
+
+- **claude.ai**: Configuracion -> Conectores -> Agregar conector personalizado; URL
+  `{gateway}/mcp-asistente`. Completa el login OAuth (AuthKit) y elige la empresa.
+- **VS Code**: en `.vscode/mcp.json` agrega
+  `{"servers": {"asistente": {"type": "http", "url": "{gateway}/mcp-asistente"}}}` e inicia el
+  servidor; VS Code abre el flujo OAuth al primer uso.
+
+Para cambiar de empresa, usa `cerrar_sesion` y reconecta.

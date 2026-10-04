@@ -22,7 +22,7 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
     internal const int MaximoDias = 50;
 
     [Function("ConsultarProgramacion")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Consulta que turno rige a cada colaborador en un rango de fechas (la programacion "
@@ -44,8 +44,84 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
         string? sedeId,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (!TryParseFecha(desde, out var desdeFecha))
+            return string.Format(Mensajes.FechaInvalida, "desde", desde);
+
+        if (!TryParseFecha(hasta, out var hastaFecha))
+            return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
+
+        if (desdeFecha > hastaFecha)
+            return Mensajes.DesdePosteriorAHasta;
+
+        var respuesta = await api.ConsultarTurnosVigentes(
+            desdeFecha, hastaFecha, Normalizar(codigoColaborador), Normalizar(sedeId), ct);
+
+        if (respuesta.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest)
+            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
+
+        respuesta.EnsureSuccessStatusCode();
+
+        var lista = (await respuesta.Content.ReadFromJsonAsync<ListaTurnosVigentes>(ct))!;
+
+        var visibles = lista.Turnos.Take(MaximoDias)
+            .Select(t => new DiaProgramado(
+                t.CodigoColaborador,
+                t.NombreCompleto,
+                t.Fecha,
+                t.NombreTurno.Trim(),
+                [.. t.Bloques.Select(Compactar)]))
+            .ToList();
+
+        return RespuestaJson.Serializar(new ProgramacionVigente(
+            lista.DesdeAplicado,
+            lista.HastaAplicado,
+            ComponerNota(lista, visibles.Count),
+            lista.Turnos.Count,
+            visibles.Count,
+            visibles));
     }
+
+    private static string? ComponerNota(ListaTurnosVigentes lista, int visibles)
+    {
+        var partes = new List<string>();
+
+        if (lista.RangoRecortado)
+            partes.Add(Mensajes.NotaRecorte);
+
+        if (lista.Turnos.Count > visibles)
+            partes.Add(string.Format(Mensajes.NotaTruncado, visibles, lista.Turnos.Count));
+
+        return partes.Count > 0 ? string.Join(" ", partes) : null;
+    }
+
+    private static string Compactar(BloqueVigente bloque)
+    {
+        var texto = new StringBuilder();
+
+        if (bloque.Tipo == TipoBloque.Descanso)
+            texto.Append("descanso ");
+        else if (bloque.Tipo == TipoBloque.Extra)
+            texto.Append("extra ");
+
+        texto.Append($"{bloque.Inicio:HH\\:mm}-{bloque.Fin:HH\\:mm}");
+
+        var dias = (bloque.Fin.Date - bloque.Inicio.Date).Days;
+        if (dias > 0)
+            texto.Append($"(+{dias})");
+
+        var sede = bloque.NombreSede ?? bloque.SedeId;
+        if (sede is not null)
+            texto.Append($", sede: {sede}");
+
+        return texto.ToString();
+    }
+
+    private static bool TryParseFecha(string valor, out DateOnly fecha) =>
+        DateOnly.TryParseExact(valor?.Trim() ?? "", "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out fecha);
+
+    private static string? Normalizar(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
 }
 
 /// <summary>

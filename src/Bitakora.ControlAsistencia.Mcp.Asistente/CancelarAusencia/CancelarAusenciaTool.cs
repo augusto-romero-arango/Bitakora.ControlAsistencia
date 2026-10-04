@@ -14,7 +14,7 @@ public partial class CancelarAusenciaTool(ProgramacionApi programacion, Colabora
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     [Function("CancelarAusencia")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Cancela ausencias de un colaborador en un periodo. Sin completa, cancela solo los "
@@ -41,8 +41,76 @@ public partial class CancelarAusenciaTool(ProgramacionApi programacion, Colabora
         bool? completa,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(identificacion))
+            return string.Format(Mensajes.CampoObligatorio, "identificacion");
+        if (string.IsNullOrWhiteSpace(desde))
+            return string.Format(Mensajes.CampoObligatorio, "desde");
+        if (string.IsNullOrWhiteSpace(hasta))
+            return string.Format(Mensajes.CampoObligatorio, "hasta");
+
+        if (!DateOnly.TryParseExact(
+            desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaDesde))
+            return string.Format(Mensajes.FechaInvalida, "desde", desde);
+        if (!DateOnly.TryParseExact(
+            hasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaHasta))
+            return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
+        if (fechaDesde > fechaHasta)
+            return Mensajes.PeriodoInvertido;
+
+        var solicitada = identificacion.Trim();
+        var respuestaDirectorio = await colaboradores.BuscarEnDirectorio([solicitada], 1, ct);
+        if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
+            return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
+        var directorio = await respuestaDirectorio.Content
+            .ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
+
+        var entrada = directorio.FirstOrDefault(e => string.Equals(
+            e.Identificacion.Trim(), solicitada, StringComparison.OrdinalIgnoreCase));
+        if (entrada is null)
+            return string.Format(Mensajes.ColaboradorNoEncontrado, solicitada);
+
+        var respuestaAusencias = await programacion.ListarAusenciasColaborador(
+            entrada.CodigoColaborador, fechaDesde, fechaHasta, ct);
+        if (await respuestaAusencias.LeerFalloAsync(ct) is { } falloAusencias)
+            return string.Format(Mensajes.RechazoDelDominio, falloAusencias);
+        var ausencias = await respuestaAusencias.Content
+            .ReadFromJsonAsync<List<AusenciaListada>>(OpcionesLectura, ct) ?? [];
+
+        var porCancelar = ausencias
+            .Select(a => (Ausencia: a, Fechas: DiasDe(a.TramosVigentes, fechaDesde, fechaHasta)))
+            .Where(x => x.Fechas.Count > 0)
+            .Select(x => completa == true
+                ? x with { Fechas = DiasDe(x.Ausencia.TramosVigentes, DateOnly.MinValue, DateOnly.MaxValue) }
+                : x)
+            .ToList();
+
+        if (porCancelar.Count == 0)
+            return string.Format(
+                Mensajes.SinAusenciasEnElPeriodo, entrada.NombreCompleto, $"{fechaDesde:yyyy-MM-dd} a {fechaHasta:yyyy-MM-dd}");
+
+        var canceladas = new List<AusenciaCanceladaResumen>();
+        foreach (var (ausencia, fechas) in porCancelar)
+        {
+            var respuesta = await programacion.CancelarAusencia(
+                entrada.CodigoColaborador, ausencia.Id, fechas, ct);
+            if (await respuesta.LeerFalloAsync(ct) is { } rechazo)
+                return string.Format(Mensajes.RechazoDelDominio, rechazo);
+
+            canceladas.Add(new AusenciaCanceladaResumen(ausencia.Motivo, fechas[0], fechas[^1], fechas.Count));
+        }
+
+        return RespuestaJson.Serializar(new AusenciasCanceladasResumen(
+            Mensajes.ResultadoAusenciasCanceladas, entrada.NombreCompleto, canceladas));
     }
+
+    private static List<DateOnly> DiasDe(IReadOnlyList<TramoAusencia> tramos, DateOnly desde, DateOnly hasta) =>
+        [.. tramos
+            .Select(t => (Inicio: t.Desde > desde ? t.Desde : desde, Fin: t.Hasta < hasta ? t.Hasta : hasta))
+            .Where(t => t.Inicio <= t.Fin)
+            .SelectMany(t => Enumerable.Range(0, t.Fin.DayNumber - t.Inicio.DayNumber + 1)
+                .Select(i => t.Inicio.AddDays(i)))
+            .Distinct()
+            .Order()];
 }
 
 public sealed record AusenciasCanceladasResumen(

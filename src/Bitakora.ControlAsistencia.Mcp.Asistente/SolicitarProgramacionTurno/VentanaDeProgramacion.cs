@@ -16,7 +16,14 @@ public sealed partial class VentanaDeProgramacion
 
     public static VentanaDeProgramacion Crear(DateOnly desde, DateOnly hasta)
     {
-        throw new NotImplementedException();
+        if (desde > hasta)
+            throw new ArgumentException(Mensajes.VentanaInvertida);
+
+        var dias = (hasta.DayNumber - desde.DayNumber) + 1;
+        if (dias > MaximoDias)
+            throw new ArgumentException(Mensajes.VentanaExcedeMaximo);
+
+        return new VentanaDeProgramacion(desde, hasta);
     }
 
     /// <summary>
@@ -25,8 +32,18 @@ public sealed partial class VentanaDeProgramacion
     /// </summary>
     public IReadOnlyList<DateOnly> DiasCubiertosPor(DateOnly vigenteDesde, DateOnly? vigenteHasta)
     {
-        throw new NotImplementedException();
+        var inicio = _desde > vigenteDesde ? _desde : vigenteDesde;
+        var fin = vigenteHasta.HasValue && vigenteHasta.Value < _hasta ? vigenteHasta.Value : _hasta;
+
+        if (inicio > fin)
+            return [];
+
+        var dias = new List<DateOnly>();
+        for (var dia = inicio; dia <= fin; dia = dia.AddDays(1))
+            dias.Add(dia);
+
+        return dias;
     }
 
-    public override string ToString() => throw new NotImplementedException();
+    public override string ToString() => $"{_desde:yyyy-MM-dd} a {_hasta:yyyy-MM-dd}";
 }

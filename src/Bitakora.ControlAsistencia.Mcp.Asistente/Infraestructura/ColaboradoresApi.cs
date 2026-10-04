@@ -45,6 +45,10 @@ public sealed class ColaboradoresApi(HttpClient http)
         http.GetAsync($"api/colaboradores/fichas/{Uri.EscapeDataString(identificacion)}", ct);
 
     public Task<HttpResponseMessage> BuscarEnDirectorio(
+        IReadOnlyList<string> identificaciones, int take, CancellationToken ct) =>
+        BuscarEnDirectorio(identificaciones, null, take, ct);
+
+    public Task<HttpResponseMessage> BuscarEnDirectorio(
         IReadOnlyList<string>? identificaciones, string? nombre, int take, CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/colaboradores/directorio")
