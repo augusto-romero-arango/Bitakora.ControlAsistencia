@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasSieteToolsMigradas_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasDieciseisToolsMigradas_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -37,7 +37,9 @@ public class ComposicionDelServidorTests
         nombres.Should().BeEquivalentTo(
             [
                 "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
-                "buscar_colaboradores", "registrar_sede", "registrar_colaborador"
+                "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
+                "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
+                "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja"
             ]);
     }
 
@@ -88,6 +90,24 @@ public class ComposicionDelServidorTests
         ("registrar_sede", "Registra una sede (lugar de trabajo) nueva de la empresa.",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("registrar_colaborador", "Pone a una persona bajo control de asistencia",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("listar_turnos", "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno.",
+            "\"readOnlyHint\": true"),
+        ("obtener_turno", "Obtiene el detalle de un turno del catalogo: sus franjas con horario, descansos, ",
+            "\"readOnlyHint\": true"),
+        ("crear_turno", "Crea un turno nuevo del catalogo. Por defecto nace vacio (turno incompleto)",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("retirar_turno", "Retira un turno del catalogo por su nombre exacto",
+            "\"readOnlyHint\": false, \"destructiveHint\": true"),
+        ("agregar_franja", "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("quitar_franja", "Quita de un turno la franja ordinaria que empieza a la hora indicada (HH:mm)",
+            "\"readOnlyHint\": false, \"destructiveHint\": true"),
+        ("agregar_subfranja", "Agrega dentro de una franja ordinaria de un turno un descanso",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("quitar_subfranja", "Quita de una franja ordinaria de un turno el descanso o extra que empieza a la hora",
+            "\"readOnlyHint\": false, \"destructiveHint\": true"),
+        ("asignar_sede_franja", "Asigna o cambia la sede prearmada de una franja ordinaria de un turno",
             "\"readOnlyHint\": false, \"destructiveHint\": false")
     ];
 
@@ -145,4 +165,44 @@ public class ComposicionDelServidorTests
                 ("segundo_nombre", false), ("primer_apellido", true), ("segundo_apellido", false),
                 ("codigo_colaborador", true), ("fecha_inicio", true), ("codigo_sede", false)
             ]);
+
+    [Fact]
+    public void ListarTurnos_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("listar_turnos").Should().BeEquivalentTo([("filtro_nombre", false)]);
+
+    [Fact]
+    public void ObtenerTurno_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("obtener_turno").Should().BeEquivalentTo([("id", true)]);
+
+    [Fact]
+    public void CrearTurno_DeclaraElNombreComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("crear_turno").Should().BeEquivalentTo([("nombre", true), ("es_descanso", false)]);
+
+    [Fact]
+    public void RetirarTurno_DeclaraElTurnoComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("retirar_turno").Should().BeEquivalentTo([("turno", true)]);
+
+    [Fact]
+    public void AgregarFranja_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("agregar_franja").Should().BeEquivalentTo(
+            [("turno", true), ("inicio", true), ("fin", true), ("codigo_sede", false)]);
+
+    [Fact]
+    public void QuitarFranja_DeclaraTurnoYFranjaComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_franja").Should().BeEquivalentTo([("turno", true), ("franja", true)]);
+
+    [Fact]
+    public void AgregarSubFranja_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("agregar_subfranja").Should().BeEquivalentTo(
+            [("turno", true), ("franja", true), ("tipo", true), ("inicio", true), ("fin", true)]);
+
+    [Fact]
+    public void QuitarSubFranja_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_subfranja").Should().BeEquivalentTo(
+            [("turno", true), ("franja", true), ("tipo", true), ("inicio", true)]);
+
+    [Fact]
+    public void AsignarSedeFranja_DeclaraCodigoSedeComoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("asignar_sede_franja").Should().BeEquivalentTo(
+            [("turno", true), ("franja", true), ("codigo_sede", false)]);
 }
