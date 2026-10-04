@@ -1,0 +1,38 @@
+{
+ "desdeAplicado": "2026-07-01",
+ "hastaAplicado": "2026-07-31",
+ "rangoRecortado": false,
+ "turnos": [
+  {
+   "id": "cd:01a043a0-bdbe-7d41-8b96-f77c008f4386:20260605",
+   "codigoColaborador": "01a043a0-bdbe-7d41-8b96-f77c008f4386",
+   "nombreCompleto": null,
+   "fecha": "2026-06-05",
+   "nombreTurno": "[TEST] Turno Multi Sede",
+   "horarioResumido": "[TEST] [TEST] Turno Multi Sede",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-06-05T08:00:00",
+     "fin": "2026-06-05T12:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    },
+    {
+     "tipo": 1,
+     "inicio": "2026-06-05T12:00:00",
+     "fin": "2026-06-05T13:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    },
+    {
+     "tipo": 2,
+     "inicio": "2026-06-05T22:00:00",
+     "fin": "2026-06-06T02:00:00",
+     "sedeId": "s:X",
+     "nombreSede": "Sede Nocturna"
+    }
+   ]
+  }
+ ]
+}

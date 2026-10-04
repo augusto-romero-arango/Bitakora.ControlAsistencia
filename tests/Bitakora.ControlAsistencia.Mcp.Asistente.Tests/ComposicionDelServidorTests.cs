@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasVeintidosToolsMigradas_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasVeintisieteToolsMigradas_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -41,7 +41,9 @@ public class ComposicionDelServidorTests
                 "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
                 "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
-                "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia"
+                "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
+                "consultar_programacion", "consultar_ausencias", "solicitar_programacion_turno",
+                "programar_ausencia", "cancelar_ausencia"
             ]);
     }
 
@@ -122,6 +124,16 @@ public class ComposicionDelServidorTests
         ("asignar_turno_a_dia", "Pone o reemplaza el turno de un dia de una plantilla semanal",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("quitar_turno_de_dia", "Deja sin turno un dia de una plantilla semanal",
+            "\"readOnlyHint\": false, \"destructiveHint\": true"),
+        ("consultar_programacion", "Consulta que turno rige a cada colaborador en un rango de fechas",
+            "\"readOnlyHint\": true"),
+        ("consultar_ausencias", "Consulta quien falta en un periodo: por colaborador, sus ausencias",
+            "\"readOnlyHint\": true"),
+        ("solicitar_programacion_turno", "Programa un turno a una lista de colaboradores en una sede",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("programar_ausencia", "Registra una ausencia de un colaborador: dias completos en que no vendra a trabajar",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("cancelar_ausencia", "Cancela ausencias de un colaborador en un periodo.",
             "\"readOnlyHint\": false, \"destructiveHint\": true")
     ];
 
@@ -246,4 +258,29 @@ public class ComposicionDelServidorTests
     public void QuitarTurnoDeDia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("quitar_turno_de_dia").Should().BeEquivalentTo(
             [("plantilla", true), ("dia", true), ("semana", false)]);
+
+    [Fact]
+    public void ConsultarProgramacion_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_programacion").Should().BeEquivalentTo(
+            [("desde", true), ("hasta", true), ("codigo_colaborador", false), ("sede_id", false)]);
+
+    [Fact]
+    public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_ausencias").Should().BeEquivalentTo(
+            [("desde", true), ("hasta", true), ("codigos_colaborador", false)]);
+
+    [Fact]
+    public void SolicitarProgramacionTurno_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("solicitar_programacion_turno").Should().BeEquivalentTo(
+            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", true), ("identificaciones", true)]);
+
+    [Fact]
+    public void ProgramarAusencia_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("programar_ausencia").Should().BeEquivalentTo(
+            [("identificacion", true), ("desde", true), ("hasta", true), ("motivo", true)]);
+
+    [Fact]
+    public void CancelarAusencia_DeclaraCompletaComoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("cancelar_ausencia").Should().BeEquivalentTo(
+            [("identificacion", true), ("desde", true), ("hasta", true), ("completa", false)]);
 }

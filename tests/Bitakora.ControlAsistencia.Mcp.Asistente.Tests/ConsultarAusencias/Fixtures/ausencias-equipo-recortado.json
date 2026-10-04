@@ -1,0 +1,23 @@
+{
+  "desde": "2026-10-01",
+  "hasta": "2026-11-04",
+  "rangoRecortado": true,
+  "colaboradores": [
+    {
+      "codigoColaborador": "COL-1",
+      "nombreCompleto": "Ana Perez",
+      "ausencias": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "motivo": "Vacaciones",
+          "tramos": [
+            {
+              "desde": "2026-10-05",
+              "hasta": "2026-10-09"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

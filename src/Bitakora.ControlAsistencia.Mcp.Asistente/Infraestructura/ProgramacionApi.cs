@@ -64,7 +64,56 @@ public sealed class ProgramacionApi(HttpClient http)
         http.DeleteAsync(
             $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
             ct);
+
+    public Task<HttpResponseMessage> SolicitarProgramacion(
+        SolicitudProgramacionTurno solicitud, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ProgramarAusencia(
+        string codigoColaborador, AusenciaAProgramar ausencia, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ListarAusenciasColaborador(
+        string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> CancelarAusencia(
+        string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ListarAusenciasDelEquipo(
+        DateOnly desde,
+        DateOnly hasta,
+        IReadOnlyList<string>? codigosColaborador,
+        CancellationToken ct) =>
+        throw new NotImplementedException();
 }
+
+public sealed record SolicitudProgramacionTurno(
+    Guid Id,
+    Guid TurnoId,
+    ColaboradorSolicitado Colaborador,
+    IReadOnlyList<DateOnly> Fechas,
+    SedeProgramada Sede);
+
+public sealed record ColaboradorSolicitado(string Identificacion, string CodigoColaborador, string NombreCompleto);
+
+public sealed record AusenciaAProgramar(
+    Guid Id,
+    string Identificacion,
+    string NombreCompleto,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    string Motivo);
+
+public sealed record AusenciaListada(
+    string Id,
+    string Motivo,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    IReadOnlyList<TramoAusencia> TramosVigentes);
+
+public sealed record TramoAusencia(DateOnly Desde, DateOnly Hasta);
 
 public sealed record FichaTurno(
     string Id,
