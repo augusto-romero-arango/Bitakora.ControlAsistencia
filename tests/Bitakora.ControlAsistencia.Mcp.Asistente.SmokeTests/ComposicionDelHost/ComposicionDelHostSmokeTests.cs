@@ -10,7 +10,9 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
         "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
         "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
-        "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja"
+        "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
+        "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
+        "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -34,12 +36,18 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["quitar_franja"] = ["turno", "franja"],
         ["agregar_subfranja"] = ["turno", "franja", "tipo", "inicio", "fin"],
         ["quitar_subfranja"] = ["turno", "franja", "tipo", "inicio"],
-        ["asignar_sede_franja"] = ["turno", "franja"]
+        ["asignar_sede_franja"] = ["turno", "franja"],
+        ["listar_plantillas_semanales"] = [],
+        ["obtener_plantilla_semanal"] = ["plantilla"],
+        ["crear_plantilla_semanal"] = ["nombre", "dias"],
+        ["retirar_plantilla_semanal"] = ["plantilla"],
+        ["asignar_turno_a_dia"] = ["plantilla", "turno", "dia"],
+        ["quitar_turno_de_dia"] = ["plantilla", "dia"]
     };
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasDieciseisToolsMigradas_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasVeintidosToolsMigradas_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -81,7 +89,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
             var esEscritura = nombre is "registrar_sede" or "registrar_colaborador" or "crear_turno" or "retirar_turno"
                 or "agregar_franja" or "quitar_franja" or "agregar_subfranja" or "quitar_subfranja"
-                or "asignar_sede_franja";
+                or "asignar_sede_franja" or "crear_plantilla_semanal" or "retirar_plantilla_semanal"
+                or "asignar_turno_a_dia" or "quitar_turno_de_dia";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }
