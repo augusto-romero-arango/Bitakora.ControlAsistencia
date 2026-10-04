@@ -19,7 +19,7 @@ public sealed class ResolutorCandidatosPorGrupo(ColaboradoresApi colaboradores)
         var fichas = await respuesta.Content.ReadFromJsonAsync<List<FichaColaborador>>(OpcionesLectura, ct) ?? [];
         var candidatos = fichas
             .Select(f => new CandidatoProgramacion(
-                f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta))
+                f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta, f.CodigoSede))
             .ToList();
 
         return new ResultadoCandidatos(candidatos, null);

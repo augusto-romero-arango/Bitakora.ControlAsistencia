@@ -18,7 +18,8 @@ public sealed record CandidatoProgramacion(
 public sealed record ResultadoEjecucion(
     IReadOnlyList<ColaboradorProgramadoResumen> Programados,
     int Omitidos,
-    IReadOnlyList<ColaboradorFallidoResumen>? Fallidos);
+    IReadOnlyList<ColaboradorFallidoResumen>? Fallidos,
+    IReadOnlyList<AvisoDeSede>? Avisos = null);
 
 /// <summary>Conteos de la ejecucion, visibles aunque esta termine por excepcion o cancelacion.</summary>
 internal sealed class ContadoresDeEjecucion
@@ -97,7 +98,7 @@ internal static class EjecutorDeProgramacion
         ProgramacionApi programacion,
         IReadOnlyList<CandidatoProgramacion> solicitados,
         Guid turnoId,
-        SedeProgramada? sedeProgramada,
+        PlanDeSede planDeSede,
         VentanaDeProgramacion ventana,
         ContadoresDeEjecucion contadores,
         CancellationToken ct)
@@ -112,12 +113,14 @@ internal static class EjecutorDeProgramacion
 
         var programados = new ConcurrentBag<ColaboradorProgramadoResumen>();
         var fallidos = new ConcurrentBag<ColaboradorFallidoResumen>();
+        var avisos = new ConcurrentBag<AvisoDeSede>();
 
         await Parallel.ForEachAsync(
             candidatos,
             new ParallelOptions { MaxDegreeOfParallelism = PostsSimultaneos, CancellationToken = ct },
             async (candidato, tokenInterno) =>
             {
+                var sedeDelCandidato = planDeSede.Para(candidato.Entrada);
                 var solicitud = new SolicitudProgramacionTurno(
                     Guid.CreateVersion7(),
                     turnoId,
@@ -126,7 +129,7 @@ internal static class EjecutorDeProgramacion
                         candidato.Entrada.CodigoColaborador,
                         candidato.Entrada.NombreCompleto),
                     candidato.Dias,
-                    sedeProgramada);
+                    sedeDelCandidato.Sede);
 
                 var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
 
@@ -151,7 +154,10 @@ internal static class EjecutorDeProgramacion
                         candidato.Dias[0],
                         candidato.Dias[^1],
                         diasProgramados,
-                        respetados.Count == 0 ? null : respetados));
+                        respetados.Count == 0 ? null : respetados,
+                        planDeSede.HaySedeExplicita ? null : sedeDelCandidato.Sede?.Id));
+                    if (sedeDelCandidato.MotivoDeAviso is { } motivoAviso)
+                        avisos.Add(new AvisoDeSede(candidato.Entrada.Identificacion, motivoAviso));
                 }
                 else
                 {
@@ -164,7 +170,8 @@ internal static class EjecutorDeProgramacion
         return new ResultadoEjecucion(
             [.. programados.OrderBy(p => p.Identificacion, StringComparer.Ordinal)],
             omitidos,
-            fallidos.IsEmpty ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)]);
+            fallidos.IsEmpty ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)],
+            avisos.IsEmpty ? null : [.. avisos.OrderBy(a => a.Identificacion, StringComparer.Ordinal)]);
     }
 
     private static async Task<IReadOnlyList<FechaRespetadaPorAusencia>> LeerRespetadasAsync(
