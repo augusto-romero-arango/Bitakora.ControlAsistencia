@@ -254,6 +254,24 @@ public class SolicitarProgramacionTurnoToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
+    // CA-2: la repeticion (con espacios y otra caja) coincide con la misma entrada del directorio,
+    // se programa una sola vez y la sobrante cuenta como omitida.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ProgramaUnaSolaVezYCuentaLaRepeticionComoOmitida_CuandoUnaIdentificacionSeRepite()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111, cc-1111 ", ct: TestContext.Current.CancellationToken);
+
+        fakes.Programacion.Requests.Count(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes)
+            .Should().Be(1);
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Should().ContainSingle()
+            .Which!["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
+        json["omitidos"]!.GetValue<int>().Should().Be(1);
+    }
+
     [Fact]
     public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoDesdeEstaEnBlanco()
     {
@@ -284,19 +302,6 @@ public class SolicitarProgramacionTurnoToolTests
         var resultado = await Ejecutar(fakes.Tool, turno: "   ", ct: TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.CampoObligatorio, "turno"));
-        AsegurarNingunaRequest(fakes);
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoSedeDeProgramacionEstaEnBlanco()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(
-            fakes.Tool, sedeDeProgramacion: "   ", ct: TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(
-            string.Format(SolicitarProgramacionTurnoTool.Mensajes.CampoObligatorio, "sede_de_programacion"));
         AsegurarNingunaRequest(fakes);
     }
 
@@ -440,17 +445,43 @@ public class SolicitarProgramacionTurnoToolTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoHayMasDe200Identificaciones()
+    public async Task SolicitarProgramacionTurno_ProgramaATodosConUnaSolaLlamadaAlDirectorioSinTake_Cuando250IdentificacionesExisten()
     {
-        var fakes = CrearTool();
-        var identificaciones = string.Join(",", Enumerable.Range(1, 201).Select(i => $"CC-{i}"));
+        var entradas = Enumerable.Range(1, 250).Select(i => new
+        {
+            identificacion = $"CC-{i}",
+            nombreCompleto = $"Colab {i}",
+            codigoColaborador = $"C{i}",
+            vigenteDesde = "2025-01-01",
+            vigenteHasta = (string?)null
+        }).ToList();
+        var directorio = System.Text.Json.JsonSerializer.Serialize(entradas);
 
-        var resultado = await Ejecutar(fakes.Tool, identificaciones: identificaciones, ct: TestContext.Current.CancellationToken);
+        var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
+        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        programacion.Responde(HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, "");
+        var (clienteSedes, _) = ClienteFalso.Con(SedeJson);
+        var (clienteColaboradores, colaboradores) = ClienteFalso.ConFuncion(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(directorio, Encoding.UTF8, "application/json")
+            });
+        var tool = new SolicitarProgramacionTurnoTool(
+            new ProgramacionApi(clienteProgramacion),
+            new SedesApi(clienteSedes),
+            new ColaboradoresApi(clienteColaboradores));
+        var identificaciones = string.Join(",", entradas.Select(e => e.identificacion));
 
-        resultado.Should().Be(string.Format(
-            SolicitarProgramacionTurnoTool.Mensajes.DemasiadasIdentificaciones,
-            SolicitarProgramacionTurnoTool.MaximoIdentificaciones));
-        AsegurarNingunaRequest(fakes);
+        var resultado = await Ejecutar(tool, identificaciones: identificaciones, ct: TestContext.Current.CancellationToken);
+
+        colaboradores.Requests.Should().ContainSingle();
+        var cuerpo = JsonNode.Parse(
+            await colaboradores.Requests[0].Content!.ReadAsStringAsync(TestContext.Current.CancellationToken))!;
+        cuerpo.AsObject().ContainsKey("take").Should().BeFalse("la llamada interna de composicion no pagina");
+        programacion.Requests.Count(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes).Should().Be(250);
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Should().HaveCount(250);
+        json["omitidos"]!.GetValue<int>().Should().Be(0);
     }
 
     // Boundary del sistema: un fallo de cualquiera de las 3 lecturas previas se traduce a texto,

@@ -191,4 +191,17 @@ public class FunctionEndpointTests
         var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
         unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
+
+    // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
+    [Fact]
+    public void TakeEfectivo_NoAplicaTope_CuandoElFiltroNoTraeTake() =>
+        FunctionEndpoint.TakeEfectivo(take: null).Should().BeNull();
+
+    [Fact]
+    public void TakeEfectivo_AcotaA200_CuandoElTakeEnviadoSuperaElTope() =>
+        FunctionEndpoint.TakeEfectivo(take: 500).Should().Be(200);
+
+    [Fact]
+    public void TakeEfectivo_AcotaA1_CuandoElTakeEnviadoEsMenorQue1() =>
+        FunctionEndpoint.TakeEfectivo(take: 0).Should().Be(1);
 }
