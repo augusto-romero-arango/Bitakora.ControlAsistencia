@@ -16,9 +16,8 @@ public sealed record SelectorDeGrupo(string? CodigoSede, IReadOnlyList<FiltroEti
     public string? EtiquetasComoTexto =>
         Filtros.Count == 0 ? null : string.Join(", ", Filtros.Select(f => $"{f.Categoria}:{f.Valor}"));
 
-    public static async Task<(SelectorDeGrupo? Selector, string? Rechazo)> ResolverAsync(
-        string? sede, string? etiquetas, ResolutorSedePorCodigo resolutorSedes,
-        MensajesDeSelector mensajes, CancellationToken ct)
+    public static (SelectorDeGrupo? Selector, string? Rechazo) Interpretar(
+        string? sede, string? etiquetas, MensajesDeSelector mensajes)
     {
         var codigoSede = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
         var pares = (etiquetas ?? string.Empty)
@@ -38,18 +37,22 @@ public sealed record SelectorDeGrupo(string? CodigoSede, IReadOnlyList<FiltroEti
             filtros.Add(new FiltroEtiqueta(partes[0].Trim(), partes[1].Trim()));
         }
 
-        string? codigoCanonico = null;
-        if (codigoSede is not null)
-        {
-            var resolucion = await resolutorSedes.ResolverAsync(codigoSede, ct);
-            if (resolucion.FalloDeLectura is { } fallo)
-                return (null, string.Format(mensajes.RechazoDelDominio, fallo));
-            if (resolucion.MensajeDelMotivo(
-                codigoSede, noExiste: mensajes.SedeNoExiste, inactiva: mensajes.SedeInactiva) is { } rechazo)
-                return (null, rechazo);
-            codigoCanonico = resolucion.Sede!.Id;
-        }
+        return (new SelectorDeGrupo(codigoSede, filtros), null);
+    }
 
-        return (new SelectorDeGrupo(codigoCanonico, filtros), null);
+    public async Task<(SelectorDeGrupo? Selector, string? Rechazo)> ValidarSedeAsync(
+        ResolutorSedePorCodigo resolutorSedes, MensajesDeSelector mensajes, CancellationToken ct)
+    {
+        if (CodigoSede is null)
+            return (this, null);
+
+        var resolucion = await resolutorSedes.ResolverAsync(CodigoSede, ct);
+        if (resolucion.FalloDeLectura is { } fallo)
+            return (null, string.Format(mensajes.RechazoDelDominio, fallo));
+        if (resolucion.MensajeDelMotivo(
+            CodigoSede, noExiste: mensajes.SedeNoExiste, inactiva: mensajes.SedeInactiva) is { } rechazo)
+            return (null, rechazo);
+
+        return (this with { CodigoSede = resolucion.Sede!.Id }, null);
     }
 }
