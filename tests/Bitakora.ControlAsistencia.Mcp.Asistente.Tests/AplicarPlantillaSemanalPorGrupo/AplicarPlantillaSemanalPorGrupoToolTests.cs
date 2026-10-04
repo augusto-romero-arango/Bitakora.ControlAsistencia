@@ -5,6 +5,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanalPorGrupo;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
+using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AplicarPlantillaSemanalPorGrupo;
 
@@ -97,7 +98,8 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
 
     private static Entorno Crear(
         IReadOnlyList<object>? fichas = null, string? plantillasJson = null, string? sedeDeLaFranja = "SUBA",
-        Func<string?, HttpResponseMessage>? respuestaPost = null)
+        Func<string?, HttpResponseMessage>? respuestaPost = null,
+        ILogger<AplicarPlantillaSemanalPorGrupoTool>? logger = null)
     {
         var consultas = new List<JsonNode>();
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
@@ -117,7 +119,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
 
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ColaboradoresApi(clienteColaboradores), logger);
         return new Entorno(tool, programacion, consultas);
     }
 
@@ -128,7 +130,6 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
             null!, desde, hasta, plantilla, sedeDeProgramacion, sede, etiquetas,
             TestContext.Current.CancellationToken);
 
-    // CA-1
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaSinEscribir_CuandoNoLlegaSedeNiEtiquetas()
     {
@@ -186,7 +187,6 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         entorno.SinEscrituras();
     }
 
-    // CA-3
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaSinEscribir_CuandoLaPlantillaNoExiste()
     {
@@ -243,7 +243,6 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         entorno.SinEscrituras();
     }
 
-    // CA-2
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_ProgramaATodosConUnaSolaLlamadaAFichas_Cuando203Fichas()
     {
@@ -290,7 +289,6 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         consulta["etiquetas"]!.AsArray().Should().HaveCount(1);
     }
 
-    // CA-3, CA-4
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_EnviaUnPostPorTurnoDistintoConSusFechas_CuandoElMoldeAlternaSemanas()
     {
@@ -308,7 +306,6 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
             "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13");
     }
 
-    // CA-5
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_ReportaPlantillaSelectorYGrupoResuelto_CuandoProgramaElGrupo()
     {
@@ -328,6 +325,25 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         json.AsObject().ContainsKey("fallidos").Should().BeFalse();
         json["nota"]!.GetValue<string>()
             .Should().Be(AplicarPlantillaSemanalPorGrupoTool.Mensajes.NotaVisibilidadEventual);
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanalPorGrupo_EmiteElIndicadorConModalidadPlantillaGrupo_CuandoLlegaALaFaseDeEjecucion()
+    {
+        var logger = new LoggerDeCaptura<AplicarPlantillaSemanalPorGrupoTool>();
+        var entorno = Crear(Fichas(2), logger: logger);
+
+        await Ejecutar(entorno, sede: "SUBA", etiquetas: "area:cocina, Turno:Noche");
+
+        var registro = logger.Registros.Where(r => r.EventId.Name == "EjecucionSolicitudProgramacion")
+            .Should().ContainSingle().Subject;
+        registro.Propiedades["Modalidad"].Should().Be("plantilla-grupo");
+        registro.Propiedades["TamanoResuelto"].Should().Be(2);
+        registro.Propiedades["Programados"].Should().Be(2);
+        registro.Propiedades["Turno"].Should().Be("Semana A");
+        registro.Propiedades["Sede"].Should().Be("SUBA");
+        registro.Propiedades["Etiquetas"].Should().Be("area:cocina, Turno:Noche");
+        registro.Propiedades.GetValueOrDefault("SedeDeProgramacion").Should().BeNull();
     }
 
     [Fact]

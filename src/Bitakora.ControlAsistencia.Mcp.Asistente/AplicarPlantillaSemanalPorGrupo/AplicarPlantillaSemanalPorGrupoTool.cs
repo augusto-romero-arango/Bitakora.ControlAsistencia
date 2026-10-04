@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
@@ -15,8 +13,6 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
     ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
     ILogger<AplicarPlantillaSemanalPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
-
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
     private readonly ResolutorPlantillaPorNombre resolutorPlantillas = new(programacion);
@@ -80,18 +76,14 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var resolucion = await resolutorPlantillas.ResolverAsync(plantilla, ct);
-        if (resolucion.FalloDeLectura is { } falloPlantillas)
-            return string.Format(Mensajes.RechazoDelDominio, falloPlantillas);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
-        var cuadro = resolucion.Ficha;
-
-        if (!cuadro.Completa)
-            return string.Format(Mensajes.PlantillaIncompleta, cuadro.Nombre);
-        if (cuadro.Dias.Any(d => d.Turno.Retirado || !d.Turno.Completo))
-            return string.Format(Mensajes.PlantillaConTurnoNoProgramable, cuadro.Nombre);
+        var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
+            resolutorPlantillas, plantilla,
+            new MensajesDePlantilla(
+                Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,
+                Mensajes.RechazoDelDominio), ct);
+        if (rechazoPlantilla is not null)
+            return rechazoPlantilla;
+        var molde = moldeResuelto!;
 
         SedeProgramada? sedeExplicita = null;
         if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))
@@ -113,20 +105,12 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         if (rechazoSelector is not null)
             return rechazoSelector;
 
-        var idsDelMolde = cuadro.Dias.Select(d => Guid.Parse(d.Turno.Id)).ToHashSet();
-        HashSet<Guid> turnosConFranjaSinSede = [];
+        IReadOnlySet<Guid> turnosConFranjaSinSede = new HashSet<Guid>();
         if (sedeExplicita is null)
         {
-            var respuestaTurnos = await programacion.ListarTurnos(ct);
-            if (await respuestaTurnos.LeerFalloAsync(ct) is { } falloTurnos)
+            (turnosConFranjaSinSede, var falloTurnos) = await molde.TurnosConFranjaSinSedeAsync(programacion, ct);
+            if (falloTurnos is not null)
                 return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-
-            var catalogo = await respuestaTurnos.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
-            turnosConFranjaSinSede = catalogo
-                .Select(TurnoAProgramar.De)
-                .Where(t => t.TieneFranjaSinSede && idsDelMolde.Contains(t.Id))
-                .Select(t => t.Id)
-                .ToHashSet();
         }
 
         var (planDeSede, falloMaestro) = await PlanDeSede.CrearAsync(
@@ -141,13 +125,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             return string.Format(Mensajes.RechazoDelDominio, falloFichas);
         var candidatos = resolucionCandidatos.Candidatos;
 
-        var asignacionDeFechas = AsignacionDePlantilla.Crear(cuadro, fechaDesde);
-        var asignacion = AsignacionDeTurno.PorFecha(fecha =>
-        {
-            var turno = asignacionDeFechas.Para(fecha);
-            var id = Guid.Parse(turno.Id);
-            return new TurnoAProgramar(id, turno.Nombre ?? string.Empty, turnosConFranjaSinSede.Contains(id));
-        });
+        var asignacion = molde.AsignacionDesde(fechaDesde, turnosConFranjaSinSede);
 
         var contadores = new ContadoresDeEjecucion();
         ResultadoEjecucion ejecucion;
@@ -161,14 +139,14 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             IndicadorDeEjecucion.Emitir(
                 registro, relojDeEjecucion, inicio,
                 new DatosDeIndicador(
-                    "plantilla-grupo", candidatos.Count, cuadro.Nombre, sedeExplicita?.Id,
+                    "plantilla-grupo", candidatos.Count, molde.Nombre, sedeExplicita?.Id,
                     fechaDesde, fechaHasta, selectorDeGrupo.CodigoSede, selectorDeGrupo.EtiquetasComoTexto),
                 contadores);
         }
 
         return RespuestaJson.Serializar(new PlantillaAplicadaPorGrupoResumen(
             Mensajes.ResultadoPlantillaAplicada,
-            cuadro.Nombre,
+            molde.Nombre,
             sedeExplicita is null ? null : new SedeResumen(sedeExplicita.Id, sedeExplicita.Nombre),
             ventana.ToString(),
             selectorDeGrupo.Descripcion,
