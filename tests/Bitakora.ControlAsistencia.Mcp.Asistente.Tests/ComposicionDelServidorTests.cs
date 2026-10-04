@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasDieciseisToolsMigradas_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasVeintidosToolsMigradas_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -39,7 +39,9 @@ public class ComposicionDelServidorTests
                 "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
                 "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
                 "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
-                "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja"
+                "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
+                "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
+                "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia"
             ]);
     }
 
@@ -108,7 +110,19 @@ public class ComposicionDelServidorTests
         ("quitar_subfranja", "Quita de una franja ordinaria de un turno el descanso o extra que empieza a la hora",
             "\"readOnlyHint\": false, \"destructiveHint\": true"),
         ("asignar_sede_franja", "Asigna o cambia la sede prearmada de una franja ordinaria de un turno",
-            "\"readOnlyHint\": false, \"destructiveHint\": false")
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("listar_plantillas_semanales", "Lista las plantillas semanales de turnos del catalogo: nombre, numero de semanas",
+            "\"readOnlyHint\": true"),
+        ("obtener_plantilla_semanal", "Devuelve el cuadro de una plantilla semanal por su nombre exacto",
+            "\"readOnlyHint\": true"),
+        ("crear_plantilla_semanal", "Crea una plantilla semanal de turnos: un molde de 1 a 6 semanas",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("retirar_plantilla_semanal", "Retira una plantilla semanal del catalogo por su nombre exacto",
+            "\"readOnlyHint\": false, \"destructiveHint\": true"),
+        ("asignar_turno_a_dia", "Pone o reemplaza el turno de un dia de una plantilla semanal",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("quitar_turno_de_dia", "Deja sin turno un dia de una plantilla semanal",
+            "\"readOnlyHint\": false, \"destructiveHint\": true")
     ];
 
     [Fact]
@@ -205,4 +219,31 @@ public class ComposicionDelServidorTests
     public void AsignarSedeFranja_DeclaraCodigoSedeComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("asignar_sede_franja").Should().BeEquivalentTo(
             [("turno", true), ("franja", true), ("codigo_sede", false)]);
+
+    [Fact]
+    public void ListarPlantillasSemanales_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("listar_plantillas_semanales").Should().BeEquivalentTo([("filtro_nombre", false)]);
+
+    [Fact]
+    public void ObtenerPlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("obtener_plantilla_semanal").Should().BeEquivalentTo([("plantilla", true)]);
+
+    [Fact]
+    public void CrearPlantillaSemanal_DeclaraNombreYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("crear_plantilla_semanal").Should().BeEquivalentTo(
+            [("nombre", true), ("semanas", false), ("dias", true)]);
+
+    [Fact]
+    public void RetirarPlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("retirar_plantilla_semanal").Should().BeEquivalentTo([("plantilla", true)]);
+
+    [Fact]
+    public void AsignarTurnoADia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("asignar_turno_a_dia").Should().BeEquivalentTo(
+            [("plantilla", true), ("turno", true), ("dia", true), ("semana", false)]);
+
+    [Fact]
+    public void QuitarTurnoDeDia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_turno_de_dia").Should().BeEquivalentTo(
+            [("plantilla", true), ("dia", true), ("semana", false)]);
 }

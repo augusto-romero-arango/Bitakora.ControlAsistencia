@@ -38,6 +38,32 @@ public sealed class ProgramacionApi(HttpClient http)
         string id, SedeDeFranjaAAsignar sedeDeFranja, CancellationToken ct) =>
         http.PostAsJsonAsync(
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", sedeDeFranja, ct);
+
+    public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
+        http.GetAsync("api/programacion/plantillas-semanales", ct);
+
+    public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
+        http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<HttpResponseMessage> CrearPlantillaSemanal(
+        Guid plantillaId, string nombre, int semanas, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas }, ct);
+
+    public Task<HttpResponseMessage> AsignarTurnoADia(
+        string plantillaId, int semana, int dia, string turnoId, CancellationToken ct) =>
+        http.PutAsJsonAsync(
+            $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
+            new { turnoId },
+            ct);
+
+    public Task<HttpResponseMessage> RetirarPlantillaSemanal(string id, CancellationToken ct) =>
+        http.DeleteAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<HttpResponseMessage> QuitarTurnoDeDia(
+        string plantillaId, int semana, int dia, CancellationToken ct) =>
+        http.DeleteAsync(
+            $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
+            ct);
 }
 
 public sealed record FichaTurno(
