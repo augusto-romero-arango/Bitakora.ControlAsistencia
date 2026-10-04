@@ -10,12 +10,15 @@ internal sealed class AsignacionDeTurno
     {
     }
 
-    public bool UsaUnSoloTurno => throw new NotImplementedException();
+    private Func<DateOnly, TurnoAProgramar> turnoDeLaFecha = null!;
 
-    public static AsignacionDeTurno UnSoloTurno(TurnoAProgramar turno) => throw new NotImplementedException();
+    public bool UsaUnSoloTurno { get; private init; }
+
+    public static AsignacionDeTurno UnSoloTurno(TurnoAProgramar turno) =>
+        new() { turnoDeLaFecha = _ => turno, UsaUnSoloTurno = true };
 
     public static AsignacionDeTurno PorFecha(Func<DateOnly, TurnoAProgramar> turnoDeLaFecha) =>
-        throw new NotImplementedException();
+        new() { turnoDeLaFecha = turnoDeLaFecha };
 
-    public TurnoAProgramar Para(DateOnly fecha) => throw new NotImplementedException();
+    public TurnoAProgramar Para(DateOnly fecha) => turnoDeLaFecha(fecha);
 }
