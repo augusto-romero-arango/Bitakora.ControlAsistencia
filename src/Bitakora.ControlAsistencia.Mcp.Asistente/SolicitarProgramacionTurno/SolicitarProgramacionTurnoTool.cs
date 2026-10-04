@@ -18,7 +18,6 @@ public partial class SolicitarProgramacionTurnoTool(
 {
     internal const string NombreTool = "solicitar_programacion_turno";
     internal const int MaximoIdentificaciones = 200;
-    internal const int PostsSimultaneos = EjecutorDeProgramacion.PostsSimultaneos;
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
