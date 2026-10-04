@@ -131,6 +131,30 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
             TestContext.Current.CancellationToken);
 
     [Fact]
+    public async Task AplicarPlantillaSemanalPorGrupo_RechazaLaEtiqueta_CuandoTambienFaltaLaPlantilla()
+    {
+        var entorno = Crear(plantillasJson: "[]");
+
+        var resultado = await Ejecutar(entorno, plantilla: "[TEST] Plantilla que no existe", etiquetas: "area");
+
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalPorGrupoTool.Mensajes.EtiquetaMalFormada, "area"));
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.ConsultasDeFichas.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanalPorGrupo_RechazaElSelectorObligatorio_CuandoTambienFaltaLaPlantilla()
+    {
+        var entorno = Crear(plantillasJson: "[]");
+
+        var resultado = await Ejecutar(
+            entorno, plantilla: "[TEST] Plantilla que no existe", sede: null, etiquetas: null);
+
+        resultado.Should().Be(AplicarPlantillaSemanalPorGrupoTool.Mensajes.SelectorObligatorio);
+        entorno.Programacion.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaSinEscribir_CuandoNoLlegaSedeNiEtiquetas()
     {
         var entorno = Crear();

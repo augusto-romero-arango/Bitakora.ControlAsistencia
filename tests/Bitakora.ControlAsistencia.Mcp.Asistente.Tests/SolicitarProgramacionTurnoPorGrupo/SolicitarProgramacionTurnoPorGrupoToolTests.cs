@@ -136,6 +136,35 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         entorno.ConsultasDeFichas.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_RechazaLaEtiqueta_CuandoTambienFaltanTurnoYSedeDeProgramacion()
+    {
+        var entorno = CrearEntorno(turnosJson: "[]");
+
+        var resultado = await Ejecutar(
+            entorno, turno: "[TEST] Turno que no existe", sedeDeProgramacion: "FANTASMA",
+            sede: "OTRA-FANTASMA", etiquetas: "area");
+
+        resultado.Should().Be(string.Format(
+            SolicitarProgramacionTurnoPorGrupoTool.Mensajes.EtiquetaMalFormada, "area"));
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Sedes.Requests.Should().BeEmpty();
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_RechazaElSelectorObligatorio_CuandoTambienFaltaElTurno()
+    {
+        var entorno = CrearEntorno(turnosJson: "[]");
+
+        var resultado = await Ejecutar(
+            entorno, turno: "[TEST] Turno que no existe", sede: null, etiquetas: null);
+
+        resultado.Should().Be(SolicitarProgramacionTurnoPorGrupoTool.Mensajes.SelectorObligatorio);
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Sedes.Requests.Should().BeEmpty();
+    }
+
     // CA-2
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_RechazaSinEscribir_CuandoNoLlegaSedeNiEtiquetas()
