@@ -155,12 +155,13 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         }
 
         // CA-3: Take se acota en el servidor -- nunca se pasa crudo a Marten.
-        var take = Math.Clamp(filtro.Take, 1, TakeMaximo);
+        // CA-ADR-0038: sin Take el llamador interno recibe todo el filtro, sin tope.
+        var ordenada = query.OrderBy(f => f.NombreCompleto).ThenBy(f => f.Id);
+        var paginada = filtro.Take is { } take
+            ? ordenada.Take(Math.Clamp(take, 1, TakeMaximo))
+            : ordenada;
 
-        var fichas = await query
-            .OrderBy(f => f.NombreCompleto).ThenBy(f => f.Id)
-            .Take(take)
-            .ToListAsync(ct);
+        var fichas = await paginada.ToListAsync(ct);
 
         // CA-4: VigenteHasta vacio en la respuesta de vinculacion abierta -- el centinela jamas
         // sale por la API (misma regla que #356 CA-6). Reutiliza FichaColaboradorRespuesta.DesdeVista
@@ -228,7 +229,7 @@ public sealed record FiltroListarFichasColaborador(
     DateOnly FechaReferencia,
     IReadOnlyList<FiltroEtiqueta>? Etiquetas,
     CursorFicha? Cursor,
-    int Take = 50,
+    int? Take = null,
     string? CodigoSede = null);
 
 // Par categoria:valor SIN normalizar -- el endpoint construye Etiqueta.Crear(Categoria, Valor) con
