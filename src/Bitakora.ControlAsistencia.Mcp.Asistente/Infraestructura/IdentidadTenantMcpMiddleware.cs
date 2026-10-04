@@ -56,6 +56,10 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         return derivador.Derivar(principal);
     }
 
+    internal Task<(IdentidadTenant? Identidad, SesionUsuario? Sesion)> DerivarAsync(
+        string? encabezadoAutorizacion, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
+
     private static async Task<string?> LeerEncabezadoAutorizacionAsync(FunctionContext context)
     {
         if (context.FunctionDefinition.InputBindings.Values
