@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -23,23 +21,21 @@ public partial class SolicitarProgramacionTurnoTool(
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
     internal const string NombreTool = "solicitar_programacion_turno";
-    internal const int MaximoIdentificaciones = 200;
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
     private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
+    private readonly ResolutorCandidatosPorLista resolutorCandidatos = new(colaboradores);
 
     [Function("SolicitarProgramacionTurno")]
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Programa un turno a una lista de colaboradores en una sede, para todos los dias de "
-            + "una ventana de trabajo de maximo 35 dias. Recibe la ventana (desde, hasta), el "
-            + "nombre exacto del turno del catalogo (miralo con listar_turnos), el codigo de la "
-            + "sede donde se registrara la programacion -- sede de programacion, distinta de la "
-            + "sede de trabajo de cada colaborador; pidesela al usuario, nunca la asumas -- y las "
-            + "identificaciones completas de los colaboradores, separadas por coma, tal como las "
+            "Programa un turno a una lista de colaboradores en una sede (la de programacion, opcional), "
+            + "para todos los dias de una ventana de trabajo de maximo 35 dias. Recibe la ventana "
+            + "(desde, hasta), el nombre exacto del turno del catalogo (miralo con listar_turnos), "
+            + "opcionalmente el codigo de la sede de programacion -- distinta de la sede de trabajo de "
+            + "cada colaborador; sugiere una al usuario y, si prefiere la sede de cada colaborador, "
+            + "omite el parametro -- y las identificaciones completas de los colaboradores, separadas por coma, tal como las "
             + "devuelven buscar_colaboradores o listar_colaboradores: no las inventes ni pases "
             + "numeros sin tipo. A cada colaborador le programa solo los dias de la ventana que su "
             + "vinculacion cubre; los que no cubren ninguno o no se encuentran se omiten sin "
@@ -68,14 +64,15 @@ public partial class SolicitarProgramacionTurnoTool(
         string turno,
         [McpToolProperty(
             "sede_de_programacion",
-            "Codigo de la sede donde se registra la programacion. Pidesela al usuario; no es la "
-            + "sede de trabajo del colaborador.",
-            isRequired: true)]
-        string sedeDeProgramacion,
+            "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. "
+            + "Si prefiere la de cada colaborador, omitela: se usa la sede de trabajo de cada uno "
+            + "para las franjas sin sede prearmada. No es la sede de trabajo del colaborador.",
+            isRequired: false)]
+        string? sedeDeProgramacion,
         [McpToolProperty(
             "identificaciones",
             "Identificaciones completas separadas por coma ('CC-79879078, CE-887766'), tal como "
-            + "las devuelve buscar_colaboradores; maximo 200.",
+            + "las devuelve buscar_colaboradores.",
             isRequired: true)]
         string identificaciones,
         CancellationToken ct)
@@ -87,8 +84,6 @@ public partial class SolicitarProgramacionTurnoTool(
             return string.Format(Mensajes.CampoObligatorio, "hasta");
         if (string.IsNullOrWhiteSpace(turno))
             return string.Format(Mensajes.CampoObligatorio, "turno");
-        if (string.IsNullOrWhiteSpace(sedeDeProgramacion))
-            return string.Format(Mensajes.CampoObligatorio, "sede_de_programacion");
         if (string.IsNullOrWhiteSpace(identificaciones))
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
 
@@ -99,8 +94,6 @@ public partial class SolicitarProgramacionTurnoTool(
             .ToList();
         if (identificacionesSolicitadas.Count == 0)
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
-        if (identificacionesSolicitadas.Count > MaximoIdentificaciones)
-            return string.Format(Mensajes.DemasiadasIdentificaciones, MaximoIdentificaciones);
 
         if (!DateOnly.TryParseExact(
             desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaDesde))
@@ -127,33 +120,28 @@ public partial class SolicitarProgramacionTurnoTool(
                 Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
-        var resolucionSede = await resolutorSedes.ResolverAsync(sedeDeProgramacion, ct);
-        if (resolucionSede.FalloDeLectura is { } falloSede)
-            return string.Format(Mensajes.RechazoDelDominio, falloSede);
-        if (resolucionSede.MensajeDelMotivo(
-            sedeDeProgramacion, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
-            return rechazo;
-        var sedeProgramada = resolucionSede.Sede!;
+        SedeProgramada? sedeExplicita = null;
+        if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))
+        {
+            var resolucionSede = await resolutorSedes.ResolverAsync(sedeDeProgramacion, ct);
+            if (resolucionSede.FalloDeLectura is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucionSede.MensajeDelMotivo(
+                sedeDeProgramacion, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+                return rechazo;
+            sedeExplicita = resolucionSede.Sede!;
+        }
 
-        var respuestaDirectorio = await colaboradores.BuscarEnDirectorio(
-            identificacionesSolicitadas, MaximoIdentificaciones, ct);
-        if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
+        var (planDeSede, falloMaestro) = await PlanDeSede.CrearAsync(
+            sedes, sedeExplicita, fichaTurno,
+            new MotivosDeAviso(Mensajes.AvisoSinSede, Mensajes.AvisoSedeInactiva, Mensajes.AvisoSedeNoExiste), ct);
+        if (falloMaestro is not null)
+            return string.Format(Mensajes.RechazoDelDominio, falloMaestro);
+
+        var resolucionCandidatos = await resolutorCandidatos.ResolverAsync(identificacionesSolicitadas, ct);
+        if (resolucionCandidatos.FalloDeLectura is { } falloDirectorio)
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
-        var directorio = await respuestaDirectorio.Content.ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
-
-        var identificacionesNormalizadas = identificacionesSolicitadas
-            .Select(i => i.ToUpperInvariant())
-            .ToHashSet();
-
-        var solicitados = directorio
-            .Where(entrada => identificacionesNormalizadas.Contains(entrada.Identificacion.Trim().ToUpperInvariant()))
-            .Select(entrada => new CandidatoProgramacion(
-                entrada.Identificacion,
-                entrada.CodigoColaborador,
-                entrada.NombreCompleto,
-                entrada.VigenteDesde,
-                entrada.VigenteHasta))
-            .ToList();
+        var solicitados = resolucionCandidatos.Candidatos;
 
         var omitidosPorDirectorio = identificacionesSolicitadas.Count - solicitados.Count;
         var contadores = new ContadoresDeEjecucion { Omitidos = omitidosPorDirectorio };
@@ -161,14 +149,15 @@ public partial class SolicitarProgramacionTurnoTool(
         try
         {
             ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-                programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, contadores, ct);
+                programacion, solicitados, AsignacionDeTurno.UnSoloTurno(TurnoAProgramar.De(fichaTurno)),
+                planDeSede!, ventana, contadores, ct);
         }
         finally
         {
             IndicadorDeEjecucion.Emitir(
                 registro, relojDeEjecucion, inicio,
                 new DatosDeIndicador(
-                    "lista", solicitados.Count, fichaTurno.Nombre, sedeProgramada.Id,
+                    "lista", solicitados.Count, fichaTurno.Nombre, sedeExplicita?.Id,
                     fechaDesde, fechaHasta, null, null),
                 contadores);
         }
@@ -176,12 +165,13 @@ public partial class SolicitarProgramacionTurnoTool(
         return RespuestaJson.Serializar(new ProgramacionSolicitadaResumen(
             Mensajes.ResultadoProgramacionSolicitada,
             fichaTurno.Nombre,
-            new SedeResumen(sedeProgramada.Id, sedeProgramada.Nombre),
+            sedeExplicita is null ? null : new SedeResumen(sedeExplicita.Id, sedeExplicita.Nombre),
             ventana.ToString(),
             ejecucion.Programados,
             ejecucion.Omitidos + omitidosPorDirectorio,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual));
+            Mensajes.NotaVisibilidadEventual,
+            ejecucion.Avisos));
     }
 }
 
@@ -197,19 +187,20 @@ internal sealed record FechaRespetadaPorAusencia(DateOnly Fecha, string Motivo);
 public sealed record ProgramacionSolicitadaResumen(
     string Resultado,
     string Turno,
-    SedeResumen Sede,
+    SedeResumen? Sede,
     string Ventana,
     IReadOnlyList<ColaboradorProgramadoResumen> Programados,
     int Omitidos,
     IReadOnlyList<ColaboradorFallidoResumen>? Fallidos,
-    string Nota);
+    string Nota,
+    IReadOnlyList<AvisoDeSede>? Avisos = null);
 
 public sealed record SedeResumen(string Codigo, string Nombre);
 
 public sealed record ColaboradorProgramadoResumen(
     string Identificacion, string Nombre, string CodigoColaborador, DateOnly Desde, DateOnly Hasta, int Dias,
-    IReadOnlyList<DiasRespetadosResumen>? Respetados = null);
+    IReadOnlyList<DiasRespetadosResumen>? Respetados = null, string? Sede = null);
 
 public sealed record DiasRespetadosResumen(string Motivo, string Tramos);
 
-public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo);
+public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo, string? Turno = null);

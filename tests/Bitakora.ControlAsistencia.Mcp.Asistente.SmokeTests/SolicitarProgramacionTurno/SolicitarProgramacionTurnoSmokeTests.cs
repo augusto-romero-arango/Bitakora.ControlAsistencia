@@ -219,4 +219,44 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
         resultado.Content.OfType<TextContentBlock>().Single().Text
             .Should().Be("La ventana no puede superar 35 dias; se recibieron 36.");
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_ProgramaConLaSedeDelColaborador_CuandoNoSeIndicaSedeDeProgramacion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoSede = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
+        var (identificacion, codigoColaborador) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
+        var nombreTurno = $"[TEST] Turno MCP {Guid.CreateVersion7()}";
+        await SembrarTurnoAsync(Guid.CreateVersion7(), nombreTurno, ct);
+
+        var argumentos = new Dictionary<string, object?>
+        {
+            ["desde"] = "2026-09-01",
+            ["hasta"] = "2026-09-03",
+            ["turno"] = nombreTurno,
+            ["identificaciones"] = identificacion
+        };
+
+        using var documento = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var respuesta = await mcp.Cliente.CallToolAsync(
+                    "solicitar_programacion_turno", argumentos, cancellationToken: ct);
+                var candidato = JsonDocument.Parse(respuesta.Content.OfType<TextContentBlock>().Single().Text);
+
+                if (candidato.RootElement.TryGetProperty("programados", out var programados)
+                    && programados.EnumerateArray().Any(p => p.GetProperty("codigoColaborador").GetString() == codigoColaborador))
+                    return candidato;
+
+                candidato.Dispose();
+                return null;
+            },
+            TimeoutPolling);
+
+        var resultado = documento.RootElement;
+        resultado.TryGetProperty("fallidos", out _).Should().BeFalse();
+        (!resultado.TryGetProperty("sede", out var sedeNivelSuperior) || sedeNivelSuperior.ValueKind == JsonValueKind.Null)
+            .Should().BeTrue("no hubo sede explicita");
+    }
 }

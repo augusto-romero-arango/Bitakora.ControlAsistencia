@@ -18,7 +18,6 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
     private const string RutaFichas = "/api/colaboradores/fichas";
-    private const int TamanoPagina = 200;
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
     private static string SedeJson => Fixtures.Leer("SolicitarProgramacionTurno", "sede.json");
@@ -30,15 +29,15 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
 
     private static object Ficha(
         int numero, string vigenteDesde = "2025-01-01", string? vigenteHasta = null) => new
-    {
-        id = $"CC-{numero:D4}",
-        nombreCompleto = $"Colab {numero:D4}",
-        codigoColaborador = $"C{numero:D4}",
-        vigenteDesde,
-        vigenteHasta,
-        etiquetas = Array.Empty<object>(),
-        codigoSede = "SUBA"
-    };
+        {
+            id = $"CC-{numero:D4}",
+            nombreCompleto = $"Colab {numero:D4}",
+            codigoColaborador = $"C{numero:D4}",
+            vigenteDesde,
+            vigenteHasta,
+            etiquetas = Array.Empty<object>(),
+            codigoSede = "SUBA"
+        };
 
     private static List<object> Fichas(int desde, int cantidad) =>
         [.. Enumerable.Range(desde, cantidad).Select(n => Ficha(n))];
@@ -135,6 +134,35 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
     {
         entorno.Posts.Should().BeEmpty();
         entorno.ConsultasDeFichas.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_RechazaLaEtiqueta_CuandoTambienFaltanTurnoYSedeDeProgramacion()
+    {
+        var entorno = CrearEntorno(turnosJson: "[]");
+
+        var resultado = await Ejecutar(
+            entorno, turno: "[TEST] Turno que no existe", sedeDeProgramacion: "FANTASMA",
+            sede: "OTRA-FANTASMA", etiquetas: "area");
+
+        resultado.Should().Be(string.Format(
+            SolicitarProgramacionTurnoPorGrupoTool.Mensajes.EtiquetaMalFormada, "area"));
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Sedes.Requests.Should().BeEmpty();
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_RechazaElSelectorObligatorio_CuandoTambienFaltaElTurno()
+    {
+        var entorno = CrearEntorno(turnosJson: "[]");
+
+        var resultado = await Ejecutar(
+            entorno, turno: "[TEST] Turno que no existe", sede: null, etiquetas: null);
+
+        resultado.Should().Be(SolicitarProgramacionTurnoPorGrupoTool.Mensajes.SelectorObligatorio);
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Sedes.Requests.Should().BeEmpty();
     }
 
     // CA-2
@@ -299,18 +327,15 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
 
     // CA-3
     [Fact]
-    public async Task SolicitarProgramacionTurnoPorGrupo_ProgramaATodosLosDeLasDosPaginas_CuandoElGrupoSuperaLaPagina()
+    public async Task SolicitarProgramacionTurnoPorGrupo_ProgramaATodosConUnaSolaLlamadaAFichas_Cuando203Fichas()
     {
-        var entorno = CrearEntorno(paginas: [Fichas(1, TamanoPagina), Fichas(TamanoPagina + 1, 3)]);
+        var entorno = CrearEntorno(paginas: [Fichas(1, 203)]);
 
         var resultado = await Ejecutar(entorno);
 
-        entorno.ConsultasDeFichas.Should().HaveCount(2);
-        entorno.ConsultasDeFichas[0]["cursor"].Should().BeNull("la primera pagina no lleva cursor");
-        var cursor = entorno.ConsultasDeFichas[1]["cursor"]!;
-        cursor["nombreCompleto"]!.GetValue<string>().Should().Be("Colab 0200");
-        cursor["id"]!.GetValue<string>().Should().Be("CC-0200");
-        entorno.ConsultasDeFichas.Should().AllSatisfy(c => c["take"]!.GetValue<int>().Should().Be(TamanoPagina));
+        entorno.ConsultasDeFichas.Should().ContainSingle();
+        entorno.ConsultasDeFichas[0].AsObject().ContainsKey("take").Should().BeFalse("la llamada interna no pagina");
+        entorno.ConsultasDeFichas[0].AsObject().ContainsKey("cursor").Should().BeFalse();
 
         entorno.Posts.Should().HaveCount(203);
         var json = JsonNode.Parse(resultado)!;

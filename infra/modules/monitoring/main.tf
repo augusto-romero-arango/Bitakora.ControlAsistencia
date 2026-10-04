@@ -308,3 +308,56 @@ output "log_analytics_workspace_id" {
   description = "ID del Log Analytics Workspace. Lo consume el modulo opt-in container-app-environment (MEF-ADR-0034 seccion 8, issue #234) para no crear un segundo workspace redundante (ADR-0009 local, control de costos de Application Insights)"
   value       = azurerm_log_analytics_workspace.this.id
 }
+
+# Alerta 5: una ejecucion de las tools de programacion se acerca al limite de 230 s de una
+# funcion HTTP (issue #819, Microsoft Learn "Function app timeout duration"). Consulta el
+# log EjecucionSolicitudProgramacion que emite el Mcp.Asistente (issue #818). Si salta, se
+# reabre la decision del endpoint batch. Limite conocido: si el proceso muere a mitad de la
+# ejecucion no hay registro y esta alerta no lo ve. Ver CA-ADR-0009.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "programacion_cerca_del_limite" {
+  name                = "${var.name}-programacion-cerca-del-limite"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  description         = "Una ejecucion de las tools de programacion supero ${var.umbral_duracion_programacion_ms} ms - se acerca al limite de 230 s de una funcion HTTP; reabrir la decision del batch"
+  severity            = 2
+  enabled             = true
+
+  scopes               = [azurerm_application_insights.this.id]
+  evaluation_frequency = "PT5M"
+  window_duration      = "PT5M"
+
+  criteria {
+    query = <<-QUERY
+      traces
+      | where timestamp > ago(5m)
+      | where customDimensions.EventName == "EjecucionSolicitudProgramacion"
+      | where toint(customDimensions.DuracionMs) > ${var.umbral_duracion_programacion_ms}
+    QUERY
+
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.cost_alerts.id]
+  }
+
+  tags = var.tags
+}
+
+variable "umbral_duracion_programacion_ms" {
+  description = "Duracion en ms de una ejecucion de programacion a partir de la cual se alerta (180 s = 50 s de margen sobre el limite de 230 s de una funcion HTTP)"
+  type        = number
+  default     = 180000
+}
+
+output "action_group_id" {
+  description = "ID del action group cost_alerts, para que los ambientes cuelguen alertas propias del mismo destinatario"
+  value       = azurerm_monitor_action_group.cost_alerts.id
+}

@@ -62,4 +62,13 @@
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>La programacion aparece en consultar_programacion unos segundos despues.</value>
   </data>
+  <data name="AvisoSinSede" xml:space="preserve">
+    <value>sin sede asignada</value>
+  </data>
+  <data name="AvisoSedeInactiva" xml:space="preserve">
+    <value>sede {0} inactiva</value>
+  </data>
+  <data name="AvisoSedeNoExiste" xml:space="preserve">
+    <value>sede {0} no existe</value>
+  </data>
 </root>

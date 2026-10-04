@@ -32,9 +32,6 @@
   <data name="VentanaExcedeMaximo" xml:space="preserve">
     <value>La ventana no puede superar 35 dias; se recibieron {0}.</value>
   </data>
-  <data name="DemasiadasIdentificaciones" xml:space="preserve">
-    <value>'identificaciones' admite maximo {0} valores.</value>
-  </data>
   <data name="TurnoNoExiste" xml:space="preserve">
     <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
   </data>
@@ -52,5 +49,14 @@
   </data>
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>La programacion aparece en consultar_programacion unos segundos despues.</value>
+  </data>
+  <data name="AvisoSinSede" xml:space="preserve">
+    <value>sin sede asignada</value>
+  </data>
+  <data name="AvisoSedeInactiva" xml:space="preserve">
+    <value>sede {0} inactiva</value>
+  </data>
+  <data name="AvisoSedeNoExiste" xml:space="preserve">
+    <value>sede {0} no existe</value>
   </data>
 </root>

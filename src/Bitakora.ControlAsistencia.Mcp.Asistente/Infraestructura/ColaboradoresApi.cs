@@ -24,7 +24,7 @@ public sealed class ColaboradoresApi(HttpClient http)
         DateOnly fechaReferencia,
         string? codigoSede,
         IReadOnlyList<FiltroEtiqueta> etiquetas,
-        int take,
+        int? take,
         CancellationToken ct,
         CursorFichas? cursor = null)
     {
@@ -47,11 +47,11 @@ public sealed class ColaboradoresApi(HttpClient http)
         http.GetAsync($"api/colaboradores/fichas/{Uri.EscapeDataString(identificacion)}", ct);
 
     public Task<HttpResponseMessage> BuscarEnDirectorio(
-        IReadOnlyList<string> identificaciones, int take, CancellationToken ct) =>
+        IReadOnlyList<string> identificaciones, int? take, CancellationToken ct) =>
         BuscarEnDirectorio(identificaciones, null, take, ct);
 
     public Task<HttpResponseMessage> BuscarEnDirectorio(
-        IReadOnlyList<string>? identificaciones, string? nombre, int take, CancellationToken ct)
+        IReadOnlyList<string>? identificaciones, string? nombre, int? take, CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/colaboradores/directorio")
         {
