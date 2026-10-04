@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -18,12 +16,10 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
     internal const string NombreTool = "solicitar_programacion_turno_por_grupo";
-    internal const int TamanoDePagina = 200;
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
     private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
+    private readonly ResolutorCandidatosPorGrupo resolutorCandidatos = new(colaboradores);
 
     [Function("SolicitarProgramacionTurnoPorGrupo")]
     public async Task<string> Run(
@@ -122,28 +118,11 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             codigoCanonicoSelector = resolucionSelector.Sede!.Id;
         }
 
-        var fichas = new List<FichaColaborador>();
-        CursorFichas? cursor = null;
-        while (true)
-        {
-            var respuesta = await colaboradores.ListarFichas(
-                fechaDesde, codigoCanonicoSelector, filtros, TamanoDePagina, ct, cursor);
-            if (await respuesta.LeerFalloAsync(ct) is { } falloFichas)
-                return string.Format(Mensajes.RechazoDelDominio, falloFichas);
-
-            var pagina = await respuesta.Content.ReadFromJsonAsync<List<FichaColaborador>>(OpcionesLectura, ct) ?? [];
-            fichas.AddRange(pagina);
-            if (pagina.Count < TamanoDePagina)
-                break;
-
-            var ultima = pagina[^1];
-            cursor = new CursorFichas(ultima.NombreCompleto, ultima.Id);
-        }
-
-        var candidatos = fichas
-            .Select(f => new CandidatoProgramacion(
-                f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta))
-            .ToList();
+        var resolucionCandidatos = await resolutorCandidatos.ResolverAsync(
+            fechaDesde, codigoCanonicoSelector, filtros, ct);
+        if (resolucionCandidatos.FalloDeLectura is { } falloFichas)
+            return string.Format(Mensajes.RechazoDelDominio, falloFichas);
+        var candidatos = resolucionCandidatos.Candidatos;
 
         var contadores = new ContadoresDeEjecucion();
         ResultadoEjecucion ejecucion;

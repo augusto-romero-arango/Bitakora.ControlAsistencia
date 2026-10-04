@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -23,12 +21,10 @@ public partial class SolicitarProgramacionTurnoTool(
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
     internal const string NombreTool = "solicitar_programacion_turno";
-    internal const int MaximoIdentificaciones = 200;
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
     private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
+    private readonly ResolutorCandidatosPorLista resolutorCandidatos = new(colaboradores);
 
     [Function("SolicitarProgramacionTurno")]
     public async Task<string> Run(
@@ -75,7 +71,7 @@ public partial class SolicitarProgramacionTurnoTool(
         [McpToolProperty(
             "identificaciones",
             "Identificaciones completas separadas por coma ('CC-79879078, CE-887766'), tal como "
-            + "las devuelve buscar_colaboradores; maximo 200.",
+            + "las devuelve buscar_colaboradores.",
             isRequired: true)]
         string identificaciones,
         CancellationToken ct)
@@ -99,8 +95,6 @@ public partial class SolicitarProgramacionTurnoTool(
             .ToList();
         if (identificacionesSolicitadas.Count == 0)
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
-        if (identificacionesSolicitadas.Count > MaximoIdentificaciones)
-            return string.Format(Mensajes.DemasiadasIdentificaciones, MaximoIdentificaciones);
 
         if (!DateOnly.TryParseExact(
             desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaDesde))
@@ -135,25 +129,10 @@ public partial class SolicitarProgramacionTurnoTool(
             return rechazo;
         var sedeProgramada = resolucionSede.Sede!;
 
-        var respuestaDirectorio = await colaboradores.BuscarEnDirectorio(
-            identificacionesSolicitadas, MaximoIdentificaciones, ct);
-        if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
+        var resolucionCandidatos = await resolutorCandidatos.ResolverAsync(identificacionesSolicitadas, ct);
+        if (resolucionCandidatos.FalloDeLectura is { } falloDirectorio)
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
-        var directorio = await respuestaDirectorio.Content.ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
-
-        var identificacionesNormalizadas = identificacionesSolicitadas
-            .Select(i => i.ToUpperInvariant())
-            .ToHashSet();
-
-        var solicitados = directorio
-            .Where(entrada => identificacionesNormalizadas.Contains(entrada.Identificacion.Trim().ToUpperInvariant()))
-            .Select(entrada => new CandidatoProgramacion(
-                entrada.Identificacion,
-                entrada.CodigoColaborador,
-                entrada.NombreCompleto,
-                entrada.VigenteDesde,
-                entrada.VigenteHasta))
-            .ToList();
+        var solicitados = resolucionCandidatos.Candidatos;
 
         var omitidosPorDirectorio = identificacionesSolicitadas.Count - solicitados.Count;
         var contadores = new ContadoresDeEjecucion { Omitidos = omitidosPorDirectorio };

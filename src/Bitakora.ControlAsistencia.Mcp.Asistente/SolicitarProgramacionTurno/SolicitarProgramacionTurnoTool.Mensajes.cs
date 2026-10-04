@@ -27,10 +27,6 @@ public partial class SolicitarProgramacionTurnoTool
         public static string VentanaExcedeMaximo =>
             ResourceManager.GetString(nameof(VentanaExcedeMaximo))!;
 
-        /// <summary>{0}: maximo de identificaciones admitido.</summary>
-        public static string DemasiadasIdentificaciones =>
-            ResourceManager.GetString(nameof(DemasiadasIdentificaciones))!;
-
         /// <summary>{0}: nombre de turno recibido; {1}: nombres disponibles en el catalogo.</summary>
         public static string TurnoNoExiste =>
             ResourceManager.GetString(nameof(TurnoNoExiste))!;
