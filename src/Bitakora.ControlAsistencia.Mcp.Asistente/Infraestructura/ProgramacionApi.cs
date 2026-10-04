@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -5,32 +6,38 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 public sealed class ProgramacionApi(HttpClient http)
 {
     public Task<HttpResponseMessage> ListarTurnos(CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.GetAsync("api/programacion/turnos", ct);
 
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
     public Task<HttpResponseMessage> CrearTurno(Guid turnoId, string nombre, bool esDescanso, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync("api/programacion/turnos", new { turnoId, nombre, esDescanso }, ct);
 
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
     public Task<HttpResponseMessage> AgregarFranja(string id, FranjaAAgregar franja, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-franja", franja, ct);
 
     public Task<HttpResponseMessage> QuitarFranja(string id, TimeOnly franja, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-franja",
+            new { franja = NotacionFranja.Hora(franja) },
+            ct);
 
     public Task<HttpResponseMessage> AgregarSubFranja(string id, SubFranjaAAgregar subFranja, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:agregar-subfranja", subFranja, ct);
 
     public Task<HttpResponseMessage> QuitarSubFranja(string id, SubFranjaAQuitar subFranja, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:quitar-subfranja", subFranja, ct);
 
     public Task<HttpResponseMessage> AsignarSedeAFranja(
         string id, SedeDeFranjaAAsignar sedeDeFranja, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync(
+            $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", sedeDeFranja, ct);
 }
 
 public sealed record FichaTurno(
@@ -60,8 +67,13 @@ public sealed record SubFranjaFicha(
 
 public sealed record FranjaAAgregar
 {
-    public FranjaAAgregar(TimeOnly inicio, TimeOnly fin, int? diaOffsetFin, SedeProgramada? sede) =>
-        throw new NotImplementedException();
+    public FranjaAAgregar(TimeOnly inicio, TimeOnly fin, int? diaOffsetFin, SedeProgramada? sede)
+    {
+        Inicio = NotacionFranja.Hora(inicio);
+        Fin = NotacionFranja.Hora(fin);
+        DiaOffsetFin = diaOffsetFin;
+        Sede = sede;
+    }
 
     public string Inicio { get; }
 
@@ -76,8 +88,13 @@ public sealed record FranjaAAgregar
 
 public sealed record SubFranjaAAgregar
 {
-    public SubFranjaAAgregar(TimeOnly franja, string tipo, TimeOnly inicio, TimeOnly fin) =>
-        throw new NotImplementedException();
+    public SubFranjaAAgregar(TimeOnly franja, string tipo, TimeOnly inicio, TimeOnly fin)
+    {
+        Franja = NotacionFranja.Hora(franja);
+        Tipo = tipo;
+        Inicio = NotacionFranja.Hora(inicio);
+        Fin = NotacionFranja.Hora(fin);
+    }
 
     public string Franja { get; }
 
@@ -90,8 +107,11 @@ public sealed record SubFranjaAAgregar
 
 public sealed record SedeDeFranjaAAsignar
 {
-    public SedeDeFranjaAAsignar(TimeOnly franja, SedeProgramada? sede) =>
-        throw new NotImplementedException();
+    public SedeDeFranjaAAsignar(TimeOnly franja, SedeProgramada? sede)
+    {
+        Franja = NotacionFranja.Hora(franja);
+        Sede = sede;
+    }
 
     public string Franja { get; }
 
@@ -101,8 +121,12 @@ public sealed record SedeDeFranjaAAsignar
 
 public sealed record SubFranjaAQuitar
 {
-    public SubFranjaAQuitar(TimeOnly franja, string tipo, TimeOnly inicio) =>
-        throw new NotImplementedException();
+    public SubFranjaAQuitar(TimeOnly franja, string tipo, TimeOnly inicio)
+    {
+        Franja = NotacionFranja.Hora(franja);
+        Tipo = tipo;
+        Inicio = NotacionFranja.Hora(inicio);
+    }
 
     public string Franja { get; }
 
