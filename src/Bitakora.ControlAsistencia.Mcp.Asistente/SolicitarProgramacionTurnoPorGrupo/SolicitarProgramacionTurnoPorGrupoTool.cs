@@ -28,8 +28,8 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             "Programa un turno a todos los colaboradores de un grupo, definido por sede y/o etiquetas "
             + "(ambos criterios se combinan), para los dias de una ventana de maximo 35 dias. La sede de "
             + "programacion es opcional: sugierela al usuario y, si prefiere la sede de cada colaborador, "
-            + "omite el parametro; no es la sede de trabajo ni el selector sede del grupo. Para personas concretas usa solicitar_programacion_turno; los "
-            + "fallidos se reintentan con esa tool.")]
+            + "omite el parametro; no es la sede de trabajo ni el selector sede del grupo. Para personas "
+            + "concretas usa solicitar_programacion_turno; los fallidos se reintentan con esa tool.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Primer dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]

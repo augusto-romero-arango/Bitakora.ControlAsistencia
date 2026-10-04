@@ -30,13 +30,12 @@ public partial class SolicitarProgramacionTurnoTool(
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Programa un turno a una lista de colaboradores en una sede (la de programacion, opcional), para todos los dias de "
-            + "una ventana de trabajo de maximo 35 dias. Recibe la ventana (desde, hasta), el "
-            + "nombre exacto del turno del catalogo (miralo con listar_turnos), opcionalmente el "
-            + "codigo de la sede de programacion -- distinta de la sede de trabajo de cada "
-            + "colaborador; sugiere una al usuario y, si prefiere la sede de cada colaborador, omite el "
-            + "parametro -- y las "
-            + "identificaciones completas de los colaboradores, separadas por coma, tal como las "
+            "Programa un turno a una lista de colaboradores en una sede (la de programacion, opcional), "
+            + "para todos los dias de una ventana de trabajo de maximo 35 dias. Recibe la ventana "
+            + "(desde, hasta), el nombre exacto del turno del catalogo (miralo con listar_turnos), "
+            + "opcionalmente el codigo de la sede de programacion -- distinta de la sede de trabajo de "
+            + "cada colaborador; sugiere una al usuario y, si prefiere la sede de cada colaborador, "
+            + "omite el parametro -- y las identificaciones completas de los colaboradores, separadas por coma, tal como las "
             + "devuelven buscar_colaboradores o listar_colaboradores: no las inventes ni pases "
             + "numeros sin tipo. A cada colaborador le programa solo los dias de la ventana que su "
             + "vinculacion cubre; los que no cubren ninguno o no se encuentran se omiten sin "

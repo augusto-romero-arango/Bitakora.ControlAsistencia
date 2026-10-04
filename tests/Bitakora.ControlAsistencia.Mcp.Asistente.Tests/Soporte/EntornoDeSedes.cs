@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
-/// <summary>Datos de prueba compartidos por los tests de la cascada de sede (issue #827).</summary>
+/// <summary>Datos de prueba compartidos por los tests de la cascada de sede.</summary>
 internal static class EntornoDeSedes
 {
     public const string RutaMaestroDeSedes = "/api/sedes/fichas";
