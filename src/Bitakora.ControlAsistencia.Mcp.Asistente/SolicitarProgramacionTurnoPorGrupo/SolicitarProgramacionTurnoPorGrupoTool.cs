@@ -49,6 +49,7 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         string? etiquetas,
         CancellationToken ct)
     {
+        var inicio = relojDeEjecucion.GetTimestamp();
         if (string.IsNullOrWhiteSpace(desde))
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
@@ -144,8 +145,23 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
                 f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta))
             .ToList();
 
-        var ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-            programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct);
+        var contadores = new ContadoresDeEjecucion();
+        ResultadoEjecucion ejecucion;
+        try
+        {
+            ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
+                programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct, contadores);
+        }
+        finally
+        {
+            IndicadorDeEjecucion.Emitir(
+                registro, relojDeEjecucion, inicio,
+                new DatosDeIndicador(
+                    "grupo", candidatos.Count, fichaTurno.Nombre, sedeProgramada.Id, ventana,
+                    fechaDesde, fechaHasta, codigoCanonicoSelector,
+                    filtros.Count == 0 ? null : string.Join(", ", filtros.Select(f => $"{f.Categoria}:{f.Valor}"))),
+                contadores);
+        }
 
         var selector = string.Join(
             ", ",

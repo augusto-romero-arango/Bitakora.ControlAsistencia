@@ -133,3 +133,18 @@ de Consultas y Comandos**: desconectalos y conecta uno solo.
   servidor; VS Code abre el flujo OAuth al primer uso.
 
 Para cambiar de empresa, usa `cerrar_sesion` y reconecta.
+
+## Indicador por ejecucion de la programacion (EjecucionSolicitudProgramacion)
+
+Cada ejecucion de `solicitar_programacion_turno` y `solicitar_programacion_turno_por_grupo` que llega a la fase de ejecucion emite un log `Information` con EventId `EjecucionSolicitudProgramacion` (sin identificaciones ni nombres). Pendiente de verificar en dev tras el deploy (clave publicada del EventId y nivel efectivo); consulta KQL de partida:
+
+```kusto
+traces
+| where customDimensions.EventName == "EjecucionSolicitudProgramacion"
+| project timestamp, Modalidad = tostring(customDimensions.Modalidad),
+    TamanoResuelto = toint(customDimensions.TamanoResuelto),
+    Programados = toint(customDimensions.Programados),
+    Fallidos = toint(customDimensions.Fallidos),
+    DuracionMs = tolong(customDimensions.DuracionMs)
+| order by timestamp desc
+```

@@ -27,7 +27,7 @@ public static class ConfiguracionObservabilidadMcp
 
         services.AddOpenTelemetry()
             .UseFunctionsWorkerDefaults()
-            .UseAzureMonitorExporter()
+            .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))))
             .WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop));

@@ -80,6 +80,7 @@ public partial class SolicitarProgramacionTurnoTool(
         string identificaciones,
         CancellationToken ct)
     {
+        var inicio = relojDeEjecucion.GetTimestamp();
         if (string.IsNullOrWhiteSpace(desde))
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
@@ -155,8 +156,22 @@ public partial class SolicitarProgramacionTurnoTool(
             .ToList();
 
         var omitidosPorDirectorio = identificacionesSolicitadas.Count - solicitados.Count;
-        var ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-            programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct);
+        var contadores = new ContadoresDeEjecucion { Omitidos = omitidosPorDirectorio };
+        ResultadoEjecucion ejecucion;
+        try
+        {
+            ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
+                programacion, solicitados, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, ct, contadores);
+        }
+        finally
+        {
+            IndicadorDeEjecucion.Emitir(
+                registro, relojDeEjecucion, inicio,
+                new DatosDeIndicador(
+                    "lista", solicitados.Count, fichaTurno.Nombre, sedeProgramada.Id, ventana,
+                    fechaDesde, fechaHasta, null, null),
+                contadores);
+        }
 
         return RespuestaJson.Serializar(new ProgramacionSolicitadaResumen(
             Mensajes.ResultadoProgramacionSolicitada,
