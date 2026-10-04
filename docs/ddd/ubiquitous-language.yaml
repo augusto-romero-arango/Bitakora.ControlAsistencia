@@ -781,6 +781,25 @@ terms:
       recibe aud del default (Consultas) y Comandos lo rechaza con 401.
     date_added: 2026-09-02
 
+  - name: Servidor MCP Asistente
+    definition: >
+      Servidor MCP UNICO del BC (Bitakora.ControlAsistencia.Mcp.Asistente, ruta {gateway}/mcp-asistente)
+      que reune en un solo Function App, una sola API de APIM y un solo Resource Indicator las tools
+      de lectura y de escritura que hoy reparten el Servidor MCP de Consultas y el Servidor MCP de
+      Comandos. Decision del experto del 2026-10-03 (CA-ADR de #798, desviacion de MEF-ADR-0047
+      decision 2): la premisa "servidor == credencial" cayo cuando APIM paso a custodiar la key
+      mcp_extension (#558), quien escribe necesita leer para enriquecer la interaccion, y el MCP es
+      un adaptador del lado del cliente, no backend, asi que el corte sigue la tarea del agente y no
+      CQS. Convive con los dos servidores viejos hasta que los clientes se reconecten; despues se
+      retiran (#805/#806).
+    context: Transversal (BC completo)
+    rejected_synonyms: [Mcp a secas, servidor MCP por proposito Consultas/Comandos]
+    rejection_reason: >
+      "Mcp a secas": /scaffold-mcp exige un proposito; "Asistente" es el actor que el glosario ya
+      usa para el cliente MCP. Particion Consultas/Comandos: no da minimo privilegio real mientras
+      no haya roles en el token ni un actor de solo lectura.
+    date_added: 2026-10-03
+
   - name: Depuracion
     definition: >
       Proceso automatico interno de ControlDiarioAggregateRoot que cruza marcaciones
