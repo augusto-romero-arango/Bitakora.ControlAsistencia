@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasVeintiochoTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasVeintinueveTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -43,7 +43,8 @@ public class ComposicionDelServidorTests
                 "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "solicitar_programacion_turno",
-                "solicitar_programacion_turno_por_grupo", "programar_ausencia", "cancelar_ausencia"
+                "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "programar_ausencia",
+                "cancelar_ausencia"
             ]);
     }
 
@@ -132,6 +133,8 @@ public class ComposicionDelServidorTests
         ("solicitar_programacion_turno", "Programa un turno a una lista de colaboradores en una sede",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("solicitar_programacion_turno_por_grupo", "Programa un turno a todos los colaboradores de un grupo",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("aplicar_plantilla_semanal", "Aplica una plantilla semanal de turnos a una lista de colaboradores",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("programar_ausencia", "Registra una ausencia de un colaborador: dias completos en que no vendra a trabajar",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -277,6 +280,12 @@ public class ComposicionDelServidorTests
             [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", false), ("identificaciones", true)]);
 
     [Fact]
+    public void AplicarPlantillaSemanal_DeclaraLaVentanaLaPlantillaYLasIdentificacionesObligatoriasYLaSedeOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("aplicar_plantilla_semanal").Should().BeEquivalentTo(
+            [("desde", true), ("hasta", true), ("plantilla", true), ("sede_de_programacion", false),
+             ("identificaciones", true)]);
+
+    [Fact]
     public void ProgramarAusencia_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("programar_ausencia").Should().BeEquivalentTo(
             [("identificacion", true), ("desde", true), ("hasta", true), ("motivo", true)]);
@@ -318,6 +327,10 @@ public class ComposicionDelServidorTests
     [Fact]
     public void SolicitarProgramacionTurnoPorGrupo_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
         AsegurarSedeDeProgramacionOpcional("solicitar_programacion_turno_por_grupo");
+
+    [Fact]
+    public void AplicarPlantillaSemanal_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
+        AsegurarSedeDeProgramacionOpcional("aplicar_plantilla_semanal");
 
     private static void AsegurarSedeDeProgramacionOpcional(string nombreTool)
     {

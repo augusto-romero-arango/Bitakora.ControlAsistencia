@@ -37,10 +37,14 @@ internal sealed class PlanDeSede
     public bool HaySedeExplicita => explicita is not null;
 
     /// <summary>Una sola lectura del maestro, sin filtro, y solo cuando la cascada la necesita.</summary>
+    public static Task<(PlanDeSede? Plan, string? FalloDeLectura)> CrearAsync(
+        SedesApi sedes, SedeProgramada? explicita, FichaTurno turno, MotivosDeAviso motivos, CancellationToken ct) =>
+        CrearAsync(sedes, explicita, turno.Franjas.Any(f => f.SedeId is null), motivos, ct);
+
+    /// <summary>Variante para varios turnos: sinFranjaSede si alguno tiene franjas sin sede prearmada.</summary>
     public static async Task<(PlanDeSede? Plan, string? FalloDeLectura)> CrearAsync(
-        SedesApi sedes, SedeProgramada? explicita, FichaTurno turno, MotivosDeAviso motivos, CancellationToken ct)
+        SedesApi sedes, SedeProgramada? explicita, bool sinFranjaSede, MotivosDeAviso motivos, CancellationToken ct)
     {
-        var sinFranjaSede = turno.Franjas.Any(f => f.SedeId is null);
         IReadOnlyDictionary<string, FichaSede> maestro = new Dictionary<string, FichaSede>();
 
         if (explicita is null && sinFranjaSede)
