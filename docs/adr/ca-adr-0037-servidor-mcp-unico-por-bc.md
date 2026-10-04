@@ -33,3 +33,5 @@ Quien escribe necesita leer para enriquecer la interaccion. Las descripciones de
 - El catalogo unico tiene 27 tools; la cantidad no cambia para el operador, que ya ve 28 hoy.
 
 **Condicion de reapertura:** si aparece un actor real que deba leer sin poder escribir, se vuelve a separar, pero con autorizacion efectiva (roles o permisos en el token, o audiencias otorgadas por rol), nunca solo por CQS.
+
+**Revision en el marco:** cuando harness#1848 se resuelva, este CA-ADR pasa a superado o se alinea con la doctrina que el marco adopte.
