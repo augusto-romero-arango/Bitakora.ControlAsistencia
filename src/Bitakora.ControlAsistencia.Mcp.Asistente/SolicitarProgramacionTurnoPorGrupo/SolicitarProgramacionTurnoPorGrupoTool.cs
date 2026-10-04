@@ -5,12 +5,18 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurnoPorGrupo;
 
 public partial class SolicitarProgramacionTurnoPorGrupoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores)
+    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ILogger<SolicitarProgramacionTurnoPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
+    private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
+    private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
+
     internal const string NombreTool = "solicitar_programacion_turno_por_grupo";
     internal const int TamanoDePagina = 200;
 

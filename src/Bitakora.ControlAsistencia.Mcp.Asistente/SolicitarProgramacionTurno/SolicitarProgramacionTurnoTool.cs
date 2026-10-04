@@ -4,6 +4,8 @@ using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
@@ -14,8 +16,12 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 // decision 4). Los rechazos del dominio en cada POST se traducen a texto (CA-ADR-0030) y no
 // detienen al resto del lote: el resto ya pudo haberse programado.
 public partial class SolicitarProgramacionTurnoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores)
+    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ILogger<SolicitarProgramacionTurnoTool>? logger = null, TimeProvider? reloj = null)
 {
+    private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
+    private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
+
     internal const string NombreTool = "solicitar_programacion_turno";
     internal const int MaximoIdentificaciones = 200;
 
