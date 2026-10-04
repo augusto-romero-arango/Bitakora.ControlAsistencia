@@ -19,7 +19,9 @@ public class AplicarPlantillaSemanalToolTests
 
     private static object Slot(int semana, int dia, string id, bool completo = true, bool retirado = false) => new
     {
-        semana, dia, turno = new { id, nombre = $"Turno {id[^1]}", descripcion = "(06:00-14:00)", completo, retirado }
+        semana,
+        dia,
+        turno = new { id, nombre = $"Turno {id[^1]}", descripcion = "(06:00-14:00)", completo, retirado }
     };
 
     private static string Plantillas(
@@ -265,6 +267,31 @@ public class AplicarPlantillaSemanalToolTests
         entorno.Posts.Should().OnlyContain(p => p["sede"] == null);
         entorno.Programacion.Requests.Count(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos)
             .Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaSedeExplicitaNoExiste()
+    {
+        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
+
+        var resultado = await Ejecutar(entorno, sede: "FANTASMA");
+
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.SedeNoExiste, "FANTASMA"));
+        NoHuboPosts(entorno);
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_EnviaLaSedeExplicitaSinLeerElCatalogo_CuandoSeIndicaSedeDeProgramacion()
+    {
+        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01", codigoSede: null), sedeDeLaFranja: null);
+
+        var resultado = await Ejecutar(entorno, sede: "SUBA");
+
+        var json = JsonNode.Parse(resultado)!;
+        json["sede"]!["codigo"]!.GetValue<string>().Should().Be("SUBA");
+        json.AsObject().ContainsKey("avisos").Should().BeFalse();
+        entorno.Posts.Should().HaveCount(2).And.OnlyContain(p => p["sede"]!["id"]!.GetValue<string>() == "SUBA");
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos);
     }
 
     [Fact]

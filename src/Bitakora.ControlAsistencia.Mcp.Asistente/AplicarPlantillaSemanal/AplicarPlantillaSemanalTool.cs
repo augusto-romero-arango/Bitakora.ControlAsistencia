@@ -32,8 +32,11 @@ public partial class AplicarPlantillaSemanalTool(
             + "trabajo de maximo 35 dias. A cada dia le programa el turno que el molde asigna a esa semana "
             + "y dia; el molde se alinea a la semana (lunes a domingo) que contiene 'desde'. Recibe el "
             + "nombre de la plantilla (miralo con listar_plantillas_semanales), opcionalmente el codigo de "
-            + "la sede de programacion -- sugierela al usuario y, si prefiere la sede de cada colaborador, "
-            + "omite el parametro -- y las identificaciones completas separadas por coma.")]
+            + "la sede de programacion -- distinta de la sede de trabajo de cada colaborador; sugierela al "
+            + "usuario y, si prefiere la sede de cada colaborador, omite el parametro -- y las "
+            + "identificaciones completas separadas por coma, tal como las devuelven buscar_colaboradores "
+            + "o listar_colaboradores. A cada colaborador le programa solo los dias que su vinculacion "
+            + "cubre y respeta sus ausencias.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Primer dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
@@ -42,7 +45,7 @@ public partial class AplicarPlantillaSemanalTool(
         string hasta,
         [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con listar_plantillas_semanales.", isRequired: true)]
         string plantilla,
-        [McpToolProperty("sede_de_programacion", "Opcional. Codigo de la sede donde se registra la programacion.", isRequired: false)]
+        [McpToolProperty("sede_de_programacion", "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. Si prefiere la de cada colaborador, omitela.", isRequired: false)]
         string? sedeDeProgramacion,
         [McpToolProperty("identificaciones", "Identificaciones completas separadas por coma ('CC-79879078, CE-887766').", isRequired: true)]
         string identificaciones,
@@ -107,8 +110,8 @@ public partial class AplicarPlantillaSemanalTool(
         }
 
         // Una sola lectura del catalogo de turnos, solo cuando la cascada la necesita (CA-ADR-0038).
-        var franjasSinSedePorTurno = new HashSet<Guid>();
-        var franjasDelMolde = new List<FranjaFicha>();
+        var idsDelMolde = cuadro.Dias.Select(d => Guid.Parse(d.Turno.Id)).ToHashSet();
+        HashSet<Guid> turnosConFranjaSinSede = [];
         if (sedeExplicita is null)
         {
             var respuestaTurnos = await programacion.ListarTurnos(ct);
@@ -116,18 +119,15 @@ public partial class AplicarPlantillaSemanalTool(
                 return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
 
             var catalogo = await respuestaTurnos.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
-            var idsDelMolde = cuadro.Dias.Select(d => d.Turno.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var delMolde = catalogo.Where(f => idsDelMolde.Contains(f.Id)).ToList();
-            franjasSinSedePorTurno = delMolde
-                .Where(f => f.Franjas.Any(fr => fr.SedeId is null))
-                .Select(f => Guid.Parse(f.Id))
+            turnosConFranjaSinSede = catalogo
+                .Select(TurnoAProgramar.De)
+                .Where(t => t.TieneFranjaSinSede && idsDelMolde.Contains(t.Id))
+                .Select(t => t.Id)
                 .ToHashSet();
-            franjasDelMolde = [.. delMolde.SelectMany(f => f.Franjas)];
         }
 
-        var fichaDelMolde = new FichaTurno(cuadro.Id, cuadro.Nombre, false, string.Empty, franjasDelMolde, string.Empty, true);
         var (planDeSede, falloMaestro) = await PlanDeSede.CrearAsync(
-            sedes, sedeExplicita, fichaDelMolde,
+            sedes, sedeExplicita, sinFranjaSede: turnosConFranjaSinSede.Count > 0,
             new MotivosDeAviso(Mensajes.AvisoSinSede, Mensajes.AvisoSedeInactiva, Mensajes.AvisoSedeNoExiste), ct);
         if (falloMaestro is not null)
             return string.Format(Mensajes.RechazoDelDominio, falloMaestro);
@@ -142,7 +142,7 @@ public partial class AplicarPlantillaSemanalTool(
         {
             var turno = asignacionDeFechas.Para(fecha);
             var id = Guid.Parse(turno.Id);
-            return new TurnoAProgramar(id, turno.Nombre ?? string.Empty, franjasSinSedePorTurno.Contains(id));
+            return new TurnoAProgramar(id, turno.Nombre ?? string.Empty, turnosConFranjaSinSede.Contains(id));
         });
 
         var omitidosPorDirectorio = solicitadas.Count - candidatos.Count;

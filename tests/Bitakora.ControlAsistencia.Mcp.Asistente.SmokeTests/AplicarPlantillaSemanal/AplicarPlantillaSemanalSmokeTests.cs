@@ -40,6 +40,9 @@ public class AplicarPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFi
             new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();
+        using (var textoCreada = Sembrado.LeerJson(creada))
+            textoCreada.RootElement.TryGetProperty("diasRechazados", out _)
+                .Should().BeFalse("la plantilla sembrada debe quedar completa para poder aplicarse");
 
         var argumentos = new Dictionary<string, object?>
         {

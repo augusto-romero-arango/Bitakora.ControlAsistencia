@@ -328,6 +328,10 @@ public class ComposicionDelServidorTests
     public void SolicitarProgramacionTurnoPorGrupo_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
         AsegurarSedeDeProgramacionOpcional("solicitar_programacion_turno_por_grupo");
 
+    [Fact]
+    public void AplicarPlantillaSemanal_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
+        AsegurarSedeDeProgramacionOpcional("aplicar_plantilla_semanal");
+
     private static void AsegurarSedeDeProgramacionOpcional(string nombreTool)
     {
         var metodo = MetodoDe(nombreTool);
