@@ -58,6 +58,14 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         if (string.IsNullOrWhiteSpace(turno))
             return string.Format(Mensajes.CampoObligatorio, "turno");
 
+        var mensajesSelector = new MensajesDeSelector(
+                Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
+                Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio);
+        var (selectorInterpretado, rechazoInterpretacion) = SelectorDeGrupo.Interpretar(
+            sede, etiquetas, mensajesSelector);
+        if (rechazoInterpretacion is not null)
+            return rechazoInterpretacion;
+
         if (!DateOnly.TryParseExact(
             desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaDesde))
             return string.Format(Mensajes.FechaInvalida, "desde", desde);
@@ -93,11 +101,8 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             sedeExplicita = resolucionSede.Sede!;
         }
 
-        var (selectorDeGrupo, rechazoSelector) = await SelectorDeGrupo.ResolverAsync(
-            sede, etiquetas, resolutorSedes,
-            new MensajesDeSelector(
-                Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
-                Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio), ct);
+        var (selectorDeGrupo, rechazoSelector) = await selectorInterpretado!.ValidarSedeAsync(
+            resolutorSedes, mensajesSelector, ct);
         if (rechazoSelector is not null)
             return rechazoSelector;
         var codigoCanonicoSelector = selectorDeGrupo!.CodigoSede;
