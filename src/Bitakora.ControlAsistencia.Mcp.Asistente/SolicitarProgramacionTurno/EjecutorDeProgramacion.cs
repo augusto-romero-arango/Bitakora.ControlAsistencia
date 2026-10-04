@@ -12,7 +12,8 @@ public sealed record CandidatoProgramacion(
     string CodigoColaborador,
     string NombreCompleto,
     DateOnly VigenteDesde,
-    DateOnly? VigenteHasta);
+    DateOnly? VigenteHasta,
+    string? CodigoSede = null);
 
 public sealed record ResultadoEjecucion(
     IReadOnlyList<ColaboradorProgramadoResumen> Programados,
@@ -32,7 +33,7 @@ internal sealed record DatosDeIndicador(
     string Modalidad,
     int TamanoResuelto,
     string Turno,
-    string SedeDeProgramacion,
+    string? SedeDeProgramacion,
     DateOnly Desde,
     DateOnly Hasta,
     string? Sede,
@@ -96,7 +97,7 @@ internal static class EjecutorDeProgramacion
         ProgramacionApi programacion,
         IReadOnlyList<CandidatoProgramacion> solicitados,
         Guid turnoId,
-        SedeProgramada sedeProgramada,
+        SedeProgramada? sedeProgramada,
         VentanaDeProgramacion ventana,
         ContadoresDeEjecucion contadores,
         CancellationToken ct)

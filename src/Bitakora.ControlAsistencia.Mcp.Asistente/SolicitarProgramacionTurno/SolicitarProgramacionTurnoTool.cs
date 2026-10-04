@@ -67,7 +67,7 @@ public partial class SolicitarProgramacionTurnoTool(
             "Codigo de la sede donde se registra la programacion. Pidesela al usuario; no es la "
             + "sede de trabajo del colaborador.",
             isRequired: true)]
-        string sedeDeProgramacion,
+        string? sedeDeProgramacion,
         [McpToolProperty(
             "identificaciones",
             "Identificaciones completas separadas por coma ('CC-79879078, CE-887766'), tal como "

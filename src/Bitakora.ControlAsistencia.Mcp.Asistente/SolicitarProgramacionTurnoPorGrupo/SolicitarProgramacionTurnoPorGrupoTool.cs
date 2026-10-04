@@ -38,7 +38,7 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         [McpToolProperty("turno", "Nombre exacto del turno del catalogo.", isRequired: true)]
         string turno,
         [McpToolProperty("sede_de_programacion", "Codigo de la sede donde se registra la programacion.", isRequired: true)]
-        string sedeDeProgramacion,
+        string? sedeDeProgramacion,
         [McpToolProperty("sede", "Codigo de la sede de trabajo de los colaboradores del grupo.", isRequired: false)]
         string? sede,
         [McpToolProperty("etiquetas", "Pares categoria:valor separados por coma.", isRequired: false)]

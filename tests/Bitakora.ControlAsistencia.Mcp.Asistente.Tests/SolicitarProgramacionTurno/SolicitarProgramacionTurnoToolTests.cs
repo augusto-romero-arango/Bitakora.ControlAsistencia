@@ -306,19 +306,6 @@ public class SolicitarProgramacionTurnoToolTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoSedeDeProgramacionEstaEnBlanco()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(
-            fakes.Tool, sedeDeProgramacion: "   ", ct: TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(
-            string.Format(SolicitarProgramacionTurnoTool.Mensajes.CampoObligatorio, "sede_de_programacion"));
-        AsegurarNingunaRequest(fakes);
-    }
-
-    [Fact]
     public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoIdentificacionesEstaEnBlanco()
     {
         var fakes = CrearTool();

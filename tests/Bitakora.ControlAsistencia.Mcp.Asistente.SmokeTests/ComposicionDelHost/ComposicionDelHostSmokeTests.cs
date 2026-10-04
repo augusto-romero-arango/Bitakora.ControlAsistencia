@@ -47,8 +47,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["quitar_turno_de_dia"] = ["plantilla", "dia"],
         ["consultar_programacion"] = ["desde", "hasta"],
         ["consultar_ausencias"] = ["desde", "hasta"],
-        ["solicitar_programacion_turno"] = ["desde", "hasta", "turno", "sede_de_programacion", "identificaciones"],
-        ["solicitar_programacion_turno_por_grupo"] = ["desde", "hasta", "turno", "sede_de_programacion"],
+        ["solicitar_programacion_turno"] = ["desde", "hasta", "turno", "identificaciones"],
+        ["solicitar_programacion_turno_por_grupo"] = ["desde", "hasta", "turno"],
         ["programar_ausencia"] = ["identificacion", "desde", "hasta", "motivo"],
         ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"]
     };
