@@ -94,11 +94,10 @@ internal static class EjecutorDeProgramacion
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
-    private sealed record Envio(
-        CandidatoProgramacion Entrada, IReadOnlyList<DateOnly> TodosLosDias, TurnoAProgramar Turno,
-        IReadOnlyList<DateOnly> Dias);
+    private sealed record Envio(CandidatoProgramacion Entrada, TurnoAProgramar Turno, IReadOnlyList<DateOnly> Dias);
 
-    private sealed record ResultadoEnvio(Envio Envio, bool Exito, IReadOnlyList<FechaRespetadaPorAusencia> Respetadas, string? Motivo);
+    private sealed record ResultadoEnvio(
+        Envio Envio, bool Exito, IReadOnlyList<FechaRespetadaPorAusencia> Respetadas, string? Motivo);
 
     public static async Task<ResultadoEjecucion> EjecutarAsync(
         ProgramacionApi programacion,
@@ -119,18 +118,21 @@ internal static class EjecutorDeProgramacion
 
         var envios = candidatos
             .SelectMany(c => c.Dias
-                .GroupBy(d => asignacion.Para(d).Id)
-                .Select(g => new Envio(c.Entrada, c.Dias, asignacion.Para(g.First()), [.. g])))
+                .GroupBy(asignacion.Para)
+                .Select(g => new Envio(c.Entrada, g.Key, [.. g])))
             .ToList();
 
         var resultados = new ConcurrentBag<ResultadoEnvio>();
+        // Los contadores avanzan durante los POST para que el indicador conserve los conteos
+        // parciales si la ejecucion termina por excepcion o cancelacion; cuentan colaboradores.
+        var conPostExitoso = new ConcurrentDictionary<string, byte>();
+        var conPostRechazado = new ConcurrentDictionary<string, byte>();
 
         await Parallel.ForEachAsync(
             envios,
             new ParallelOptions { MaxDegreeOfParallelism = PostsSimultaneos, CancellationToken = ct },
             async (envio, tokenInterno) =>
             {
-                var sedeDelCandidato = planDeSede.Para(envio.Entrada);
                 var solicitud = new SolicitudProgramacionTurno(
                     Guid.CreateVersion7(),
                     envio.Turno.Id,
@@ -139,16 +141,24 @@ internal static class EjecutorDeProgramacion
                         envio.Entrada.CodigoColaborador,
                         envio.Entrada.NombreCompleto),
                     envio.Dias,
-                    sedeDelCandidato.Sede);
+                    planDeSede.Para(envio.Entrada).Sede);
 
                 var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
 
                 if (respuestaSolicitud.IsSuccessStatusCode)
-                    resultados.Add(new ResultadoEnvio(
-                        envio, true, await LeerRespetadasAsync(respuestaSolicitud, tokenInterno), null));
+                {
+                    var respetadas = await LeerRespetadasAsync(respuestaSolicitud, tokenInterno);
+                    resultados.Add(new ResultadoEnvio(envio, true, respetadas, null));
+                    if (conPostExitoso.TryAdd(envio.Entrada.Identificacion, 0))
+                        Interlocked.Increment(ref contadores.Programados);
+                }
                 else
-                    resultados.Add(new ResultadoEnvio(
-                        envio, false, [], await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno)));
+                {
+                    var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
+                    resultados.Add(new ResultadoEnvio(envio, false, [], motivo));
+                    if (conPostRechazado.TryAdd(envio.Entrada.Identificacion, 0))
+                        Interlocked.Increment(ref contadores.Fallidos);
+                }
             });
 
         var programados = new List<ColaboradorProgramadoResumen>();
@@ -157,41 +167,40 @@ internal static class EjecutorDeProgramacion
 
         foreach (var porColaborador in resultados.GroupBy(r => r.Envio.Entrada.Identificacion))
         {
-            var exitosos = porColaborador.Where(r => r.Exito).ToList();
             var entrada = porColaborador.First().Envio.Entrada;
-            var diasCubiertos = porColaborador.First().Envio.TodosLosDias;
 
-            foreach (var rechazado in porColaborador.Where(r => !r.Exito).OrderBy(r => r.Envio.Dias[0]))
-                fallidos.Add(new ColaboradorFallidoResumen(
-                    entrada.Identificacion,
-                    rechazado.Motivo!,
-                    asignacion.UsaUnSoloTurno ? null : rechazado.Envio.Turno.Nombre));
-            if (porColaborador.Any(r => !r.Exito))
-                Interlocked.Increment(ref contadores.Fallidos);
+            fallidos.AddRange(porColaborador
+                .Where(r => !r.Exito)
+                .OrderBy(r => r.Envio.Dias[0])
+                .Select(r => new ColaboradorFallidoResumen(
+                    entrada.Identificacion, r.Motivo!, asignacion.UsaUnSoloTurno ? null : r.Envio.Turno.Nombre)));
 
+            var exitosos = porColaborador.Where(r => r.Exito).ToList();
             if (exitosos.Count == 0)
                 continue;
 
-            var diasProgramadosFechas = exitosos.SelectMany(r => r.Envio.Dias).OrderBy(d => d).ToList();
-            var respetadas = exitosos.SelectMany(r => r.Respetadas).ToList();
+            var diasProgramados = exitosos.SelectMany(r => r.Envio.Dias).Order().ToList();
+            var conjuntoProgramados = diasProgramados.ToHashSet();
+            var respetadas = exitosos
+                .SelectMany(r => r.Respetadas)
+                .Where(r => conjuntoProgramados.Contains(r.Fecha))
+                .ToList();
             var fechasRespetadas = respetadas.Select(r => r.Fecha).ToHashSet();
             var respetados = respetadas
-                .Where(r => diasProgramadosFechas.Contains(r.Fecha))
                 .GroupBy(r => r.Motivo)
                 .OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => new DiasRespetadosResumen(
-                    g.Key, ComprimirEnTramos(g.Select(r => r.Fecha), diasProgramadosFechas[0])))
+                    g.Key, ComprimirEnTramos(g.Select(r => r.Fecha), diasProgramados[0])))
                 .ToList();
 
             var sedeDelCandidato = planDeSede.Para(entrada);
-            Interlocked.Increment(ref contadores.Programados);
             programados.Add(new ColaboradorProgramadoResumen(
                 entrada.Identificacion,
                 entrada.NombreCompleto,
                 entrada.CodigoColaborador,
-                diasProgramadosFechas[0],
-                diasProgramadosFechas[^1],
-                diasProgramadosFechas.Count(d => !fechasRespetadas.Contains(d)),
+                diasProgramados[0],
+                diasProgramados[^1],
+                diasProgramados.Count(d => !fechasRespetadas.Contains(d)),
                 respetados.Count == 0 ? null : respetados,
                 planDeSede.HaySedeExplicita ? null : sedeDelCandidato.Sede?.Id));
             if (sedeDelCandidato.MotivoDeAviso is { } motivoAviso
@@ -202,9 +211,7 @@ internal static class EjecutorDeProgramacion
         return new ResultadoEjecucion(
             [.. programados.OrderBy(p => p.Identificacion, StringComparer.Ordinal)],
             omitidos,
-            fallidos.Count == 0
-                ? null
-                : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal).ThenBy(f => f.Turno, StringComparer.Ordinal)],
+            fallidos.Count == 0 ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)],
             avisos.Count == 0 ? null : [.. avisos.OrderBy(a => a.Identificacion, StringComparer.Ordinal)]);
     }
 

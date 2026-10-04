@@ -128,4 +128,40 @@ public class EjecutorDeProgramacionVariosTurnosTests
         contadores.Omitidos.Should().Be(1);
         resultado.Programados.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task EjecutarAsync_CuentaUnSoloFallido_CuandoSeRechazanLosPostDeAmbosTurnos()
+    {
+        var (resultado, _, contadores) = await Ejecutar(
+            [Candidato("CC-1")], MananaHastaElDia3(),
+            s => new HttpResponseMessage(HttpStatusCode.Conflict)
+            {
+                Content = new StringContent(s.TurnoId == Manana.Id ? "choca manana" : "choca tarde"),
+            });
+
+        resultado.Programados.Should().BeEmpty();
+        resultado.Fallidos.Should().HaveCount(2);
+        resultado.Fallidos!.Select(f => (f.Turno, f.Motivo)).Should().Equal(
+            ("Manana", "choca manana"), ("Tarde", "choca tarde"));
+        contadores.Fallidos.Should().Be(1);
+        contadores.Programados.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_CombinaLosDiasRespetadosEntreTurnos_CuandoAmbosPostRespetanAusencias()
+    {
+        var (resultado, _, _) = await Ejecutar(
+            [Candidato("CC-1")], MananaHastaElDia3(),
+            s => new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StringContent(s.TurnoId == Manana.Id
+                    ? """{"fechasRespetadas":[{"fecha":"2026-09-03","motivo":"Vacaciones"}]}"""
+                    : """{"fechasRespetadas":[{"fecha":"2026-09-04","motivo":"Vacaciones"}]}"""),
+            });
+
+        var programado = resultado.Programados.Should().ContainSingle().Subject;
+        programado.Dias.Should().Be(3);
+        programado.Respetados.Should().ContainSingle()
+            .Which.Should().Be(new DiasRespetadosResumen("Vacaciones", "3-4"));
+    }
 }
