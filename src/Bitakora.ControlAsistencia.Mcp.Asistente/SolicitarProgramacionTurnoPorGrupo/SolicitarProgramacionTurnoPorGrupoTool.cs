@@ -58,24 +58,6 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         if (string.IsNullOrWhiteSpace(turno))
             return string.Format(Mensajes.CampoObligatorio, "turno");
 
-        var codigoSedeSelector = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
-        var pares = (etiquetas ?? string.Empty)
-            .Split(',')
-            .Select(p => p.Trim())
-            .Where(p => p.Length > 0)
-            .ToList();
-        if (codigoSedeSelector is null && pares.Count == 0)
-            return Mensajes.SelectorObligatorio;
-
-        var filtros = new List<FiltroEtiqueta>();
-        foreach (var par in pares)
-        {
-            var partes = par.Split(':', 2);
-            if (partes.Length < 2 || partes[0].Trim().Length == 0 || partes[1].Trim().Length == 0)
-                return string.Format(Mensajes.EtiquetaMalFormada, par);
-            filtros.Add(new FiltroEtiqueta(partes[0].Trim(), partes[1].Trim()));
-        }
-
         if (!DateOnly.TryParseExact(
             desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaDesde))
             return string.Format(Mensajes.FechaInvalida, "desde", desde);
@@ -111,19 +93,15 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             sedeExplicita = resolucionSede.Sede!;
         }
 
-        string? codigoCanonicoSelector = null;
-        if (codigoSedeSelector is not null)
-        {
-            var resolucionSelector = await resolutorSedes.ResolverAsync(codigoSedeSelector, ct);
-            if (resolucionSelector.FalloDeLectura is { } falloSelector)
-                return string.Format(Mensajes.RechazoDelDominio, falloSelector);
-            if (resolucionSelector.MensajeDelMotivo(
-                codigoSedeSelector,
-                noExiste: Mensajes.SedeDelSelectorNoExiste,
-                inactiva: Mensajes.SedeDelSelectorInactiva) is { } rechazoSelector)
-                return rechazoSelector;
-            codigoCanonicoSelector = resolucionSelector.Sede!.Id;
-        }
+        var (selectorDeGrupo, rechazoSelector) = await SelectorDeGrupo.ResolverAsync(
+            sede, etiquetas, resolutorSedes,
+            new MensajesDeSelector(
+                Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
+                Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio), ct);
+        if (rechazoSelector is not null)
+            return rechazoSelector;
+        var codigoCanonicoSelector = selectorDeGrupo!.CodigoSede;
+        var filtros = selectorDeGrupo.Filtros;
 
         var (planDeSede, falloMaestro) = await PlanDeSede.CrearAsync(
             sedes, sedeExplicita, fichaTurno,
@@ -152,14 +130,11 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
                 new DatosDeIndicador(
                     "grupo", candidatos.Count, fichaTurno.Nombre, sedeExplicita?.Id,
                     fechaDesde, fechaHasta, codigoCanonicoSelector,
-                    filtros.Count == 0 ? null : string.Join(", ", filtros.Select(f => $"{f.Categoria}:{f.Valor}"))),
+                    selectorDeGrupo.EtiquetasComoTexto),
                 contadores);
         }
 
-        var selector = string.Join(
-            ", ",
-            (codigoCanonicoSelector is null ? [] : new[] { $"sede:{codigoCanonicoSelector}" })
-                .Concat(filtros.Select(f => $"{f.Categoria}:{f.Valor}")));
+        var selector = selectorDeGrupo.Descripcion;
 
         return RespuestaJson.Serializar(new ProgramacionPorGrupoResumen(
             Mensajes.ResultadoProgramacionSolicitada,
