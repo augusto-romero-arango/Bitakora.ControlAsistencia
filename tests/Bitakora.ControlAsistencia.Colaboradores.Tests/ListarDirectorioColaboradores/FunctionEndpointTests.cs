@@ -153,17 +153,16 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task ListarDirectorioColaboradores_Retorna422_CuandoIdentificacionesTraeMasDe200Valores()
+    public async Task ListarDirectorioColaboradores_NoRechazaPorCantidad_CuandoIdentificacionesTraeMasDe200Valores()
     {
-        var masDe200 = Enumerable.Range(1, 201).Select(i => $"CC-{i:D8}").ToList();
+        var masDe200 = Enumerable.Range(1, 250).Select(i => $"CC-{i:D8}").ToList();
         var body = JsonSerializer.Serialize(new { identificaciones = masDe200 });
         var request = FakeHttpRequest(contentType: "application/json", body: body);
 
-        var resultado = await Endpoint().Run(request, CancellationToken.None);
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
 
-        var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
-        unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
-        unprocessable.Value.Should().BeOfType<string>();
+        // store nulo: superar la validacion del borde equivale a llegar a la QuerySession.
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
     }
 
     [Fact]
