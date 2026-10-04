@@ -59,7 +59,7 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
     }
 
     // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): este
-    // resolutor cruza de Mcp.Comandos hacia Programacion, sin ensamblado compartido entre ambos.
+    // resolutor cruza de Mcp.Asistente hacia Programacion, sin ensamblado compartido entre ambos.
     private static string NormalizarNombre(string nombre) =>
         EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
 

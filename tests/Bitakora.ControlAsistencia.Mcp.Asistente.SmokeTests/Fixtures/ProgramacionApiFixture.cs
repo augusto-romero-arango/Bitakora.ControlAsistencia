@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
