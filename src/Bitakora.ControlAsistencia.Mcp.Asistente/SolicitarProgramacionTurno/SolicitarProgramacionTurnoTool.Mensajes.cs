@@ -46,6 +46,17 @@ public partial class SolicitarProgramacionTurnoTool
         public static string ResultadoProgramacionSolicitada =>
             ResourceManager.GetString(nameof(ResultadoProgramacionSolicitada))!;
 
+        public static string AvisoSinSede =>
+            ResourceManager.GetString(nameof(AvisoSinSede))!;
+
+        /// <summary>{0}: codigo de la sede del colaborador.</summary>
+        public static string AvisoSedeInactiva =>
+            ResourceManager.GetString(nameof(AvisoSedeInactiva))!;
+
+        /// <summary>{0}: codigo de la sede del colaborador.</summary>
+        public static string AvisoSedeNoExiste =>
+            ResourceManager.GetString(nameof(AvisoSedeNoExiste))!;
+
         public static string NotaVisibilidadEventual =>
             ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
     }

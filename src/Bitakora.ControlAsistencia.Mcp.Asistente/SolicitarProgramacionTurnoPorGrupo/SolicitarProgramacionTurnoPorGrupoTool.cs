@@ -26,9 +26,10 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         [McpToolTrigger(
             NombreTool,
             "Programa un turno a todos los colaboradores de un grupo, definido por sede y/o etiquetas "
-            + "(ambos criterios se combinan), para los dias de una ventana de maximo 35 dias, en una "
-            + "sede de programacion. Para personas concretas usa solicitar_programacion_turno; los "
-            + "fallidos se reintentan con esa tool.")]
+            + "(ambos criterios se combinan), para los dias de una ventana de maximo 35 dias. La sede de "
+            + "programacion es opcional: sugierela al usuario y, si prefiere la sede de cada colaborador, "
+            + "omite el parametro; no es la sede de trabajo ni el selector sede del grupo. Para personas "
+            + "concretas usa solicitar_programacion_turno; los fallidos se reintentan con esa tool.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Primer dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
@@ -37,8 +38,12 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         string hasta,
         [McpToolProperty("turno", "Nombre exacto del turno del catalogo.", isRequired: true)]
         string turno,
-        [McpToolProperty("sede_de_programacion", "Codigo de la sede donde se registra la programacion.", isRequired: true)]
-        string sedeDeProgramacion,
+        [McpToolProperty(
+            "sede_de_programacion",
+            "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. "
+            + "Si prefiere la de cada colaborador, omitela. No es la sede de trabajo del grupo.",
+            isRequired: false)]
+        string? sedeDeProgramacion,
         [McpToolProperty("sede", "Codigo de la sede de trabajo de los colaboradores del grupo.", isRequired: false)]
         string? sede,
         [McpToolProperty("etiquetas", "Pares categoria:valor separados por coma.", isRequired: false)]
@@ -52,8 +57,6 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             return string.Format(Mensajes.CampoObligatorio, "hasta");
         if (string.IsNullOrWhiteSpace(turno))
             return string.Format(Mensajes.CampoObligatorio, "turno");
-        if (string.IsNullOrWhiteSpace(sedeDeProgramacion))
-            return string.Format(Mensajes.CampoObligatorio, "sede_de_programacion");
 
         var codigoSedeSelector = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
         var pares = (etiquetas ?? string.Empty)
@@ -96,13 +99,17 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
                 Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
-        var resolucionSede = await resolutorSedes.ResolverAsync(sedeDeProgramacion, ct);
-        if (resolucionSede.FalloDeLectura is { } falloSede)
-            return string.Format(Mensajes.RechazoDelDominio, falloSede);
-        if (resolucionSede.MensajeDelMotivo(
-            sedeDeProgramacion, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
-            return rechazo;
-        var sedeProgramada = resolucionSede.Sede!;
+        SedeProgramada? sedeExplicita = null;
+        if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))
+        {
+            var resolucionSede = await resolutorSedes.ResolverAsync(sedeDeProgramacion, ct);
+            if (resolucionSede.FalloDeLectura is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucionSede.MensajeDelMotivo(
+                sedeDeProgramacion, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+                return rechazo;
+            sedeExplicita = resolucionSede.Sede!;
+        }
 
         string? codigoCanonicoSelector = null;
         if (codigoSedeSelector is not null)
@@ -118,6 +125,12 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             codigoCanonicoSelector = resolucionSelector.Sede!.Id;
         }
 
+        var (planDeSede, falloMaestro) = await PlanDeSede.CrearAsync(
+            sedes, sedeExplicita, fichaTurno,
+            new MotivosDeAviso(Mensajes.AvisoSinSede, Mensajes.AvisoSedeInactiva, Mensajes.AvisoSedeNoExiste), ct);
+        if (falloMaestro is not null)
+            return string.Format(Mensajes.RechazoDelDominio, falloMaestro);
+
         var resolucionCandidatos = await resolutorCandidatos.ResolverAsync(
             fechaDesde, codigoCanonicoSelector, filtros, ct);
         if (resolucionCandidatos.FalloDeLectura is { } falloFichas)
@@ -129,14 +142,14 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         try
         {
             ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-                programacion, candidatos, Guid.Parse(fichaTurno.Id), sedeProgramada, ventana, contadores, ct);
+                programacion, candidatos, Guid.Parse(fichaTurno.Id), planDeSede!, ventana, contadores, ct);
         }
         finally
         {
             IndicadorDeEjecucion.Emitir(
                 registro, relojDeEjecucion, inicio,
                 new DatosDeIndicador(
-                    "grupo", candidatos.Count, fichaTurno.Nombre, sedeProgramada.Id,
+                    "grupo", candidatos.Count, fichaTurno.Nombre, sedeExplicita?.Id,
                     fechaDesde, fechaHasta, codigoCanonicoSelector,
                     filtros.Count == 0 ? null : string.Join(", ", filtros.Select(f => $"{f.Categoria}:{f.Valor}"))),
                 contadores);
@@ -150,25 +163,27 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         return RespuestaJson.Serializar(new ProgramacionPorGrupoResumen(
             Mensajes.ResultadoProgramacionSolicitada,
             fichaTurno.Nombre,
-            new SedeResumen(sedeProgramada.Id, sedeProgramada.Nombre),
+            sedeExplicita is null ? null : new SedeResumen(sedeExplicita.Id, sedeExplicita.Nombre),
             ventana.ToString(),
             selector,
             candidatos.Count,
             ejecucion.Programados,
             ejecucion.Omitidos,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual));
+            Mensajes.NotaVisibilidadEventual,
+            ejecucion.Avisos));
     }
 }
 
 public sealed record ProgramacionPorGrupoResumen(
     string Resultado,
     string Turno,
-    SedeResumen Sede,
+    SedeResumen? Sede,
     string Ventana,
     string Selector,
     int GrupoResuelto,
     IReadOnlyList<ColaboradorProgramadoResumen> Programados,
     int Omitidos,
     IReadOnlyList<ColaboradorFallidoResumen>? Fallidos,
-    string Nota);
+    string Nota,
+    IReadOnlyList<AvisoDeSede>? Avisos = null);

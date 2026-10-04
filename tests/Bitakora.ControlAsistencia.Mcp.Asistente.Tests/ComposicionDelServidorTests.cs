@@ -272,9 +272,9 @@ public class ComposicionDelServidorTests
             [("desde", true), ("hasta", true), ("codigos_colaborador", false)]);
 
     [Fact]
-    public void SolicitarProgramacionTurno_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+    public void SolicitarProgramacionTurno_DeclaraLaSedeDeProgramacionComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("solicitar_programacion_turno").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", true), ("identificaciones", true)]);
+            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", false), ("identificaciones", true)]);
 
     [Fact]
     public void ProgramarAusencia_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
@@ -287,9 +287,9 @@ public class ComposicionDelServidorTests
             [("identificacion", true), ("desde", true), ("hasta", true), ("completa", false)]);
 
     [Fact]
-    public void SolicitarProgramacionTurnoPorGrupo_DeclaraLaVentanaTurnoYSedeObligatoriasYElSelectorOpcional_CuandoSeInspeccionaLaTool() =>
+    public void SolicitarProgramacionTurnoPorGrupo_DeclaraLaVentanaYElTurnoObligatoriosYLaSedeDeProgramacionOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("solicitar_programacion_turno_por_grupo").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", true),
+            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", false),
              ("sede", false), ("etiquetas", false)]);
 
     [Fact]
@@ -309,5 +309,46 @@ public class ComposicionDelServidorTests
         directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
         File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
             .Should().Contain("solicitar_programacion_turno_por_grupo");
+    }
+
+    [Fact]
+    public void SolicitarProgramacionTurno_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
+        AsegurarSedeDeProgramacionOpcional("solicitar_programacion_turno");
+
+    [Fact]
+    public void SolicitarProgramacionTurnoPorGrupo_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
+        AsegurarSedeDeProgramacionOpcional("solicitar_programacion_turno_por_grupo");
+
+    private static void AsegurarSedeDeProgramacionOpcional(string nombreTool)
+    {
+        var metodo = MetodoDe(nombreTool);
+        var descripcionTool = ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+        var descripcionParametro = metodo.GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+            .Single(a => a?.PropertyName == "sede_de_programacion")!.Description;
+
+        foreach (var texto in new[] { descripcionTool, descripcionParametro })
+        {
+            texto.Should().NotContain("nunca la asumas");
+            texto.Should().NotContain("pidesela siempre");
+            texto.ToLowerInvariant().Should().Contain("opcional");
+        }
+        descripcionTool.ToLowerInvariant().Should().Contain("sede de cada colaborador");
+        descripcionTool.ToLowerInvariant().Should().Contain("sede de trabajo");
+    }
+
+    [Fact]
+    public void HostJson_NoOrdenaPedirLaSedeDeProgramacionSiempre_CuandoSeLeenLasInstructions()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null
+            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
+            directorio = directorio.Parent;
+
+        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
+        var instructions = File.ReadAllText(
+            Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"));
+        instructions.Should().NotContain("pidesela siempre al usuario");
+        instructions.Should().Contain("opcional");
     }
 }

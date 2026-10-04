@@ -21,7 +21,7 @@ public sealed class ResolutorCandidatosPorLista(ColaboradoresApi colaboradores)
         var candidatos = directorio
             .Where(e => normalizadas.Contains(e.Identificacion.Trim().ToUpperInvariant()))
             .Select(e => new CandidatoProgramacion(
-                e.Identificacion, e.CodigoColaborador, e.NombreCompleto, e.VigenteDesde, e.VigenteHasta))
+                e.Identificacion, e.CodigoColaborador, e.NombreCompleto, e.VigenteDesde, e.VigenteHasta, e.CodigoSede))
             .ToList();
 
         return new ResultadoCandidatos(candidatos, null);

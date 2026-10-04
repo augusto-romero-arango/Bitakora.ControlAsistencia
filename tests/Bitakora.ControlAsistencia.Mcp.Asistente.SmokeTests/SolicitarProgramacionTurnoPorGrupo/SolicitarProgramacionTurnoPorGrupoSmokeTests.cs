@@ -99,4 +99,44 @@ public class SolicitarProgramacionTurnoPorGrupoSmokeTests(McpFixture mcp, Progra
         resultado.Content.OfType<TextContentBlock>().Single().Text
             .Should().Be("La etiqueta 'area' no tiene la forma categoria:valor.");
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurnoPorGrupo_ProgramaConLaSedeDeCadaColaborador_CuandoNoSeIndicaSedeDeProgramacion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoSede = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
+        var (_, codigoUno) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
+        var nombreTurno = $"[TEST] Turno MCP {Guid.CreateVersion7()}";
+        await SembrarTurnoAsync(nombreTurno, ct);
+
+        var argumentos = new Dictionary<string, object?>
+        {
+            ["desde"] = "2026-09-01",
+            ["hasta"] = "2026-09-03",
+            ["turno"] = nombreTurno,
+            ["sede"] = codigoSede
+        };
+
+        using var documento = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var respuesta = await mcp.Cliente.CallToolAsync(
+                    "solicitar_programacion_turno_por_grupo", argumentos, cancellationToken: ct);
+                var candidato = JsonDocument.Parse(respuesta.Content.OfType<TextContentBlock>().Single().Text);
+
+                if (candidato.RootElement.TryGetProperty("programados", out var programados)
+                    && programados.EnumerateArray().Any(p => p.GetProperty("codigoColaborador").GetString() == codigoUno))
+                    return candidato;
+
+                candidato.Dispose();
+                return null;
+            },
+            TimeoutPolling);
+
+        documento.RootElement.TryGetProperty("fallidos", out _).Should().BeFalse();
+        (!documento.RootElement.TryGetProperty("sede", out var sedeNivelSuperior)
+            || sedeNivelSuperior.ValueKind == JsonValueKind.Null)
+            .Should().BeTrue("no hubo sede explicita");
+    }
 }
