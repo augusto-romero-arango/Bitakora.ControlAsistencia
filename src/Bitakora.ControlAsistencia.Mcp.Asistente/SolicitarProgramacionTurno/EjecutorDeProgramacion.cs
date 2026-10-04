@@ -94,10 +94,15 @@ internal static class EjecutorDeProgramacion
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
+    private sealed record Envio(CandidatoProgramacion Entrada, TurnoAProgramar Turno, IReadOnlyList<DateOnly> Dias);
+
+    private sealed record ResultadoEnvio(
+        Envio Envio, bool Exito, IReadOnlyList<FechaRespetadaPorAusencia> Respetadas, string? Motivo);
+
     public static async Task<ResultadoEjecucion> EjecutarAsync(
         ProgramacionApi programacion,
         IReadOnlyList<CandidatoProgramacion> solicitados,
-        Guid turnoId,
+        AsignacionDeTurno asignacion,
         PlanDeSede planDeSede,
         VentanaDeProgramacion ventana,
         ContadoresDeEjecucion contadores,
@@ -111,67 +116,103 @@ internal static class EjecutorDeProgramacion
         var omitidos = solicitados.Count - candidatos.Count;
         contadores.Omitidos += omitidos;
 
-        var programados = new ConcurrentBag<ColaboradorProgramadoResumen>();
-        var fallidos = new ConcurrentBag<ColaboradorFallidoResumen>();
-        var avisos = new ConcurrentBag<AvisoDeSede>();
+        var envios = candidatos
+            .SelectMany(c => c.Dias
+                .GroupBy(asignacion.Para)
+                .Select(g => new Envio(c.Entrada, g.Key, [.. g])))
+            .ToList();
+
+        var resultados = new ConcurrentBag<ResultadoEnvio>();
+        // Los contadores avanzan durante los POST para que el indicador conserve los conteos
+        // parciales si la ejecucion termina por excepcion o cancelacion; cuentan colaboradores.
+        var conPostExitoso = new ConcurrentDictionary<string, byte>();
+        var conPostRechazado = new ConcurrentDictionary<string, byte>();
 
         await Parallel.ForEachAsync(
-            candidatos,
+            envios,
             new ParallelOptions { MaxDegreeOfParallelism = PostsSimultaneos, CancellationToken = ct },
-            async (candidato, tokenInterno) =>
+            async (envio, tokenInterno) =>
             {
-                var sedeDelCandidato = planDeSede.Para(candidato.Entrada);
                 var solicitud = new SolicitudProgramacionTurno(
                     Guid.CreateVersion7(),
-                    turnoId,
+                    envio.Turno.Id,
                     new ColaboradorSolicitado(
-                        candidato.Entrada.Identificacion,
-                        candidato.Entrada.CodigoColaborador,
-                        candidato.Entrada.NombreCompleto),
-                    candidato.Dias,
-                    sedeDelCandidato.Sede);
+                        envio.Entrada.Identificacion,
+                        envio.Entrada.CodigoColaborador,
+                        envio.Entrada.NombreCompleto),
+                    envio.Dias,
+                    planDeSede.Para(envio.Entrada).Sede);
 
                 var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
 
                 if (respuestaSolicitud.IsSuccessStatusCode)
                 {
                     var respetadas = await LeerRespetadasAsync(respuestaSolicitud, tokenInterno);
-                    var fechasRespetadas = respetadas.Select(r => r.Fecha).ToHashSet();
-                    var diasProgramados = candidato.Dias.Count(d => !fechasRespetadas.Contains(d));
-                    var respetados = respetadas
-                        .Where(r => candidato.Dias.Contains(r.Fecha))
-                        .GroupBy(r => r.Motivo)
-                        .OrderBy(g => g.Key, StringComparer.Ordinal)
-                        .Select(g => new DiasRespetadosResumen(
-                            g.Key, ComprimirEnTramos(g.Select(r => r.Fecha), candidato.Dias[0])))
-                        .ToList();
-
-                    Interlocked.Increment(ref contadores.Programados);
-                    programados.Add(new ColaboradorProgramadoResumen(
-                        candidato.Entrada.Identificacion,
-                        candidato.Entrada.NombreCompleto,
-                        candidato.Entrada.CodigoColaborador,
-                        candidato.Dias[0],
-                        candidato.Dias[^1],
-                        diasProgramados,
-                        respetados.Count == 0 ? null : respetados,
-                        planDeSede.HaySedeExplicita ? null : sedeDelCandidato.Sede?.Id));
-                    if (sedeDelCandidato.MotivoDeAviso is { } motivoAviso)
-                        avisos.Add(new AvisoDeSede(candidato.Entrada.Identificacion, motivoAviso));
+                    resultados.Add(new ResultadoEnvio(envio, true, respetadas, null));
+                    if (conPostExitoso.TryAdd(envio.Entrada.Identificacion, 0))
+                        Interlocked.Increment(ref contadores.Programados);
                 }
                 else
                 {
                     var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
-                    Interlocked.Increment(ref contadores.Fallidos);
-                    fallidos.Add(new ColaboradorFallidoResumen(candidato.Entrada.Identificacion, motivo));
+                    resultados.Add(new ResultadoEnvio(envio, false, [], motivo));
+                    if (conPostRechazado.TryAdd(envio.Entrada.Identificacion, 0))
+                        Interlocked.Increment(ref contadores.Fallidos);
                 }
             });
+
+        var programados = new List<ColaboradorProgramadoResumen>();
+        var fallidos = new List<ColaboradorFallidoResumen>();
+        var avisos = new List<AvisoDeSede>();
+
+        foreach (var porColaborador in resultados.GroupBy(r => r.Envio.Entrada.Identificacion))
+        {
+            var entrada = porColaborador.First().Envio.Entrada;
+
+            fallidos.AddRange(porColaborador
+                .Where(r => !r.Exito)
+                .OrderBy(r => r.Envio.Dias[0])
+                .Select(r => new ColaboradorFallidoResumen(
+                    entrada.Identificacion, r.Motivo!, asignacion.UsaUnSoloTurno ? null : r.Envio.Turno.Nombre)));
+
+            var exitosos = porColaborador.Where(r => r.Exito).ToList();
+            if (exitosos.Count == 0)
+                continue;
+
+            var diasProgramados = exitosos.SelectMany(r => r.Envio.Dias).Order().ToList();
+            var conjuntoProgramados = diasProgramados.ToHashSet();
+            var respetadas = exitosos
+                .SelectMany(r => r.Respetadas)
+                .Where(r => conjuntoProgramados.Contains(r.Fecha))
+                .ToList();
+            var fechasRespetadas = respetadas.Select(r => r.Fecha).ToHashSet();
+            var respetados = respetadas
+                .GroupBy(r => r.Motivo)
+                .OrderBy(g => g.Key, StringComparer.Ordinal)
+                .Select(g => new DiasRespetadosResumen(
+                    g.Key, ComprimirEnTramos(g.Select(r => r.Fecha), diasProgramados[0])))
+                .ToList();
+
+            var sedeDelCandidato = planDeSede.Para(entrada);
+            programados.Add(new ColaboradorProgramadoResumen(
+                entrada.Identificacion,
+                entrada.NombreCompleto,
+                entrada.CodigoColaborador,
+                diasProgramados[0],
+                diasProgramados[^1],
+                diasProgramados.Count(d => !fechasRespetadas.Contains(d)),
+                respetados.Count == 0 ? null : respetados,
+                planDeSede.HaySedeExplicita ? null : sedeDelCandidato.Sede?.Id));
+            if (sedeDelCandidato.MotivoDeAviso is { } motivoAviso
+                && exitosos.Any(r => r.Envio.Turno.TieneFranjaSinSede))
+                avisos.Add(new AvisoDeSede(entrada.Identificacion, motivoAviso));
+        }
 
         return new ResultadoEjecucion(
             [.. programados.OrderBy(p => p.Identificacion, StringComparer.Ordinal)],
             omitidos,
-            fallidos.IsEmpty ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)],
-            avisos.IsEmpty ? null : [.. avisos.OrderBy(a => a.Identificacion, StringComparer.Ordinal)]);
+            fallidos.Count == 0 ? null : [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)],
+            avisos.Count == 0 ? null : [.. avisos.OrderBy(a => a.Identificacion, StringComparer.Ordinal)]);
     }
 
     private static async Task<IReadOnlyList<FechaRespetadaPorAusencia>> LeerRespetadasAsync(

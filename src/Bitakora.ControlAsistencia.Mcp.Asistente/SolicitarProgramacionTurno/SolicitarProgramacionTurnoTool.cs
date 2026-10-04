@@ -149,7 +149,8 @@ public partial class SolicitarProgramacionTurnoTool(
         try
         {
             ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-                programacion, solicitados, Guid.Parse(fichaTurno.Id), planDeSede!, ventana, contadores, ct);
+                programacion, solicitados, AsignacionDeTurno.UnSoloTurno(TurnoAProgramar.De(fichaTurno)),
+                planDeSede!, ventana, contadores, ct);
         }
         finally
         {
@@ -202,4 +203,4 @@ public sealed record ColaboradorProgramadoResumen(
 
 public sealed record DiasRespetadosResumen(string Motivo, string Tramos);
 
-public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo);
+public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo, string? Turno = null);

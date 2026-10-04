@@ -142,7 +142,8 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         try
         {
             ejecucion = await EjecutorDeProgramacion.EjecutarAsync(
-                programacion, candidatos, Guid.Parse(fichaTurno.Id), planDeSede!, ventana, contadores, ct);
+                programacion, candidatos, AsignacionDeTurno.UnSoloTurno(TurnoAProgramar.De(fichaTurno)),
+                planDeSede!, ventana, contadores, ct);
         }
         finally
         {
