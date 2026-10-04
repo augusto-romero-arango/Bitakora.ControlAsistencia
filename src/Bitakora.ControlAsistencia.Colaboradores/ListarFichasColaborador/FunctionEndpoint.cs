@@ -154,11 +154,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 || (f.NombreCompleto == cursorNombre && f.Id.CompareTo(cursorId) > 0));
         }
 
-        // CA-3: Take se acota en el servidor -- nunca se pasa crudo a Marten.
-        // CA-ADR-0038: sin Take el llamador interno recibe todo el filtro, sin tope.
         var ordenada = query.OrderBy(f => f.NombreCompleto).ThenBy(f => f.Id);
-        var paginada = filtro.Take is { } take
-            ? ordenada.Take(Math.Clamp(take, 1, TakeMaximo))
+        var paginada = TakeEfectivo(filtro.Take) is { } take
+            ? ordenada.Take(take)
             : ordenada;
 
         var fichas = await paginada.ToListAsync(ct);
@@ -174,6 +172,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // la ultima fila; fin de la lista = pagina con menos de Take filas.
         return new OkObjectResult(fichas.Select(FichaColaboradorRespuesta.DesdeVista).ToList());
     }
+
+    // Take enviado se acota en el servidor (MEF-ADR-0042 seccion 2); sin Take (null) el llamador
+    // interno recibe todo el filtro, sin tope -- desviacion documentada en CA-ADR-0038.
+    internal static int? TakeEfectivo(int? take) =>
+        take is { } valor ? Math.Clamp(valor, 1, TakeMaximo) : null;
 
     // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012). Construye
     // Etiqueta.Crear(Categoria, Valor) con cada par recibido: es el VO quien decide como se

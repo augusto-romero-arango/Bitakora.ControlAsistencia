@@ -146,15 +146,10 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 || (d.NombreCompleto == cursorNombre && d.Id.CompareTo(cursorId) > 0));
         }
 
-        // CA-ADR-0038: con identificaciones el resultado queda acotado por la entrada, asi que sin Take
-        // devuelve todo y con Take lo respeta sin tope superior. Solo por nombre conserva default y tope.
         var ordenada = query.OrderBy(d => d.NombreCompleto).ThenBy(d => d.Id);
-        IQueryable<DirectorioColaborador> paginada = (tieneIdentificaciones, filtro.Take) switch
-        {
-            (true, null) => ordenada,
-            (true, { } take) => ordenada.Take(Math.Max(take, 1)),
-            (false, var take) => ordenada.Take(Math.Clamp(take ?? TakeDefaultPorNombre, 1, TakeMaximo)),
-        };
+        var paginada = TakeEfectivo(tieneIdentificaciones, filtro.Take) is { } take
+            ? ordenada.Take(take)
+            : ordenada;
         var directorio = await paginada.ToListAsync(ct);
 
         // Lista plana sin envoltura: el cliente deriva el cursor de la ultima fila y detecta el fin
@@ -162,6 +157,15 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // aparecen -- el directorio no filtra por vigencia.
         return new OkObjectResult(directorio.Select(DirectorioColaboradorRespuesta.DesdeVista).ToList());
     }
+
+    // CA-ADR-0038: con identificaciones el resultado queda acotado por la entrada, asi que sin Take
+    // devuelve todo (null) y con Take lo respeta sin tope superior. Solo por nombre conserva default y tope.
+    internal static int? TakeEfectivo(bool tieneIdentificaciones, int? take) => (tieneIdentificaciones, take) switch
+    {
+        (true, null) => null,
+        (true, { } valor) => Math.Max(valor, 1),
+        (false, _) => Math.Clamp(take ?? TakeDefaultPorNombre, 1, TakeMaximo),
+    };
 
     // MEF-ADR-0042 seccion 3: el 422 se emite con mensaje, nunca como codigo pelado.
     private static ObjectResult NoProcesable(string mensaje) =>

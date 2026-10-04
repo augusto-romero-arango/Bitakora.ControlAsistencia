@@ -270,4 +270,25 @@ public class FunctionEndpointTests
             VigenteDesde: new DateOnly(2026, 1, 1),
             VigenteHasta: null));
     }
+
+    // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
+    [Fact]
+    public void TakeEfectivo_NoAplicaTope_CuandoHayIdentificacionesSinTake() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: null).Should().BeNull();
+
+    [Fact]
+    public void TakeEfectivo_RespetaElTakeSinTopeSuperior_CuandoHayIdentificaciones() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: 250).Should().Be(250);
+
+    [Fact]
+    public void TakeEfectivo_AcotaA1_CuandoHayIdentificacionesYTakeMenorQue1() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: 0).Should().Be(1);
+
+    [Fact]
+    public void TakeEfectivo_Devuelve50_CuandoSoloHayNombreSinTake() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: false, take: null).Should().Be(50);
+
+    [Fact]
+    public void TakeEfectivo_AcotaA200_CuandoSoloHayNombreYTakeMayorA200() =>
+        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: false, take: 500).Should().Be(200);
 }
