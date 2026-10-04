@@ -1,0 +1,22 @@
+[
+ {
+  "id": "s:TEST-01a04653-70e8-77bd-8f99-342a693076ab",
+  "codigo": "TEST-01a04653-70e8-77bd-8f99-342a693076ab",
+  "nombre": "[TEST] Sede Norte",
+  "ciudad": "Bogota",
+  "direccion": "Calle 1 # 2-3",
+  "centroDeCostos": null,
+  "activa": true,
+  "dispositivos": []
+ },
+ {
+  "id": "s:TEST-01a04653-4180-775f-abde-46d45cfa252f",
+  "codigo": "TEST-01a04653-4180-775f-abde-46d45cfa252f",
+  "nombre": "[TEST] Sede Original",
+  "ciudad": null,
+  "direccion": null,
+  "centroDeCostos": null,
+  "activa": true,
+  "dispositivos": []
+ }
+]
