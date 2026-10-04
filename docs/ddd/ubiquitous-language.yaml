@@ -4,7 +4,9 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-09-05 (sesion planner, refinar la cadena de la plantilla semanal #620-#629 a
+# Ultima actualizacion: 2026-10-04 (#805: Servidores MCP de Consultas y de Comandos marcados historicos;
+#   nace la entrada Servidor MCP Asistente, servidor unico del BC, CA-ADR-0037.)
+# Actualizacion previa: 2026-09-05 (sesion planner, refinar la cadena de la plantilla semanal #620-#629 a
 #   estado:listo. Decisiones del experto: tope 6 semanas; el dia de la semana se codifica como numero ISO 8601
 #   (1 = lunes ... 7 = domingo) -- ni DayOfWeek (domingo=0) ni la palabra en espanol (etiqueta localizable, no
 #   codigo); solo turnos COMPLETOS son asignables a un dia; los comandos que confirman en la transaccion
@@ -733,7 +735,12 @@ terms:
     date_added: 2026-09-03
 
   - name: Servidor MCP de Consultas
+    status: historico
+    superseded_by: Servidor MCP Asistente
+    date_retired: 2026-10-04
     definition: >
+      HISTORICO -- retirado el dia del merge de #805 (codigo y workflows; la infra se retira en
+      #806). Lo reemplaza el Servidor MCP Asistente (CA-ADR-0037). Definicion original:
       Superficie MCP remota y serverless del BC para el asistente de composicion asistida:
       tools de SOLO LECTURA, fachadas delgadas y stateless sobre los endpoints HTTP de los
       dominios (cliente HTTP puro, cero referencias a ensamblados del dominio). Un servidor
@@ -753,7 +760,12 @@ terms:
     date_added: 2026-08-29
 
   - name: Servidor MCP de Comandos
+    status: historico
+    superseded_by: Servidor MCP Asistente
+    date_retired: 2026-10-04
     definition: >
+      HISTORICO -- retirado el dia del merge de #805 (codigo y workflows; la infra se retira en
+      #806). Lo reemplaza el Servidor MCP Asistente (CA-ADR-0037). Definicion original:
       Par de ESCRITURA del Servidor MCP de Consultas: superficie MCP remota y serverless del BC
       cuyas tools mutan estado invocando los comandos HTTP ya existentes de los dominios
       (cliente HTTP puro, cero referencias a ensamblados del BC; MEF-ADR-0047). Es un Function
@@ -780,6 +792,26 @@ terms:
       registrar_colaborador. Limitacion conocida: un cliente MCP que omita el parametro resource
       recibe aud del default (Consultas) y Comandos lo rechaza con 401.
     date_added: 2026-09-02
+
+  - name: Servidor MCP Asistente
+    definition: >
+      Servidor MCP UNICO del BC, de lectura y escritura: superficie MCP remota y serverless para
+      el asistente de composicion asistida, con tools stateless que son fachadas delgadas sobre
+      los endpoints HTTP de los dominios (cliente HTTP puro, cero referencias a ensamblados del
+      dominio; MEF-ADR-0047). Proyecto Bitakora.ControlAsistencia.Mcp.Asistente, Function App
+      func-asist-dev-mcp-asistente, ruta {gateway}/mcp-asistente detras de APIM con el flujo
+      Connect de AuthKit: la frontera real es la audiencia OAuth del token, no la system key.
+      El MCP es un adaptador del lado del cliente (tipo BFF): el corte de servidores sigue la
+      tarea del agente y su perfil de riesgo, no CQS. Reemplaza a los Servidores MCP de
+      Consultas y de Comandos (historicos, retirados en #805/#806).
+    context: Transversal (BC completo)
+    rejected_synonyms: [Mcp a secas, particion Consultas/Comandos por CQS]
+    rejection_reason: >
+      "Mcp a secas": el scaffold exige un proposito, y "asistente MCP" es el actor que el
+      glosario ya usa para el cliente. Particion por CQS: sin roles en el codigo MCP no
+      restringia a nadie y partia la experiencia (CA-ADR-0037). Se reabre solo con
+      autorizacion efectiva si aparece un actor que deba leer sin poder escribir.
+    date_added: 2026-10-03
 
   - name: Depuracion
     definition: >

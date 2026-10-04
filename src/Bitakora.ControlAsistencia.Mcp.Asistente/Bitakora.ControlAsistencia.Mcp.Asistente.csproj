@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <!-- Unica excepcion al "cero ProjectReference" de arriba (CA-ADR-0032): TenantResolver es
-       infraestructura transversal de identidad, no codigo de dominio, mismo reuso que Mcp.Comandos. -->
+       infraestructura transversal de identidad, no codigo de dominio. -->
   <ItemGroup>
     <ProjectReference Include="..\Bitakora.ControlAsistencia.TenantResolver\Bitakora.ControlAsistencia.TenantResolver.csproj" />
   </ItemGroup>

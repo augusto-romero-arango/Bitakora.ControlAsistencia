@@ -1,6 +1,0 @@
-[
-  { "id": "0190aaaa-0000-7000-8000-000000000001", "motivo": "IncapacidadMedica", "fechaInicio": "2026-09-15", "fechaFin": "2026-09-24",
-    "tramosVigentes": [ { "desde": "2026-09-15", "hasta": "2026-09-24" } ] },
-  { "id": "0190aaaa-0000-7000-8000-000000000002", "motivo": "Vacaciones", "fechaInicio": "2026-09-28", "fechaFin": "2026-10-09",
-    "tramosVigentes": [ { "desde": "2026-09-28", "hasta": "2026-10-02" }, { "desde": "2026-10-06", "hasta": "2026-10-09" } ] }
-]

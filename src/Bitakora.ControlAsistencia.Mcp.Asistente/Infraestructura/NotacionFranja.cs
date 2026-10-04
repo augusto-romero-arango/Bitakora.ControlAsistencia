@@ -4,10 +4,8 @@ using System.Text;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 // Formato HH:mm de las franjas, en las dos direcciones: lo que entra por parametro de tool
-// (TryParseHora) y lo que sale en el eco (Compactar). Compartido por las tools de diseno de turno
-// (#609-#611). Replica el formato HH:mm[+N]-HH:mm[+N] que ObtenerTurnoTool.Compactar ya usa en
-// Mcp.Consultas -- se replica el texto, no el tipo (MEF-ADR-0047 decision 3: cada servidor MCP es
-// una isla).
+// (TryParseHora) y lo que sale en el eco (Compactar, HH:mm[+N]-HH:mm[+N]). Compartido por las
+// tools de diseno de turno.
 internal static class NotacionFranja
 {
     private static readonly string[] FormatosAceptados = ["HH:mm", "H:mm"];
