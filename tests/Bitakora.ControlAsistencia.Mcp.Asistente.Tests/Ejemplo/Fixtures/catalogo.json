@@ -1,0 +1,6 @@
+[
+  { "id": "elem-001", "nombre": "  Elemento Uno  ", "detalle": "detalle interno 1" },
+  { "id": "elem-002", "nombre": "Elemento Ñandú", "detalle": "detalle interno 2" },
+  { "id": "elem-003", "nombre": "Elemento Tres", "detalle": null },
+  { "id": "elem-004", "nombre": "Otro Elemento", "detalle": "detalle interno 4" }
+]

@@ -1,0 +1,18 @@
+{
+    "version": "2.0",
+    "telemetryMode": "OpenTelemetry",
+    "logging": {
+        "logLevel": {
+            "default": "Warning",
+            "Function": "Information",
+            "Host.Results": "Information"
+        }
+    },
+    "extensions": {
+        "mcp": {
+            "serverName": "ControlAsistencias Asistente",
+            "serverVersion": "1.0.0",
+            "instructions": "Servidor MCP unico del bounded context ControlAsistencias, de lectura y escritura: consultara y registrara turnos, sedes, colaboradores, programacion y ausencias. Por ahora solo expone la tool de ejemplo ejemplo_listar; las tools reales llegan en las siguientes entregas. Todas las tools son stateless: pasa siempre los parametros completos en cada llamada."
+        }
+    }
+}
