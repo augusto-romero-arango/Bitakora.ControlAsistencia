@@ -5,11 +5,10 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-// Puebla la identidad ambiente (TenantExecutionContext) para invocaciones de tool MCP, analogo a
-// IdentidadTenantMcpMiddleware de Mcp.Consultas (issue #540). Lee el Authorization del
-// ToolInvocationContext y no de FunctionContext.GetHttpContext(): una invocacion por
-// McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo sirve el
-// paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
+// Puebla la identidad ambiente (TenantExecutionContext) para invocaciones de tool MCP. Lee el
+// Authorization del ToolInvocationContext y no de FunctionContext.GetHttpContext(): una
+// invocacion por McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo
+// sirve el paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
 public sealed partial class IdentidadTenantMcpMiddleware(
     IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
 {
