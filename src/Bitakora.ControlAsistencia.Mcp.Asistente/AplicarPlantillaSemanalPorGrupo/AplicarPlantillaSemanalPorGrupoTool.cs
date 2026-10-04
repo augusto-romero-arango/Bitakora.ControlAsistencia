@@ -59,8 +59,8 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             return string.Format(Mensajes.CampoObligatorio, "plantilla");
 
         var mensajesSelector = new MensajesDeSelector(
-                Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
-                Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio);
+            Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
+            Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio);
         var (selectorInterpretado, rechazoInterpretacion) = SelectorDeGrupo.Interpretar(
             sede, etiquetas, mensajesSelector);
         if (rechazoInterpretacion is not null)
