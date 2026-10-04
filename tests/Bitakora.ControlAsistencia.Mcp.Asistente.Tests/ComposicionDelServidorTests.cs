@@ -302,6 +302,35 @@ public class ComposicionDelServidorTests
              ("sede", false), ("etiquetas", false)]);
 
     [Fact]
+    public void AplicarPlantillaSemanalPorGrupo_DeclaraLaVentanaYLaPlantillaObligatoriasYLosDemasOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("aplicar_plantilla_semanal_por_grupo").Should().BeEquivalentTo(
+            [("desde", true), ("hasta", true), ("plantilla", true), ("sede_de_programacion", false),
+             ("sede", false), ("etiquetas", false)]);
+
+    [Fact]
+    public void AplicarPlantillaSemanalPorGrupo_RemiteALaToolDePersonas_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("aplicar_plantilla_semanal_por_grupo"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("aplicar_plantilla_semanal").And.Contain("plantilla semanal");
+
+    [Fact]
+    public void AplicarPlantillaSemanalPorGrupo_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
+        AsegurarSedeDeProgramacionOpcional("aplicar_plantilla_semanal_por_grupo");
+
+    [Fact]
+    public void HostJson_MencionaLaToolDePlantillaPorGrupo_CuandoSeLeenLasInstructions()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null
+            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
+            directorio = directorio.Parent;
+
+        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
+        File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
+            .Should().Contain("aplicar_plantilla_semanal_por_grupo");
+    }
+
+    [Fact]
     public void SolicitarProgramacionTurno_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
         ParametroTrigger(MetodoDe("solicitar_programacion_turno"))!
             .GetCustomAttribute<McpToolTriggerAttribute>()!
