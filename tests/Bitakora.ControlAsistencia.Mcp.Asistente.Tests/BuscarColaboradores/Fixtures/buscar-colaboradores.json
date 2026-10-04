@@ -1,0 +1,32 @@
+[
+  {
+    "identificacion": "CC-79879078",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "79879078",
+    "nombreCompleto": "[TEST] Juan Pablo Bermudez",
+    "codigoColaborador": "COL-10",
+    "codigoSede": "SEDE-NORTE",
+    "vigenteDesde": "2024-01-15",
+    "vigenteHasta": null
+  },
+  {
+    "identificacion": "CC-10047766882",
+    "tipoDocumento": "CC",
+    "numeroDocumento": "10047766882",
+    "nombreCompleto": "[TEST] Juan Rodriguez",
+    "codigoColaborador": "COL-11",
+    "codigoSede": "SEDE-SUR",
+    "vigenteDesde": "2022-03-01",
+    "vigenteHasta": "2026-06-30"
+  },
+  {
+    "identificacion": "CE-556677",
+    "tipoDocumento": "CE",
+    "numeroDocumento": "556677",
+    "nombreCompleto": "[TEST] Juan Camilo Ortiz",
+    "codigoColaborador": "COL-12",
+    "codigoSede": null,
+    "vigenteDesde": "2025-02-10",
+    "vigenteHasta": null
+  }
+]

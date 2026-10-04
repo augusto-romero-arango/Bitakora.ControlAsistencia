@@ -15,6 +15,7 @@ builder.UseMiddleware<ArgumentosCrudosMcpMiddleware>();
 builder.Services.ConfigurarIdentidadTenant(builder.Configuration);
 builder.Services.ConfigurarClientesHttp(builder.Configuration);
 builder.Services.ConfigurarObservabilidadMcp();
+builder.Services.AddSingleton(TimeProvider.System);
 
 // Defensa en profundidad (MEF-ADR-0047 decision 7): el gate real vive en la politica dedicada de
 // APIM (MEF-ADR-0032 seccion 9). ValidateAudience = false -- la audiencia ya la exige esa politica.
