@@ -202,4 +202,4 @@ public sealed record ColaboradorProgramadoResumen(
 
 public sealed record DiasRespetadosResumen(string Motivo, string Tramos);
 
-public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo);
+public sealed record ColaboradorFallidoResumen(string Identificacion, string Motivo, string? Turno = null);

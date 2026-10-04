@@ -94,6 +94,15 @@ internal static class EjecutorDeProgramacion
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
+    public static Task<ResultadoEjecucion> EjecutarAsync(
+        ProgramacionApi programacion,
+        IReadOnlyList<CandidatoProgramacion> solicitados,
+        AsignacionDeTurno asignacion,
+        PlanDeSede planDeSede,
+        VentanaDeProgramacion ventana,
+        ContadoresDeEjecucion contadores,
+        CancellationToken ct) => throw new NotImplementedException();
+
     public static async Task<ResultadoEjecucion> EjecutarAsync(
         ProgramacionApi programacion,
         IReadOnlyList<CandidatoProgramacion> solicitados,
