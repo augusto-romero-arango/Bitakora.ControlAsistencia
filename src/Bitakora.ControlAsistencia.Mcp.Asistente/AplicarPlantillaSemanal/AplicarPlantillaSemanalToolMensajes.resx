@@ -26,4 +26,12 @@
   <data name="PlantillaNoExiste" xml:space="preserve"><value>No existe la plantilla semanal '{0}'. Plantillas disponibles: {1}.</value></data>
   <data name="PlantillaIncompleta" xml:space="preserve"><value>La plantilla semanal '{0}' esta incompleta: no se puede aplicar.</value></data>
   <data name="PlantillaConTurnoNoProgramable" xml:space="preserve"><value>La plantilla semanal '{0}' referencia un turno retirado o incompleto: no se puede aplicar.</value></data>
+  <data name="SedeNoExiste" xml:space="preserve"><value>No existe una sede con el codigo '{0}'; usa listar_sedes para verla.</value></data>
+  <data name="SedeInactiva" xml:space="preserve"><value>La sede '{0}' esta inactiva.</value></data>
+  <data name="RechazoDelDominio" xml:space="preserve"><value>El dominio rechazo la solicitud: {0}</value></data>
+  <data name="ResultadoPlantillaAplicada" xml:space="preserve"><value>Plantilla semanal aplicada</value></data>
+  <data name="NotaVisibilidadEventual" xml:space="preserve"><value>La programacion aparece en consultar_programacion unos segundos despues.</value></data>
+  <data name="AvisoSinSede" xml:space="preserve"><value>sin sede asignada</value></data>
+  <data name="AvisoSedeInactiva" xml:space="preserve"><value>sede {0} inactiva</value></data>
+  <data name="AvisoSedeNoExiste" xml:space="preserve"><value>sede {0} no existe</value></data>
 </root>

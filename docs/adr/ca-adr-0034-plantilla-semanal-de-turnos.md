@@ -24,9 +24,9 @@ Dos fuerzas reabren la decision:
 2. **El mapa de contexto ya lo prometia.** `docs/eda/context-map.yaml` describia Programacion como "ciclos y
    patrones semanales" desde el inicio; la decision de agosto lo dejo en contradiccion.
 
-Fuera de esta decision queda **asignar** una plantilla a un colaborador (acotada o abierta, alineacion al
-lunes, si el hecho "tiene la plantilla X" se registra). El experto lo saco explicitamente del foco: esta
-sesion es de **construccion** de plantillas.
+Fuera de la decision original quedaba **asignar** una plantilla a un colaborador; el experto lo saco
+explicitamente del foco de la sesion de **construccion**. Aplicarla queda resuelto en la seccion
+"Aplicar una plantilla" (enmienda 2026-10-04, #828).
 
 ## Decision
 
@@ -163,6 +163,22 @@ sesion es de **construccion** de plantillas.
 - ~~Ventana entre editar un turno y que el cuadro refresque `Descripcion`~~ -- eliminada por la enmienda
   2026-09-05: la descripcion se resuelve al leer.
 
+## Aplicar una plantilla
+
+Enmienda 2026-10-04 (#828, tool `aplicar_plantilla_semanal`).
+
+- **Composicion del asistente.** Aplicar es una composicion: no hay asignacion persistida ni aggregate nuevo, y
+  el hecho "tiene la plantilla X" **no** se registra. La tool emite las mismas solicitudes que
+  `solicitar_programacion_turno`, una por colaborador y por turno distinto.
+- **Alineacion de semanas.** La semana calendario (lunes a domingo) que contiene `desde` usa la semana 1 del
+  molde; cada lunes avanza una semana y, al pasar de `Semanas`, vuelve a la 1. El dia se toma en ISO (1..7).
+  Empezar a mitad de semana o recortar dias por vigencia no reinicia el molde: depende solo del calendario.
+- **Paridad de la regla de dias.** Los dias de cada colaborador salen del mismo ejecutor que
+  `solicitar_programacion_turno` (ventana cruzada con la vigencia de la vinculacion, sin mirar hoy); la tool
+  solo aporta la asignacion fecha -> turno.
+- **Cascada de sede (#827).** Sede explicita invalida rechaza todo; sin explicita se usa la sede del
+  colaborador; si no hay, se envia `null` con aviso cuando algun turno programado tiene franjas sin sede.
+
 ## Referencias
 
 - Issues: #620 (crear), #621 (asignar dia), #622 (quitar dia), #623 (retirar), #624 (vista N1), #625
@@ -184,3 +200,4 @@ sesion es de **construccion** de plantillas.
   asignables. Decision 5: N2 con grouper -> N1 + composicion en lectura (opcion B), con las hipotesis del
   write-side descartadas. Decision 6: `dias` JSON, PUT secuenciales, turno inline diferido a #651. Nace #640
   (inventario de codigos) y CA-ADR-0035.
+- 2026-10-04: enmendado (#828). Se agrega "Aplicar una plantilla" y se actualiza el parrafo que dejaba asignar fuera de alcance.
