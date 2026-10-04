@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasVeintinueveTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasTreintaTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -43,8 +43,8 @@ public class ComposicionDelServidorTests
                 "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "solicitar_programacion_turno",
-                "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "programar_ausencia",
-                "cancelar_ausencia"
+                "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
+                "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia"
             ]);
     }
 
@@ -135,6 +135,9 @@ public class ComposicionDelServidorTests
         ("solicitar_programacion_turno_por_grupo", "Programa un turno a todos los colaboradores de un grupo",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("aplicar_plantilla_semanal", "Aplica una plantilla semanal de turnos a una lista de colaboradores",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("aplicar_plantilla_semanal_por_grupo",
+            "Aplica una plantilla semanal de turnos a todos los colaboradores de un grupo",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("programar_ausencia", "Registra una ausencia de un colaborador: dias completos en que no vendra a trabajar",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -300,6 +303,35 @@ public class ComposicionDelServidorTests
         PropiedadesDe("solicitar_programacion_turno_por_grupo").Should().BeEquivalentTo(
             [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", false),
              ("sede", false), ("etiquetas", false)]);
+
+    [Fact]
+    public void AplicarPlantillaSemanalPorGrupo_DeclaraLaVentanaYLaPlantillaObligatoriasYLosDemasOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("aplicar_plantilla_semanal_por_grupo").Should().BeEquivalentTo(
+            [("desde", true), ("hasta", true), ("plantilla", true), ("sede_de_programacion", false),
+             ("sede", false), ("etiquetas", false)]);
+
+    [Fact]
+    public void AplicarPlantillaSemanalPorGrupo_RemiteALaToolDePersonas_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("aplicar_plantilla_semanal_por_grupo"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("aplicar_plantilla_semanal").And.Contain("plantilla semanal");
+
+    [Fact]
+    public void AplicarPlantillaSemanalPorGrupo_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
+        AsegurarSedeDeProgramacionOpcional("aplicar_plantilla_semanal_por_grupo");
+
+    [Fact]
+    public void HostJson_MencionaLaToolDePlantillaPorGrupo_CuandoSeLeenLasInstructions()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null
+            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
+            directorio = directorio.Parent;
+
+        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
+        File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
+            .Should().Contain("aplicar_plantilla_semanal_por_grupo");
+    }
 
     [Fact]
     public void SolicitarProgramacionTurno_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
