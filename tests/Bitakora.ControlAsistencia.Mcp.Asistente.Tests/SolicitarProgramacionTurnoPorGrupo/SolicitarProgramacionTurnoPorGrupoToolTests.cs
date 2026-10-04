@@ -30,15 +30,15 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
 
     private static object Ficha(
         int numero, string vigenteDesde = "2025-01-01", string? vigenteHasta = null) => new
-    {
-        id = $"CC-{numero:D4}",
-        nombreCompleto = $"Colab {numero:D4}",
-        codigoColaborador = $"C{numero:D4}",
-        vigenteDesde,
-        vigenteHasta,
-        etiquetas = Array.Empty<object>(),
-        codigoSede = "SUBA"
-    };
+        {
+            id = $"CC-{numero:D4}",
+            nombreCompleto = $"Colab {numero:D4}",
+            codigoColaborador = $"C{numero:D4}",
+            vigenteDesde,
+            vigenteHasta,
+            etiquetas = Array.Empty<object>(),
+            codigoSede = "SUBA"
+        };
 
     private static List<object> Fichas(int desde, int cantidad) =>
         [.. Enumerable.Range(desde, cantidad).Select(n => Ficha(n))];
