@@ -1,0 +1,24 @@
+{
+ "desdeAplicado": "2026-07-01",
+ "hastaAplicado": "2026-07-31",
+ "rangoRecortado": true,
+ "turnos": [
+  {
+   "id": "cd:01a04458-37d4-7b5d-9476-0635b63ace65:20260706",
+   "codigoColaborador": "01a04458-37d4-7b5d-9476-0635b63ace65",
+   "nombreCompleto": "[TEST] Smoke Listar TurnosVigentes",
+   "fecha": "2026-07-06",
+   "nombreTurno": "[TEST] Turno Vigente Fuera De La Cota",
+   "horarioResumido": "[TEST] Turno Vigente Listar 08:00-16:00",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-07-06T08:00:00",
+     "fin": "2026-07-06T16:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  }
+ ]
+}

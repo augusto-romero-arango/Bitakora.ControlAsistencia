@@ -26,6 +26,10 @@ public static class ConfiguracionClientesHttp
         services.AddHttpClient<ColaboradoresApi>(c => c.BaseAddress = baseUrlColaboradores)
             .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
 
+        var baseUrlControlHoras = LeerBaseUrl(configuration, "ControlHoras");
+        services.AddHttpClient<ControlHorasApi>(c => c.BaseAddress = baseUrlControlHoras)
+            .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
+
         return services;
     }
 

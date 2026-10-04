@@ -5,6 +5,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 public sealed class ProgramacionApi(HttpClient http)
 {
+    private static readonly HttpMethod Query = new("QUERY");
+
     public Task<HttpResponseMessage> ListarTurnos(CancellationToken ct) =>
         http.GetAsync("api/programacion/turnos", ct);
 
@@ -64,7 +66,81 @@ public sealed class ProgramacionApi(HttpClient http)
         http.DeleteAsync(
             $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
             ct);
+
+    public Task<HttpResponseMessage> SolicitarProgramacion(
+        SolicitudProgramacionTurno solicitud, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/solicitudes", solicitud, ct);
+
+    public Task<HttpResponseMessage> ProgramarAusencia(
+        string codigoColaborador, AusenciaAProgramar ausencia, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/ausencias", ausencia, ct);
+
+    public Task<HttpResponseMessage> ListarAusenciasColaborador(
+        string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(
+            Query,
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/ausencias")
+        {
+            Content = JsonContent.Create(new { desde, hasta })
+        };
+
+        return http.SendAsync(request, ct);
+    }
+
+    public Task<HttpResponseMessage> CancelarAusencia(
+        string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/ausencias/{Uri.EscapeDataString(id)}:cancelar",
+            new { fechas },
+            ct);
+
+    public Task<HttpResponseMessage> ListarAusenciasDelEquipo(
+        DateOnly desde,
+        DateOnly hasta,
+        IReadOnlyList<string>? codigosColaborador,
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/programacion/ausencias")
+        {
+            Content = JsonContent.Create(new
+            {
+                desde,
+                hasta,
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }
+
+public sealed record SolicitudProgramacionTurno(
+    Guid Id,
+    Guid TurnoId,
+    ColaboradorSolicitado Colaborador,
+    IReadOnlyList<DateOnly> Fechas,
+    SedeProgramada Sede);
+
+public sealed record ColaboradorSolicitado(string Identificacion, string CodigoColaborador, string NombreCompleto);
+
+public sealed record AusenciaAProgramar(
+    Guid Id,
+    string Identificacion,
+    string NombreCompleto,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    string Motivo);
+
+public sealed record AusenciaListada(
+    string Id,
+    string Motivo,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    IReadOnlyList<TramoAusencia> TramosVigentes);
+
+public sealed record TramoAusencia(DateOnly Desde, DateOnly Hasta);
 
 public sealed record FichaTurno(
     string Id,
