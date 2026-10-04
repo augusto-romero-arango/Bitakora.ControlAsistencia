@@ -55,7 +55,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasVeintisieteToolsMigradas_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasVeintiochoTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
