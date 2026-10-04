@@ -531,6 +531,28 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         (lista ?? []).Should().BeEmpty();
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasColaborador_Retorna200ConLista_CuandoElFiltroNoTraeTake()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var filtro = new
+        {
+            fechaReferencia = new DateOnly(2026, 1, 1),
+            etiquetas = Array.Empty<object>(),
+            cursor = (object?)null
+        };
+
+        var response = await ConsultarAsync(filtro, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var lista = await response.Content.ReadFromJsonAsync<List<FichaColaboradorRespuestaSmoke>>(
+            JsonOptions, cancellationToken: ct);
+        lista.Should().NotBeNull();
+    }
+
     // Issue #519 CA-4: el filtro por sede es un Where mas del mismo AND -- con la MISMA etiqueta
     // discriminadora de la corrida, agregar la sede deja solo al colaborador de esa sede; quitarla
     // devuelve a los dos (el comportamiento previo a #519 no cambia). El codigo de sede lleva un

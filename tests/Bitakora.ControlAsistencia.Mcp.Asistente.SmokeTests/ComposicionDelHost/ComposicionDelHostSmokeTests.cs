@@ -14,7 +14,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
         "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
         "consultar_programacion", "consultar_ausencias", "solicitar_programacion_turno",
-        "solicitar_programacion_turno_por_grupo", "programar_ausencia", "cancelar_ausencia"
+        "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo",
+        "programar_ausencia", "cancelar_ausencia"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -47,15 +48,17 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["quitar_turno_de_dia"] = ["plantilla", "dia"],
         ["consultar_programacion"] = ["desde", "hasta"],
         ["consultar_ausencias"] = ["desde", "hasta"],
-        ["solicitar_programacion_turno"] = ["desde", "hasta", "turno", "sede_de_programacion", "identificaciones"],
-        ["solicitar_programacion_turno_por_grupo"] = ["desde", "hasta", "turno", "sede_de_programacion"],
+        ["solicitar_programacion_turno"] = ["desde", "hasta", "turno", "identificaciones"],
+        ["solicitar_programacion_turno_por_grupo"] = ["desde", "hasta", "turno"],
+        ["aplicar_plantilla_semanal"] = ["desde", "hasta", "plantilla", "identificaciones"],
+        ["aplicar_plantilla_semanal_por_grupo"] = ["desde", "hasta", "plantilla"],
         ["programar_ausencia"] = ["identificacion", "desde", "hasta", "motivo"],
         ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"]
     };
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasVeintiochoTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasTreintaTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -99,7 +102,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "agregar_franja" or "quitar_franja" or "agregar_subfranja" or "quitar_subfranja"
                 or "asignar_sede_franja" or "crear_plantilla_semanal" or "retirar_plantilla_semanal"
                 or "asignar_turno_a_dia" or "quitar_turno_de_dia" or "solicitar_programacion_turno"
-                or "solicitar_programacion_turno_por_grupo"
+                or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
+                or "aplicar_plantilla_semanal_por_grupo"
                 or "programar_ausencia" or "cancelar_ausencia";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
