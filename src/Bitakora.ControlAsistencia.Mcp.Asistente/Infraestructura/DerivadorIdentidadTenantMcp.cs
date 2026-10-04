@@ -9,9 +9,10 @@ public interface IDerivadorIdentidadTenantMcp
 
 // Traduce a IdentidadTenant el ClaimsPrincipal que IValidadorTokenAuthKit ya valido: org_id (la
 // organizacion que el usuario elige al autorizar en WorkOS Connect -- workos.com/docs/authkit/
-// connect/oauth, "Organization Access") -> TenantId; sub -> UserId. Ninguno de los dos admite
-// fallback: sin organizacion o sin usuario no hay tenant que derivar, y caer al tenant fijo de
-// ConfiguracionIdentidadTenant daria acceso a datos de otra empresa.
+// connect/oauth, "Organization Access") -> TenantId; sub -> UserId; organization_membership_id ->
+// OrganizationMembershipId (CA-ADR-0032). Ninguno admite fallback: sin cualquiera de los tres no
+// hay identidad que derivar, y caer al tenant fijo de ConfiguracionIdentidadTenant daria acceso a
+// datos de otra empresa.
 public sealed partial class DerivadorIdentidadTenantMcp : IDerivadorIdentidadTenantMcp
 {
     internal const string ClaimOrganizacion = "org_id";
