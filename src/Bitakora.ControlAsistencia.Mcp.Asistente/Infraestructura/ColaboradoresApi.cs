@@ -35,8 +35,9 @@ public sealed class ColaboradoresApi(HttpClient http)
                 fechaReferencia,
                 codigoSede,
                 etiquetas = etiquetas.Count > 0 ? etiquetas : null,
-                take
-            })
+                take,
+                cursor
+            }, options: OpcionesSinNulls)
         };
 
         return http.SendAsync(request, ct);
