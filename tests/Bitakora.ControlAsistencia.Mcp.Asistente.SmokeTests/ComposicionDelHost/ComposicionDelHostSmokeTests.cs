@@ -69,7 +69,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             meta.Should().NotBeNull($"{nombre} debe publicar su _meta");
 
             var esEscritura = nombre is "registrar_sede" or "registrar_colaborador";
-            meta!["readOnlyHint"]?.GetValue<bool>().Should().Be(!esEscritura);
+            (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }
 }
