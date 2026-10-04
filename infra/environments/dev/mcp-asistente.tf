@@ -53,19 +53,19 @@ module "function_app_mcp_asistente" {
   # otro valor consultaria un tenant sin datos y las tools responderian vacio en silencio.
   #
   # Mcp__* (MEF-ADR-0047 decision 7, MEF-ADR-0032 seccion 9): AuthorizationServer es el dominio
-  # AuthKit del entorno, compartido por todos los servidores MCP (var.mcp_authorization_server_url).
-  # ResourceUri debe coincidir byte a byte con el PRM y el <audiences> de la politica dedicada de
-  # APIM; lo resolvera el modulo apim-mcp-api de este servidor (aun no existe), asi que queda como
-  # placeholder: mientras tanto el PRM responde 503 (degradacion deliberada, nunca fallo de arranque).
+  # AuthKit del entorno (var.mcp_authorization_server_url). ResourceUri lo resuelve el modulo
+  # apim-mcp-api (apim-mcp-asistente.tf) y coincide byte a byte con el PRM y el <audiences> de la
+  # politica dedicada.
   app_settings = {
-    Api__Programacion__BaseUrl  = "https://${module.function_app_programacion.default_hostname}"
-    Api__Sedes__BaseUrl         = "https://${module.function_app_sedes.default_hostname}"
-    Api__ControlHoras__BaseUrl  = "https://${module.function_app_control_horas.default_hostname}"
-    Api__Colaboradores__BaseUrl = "https://${module.function_app_colaboradores.default_hostname}"
-    Identidad__TenantIdInterino = "tenant-smoke"
-    Identidad__UserIdInterino   = "smoke@bitakora.dev"
-    Mcp__ResourceUri            = "PENDIENTE-URL-APIM-DEL-SERVIDOR-MCP"
-    Mcp__AuthorizationServer    = var.mcp_authorization_server_url
+    Api__Programacion__BaseUrl                  = "https://${module.function_app_programacion.default_hostname}"
+    Api__Sedes__BaseUrl                         = "https://${module.function_app_sedes.default_hostname}"
+    Api__ControlHoras__BaseUrl                  = "https://${module.function_app_control_horas.default_hostname}"
+    Api__Colaboradores__BaseUrl                 = "https://${module.function_app_colaboradores.default_hostname}"
+    Identidad__TenantIdInterino                 = "tenant-smoke"
+    Identidad__UserIdInterino                   = "smoke@bitakora.dev"
+    Identidad__OrganizationMembershipIdInterino = "om-smoke"
+    Mcp__ResourceUri                            = module.apim_mcp_asistente.resource_uri
+    Mcp__AuthorizationServer                    = var.mcp_authorization_server_url
   }
   tags = local.tags
 }
