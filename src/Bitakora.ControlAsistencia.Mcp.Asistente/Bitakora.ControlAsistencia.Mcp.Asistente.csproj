@@ -31,6 +31,12 @@
     <InternalsVisibleTo Include="Bitakora.ControlAsistencia.Mcp.Asistente.Tests" />
   </ItemGroup>
 
+  <!-- Unica excepcion al "cero ProjectReference" de arriba (CA-ADR-0032): TenantResolver es
+       infraestructura transversal de identidad, no codigo de dominio, mismo reuso que Mcp.Comandos. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Bitakora.ControlAsistencia.TenantResolver\Bitakora.ControlAsistencia.TenantResolver.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

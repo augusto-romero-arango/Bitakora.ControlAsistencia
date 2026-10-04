@@ -21,8 +21,13 @@ builder.Services.ConfigurarObservabilidadMcp();
 // Sin Mcp__AuthorizationServer resoluble el validador degrada a "todo token es invalido"; no
 // fail-fast de arranque, a diferencia de las base URLs de los clientes tipados: aquellas sin las
 // que ninguna tool puede responder, esta solo apaga una defensa secundaria.
-builder.Services.AddSingleton(
+builder.Services.AddSingleton<IValidadorTokenAuthKit>(
     ValidadorTokenAuthKit.ParaAuthorizationServer(builder.Configuration["Mcp:AuthorizationServer"]));
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
+
+// Deriva la identidad del usuario autenticado (org_id/sub/organization_membership_id) para cada
+// tool call y la puebla en el ambiente (TenantExecutionContext); PropagadorIdentidadTenantHandler
+// la prefiere sobre el tenant fijo (MEF-ADR-0047 decision 6, CA-ADR-0032).
+builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
 
 await builder.Build().RunAsync();
