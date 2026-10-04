@@ -1,0 +1,27 @@
+{
+ "id": "01a05a10-6b7c-7d8e-9f0a-1b2c3d4e5f60",
+ "nombre": "[TEST] Turno Nocturno Con Descanso De Madrugada",
+ "esDescanso": false,
+ "horarioResumido": "22:00-06:00",
+ "franjas": [
+  {
+   "horaInicio": "22:00:00",
+   "horaFin": "06:00:00",
+   "diaOffsetFin": 1,
+   "descansos": [
+    {
+     "horaInicio": "02:00:00",
+     "horaFin": "02:30:00",
+     "diaOffsetInicio": 1,
+     "diaOffsetFin": 1
+    }
+   ],
+   "extras": [],
+   "sedeId": "SEDE-SUBA",
+   "nombreSede": "[TEST] Suba",
+   "descripcion": "(22:00-06:00)[sede:[TEST] Suba]"
+  }
+ ],
+ "descripcion": "(22:00-06:00)[sede:[TEST] Suba]",
+ "completo": true
+}
