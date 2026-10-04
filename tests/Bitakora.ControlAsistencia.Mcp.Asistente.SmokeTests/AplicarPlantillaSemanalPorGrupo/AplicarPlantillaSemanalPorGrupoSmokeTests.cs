@@ -105,4 +105,25 @@ public class AplicarPlantillaSemanalPorGrupoSmokeTests(McpFixture mcp, Programac
 
         TextoDe(resultado).Should().Be("Indica al menos un criterio de grupo: 'sede' o 'etiquetas'.");
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AplicarPlantillaSemanalPorGrupo_RespondeElRechazoDeLaEtiqueta_CuandoLaEtiquetaEstaMalFormadaYLaPlantillaNoExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "aplicar_plantilla_semanal_por_grupo",
+            new Dictionary<string, object?>
+            {
+                ["desde"] = "2026-10-05",
+                ["hasta"] = "2026-10-11",
+                ["plantilla"] = "[TEST] Plantilla que no existe",
+                ["sede_de_programacion"] = "TEST-INEXISTENTE",
+                ["etiquetas"] = "area"
+            },
+            cancellationToken: ct);
+
+        TextoDe(resultado).Should().Be("La etiqueta 'area' no tiene la forma categoria:valor.");
+    }
 }
