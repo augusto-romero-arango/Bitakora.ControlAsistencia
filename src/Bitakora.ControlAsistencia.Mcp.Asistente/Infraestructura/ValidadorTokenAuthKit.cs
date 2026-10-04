@@ -1,9 +1,17 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+
+public interface IValidadorTokenAuthKit
+{
+    Task<bool> EsValidoAsync(string token, CancellationToken ct);
+
+    Task<ClaimsPrincipal?> ValidarAsync(string token, CancellationToken ct);
+}
 
 /// <summary>
 /// Validador de token de defensa en profundidad (MEF-ADR-0047 decision 7): nunca el gate primario
@@ -13,6 +21,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 /// user_management/{client_id} -- re-verificar contra el discovery doc en vivo por consumidor.
 /// </summary>
 public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectConfiguration>? configManager)
+    : IValidadorTokenAuthKit
 {
     // Sin authorization server resoluble -- app setting ausente, o todavia el placeholder que el
     // Terraform siembra hasta que existe el API de APIM del servidor -- el validador degrada a
@@ -23,6 +32,8 @@ public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectCon
                 $"{autoridad.ToString().TrimEnd('/')}/.well-known/openid-configuration",
                 new OpenIdConnectConfigurationRetriever()))
             : new ValidadorTokenAuthKit(configManager: null);
+
+    public Task<ClaimsPrincipal?> ValidarAsync(string token, CancellationToken ct) => throw new NotImplementedException();
 
     public async Task<bool> EsValidoAsync(string token, CancellationToken ct)
     {

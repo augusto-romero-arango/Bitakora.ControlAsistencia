@@ -5,4 +5,4 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 /// 6). Interina mientras el servidor no reciba Authorization de una tool call (decision 7): un
 /// valor fijo por despliegue, nunca derivado del cliente MCP conectado.
 /// </summary>
-public sealed record IdentidadTenant(string TenantId, string UserId);
+public sealed record IdentidadTenant(string TenantId, string UserId, string OrganizationMembershipId);

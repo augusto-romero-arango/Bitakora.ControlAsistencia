@@ -18,7 +18,8 @@ public static class ConfiguracionIdentidadTenant
         // de alcance de este scaffold.
         var identidad = new IdentidadTenant(
             TenantId: configuration["Identidad:TenantIdInterino"] ?? "tenant-interino-sin-configurar",
-            UserId: configuration["Identidad:UserIdInterino"] ?? "mcp-sin-usuario-autenticado");
+            UserId: configuration["Identidad:UserIdInterino"] ?? "mcp-sin-usuario-autenticado",
+            OrganizationMembershipId: string.Empty);
 
         services.AddSingleton(identidad);
         services.AddTransient<PropagadorIdentidadTenantHandler>();
