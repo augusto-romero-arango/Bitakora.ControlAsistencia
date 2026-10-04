@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -23,8 +21,6 @@ public partial class SolicitarProgramacionTurnoTool(
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
     internal const string NombreTool = "solicitar_programacion_turno";
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
     private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);

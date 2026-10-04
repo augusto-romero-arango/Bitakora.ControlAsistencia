@@ -4,8 +4,6 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
-public sealed record ResultadoCandidatos(IReadOnlyList<CandidatoProgramacion> Candidatos, string? FalloDeLectura);
-
 // Una sola llamada al directorio sin Take: las llamadas internas de composicion no paginan (CA-ADR-0038).
 public sealed class ResolutorCandidatosPorLista(ColaboradoresApi colaboradores)
 {

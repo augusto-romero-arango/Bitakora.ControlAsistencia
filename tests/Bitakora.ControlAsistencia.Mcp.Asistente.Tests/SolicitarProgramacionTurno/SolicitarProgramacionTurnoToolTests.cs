@@ -254,6 +254,24 @@ public class SolicitarProgramacionTurnoToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
+    // CA-2: la repeticion (con espacios y otra caja) coincide con la misma entrada del directorio,
+    // se programa una sola vez y la sobrante cuenta como omitida.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ProgramaUnaSolaVezYCuentaLaRepeticionComoOmitida_CuandoUnaIdentificacionSeRepite()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111, cc-1111 ", ct: TestContext.Current.CancellationToken);
+
+        fakes.Programacion.Requests.Count(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes)
+            .Should().Be(1);
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Should().ContainSingle()
+            .Which!["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
+        json["omitidos"]!.GetValue<int>().Should().Be(1);
+    }
+
     [Fact]
     public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoDesdeEstaEnBlanco()
     {
