@@ -25,11 +25,12 @@ Este proyecto consume el plugin `mefisto@augusto-romero-arango-harness` desde el
 
 ### Tokens del harness (resolución para agentes y skills)
 
-Estos valores los consumen los agentes/skills del harness cuando ven los placeholders `<RootNamespace>`, `<SolutionFile>`, `<ProjectDisplayName>`. La fuente operativa para scripts es `.claude/harness.config.json`.
+Estos valores los consumen los agentes/skills del harness cuando ven los placeholders `<RootNamespace>`, `<SolutionFile>`, `<ProjectDisplayName>`, `<BoundedContext>`. La fuente operativa para scripts es `.claude/harness.config.json`.
 
 - **RootNamespace**: `Bitakora.ControlAsistencia`
 - **SolutionFile**: `ControlAsistencias.slnx`
 - **ProjectDisplayName**: `ControlAsistencias`
+- **BoundedContext**: `ControlAsistencias`
 
 ### Estructura
 
@@ -101,7 +102,9 @@ Si tu trabajo toca uno de estos temas, consulta el ADR correspondiente antes de 
 | **Plantilla semanal de turnos: segundo nivel de composicion (1..6 semanas lunes-domingo), dias por (semana, dia ISO 1..7 -- VO `DiaSemana`) con referencia a `TurnoId` (nunca snapshot), descanso es turno, solo turnos completos asignables, dia = slot atomico PUT/DELETE, plantilla incompleta al retirar un turno, vista `CuadroSemanalTurnos` N1 + composicion con `FichaTurno` en el GET (grouper custom rechazado); "Ficha" no es patron de naming; ciclos 4x2/2x2 fuera** | CA-ADR-0034 |
 | **Ausencias: dia completo sin trabajo con motivo de lista fija (vacaciones, incapacidad medica, licencia remunerada, no remunerada); cubre el turno sin reemplazarlo, se protege de la programacion y de otras ausencias, la registra el Programador en firme, se cancela por fechas; lo aprobado no cambia; Permiso (por horas) fuera de alcance; se registra en Programacion y se aplica en ControlHoras, limite de consistencia = colaborador, sin replicar dias aprobados** | CA-ADR-0036 |
 | **Codigos de exito de comandos HTTP: 201 Created + `Location` (POST create), 204 No Content (PUT/DELETE/`:verbo`) porque la transaccion confirma antes de responder; 202 solo si el handler unicamente emite un mensaje. Idempotencia: PUT sin cambios / DELETE de lo ya ausente / retirar lo ya retirado -> exito sin evento (`SinCambios`), nunca 409; 409 solo para conflicto real, 404 solo para recurso inexistente. Los 29 endpoints con 202 se corrigen en #640** | CA-ADR-0035 (precisa MEF-ADR-0004; propuesto al marco como harness#849/#850) |
+| **Servidor MCP unico por BC con lectura y escritura (`Mcp.Asistente`, ruta `/mcp-asistente`); desviacion de la particion Consultas/Comandos de MEF-ADR-0047 decision 2; el MCP es adaptador tipo BFF, la frontera real es la audiencia OAuth; se pierde la sesion de solo lectura; reapertura solo con autorizacion efectiva** | CA-ADR-0037 (desviacion de MEF-ADR-0047; harness#1848) |
 | **Identidad del evento en el event store: el alias manda, registro explícito con `AddEventTypes`, mover un evento de namespace sin migrar datos; proscripción de `MapEventType` y de alterar `EventNamingStyle`** | CA-ADR-0029 (decisión #6) |
+| **Composicion interna sin paginacion: la paginacion y los topes son de la superficie que muestra a un consumidor final; las llamadas internas omiten `Take` y reciben el resultado completo. `directorio` con identificaciones no se desvia (acotado por la entrada); `fichas` sin `Take` si** | CA-ADR-0038 (desviacion de MEF-ADR-0042 seccion 2) |
 | Mensajes en `.resx` por aggregate/handler | MEF-ADR-0009 |
 | Definition of Ready | MEF-ADR-0011 |
 | Smoke tests contra entorno dev | MEF-ADR-0013 |

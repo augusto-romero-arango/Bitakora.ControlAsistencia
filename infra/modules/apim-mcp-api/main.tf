@@ -64,7 +64,7 @@ variable "gateway_url" {
 }
 
 variable "api_name" {
-  description = "Nombre interno (kebab-case) de la API APIM del protocolo de este servidor MCP (ej. 'mcp-consultas'). Prefijo de todos los recursos hijos de este modulo (backends, named value de la key, operation_id de la operacion PRM de este servidor en la API compartida)."
+  description = "Nombre interno (kebab-case) de la API APIM del protocolo de este servidor MCP (ej. 'mcp-asistente'). Prefijo de todos los recursos hijos de este modulo (backends, named value de la key, operation_id de la operacion PRM de este servidor en la API compartida)."
   type        = string
 }
 
@@ -74,7 +74,7 @@ variable "display_name" {
 }
 
 variable "path" {
-  description = "Path de gateway (kebab-case) de este servidor MCP, ej. 'mcp-consultas'. Se usa como path de la API del protocolo Y como sufijo de la operacion PRM compartida (GET /{path} sobre var.mcp_prm_api_name, RFC 9728 seccion 3.1 'Example with path component')."
+  description = "Path de gateway (kebab-case) de este servidor MCP, ej. 'mcp-asistente'. Se usa como path de la API del protocolo Y como sufijo de la operacion PRM compartida (GET /{path} sobre var.mcp_prm_api_name, RFC 9728 seccion 3.1 'Example with path component')."
   type        = string
 }
 

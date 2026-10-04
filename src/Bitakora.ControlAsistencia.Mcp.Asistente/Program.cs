@@ -1,0 +1,34 @@
+using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Microsoft.Azure.Functions.Worker.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = FunctionsApplication.CreateBuilder(args);
+builder.ConfigureFunctionsWebApplication();
+
+// Debe correr justo despues de ConfigureFunctionsWebApplication() (para que Items ya traiga el
+// ToolInvocationContext que deja FunctionsMcpContextMiddleware) y antes de cualquier middleware
+// que haga BindInputAsync<ToolInvocationContext>: ese bind cachea el ConversionResult en
+// IBindingCache bajo el nombre del parametro, y la tool recibiria el diccionario coercionado.
+builder.UseMiddleware<ArgumentosCrudosMcpMiddleware>();
+
+builder.Services.ConfigurarIdentidadTenant(builder.Configuration);
+builder.Services.ConfigurarClientesHttp(builder.Configuration);
+builder.Services.ConfigurarObservabilidadMcp();
+builder.Services.AddSingleton(TimeProvider.System);
+
+// Defensa en profundidad (MEF-ADR-0047 decision 7): el gate real vive en la politica dedicada de
+// APIM (MEF-ADR-0032 seccion 9). ValidateAudience = false -- la audiencia ya la exige esa politica.
+// Sin Mcp__AuthorizationServer resoluble el validador degrada a "todo token es invalido"; no
+// fail-fast de arranque, a diferencia de las base URLs de los clientes tipados: aquellas sin las
+// que ninguna tool puede responder, esta solo apaga una defensa secundaria.
+builder.Services.AddSingleton<IValidadorTokenAuthKit>(
+    ValidadorTokenAuthKit.ParaAuthorizationServer(builder.Configuration["Mcp:AuthorizationServer"]));
+builder.UseMiddleware<AutorizacionMcpMiddleware>();
+
+// Deriva la identidad del usuario autenticado (org_id/sub/organization_membership_id) para cada
+// tool call y la puebla en el ambiente (TenantExecutionContext); PropagadorIdentidadTenantHandler
+// la prefiere sobre el tenant fijo (MEF-ADR-0047 decision 6, CA-ADR-0032).
+builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
+
+await builder.Build().RunAsync();
