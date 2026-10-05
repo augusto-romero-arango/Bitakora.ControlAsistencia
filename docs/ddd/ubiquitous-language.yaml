@@ -4,7 +4,12 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-04 (sesion planner, refinamiento de #828: se define APLICAR una
+# Ultima actualizacion: 2026-10-05 (sesion planner, explorar #850: Verificacion semanal de la
+#   programacion contra la Jornada. ENMIENDA de Jornada: deja de ser solo juridica y nombra el
+#   catalogo de limites que el cliente parametriza (horas semanales exactas, tope diario, minimo
+#   diario). Nuevos: Jornada predeterminada, Preferencias de programacion, Verificacion semanal de
+#   la programacion. 1 pregunta abierta nueva (periodo de medicion configurable).)
+# Actualizacion previa: 2026-10-04 (sesion planner, refinamiento de #828: se define APLICAR una
 #   Plantilla semanal de turnos -- composicion del asistente sin asignacion persistida; semana 1 = la
 #   semana lunes-domingo que contiene `desde`, ciclica; misma regla de dias que programar un turno.
 #   Tocada: Plantilla semanal de turnos.)
@@ -958,9 +963,86 @@ terms:
     date_added: 2026-04-17
 
   - name: Jornada
-    definition: "Concepto JURIDICO: habla de duraciones y limites legales (jornada maxima, jornada ordinaria). NO es un termino operativo del sistema."
-    context: General
-    note: "Usar 'Turno' para el concepto operativo. 'Jornada' solo aparece en contextos legislativos."
+    definition: >
+      Limites de tiempo de trabajo que el cliente parametriza y contra los que se VERIFICA la
+      programacion. Entrada del catalogo de Jornadas (vive en Programacion) con tres parametros
+      obligatorios: HORAS SEMANALES (valor exacto, lo pactado: mas = exceso, menos =
+      subprogramacion), TOPE DIARIO (maximo) y MINIMO DIARIO (minimo; 0 si no aplica). Puede o no
+      coincidir con la ley: el sistema no impone modalidades legales ni certifica cumplimiento.
+      La Jornada ACOTA, la programacion DECIDE: no fija dias habiles ni descansos. Se asigna a la
+      Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id,
+      nombre y valores) al programar, por colaborador: editarla nunca cambia lo programado. Se
+      desactiva (no se retira) y no se puede desactivar en uso (mejor esfuerzo, 409). La General
+      (tope diario 8 h, 42 horas semanales, minimo diario 0) vive en memoria hasta el primer
+      comando que la necesite. Una plantilla referencia una Jornada solo para auditar su diseno.
+    context: Programacion
+    date_updated: 2026-10-05
+    rejected_synonyms: [Configuracion de jornada, Perfil de jornada, Esquema de jornada, Jornada pactada (como parametro), Topes]
+    rejection_reason: >
+      "Configuracion" ya nombra otras cosas en el codigo (ConfiguracionSerializacion*,
+      ConfiguracionMartenProjections); perfil/esquema agregan una palabra que el cliente no dice
+      (los clientes dicen "la jornada de 42"). "Jornada pactada" se renombro: en la semana el unico
+      valor correcto es el pactado, asi que el parametro se llama HORAS SEMANALES. "Topes" solo
+      nombra maximos (lexico: tope = maximo, techo -- Wikcionario; Ley 1920 art. 7) y la Jornada
+      tambien tiene un minimo.
+    note: >
+      ENMIENDA 2026-10-05 (sesion planner, #850): hasta hoy 'Jornada' era SOLO el concepto
+      juridico (duraciones y limites legales, "no es un termino operativo"). El experto la adopta
+      para el catalogo porque asi la llaman los clientes. Para el sentido legal estricto se dice
+      "jornada maxima legal" / "jornada ordinaria" (CST arts. 158-161). 'Turno' sigue siendo el
+      plan operativo del dia.
+
+  - name: Jornada predeterminada
+    definition: >
+      La Jornada que se estampa cuando la Vinculacion del colaborador no tiene una asignada, y la
+      que una plantilla toma por defecto. Al nacer el sistema es la General (en memoria). Se
+      guarda en Preferencias de programacion con un hecho explicito al cambiarla (tentativo:
+      JornadaPredeterminadaAsignada); los streams de cada Jornada no se tocan. Siempre cuenta
+      como "en uso": no se puede desactivar sin marcar otra antes.
+    context: Programacion
+    date_added: 2026-10-05
+    rejected_synonyms: [Jornada por defecto, Jornada estandar, Jornada base]
+    rejection_reason: >
+      "Por defecto" es calco de default; "estandar" sugiere que es la legal; "base" se confunde
+      con valores de calculo.
+
+  - name: Preferencias de programacion
+    definition: >
+      Registro unico por tenant, dentro de Programacion, que guarda preferencias del dominio. Hoy
+      solo la Jornada predeterminada. Solo entran preferencias de PROGRAMACION (regla contra el
+      cajon de sastre). Codigo: PreferenciasProgramacion.
+    context: Programacion
+    date_added: 2026-10-05
+    rejected_synonyms: [Parametros de programacion, Ajustes de programacion, Configuracion del dominio]
+    rejection_reason: >
+      "Parametros" choca con los parametros de la Jornada; "ajustes" es ambiguo con corregir.
+    note: >
+      Cada dominio que necesite preferencias crea su propio registro ("Preferencias de {dominio}").
+      Se planea un patron comun, pero no se generaliza hasta tener mas casos (Rule of Three,
+      MEF-ADR-0018).
+
+  - name: Verificacion semanal de la programacion
+    definition: >
+      Vista read-side (proyeccion N2) para el Programador: verifica la programacion de cada semana
+      lunes-domingo de un colaborador contra la Jornada estampada (la ultima recibida en la
+      semana), para decidir que reprogramar antes de que pase. Solo informa: las alertas orientan,
+      no son taxativas. Se alimenta del dia ya resuelto en ControlHoras (Turno Diario + ausencias):
+      7 casillas que se reemplazan. Horas del dia = solo ordinarias (franja ordinaria - descansos
+      - extras), atribuidas al dia en que EMPIEZA el turno. Semana JUZGABLE = 7 dias programados
+      (trabajo o descanso) y ninguna ausencia; en ella las horas semanales se verifican exactas;
+      en la no juzgable solo se verifica el exceso. Tope y minimo diario se verifican siempre. Los
+      descansos no se verifican. Hallazgo = violacion de cualquier verificacion aplicable; una
+      semana no juzgable no es hallazgo por si sola. Codigo: VerificacionProgramacionSemanal.
+    context: Programacion
+    date_added: 2026-10-05
+    rejected_synonyms: [Control de jornada semanal, ControlJornadaSemanal, Revision de topes de jornada, Auditoria de jornada, Cuadre de jornada]
+    rejection_reason: >
+      "Control" en ControlHoras nombra el calculo del dia (ControlDiario); "topes" solo nombra
+      maximos; "auditoria" suena a bitacora de cambios o a certificacion legal. El sujeto es la
+      programacion: familia Solicitud/Cancelacion de Programacion.
+    note: >
+      Distinta de la cobertura de la programacion (quien falta por programar), que es otra vista,
+      todavia sin issue. Esa seria la version anticipada de "Dia sin programar".
 
   - name: DiaCalculado
     definition: >
@@ -1563,6 +1645,11 @@ actors:
     note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo. Pregunta 'como le llamamos en el dominio?': resuelta en #330 -- colaborador."
     interacts_with: []
     open_questions:
+  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana."
+    context: Programacion
+    date: 2026-10-05
+    priority: low
+
   - question: "Asignacion de una Plantilla semanal de turnos a un colaborador: acotada (desde/hasta) o abierta (hasta nuevo aviso)? Debe el rango arrancar en lunes (409, alinear, o tolerar)? Se registra el hecho 'tiene la plantilla X' (aggregate propio) o solo se desdobla en solicitudes por fecha? El experto lo saco del foco de la sesion de construccion (2026-09-04)."
     context: Programacion
     date: 2026-09-04
