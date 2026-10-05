@@ -4,7 +4,14 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-05 (sesion planner, explorar #850: Verificacion semanal de la
+# Ultima actualizacion: 2026-10-05 (sesion planner, refinamiento de #856: Jornada se modifica con
+#   ModificarLimitesJornada y ModificarNombreJornada (#874); el primer cambio materializa la General,
+#   aun con sus mismos valores; #857 absorbido. Refinamiento de #861: el servidor arma la copia
+#   estampada desde el JornadaId (o la predeterminada). Refinamientos de #864-#866/#876: el
+#   reporte se llama Advertencias de la programacion semanal (antes Verificacion; Hallazgo ->
+#   Advertencia); descansos por semana = valor exacto. Tocadas: Jornada, Advertencias de la
+#   programacion semanal.)
+# Actualizacion previa: 2026-10-05 (sesion planner, explorar #850: Verificacion semanal de la
 #   programacion contra la Jornada. ENMIENDA de Jornada: deja de ser solo juridica y nombra el
 #   catalogo de limites que el cliente parametriza (horas semanales exactas, tope diario, minimo
 #   diario). Nuevos: Jornada predeterminada, Preferencias de programacion, Verificacion semanal de
@@ -965,16 +972,20 @@ terms:
   - name: Jornada
     definition: >
       Limites de tiempo de trabajo que el cliente parametriza y contra los que se VERIFICA la
-      programacion. Entrada del catalogo de Jornadas (vive en Programacion) con tres parametros
+      programacion. Entrada del catalogo de Jornadas (vive en Programacion) con cuatro parametros
       obligatorios: HORAS SEMANALES (valor exacto, lo pactado: mas = exceso, menos =
-      subprogramacion), TOPE DIARIO (maximo) y MINIMO DIARIO (minimo; 0 si no aplica). Puede o no
+      subprogramacion), TOPE DIARIO (maximo), MINIMO DIARIO (minimo; 0 si no aplica) y DIAS DE
+      DESCANSO POR SEMANA (valor exacto 0-6; 0 = no se controla). Puede o no
       coincidir con la ley: el sistema no impone modalidades legales ni certifica cumplimiento.
       La Jornada ACOTA, la programacion DECIDE: no fija dias habiles ni descansos. Se asigna a la
       Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id,
-      nombre y valores) al programar, por colaborador: editarla nunca cambia lo programado. Se
+      nombre y valores) al programar, por colaborador: el cliente manda solo el JornadaId asignado
+      y el servidor arma la copia desde su catalogo; sin JornadaId estampa la predeterminada; editarla nunca cambia lo programado. Se
       desactiva (no se retira) y no se puede desactivar en uso (mejor esfuerzo, 409). La General
       (tope diario 8 h, 42 horas semanales, minimo diario 0) vive en memoria hasta el primer
-      comando que la necesite. Una plantilla referencia una Jornada solo para auditar su diseno.
+      comando que la toque: MODIFICAR sus limites o su nombre la materializa, aunque traiga sus
+      mismos valores (confirmarla tambien es decidir). Se modifica con dos comandos: los cuatro
+      limites como un todo (ModificarLimitesJornada) y el nombre (ModificarNombreJornada). Una plantilla referencia una Jornada solo para auditar su diseno.
     context: Programacion
     date_updated: 2026-10-05
     rejected_synonyms: [Configuracion de jornada, Perfil de jornada, Esquema de jornada, Jornada pactada (como parametro), Topes]
@@ -991,6 +1002,11 @@ terms:
       para el catalogo porque asi la llaman los clientes. Para el sentido legal estricto se dice
       "jornada maxima legal" / "jornada ordinaria" (CST arts. 158-161). 'Turno' sigue siendo el
       plan operativo del dia.
+      VERBO (2026-10-05, refinamiento de #856): "Modificar", como ModificarNombreSede. Se
+      descartaron "Corregir" (en el BC es arreglar un error de captura: CorregirNombres) y
+      "Cambiar" (sin precedente; sinonimo innecesario). Los limites no se modifican por parametro:
+      comparten invariantes cruzadas. La General es un "fantasma" que permite trabajar sin friccion
+      hasta que alguien decide sobre ella (palabras del experto).
 
   - name: Jornada predeterminada
     definition: >
@@ -1021,25 +1037,34 @@ terms:
       Se planea un patron comun, pero no se generaliza hasta tener mas casos (Rule of Three,
       MEF-ADR-0018).
 
-  - name: Verificacion semanal de la programacion
+  - name: Advertencias de la programacion semanal
     definition: >
-      Vista read-side (proyeccion N2) para el Programador: verifica la programacion de cada semana
-      lunes-domingo de un colaborador contra la Jornada estampada (la ultima recibida en la
-      semana), para decidir que reprogramar antes de que pase. Solo informa: las alertas orientan,
-      no son taxativas. Se alimenta del dia ya resuelto en ControlHoras (Turno Diario + ausencias):
-      7 casillas que se reemplazan. Horas del dia = solo ordinarias (franja ordinaria - descansos
-      - extras), atribuidas al dia en que EMPIEZA el turno. Semana JUZGABLE = 7 dias programados
-      (trabajo o descanso) y ninguna ausencia; en ella las horas semanales se verifican exactas;
-      en la no juzgable solo se verifica el exceso. Tope y minimo diario se verifican siempre. Los
-      descansos no se verifican. Hallazgo = violacion de cualquier verificacion aplicable; una
-      semana no juzgable no es hallazgo por si sola. Codigo: VerificacionProgramacionSemanal.
+      Reporte read-side para el Programador: las ADVERTENCIAS de la programacion de cada semana
+      lunes-domingo de un colaborador contra la Jornada de la semana (la ultima no nula recibida;
+      un dia sin Jornada no la sobrescribe y se mide contra ella; semana sin ninguna Jornada = sin
+      advertencias), para decidir que reprogramar antes de que pase. Solo informa: las
+      advertencias orientan, no son taxativas. Se alimenta del dia ya resuelto en ControlHoras
+      (Turno Diario + ausencias): 7 casillas que se reemplazan; la ausencia aporta 0 horas. Horas
+      del dia = solo ordinarias (franja ordinaria - descansos - extras), atribuidas al dia en que
+      EMPIEZA el turno. Semana JUZGABLE = 7 dias programados (trabajo o descanso) y ninguna
+      ausencia; en ella las horas semanales y los dias de descanso (si > 0) se miden EXACTOS; en la
+      no juzgable solo el exceso de horas. Tope y minimo diario: solo dias de trabajo, siempre.
+      ADVERTENCIA = violacion de cualquier verificacion aplicable, con su magnitud; una semana no
+      juzgable no es advertencia por si sola. Se consulta una semana a la vez. Codigo:
+      AdvertenciasProgramacionSemanal (vista), ListarAdvertenciasProgramacionSemanal (consulta),
+      consultar_advertencias_programacion (tool MCP).
     context: Programacion
     date_added: 2026-10-05
-    rejected_synonyms: [Control de jornada semanal, ControlJornadaSemanal, Revision de topes de jornada, Auditoria de jornada, Cuadre de jornada]
+    date_updated: 2026-10-05
+    rejected_synonyms: [Verificacion semanal de la programacion, Hallazgo, Alerta, Anomalia, Novedad, Incumplimiento, Inconsistencia, Control de jornada semanal, ControlJornadaSemanal, Revision de topes de jornada, Auditoria de jornada, Cuadre de jornada]
     rejection_reason: >
-      "Control" en ControlHoras nombra el calculo del dia (ControlDiario); "topes" solo nombra
-      maximos; "auditoria" suena a bitacora de cambios o a certificacion legal. El sujeto es la
-      programacion: familia Solicitud/Cancelacion de Programacion.
+      ENMIENDA 2026-10-05 (refinamiento de #876): el experto renombra el reporte; "Verificacion" y
+      "Hallazgo" eran los nombres del mismo dia y quedan rechazados (Hallazgo suena a auditoria).
+      "Alerta" se considero y se prefirio "Advertencia" (mas suave; coherente con "orientan, no
+      son taxativas"). "Anomalia" ya nombra lo TRABAJADO en ControlHoras (NoSePresento,
+      VinoEnDescanso); "Novedad" es jerga de nomina ya rechazada; "Incumplimiento" e
+      "Inconsistencia" acusan error y contradicen el principio. "Control" en ControlHoras nombra el
+      calculo del dia; "topes" solo nombra maximos; "auditoria" suena a certificacion legal.
     note: >
       Distinta de la cobertura de la programacion (quien falta por programar), que es otra vista,
       todavia sin issue. Esa seria la version anticipada de "Dia sin programar".
