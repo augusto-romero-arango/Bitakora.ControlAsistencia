@@ -25,7 +25,7 @@ Este proyecto consume el plugin `mefisto@augusto-romero-arango-harness` desde el
 
 ### Tokens del harness (resolución para agentes y skills)
 
-Estos valores los consumen los agentes/skills del harness cuando ven los placeholders `<RootNamespace>`, `<SolutionFile>`, `<ProjectDisplayName>`, `<BoundedContext>`. La fuente operativa para scripts es `.claude/harness.config.json`.
+Estos valores los consumen los agentes/skills del harness cuando ven los placeholders `<RootNamespace>`, `<SolutionFile>`, `<ProjectDisplayName>`, `<BoundedContext>`. La fuente operativa para scripts es `.mefisto/harness.config.json`.
 
 - **RootNamespace**: `Bitakora.ControlAsistencia`
 - **SolutionFile**: `ControlAsistencias.slnx`
