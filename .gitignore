@@ -491,6 +491,7 @@ $RECYCLE.BIN/
 
 # Pipeline TDD
 **/.claude/pipeline/
+.mefisto/pipeline/
 pipeline-state/
 
 # KQL audit log (queries ad-hoc del bug-investigator)

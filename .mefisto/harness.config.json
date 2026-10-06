@@ -1,0 +1,68 @@
+{
+  "projectName": "ControlAsistencias",
+  "namespacePrefix": "Bitakora.ControlAsistencia",
+  "solutionFile": "ControlAsistencias.slnx",
+  "infraResourceGroupPrefix": "rg-controlasistencias",
+  "terraformStateStorage": "stcatfstatedev",
+  "githubServicePrincipalName": "github-controlasistencias-ci",
+  "appInsightsApp": "controlasistencias-dev-ai",
+  "domainLabels": [
+    "asistencia",
+    "programacion",
+    "contracts",
+    "control-horas",
+    "colaboradores",
+    "sedes"
+  ],
+  "boundedContext": {
+    "name": "ControlAsistencias",
+    "domains": [
+      "programacion",
+      "control-horas",
+      "colaboradores",
+      "sedes"
+    ]
+  },
+  "projections": {
+    "enabled": true
+  },
+  "tenancy": {
+    "strategy": "multi-tenant-header"
+  },
+  "autonomy": {
+    "administration": [],
+    "commands": [
+      "autonomy",
+      "batch-stop",
+      "bitacora",
+      "bug",
+      "draft",
+      "eraser-diagram",
+      "fix-review",
+      "health-check",
+      "implement",
+      "infra",
+      "infra-base",
+      "install-apim",
+      "install-auth",
+      "install-workos",
+      "merge",
+      "next-order",
+      "onboard",
+      "parallel",
+      "purge-store",
+      "runtimes",
+      "scaffold",
+      "scaffold-mcp",
+      "scaffold-projections",
+      "seed-secret",
+      "sequential",
+      "tooling",
+      "upgrade",
+      "work-status"
+    ],
+    "id": "maximo",
+    "revision": 1,
+    "schemaVersion": 1
+  }
+}
