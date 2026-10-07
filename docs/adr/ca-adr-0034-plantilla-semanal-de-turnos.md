@@ -4,7 +4,10 @@
 
 Aceptado (sesion de planeacion 2026-09-04; implementacion en #620-#629). Enmendado 2026-09-05 (refinamiento
 de toda la cadena): tope de semanas, codificacion del dia, codigos HTTP e idempotencia (CA-ADR-0035), read-side
-N1 + composicion en lectura (decision 5), turno inline diferido a #651.
+N1 + composicion en lectura (decision 5), turno inline diferido a #651. Enmendado 2026-10-06 (#886):
+decisiones 2 y 5 -- la plantilla guarda una copia sincronizada de sus turnos y de los limites de su Jornada
+(consistencia eventual con autocorreccion) y el cuadro vuelve a N1 con datos propios; implementacion en #887,
+#888, #883, #884, #882, #867, #868 y #889.
 
 ## Contexto
 
@@ -51,19 +54,42 @@ explicitamente del foco de la sesion de **construccion**. Aplicarla queda resuel
   `PlantillaSemanalCreada`, `DiaDePlantillaSemanalAsignado`, `DiaDePlantillaSemanalQuitado`,
   `PlantillaSemanalRetirada`. Ninguno cruza bus.
 
-### 2. Referencia viva, no snapshot; el snapshot ocurre al asignar
+### 2. Referencia por identidad + copia de valor sincronizada
 
-- La plantilla guarda `TurnoId`, nunca una copia del turno. Editar un turno (CA-ADR-0033) se refleja solo
-  en las asignaciones **futuras** de las plantillas que lo referencian; las ya hechas conservan su snapshot
-  en la solicitud, como hoy.
-- **Rechazado**: snapshot dentro de la plantilla sincronizado con un "evento gordo" que "todas las plantillas
-  escuchan en el Apply". `Apply()` solo rehidrata desde el propio stream (MEF-ADR-0004); lo propuesto seria
-  evento privado + reaccion + indice `TurnoId -> PlantillaIds` + comando + evento por plantilla, y otro tanto
-  para `TurnoRetirado`: una **replica local con sincronizacion**, ultimo recurso segun MEF-ADR-0046 y sin el
-  criterio que la justifica (ningun caso de uso necesita el turno en la misma transaccion; leerlo del mismo
-  store al asignar es local, sincrono y consistente).
-- Retirar un turno referenciado **no se bloquea ni cascadea**: la plantilla queda **incompleta** (espejo de
-  *Turno incompleto*): existe, se ve, se edita, y quien la use recibe 409 hasta que se reemplace el dia.
+Enmienda 2026-10-06 (#886). Reescribe la decision original ("referencia viva, no snapshot", 2026-09-04).
+
+- Cada dia conserva `TurnoId` como identidad y guarda ademas una **copia de valor** `Turno` (VO rico, #887) con
+  la **version del stream** del turno copiado. La plantilla guarda tambien la copia de los `LimitesJornada` de
+  su Jornada (#867). `CatalogoTurnos` es un stream **por turno** (`Id = TurnoId`), no un catalogo unico; la
+  Jornada es igualmente su propio stream.
+- **Porque**: la plantilla se **audita a si misma** contra su Jornada (#868/#889) con objetos de dominio ricos
+  (Tell-don't-Ask, MEF-ADR-0012) y emite sus advertencias en la misma transaccion que el comando que cambio su
+  diseno. Esa regla necesita el turno y los limites **al decidir**. Se revierte el rechazo del 2026-09-04: su
+  supuesto ("ningun caso de uso necesita el turno en la misma transaccion") ya no se cumple. El ADR original no
+  estaba equivocado; decidio con ese supuesto.
+- **Correccion de la cita**: MEF-ADR-0046 **no aplica**. Trata datos de *otro dominio*; turno, Jornada y
+  plantilla son todos de Programacion. La frontera que obliga a sincronizar es la del **aggregate** (cada turno
+  es su stream, cada Jornada el suyo): consistencia eventual entre aggregates del mismo dominio.
+- **Mecanica**:
+  - **Disparo**: los eventos de diseno del turno y `TurnoRetirado` (#883) y el cambio de limites de la Jornada
+    (#884) publican un evento privado **plano** (CA-ADR-0025) con el estado completo resultante y la version
+    del stream; la reaccion reinstancia el VO con sus factories y envia el comando de sincronizacion a cada
+    plantilla que lo usa. Es reaccion + comando + evento propio por plantilla: `Apply()` solo rehidrata desde
+    el propio stream (MEF-ADR-0004 intacto). Sigue **rechazado** el "evento gordo" que todas las plantillas
+    escuchan en el `Apply`.
+  - **Desorden del bus**: la plantilla ignora una version menor o igual a la de su copia.
+  - **Borrados**: `TurnoRetirado` llega como sincronizacion con `Retirado`; la plantilla queda **incompleta**,
+    sin bloqueo ni cascada (se conserva).
+  - **Backfill**: no hay; las plantillas existentes son datos de prueba y se purgan en el mismo despliegue que
+    #888 (MEF-ADR-0036).
+  - **Drift por el indice eventual**: la reaccion busca las plantillas en `CuadroSemanalTurnos` (proyeccion
+    `Async`); una asignacion aun no proyectada puede quedar fuera. **Autocorreccion**: reasignar el mismo
+    `TurnoId` (o reasociar la misma Jornada) es no-op (CA-ADR-0035) **solo si la copia esta al dia**; si la
+    version del catalogo es mayor, actualiza la copia. El handler de asignar dia ya carga `CatalogoTurnos`
+    (`EvaluarAsignabilidad`): no agrega lecturas. Ventana corta aceptada por el experto.
+- Se conserva: retirar un turno referenciado **no se bloquea ni cascadea** (la plantilla queda **incompleta**,
+  espejo de *Turno incompleto*: existe, se ve, se edita, y quien la use recibe 409 hasta que se reemplace el
+  dia); aplicar una plantilla (#828) sigue programando desde el catalogo por `TurnoId`.
 
 ### 3. El descanso es un turno, no una omision
 
@@ -82,8 +108,10 @@ explicitamente del foco de la sesion de **construccion**. Aplicarla queda resuel
 - **Codigos de exito (enmienda 2026-09-05, CA-ADR-0035)**: `201 Created` + `Location` en el `POST`, `204 No
   Content` en `PUT`/`DELETE` -- la transaccion confirma antes de responder; el 202 heredado del marco era
   impreciso. **Idempotencia**: PUT con el mismo turno, DELETE sobre un dia ya vacio y retirar una plantilla ya
-  retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409. El 409 queda para conflictos reales
-  (plantilla retirada, semana fuera de rango, turno retirado/incompleto) y el 404 para recurso inexistente.
+  retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409 (precision 2026-10-06, decision 2: el PUT
+  con el mismo turno solo es no-op si la copia esta al dia; si la version del catalogo es mayor, actualiza la
+  copia). El 409 queda para conflictos reales (plantilla retirada, semana fuera de rango, turno
+  retirado/incompleto) y el 404 para recurso inexistente.
 - **Solo turnos completos son asignables a un dia** (decision del experto 2026-09-05, espejo de #613): 409
   `TurnoIncompleto`. La verificacion lee el aggregate `CatalogoTurnos` del mismo store (`EvaluarAsignabilidad`),
   no la vista `FichaTurno`: local, sincrono y consistente.
@@ -91,28 +119,24 @@ explicitamente del foco de la sesion de **construccion**. Aplicarla queda resuel
 - Nombre unico best-effort contra la vista (espejo de #497: trim, case-insensitive, acentos significativos).
   Retiro (`DELETE .../{id}`) espejo de #500/#501: deja de ser usable, su cuadro se borra, el nombre queda libre.
 
-### 5. Read-side: `CuadroSemanalTurnos`, N2 con grouper, nombre + `ToString()` del turno
+### 5. Read-side: `CuadroSemanalTurnos`, N1 con datos propios, nombre + `ToString()` del turno
 
 - Vista `CuadroSemanalTurnos` ("cuadro de turnos": termino real de salud y vigilancia para la grilla
   dias x turnos; aqui el cuadro de una plantilla, sin personas). Lo que el Programador lee, por dia: turno con
-  nombre y `Descripcion` (el `ToString()` del turno, lo que `FichaTurno` ya expone), si esta retirado o
-  incompleto -- **no** el objeto completo; las franjas siguen siendo `obtener_turno`. A nivel plantilla:
-  `Nombre`, `Semanas`, `Completa`.
-- **Enmienda 2026-09-05 (opcion B): N1 + composicion en la lectura.** El documento materializado es
-  `SingleStreamProjection` sobre el stream de la plantilla y guarda solo `Id`, `Nombre`, `Semanas` y por dia
-  `(Semana, Dia ISO, TurnoId)` (#624). El GET (#625) lo junta con `FichaTurno` en la misma `QuerySession` y
-  responde el cuadro resuelto (`CuadroSemanalTurnosRespuesta`: `nombre`, `descripcion`, `completo`, `retirado`
-  por dia -- ficha ausente = retirado --; `Completa` = 7xN dias con ficha presente **y completa**, porque un
-  turno que quedo incompleto hace la plantilla no usable). `read-apis.md` admite ese DTO para "componer varias
-  vistas en una sola respuesta". La descripcion nunca queda vieja: no hay copia que refrescar.
-- **Rechazado el N2 con grouper custom** de la version original: obligaba a la proyeccion a consultar estado
-  externo (el propio cuadro para hallar las plantillas de un turno; `FichaTurno` para copiar la descripcion)
-  contra la regla de procedencia del Skill `projections`, tenia una carrera de lote (el grouper lee el
-  documento persistido, atrasado dentro del mismo lote) y seria el primer grouper del BC. Cinco hipotesis en el
-  write-side para evitarlo -- snapshot al asignar, que el turno conozca sus plantillas, fan-out por reaccion,
-  ids desde el handler, turnos inmutables -- invertian la dependencia turno -> plantilla o congelaban la
-  descripcion. La relacion es de la plantilla hacia el turno y se resuelve en el unico momento en que ambos
-  lados estan disponibles sin copia: la lectura. El worker sigue sin referenciar Function Apps (CA-ADR-0028).
+  nombre y `Descripcion` (el `ToString()` del turno), si esta retirado o incompleto -- **no** el objeto
+  completo; las franjas siguen siendo `obtener_turno`. A nivel plantilla: `Nombre`, `Semanas`, `Completa`.
+- **Enmienda 2026-09-05 (opcion B)**: N1 + composicion en la lectura con `FichaTurno` (#624, #625).
+  **Superada el 2026-10-06 (#886)**.
+- **Enmienda 2026-10-06 (#886): N1 con datos propios.** `CuadroSemanalTurnos` sigue siendo
+  `SingleStreamProjection` (N1) sobre el stream de la plantilla, pero nombre, descripcion, completo y retirado
+  de cada dia **llegan en los eventos de la plantilla** (#888, #883), alimentados por la copia sincronizada de
+  la decision 2. El GET deja de componer con `FichaTurno` (#882).
+- **Ventana eventual**: la descripcion puede quedar vieja unos segundos tras editar el turno, hasta que la
+  sincronizacion llegue a la plantilla.
+- **Se conserva el rechazo del N2 con grouper custom**: obligaba a la proyeccion a consultar estado externo
+  contra la regla de procedencia del Skill `projections`, tenia una carrera de lote y seria el primer grouper
+  del BC. Con la copia dentro del stream de la plantilla ya no hace falta. El worker sigue sin referenciar
+  Function Apps (CA-ADR-0028).
 - **"Ficha" no es un patron de naming.** El experto: "lo usamos para resolver colaboradores y ahora siento
   que todo es Ficha... es como decir 'Vista'". Cada vista se nombra desde el actor que la lee
   (MEF-ADR-0041); las `Ficha*` existentes se quedan.
@@ -139,10 +163,12 @@ explicitamente del foco de la sesion de **construccion**. Aplicarla queda resuel
 - **Modelo posicional (ciclo de N dias)** unificando semana y rotacion: cubre 4x2 pero pierde el
   vocabulario "lunes/martes" con el que el experto define la plantilla. Diferido: sera otro aggregate.
 - **Turno inline sin nombre**: ver decision 6.
-- **Snapshot + evento gordo / bloquear el retiro del turno**: ver decision 2.
+- **Evento gordo escuchado en el `Apply` / bloquear el retiro del turno**: ver decision 2 (la copia sincronizada
+  por reaccion + comando la reemplaza desde 2026-10-06).
 - **N1 con nombre de turno copiado en el evento de plantilla**: bastaba si la vista mostrara solo nombres
   (inmutables: no hay `RenombrarTurno`); el experto quiso el `ToString()`, que si cambia -> N2. Superada el
-  2026-09-05 por N1 **sin copia** + composicion en lectura (decision 5 enmendada).
+  2026-09-05 por N1 **sin copia** + composicion en lectura y, el 2026-10-06, por N1 con datos propios
+  (decision 5 enmendada).
 - **Dia vacio = "sin plan" deliberado**: descartado; descanso es turno, vacio es incompleto.
 - **`AgregarSemana`/`QuitarSemana`**: sin caso de uso; retirar + crear.
 
@@ -151,17 +177,22 @@ explicitamente del foco de la sesion de **construccion**. Aplicarla queda resuel
 ### Positivas
 - "Semana Cocina" se crea una vez y se reutiliza; el patron queda nombrado y auditable en el store.
 - ControlHoras no cambia: la asignacion futura seguira produciendo un turno por fecha.
-- Un solo lugar donde vive y se edita un turno; la plantilla nunca drifta respecto al catalogo.
+- Un solo lugar donde se edita un turno; la plantilla lo copia y se mantiene al dia por sincronizacion
+  (consistencia eventual con autocorreccion, decision 2) y puede auditarse a si misma al decidir (#868/#889).
+- El GET del cuadro lee un solo documento, sin composicion (#882).
 - La puerta a la modalidad ciclica queda abierta sin renombrar nada.
 
 ### Negativas
-- 4 tipos de evento persistidos y 4 comandos nuevos en Programacion; un GET que compone dos vistas por
-  request (una consulta extra; `Completa` no es filtrable server-side -- hoy no se necesita).
+- 4 tipos de evento persistidos y 4 comandos nuevos en Programacion, mas los artefactos de sincronizacion
+  (evento privado plano, reaccion, comando y evento por plantilla; #883, #884, #888).
 - Verificaciones best-effort entre streams (turno existe/activo, nombre unico) sin atomicidad -- mismo
   perfil que #497.
 - La decision del 2026-08-29 queda parcialmente revertida: el glosario debe leerse con esta enmienda.
-- ~~Ventana entre editar un turno y que el cuadro refresque `Descripcion`~~ -- eliminada por la enmienda
-  2026-09-05: la descripcion se resuelve al leer.
+- Ventana eventual entre editar un turno (o los limites de la Jornada) y que la copia de la plantilla y el
+  cuadro se actualicen; acotada por la autocorreccion al reasignar. (La enmienda 2026-09-05 la habia eliminado
+  resolviendo la descripcion al leer; la enmienda 2026-10-06 la reintroduce a cambio de la autoauditoria.)
+- La reaccion depende del indice eventual `CuadroSemanalTurnos`: una asignacion aun no proyectada puede quedar
+  sin sincronizar hasta que se reasigne.
 
 ## Aplicar una plantilla
 
@@ -183,9 +214,11 @@ Enmienda 2026-10-04 (#828, tool `aplicar_plantilla_semanal`).
 
 - Issues: #620 (crear), #621 (asignar dia), #622 (quitar dia), #623 (retirar), #624 (vista N1), #625
   (GET + composicion), #626 (nombre unico), #627-#628 (tools de Comandos), #629 (tools de Consultas), #651
-  (turno inline), #640 (correccion de codigos HTTP de los endpoints existentes); harness#849, harness#850.
+  (turno inline), #640 (correccion de codigos HTTP de los endpoints existentes); #886 (enmienda de copia
+  sincronizada), #887 (VO `Turno`), #888, #883, #884, #867, #868, #889, #882; harness#849, harness#850.
 - MEF-ADR-0004, MEF-ADR-0011, MEF-ADR-0012, MEF-ADR-0018, MEF-ADR-0034, MEF-ADR-0035, MEF-ADR-0036,
-  MEF-ADR-0041, MEF-ADR-0042, MEF-ADR-0043, MEF-ADR-0046, MEF-ADR-0047, MEF-ADR-0048;
+  MEF-ADR-0041, MEF-ADR-0042, MEF-ADR-0043, MEF-ADR-0046 (citado para declarar que no aplica, decision 2),
+  MEF-ADR-0047, MEF-ADR-0048;
   CA-ADR-0028, CA-ADR-0029, CA-ADR-0030, CA-ADR-0031, CA-ADR-0033, CA-ADR-0035.
 - Glosario: Plantilla de turnos, Plantilla semanal de turnos, Cuadro semanal de turnos, Turno (enmienda),
   Ventana de trabajo, Programador de turnos.
@@ -201,3 +234,9 @@ Enmienda 2026-10-04 (#828, tool `aplicar_plantilla_semanal`).
   write-side descartadas. Decision 6: `dias` JSON, PUT secuenciales, turno inline diferido a #651. Nace #640
   (inventario de codigos) y CA-ADR-0035.
 - 2026-10-04: enmendado (#828). Se agrega "Aplicar una plantilla" y se actualiza el parrafo que dejaba asignar fuera de alcance.
+- 2026-10-06: enmendado (#886, sesiones del planner). Decision 2: referencia viva sin copia -> `TurnoId` +
+  copia de valor sincronizada (turno #887 y limites de Jornada #867) por reaccion + comando; desorden por
+  version, retiro como sincronizacion, sin backfill (purga con #888), autocorreccion al reasignar. Se corrige la
+  cita a MEF-ADR-0046 (no aplica). Decision 5: N1 con datos propios, sin composicion con `FichaTurno` en el GET
+  (#882, #888, #883); el rechazo del N2 con grouper se conserva. Consecuencias: consistencia eventual con
+  autocorreccion. Habilita la autoauditoria (#868/#889) y los artefactos #883/#884.
