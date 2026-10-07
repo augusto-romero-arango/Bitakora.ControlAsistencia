@@ -358,6 +358,9 @@ terms:
       Enmienda 2026-09-04 (CA-ADR-0034): la definicion deja de decir "plantilla" -- esa palabra
       nombra ahora el nivel 2 (Plantilla de turnos). El turno es el PLAN DEL DIA; el nombre del
       turno no es editable (no hay RenombrarTurno), su ToString() si cambia con el diseno.
+      Enmienda 2026-10-06 (#887): el turno pasa a existir como VO de dominio `Turno` (Nombre, EsDescanso,
+      FranjaOrdinaria; MinutosOrdinarios, EstaCompleto, ToString), extraido de CatalogoTurnos, para que la
+      Plantilla semanal guarde copias reinstanciables. El nombre puro se reserva al concepto rico.
 
   - name: Turno incompleto
     definition: >
@@ -441,9 +444,19 @@ terms:
       aggregate nuevo. La semana lunes-domingo que contiene `desde` es la semana 1 y avanza ciclicamente
       cada lunes. Los dias a programar se deciden con la MISMA regla que programar un turno (ventana
       intersecada con la vigencia de la vinculacion); el recorte no reinicia el molde.
+      Enmienda 2026-10-06 (#867, #868, #882-#884; enmienda #850 decision 11): la plantilla referencia
+      una Jornada OPCIONAL solo para auditar su diseno (nunca se estampa); NO toma la predeterminada por
+      defecto; se asocia, cambia y quita (PUT/DELETE .../{id}/jornada). La plantilla SE AUDITA A SI MISMA
+      (Tell-don't-Ask): tras cada comando recalcula sus Advertencias de plantilla y, si cambiaron, emite
+      un hecho con la lista completa. Refinamiento de #868 (mismo dia; enmienda CA-ADR-0034 decisiones 2 y 5,
+      #886): cada dia guarda una COPIA del turno (VO Turno, #887/#888) y la plantilla una copia del nombre y
+      LimitesJornada de su Jornada; las copias se SINCRONIZAN por reaccion a los cambios de diseno o retiro
+      del turno (#883) y de limites de la Jornada (#884): evento privado plano con version, la reaccion
+      reinstancia el objeto de dominio y la plantilla ignora versiones viejas. El cuadro se proyecta de sus
+      propios eventos (sin componer con FichaTurno, #882). Aplicar la plantilla sigue leyendo el catalogo.
     context: Programacion
     date_added: 2026-09-04
-    date_updated: 2026-10-04
+    date_updated: 2026-10-06
     rejected_synonyms: [PlantillaTurnos (sin modalidad), Ventana de trabajo, Periodo de programacion, turno inline sin nombre]
     rejection_reason: >
       El alias del evento persistido es el nombre simple de la clase y una futura PlantillaCiclica
@@ -458,6 +471,29 @@ terms:
       plantillas-semanales (paso 1); PUT .../{id}/dias/{semana}/{dia} (paso 2, slot atomico);
       DELETE .../dias/{semana}/{dia} y DELETE .../{id} (paso 3). Issues #620-#623 (aggregate y
       comandos), #626 (nombre unico), #627-#628 (tools de Comandos). CA-ADR-0034.
+
+  - name: Advertencias de plantilla
+    definition: >
+      Juicio que la Plantilla semanal de turnos hace de su propio diseno contra la Jornada asociada.
+      Sin Jornada, la unica advertencia es PlantillaSinJornada (ningun otro control corre). Con Jornada,
+      TODOS los controles se aplican siempre, este completa o no: DiaSinTurno (dia vacio, o con turno
+      retirado o incompleto), SuperaTopeDiario / PorDebajoDelMinimoDiario (dias de trabajo, en minutos),
+      SuperaHorasSemanales / PorDebajoDeHorasSemanales (valor exacto, en minutos) y FaltanDiasDeDescanso /
+      SobranDiasDeDescanso (valor exacto, solo si el parametro > 0, en dias). Orientan, no bloquean.
+    context: Programacion
+    date_added: 2026-10-06
+    date_updated: 2026-10-06
+    rejected_synonyms: [Auditoria calculada al leer, DiaConTurnoIncompleto]
+    rejection_reason: >
+      Calcularlas en el GET dejaba las reglas fuera de la plantilla (Tell-don't-Ask, experto
+      2026-10-06). Un turno incompleto en un dia cuenta como DiaSinTurno, no como advertencia aparte.
+      Se distinguen de las Advertencias de la programacion semanal (#864-#866): la plantilla no tiene
+      "semana no juzgable" porque no hay ausencias; lo no asignado es DiaSinTurno.
+    note: >
+      Evento tentativo AdvertenciasDePlantillaSemanalCalculadas; se muestran completas al abrir la
+      plantilla y en el listado (sin conteo ni filtro por ahora). Se calculan sobre las COPIAS de turnos y
+      Jornada que guarda la plantilla. Issues #868 (reglas puras), #889 (emision), #882 (vista),
+      #883/#884 (sincronizacion de copias y re-auditoria).
 
   - name: Cuadro semanal de turnos
     definition: >
@@ -978,16 +1014,20 @@ terms:
       DESCANSO POR SEMANA (valor exacto 0-6; 0 = no se controla). Puede o no
       coincidir con la ley: el sistema no impone modalidades legales ni certifica cumplimiento.
       La Jornada ACOTA, la programacion DECIDE: no fija dias habiles ni descansos. Se asigna a la
-      Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id,
-      nombre y valores) al programar, por colaborador: el cliente manda solo el JornadaId asignado
+      Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id
+      y valores, sin nombre) al programar, por colaborador: el cliente manda solo el JornadaId asignado
       y el servidor arma la copia desde su catalogo; sin JornadaId estampa la predeterminada; editarla nunca cambia lo programado. Se
       desactiva (no se retira) y no se puede desactivar en uso (mejor esfuerzo, 409). La General
       (tope diario 8 h, 42 horas semanales, minimo diario 0) vive en memoria hasta el primer
-      comando que la toque: MODIFICAR sus limites o su nombre la materializa, aunque traiga sus
-      mismos valores (confirmarla tambien es decidir). Se modifica con dos comandos: los cuatro
-      limites como un todo (ModificarLimitesJornada) y el nombre (ModificarNombreJornada). Una plantilla referencia una Jornada solo para auditar su diseno.
+      comando que la toque: MODIFICAR sus limites la materializa, aunque traiga sus
+      mismos valores (confirmarla tambien es decidir). Se modifica con un comando: los cuatro
+      limites como un todo (ModificarLimitesJornada). NO TIENE NOMBRE (2026-10-06): una Jornada ES sus
+      limites; se identifica por su Id y se muestra con LimitesJornada.ToString() ("42 h semanales, tope
+      diario 8 h, sin minimo diario, 1 dia de descanso por semana"); no debe haber dos activas con los
+      mismos limites (409 de mejor esfuerzo, #890). Una plantilla guarda copia de sus limites solo para
+      auditar su diseno.
     context: Programacion
-    date_updated: 2026-10-05
+    date_updated: 2026-10-06
     rejected_synonyms: [Configuracion de jornada, Perfil de jornada, Esquema de jornada, Jornada pactada (como parametro), Topes]
     rejection_reason: >
       "Configuracion" ya nombra otras cosas en el codigo (ConfiguracionSerializacion*,
@@ -1007,6 +1047,10 @@ terms:
       "Cambiar" (sin precedente; sinonimo innecesario). Los limites no se modifican por parametro:
       comparten invariantes cruzadas. La General es un "fantasma" que permite trabajar sin friccion
       hasta que alguien decide sobre ella (palabras del experto).
+      ENMIENDA 2026-10-06 (sesion planner): se elimina el nombre de la Jornada (y ModificarNombreJornada,
+      #874 cerrado): un nombre se desfasa del contenido al modificar los limites; el experto confirmo que
+      no deberia haber dos Jornadas con los mismos limites que distinguir. La General se reconoce por su
+      Guid fijo y por ser la predeterminada, no por un nombre.
 
   - name: Jornada predeterminada
     definition: >
