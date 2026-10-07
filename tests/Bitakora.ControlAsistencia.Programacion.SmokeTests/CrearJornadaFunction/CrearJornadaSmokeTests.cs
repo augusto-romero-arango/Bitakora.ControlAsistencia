@@ -49,15 +49,18 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearJornada_DebeRetornar409_CuandoIdEsElDeLaGeneral()
+    public async Task CrearJornada_Retorna201_CuandoIdEsElQueAntesEraLaGeneral()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
         var id = Guid.Parse("00000000-0000-4000-8000-000000000001");
-        var response = await _client.PostAsJsonAsync(Ruta,
-            Payload(id, 37),
-            TestContext.Current.CancellationToken);
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await postgres.ContarEventosAsync("programacion", id.ToString(), "jornada_creada")).Should().Be(0);
+        await postgres.BorrarStreamsAsync(PostgresFixture.SchemaProgramacion, postgres.TenantId, [id.ToString()]);
+
+        var response = await _client.PostAsJsonAsync(Ruta, Payload(id, 37), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await postgres.ExisteEventoAsync(PostgresFixture.SchemaProgramacion, id.ToString(), "jornada_creada",
+            TimeSpan.FromSeconds(30))).Should().BeTrue();
     }
 
     [Fact]

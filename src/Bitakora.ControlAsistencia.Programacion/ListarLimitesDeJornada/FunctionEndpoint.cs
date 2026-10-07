@@ -1,6 +1,8 @@
 using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
+using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
@@ -14,7 +16,8 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarLimitesDeJornada;
 // Listado de la vista LimitesDeJornada: keyset por (HorasSemanalesEnMinutos, TopeDiarioEnMinutos,
 // Id), take opcional (max 200), sobre { elementos, siguienteCursor } con cursor opaco, sin total
 // (CA-ADR-0039). Comparte la ruta con CrearJornada (POST); cada uno declara su verbo.
-public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
+public class FunctionEndpoint(
+    IDocumentStore store, ITenantContext tenantContext, IAseguradorJornadaPredeterminada asegurador)
 {
     private const int TakeMaximo = 200;
 
@@ -40,6 +43,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 return new BadRequestObjectResult("El cursor no es valido");
         }
 
+        var predeterminadaId = await asegurador.AsegurarAsync(ct);
+
         // MEF-ADR-0028: QuerySession acotada al tenant de ITenantContext, nunca a uno del request.
         await using var session = store.QuerySession(tenantContext.TenantId);
 
@@ -58,22 +63,20 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             .ThenBy(l => l.TopeDiarioEnMinutos)
             .ThenBy(l => l.Id);
 
-        // Se pide take + 1 para saber si hay mas sin contar el total.
-        var filas = take is { } t
+        var pagina = take is { } t
             ? await ordenada.Take(t + 1).ToListAsync(ct)
             : await ordenada.ToListAsync(ct);
 
-        string? siguienteCursor = null;
-        if (take is { } tope && filas.Count > tope)
+        // Proyeccion Async atrasada: la predeterminada recien materializada se compone desde su stream.
+        var idTexto = predeterminadaId.ToString();
+        LimitesDeJornada? faltante = null;
+        if (await session.LoadAsync<LimitesDeJornada>(idTexto, ct) is null)
         {
-            filas = filas.Take(tope).ToList();
-            var ultima = filas[^1];
-            siguienteCursor = new CursorJornada(
-                ultima.HorasSemanalesEnMinutos, ultima.TopeDiarioEnMinutos, ultima.Id).Codificar();
+            var jornada = await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct);
+            faltante = jornada!.ComoVista();
         }
 
-        return new OkObjectResult(new ListaLimitesDeJornadaRespuesta(
-            filas.Select(LimitesDeJornadaRespuesta.DesdeVista).ToList(), siguienteCursor));
+        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take));
     }
 }
 
@@ -113,5 +116,45 @@ internal sealed record CursorJornada(int Horas, int Tope, string Id)
         {
             return null;
         }
+    }
+}
+
+// Compone una pagina de la vista (o la vista completa) con la predeterminada que la proyeccion aun no
+// materializo: la reubica en su posicion del orden y respeta cursor y take.
+internal static class ComposicionListadoLimites
+{
+    public static ListaLimitesDeJornadaRespuesta Componer(
+        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take)
+    {
+        IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
+            ? vista
+            : [.. vista, predeterminada];
+
+        var ordenada = todas
+            .OrderBy(l => l.HorasSemanalesEnMinutos)
+            .ThenBy(l => l.TopeDiarioEnMinutos)
+            .ThenBy(l => l.Id, StringComparer.Ordinal);
+
+        var filtradas = cursor is { } c
+            ? ordenada.Where(l =>
+                l.HorasSemanalesEnMinutos > c.Horas
+                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos > c.Tope)
+                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos == c.Tope
+                    && string.CompareOrdinal(l.Id, c.Id) > 0))
+            : ordenada;
+
+        var filas = take is { } t ? filtradas.Take(t + 1).ToList() : filtradas.ToList();
+
+        string? siguienteCursor = null;
+        if (take is { } tope && filas.Count > tope)
+        {
+            filas = filas.Take(tope).ToList();
+            var ultima = filas[^1];
+            siguienteCursor = new CursorJornada(
+                ultima.HorasSemanalesEnMinutos, ultima.TopeDiarioEnMinutos, ultima.Id).Codificar();
+        }
+
+        return new ListaLimitesDeJornadaRespuesta(
+            filas.Select(LimitesDeJornadaRespuesta.DesdeVista).ToList(), siguienteCursor);
     }
 }

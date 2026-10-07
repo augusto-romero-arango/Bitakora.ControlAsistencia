@@ -39,6 +39,7 @@ public static class IdentidadEventosProgramacion
         typeof(AusenciaProgramada),
         typeof(AusenciaCancelada),
         typeof(JornadaCreada),
-        typeof(LimitesJornadaModificados)
+        typeof(LimitesJornadaModificados),
+        typeof(JornadaPredeterminadaAsignada)
     ];
 }

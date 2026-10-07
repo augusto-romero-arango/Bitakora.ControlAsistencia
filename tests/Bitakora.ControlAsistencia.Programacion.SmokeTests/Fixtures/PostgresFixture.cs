@@ -19,6 +19,8 @@ public class PostgresFixture : IAsyncLifetime
 
     public string? SkipReason { get; private set; }
 
+    public string TenantId { get; private set; } = "tenant-smoke";
+
     public async ValueTask InitializeAsync()
     {
         var configuration = new ConfigurationBuilder()
@@ -50,6 +52,116 @@ public class PostgresFixture : IAsyncLifetime
 
         IsConfigured = true;
         _connectionString = connectionString;
+
+        TenantId = IdentidadDePrueba.Desde(configuration).TenantId;
+        await LimpiarJornadaPredeterminadaAsync(SchemaProgramacion, TenantId);
+    }
+
+    public const string SchemaProgramacion = "programacion";
+
+    public static string StreamIdPreferencias(string tenantId) => $"pp:{tenantId}";
+
+    // Cada corrida debe ejercer la materializacion real, asi que se borran los
+    // streams de TODAS las Jornadas que alguna vez fueron predeterminadas (historial de pp:{tenant}),
+    // sus documentos en la vista y el stream de Preferencias. Acotado por tenant_id.
+    public async Task LimpiarJornadaPredeterminadaAsync(string schema, string tenantId)
+    {
+        var streamPreferencias = StreamIdPreferencias(tenantId);
+        var aBorrar = new List<string> { streamPreferencias };
+
+        await using (var conn = new NpgsqlConnection(_connectionString))
+        {
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT to_regclass('{EscaparSchema(schema)}.mt_events') IS NOT NULL
+                """;
+            if (!(bool)(await cmd.ExecuteScalarAsync())!)
+                return;
+        }
+
+        var historial = await LeerEventosDeStreamAsync(schema, tenantId, streamPreferencias);
+        foreach (var data in historial)
+        {
+            if (data.TryGetProperty("JornadaId", out var id) || data.TryGetProperty("jornadaId", out id))
+                aBorrar.Add(id.ToString());
+        }
+
+        await BorrarStreamsAsync(schema, tenantId, aBorrar);
+    }
+
+    // Borra streams (eventos + registro del stream) y sus documentos en la vista LimitesDeJornada,
+    // siempre acotado por tenant_id.
+    public async Task BorrarStreamsAsync(string schema, string tenantId, IReadOnlyCollection<string> streamIds)
+    {
+        var ids = streamIds.Distinct().ToArray();
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                DELETE FROM {EscaparSchema(schema)}.mt_events WHERE tenant_id = @tenant AND stream_id = ANY(@ids);
+                DELETE FROM {EscaparSchema(schema)}.mt_streams WHERE tenant_id = @tenant AND id = ANY(@ids);
+                """;
+            cmd.Parameters.AddWithValue("tenant", tenantId);
+            cmd.Parameters.AddWithValue("ids", ids);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        await using (var existe = conn.CreateCommand())
+        {
+            existe.CommandText = $"SELECT to_regclass('{EscaparSchema(schema)}.mt_doc_limitesdejornada') IS NOT NULL";
+            if (!(bool)(await existe.ExecuteScalarAsync())!)
+                return;
+        }
+
+        await using var docs = conn.CreateCommand();
+        docs.CommandText = $"""
+            DELETE FROM {EscaparSchema(schema)}.mt_doc_limitesdejornada
+            WHERE tenant_id = @tenant AND id::text = ANY(@ids)
+            """;
+        docs.Parameters.AddWithValue("tenant", tenantId);
+        docs.Parameters.AddWithValue("ids", ids);
+        await docs.ExecuteNonQueryAsync();
+    }
+
+    // Cuenta TODOS los eventos del stream (cualquier tipo), acotado por tenant: sirve para demostrar
+    // que una segunda lectura no escribio nada.
+    public async Task<int> ContarEventosDeStreamAsync(string schema, string tenantId, string streamId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT count(*) FROM {EscaparSchema(schema)}.mt_events
+            WHERE tenant_id = @tenant AND stream_id = @streamId
+            """;
+        cmd.Parameters.AddWithValue("tenant", tenantId);
+        cmd.Parameters.AddWithValue("streamId", streamId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+    }
+
+    public async Task<List<JsonElement>> LeerEventosDeStreamAsync(string schema, string tenantId, string streamId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT data FROM {EscaparSchema(schema)}.mt_events
+            WHERE tenant_id = @tenant AND stream_id = @streamId
+            ORDER BY seq_id
+            """;
+        cmd.Parameters.AddWithValue("tenant", tenantId);
+        cmd.Parameters.AddWithValue("streamId", streamId);
+
+        var eventos = new List<JsonElement>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            eventos.Add(JsonSerializer.Deserialize<JsonElement>(reader.GetString(0)));
+        return eventos;
     }
 
     public Task<bool> ExisteEventoAsync(

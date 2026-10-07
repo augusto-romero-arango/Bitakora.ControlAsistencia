@@ -10,9 +10,6 @@ public partial class CrearJornadaCommandHandler(IEventStore eventStore) : IComma
 {
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
     {
-        if (command.JornadaId == JornadaGeneral.Id)
-            throw new RecursoYaExisteException(Mensajes.JornadaGeneralReservada);
-
         var existe = await eventStore.ExistsAsync<Jornada>(command.JornadaId.ToString(), ct);
         if (existe)
             throw new RecursoYaExisteException(Mensajes.JornadaYaExiste);

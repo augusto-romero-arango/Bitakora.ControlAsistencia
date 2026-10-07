@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
+using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
@@ -38,6 +39,14 @@ public partial class Jornada : AggregateRoot
         _limites.ToString());
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
+
+    internal LimitesDeJornada ComoVista() => new(
+        _jornadaId.ToString(),
+        _limites.HorasSemanales.Horas * 60 + _limites.HorasSemanales.Minutos,
+        _limites.TopeDiario.Horas * 60 + _limites.TopeDiario.Minutos,
+        _limites.MinimoDiario.Horas * 60 + _limites.MinimoDiario.Minutos,
+        _limites.DiasDescansoPorSemana,
+        _limites.ToString());
 
     internal static Jornada Iniciar(JornadaCreada evento)
     {

@@ -5,5 +5,4 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
   <data name="JornadaYaExiste" xml:space="preserve"><value>La Jornada ya existe</value></data>
-  <data name="JornadaGeneralReservada" xml:space="preserve"><value>El identificador de la Jornada General está reservado</value></data>
 </root>

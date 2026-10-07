@@ -173,4 +173,12 @@ public class AliasEventosProgramacionTests
 
         AliasDe<LimitesJornadaModificados>(options).Should().Be("limites_jornada_modificados");
     }
+
+    [Fact]
+    public void JornadaPredeterminadaAsignada_TieneAliasJornadaPredeterminadaAsignada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaPredeterminadaAsignada>(options).Should().Be("jornada_predeterminada_asignada");
+    }
 }

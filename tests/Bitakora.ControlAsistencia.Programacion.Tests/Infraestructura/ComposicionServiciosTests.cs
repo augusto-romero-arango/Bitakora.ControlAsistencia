@@ -238,6 +238,27 @@ public class ComposicionServiciosTests
         alias.Should().Be("limites_jornada_modificados");
     }
 
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaPredeterminadaAsignada()
+    {
+        await using var provider = ComponerServiceProvider();
+        var store = provider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(JornadaPredeterminadaAsignada)).Alias;
+        alias.Should().Be("jornada_predeterminada_asignada");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElAseguradorDeJornadaPredeterminada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var asegurador = scope.ServiceProvider.GetRequiredService<IAseguradorJornadaPredeterminada>();
+
+        asegurador.Should().BeOfType<AseguradorJornadaPredeterminada>();
+    }
+
     // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-2, CA-3) ---
     //
     // Mismo wiring que ControlHoras (AgregarWolverineParaComandosServerless): Programacion no emite
