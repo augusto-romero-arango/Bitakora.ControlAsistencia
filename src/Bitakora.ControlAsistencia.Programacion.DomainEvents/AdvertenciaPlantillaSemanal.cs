@@ -15,7 +15,8 @@ public enum TipoAdvertenciaPlantilla
     SobranDiasDeDescanso
 }
 
-public sealed class AdvertenciaPlantillaSemanal : IEquatable<AdvertenciaPlantillaSemanal>
+public sealed class AdvertenciaPlantillaSemanal
+    : IEquatable<AdvertenciaPlantillaSemanal>, IComparable<AdvertenciaPlantillaSemanal>
 {
     private TipoAdvertenciaPlantilla _tipo;
     private int? _semana;
@@ -54,8 +55,11 @@ public sealed class AdvertenciaPlantillaSemanal : IEquatable<AdvertenciaPlantill
     public static AdvertenciaPlantillaSemanal SobranDiasDeDescanso(int semana, int dias) =>
         Nueva(TipoAdvertenciaPlantilla.SobranDiasDeDescanso, semana, magnitud: dias);
 
-    // Clave de orden determinista: semana, dia ISO (las de semana van antes que las de dia), tipo.
-    public (int Semana, int Dia, int Tipo) ClaveDeOrden() => (_semana ?? 0, _dia ?? 0, (int)_tipo);
+    // Orden determinista: plantilla, semana, dia ISO (las de semana antes que las de dia), tipo.
+    public int CompareTo(AdvertenciaPlantillaSemanal? otra) =>
+        otra is null ? 1 : Clave().CompareTo(otra.Clave());
+
+    private (int, int, TipoAdvertenciaPlantilla) Clave() => (_semana ?? 0, _dia ?? 0, _tipo);
 
     public bool Equals(AdvertenciaPlantillaSemanal? otra) =>
         otra is not null && _tipo == otra._tipo && _semana == otra._semana
@@ -65,7 +69,7 @@ public sealed class AdvertenciaPlantillaSemanal : IEquatable<AdvertenciaPlantill
 
     public override int GetHashCode() => HashCode.Combine(_tipo, _semana, _dia, _magnitud);
 
-    public override string ToString() => $"{_tipo} S{_semana} D{_dia} {_magnitud}";
+    public override string ToString() => $"{_tipo}({_semana}, {_dia}, {_magnitud})";
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {

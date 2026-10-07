@@ -50,6 +50,16 @@ public class AuditoriaPlantillaSemanalTests
     }
 
     [Fact]
+    public void Auditar_DevuelveSoloPlantillaSinJornada_CuandoHayDiasFueraDeRango()
+    {
+        var dias = Semana(5, Trabajo(700), Descanso());
+
+        var resultado = Auditar(1, dias, null);
+
+        resultado.Should().Equal(AdvertenciaPlantillaSemanal.PlantillaSinJornada());
+    }
+
+    [Fact]
     public void Auditar_NoAdvierteNada_CuandoLaSemanaCumpleTodo()
     {
         var resultado = Auditar(1, Semana(1, SeisDeTrabajoYDescanso(420)), Limites());

@@ -6,6 +6,8 @@ public sealed record DiaDePlantillaAuditado(int Semana, DiaSemana Dia, Turno Tur
 
 public static class AuditoriaPlantillaSemanal
 {
+    private const int DiasPorSemana = 7;
+
     public static IReadOnlyList<AdvertenciaPlantillaSemanal> Auditar(
         int semanas,
         IEnumerable<DiaDePlantillaAuditado> diasOcupados,
@@ -15,10 +17,11 @@ public static class AuditoriaPlantillaSemanal
             return [AdvertenciaPlantillaSemanal.PlantillaSinJornada()];
 
         var ocupados = diasOcupados.ToDictionary(d => (d.Semana, d.Dia.Numero));
-        var advertencias = Enumerable.Range(1, semanas)
-            .SelectMany(semana => AuditarSemana(semana, ocupados, limites));
-
-        return advertencias.OrderBy(a => a.ClaveDeOrden()).ToList().AsReadOnly();
+        return Enumerable.Range(1, semanas)
+            .SelectMany(semana => AuditarSemana(semana, ocupados, limites))
+            .Order()
+            .ToList()
+            .AsReadOnly();
     }
 
     private static IEnumerable<AdvertenciaPlantillaSemanal> AuditarSemana(
@@ -26,10 +29,13 @@ public static class AuditoriaPlantillaSemanal
         IReadOnlyDictionary<(int, int), DiaDePlantillaAuditado> ocupados,
         LimitesJornada limites)
     {
-        var dias = Enumerable.Range(1, 7)
-            .Select(n => ocupados.TryGetValue((semana, n), out var d) && !d.Retirado && d.Turno.EstaCompleto()
-                ? d.Turno : null)
-            .Select((turno, i) => (Dia: DiaSemana.Desde(i + 1), Turno: turno))
+        // Vacio, retirado o incompleto: el dia queda sin turno (DiaSinTurno, 0 minutos, no es descanso).
+        var dias = Enumerable.Range(1, DiasPorSemana)
+            .Select(n => (
+                Dia: DiaSemana.Desde(n),
+                Turno: ocupados.TryGetValue((semana, n), out var d) && !d.Retirado && d.Turno.EstaCompleto()
+                    ? d.Turno
+                    : null))
             .ToList();
 
         var advertencias = new List<AdvertenciaPlantillaSemanal>();
@@ -59,11 +65,11 @@ public static class AuditoriaPlantillaSemanal
             advertencias.Add(AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(semana, -diferencia));
 
         var descansos = dias.Count(d => d.Turno?.EsDescanso() == true);
-        var difDescansos = limites.DiferenciaDeDescansos(descansos);
-        if (difDescansos > 0)
-            advertencias.Add(AdvertenciaPlantillaSemanal.SobranDiasDeDescanso(semana, difDescansos));
-        if (difDescansos < 0)
-            advertencias.Add(AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(semana, -difDescansos));
+        var diferenciaDescansos = limites.DiferenciaDeDescansos(descansos);
+        if (diferenciaDescansos > 0)
+            advertencias.Add(AdvertenciaPlantillaSemanal.SobranDiasDeDescanso(semana, diferenciaDescansos));
+        if (diferenciaDescansos < 0)
+            advertencias.Add(AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(semana, -diferenciaDescansos));
 
         return advertencias;
     }
