@@ -29,6 +29,15 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
     private PlantillaSemanalCreada PlantillaCreada() =>
         PlantillaSemanalCreada.Crear(GuidAggregateId, "Semana Cocina", 2);
 
+    // Oraculo a mano: plantilla de 2 semanas vacia contra Jornada de 42 h, tope 8 h y 1 descanso.
+    private static AdvertenciaPlantillaSemanal[] AdvertenciasPlantillaVaciaDe42Horas() =>
+        Enumerable.Range(1, 2).SelectMany(semana => new[]
+            {
+                AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(semana, 2520),
+                AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(semana, 1)
+            }.Concat(Enumerable.Range(1, 7)
+                .Select(d => AdvertenciaPlantillaSemanal.DiaSinTurno(semana, DiaSemana.Desde(d))))).ToArray();
+
     private void GivenJornada(int semanales) =>
         Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(semanales)));
 
@@ -40,7 +49,8 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new AsignarJornadaAPlantillaSemanal(GuidAggregateId, JornadaId));
 
-        Then(JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        Then(JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, AdvertenciasPlantillaVaciaDe42Horas()));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 

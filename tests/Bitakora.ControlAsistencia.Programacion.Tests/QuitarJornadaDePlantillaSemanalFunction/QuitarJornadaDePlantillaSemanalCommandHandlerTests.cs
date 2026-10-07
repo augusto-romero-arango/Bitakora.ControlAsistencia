@@ -34,7 +34,7 @@ public class QuitarJornadaDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new QuitarJornadaDePlantillaSemanal(GuidAggregateId));
 
-        Then(JornadaDePlantillaSemanalQuitada.Crear(GuidAggregateId));
+        Then(JornadaDePlantillaSemanalQuitada.Crear(GuidAggregateId), AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
     }
 

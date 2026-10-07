@@ -44,6 +44,10 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         VersionJornada = 0;
     }
 
+    public void Apply(AdvertenciasDePlantillaSemanalCalculadas evento) => throw new NotImplementedException();
+
+    internal IReadOnlyList<AdvertenciaPlantillaSemanal> Advertencias { get; private set; } = [];
+
     internal Guid? JornadaId { get; private set; }
 
     internal LimitesJornada? Limites { get; private set; }

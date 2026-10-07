@@ -32,7 +32,9 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5)));
 
-        Then(DiaDePlantillaSemanalQuitado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5)));
+        Then(DiaDePlantillaSemanalQuitado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5)),
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(
+            GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 

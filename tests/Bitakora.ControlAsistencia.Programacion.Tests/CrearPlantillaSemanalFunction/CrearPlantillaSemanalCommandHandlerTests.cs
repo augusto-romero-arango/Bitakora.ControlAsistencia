@@ -40,7 +40,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -54,7 +54,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -103,7 +103,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -119,7 +119,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -187,7 +187,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -217,6 +217,15 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         LimitesJornada.Crear(HorasYMinutos.Crear(semanales, 0), HorasYMinutos.Crear(8, 0),
             HorasYMinutos.Crear(0, 0), 1);
 
+    // Oraculo a mano: semana vacia con Jornada de 42 h, tope 8 h y 1 descanso.
+    private static AdvertenciaPlantillaSemanal[] PlantillaVaciaConJornada42(int semanas) =>
+        Enumerable.Range(1, semanas).SelectMany(semana => new[]
+            {
+                AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(semana, 2520),
+                AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(semana, 1)
+            }.Concat(Enumerable.Range(1, 7)
+                .Select(d => AdvertenciaPlantillaSemanal.DiaSinTurno(semana, DiaSemana.Desde(d))))).ToArray();
+
     [Fact]
     public async Task CrearPlantillaSemanal_EmiteCreadaYJornadaAsignada_CuandoLaJornadaExiste()
     {
@@ -226,7 +235,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         await WhenAsync(comando);
 
         Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2),
-            JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+            JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, PlantillaVaciaConJornada42(2)));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 
@@ -269,7 +279,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
         await WhenAsync(comando);
 
-        Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2));
+        Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2),
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
     }
 }
