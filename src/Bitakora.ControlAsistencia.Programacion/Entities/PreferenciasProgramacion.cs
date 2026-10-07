@@ -5,14 +5,21 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class PreferenciasProgramacion : AggregateRoot
 {
+    private const string PrefijoStream = "pp";
+
     private Guid _jornadaPredeterminadaId;
 
-    internal static string ComputarStreamId(string tenantId) => throw new NotImplementedException();
+    internal static string ComputarStreamId(string tenantId) => $"{PrefijoStream}:{tenantId}";
 
-    internal static PreferenciasProgramacion Iniciar(JornadaPredeterminadaAsignada evento) =>
-        throw new NotImplementedException();
+    internal static PreferenciasProgramacion Iniciar(JornadaPredeterminadaAsignada evento)
+    {
+        var preferencias = new PreferenciasProgramacion();
+        preferencias._uncommittedEvents.Add(evento);
+        preferencias.Apply(evento);
+        return preferencias;
+    }
 
-    internal Guid JornadaPredeterminada() => throw new NotImplementedException();
+    internal Guid JornadaPredeterminada() => _jornadaPredeterminadaId;
 
-    public void Apply(JornadaPredeterminadaAsignada evento) => throw new NotImplementedException();
+    public void Apply(JornadaPredeterminadaAsignada evento) => _jornadaPredeterminadaId = evento.JornadaId;
 }

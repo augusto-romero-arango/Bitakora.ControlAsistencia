@@ -81,6 +81,8 @@ public static class ComposicionServicios
         services.AgregarWolverineEventSender();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
         services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
+        services.AddScoped<IAlmacenPreferenciasProgramacion, AlmacenPreferenciasProgramacion>();
+        services.AddScoped<IAseguradorJornadaPredeterminada, AseguradorJornadaPredeterminada>();
 
         // Registrar serializacion custom para tipos con constructores privados.
         // Issue #267: las tres columnas de metadata de evento que exige MEF-ADR-0034 seccion 7

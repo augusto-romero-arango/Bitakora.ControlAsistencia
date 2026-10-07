@@ -1,6 +1,7 @@
 using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -42,40 +43,21 @@ public class FunctionEndpoint(
                 return new BadRequestObjectResult("El cursor no es valido");
         }
 
+        var predeterminadaId = await asegurador.AsegurarAsync(ct);
+
         // MEF-ADR-0028: QuerySession acotada al tenant de ITenantContext, nunca a uno del request.
         await using var session = store.QuerySession(tenantContext.TenantId);
 
-        IQueryable<LimitesDeJornada> query = session.Query<LimitesDeJornada>();
-        if (cursor is { } c)
+        var vista = await session.Query<LimitesDeJornada>().ToListAsync(ct);
+        var idTexto = predeterminadaId.ToString();
+        var predeterminada = vista.FirstOrDefault(l => l.Id == idTexto);
+        if (predeterminada is null)
         {
-            query = query.Where(l =>
-                l.HorasSemanalesEnMinutos > c.Horas
-                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos > c.Tope)
-                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos == c.Tope
-                    && l.Id.CompareTo(c.Id) > 0));
+            var jornada = await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct);
+            predeterminada = jornada!.ComoVista();
         }
 
-        var ordenada = query
-            .OrderBy(l => l.HorasSemanalesEnMinutos)
-            .ThenBy(l => l.TopeDiarioEnMinutos)
-            .ThenBy(l => l.Id);
-
-        // Se pide take + 1 para saber si hay mas sin contar el total.
-        var filas = take is { } t
-            ? await ordenada.Take(t + 1).ToListAsync(ct)
-            : await ordenada.ToListAsync(ct);
-
-        string? siguienteCursor = null;
-        if (take is { } tope && filas.Count > tope)
-        {
-            filas = filas.Take(tope).ToList();
-            var ultima = filas[^1];
-            siguienteCursor = new CursorJornada(
-                ultima.HorasSemanalesEnMinutos, ultima.TopeDiarioEnMinutos, ultima.Id).Codificar();
-        }
-
-        return new OkObjectResult(new ListaLimitesDeJornadaRespuesta(
-            filas.Select(LimitesDeJornadaRespuesta.DesdeVista).ToList(), siguienteCursor));
+        return new OkObjectResult(ComposicionListadoLimites.Componer(vista, predeterminada, cursor, take));
     }
 }
 
@@ -121,6 +103,37 @@ internal sealed record CursorJornada(int Horas, int Tope, string Id)
 internal static class ComposicionListadoLimites
 {
     public static ListaLimitesDeJornadaRespuesta Componer(
-        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada predeterminada, CursorJornada? cursor, int? take) =>
-        throw new NotImplementedException();
+        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada predeterminada, CursorJornada? cursor, int? take)
+    {
+        IEnumerable<LimitesDeJornada> todas = vista.Any(l => l.Id == predeterminada.Id)
+            ? vista
+            : [.. vista, predeterminada];
+
+        var ordenada = todas
+            .OrderBy(l => l.HorasSemanalesEnMinutos)
+            .ThenBy(l => l.TopeDiarioEnMinutos)
+            .ThenBy(l => l.Id, StringComparer.Ordinal);
+
+        var filtradas = cursor is { } c
+            ? ordenada.Where(l =>
+                l.HorasSemanalesEnMinutos > c.Horas
+                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos > c.Tope)
+                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos == c.Tope
+                    && string.CompareOrdinal(l.Id, c.Id) > 0))
+            : ordenada;
+
+        var filas = take is { } t ? filtradas.Take(t + 1).ToList() : filtradas.ToList();
+
+        string? siguienteCursor = null;
+        if (take is { } tope && filas.Count > tope)
+        {
+            filas = filas.Take(tope).ToList();
+            var ultima = filas[^1];
+            siguienteCursor = new CursorJornada(
+                ultima.HorasSemanalesEnMinutos, ultima.TopeDiarioEnMinutos, ultima.Id).Codificar();
+        }
+
+        return new ListaLimitesDeJornadaRespuesta(
+            filas.Select(LimitesDeJornadaRespuesta.DesdeVista).ToList(), siguienteCursor);
+    }
 }

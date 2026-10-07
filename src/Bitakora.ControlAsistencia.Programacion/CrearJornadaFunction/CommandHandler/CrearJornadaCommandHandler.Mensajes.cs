@@ -10,6 +10,5 @@ public partial class CrearJornadaCommandHandler
     public static class Mensajes
     {
         public static string JornadaYaExiste => ResourceManager.GetString(nameof(JornadaYaExiste))!;
-        public static string JornadaGeneralReservada => ResourceManager.GetString(nameof(JornadaGeneralReservada))!;
     }
 }
