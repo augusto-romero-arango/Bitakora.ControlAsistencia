@@ -9,6 +9,7 @@ namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ModificarLimitesJor
 public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string Ruta = "/api/programacion/jornadas";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private readonly HttpClient _client = api.Client;
 
     private static object Limites(int horas, int minutos, int topeHoras = 8, int topeMinutos = 0) => new
@@ -62,6 +63,41 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
         (await postgres.ContarEventosAsync("programacion", id.ToString(), "limites_jornada_modificados"))
             .Should().Be(1);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ModificarLimitesJornada_DebeRetornar409_CuandoLosLimitesIgualanAOtraJornada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var idA = Guid.CreateVersion7();
+        var idB = Guid.CreateVersion7();
+        var minutos = Random.Shared.Next(1, 60);
+        (await _client.PostAsJsonAsync(Ruta, CrearPayload(idA, 30, minutos), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        (await _client.PostAsJsonAsync(Ruta, CrearPayload(idB, 31, minutos), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var response = await _client.GetAsync(Ruta, ct);
+            return (await response.Content.ReadAsStringAsync(ct)).Contains(idA.ToString());
+        }, Timeout);
+
+        var conflicto = await _client.PutAsJsonAsync($"{Ruta}/{idB}/limites", Limites(30, minutos), ct);
+
+        conflicto.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await conflicto.Content.ReadAsStringAsync(ct)).Should().Contain(idA.ToString());
+        (await _client.PutAsJsonAsync($"{Ruta}/{idA}/limites", Limites(30, minutos), ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    private static object CrearPayload(Guid id, int horas, int minutos) => new
+    {
+        jornadaId = id,
+        horasSemanales = new { horas, minutos },
+        topeDiario = new { horas = 8, minutos = 0 },
+        minimoDiario = new { horas = 0, minutos = 0 },
+        diasDescansoPorSemana = 1
+    };
 
     [Fact]
     [Trait("Category", "Smoke")]

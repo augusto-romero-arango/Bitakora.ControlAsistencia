@@ -73,4 +73,14 @@ public class FunctionEndpointTests
         resultado.Should().BeOfType<ConflictObjectResult>().Which.Value.Should()
             .Be(CrearJornadaCommandHandler.Mensajes.JornadaYaExiste);
     }
+
+    [Fact]
+    public async Task CrearJornada_Retorna409ConElMensaje_CuandoLosLimitesIgualanAOtraJornada()
+    {
+        const string mensaje = "Ya existe una Jornada con estos limites: 3f2b9c1e";
+        var endpoint = new FunctionEndpoint(new FakeRequestValidator<CrearJornada>(Comando()),
+            new FakeCommandRouter(excepcion: new ReglaDeNegocioDeclinadaException(mensaje)));
+        var resultado = await endpoint.Run(Request(), CancellationToken.None);
+        resultado.Should().BeOfType<ConflictObjectResult>().Which.Value.Should().Be(mensaje);
+    }
 }

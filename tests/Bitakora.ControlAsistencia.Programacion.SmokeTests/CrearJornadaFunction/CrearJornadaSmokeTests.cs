@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
@@ -8,6 +9,7 @@ namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.CrearJornadaFunctio
 public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string Ruta = "/api/programacion/jornadas";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private readonly HttpClient _client = api.Client;
 
     private static object Payload(Guid id, int minutos, int topeHoras = 8, int topeMinutos = 0,
@@ -45,6 +47,67 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
         (await postgres.ExisteEventoAsync("programacion", id.ToString(), "jornada_creada",
             TimeSpan.FromSeconds(30))).Should().BeTrue();
         (await _client.PostAsJsonAsync(Ruta, payload, ct)).StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    private async Task<JsonElement[]> ListarAsync(CancellationToken ct)
+    {
+        var response = await _client.GetAsync(Ruta, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        return json.RootElement.GetProperty("elementos").EnumerateArray().Select(e => e.Clone()).ToArray();
+    }
+
+    private static bool TieneLimites(JsonElement e, int horas, int minutos) =>
+        e.GetProperty("horasSemanales").GetProperty("horas").GetInt32() == horas
+        && e.GetProperty("horasSemanales").GetProperty("minutos").GetInt32() == minutos
+        && e.GetProperty("topeDiario").GetProperty("horas").GetInt32() == 8
+        && e.GetProperty("topeDiario").GetProperty("minutos").GetInt32() == 0
+        && e.GetProperty("minimoDiario").GetProperty("horas").GetInt32() == 0
+        && e.GetProperty("minimoDiario").GetProperty("minutos").GetInt32() == 0
+        && e.GetProperty("diasDescansoPorSemana").GetInt32() == 1;
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar409_CuandoLosLimitesIgualanAOtraJornada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var idA = Guid.CreateVersion7();
+        var minutos = Random.Shared.Next(1, 60);
+        (await _client.PostAsJsonAsync(Ruta, Payload(idA, minutos), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        await Polling.WaitUntilTrueAsync(
+            async () => (await ListarAsync(ct)).Any(e => e.GetProperty("jornadaId").GetGuid() == idA),
+            Timeout);
+
+        var response = await _client.PostAsJsonAsync(Ruta, Payload(Guid.CreateVersion7(), minutos), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync(ct)).Should().Contain(idA.ToString());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar409NombrandoLaExistente_CuandoLosLimitesIgualanALosIniciales()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var existente = await Polling.WaitUntilAsync(async () =>
+        {
+            var match = (await ListarAsync(ct)).Where(e => TieneLimites(e, 42, 0)).ToArray();
+            return match.Length == 0 ? null : match[0].GetProperty("jornadaId").GetString();
+        }, Timeout);
+
+        var payload = new
+        {
+            jornadaId = Guid.CreateVersion7(),
+            horasSemanales = new { horas = 42, minutos = 0 },
+            topeDiario = new { horas = 8, minutos = 0 },
+            minimoDiario = new { horas = 0, minutos = 0 },
+            diasDescansoPorSemana = 1
+        };
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync(ct)).Should().Contain(existente!);
     }
 
     [Fact]
