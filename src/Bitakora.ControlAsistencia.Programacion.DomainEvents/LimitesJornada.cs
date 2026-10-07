@@ -45,6 +45,11 @@ public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
         return new LimitesJornada(horasSemanales, topeDiario, minimoDiario, diasDescansoPorSemana);
     }
 
+    public HorasYMinutos HorasSemanales => throw new NotImplementedException();
+    public HorasYMinutos TopeDiario => throw new NotImplementedException();
+    public HorasYMinutos MinimoDiario => throw new NotImplementedException();
+    public int DiasDescansoPorSemana => throw new NotImplementedException();
+
     public override string ToString()
     {
         var minimo = _minimoDiario.CompareTo(HorasYMinutos.Crear(0, 0)) == 0

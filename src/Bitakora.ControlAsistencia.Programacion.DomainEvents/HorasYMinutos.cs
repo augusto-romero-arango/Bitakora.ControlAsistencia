@@ -24,6 +24,9 @@ public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>, IEquatab
         return new HorasYMinutos(checked(horas * MinutosPorHora + minutos));
     }
 
+    public int Horas => throw new NotImplementedException();
+    public int Minutos => throw new NotImplementedException();
+
     public int CompareTo(HorasYMinutos? otro) => otro is null ? 1 : _minutosTotales.CompareTo(otro._minutosTotales);
     public bool Equals(HorasYMinutos? otro) => otro is not null && _minutosTotales == otro._minutosTotales;
     public override bool Equals(object? obj) => Equals(obj as HorasYMinutos);
