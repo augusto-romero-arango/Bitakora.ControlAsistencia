@@ -217,6 +217,16 @@ public class ComposicionServiciosTests
         alias.Should().Be("ausencia_cancelada");
     }
 
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaCreada()
+    {
+        await using var provider = ComponerServiceProvider();
+        var store = provider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(JornadaCreada)).Alias;
+        alias.Should().Be("jornada_creada");
+    }
+
     // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-2, CA-3) ---
     //
     // Mismo wiring que ControlHoras (AgregarWolverineParaComandosServerless): Programacion no emite

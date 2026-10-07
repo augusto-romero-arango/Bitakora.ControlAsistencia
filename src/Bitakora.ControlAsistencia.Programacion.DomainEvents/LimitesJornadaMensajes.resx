@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="TopeDiarioFueraDeRango" xml:space="preserve"><value>El tope diario debe ser mayor que cero y no exceder 24 horas</value></data>
+  <data name="MinimoMayorQueTope" xml:space="preserve"><value>El mínimo diario no puede superar el tope diario</value></data>
+  <data name="DescansosFueraDeRango" xml:space="preserve"><value>Los descansos deben estar entre 0 y 6</value></data>
+  <data name="HorasSemanalesEnCero" xml:space="preserve"><value>Las horas semanales deben ser mayores que cero</value></data>
+  <data name="HorasSemanalesExcedenCapacidad" xml:space="preserve"><value>Las horas semanales exceden los días disponibles</value></data>
+  <data name="Semanales" xml:space="preserve"><value>semanales</value></data>
+  <data name="TopeDiario" xml:space="preserve"><value>tope diario</value></data>
+  <data name="MinimoDiario" xml:space="preserve"><value>mínimo diario</value></data>
+  <data name="SinMinimoDiario" xml:space="preserve"><value>sin mínimo diario</value></data>
+  <data name="UnDiaDescanso" xml:space="preserve"><value>1 día de descanso por semana</value></data>
+  <data name="DiasDescanso" xml:space="preserve"><value>días de descanso por semana</value></data>
+  <data name="SinControlDescansos" xml:space="preserve"><value>sin control de descansos</value></data>
+</root>
