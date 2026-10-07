@@ -413,6 +413,18 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerJornada_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<
+            Bitakora.ControlAsistencia.Programacion.ObtenerJornada.FunctionEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveListarAusenciasDelEquipoEndpoint_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();

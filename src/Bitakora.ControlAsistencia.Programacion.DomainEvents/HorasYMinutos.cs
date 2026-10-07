@@ -24,6 +24,9 @@ public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>, IEquatab
         return new HorasYMinutos(checked(horas * MinutosPorHora + minutos));
     }
 
+    public int Horas => _minutosTotales / MinutosPorHora;
+    public int Minutos => _minutosTotales % MinutosPorHora;
+
     public int CompareTo(HorasYMinutos? otro) => otro is null ? 1 : _minutosTotales.CompareTo(otro._minutosTotales);
     public bool Equals(HorasYMinutos? otro) => otro is not null && _minutosTotales == otro._minutosTotales;
     public override bool Equals(object? obj) => Equals(obj as HorasYMinutos);
@@ -52,6 +55,7 @@ public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>, IEquatab
         {
             if (info.Type != typeof(HorasYMinutos) || info.Kind != JsonTypeInfoKind.Object) return;
             info.CreateObject = () => (HorasYMinutos)ctor.Invoke(null);
+            info.Properties.Clear();
             var propiedad = info.CreateJsonPropertyInfo(typeof(int), "MinutosTotales");
             propiedad.Get = obj => campo.GetValue(obj);
             propiedad.Set = (obj, valor) => campo.SetValue(obj, valor);

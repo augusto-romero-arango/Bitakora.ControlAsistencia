@@ -45,6 +45,11 @@ public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
         return new LimitesJornada(horasSemanales, topeDiario, minimoDiario, diasDescansoPorSemana);
     }
 
+    public HorasYMinutos HorasSemanales => _horasSemanales;
+    public HorasYMinutos TopeDiario => _topeDiario;
+    public HorasYMinutos MinimoDiario => _minimoDiario;
+    public int DiasDescansoPorSemana => _diasDescansoPorSemana;
+
     public override string ToString()
     {
         var minimo = _minimoDiario.CompareTo(HorasYMinutos.Crear(0, 0)) == 0
@@ -74,6 +79,7 @@ public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
         {
             if (info.Type != tipo || info.Kind != JsonTypeInfoKind.Object) return;
             info.CreateObject = () => (LimitesJornada)ctor.Invoke(null);
+            info.Properties.Clear();
             Agregar(nameof(_horasSemanales), "HorasSemanales", typeof(HorasYMinutos));
             Agregar(nameof(_topeDiario), "TopeDiario", typeof(HorasYMinutos));
             Agregar(nameof(_minimoDiario), "MinimoDiario", typeof(HorasYMinutos));
