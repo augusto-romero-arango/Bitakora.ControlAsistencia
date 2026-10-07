@@ -194,6 +194,32 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaSemanalAsignada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(JornadaDePlantillaSemanalAsignada)).Alias;
+
+        alias.Should().Be("jornada_de_plantilla_semanal_asignada");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaSemanalQuitada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(JornadaDePlantillaSemanalQuitada)).Alias;
+
+        alias.Should().Be("jornada_de_plantilla_semanal_quitada");
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeAusenciaProgramada()
     {
         await using var provider = ComponerServiceProvider();

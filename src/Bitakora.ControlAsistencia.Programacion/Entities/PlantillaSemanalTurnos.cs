@@ -27,6 +27,21 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
 
     public void Apply(PlantillaSemanalRetirada evento) => _estaActiva = false;
 
+    public void Apply(JornadaDePlantillaSemanalAsignada evento) => throw new NotImplementedException();
+
+    public void Apply(JornadaDePlantillaSemanalQuitada evento) => throw new NotImplementedException();
+
+    internal Guid? JornadaId => throw new NotImplementedException();
+
+    internal LimitesJornada? Limites => throw new NotImplementedException();
+
+    internal long VersionJornada => throw new NotImplementedException();
+
+    internal ResultadoAsignarJornada AsignarJornada(Guid jornadaId, LimitesJornada limites, long version)
+        => throw new NotImplementedException();
+
+    internal ResultadoQuitarJornada QuitarJornada() => throw new NotImplementedException();
+
     internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
     {
         var plantilla = new PlantillaSemanalTurnos();
