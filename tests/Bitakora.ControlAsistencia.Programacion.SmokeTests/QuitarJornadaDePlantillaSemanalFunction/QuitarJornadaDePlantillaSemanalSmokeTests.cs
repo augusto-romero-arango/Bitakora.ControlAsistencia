@@ -3,21 +3,21 @@ using System.Net.Http.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
-namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarJornadaAPlantillaSemanalFunction;
+namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.QuitarJornadaDePlantillaSemanalFunction;
 
-public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
-    private const string TipoEventoAsignada = "jornada_de_plantilla_semanal_asignada";
+    private const string TipoEventoQuitada = "jornada_de_plantilla_semanal_quitada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _client = api.Client;
 
-    private async Task<(Guid PlantillaId, Guid JornadaId)> CrearPlantillaYJornadaAsync(CancellationToken ct)
+    private static string Ruta(Guid plantillaId) =>
+        $"/api/programacion/plantillas-semanales/{plantillaId}/jornada";
+
+    private async Task<Guid> CrearPlantillaAsync(CancellationToken ct)
     {
         var plantillaId = Guid.CreateVersion7();
-        var jornadaId = Guid.CreateVersion7();
-        var minutos = Random.Shared.Next(1, 60);
-
         (await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
         {
             plantillaId,
@@ -25,21 +25,29 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
             semanas = 1
         }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearPlantillaSemanal funcione");
+        return plantillaId;
+    }
+
+    private async Task<Guid> CrearPlantillaConJornadaAsync(CancellationToken ct)
+    {
+        var plantillaId = await CrearPlantillaAsync(ct);
+        var jornadaId = Guid.CreateVersion7();
+
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
         {
             jornadaId,
-            horasSemanales = new { horas = 30, minutos },
+            horasSemanales = new { horas = 30, minutos = Random.Shared.Next(1, 60) },
             topeDiario = new { horas = 8, minutos = 0 },
             minimoDiario = new { horas = 0, minutos = 0 },
             diasDescansoPorSemana = 1
         }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
+        (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent,
+                "el arrange depende de que AsignarJornadaAPlantillaSemanal funcione");
 
-        return (plantillaId, jornadaId);
+        return plantillaId;
     }
-
-    private static string Ruta(Guid plantillaId) =>
-        $"/api/programacion/plantillas-semanales/{plantillaId}/jornada";
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -52,38 +60,38 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarJornada_DebeRetornar204YPersistirElEvento_CuandoLaJornadaExiste()
+    public async Task QuitarJornada_DebeRetornar204YPersistirElEvento_CuandoLaPlantillaTieneJornada()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(ct);
+        var plantillaId = await CrearPlantillaConJornadaAsync(ct);
 
-        var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
+        var response = await _client.DeleteAsync(Ruta(plantillaId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         var existe = await postgres.ExisteEventoAsync(
-            PostgresFixture.SchemaProgramacion, plantillaId.ToString(), TipoEventoAsignada, Timeout);
+            PostgresFixture.SchemaProgramacion, plantillaId.ToString(), TipoEventoQuitada, Timeout);
         existe.Should().BeTrue(
-            $"el evento {TipoEventoAsignada} deberia existir en el stream {plantillaId}");
+            $"el evento {TipoEventoQuitada} deberia existir en el stream {plantillaId}");
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarJornada_DebeRetornar204SinNuevosEventos_CuandoSeRepiteConLaCopiaAlDia()
+    public async Task QuitarJornada_DebeRetornar204SinNuevosEventos_CuandoLaPlantillaNoTieneJornada()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(ct);
+        var plantillaId = await CrearPlantillaConJornadaAsync(ct);
         var streamId = plantillaId.ToString();
 
-        (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
+        (await _client.DeleteAsync(Ruta(plantillaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
         var eventosTrasPrimera = await postgres.ContarEventosDeStreamAsync(
             PostgresFixture.SchemaProgramacion, postgres.TenantId, streamId);
 
-        var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
+        var response = await _client.DeleteAsync(Ruta(plantillaId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         var eventosTrasSegunda = await postgres.ContarEventosDeStreamAsync(
@@ -93,41 +101,26 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarJornada_DebeRetornar404_CuandoLaJornadaNoExiste()
+    public async Task QuitarJornada_DebeRetornar404_CuandoLaPlantillaNoExiste()
     {
-        var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, _) = await CrearPlantillaYJornadaAsync(ct);
-
-        var response = await _client.PutAsJsonAsync(
-            Ruta(plantillaId), new { jornadaId = Guid.CreateVersion7() }, ct);
+        var response = await _client.DeleteAsync(
+            Ruta(Guid.CreateVersion7()), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarJornada_DebeRetornar404_CuandoLaPlantillaNoExiste()
+    public async Task QuitarJornada_DebeRetornar409_CuandoLaPlantillaEstaRetirada()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (_, jornadaId) = await CrearPlantillaYJornadaAsync(ct);
-
-        var response = await _client.PutAsJsonAsync(Ruta(Guid.CreateVersion7()), new { jornadaId }, ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task AsignarJornada_DebeRetornar409_CuandoLaPlantillaEstaRetirada()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(ct);
+        var plantillaId = await CrearPlantillaAsync(ct);
 
         (await _client.DeleteAsync($"/api/programacion/plantillas-semanales/{plantillaId}", ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent,
                 "el arrange depende de que el retiro de la plantilla funcione");
 
-        var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
+        var response = await _client.DeleteAsync(Ruta(plantillaId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
