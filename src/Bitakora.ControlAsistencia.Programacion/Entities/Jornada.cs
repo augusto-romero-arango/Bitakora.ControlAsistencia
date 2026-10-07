@@ -6,9 +6,23 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class Jornada : AggregateRoot
 {
-    public void Apply(JornadaCreada evento) => Id = evento.JornadaId.ToString();
+    private LimitesJornada _limites = null!;
 
-    internal JornadaRespuesta Describir() => throw new NotImplementedException();
+    public void Apply(JornadaCreada evento)
+    {
+        Id = evento.JornadaId.ToString();
+        _limites = evento.Limites;
+    }
+
+    internal JornadaRespuesta Describir() => new(
+        Guid.Parse(Id),
+        Convertir(_limites.HorasSemanales),
+        Convertir(_limites.TopeDiario),
+        Convertir(_limites.MinimoDiario),
+        _limites.DiasDescansoPorSemana,
+        _limites.ToString());
+
+    private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 
     internal static Jornada Iniciar(JornadaCreada evento)
     {

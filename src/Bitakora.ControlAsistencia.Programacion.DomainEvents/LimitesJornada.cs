@@ -45,10 +45,10 @@ public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
         return new LimitesJornada(horasSemanales, topeDiario, minimoDiario, diasDescansoPorSemana);
     }
 
-    public HorasYMinutos HorasSemanales => throw new NotImplementedException();
-    public HorasYMinutos TopeDiario => throw new NotImplementedException();
-    public HorasYMinutos MinimoDiario => throw new NotImplementedException();
-    public int DiasDescansoPorSemana => throw new NotImplementedException();
+    public HorasYMinutos HorasSemanales => _horasSemanales;
+    public HorasYMinutos TopeDiario => _topeDiario;
+    public HorasYMinutos MinimoDiario => _minimoDiario;
+    public int DiasDescansoPorSemana => _diasDescansoPorSemana;
 
     public override string ToString()
     {
@@ -79,6 +79,7 @@ public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
         {
             if (info.Type != tipo || info.Kind != JsonTypeInfoKind.Object) return;
             info.CreateObject = () => (LimitesJornada)ctor.Invoke(null);
+            info.Properties.Clear();
             Agregar(nameof(_horasSemanales), "HorasSemanales", typeof(HorasYMinutos));
             Agregar(nameof(_topeDiario), "TopeDiario", typeof(HorasYMinutos));
             Agregar(nameof(_minimoDiario), "MinimoDiario", typeof(HorasYMinutos));
