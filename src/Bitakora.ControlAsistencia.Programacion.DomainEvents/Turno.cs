@@ -18,6 +18,8 @@ public sealed partial class Turno : IEquatable<Turno>
 
     public bool EsDescanso() => _esDescanso;
 
+    public int MinutosOrdinarios() => throw new NotImplementedException();
+
     public bool EstaCompleto() => _esDescanso || _franjas.Count > 0;
 
     public TurnoProgramado Programar() => new(

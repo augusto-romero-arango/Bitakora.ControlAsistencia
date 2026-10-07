@@ -122,6 +122,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // pregunta esto para decidir el rechazo "nada que retirar" (FranjaSinSede) sin leer el VO.
     public bool TieneSedePrearmada() => _sede is not null;
 
+    public int MinutosOrdinarios() => throw new NotImplementedException();
+
     // El dia de la hija es deducible solo porque la ordinaria esta acotada a <= 24 h: dentro de
     // ella cada HH:mm tiene un unico representante. Ampliar ese tope volveria ambigua esta
     // inferencia.
