@@ -18,6 +18,9 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
     protected override ICommandHandlerAsync<QuitarTurnoDeDiaDePlantillaSemanal> Handler =>
         new QuitarTurnoDeDiaDePlantillaSemanalCommandHandler(EventStore);
 
+    private static readonly Turno CopiaTurno =
+        Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
+
     private PlantillaSemanalCreada CrearEventoPlantilla(int semanas = 2) =>
         PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, semanas);
 
@@ -25,7 +28,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_EmiteDiaQuitado_CuandoElDiaTieneTurnoAsignado()
     {
         Given(CrearEventoPlantilla(),
-            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurno, 0));
 
         await WhenAsync(new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5)));
 
@@ -48,7 +51,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaSemanaSuperaElTotalDeLaPlantilla()
     {
         Given(CrearEventoPlantilla(semanas: 2),
-            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurno, 0));
 
         var act = async () => await WhenAsync(
             new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 3, DiaSemana.Desde(5)));
@@ -64,7 +67,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
     public async Task QuitarTurnoDeDiaDePlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaPlantillaEstaRetirada()
     {
         Given(CrearEventoPlantilla(),
-            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId),
+            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurno, 0),
             PlantillaSemanalRetirada.Crear(GuidAggregateId));
 
         var act = async () => await WhenAsync(

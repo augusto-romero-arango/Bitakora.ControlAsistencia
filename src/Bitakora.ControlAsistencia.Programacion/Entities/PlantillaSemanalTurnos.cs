@@ -10,7 +10,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
 {
     private int _semanas;
     private bool _estaActiva;
-    private readonly Dictionary<(int Semana, DiaSemana Dia), Guid> _dias = new();
+    private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno);
+
+    private readonly Dictionary<(int Semana, DiaSemana Dia), DiaAsignado> _dias = new();
 
     public void Apply(PlantillaSemanalCreada evento)
     {
@@ -20,7 +22,8 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     }
 
     public void Apply(DiaDePlantillaSemanalAsignado evento) =>
-        _dias[(evento.Semana, evento.Dia)] = evento.TurnoId;
+        _dias[(evento.Semana, evento.Dia)] =
+            new DiaAsignado(evento.TurnoId, evento.Turno, evento.VersionTurno);
 
     // Remove sobre una clave ausente devuelve false sin lanzar (MEF-ADR-0004 capa 4).
     public void Apply(DiaDePlantillaSemanalQuitado evento) => _dias.Remove((evento.Semana, evento.Dia));
@@ -85,9 +88,9 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         return plantilla;
     }
 
-    // Declina con resultado, nunca lanza (CA-ADR-0030). La precedencia es parte del contrato:
-    // plantilla retirada > semana fuera de rango > sin cambios (idempotencia) > asignado.
-    internal ResultadoAsignarDia AsignarDia(int semana, DiaSemana dia, Guid turnoId)
+    // Precedencia: plantilla retirada > semana fuera de rango > sin cambios > asignado. Una copia
+    // atrasada (version menor a la ofrecida) es la autocorreccion y emite el evento.
+    internal ResultadoAsignarDia AsignarDia(int semana, DiaSemana dia, Guid turnoId, Turno copia, long versionTurno)
     {
         if (!_estaActiva)
             return ResultadoAsignarDia.PlantillaRetirada;
@@ -95,10 +98,11 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         if (semana > _semanas)
             return ResultadoAsignarDia.SemanaFueraDeRango;
 
-        if (_dias.TryGetValue((semana, dia), out var turnoActual) && turnoActual == turnoId)
+        if (_dias.TryGetValue((semana, dia), out var actual)
+            && actual.TurnoId == turnoId && actual.VersionTurno >= versionTurno)
             return ResultadoAsignarDia.SinCambios;
 
-        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.Parse(Id), semana, dia, turnoId);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.Parse(Id), semana, dia, turnoId, copia, versionTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAsignarDia.Asignado;

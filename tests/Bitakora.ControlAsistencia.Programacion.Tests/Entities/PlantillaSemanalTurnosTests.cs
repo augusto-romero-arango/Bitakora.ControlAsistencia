@@ -13,6 +13,16 @@ public class PlantillaSemanalTurnosTests
     private static readonly Guid Turno1Id = Guid.Parse("019600a0-0000-7000-8000-000000000701");
     private static readonly Guid Turno2Id = Guid.Parse("019600a0-0000-7000-8000-000000000702");
 
+    private static readonly Turno CopiaTurno =
+        Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
+
+    private static readonly Turno CopiaTurnoConSegundaFranja = Turno.Crear(
+        "Turno Manana", false,
+        [
+            FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0)),
+            FranjaOrdinaria.Crear(new TimeOnly(15, 0), new TimeOnly(18, 0))
+        ]);
+
     private static PlantillaSemanalTurnos CrearPlantilla(int semanas) =>
         PlantillaSemanalTurnos.Iniciar(PlantillaSemanalCreada.Crear(PlantillaId, "Semana Cocina", semanas));
 
@@ -28,7 +38,7 @@ public class PlantillaSemanalTurnosTests
     {
         var plantilla = CrearPlantilla(2);
 
-        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
         var evento = plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should()
@@ -43,9 +53,9 @@ public class PlantillaSemanalTurnosTests
     public void AsignarDia_RetornaAsignado_CuandoReemplazaElTurnoDeUnSlotYaOcupado()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
-        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id);
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().HaveCount(2)
@@ -56,9 +66,9 @@ public class PlantillaSemanalTurnosTests
     public void AsignarDia_RetornaSinCambios_CuandoElMismoTurnoYaEstaAsignadoAEseDia()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id, CopiaTurno, 1);
 
-        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id);
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.SinCambios);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
@@ -69,12 +79,85 @@ public class PlantillaSemanalTurnosTests
     public void AsignarDia_RetornaAsignado_CuandoElMismoTurnoSeAsignaAOtroSlot()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
-        var resultado = plantilla.AsignarDia(2, DiaSemana.Domingo, Turno1Id);
+        var resultado = plantilla.AsignarDia(2, DiaSemana.Domingo, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().HaveCount(2);
+    }
+
+    // CA-1
+    [Fact]
+    public void AsignarDia_EmiteEventoConLaCopiaYLaVersion_CuandoElSlotEstaVacio()
+    {
+        var plantilla = CrearPlantilla(2);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
+
+        resultado.Should().Be(ResultadoAsignarDia.Asignado);
+        var evento = plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should()
+            .ContainSingle().Which;
+        evento.TurnoId.Should().Be(Turno1Id);
+        evento.Turno.Should().Be(CopiaTurno);
+        evento.VersionTurno.Should().Be(4);
+    }
+
+    // CA-2: el estado ya alcanzado es misma identidad y copia con version mayor o igual.
+    [Fact]
+    public void AsignarDia_RetornaSinCambios_CuandoLaCopiaTieneLaMismaVersion()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
+
+        resultado.Should().Be(ResultadoAsignarDia.SinCambios);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void AsignarDia_RetornaSinCambios_CuandoLaCopiaGuardadaEsMasNuevaQueLaOfrecida()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurnoConSegundaFranja, 5);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
+
+        resultado.Should().Be(ResultadoAsignarDia.SinCambios);
+        plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
+    }
+
+    // CA-3: copia atrasada = autocorreccion, emite con la copia y la version nuevas.
+    [Fact]
+    public void AsignarDia_RetornaAsignadoConCopiaNueva_CuandoLaCopiaGuardadaEstaAtrasada()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurnoConSegundaFranja, 5);
+
+        resultado.Should().Be(ResultadoAsignarDia.Asignado);
+        var ultimo = plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should()
+            .HaveCount(2).And.Subject.Last();
+        ultimo.Turno.Should().Be(CopiaTurnoConSegundaFranja);
+        ultimo.VersionTurno.Should().Be(5);
+    }
+
+    [Fact]
+    public void AsignarDia_RetornaAsignadoConLaCopiaDelOtroTurno_CuandoReemplazaElTurnoDelSlot()
+    {
+        var plantilla = CrearPlantilla(2);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
+        var descanso = Turno.Crear("Descanso", true, []);
+
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno2Id, descanso, 2);
+
+        resultado.Should().Be(ResultadoAsignarDia.Asignado);
+        var ultimo = plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Last();
+        ultimo.TurnoId.Should().Be(Turno2Id);
+        ultimo.Turno.Should().Be(descanso);
+        ultimo.VersionTurno.Should().Be(2);
     }
 
     [Fact]
@@ -82,7 +165,7 @@ public class PlantillaSemanalTurnosTests
     {
         var plantilla = CrearPlantilla(2);
 
-        var resultado = plantilla.AsignarDia(3, DiaSemana.Lunes, Turno1Id);
+        var resultado = plantilla.AsignarDia(3, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.SemanaFueraDeRango);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().BeEmpty();
@@ -94,7 +177,7 @@ public class PlantillaSemanalTurnosTests
     {
         var plantilla = CrearPlantilla(2);
 
-        var resultado = plantilla.AsignarDia(2, DiaSemana.Lunes, Turno1Id);
+        var resultado = plantilla.AsignarDia(2, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().ContainSingle();
@@ -104,7 +187,7 @@ public class PlantillaSemanalTurnosTests
     public void QuitarDia_RetornaQuitado_CuandoElSlotTieneTurnoAsignado()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         var resultado = plantilla.QuitarDia(1, DiaSemana.Lunes);
 
@@ -122,10 +205,10 @@ public class PlantillaSemanalTurnosTests
     public void QuitarDia_DejaElSlotVacio_LuegoAsignarDiaVuelveARetornarAsignado()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
         plantilla.QuitarDia(1, DiaSemana.Lunes);
 
-        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
     }
@@ -147,19 +230,19 @@ public class PlantillaSemanalTurnosTests
     public void QuitarDia_NoTocaElMismoDiaDeOtraSemana_CuandoLaSemanaPedidaEstaVacia()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         var resultado = plantilla.QuitarDia(2, DiaSemana.Lunes);
 
         resultado.Should().Be(ResultadoQuitarDia.SinCambios);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id).Should().Be(ResultadoAsignarDia.SinCambios);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1).Should().Be(ResultadoAsignarDia.SinCambios);
     }
 
     [Fact]
     public void QuitarDia_RetornaSinCambios_CuandoElDiaYaFueQuitado()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
         plantilla.QuitarDia(1, DiaSemana.Lunes);
 
         var resultado = plantilla.QuitarDia(1, DiaSemana.Lunes);
@@ -213,7 +296,7 @@ public class PlantillaSemanalTurnosTests
     {
         var plantilla = CrearPlantillaRetirada(2);
 
-        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id);
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.PlantillaRetirada);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().BeEmpty();
@@ -237,7 +320,7 @@ public class PlantillaSemanalTurnosTests
     {
         var plantilla = CrearPlantillaRetirada(2);
 
-        var resultado = plantilla.AsignarDia(9, DiaSemana.Lunes, Turno1Id);
+        var resultado = plantilla.AsignarDia(9, DiaSemana.Lunes, Turno1Id, CopiaTurno, 1);
 
         resultado.Should().Be(ResultadoAsignarDia.PlantillaRetirada);
         plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should().BeEmpty();

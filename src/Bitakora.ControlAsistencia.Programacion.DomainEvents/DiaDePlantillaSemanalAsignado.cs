@@ -3,36 +3,43 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Referencia viva al turno (TurnoId), nunca una copia de su contenido (CA-ADR-0034 decision 2):
-// editar el turno despues se refleja solo en la plantilla.
 public sealed partial class DiaDePlantillaSemanalAsignado
 {
     public Guid PlantillaId { get; private set; }
     public int Semana { get; private set; }
     public DiaSemana Dia { get; private set; }
     public Guid TurnoId { get; private set; }
+    public Turno Turno { get; private set; }
+    public long VersionTurno { get; private set; }
 
-    private DiaDePlantillaSemanalAsignado(Guid plantillaId, int semana, DiaSemana dia, Guid turnoId)
+    private DiaDePlantillaSemanalAsignado(
+        Guid plantillaId, int semana, DiaSemana dia, Guid turnoId, Turno turno, long versionTurno)
     {
         PlantillaId = plantillaId;
         Semana = semana;
         Dia = dia;
         TurnoId = turnoId;
+        Turno = turno;
+        VersionTurno = versionTurno;
     }
 
     // Constructor vacio privado para Marten/JSON: sin el, ConfigurarSerializacion no tiene como
     // instanciar el tipo al deserializar.
-    private DiaDePlantillaSemanalAsignado() => Dia = DiaSemana.Lunes;
+    private DiaDePlantillaSemanalAsignado()
+    {
+        Dia = DiaSemana.Lunes;
+        Turno = Turno.Crear(string.Empty, false, []);
+    }
 
     // El tope N de semanas es regla del aggregate (PlantillaSemanalTurnos.AsignarDia), no del
     // evento: aqui solo se valida el piso.
     public static DiaDePlantillaSemanalAsignado Crear(
-        Guid plantillaId, int semana, DiaSemana dia, Guid turnoId)
+        Guid plantillaId, int semana, DiaSemana dia, Guid turnoId, Turno turno, long versionTurno)
     {
         if (semana < 1)
             throw new ArgumentException(Mensajes.SemanaNoPositiva, nameof(semana));
 
-        return new DiaDePlantillaSemanalAsignado(plantillaId, semana, dia, turnoId);
+        return new DiaDePlantillaSemanalAsignado(plantillaId, semana, dia, turnoId, turno, versionTurno);
     }
 
     // Contrato de persistencia: Dia se guarda como su numero ISO (entero), nunca el nombre del enum

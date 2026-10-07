@@ -10,6 +10,8 @@ public class CatalogoTurnos : AggregateRoot
     private Turno _turno = Turno.Crear(string.Empty, false, []);
     private bool _estaActivo;
 
+    internal Turno Turno => _turno;
+
     public void Apply(TurnoCreado evento)
     {
         Id = evento.TurnoId.ToString();
