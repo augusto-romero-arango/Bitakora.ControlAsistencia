@@ -108,14 +108,13 @@ public class AsignarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
         primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await primeraRespuesta.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
         (await postgres.ExisteEventoAsync(Schema, id, Alias, Timeout, "JornadaId", jornadaId.ToString())).Should().BeTrue();
-        var eventosAntes = await postgres.ContarEventosAsync(Schema, id, Alias);
-        eventosAntes.Should().Be(1);
+        var eventosAntes = await postgres.ContarEventosDelStreamAsync(Schema, id);
 
         var response = await AsignarAsync(id, jornadaId, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
-        (await postgres.ContarEventosAsync(Schema, id, Alias)).Should().Be(eventosAntes);
+        (await postgres.ContarEventosDelStreamAsync(Schema, id)).Should().Be(eventosAntes);
     }
 
     [Fact]

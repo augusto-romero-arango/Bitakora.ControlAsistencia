@@ -33,7 +33,8 @@ public class FunctionEndpointTests
     [Fact]
     public async Task AsignarJornada_Retorna204SinCuerpo_CuandoAsignaJornada()
     {
-        var resultado = await CrearEndpoint(new FakeJornadaRouter()).Run(new DefaultHttpContext().Request, Id, default);
+        var resultado = await CrearEndpoint(new FakeJornadaRouter()).Run(new DefaultHttpContext().Request, Id,
+            TestContext.Current.CancellationToken);
 
         resultado.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
@@ -43,7 +44,8 @@ public class FunctionEndpointTests
     [Fact]
     public async Task AsignarJornada_Retorna204SinCuerpo_CuandoLaJornadaYaEstaAsignada()
     {
-        var resultado = await CrearEndpoint(new FakeJornadaRouter()).Run(new DefaultHttpContext().Request, Id, default);
+        var resultado = await CrearEndpoint(new FakeJornadaRouter()).Run(new DefaultHttpContext().Request, Id,
+            TestContext.Current.CancellationToken);
 
         resultado.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status204NoContent);
@@ -55,7 +57,7 @@ public class FunctionEndpointTests
     {
         var router = new FakeJornadaRouter();
 
-        await CrearEndpoint(router).Run(new DefaultHttpContext().Request, Id, default);
+        await CrearEndpoint(router).Run(new DefaultHttpContext().Request, Id, TestContext.Current.CancellationToken);
 
         router.ComandoRecibido.Should().Be(new AsignarJornada("CC", "79543210", JornadaId));
     }
@@ -65,7 +67,8 @@ public class FunctionEndpointTests
     {
         var router = new FakeJornadaRouter();
 
-        var resultado = await CrearEndpoint(router).Run(new DefaultHttpContext().Request, "CC79543210", default);
+        var resultado = await CrearEndpoint(router).Run(new DefaultHttpContext().Request, "CC79543210",
+            TestContext.Current.CancellationToken);
 
         resultado.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
@@ -78,7 +81,7 @@ public class FunctionEndpointTests
         var router = new FakeJornadaRouter();
         var endpoint = CrearEndpoint(router, new BadRequestObjectResult("body invalido"));
 
-        var resultado = await endpoint.Run(new DefaultHttpContext().Request, Id, default);
+        var resultado = await endpoint.Run(new DefaultHttpContext().Request, Id, TestContext.Current.CancellationToken);
 
         resultado.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
@@ -91,7 +94,7 @@ public class FunctionEndpointTests
         var endpoint = CrearEndpoint(new FakeJornadaRouter(new RecursoNoEncontradoException(
             AsignarJornadaCommandHandler.Mensajes.ColaboradorNoEncontrado)));
 
-        var resultado = await endpoint.Run(new DefaultHttpContext().Request, Id, default);
+        var resultado = await endpoint.Run(new DefaultHttpContext().Request, Id, TestContext.Current.CancellationToken);
 
         resultado.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status404NotFound);
@@ -103,7 +106,7 @@ public class FunctionEndpointTests
         var endpoint = CrearEndpoint(new FakeJornadaRouter(new ReglaDeNegocioDeclinadaException(
             AsignarJornadaCommandHandler.Mensajes.VinculacionTerminada)));
 
-        var resultado = await endpoint.Run(new DefaultHttpContext().Request, Id, default);
+        var resultado = await endpoint.Run(new DefaultHttpContext().Request, Id, TestContext.Current.CancellationToken);
 
         resultado.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status409Conflict);
