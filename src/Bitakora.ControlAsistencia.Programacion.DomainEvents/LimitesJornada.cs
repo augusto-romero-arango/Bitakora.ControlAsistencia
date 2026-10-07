@@ -3,7 +3,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-public sealed partial class LimitesJornada
+public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
 {
     private const int DiasPorSemana = 7;
     private const int MaximoDescansos = DiasPorSemana - 1;
@@ -57,6 +57,14 @@ public sealed partial class LimitesJornada
         };
         return $"{_horasSemanales} {Mensajes.Semanales}, {Mensajes.TopeDiario} {_topeDiario}, {minimo}, {descansos}";
     }
+
+    public bool Equals(LimitesJornada? otro) => otro is not null &&
+        _horasSemanales.Equals(otro._horasSemanales) &&
+        _topeDiario.Equals(otro._topeDiario) &&
+        _minimoDiario.Equals(otro._minimoDiario) &&
+        _diasDescansoPorSemana == otro._diasDescansoPorSemana;
+    public override bool Equals(object? obj) => Equals(obj as LimitesJornada);
+    public override int GetHashCode() => HashCode.Combine(_horasSemanales, _topeDiario, _minimoDiario, _diasDescansoPorSemana);
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {

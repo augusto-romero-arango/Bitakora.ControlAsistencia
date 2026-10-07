@@ -12,13 +12,13 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     private static object Payload(Guid id, int minutos, int topeHoras = 8, int topeMinutos = 0,
         int descansos = 1) => new
-    {
-        jornadaId = id,
-        horasSemanales = new { horas = 30, minutos },
-        topeDiario = new { horas = topeHoras, minutos = topeMinutos },
-        minimoDiario = new { horas = 0, minutos = 0 },
-        diasDescansoPorSemana = descansos
-    };
+        {
+            jornadaId = id,
+            horasSemanales = new { horas = 30, minutos },
+            topeDiario = new { horas = topeHoras, minutos = topeMinutos },
+            minimoDiario = new { horas = 0, minutos = 0 },
+            diasDescansoPorSemana = descansos
+        };
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -51,10 +51,13 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar409_CuandoIdEsElDeLaGeneral()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var id = Guid.Parse("00000000-0000-4000-8000-000000000001");
         var response = await _client.PostAsJsonAsync(Ruta,
-            Payload(Guid.Parse("00000000-0000-4000-8000-000000000001"), 37),
+            Payload(id, 37),
             TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await postgres.ContarEventosAsync("programacion", id.ToString(), "jornada_creada")).Should().Be(0);
     }
 
     [Fact]

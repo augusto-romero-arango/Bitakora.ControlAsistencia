@@ -18,6 +18,7 @@ public class JornadaSerializacionTests
         var restaurado = JsonSerializer.Deserialize<HorasYMinutos>(json, Opciones());
         restaurado.Should().NotBeNull();
         restaurado!.ToString().Should().Be("8 h 12 min");
+        restaurado.Should().Be(original);
         using var documento = JsonDocument.Parse(json);
         documento.RootElement.GetProperty("MinutosTotales").GetInt32().Should().Be(492);
     }
@@ -32,6 +33,7 @@ public class JornadaSerializacionTests
         restaurado.Should().NotBeNull();
         restaurado!.ToString().Should().Be(
             "42 h semanales, tope diario 8 h, mínimo diario 4 h, 1 día de descanso por semana");
+        restaurado.Should().Be(original);
         using var documento = JsonDocument.Parse(json);
         documento.RootElement.GetProperty("DiasDescansoPorSemana").GetInt32().Should().Be(1);
     }
@@ -47,6 +49,19 @@ public class JornadaSerializacionTests
         restaurado!.JornadaId.Should().Be(Id);
         restaurado.Limites.ToString().Should().Be(
             "42 h semanales, tope diario 8 h, sin mínimo diario, 1 día de descanso por semana");
+        restaurado.Limites.Should().Be(evento.Limites);
+    }
+
+    [Fact]
+    public void RoundTrip_ConservaMinutosYDescansosSinMinimo()
+    {
+        var original = LimitesJornada.Crear(HorasYMinutos.Crear(30, 37),
+            HorasYMinutos.Crear(8, 12), HorasYMinutos.Crear(0, 0), 2);
+        var json = JsonSerializer.Serialize(original, Opciones());
+        var restaurado = JsonSerializer.Deserialize<LimitesJornada>(json, Opciones());
+        restaurado.Should().Be(original);
+        restaurado!.ToString().Should().Be(
+            "30 h 37 min semanales, tope diario 8 h 12 min, sin mínimo diario, 2 días de descanso por semana");
     }
 
     [Fact]

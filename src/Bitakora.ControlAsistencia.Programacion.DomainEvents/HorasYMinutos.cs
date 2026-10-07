@@ -3,7 +3,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>
+public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>, IEquatable<HorasYMinutos>
 {
     private const int MinutosPorHora = 60;
     private int _minutosTotales;
@@ -25,7 +25,14 @@ public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>
     }
 
     public int CompareTo(HorasYMinutos? otro) => otro is null ? 1 : _minutosTotales.CompareTo(otro._minutosTotales);
-    public HorasYMinutos Por(int factor) => new(checked(_minutosTotales * factor));
+    public bool Equals(HorasYMinutos? otro) => otro is not null && _minutosTotales == otro._minutosTotales;
+    public override bool Equals(object? obj) => Equals(obj as HorasYMinutos);
+    public override int GetHashCode() => _minutosTotales.GetHashCode();
+    public HorasYMinutos Por(int factor)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(factor);
+        return new(checked(_minutosTotales * factor));
+    }
     public override string ToString()
     {
         var horas = _minutosTotales / MinutosPorHora;

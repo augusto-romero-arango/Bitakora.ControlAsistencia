@@ -58,4 +58,11 @@ public class HorasYMinutosTests
         HorasYMinutos.Crear(8, 0).Por(7).ToString().Should().Be("56 h");
         HorasYMinutos.Crear(0, 45).Por(2).ToString().Should().Be("1 h 30 min");
     }
+
+    [Fact]
+    public void Por_RechazaFactorNegativo_CuandoRomperiaLaInvariante()
+    {
+        var act = () => HorasYMinutos.Crear(8, 0).Por(-1);
+        act.Should().ThrowExactly<ArgumentOutOfRangeException>();
+    }
 }
