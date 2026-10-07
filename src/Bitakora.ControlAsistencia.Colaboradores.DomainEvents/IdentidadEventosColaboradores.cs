@@ -24,5 +24,6 @@ public static class IdentidadEventosColaboradores
         typeof(EtiquetaAsignada),
         typeof(EtiquetaRetirada),
         typeof(SedeAsignada),
+        typeof(JornadaAsignada),
     ];
 }
