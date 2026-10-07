@@ -24,6 +24,7 @@ public sealed partial class HorasYMinutos : IComparable<HorasYMinutos>, IEquatab
         return new HorasYMinutos(checked(horas * MinutosPorHora + minutos));
     }
 
+    public int TotalMinutos() => _minutosTotales;
     public int Horas => _minutosTotales / MinutosPorHora;
     public int Minutos => _minutosTotales % MinutosPorHora;
 
