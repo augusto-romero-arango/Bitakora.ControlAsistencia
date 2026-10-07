@@ -40,6 +40,15 @@ public class ComposicionListadoLimitesTests
     }
 
     [Fact]
+    public void Componer_RespetaLaPagina_CuandoLaVistaYaTieneLaPredeterminadaFueraDeEsaPagina()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, B], null, null, 1);
+
+        respuesta.Elementos.Select(e => e.JornadaId).Should().Equal(IdA);
+        respuesta.SiguienteCursor.Should().NotBeNull();
+    }
+
+    [Fact]
     public void Componer_IncluyeLaPredeterminadaUnaSolaVez_CuandoSeRecorreEnVariasPaginas()
     {
         var vista = new[] { A, B };

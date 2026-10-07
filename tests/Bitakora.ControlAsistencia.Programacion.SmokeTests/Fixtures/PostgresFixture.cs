@@ -61,7 +61,7 @@ public class PostgresFixture : IAsyncLifetime
 
     public static string StreamIdPreferencias(string tenantId) => $"pp:{tenantId}";
 
-    // Issue #901 CA-6: cada corrida debe ejercer la materializacion real, asi que se borran los
+    // Cada corrida debe ejercer la materializacion real, asi que se borran los
     // streams de TODAS las Jornadas que alguna vez fueron predeterminadas (historial de pp:{tenant}),
     // sus documentos en la vista y el stream de Preferencias. Acotado por tenant_id.
     public async Task LimpiarJornadaPredeterminadaAsync(string schema, string tenantId)

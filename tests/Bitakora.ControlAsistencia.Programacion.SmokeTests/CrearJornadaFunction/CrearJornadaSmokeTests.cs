@@ -49,7 +49,7 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task CrearJornada_DebeRetornar201_CuandoIdEsElQueAntesEraLaGeneral()
+    public async Task CrearJornada_Retorna201_CuandoIdEsElQueAntesEraLaGeneral()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;

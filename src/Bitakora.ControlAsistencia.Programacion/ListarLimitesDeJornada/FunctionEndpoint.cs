@@ -48,16 +48,35 @@ public class FunctionEndpoint(
         // MEF-ADR-0028: QuerySession acotada al tenant de ITenantContext, nunca a uno del request.
         await using var session = store.QuerySession(tenantContext.TenantId);
 
-        var vista = await session.Query<LimitesDeJornada>().ToListAsync(ct);
-        var idTexto = predeterminadaId.ToString();
-        var predeterminada = vista.FirstOrDefault(l => l.Id == idTexto);
-        if (predeterminada is null)
+        IQueryable<LimitesDeJornada> query = session.Query<LimitesDeJornada>();
+        if (cursor is { } c)
         {
-            var jornada = await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct);
-            predeterminada = jornada!.ComoVista();
+            query = query.Where(l =>
+                l.HorasSemanalesEnMinutos > c.Horas
+                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos > c.Tope)
+                || (l.HorasSemanalesEnMinutos == c.Horas && l.TopeDiarioEnMinutos == c.Tope
+                    && l.Id.CompareTo(c.Id) > 0));
         }
 
-        return new OkObjectResult(ComposicionListadoLimites.Componer(vista, predeterminada, cursor, take));
+        var ordenada = query
+            .OrderBy(l => l.HorasSemanalesEnMinutos)
+            .ThenBy(l => l.TopeDiarioEnMinutos)
+            .ThenBy(l => l.Id);
+
+        var pagina = take is { } t
+            ? await ordenada.Take(t + 1).ToListAsync(ct)
+            : await ordenada.ToListAsync(ct);
+
+        // Proyeccion Async atrasada: la predeterminada recien materializada se compone desde su stream.
+        var idTexto = predeterminadaId.ToString();
+        LimitesDeJornada? faltante = null;
+        if (await session.LoadAsync<LimitesDeJornada>(idTexto, ct) is null)
+        {
+            var jornada = await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct);
+            faltante = jornada!.ComoVista();
+        }
+
+        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take));
     }
 }
 
@@ -100,12 +119,14 @@ internal sealed record CursorJornada(int Horas, int Tope, string Id)
     }
 }
 
+// Compone una pagina de la vista (o la vista completa) con la predeterminada que la proyeccion aun no
+// materializo: la reubica en su posicion del orden y respeta cursor y take.
 internal static class ComposicionListadoLimites
 {
     public static ListaLimitesDeJornadaRespuesta Componer(
-        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada predeterminada, CursorJornada? cursor, int? take)
+        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take)
     {
-        IEnumerable<LimitesDeJornada> todas = vista.Any(l => l.Id == predeterminada.Id)
+        IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
             ? vista
             : [.. vista, predeterminada];
 
