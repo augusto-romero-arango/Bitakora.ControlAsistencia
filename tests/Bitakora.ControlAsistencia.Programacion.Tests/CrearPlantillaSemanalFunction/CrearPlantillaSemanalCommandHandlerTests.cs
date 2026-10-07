@@ -207,4 +207,71 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(
             plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
     }
+
+    private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000b01");
+
+    // El TestStore no puebla AggregateRoot.Version: la version copiada es 0 en este harness.
+    private const long VersionEnElHarness = 0;
+
+    private static LimitesJornada Limites(int semanales) =>
+        LimitesJornada.Crear(HorasYMinutos.Crear(semanales, 0), HorasYMinutos.Crear(8, 0),
+            HorasYMinutos.Crear(0, 0), 1);
+
+    // CA-2
+    [Fact]
+    public async Task CrearPlantillaSemanal_EmiteCreadaYJornadaAsignada_CuandoLaJornadaExiste()
+    {
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2, JornadaId);
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)));
+
+        await WhenAsync(comando);
+
+        Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2),
+            JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
+    }
+
+    // CA-3
+    [Fact]
+    public async Task CrearPlantillaSemanal_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoTieneStream()
+    {
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2, JornadaId);
+        Given();
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
+            .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.JornadaNoEncontrada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    // El nombre duplicado se evalua antes que la Jornada: un 409 no se enmascara con un 404.
+    [Fact]
+    public async Task CrearPlantillaSemanal_LanzaNombreDuplicado_CuandoNombreEstaDuplicadoYLaJornadaNoExiste()
+    {
+        var plantillaExistenteId = SembrarPlantillaEnCatalogo(NombrePlantilla);
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2, JornadaId);
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.NombreDuplicado}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, string>(
+            plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
+    }
+
+    // CA-1: sin JornadaId la plantilla nace sin Jornada.
+    [Fact]
+    public async Task CrearPlantillaSemanal_EmiteSoloCreada_CuandoNoSeIndicaJornada()
+    {
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2, null);
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)));
+
+        await WhenAsync(comando);
+
+        Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2));
+        And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
+    }
 }

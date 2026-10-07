@@ -77,6 +77,20 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task CrearPlantillaSemanal_Retorna404_CuandoLaJornadaNoExiste()
+    {
+        var validator = new FakeRequestValidator<CrearPlantillaSemanal>(ComandoValido());
+        var router = new FakeCommandRouter(excepcion: new RecursoNoEncontradoException(
+            CrearPlantillaSemanalCommandHandler.Mensajes.JornadaNoEncontrada));
+        var function = new FunctionEndpoint(validator, router);
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeAssignableTo<Microsoft.AspNetCore.Mvc.Infrastructure.IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+    }
+
+    [Fact]
     public async Task CrearPlantillaSemanal_Retorna409_CuandoElNombreEstaDuplicado()
     {
         var function = new FunctionEndpoint(
