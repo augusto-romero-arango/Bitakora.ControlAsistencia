@@ -91,6 +91,38 @@ public class AsignarTurnoADiaDePlantillaSemanalSmokeTests(ApiFixture api, Postgr
 
         eventoPersistido.GetProperty("Semana").GetInt32().Should().Be(1);
         eventoPersistido.GetProperty("Dia").GetInt32().Should().Be(5);
+
+        eventoPersistido.TryGetProperty("Turno", out var copia).Should().BeTrue();
+        copia.ValueKind.Should().Be(JsonValueKind.Object);
+        eventoPersistido.GetProperty("VersionTurno").GetInt64().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_DebeRetornar204SinNuevosEventos_CuandoElDiaYaTieneElTurnoConCopiaVigente()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var (plantillaId, turnoId) = await CrearPlantillaYTurnoAsync(ct);
+        var ruta = $"/api/programacion/plantillas-semanales/{plantillaId}/dias/2/3";
+
+        var primero = await _client.PutAsJsonAsync(ruta, new { turnoId }, ct);
+        primero.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var streamId = plantillaId.ToString();
+        await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamId, TipoEventoDiaAsignado,
+            campoJson: "TurnoId", valorJson: turnoId.ToString(), Timeout);
+        var eventosAntes = await postgres.ContarEventosDeStreamAsync(
+            SchemaProgramacion, postgres.TenantId, streamId);
+
+        var segundo = await _client.PutAsJsonAsync(ruta, new { turnoId }, ct);
+        segundo.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var eventosDespues = await postgres.ContarEventosDeStreamAsync(
+            SchemaProgramacion, postgres.TenantId, streamId);
+        eventosDespues.Should().Be(eventosAntes);
     }
 
     [Fact]
