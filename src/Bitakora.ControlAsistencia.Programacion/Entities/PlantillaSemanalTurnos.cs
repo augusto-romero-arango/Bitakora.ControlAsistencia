@@ -44,7 +44,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         VersionJornada = 0;
     }
 
-    public void Apply(AdvertenciasDePlantillaSemanalCalculadas evento) => throw new NotImplementedException();
+    public void Apply(AdvertenciasDePlantillaSemanalCalculadas evento) => Advertencias = evento.Advertencias;
 
     internal IReadOnlyList<AdvertenciaPlantillaSemanal> Advertencias { get; private set; } = [];
 
@@ -67,6 +67,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         var evento = JornadaDePlantillaSemanalAsignada.Crear(Guid.Parse(Id), jornadaId, limites, version);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoAsignarJornada.Asignada;
     }
 
@@ -81,7 +82,36 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         var evento = JornadaDePlantillaSemanalQuitada.Crear(Guid.Parse(Id));
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoQuitarJornada.Quitada;
+    }
+
+    private void Auditar()
+    {
+        var calculadas = AuditoriaPlantillaSemanal.Auditar(
+            _semanas,
+            _dias.Select(d => new DiaDePlantillaAuditado(d.Key.Semana, d.Key.Dia, d.Value.Turno, false)),
+            Limites);
+        if (calculadas.SequenceEqual(Advertencias))
+            return;
+
+        var evento = AdvertenciasDePlantillaSemanalCalculadas.Crear(Guid.Parse(Id), calculadas);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    // Nace ya con su Jornada: una sola auditoria sobre el estado final, sin el PlantillaSinJornada intermedio.
+    internal static PlantillaSemanalTurnos IniciarConJornada(
+        PlantillaSemanalCreada evento, Guid jornadaId, LimitesJornada limites, long version)
+    {
+        var plantilla = new PlantillaSemanalTurnos();
+        plantilla._uncommittedEvents.Add(evento);
+        plantilla.Apply(evento);
+        var asignada = JornadaDePlantillaSemanalAsignada.Crear(evento.PlantillaId, jornadaId, limites, version);
+        plantilla._uncommittedEvents.Add(asignada);
+        plantilla.Apply(asignada);
+        plantilla.Auditar();
+        return plantilla;
     }
 
     internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
@@ -89,6 +119,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         var plantilla = new PlantillaSemanalTurnos();
         plantilla._uncommittedEvents.Add(evento);
         plantilla.Apply(evento);
+        plantilla.Auditar();
         return plantilla;
     }
 
@@ -109,6 +140,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.Parse(Id), semana, dia, turnoId, copia, versionTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoAsignarDia.Asignado;
     }
 
@@ -129,6 +161,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         var evento = DiaDePlantillaSemanalQuitado.Crear(Guid.Parse(Id), semana, dia);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoQuitarDia.Quitado;
     }
 

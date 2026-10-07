@@ -52,5 +52,6 @@ public static class ConfiguracionSerializacionProgramacion
         JornadaCreada.ConfigurarSerializacion(resolver);
         LimitesJornadaModificados.ConfigurarSerializacion(resolver);
         AdvertenciaPlantillaSemanal.ConfigurarSerializacion(resolver);
+        AdvertenciasDePlantillaSemanalCalculadas.ConfigurarSerializacion(resolver);
     }
 }
