@@ -50,6 +50,17 @@ public sealed partial class LimitesJornada : IEquatable<LimitesJornada>
     public HorasYMinutos MinimoDiario => _minimoDiario;
     public int DiasDescansoPorSemana => _diasDescansoPorSemana;
 
+    public int MinutosDeMasEnElDia(int minutos) => Math.Max(0, minutos - _topeDiario.TotalMinutos());
+
+    public int MinutosDeMenosEnElDia(int minutos) => Math.Max(0, _minimoDiario.TotalMinutos() - minutos);
+
+    // Positivo: se pasa de las horas semanales; negativo: le faltan; 0: exacto.
+    public int DiferenciaSemanalEnMinutos(int minutos) => minutos - _horasSemanales.TotalMinutos();
+
+    // Positivo: sobran descansos; negativo: faltan; 0 con parametro 0 (sin control).
+    public int DiferenciaDeDescansos(int descansos) =>
+        _diasDescansoPorSemana == 0 ? 0 : descansos - _diasDescansoPorSemana;
+
     public override string ToString()
     {
         var minimo = _minimoDiario.CompareTo(HorasYMinutos.Crear(0, 0)) == 0

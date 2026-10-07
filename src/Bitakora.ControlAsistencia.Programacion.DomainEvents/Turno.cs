@@ -18,6 +18,8 @@ public sealed partial class Turno : IEquatable<Turno>
 
     public bool EsDescanso() => _esDescanso;
 
+    public int MinutosOrdinarios() => _esDescanso ? 0 : _franjas.Sum(f => f.MinutosOrdinarios());
+
     public bool EstaCompleto() => _esDescanso || _franjas.Count > 0;
 
     public TurnoProgramado Programar() => new(
