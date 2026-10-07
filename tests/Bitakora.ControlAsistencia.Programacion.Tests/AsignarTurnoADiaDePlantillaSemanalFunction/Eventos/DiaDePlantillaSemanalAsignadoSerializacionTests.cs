@@ -10,6 +10,7 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
     private static readonly Guid PlantillaId = Guid.Parse("019600a0-0000-7000-8000-000000000621");
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000701");
 
+    // CA-5: turno de trabajo con descanso y extra dentro de su franja.
     private static readonly Turno TurnoDeTrabajo = Turno.Crear(
         "Turno Manana", false,
         [
@@ -44,7 +45,7 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
         deserializado.VersionTurno.Should().Be(7);
     }
 
-    // CA-5: turno con descanso y extra sobrevive el round-trip con la copia completa.
+    // CA-5: la copia de un turno de descanso (sin franjas) sobrevive el round-trip.
     [Fact]
     public void Deserializar_ReconstruyeLaCopiaDelTurnoDeDescanso_CuandoElTurnoEsDescanso()
     {

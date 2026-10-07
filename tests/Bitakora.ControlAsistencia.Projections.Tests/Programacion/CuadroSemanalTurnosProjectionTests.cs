@@ -21,11 +21,11 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Programacion;
 
 public class CuadroSemanalTurnosProjectionTests
 {
-    // CA-1: el PlantillaId embebido en el evento se fija DISTINTO del StreamKey a proposito -- un
-    // Create que leyera e.Data.PlantillaId.ToString() en vez de e.StreamKey quedaria en evidencia.
     private static readonly Turno CopiaTurno =
         Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
 
+    // CA-1: el PlantillaId embebido en el evento se fija DISTINTO del StreamKey a proposito -- un
+    // Create que leyera e.Data.PlantillaId.ToString() en vez de e.StreamKey quedaria en evidencia.
     [Fact]
     public void Create_ProyectaElCuadroVacio_DesdePlantillaSemanalCreada()
     {

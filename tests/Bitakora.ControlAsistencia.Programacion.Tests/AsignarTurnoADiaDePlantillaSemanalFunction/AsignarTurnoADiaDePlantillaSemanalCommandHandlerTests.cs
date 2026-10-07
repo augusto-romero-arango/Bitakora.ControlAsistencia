@@ -54,7 +54,8 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        Then(DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
+        Then(DiaDePlantillaSemanalAsignado.Crear(
+            GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -66,7 +67,8 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        Then(DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoDescanso, VersionEnElHarness));
+        Then(DiaDePlantillaSemanalAsignado.Crear(
+            GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoDescanso, VersionEnElHarness));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -161,7 +163,8 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
     public async Task AsignarTurnoADiaDePlantillaSemanal_NoEmiteEvento_CuandoElMismoTurnoYaEstaAsignadoAEseDia()
     {
         Given(CrearEventoPlantilla(),
-            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
+            DiaDePlantillaSemanalAsignado.Crear(
+                GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));

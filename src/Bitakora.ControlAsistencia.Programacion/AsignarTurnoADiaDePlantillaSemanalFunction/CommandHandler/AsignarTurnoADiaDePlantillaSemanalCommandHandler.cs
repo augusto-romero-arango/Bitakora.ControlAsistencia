@@ -33,7 +33,8 @@ public partial class AsignarTurnoADiaDePlantillaSemanalCommandHandler
                 throw new ReglaDeNegocioDeclinadaException(Mensajes.TurnoIncompleto);
         }
 
-        var resultado = plantilla.AsignarDia(command.Semana, command.Dia, command.TurnoId, catalogo.Turno, catalogo.Version);
+        var resultado = plantilla.AsignarDia(
+            command.Semana, command.Dia, command.TurnoId, catalogo.Turno, catalogo.Version);
         switch (resultado)
         {
             case ResultadoAsignarDia.PlantillaRetirada:

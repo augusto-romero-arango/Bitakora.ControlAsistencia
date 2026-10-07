@@ -16,7 +16,7 @@ public class PlantillaSemanalTurnosTests
     private static readonly Turno CopiaTurno =
         Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
 
-    private static readonly Turno CopiaTurnoConExtraFranja = Turno.Crear(
+    private static readonly Turno CopiaTurnoConSegundaFranja = Turno.Crear(
         "Turno Manana", false,
         [
             FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0)),
@@ -120,7 +120,7 @@ public class PlantillaSemanalTurnosTests
     public void AsignarDia_RetornaSinCambios_CuandoLaCopiaGuardadaEsMasNuevaQueLaOfrecida()
     {
         var plantilla = CrearPlantilla(2);
-        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurnoConExtraFranja, 5);
+        plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurnoConSegundaFranja, 5);
 
         var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
 
@@ -135,12 +135,12 @@ public class PlantillaSemanalTurnosTests
         var plantilla = CrearPlantilla(2);
         plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurno, 4);
 
-        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurnoConExtraFranja, 5);
+        var resultado = plantilla.AsignarDia(1, DiaSemana.Lunes, Turno1Id, CopiaTurnoConSegundaFranja, 5);
 
         resultado.Should().Be(ResultadoAsignarDia.Asignado);
         var ultimo = plantilla.UncommittedEvents.OfType<DiaDePlantillaSemanalAsignado>().Should()
             .HaveCount(2).And.Subject.Last();
-        ultimo.Turno.Should().Be(CopiaTurnoConExtraFranja);
+        ultimo.Turno.Should().Be(CopiaTurnoConSegundaFranja);
         ultimo.VersionTurno.Should().Be(5);
     }
 
