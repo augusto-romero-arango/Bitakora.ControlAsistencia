@@ -151,6 +151,24 @@ module "service_bus" {
         }
       ]
     }
+    # Issue #896 (partido de #884): Programacion publica LimitesDeJornadaActualizados cada vez que
+    # cambian los limites de una Jornada, para que las plantillas semanales sincronicen su copia
+    # (CA-ADR-0034 enmendado en #886). Fan-out simple, sin sesiones (MEF-ADR-0026); si #884
+    # decide sesion, la ajusta un issue de infra posterior. La subscription smoke-tests cubre la
+    # publicacion (MEF-ADR-0013).
+    "limites-de-jornada-actualizados" = {
+      subscriptions = [
+        {
+          name               = "programacion-escucha-limites-de-jornada"
+          correlation_filter = null
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
   }
   tags = local.tags
 }
