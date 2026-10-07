@@ -262,7 +262,8 @@ public class ComposicionServiciosTests
                 typeof(TerminacionAnulada),
                 typeof(EtiquetaAsignada),
                 typeof(EtiquetaRetirada),
-                typeof(SedeAsignada)
+                typeof(SedeAsignada),
+                typeof(JornadaAsignada)
             ]);
     }
 
@@ -298,8 +299,22 @@ public class ComposicionServiciosTests
             [typeof(TerminacionAnulada)] = "terminacion_anulada",
             [typeof(EtiquetaAsignada)] = "etiqueta_asignada",
             [typeof(EtiquetaRetirada)] = "etiqueta_retirada",
-            [typeof(SedeAsignada)] = "sede_asignada"
+            [typeof(SedeAsignada)] = "sede_asignada",
+            [typeof(JornadaAsignada)] = "jornada_asignada"
         });
+    }
+
+    [Fact]
+    public async Task AgregarServiciosColaboradores_CongelaElAliasDeJornadaAsignada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(JornadaAsignada)).Alias;
+
+        alias.Should().Be("jornada_asignada");
     }
 
     // Issue #330 (patron replicado de ControlHoras #232 CA-5): las tres banderas de metadata

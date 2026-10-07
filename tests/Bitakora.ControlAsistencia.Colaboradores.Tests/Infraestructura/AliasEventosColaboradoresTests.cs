@@ -129,4 +129,12 @@ public class AliasEventosColaboradoresTests
 
         AliasDe<SedeAsignada>(options).Should().Be("sede_asignada");
     }
+
+    [Fact]
+    public void JornadaAsignada_TieneAliasJornadaAsignada()
+    {
+        var options = CrearOpcionesConEventosDeColaboradoresRegistrados();
+
+        AliasDe<JornadaAsignada>(options).Should().Be("jornada_asignada");
+    }
 }
