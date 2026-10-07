@@ -31,4 +31,22 @@ public class JornadaDescribirTests
     {
         Crear(8, 12).Describir().TopeDiario.Should().Be(new HorasYMinutosRespuesta(8, 12));
     }
+
+    [Fact]
+    public void Describir_MarcaPredeterminada_CuandoPreferenciasApuntanAEstaJornada()
+    {
+        Crear(8, 0).Describir(JornadaId).EsPredeterminada.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Describir_NoMarcaPredeterminada_CuandoPreferenciasApuntanAOtraJornada()
+    {
+        Crear(8, 0).Describir(Guid.Parse("019600a0-0000-7000-8000-000000000900")).EsPredeterminada.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Describir_NoMarcaPredeterminada_CuandoNoHayPreferencias()
+    {
+        Crear(8, 0).Describir(null).EsPredeterminada.Should().BeFalse();
+    }
 }

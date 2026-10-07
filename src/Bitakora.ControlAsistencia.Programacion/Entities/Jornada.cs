@@ -30,7 +30,7 @@ public partial class Jornada : AggregateRoot
         return ResultadoModificarLimites.Modificados;
     }
 
-    internal JornadaRespuesta Describir() => new(
+    internal JornadaRespuesta Describir(Guid? predeterminadaId = null) => new(
         _jornadaId,
         Convertir(_limites.HorasSemanales),
         Convertir(_limites.TopeDiario),

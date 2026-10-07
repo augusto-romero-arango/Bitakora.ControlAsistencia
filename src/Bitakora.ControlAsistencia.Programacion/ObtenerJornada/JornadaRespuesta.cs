@@ -6,4 +6,5 @@ public sealed record JornadaRespuesta(
     HorasYMinutosRespuesta TopeDiario,
     HorasYMinutosRespuesta MinimoDiario,
     int DiasDescansoPorSemana,
-    string Descripcion);
+    string Descripcion,
+    bool EsPredeterminada = false);
