@@ -16,6 +16,10 @@ public partial class Jornada : AggregateRoot
         _limites = evento.Limites;
     }
 
+    public void Apply(LimitesJornadaModificados evento) => throw new NotImplementedException();
+
+    internal ResultadoModificarLimites ModificarLimites(LimitesJornada limites) => throw new NotImplementedException();
+
     internal JornadaRespuesta Describir() => new(
         _jornadaId,
         Convertir(_limites.HorasSemanales),
