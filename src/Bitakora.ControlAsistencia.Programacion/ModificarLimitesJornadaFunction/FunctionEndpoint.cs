@@ -33,6 +33,10 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             return new NotFoundObjectResult(ex.Message);
         }
+        catch (ReglaDeNegocioDeclinadaException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
         catch (AggregateException ex)
         {
             return new BadRequestObjectResult(ex.InnerExceptions.Select(e => e.Message));

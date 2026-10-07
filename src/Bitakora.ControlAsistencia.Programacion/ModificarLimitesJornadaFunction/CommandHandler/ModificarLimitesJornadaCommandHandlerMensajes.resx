@@ -5,4 +5,5 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
   <data name="JornadaNoEncontrada" xml:space="preserve"><value>La Jornada no existe</value></data>
+  <data name="LimitesDuplicados" xml:space="preserve"><value>Ya existe una Jornada con estos límites ({0}): {1}</value></data>
 </root>

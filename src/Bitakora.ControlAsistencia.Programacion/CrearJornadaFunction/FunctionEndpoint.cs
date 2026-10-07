@@ -26,6 +26,7 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
             switch (ex)
             {
                 case RecursoYaExisteException:
+                case ReglaDeNegocioDeclinadaException:
                     return new ConflictObjectResult(ex.Message);
                 default:
                     throw;

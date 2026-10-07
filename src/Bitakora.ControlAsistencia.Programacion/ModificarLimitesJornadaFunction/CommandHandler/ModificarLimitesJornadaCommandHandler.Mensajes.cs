@@ -10,5 +10,6 @@ public partial class ModificarLimitesJornadaCommandHandler
     public static class Mensajes
     {
         public static string JornadaNoEncontrada => ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
+        public static string LimitesDuplicados => ResourceManager.GetString(nameof(LimitesDuplicados))!;
     }
 }

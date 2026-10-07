@@ -1,4 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -29,6 +31,27 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         return await session.Query<CuadroSemanalTurnos>().Select(c => c.Nombre).ToListAsync(ct);
     }
 
-    Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerLimitesAsync(
-        Guid predeterminadaId, CancellationToken ct) => throw new NotImplementedException();
+    async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerLimitesAsync(
+        Guid predeterminadaId, CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        var vista = await session.Query<LimitesDeJornada>().ToListAsync(ct);
+
+        // Proyeccion Async atrasada: la predeterminada recien materializada se lee de su stream.
+        var idTexto = predeterminadaId.ToString();
+        if (vista.All(l => l.Id != idTexto))
+        {
+            var jornada = await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct);
+            if (jornada is not null)
+                vista = [.. vista, jornada.ComoVista()];
+        }
+
+        return vista.Select(l => new JornadaDelCatalogo(Guid.Parse(l.Id), LimitesJornada.Crear(
+            HorasYMinutos.Crear(l.HorasSemanalesEnMinutos / MinutosPorHora, l.HorasSemanalesEnMinutos % MinutosPorHora),
+            HorasYMinutos.Crear(l.TopeDiarioEnMinutos / MinutosPorHora, l.TopeDiarioEnMinutos % MinutosPorHora),
+            HorasYMinutos.Crear(l.MinimoDiarioEnMinutos / MinutosPorHora, l.MinimoDiarioEnMinutos % MinutosPorHora),
+            l.DiasDescansoPorSemana))).ToList();
+    }
+
+    private const int MinutosPorHora = 60;
 }
