@@ -39,6 +39,7 @@ using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.Listar
 using ObtenerCuadroSemanalTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos.FunctionEndpoint;
 using ListarCuadrosSemanalesTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos.FunctionEndpoint;
 
+using ListarLimitesDeJornadaEndpoint = Bitakora.ControlAsistencia.Programacion.ListarLimitesDeJornada.FunctionEndpoint;
 using ListarAusenciasColaboradorEndpoint = Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
@@ -320,6 +321,32 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ListarFichasTurnoEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarLimitesDeJornada_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarLimitesDeJornadaEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    // Par 2 (MEF-ADR-0034 seccion 6) para LimitesDeJornada, espejo del test del worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaLimitesDeJornada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(LimitesDeJornada));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
     // Mitad write-side del par 2 (MEF-ADR-0034 seccion 6): este Function App LEE FichaTurno sin
