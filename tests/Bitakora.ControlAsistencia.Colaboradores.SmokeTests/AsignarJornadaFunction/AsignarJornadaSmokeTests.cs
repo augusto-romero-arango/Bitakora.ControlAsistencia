@@ -41,13 +41,23 @@ public class AsignarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task Health_Retorna200_CuandoSeConsulta()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task AsignarJornada_Retorna204YPersisteJornadaAsignada_CuandoColaboradorExiste()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
         var numero = NuevoNumero();
         var id = StreamId(numero);
-        var jornadaId = Guid.NewGuid();
+        var jornadaId = Guid.CreateVersion7();
         await RegistrarAsync(numero, ct);
 
         var response = await AsignarAsync(id, jornadaId, ct);
@@ -60,28 +70,59 @@ public class AsignarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task AsignarJornada_Retorna204YPersisteOtraJornada_CuandoReasigna()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var numero = NuevoNumero();
+        var id = StreamId(numero);
+        var primeraJornadaId = Guid.CreateVersion7();
+        var nuevaJornadaId = Guid.CreateVersion7();
+        await RegistrarAsync(numero, ct);
+
+        var primeraRespuesta = await AsignarAsync(id, primeraJornadaId, ct);
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await postgres.ExisteEventoAsync(Schema, id, Alias, Timeout, "JornadaId", primeraJornadaId.ToString())).Should().BeTrue();
+
+        var response = await AsignarAsync(id, nuevaJornadaId, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
+        (await postgres.ContarEventosAsync(Schema, id, Alias)).Should().Be(2);
+        var evento = await postgres.ObtenerEventoAsync<JsonElement>(
+            Schema, id, Alias, "JornadaId", nuevaJornadaId.ToString(), Timeout);
+        evento.GetProperty("JornadaId").GetGuid().Should().Be(nuevaJornadaId);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task AsignarJornada_Retorna204SinNuevoEvento_CuandoRepiteElMismoPut()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
         var numero = NuevoNumero();
         var id = StreamId(numero);
-        var jornadaId = Guid.NewGuid();
+        var jornadaId = Guid.CreateVersion7();
         await RegistrarAsync(numero, ct);
-        (await AsignarAsync(id, jornadaId, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await postgres.ExisteEventoAsync(Schema, id, Alias, Timeout)).Should().BeTrue();
+        var primeraRespuesta = await AsignarAsync(id, jornadaId, ct);
+        primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await primeraRespuesta.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
+        (await postgres.ExisteEventoAsync(Schema, id, Alias, Timeout, "JornadaId", jornadaId.ToString())).Should().BeTrue();
+        var eventosAntes = await postgres.ContarEventosAsync(Schema, id, Alias);
+        eventosAntes.Should().Be(1);
 
         var response = await AsignarAsync(id, jornadaId, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await postgres.ContarEventosAsync(Schema, id, Alias)).Should().Be(1);
+        (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
+        (await postgres.ContarEventosAsync(Schema, id, Alias)).Should().Be(eventosAntes);
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_Retorna404_CuandoColaboradorNoExiste()
     {
-        var response = await AsignarAsync(StreamId(NuevoNumero()), Guid.NewGuid(),
+        var response = await AsignarAsync(StreamId(NuevoNumero()), Guid.CreateVersion7(),
             TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -97,10 +138,10 @@ public class AsignarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
         var codigo = await RegistrarAsync(numero, ct);
         var terminacion = await _client.PostAsJsonAsync(
             $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar",
-            new { fechaEfectiva = new DateOnly(2026, 5, 1) }, ct);
+            new { fechaEfectiva = new DateOnly(2030, 12, 31) }, ct);
         terminacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        var response = await AsignarAsync(id, Guid.NewGuid(), ct);
+        var response = await AsignarAsync(id, Guid.CreateVersion7(), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -111,6 +152,16 @@ public class AsignarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var response = await AsignarAsync(StreamId(NuevoNumero()), Guid.Empty,
             TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarJornada_Retorna400_CuandoIdDeRutaNoTieneTipo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await AsignarAsync(NuevoNumero(), Guid.CreateVersion7(), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
