@@ -44,13 +44,13 @@ public class LimitesDeJornadaProjectionTests
             JornadaId.ToString(), 2850, 480, 0, 1,
             "47 h 30 min semanales, tope diario 8 h, sin mínimo diario, 1 día de descanso por semana");
         var nuevos = LimitesJornada.Crear(
-            HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 0), HorasYMinutos.Crear(4, 0), 2);
+            HorasYMinutos.Crear(40, 0), HorasYMinutos.Crear(8, 0), HorasYMinutos.Crear(4, 0), 2);
 
         var vista = LimitesDeJornadaProjection.Apply(
             LimitesJornadaModificados.Crear(JornadaId, nuevos), previa);
 
         vista.Should().Be(new LimitesDeJornada(
-            JornadaId.ToString(), 2520, 480, 240, 2,
-            "42 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana"));
+            JornadaId.ToString(), 2400, 480, 240, 2,
+            "40 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana"));
     }
 }

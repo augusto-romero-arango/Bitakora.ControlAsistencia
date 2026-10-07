@@ -73,24 +73,19 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         }
 
         return new OkObjectResult(new ListaLimitesDeJornadaRespuesta(
-            filas.Select(ElementoRespuesta.DesdeVista).ToList(), siguienteCursor));
+            filas.Select(LimitesDeJornadaRespuesta.DesdeVista).ToList(), siguienteCursor));
     }
 }
 
 public sealed record ListaLimitesDeJornadaRespuesta(
-    IReadOnlyList<ElementoRespuesta> Elementos,
+    IReadOnlyList<JornadaRespuesta> Elementos,
     string? SiguienteCursor);
 
-public sealed record ElementoRespuesta(
-    string Id,
-    HorasYMinutosRespuesta HorasSemanales,
-    HorasYMinutosRespuesta TopeDiario,
-    HorasYMinutosRespuesta MinimoDiario,
-    int DiasDescansoPorSemana,
-    string Descripcion)
+// CA-3: cada elemento tiene la forma de ObtenerJornada; los minutos de la vista se traducen aqui.
+internal static class LimitesDeJornadaRespuesta
 {
-    public static ElementoRespuesta DesdeVista(LimitesDeJornada vista) => new(
-        vista.Id,
+    public static JornadaRespuesta DesdeVista(LimitesDeJornada vista) => new(
+        Guid.Parse(vista.Id),
         Convertir(vista.HorasSemanalesEnMinutos),
         Convertir(vista.TopeDiarioEnMinutos),
         Convertir(vista.MinimoDiarioEnMinutos),

@@ -17,7 +17,7 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api)
     private sealed record HorasYMinutosSmoke(int Horas, int Minutos);
 
     private sealed record ElementoSmoke(
-        string Id,
+        Guid JornadaId,
         HorasYMinutosSmoke HorasSemanales,
         HorasYMinutosSmoke TopeDiario,
         HorasYMinutosSmoke MinimoDiario,
@@ -71,10 +71,10 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api)
         var lista = await Polling.WaitUntilAsync(async () =>
         {
             var l = await ListarAsync("", ct);
-            return l.Elementos.Any(e => e.Id == id.ToString()) ? l : null;
+            return l.Elementos.Any(e => e.JornadaId == id) ? l : null;
         }, Timeout);
 
-        var elemento = lista.Elementos.Should().ContainSingle(e => e.Id == id.ToString()).Subject;
+        var elemento = lista.Elementos.Should().ContainSingle(e => e.JornadaId == id).Subject;
         elemento.HorasSemanales.Should().Be(new HorasYMinutosSmoke(47, minutos));
         elemento.TopeDiario.Should().Be(new HorasYMinutosSmoke(8, 0));
         elemento.DiasDescansoPorSemana.Should().Be(1);
@@ -93,23 +93,23 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api)
         await Polling.WaitUntilAsync(async () =>
         {
             var l = await ListarAsync("", ct);
-            var ids = l.Elementos.Select(e => e.Id).ToList();
-            return ids.Contains(id1.ToString()) && ids.Contains(id2.ToString()) ? l : null;
+            var ids = l.Elementos.Select(e => e.JornadaId).ToList();
+            return ids.Contains(id1) && ids.Contains(id2) ? l : null;
         }, Timeout);
 
-        var vistos = new List<string>();
+        var vistos = new List<Guid>();
         var query = "?take=1";
         for (var i = 0; i < 500; i++)
         {
             var pagina = await ListarAsync(query, ct);
             pagina.Elementos.Count.Should().BeLessThanOrEqualTo(1);
-            vistos.AddRange(pagina.Elementos.Select(e => e.Id));
+            vistos.AddRange(pagina.Elementos.Select(e => e.JornadaId));
             if (pagina.SiguienteCursor is null) break;
             query = $"?take=1&cursor={Uri.EscapeDataString(pagina.SiguienteCursor)}";
         }
 
         vistos.Should().OnlyHaveUniqueItems();
-        vistos.Should().Contain([id1.ToString(), id2.ToString()]);
+        vistos.Should().Contain([id1, id2]);
     }
 
     [Fact]
