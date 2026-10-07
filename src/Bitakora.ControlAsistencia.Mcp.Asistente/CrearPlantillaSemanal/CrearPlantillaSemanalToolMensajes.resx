@@ -56,4 +56,25 @@
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>La plantilla aparece en listar_plantillas_semanales unos segundos despues.</value>
   </data>
+  <data name="TurnoOFranjaObligatorio" xml:space="preserve">
+    <value>La entrada de la semana {0}, dia {1} debe traer turno o franja.</value>
+  </data>
+  <data name="TurnoYFranjaExcluyentes" xml:space="preserve">
+    <value>La entrada de la semana {0}, dia {1} trae turno y franja a la vez; usa solo uno.</value>
+  </data>
+  <data name="FranjaInvalida" xml:space="preserve">
+    <value>La franja "{2}" de la semana {0}, dia {1} no es valida; usa el formato HH:mm-HH:mm.</value>
+  </data>
+  <data name="TurnoInlineEnConflicto" xml:space="preserve">
+    <value>El turno "{0}" ya existe en el catalogo con otro contenido. Usalo por su nombre o disena el turno aparte.</value>
+  </data>
+  <data name="TurnoInlineNombreDuplicado" xml:space="preserve">
+    <value>El turno "{0}" ya existe o se creo hace unos segundos; reintenta en unos segundos. Turnos inline ya creados: {1}.</value>
+  </data>
+  <data name="FalloTurnoInline" xml:space="preserve">
+    <value>No se pudo preparar el turno "{0}": {1}. Turnos inline ya creados: {2}.</value>
+  </data>
+  <data name="NingunTurnoInlineCreado" xml:space="preserve">
+    <value>ninguno</value>
+  </data>
 </root>

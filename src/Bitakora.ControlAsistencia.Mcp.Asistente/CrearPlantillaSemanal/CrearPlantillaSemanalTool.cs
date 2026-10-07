@@ -182,4 +182,4 @@ public sealed record DiaRechazado(int Semana, string Dia, string Turno, string M
 /// escribirlo con o sin comillas ("miercoles" o 3): DiaSemanaMcp.TryParsear normaliza ambas formas
 /// a partir del texto que esta tool extrae de aqui.
 /// </summary>
-public sealed record DiaDePlantillaEntrada(int? Semana, JsonElement Dia, string? Turno);
+public sealed record DiaDePlantillaEntrada(int? Semana, JsonElement Dia, string? Turno, string? Franja = null);

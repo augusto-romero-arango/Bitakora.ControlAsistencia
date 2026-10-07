@@ -43,13 +43,20 @@ public class CrearPlantillaSemanalToolTests
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
         HttpStatusCode? statusPost = HttpStatusCode.Created,
         string cuerpoPost = "",
-        HttpStatusCode statusPut = HttpStatusCode.NoContent)
+        HttpStatusCode statusPut = HttpStatusCode.NoContent,
+        HttpStatusCode statusCrearTurno = HttpStatusCode.Created,
+        Func<string?, HttpStatusCode>? statusAgregarFranja = null)
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
         handler.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
         if (statusPost is { } status)
             handler.Responde(HttpMethod.Post, RutaPlantillas, status, cuerpoPost);
         handler.RespondeConPrefijo(HttpMethod.Put, $"{RutaPlantillas}/", statusPut, "");
+        handler.Responde(HttpMethod.Post, RutaTurnos, statusCrearTurno, "");
+        handler.RespondeConPrefijo(
+            HttpMethod.Post,
+            $"{RutaTurnos}/",
+            (_, cuerpo) => new HttpResponseMessage(statusAgregarFranja?.Invoke(cuerpo) ?? HttpStatusCode.NoContent));
 
         var tool = new CrearPlantillaSemanalTool(new ProgramacionApi(cliente));
         return new Fakes(tool, handler);
@@ -342,7 +349,7 @@ public class CrearPlantillaSemanalToolTests
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoObligatorioEnEntrada, 1, "lunes"));
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoOFranjaObligatorio, 1, "lunes"));
         fakes.Handler.Requests.Should().BeEmpty();
     }
 
@@ -357,6 +364,236 @@ public class CrearPlantillaSemanalToolTests
             null!, "Plantilla X", 1, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.RechazoDelDominio, "503"));
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    private const string IdHomonimo = "8f14e45f-ceea-4b3c-8f0a-0000000000a1";
+
+    private static string FranjaJson(string inicio, string fin, int offsetFin, string descansos = "[]", string? sedeId = null) =>
+        $$"""{"horaInicio":"{{inicio}}:00","horaFin":"{{fin}}:00","diaOffsetFin":{{offsetFin}},"descansos":{{descansos}},"extras":[],"sedeId":{{(sedeId is null ? "null" : $"\"{sedeId}\"")}},"nombreSede":null,"descripcion":""}""";
+
+    private static string CatalogoCon(string nombre, string franjas, bool esDescanso = false) =>
+        $$"""[{"id":"{{IdHomonimo}}","nombre":"{{nombre}}","esDescanso":{{(esDescanso ? "true" : "false")}},"horarioResumido":"","franjas":[{{franjas}}],"descripcion":"","completo":true}]""";
+
+    private static string DiasInline(params (string Dia, string Franja)[] entradas) =>
+        "[" + string.Join(",", entradas.Select(e => $$"""{"semana":1,"dia":"{{e.Dia}}","franja":"{{e.Franja}}"}""")) + "]";
+
+    private static IEnumerable<JsonNode> PostsATurnos(Fakes fakes) =>
+        fakes.Handler.Requests
+            .Where(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaTurnos)
+            .Select(r => JsonNode.Parse(r.Cuerpo!)!);
+
+    private static List<(HttpMethod Metodo, string Ruta, string? Cuerpo)> AgregarFranjas(Fakes fakes) =>
+        fakes.Handler.Requests
+            .Where(r => r.Metodo == HttpMethod.Post && r.Ruta.EndsWith(":agregar-franja", StringComparison.Ordinal))
+            .ToList();
+
+    private static void NoEscribioNada(Fakes fakes) =>
+        fakes.Handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
+
+    // CA-1
+    [Fact]
+    public async Task CrearPlantillaSemanal_CreaTurnoInlineConNombreDerivadoYAsignaElDia_CuandoLaFranjaNoTieneHomonimo()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "7:00-17:00")), TestContext.Current.CancellationToken);
+
+        var turno = PostsATurnos(fakes).Single();
+        turno["nombre"]!.GetValue<string>().Should().Be("07:00-17:00");
+        turno["esDescanso"]!.GetValue<bool>().Should().BeFalse();
+        var turnoId = turno["turnoId"]!.GetValue<string>();
+        Guid.TryParse(turnoId, out _).Should().BeTrue();
+
+        var franja = AgregarFranjas(fakes).Single();
+        franja.Ruta.Should().Be($"{RutaTurnos}/{turnoId}:agregar-franja");
+        var franjaBody = JsonNode.Parse(franja.Cuerpo!)!;
+        franjaBody["inicio"]!.GetValue<string>().Should().Be("07:00");
+        franjaBody["fin"]!.GetValue<string>().Should().Be("17:00");
+
+        var plantillaId = ExtraerPlantillaIdEnviado(fakes);
+        fakes.Handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal(
+            (HttpMethod.Get, RutaTurnos),
+            (HttpMethod.Post, RutaTurnos),
+            (HttpMethod.Post, $"{RutaTurnos}/{turnoId}:agregar-franja"),
+            (HttpMethod.Post, RutaPlantillas),
+            (HttpMethod.Put, $"{RutaPlantillas}/{plantillaId}/dias/1/1"));
+        JsonNode.Parse(fakes.Handler.Requests[4].Cuerpo!)!["turnoId"]!.GetValue<string>().Should().Be(turnoId);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["diasAsignados"]!.GetValue<int>().Should().Be(1);
+        var inline = json["turnosInline"]!.AsArray().Single()!;
+        inline["nombre"]!.GetValue<string>().Should().Be("07:00-17:00");
+        inline["accion"]!.GetValue<string>().Should().Be("creo");
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_NombraConSufijoMasUno_CuandoLaFranjaCruzaMedianoche()
+    {
+        var fakes = CrearTool();
+
+        await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "22:00-06:00")), TestContext.Current.CancellationToken);
+
+        PostsATurnos(fakes).Single()["nombre"]!.GetValue<string>().Should().Be("22:00-06:00+1");
+        var franjaBody = JsonNode.Parse(AgregarFranjas(fakes).Single().Cuerpo!)!;
+        franjaBody["inicio"]!.GetValue<string>().Should().Be("22:00");
+        franjaBody["fin"]!.GetValue<string>().Should().Be("06:00");
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_EnviaDiaOffsetFinUno_CuandoLaFranjaEsDeVeinticuatroHoras()
+    {
+        var fakes = CrearTool();
+
+        await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-07:00")), TestContext.Current.CancellationToken);
+
+        PostsATurnos(fakes).Single()["nombre"]!.GetValue<string>().Should().Be("07:00-07:00+1");
+        var franjaBody = JsonNode.Parse(AgregarFranjas(fakes).Single().Cuerpo!)!;
+        franjaBody["diaOffsetFin"]!.GetValue<int>().Should().Be(1);
+    }
+
+    // CA-2
+    [Fact]
+    public async Task CrearPlantillaSemanal_CreaUnSoloTurno_CuandoDosDiasTraenLaMismaFranjaEscritaDistinto()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1,
+            DiasInline(("lunes", "7:00-17:00"), ("martes", "07:00-17:00")),
+            TestContext.Current.CancellationToken);
+
+        var turno = PostsATurnos(fakes).Single();
+        var turnoId = turno["turnoId"]!.GetValue<string>();
+        AgregarFranjas(fakes).Should().ContainSingle();
+        var puts = fakes.Handler.Requests.Where(r => r.Metodo == HttpMethod.Put).ToList();
+        puts.Should().HaveCount(2);
+        puts.Should().OnlyContain(p => JsonNode.Parse(p.Cuerpo!)!["turnoId"]!.GetValue<string>() == turnoId);
+        JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Should().ContainSingle();
+    }
+
+    // CA-3
+    [Fact]
+    public async Task CrearPlantillaSemanal_ReutilizaElTurno_CuandoElHomonimoEsEquivalente()
+    {
+        var fakes = CrearTool(turnosJson: CatalogoCon("07:00-17:00", FranjaJson("07:00", "17:00", 0)));
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "7:00-17:00")), TestContext.Current.CancellationToken);
+
+        PostsATurnos(fakes).Should().BeEmpty();
+        AgregarFranjas(fakes).Should().BeEmpty();
+        var put = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Put);
+        JsonNode.Parse(put.Cuerpo!)!["turnoId"]!.GetValue<string>().Should().Be(IdHomonimo);
+        JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Single()!["accion"]!.GetValue<string>().Should().Be("reutilizo");
+    }
+
+    // CA-4
+    [Fact]
+    public async Task CrearPlantillaSemanal_AgregaLaFranjaAlHomonimoVacio_CuandoElTurnoNoTieneFranjas()
+    {
+        var fakes = CrearTool(turnosJson: CatalogoCon("07:00-17:00", ""));
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), TestContext.Current.CancellationToken);
+
+        PostsATurnos(fakes).Should().BeEmpty();
+        AgregarFranjas(fakes).Single().Ruta.Should().Be($"{RutaTurnos}/{IdHomonimo}:agregar-franja");
+        var put = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Put);
+        JsonNode.Parse(put.Cuerpo!)!["turnoId"]!.GetValue<string>().Should().Be(IdHomonimo);
+        JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Single()!["accion"]!.GetValue<string>().Should().Be("completo");
+    }
+
+    // CA-5
+    private static async Task AssertConflictoSinEscribir(string catalogo)
+    {
+        var fakes = CrearTool(turnosJson: catalogo);
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoInlineEnConflicto, "07:00-17:00"));
+        NoEscribioNada(fakes);
+    }
+
+    [Fact]
+    public Task CrearPlantillaSemanal_AbortaSinEscribir_CuandoElHomonimoTieneOtraFranja() =>
+        AssertConflictoSinEscribir(CatalogoCon("07:00-17:00", FranjaJson("08:00", "18:00", 0)));
+
+    [Fact]
+    public Task CrearPlantillaSemanal_AbortaSinEscribir_CuandoElHomonimoTieneDescansos() =>
+        AssertConflictoSinEscribir(CatalogoCon(
+            "07:00-17:00",
+            FranjaJson("07:00", "17:00", 0, descansos: """[{"horaInicio":"12:00:00","horaFin":"13:00:00","diaOffsetInicio":0,"diaOffsetFin":0}]""")));
+
+    [Fact]
+    public Task CrearPlantillaSemanal_AbortaSinEscribir_CuandoElHomonimoTieneSede() =>
+        AssertConflictoSinEscribir(CatalogoCon(
+            "07:00-17:00", FranjaJson("07:00", "17:00", 0, sedeId: "8f14e45f-ceea-4b3c-8f0a-0000000000b1")));
+
+    [Fact]
+    public Task CrearPlantillaSemanal_AbortaSinEscribir_CuandoElHomonimoEsDescanso() =>
+        AssertConflictoSinEscribir(CatalogoCon("07:00-17:00", "", esDescanso: true));
+
+    // CA-6
+    [Fact]
+    public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaFranjaTieneFormatoInvalido()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "25:00-17:00")), TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.FranjaInvalida, 1, "lunes", "25:00-17:00"));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaEntradaTraeTurnoYFranja()
+    {
+        var fakes = CrearTool();
+        var dias = """[{"semana":1,"dia":"lunes","turno":"Cocina Manana","franja":"07:00-17:00"}]""";
+
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoYFranjaExcluyentes, 1, "lunes"));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_AbortaAntesDeLaPlantilla_CuandoCrearTurnoResponde409()
+    {
+        var fakes = CrearTool(statusCrearTurno: HttpStatusCode.Conflict);
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(
+            CrearPlantillaSemanalTool.Mensajes.TurnoInlineNombreDuplicado,
+            "07:00-17:00",
+            CrearPlantillaSemanalTool.Mensajes.NingunTurnoInlineCreado));
+        fakes.Handler.Requests.Should().NotContain(r => r.Ruta == RutaPlantillas);
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_AbortaAntesDeLaPlantillaEInformaLosCreados_CuandoAgregarFranjaFalla()
+    {
+        var fakes = CrearTool(
+            statusAgregarFranja: cuerpo => cuerpo!.Contains("\"inicio\":\"09:00\"")
+                ? HttpStatusCode.ServiceUnavailable
+                : HttpStatusCode.NoContent);
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1,
+            DiasInline(("lunes", "07:00-17:00"), ("martes", "09:00-18:00")),
+            TestContext.Current.CancellationToken);
+
+        resultado.Should().Contain("07:00-17:00").And.Contain("09:00-18:00").And.Contain("503");
+        fakes.Handler.Requests.Should().NotContain(r => r.Ruta == RutaPlantillas);
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
     }
 }
