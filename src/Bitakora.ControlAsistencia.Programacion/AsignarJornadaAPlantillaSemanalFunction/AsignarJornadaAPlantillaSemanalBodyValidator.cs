@@ -5,4 +5,6 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaSemana
 public class AsignarJornadaAPlantillaSemanalBodyValidator
     : AbstractValidator<AsignarJornadaAPlantillaSemanalBody>
 {
+    public AsignarJornadaAPlantillaSemanalBodyValidator() =>
+        RuleFor(x => x.JornadaId).NotEmpty();
 }

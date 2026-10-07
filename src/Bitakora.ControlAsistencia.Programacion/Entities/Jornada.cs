@@ -19,6 +19,8 @@ public partial class Jornada : AggregateRoot
 
     public void Apply(LimitesJornadaModificados evento) => _limites = evento.Limites;
 
+    internal LimitesJornada Limites => _limites;
+
     internal ResultadoModificarLimites ModificarLimites(LimitesJornada limites)
     {
         if (_limites.Equals(limites))

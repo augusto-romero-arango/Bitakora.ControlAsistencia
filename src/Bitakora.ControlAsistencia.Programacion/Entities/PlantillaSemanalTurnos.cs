@@ -27,20 +27,55 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
 
     public void Apply(PlantillaSemanalRetirada evento) => _estaActiva = false;
 
-    public void Apply(JornadaDePlantillaSemanalAsignada evento) => throw new NotImplementedException();
+    public void Apply(JornadaDePlantillaSemanalAsignada evento)
+    {
+        JornadaId = evento.JornadaId;
+        Limites = evento.Limites;
+        VersionJornada = evento.VersionJornada;
+    }
 
-    public void Apply(JornadaDePlantillaSemanalQuitada evento) => throw new NotImplementedException();
+    public void Apply(JornadaDePlantillaSemanalQuitada evento)
+    {
+        JornadaId = null;
+        Limites = null;
+        VersionJornada = 0;
+    }
 
-    internal Guid? JornadaId => throw new NotImplementedException();
+    internal Guid? JornadaId { get; private set; }
 
-    internal LimitesJornada? Limites => throw new NotImplementedException();
+    internal LimitesJornada? Limites { get; private set; }
 
-    internal long VersionJornada => throw new NotImplementedException();
+    internal long VersionJornada { get; private set; }
 
+    // Declina con resultado (CA-ADR-0030). Precedencia: retirada > sin cambios > asignada. La copia
+    // atrasada (version menor a la ofrecida) es la autocorreccion y emite el evento.
     internal ResultadoAsignarJornada AsignarJornada(Guid jornadaId, LimitesJornada limites, long version)
-        => throw new NotImplementedException();
+    {
+        if (!_estaActiva)
+            return ResultadoAsignarJornada.PlantillaRetirada;
 
-    internal ResultadoQuitarJornada QuitarJornada() => throw new NotImplementedException();
+        if (JornadaId == jornadaId && VersionJornada >= version)
+            return ResultadoAsignarJornada.SinCambios;
+
+        var evento = JornadaDePlantillaSemanalAsignada.Crear(Guid.Parse(Id), jornadaId, limites, version);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAsignarJornada.Asignada;
+    }
+
+    internal ResultadoQuitarJornada QuitarJornada()
+    {
+        if (!_estaActiva)
+            return ResultadoQuitarJornada.PlantillaRetirada;
+
+        if (JornadaId is null)
+            return ResultadoQuitarJornada.SinCambios;
+
+        var evento = JornadaDePlantillaSemanalQuitada.Crear(Guid.Parse(Id));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarJornada.Quitada;
+    }
 
     internal static PlantillaSemanalTurnos Iniciar(PlantillaSemanalCreada evento)
     {
