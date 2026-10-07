@@ -1,11 +1,11 @@
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
-using Bitakora.ControlAsistencia.Programacion.Tests.CrearJornadaFunction;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.Tests.CrearJornadaFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 

@@ -1,7 +1,7 @@
-using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;

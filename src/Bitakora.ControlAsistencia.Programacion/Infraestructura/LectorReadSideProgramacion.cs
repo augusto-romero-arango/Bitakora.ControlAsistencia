@@ -1,8 +1,8 @@
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
-using Bitakora.ControlAsistencia.Programacion.DomainEvents;
-using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
 using Marten;
@@ -39,19 +39,32 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
 
         // Proyeccion Async atrasada: la predeterminada recien materializada se lee de su stream.
         var idTexto = predeterminadaId.ToString();
+        LimitesDeJornada? faltante = null;
         if (vista.All(l => l.Id != idTexto))
-        {
-            var jornada = await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct);
-            if (jornada is not null)
-                vista = [.. vista, jornada.ComoVista()];
-        }
+            faltante = (await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct))?.ComoVista();
 
-        return vista.Select(l => new JornadaDelCatalogo(Guid.Parse(l.Id), LimitesJornada.Crear(
-            HorasYMinutos.Crear(l.HorasSemanalesEnMinutos / MinutosPorHora, l.HorasSemanalesEnMinutos % MinutosPorHora),
-            HorasYMinutos.Crear(l.TopeDiarioEnMinutos / MinutosPorHora, l.TopeDiarioEnMinutos % MinutosPorHora),
-            HorasYMinutos.Crear(l.MinimoDiarioEnMinutos / MinutosPorHora, l.MinimoDiarioEnMinutos % MinutosPorHora),
+        return CatalogoLimitesJornada.Componer(vista, faltante);
+    }
+}
+
+internal static class CatalogoLimitesJornada
+{
+    private const int MinutosPorHora = 60;
+
+    public static IReadOnlyList<JornadaDelCatalogo> Componer(
+        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada)
+    {
+        IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
+            ? vista
+            : [.. vista, predeterminada];
+
+        return todas.Select(l => new JornadaDelCatalogo(Guid.Parse(l.Id), LimitesJornada.Crear(
+            DesdeMinutos(l.HorasSemanalesEnMinutos),
+            DesdeMinutos(l.TopeDiarioEnMinutos),
+            DesdeMinutos(l.MinimoDiarioEnMinutos),
             l.DiasDescansoPorSemana))).ToList();
     }
 
-    private const int MinutosPorHora = 60;
+    private static HorasYMinutos DesdeMinutos(int minutos) =>
+        HorasYMinutos.Crear(minutos / MinutosPorHora, minutos % MinutosPorHora);
 }

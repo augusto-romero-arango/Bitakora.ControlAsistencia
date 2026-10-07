@@ -22,6 +22,7 @@
 using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -580,7 +581,7 @@ public class ComposicionServiciosTests
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
-        var lector = scope.ServiceProvider.GetRequiredService<Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction.ILectorLimitesJornada>();
+        var lector = scope.ServiceProvider.GetRequiredService<ILectorLimitesJornada>();
 
         lector.Should().BeOfType<LectorReadSideProgramacion>();
     }
