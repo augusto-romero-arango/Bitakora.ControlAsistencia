@@ -33,8 +33,18 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
         if (duplicado)
             throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
 
+        Jornada? jornada = null;
+        if (command.JornadaId is { } jornadaId)
+        {
+            jornada = await _eventStore.GetAggregateRootAsync<Jornada>(jornadaId, ct);
+            if (jornada is null)
+                throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
+        }
+
         var evento = PlantillaSemanalCreada.Crear(command.PlantillaId, command.Nombre, command.Semanas);
         var plantilla = PlantillaSemanalTurnos.Iniciar(evento);
+        if (jornada is not null)
+            plantilla.AsignarJornada(command.JornadaId!.Value, jornada.Limites, jornada.Version);
         _eventStore.StartStream(plantilla);
     }
 

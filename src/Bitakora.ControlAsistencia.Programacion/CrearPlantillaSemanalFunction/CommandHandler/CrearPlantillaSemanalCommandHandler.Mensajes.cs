@@ -16,5 +16,8 @@ public partial class CrearPlantillaSemanalCommandHandler
 
         public static string NombreDuplicado =>
             ResourceManager.GetString(nameof(NombreDuplicado))!;
+
+        public static string JornadaNoEncontrada =>
+            ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
     }
 }

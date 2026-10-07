@@ -52,4 +52,25 @@ public class CrearPlantillaSemanalValidatorTests
 
         resultado.IsValid.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_EsInvalido_CuandoJornadaIdEsGuidVacio()
+    {
+        var comando = new CrearPlantillaSemanal(Guid.NewGuid(), "Semana Cocina", 2, Guid.Empty);
+
+        var resultado = await _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(CrearPlantillaSemanal.JornadaId));
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_EsValido_CuandoJornadaIdEsUnGuidConValor()
+    {
+        var comando = new CrearPlantillaSemanal(Guid.NewGuid(), "Semana Cocina", 2, Guid.NewGuid());
+
+        var resultado = await _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
 }

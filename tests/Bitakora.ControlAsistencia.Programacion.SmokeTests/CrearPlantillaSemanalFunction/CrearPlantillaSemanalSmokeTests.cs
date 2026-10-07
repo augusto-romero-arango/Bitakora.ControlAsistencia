@@ -84,6 +84,89 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    private async Task<Guid> CrearJornadaAsync(CancellationToken ct)
+    {
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
+        {
+            jornadaId,
+            horasSemanales = new { horas = 30, minutos = Random.Shared.Next(1, 60) },
+            topeDiario = new { horas = 8, minutos = 0 },
+            minimoDiario = new { horas = 0, minutos = 0 },
+            diasDescansoPorSemana = 1
+        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange depende de que CrearJornada funcione");
+        return jornadaId;
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaSemanal_DebeRetornar201YPersistirAmbosEventos_CuandoLaJornadaExiste()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = await CrearJornadaAsync(ct);
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
+        {
+            plantillaId,
+            nombre = $"[TEST] Plantilla {plantillaId}",
+            semanas = 2,
+            jornadaId
+        }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.ToString().Should().EndWith(
+            $"/programacion/plantillas-semanales/{plantillaId}");
+
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), TipoEventoPlantillaSemanalCreada, Timeout))
+            .Should().BeTrue();
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), "jornada_de_plantilla_semanal_asignada", Timeout,
+            campoJson: "JornadaId", valorJson: jornadaId.ToString()))
+            .Should().BeTrue("la plantilla nace con la Jornada asignada en el mismo stream");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaSemanal_DebeRetornar404_CuandoLaJornadaNoExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
+        {
+            plantillaId,
+            nombre = $"[TEST] Plantilla {plantillaId}",
+            semanas = 1,
+            jornadaId = Guid.CreateVersion7()
+        }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaSemanal_DebeRetornar400_CuandoLaJornadaEsGuidVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
+        {
+            plantillaId,
+            nombre = $"[TEST] Plantilla {plantillaId}",
+            semanas = 1,
+            jornadaId = Guid.Empty
+        }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private async Task<bool> PlantillaEstaMaterializadaAsync(Guid plantillaId, CancellationToken ct)
     {
         var response = await _client.GetAsync($"/api/programacion/plantillas-semanales/{plantillaId}", ct);

@@ -26,4 +26,7 @@
   <data name="NombreDuplicado" xml:space="preserve">
     <value>Ya existe una plantilla semanal vigente con ese nombre</value>
   </data>
+  <data name="JornadaNoEncontrada" xml:space="preserve">
+    <value>No existe la jornada indicada</value>
+  </data>
 </root>
