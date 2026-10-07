@@ -22,7 +22,8 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
         HorasYMinutosSmoke TopeDiario,
         HorasYMinutosSmoke MinimoDiario,
         int DiasDescansoPorSemana,
-        string Descripcion);
+        string Descripcion,
+        bool EsPredeterminada);
 
     private sealed record ListaSmoke(IReadOnlyList<ElementoSmoke> Elementos, string? SiguienteCursor);
 
@@ -153,6 +154,32 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
         && e.TopeDiario == new HorasYMinutosSmoke(8, 0)
         && e.MinimoDiario == new HorasYMinutosSmoke(0, 0)
         && e.DiasDescansoPorSemana == 1;
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarLimitesDeJornada_DebeMarcarLaPredeterminada_CuandoSeAsignaOtra()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var id = await CrearJornadaAsync(Random.Shared.Next(1, 60), ct);
+
+        var asignada = await _client.PutAsJsonAsync(
+            "/api/programacion/preferencias/jornada-predeterminada", new { jornadaId = id }, ct);
+        asignada.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var obtenida = await _client.GetAsync($"{Ruta}/{id}", ct);
+        obtenida.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await obtenida.Content.ReadFromJsonAsync<JsonElement>(ct);
+        body.GetProperty("esPredeterminada").GetBoolean().Should().BeTrue();
+
+        var lista = await Polling.WaitUntilAsync(async () =>
+        {
+            var l = await ListarAsync("", ct);
+            return l.Elementos.Any(e => e.JornadaId == id) ? l : null;
+        }, Timeout);
+
+        lista.Elementos.Where(e => e.EsPredeterminada).Select(e => e.JornadaId)
+            .Should().ContainSingle().Which.Should().Be(id);
+    }
 
     [Fact]
     [Trait("Category", "Smoke")]
