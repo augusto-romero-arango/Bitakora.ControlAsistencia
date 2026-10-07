@@ -33,6 +33,8 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
                 case RecursoYaExisteException:
                 case ReglaDeNegocioDeclinadaException:
                     return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
                 default:
                     throw;
             }
