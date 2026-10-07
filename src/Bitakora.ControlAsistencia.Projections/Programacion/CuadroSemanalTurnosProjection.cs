@@ -37,10 +37,10 @@ public sealed partial class CuadroSemanalTurnosProjection
         Reconstruir(vista, vista.Dias.Where(d => !CoincideSlot(d, e.Semana, e.Dia)));
 
     public static CuadroSemanalTurnos Apply(JornadaDePlantillaSemanalAsignada e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = e.JornadaId };
 
     public static CuadroSemanalTurnos Apply(JornadaDePlantillaSemanalQuitada e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = null };
 
     public static bool ShouldDelete(PlantillaSemanalRetirada e) => true;
 

@@ -17,7 +17,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 // forma explicita: la clase no expone superficie publica propia y ninguna de las dos vistas queda
 // arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
-    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada
+    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada, ILectorPlantillasPorJornada
 {
     async Task<IReadOnlyList<string>> ILectorNombresTurno.ObtenerNombresAsync(CancellationToken ct)
     {
@@ -29,6 +29,16 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
     {
         await using var session = store.QuerySession(tenantContext.TenantId);
         return await session.Query<CuadroSemanalTurnos>().Select(c => c.Nombre).ToListAsync(ct);
+    }
+
+    async Task<IReadOnlyList<string>> ILectorPlantillasPorJornada.ObtenerPlantillaIdsAsync(
+        Guid jornadaId, CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        return await session.Query<CuadroSemanalTurnos>()
+            .Where(c => c.JornadaId == jornadaId)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
     }
 
     async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerLimitesAsync(
