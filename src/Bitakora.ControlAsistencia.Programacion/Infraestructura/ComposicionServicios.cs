@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -81,6 +82,7 @@ public static class ComposicionServicios
         services.AgregarWolverineEventSender();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
         services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
+        services.AddScoped<ILectorLimitesJornada, LectorReadSideProgramacion>();
         services.AddScoped<IAlmacenPreferenciasProgramacion, AlmacenPreferenciasProgramacion>();
         services.AddScoped<IAseguradorJornadaPredeterminada, AseguradorJornadaPredeterminada>();
 

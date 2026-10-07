@@ -86,4 +86,13 @@ public class FunctionEndpointTests
         var resultado = await Endpoint(router).Run(Request(), JornadaId.ToString(), CancellationToken.None);
         resultado.Should().BeOfType<NotFoundObjectResult>();
     }
+
+    [Fact]
+    public async Task ModificarLimitesJornada_Retorna409ConElMensaje_CuandoRouterLanzaReglaDeNegocioDeclinada()
+    {
+        const string mensaje = "Ya existe una Jornada con estos limites: 3f2b9c1e";
+        var router = new FakeCommandRouter(new ReglaDeNegocioDeclinadaException(mensaje));
+        var resultado = await Endpoint(router).Run(Request(), JornadaId.ToString(), CancellationToken.None);
+        resultado.Should().BeOfType<ConflictObjectResult>().Which.Value.Should().Be(mensaje);
+    }
 }

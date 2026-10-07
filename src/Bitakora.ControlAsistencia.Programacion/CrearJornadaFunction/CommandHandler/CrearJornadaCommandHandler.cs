@@ -6,7 +6,8 @@ using Comando = Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction.Cre
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction.CommandHandler;
 
-public partial class CrearJornadaCommandHandler(IEventStore eventStore) : ICommandHandlerAsync<Comando>
+public partial class CrearJornadaCommandHandler(
+    IEventStore eventStore, IAseguradorJornadaPredeterminada asegurador, ILectorLimitesJornada lector) : ICommandHandlerAsync<Comando>
 {
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
     {

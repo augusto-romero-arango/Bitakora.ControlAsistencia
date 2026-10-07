@@ -575,6 +575,17 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveILectorLimitesJornada_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var lector = scope.ServiceProvider.GetRequiredService<Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction.ILectorLimitesJornada>();
+
+        lector.Should().BeOfType<LectorReadSideProgramacion>();
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElHandlerDeCrearPlantillaSemanal_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();
