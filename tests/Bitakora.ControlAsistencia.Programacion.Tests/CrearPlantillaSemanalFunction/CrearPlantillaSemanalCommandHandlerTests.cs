@@ -217,7 +217,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         LimitesJornada.Crear(HorasYMinutos.Crear(semanales, 0), HorasYMinutos.Crear(8, 0),
             HorasYMinutos.Crear(0, 0), 1);
 
-    // CA-2
     [Fact]
     public async Task CrearPlantillaSemanal_EmiteCreadaYJornadaAsignada_CuandoLaJornadaExiste()
     {
@@ -231,7 +230,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 
-    // CA-3
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoTieneStream()
     {
@@ -243,7 +241,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.JornadaNoEncontrada}*");
         Then(GuidAggregateId.ToString());
-        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+        // Id vacio: el stream de la plantilla no se creo, el 404 no deja nada a medias.
+        And<PlantillaSemanalTurnos, string>(p => p.Id, string.Empty);
     }
 
     // El nombre duplicado se evalua antes que la Jornada: un 409 no se enmascara con un 404.
@@ -262,7 +261,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
             plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
     }
 
-    // CA-1: sin JornadaId la plantilla nace sin Jornada.
     [Fact]
     public async Task CrearPlantillaSemanal_EmiteSoloCreada_CuandoNoSeIndicaJornada()
     {
