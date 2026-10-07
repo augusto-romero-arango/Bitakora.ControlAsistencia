@@ -88,7 +88,7 @@ public class CatalogoTurnosTests
         var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
 
         catalogo.EstaCompleto().Should().BeTrue();
-        catalogo.ToString().Should().Be($"Descanso Compensatorio {CatalogoTurnos.Mensajes.LabelDescanso}");
+        catalogo.ToString().Should().Be($"Descanso Compensatorio {Turno.Mensajes.LabelDescanso}");
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class CatalogoTurnosTests
         var catalogo = CrearCatalogo();
 
         catalogo.EstaCompleto().Should().BeFalse();
-        catalogo.ToString().Should().Be($"Turno Manana {CatalogoTurnos.Mensajes.LabelIncompleto}");
+        catalogo.ToString().Should().Be($"Turno Manana {Turno.Mensajes.LabelIncompleto}");
     }
 
     [Fact]
@@ -407,7 +407,7 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoQuitarFranja.Quitada);
         catalogo.EstaCompleto().Should().BeFalse();
-        catalogo.ToString().Should().Be($"Turno Manana {CatalogoTurnos.Mensajes.LabelIncompleto}");
+        catalogo.ToString().Should().Be($"Turno Manana {Turno.Mensajes.LabelIncompleto}");
     }
 
     [Fact]

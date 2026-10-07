@@ -3,25 +3,17 @@ using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-// HU-4: Aggregate root del catalogo de turnos de trabajo
-// ADR-0015: partial class para soportar clase Mensajes en archivo separado
-// Interfaz publica: Apply(TurnoCreado), Apply(TurnoRetirado), ToString()
-// Estado interno (privado): nombre, franjas ordinarias, activo
-public partial class CatalogoTurnos : AggregateRoot
+// El diseno del turno vive en el VO Turno; el aggregate conserva el ciclo de vida (_estaActivo)
+// y las decisiones, preguntandole al turno.
+public class CatalogoTurnos : AggregateRoot
 {
-    private string _nombre = string.Empty;
-    private List<FranjaOrdinaria> _franjasOrdinarias = [];
-    private bool _esDescanso;
+    private Turno _turno = Turno.Crear(string.Empty, false, []);
     private bool _estaActivo;
 
-    // CA-1: aplica TurnoCreado y establece estado interno del aggregate
-    // Establece: Id (heredado de AggregateRoot), nombre, franjas ordinarias, activo=true
     public void Apply(TurnoCreado evento)
     {
         Id = evento.TurnoId.ToString();
-        _nombre = evento.Nombre;
-        _franjasOrdinarias = evento.FranjasOrdinarias.ToList();
-        _esDescanso = evento.EsDescanso;
+        _turno = Turno.Crear(evento.Nombre, evento.EsDescanso, evento.FranjasOrdinarias);
         _estaActivo = true;
     }
 
@@ -29,36 +21,24 @@ public partial class CatalogoTurnos : AggregateRoot
     // emitir.
     public void Apply(TurnoRetirado evento) => _estaActivo = false;
 
-    public void Apply(FranjaAgregada evento) => _franjasOrdinarias.Add(evento.Franja);
+    // MEF-ADR-0004 capa 4: las transformaciones del Turno no lanzan ni invocan factories con
+    // invariantes (ConDescanso/ConExtra); sobre un stream anomalo devuelven el turno igual, porque
+    // un Apply que lanza deja el aggregate roto para siempre.
+    public void Apply(FranjaAgregada evento) => _turno = _turno.ConFranja(evento.Franja);
 
-    public void Apply(DescansoAgregado evento) => ReemplazarFranja(evento.Franja);
+    public void Apply(DescansoAgregado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
 
-    public void Apply(ExtraAgregado evento) => ReemplazarFranja(evento.Franja);
+    public void Apply(ExtraAgregado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
 
-    // MEF-ADR-0004 capa 4: RemoveAll, no FindIndex + RemoveAt -- sobre un stream anomalo, indexar
-    // con -1 lanzaria, y un Apply que lanza deja el aggregate roto para siempre.
-    public void Apply(FranjaQuitada evento) =>
-        _franjasOrdinarias.RemoveAll(f => f.EmpiezaALaMismaHoraQue(evento.Franja));
+    public void Apply(FranjaQuitada evento) => _turno = _turno.SinFranjaQueEmpiezaA(evento.Franja);
 
-    public void Apply(DescansoQuitado evento) => ReemplazarFranja(evento.Franja);
+    public void Apply(DescansoQuitado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
 
-    public void Apply(ExtraQuitado evento) => ReemplazarFranja(evento.Franja);
+    public void Apply(ExtraQuitado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
 
-    public void Apply(SedeDeFranjaAsignada evento) => ReemplazarFranja(evento.Franja);
+    public void Apply(SedeDeFranjaAsignada evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
 
-    public void Apply(SedeDeFranjaRetirada evento) => ReemplazarFranja(evento.Franja);
-
-    // MEF-ADR-0004 capa 4: localiza por hora de inicio y reemplaza sin invocar ningun factory
-    // (ConDescanso/ConExtra), asi que endurecer esas invariantes manana no rompe la rehidratacion
-    // de streams viejos. Si ninguna franja empieza a esa hora -- stream anomalo, o franja retirada
-    // por un evento posterior -- ignora en vez de indexar con -1: un Apply que lanza deja el
-    // aggregate roto para siempre.
-    private void ReemplazarFranja(FranjaOrdinaria franja)
-    {
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaALaMismaHoraQue(franja));
-        if (indice >= 0)
-            _franjasOrdinarias[indice] = franja;
-    }
+    public void Apply(SedeDeFranjaRetirada evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
 
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
@@ -80,10 +60,10 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoAgregarFranja.TurnoRetirado;
 
-        if (_esDescanso)
+        if (_turno.EsDescanso())
             return ResultadoAgregarFranja.TurnoEsDescanso;
 
-        if (_franjasOrdinarias.Any(f => f.SeSolapaCon(franja)))
+        if (_turno.SeSolapaCon(franja))
             return ResultadoAgregarFranja.SeSolapaConOtraFranja;
 
         var evento = FranjaAgregada.Crear(Guid.Parse(Id!), franja);
@@ -103,12 +83,12 @@ public partial class CatalogoTurnos : AggregateRoot
         if (precondicion is not null)
             return precondicion.Value;
 
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
-        if (indice == -1)
+        var franjaActual = _turno.FranjaQueEmpiezaA(horaInicioFranja);
+        if (franjaActual is null)
             return ResultadoAgregarSubFranja.FranjaNoExiste;
 
         var evento = DescansoAgregado.Crear(
-            Guid.Parse(Id!), _franjasOrdinarias[indice].ConDescanso(inicio, fin));
+            Guid.Parse(Id!), franjaActual.ConDescanso(inicio, fin));
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAgregarSubFranja.Agregada;
@@ -121,12 +101,12 @@ public partial class CatalogoTurnos : AggregateRoot
         if (precondicion is not null)
             return precondicion.Value;
 
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
-        if (indice == -1)
+        var franjaActual = _turno.FranjaQueEmpiezaA(horaInicioFranja);
+        if (franjaActual is null)
             return ResultadoAgregarSubFranja.FranjaNoExiste;
 
         var evento = ExtraAgregado.Crear(
-            Guid.Parse(Id!), _franjasOrdinarias[indice].ConExtra(inicio, fin));
+            Guid.Parse(Id!), franjaActual.ConExtra(inicio, fin));
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoAgregarSubFranja.Agregada;
@@ -139,11 +119,11 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoQuitarFranja.TurnoRetirado;
 
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicio));
-        if (indice == -1)
+        var franjaActual = _turno.FranjaQueEmpiezaA(horaInicio);
+        if (franjaActual is null)
             return ResultadoQuitarFranja.FranjaNoExiste;
 
-        var evento = FranjaQuitada.Crear(Guid.Parse(Id!), _franjasOrdinarias[indice]);
+        var evento = FranjaQuitada.Crear(Guid.Parse(Id!), franjaActual);
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoQuitarFranja.Quitada;
@@ -156,11 +136,11 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoQuitarSubFranja.TurnoRetirado;
 
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
-        if (indice == -1)
+        var franjaActual = _turno.FranjaQueEmpiezaA(horaInicioFranja);
+        if (franjaActual is null)
             return ResultadoQuitarSubFranja.FranjaNoExiste;
 
-        var franjaResultante = _franjasOrdinarias[indice].SinDescanso(horaInicioHija);
+        var franjaResultante = franjaActual.SinDescanso(horaInicioHija);
         if (franjaResultante is null)
             return ResultadoQuitarSubFranja.SubFranjaNoExiste;
 
@@ -175,11 +155,11 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoQuitarSubFranja.TurnoRetirado;
 
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
-        if (indice == -1)
+        var franjaActual = _turno.FranjaQueEmpiezaA(horaInicioFranja);
+        if (franjaActual is null)
             return ResultadoQuitarSubFranja.FranjaNoExiste;
 
-        var franjaResultante = _franjasOrdinarias[indice].SinExtra(horaInicioHija);
+        var franjaResultante = franjaActual.SinExtra(horaInicioHija);
         if (franjaResultante is null)
             return ResultadoQuitarSubFranja.SubFranjaNoExiste;
 
@@ -197,11 +177,9 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoAsignarSedeAFranja.TurnoRetirado;
 
-        var indice = _franjasOrdinarias.FindIndex(f => f.EmpiezaA(horaInicioFranja));
-        if (indice == -1)
+        var franja = _turno.FranjaQueEmpiezaA(horaInicioFranja);
+        if (franja is null)
             return ResultadoAsignarSedeAFranja.FranjaNoExiste;
-
-        var franja = _franjasOrdinarias[indice];
 
         if (sede is null)
         {
@@ -227,15 +205,14 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoAgregarSubFranja.TurnoRetirado;
 
-        if (_esDescanso)
+        if (_turno.EsDescanso())
             return ResultadoAgregarSubFranja.TurnoEsDescanso;
 
         return null;
     }
 
-    // Un turno es programable cuando esta completo (CA-ADR-0033): declarado descanso, o con al
-    // menos una franja ordinaria.
-    internal bool EstaCompleto() => _esDescanso || _franjasOrdinarias.Count > 0;
+    // Programable = completo (CA-ADR-0033).
+    internal bool EstaCompleto() => _turno.EstaCompleto();
 
     // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud, y con que
     // razon -- el handler no interroga su estado interno para decidir por su cuenta.
@@ -249,20 +226,11 @@ public partial class CatalogoTurnos : AggregateRoot
             : ResultadoAsignabilidadTurno.Incompleto;
     }
 
-    public override string ToString() => (_esDescanso, _franjasOrdinarias.Count) switch
-    {
-        (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",
-        (false, 0) => $"{_nombre} {Mensajes.LabelIncompleto}",
-        _ => $"{_nombre} {string.Join("", _franjasOrdinarias)}"
-    };
+    public override string ToString() => _turno.ToString();
 
-    // Devuelve el turno programado propio del dominio (Programacion.DomainEvents.TurnoProgramado).
-    // Issue #319 (tres islas): ya no construye el DTO de bus (DetalleTurno, PrivateEvents) -- el
-    // FA mapea TurnoProgramado -> DetalleTurno solo para los eventos que cruzan el bus (CA-5).
-    internal TurnoProgramado ObtenerDetalle() => new(
-        _nombre,
-        _franjasOrdinarias.Select(f => f.ToDetalle()).ToList().AsReadOnly(),
-        ToString());
+    // Tres islas (CA-ADR-0029): devuelve el tipo del dominio; el FA lo mapea a DetalleTurno solo
+    // para los eventos que cruzan el bus.
+    internal TurnoProgramado ObtenerDetalle() => _turno.Programar();
 
     // Factory interno: crea el aggregate con el evento en _uncommittedEvents
     // Usado por el handler para StartStream -- no es parte de la interfaz publica del dominio

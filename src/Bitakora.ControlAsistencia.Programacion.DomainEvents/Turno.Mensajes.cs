@@ -1,13 +1,12 @@
 using System.Resources;
 
-namespace Bitakora.ControlAsistencia.Programacion.Entities;
+namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// MEF-ADR-0009: el nombre logico del recurso debe coincidir con el .resx co-localizado.
-public partial class CatalogoTurnos
+public sealed partial class Turno
 {
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Programacion.Entities.CatalogoTurnosMensajes",
-        typeof(CatalogoTurnos).Assembly);
+        "Bitakora.ControlAsistencia.Programacion.DomainEvents.TurnoMensajes",
+        typeof(Turno).Assembly);
 
     internal static class Mensajes
     {

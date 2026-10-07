@@ -554,7 +554,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoDescansoId, Colaborador, [Fecha1]));
 
-        var descripcionDescanso = $"Descanso Compensatorio {CatalogoTurnos.Mensajes.LabelDescanso}";
+        var descripcionDescanso = $"Descanso Compensatorio {Turno.Mensajes.LabelDescanso}";
         var turnoDescansoEsperado = new TurnoProgramado(
             "Descanso Compensatorio", new List<FranjaProgramada>().AsReadOnly(), descripcionDescanso);
         var detalleDescansoEsperado = new DetalleTurno(
