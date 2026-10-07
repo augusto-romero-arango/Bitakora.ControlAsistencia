@@ -4,7 +4,12 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-05 (sesion planner, refinamiento de #856: Jornada se modifica con
+# Ultima actualizacion: 2026-10-07 (sesion planner, refinamiento de #856/#890/#858 y decision #901: la
+#   Jornada no tiene nombre; no hay General en memoria ni Guid fijo -- la Jornada predeterminada
+#   se materializa la primera vez que se necesita, con Guid al vuelo, junto con Preferencias de
+#   programacion (pp:{tenantId}, un stream por empresa, un evento por preferencia). Tocadas:
+#   Jornada, Jornada predeterminada, Preferencias de programacion.)
+# Actualizacion previa: 2026-10-05 (sesion planner, refinamiento de #856: Jornada se modifica con
 #   ModificarLimitesJornada y ModificarNombreJornada (#874); el primer cambio materializa la General,
 #   aun con sus mismos valores; #857 absorbido. Refinamiento de #861: el servidor arma la copia
 #   estampada desde el JornadaId (o la predeterminada). Refinamientos de #864-#866/#876: el
@@ -1013,21 +1018,18 @@ terms:
       subprogramacion), TOPE DIARIO (maximo), MINIMO DIARIO (minimo; 0 si no aplica) y DIAS DE
       DESCANSO POR SEMANA (valor exacto 0-6; 0 = no se controla). Puede o no
       coincidir con la ley: el sistema no impone modalidades legales ni certifica cumplimiento.
+      NO TIENE NOMBRE: una Jornada es sus limites; se identifica por su Id y se muestra con la
+      descripcion de sus limites (LimitesJornada.ToString()). No puede haber dos Jornadas activas
+      con los mismos limites (409 que nombra la existente, #890).
       La Jornada ACOTA, la programacion DECIDE: no fija dias habiles ni descansos. Se asigna a la
-      Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id
-      y valores, sin nombre) al programar, por colaborador: el cliente manda solo el JornadaId asignado
-      y el servidor arma la copia desde su catalogo; sin JornadaId estampa la predeterminada; editarla nunca cambia lo programado. Se
-      desactiva (no se retira) y no se puede desactivar en uso (mejor esfuerzo, 409). La General
-      (tope diario 8 h, 42 horas semanales, minimo diario 0) vive en memoria hasta el primer
-      comando que la toque: MODIFICAR sus limites la materializa, aunque traiga sus
-      mismos valores (confirmarla tambien es decidir). Se modifica con un comando: los cuatro
-      limites como un todo (ModificarLimitesJornada). NO TIENE NOMBRE (2026-10-06): una Jornada ES sus
-      limites; se identifica por su Id y se muestra con LimitesJornada.ToString() ("42 h semanales, tope
-      diario 8 h, sin minimo diario, 1 dia de descanso por semana"); no debe haber dos activas con los
-      mismos limites (409 de mejor esfuerzo, #890). Una plantilla guarda copia de sus limites solo para
-      auditar su diseno.
+      Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id y
+      valores, sin nombre) al programar, por colaborador: el cliente manda solo el JornadaId asignado
+      y el servidor arma la copia desde su catalogo; sin JornadaId estampa la predeterminada;
+      editarla nunca cambia lo programado. Se desactiva (no se retira) y no se puede desactivar en
+      uso (mejor esfuerzo, 409). Sus limites se modifican como un todo (ModificarLimitesJornada).
+      Una plantilla referencia una Jornada solo para auditar su diseno.
     context: Programacion
-    date_updated: 2026-10-06
+    date_updated: 2026-10-07
     rejected_synonyms: [Configuracion de jornada, Perfil de jornada, Esquema de jornada, Jornada pactada (como parametro), Topes]
     rejection_reason: >
       "Configuracion" ya nombra otras cosas en el codigo (ConfiguracionSerializacion*,
@@ -1045,41 +1047,63 @@ terms:
       VERBO (2026-10-05, refinamiento de #856): "Modificar", como ModificarNombreSede. Se
       descartaron "Corregir" (en el BC es arreglar un error de captura: CorregirNombres) y
       "Cambiar" (sin precedente; sinonimo innecesario). Los limites no se modifican por parametro:
-      comparten invariantes cruzadas. La General es un "fantasma" que permite trabajar sin friccion
-      hasta que alguien decide sobre ella (palabras del experto).
-      ENMIENDA 2026-10-06 (sesion planner): se elimina el nombre de la Jornada (y ModificarNombreJornada,
-      #874 cerrado): un nombre se desfasa del contenido al modificar los limites; el experto confirmo que
-      no deberia haber dos Jornadas con los mismos limites que distinguir. La General se reconoce por su
-      Guid fijo y por ser la predeterminada, no por un nombre.
+      comparten invariantes cruzadas.
+      SIN NOMBRE (2026-10-06): el nombre se desfasaria del contenido al modificar los limites;
+      ModificarNombreJornada (#874) se cerro; el experto confirmo que no deberia haber dos Jornadas
+      con los mismos limites que distinguir. La General era un "fantasma" que permitia trabajar sin
+      friccion hasta que alguien decidiera sobre ella (palabras del experto; superado por #901).
+      SIN GENERAL EN MEMORIA (2026-10-07, #901): "General" ya no es una Jornada con Guid fijo; es
+      solo el nombre coloquial de los VALORES INICIALES de la predeterminada (42 h semanales,
+      tope diario 8 h, minimo diario 0, 1 dia de descanso -- CST arts. 161 y 172).
 
   - name: Jornada predeterminada
     definition: >
-      La Jornada que se estampa cuando la Vinculacion del colaborador no tiene una asignada, y la
-      que una plantilla toma por defecto. Al nacer el sistema es la General (en memoria). Se
-      guarda en Preferencias de programacion con un hecho explicito al cambiarla (tentativo:
-      JornadaPredeterminadaAsignada); los streams de cada Jornada no se tocan. Siempre cuenta
-      como "en uso": no se puede desactivar sin marcar otra antes.
+      La Jornada que se estampa cuando una solicitud de programacion no indica una (la
+      Vinculacion no tiene asignada). Se MATERIALIZA LA PRIMERA VEZ QUE SE NECESITA (listar
+      Jornadas, programar sin JornadaId, crear o comparar limites, asignar la predeterminada):
+      en una sola transaccion nace una Jornada con Guid generado al vuelo y los valores iniciales
+      (42/8/0/1), y nacen las Preferencias de programacion apuntando a ella
+      (JornadaPredeterminadaAsignada). Desde ahi es una Jornada mas, con su stream: se modifica
+      (ModificarLimitesJornada) o se cambia por otra (AsignarJornadaPredeterminada). Siempre
+      cuenta como "en uso": no se puede desactivar sin marcar otra antes. La plantilla semanal NO
+      la toma por defecto (#867).
     context: Programacion
     date_added: 2026-10-05
+    date_updated: 2026-10-07
     rejected_synonyms: [Jornada por defecto, Jornada estandar, Jornada base]
     rejection_reason: >
       "Por defecto" es calco de default; "estandar" sugiere que es la legal; "base" se confunde
       con valores de calculo.
+    note: >
+      2026-10-07 (#901): se abandona el esquema hibrido (General en memoria con Guid fijo,
+      persistida con el primer comando que la editara). El Guid magico obligaba a reservarlo en
+      cada create y a tratarlo como caso especial en cada handler y GET. La carrera de dos
+      materializaciones simultaneas la resuelve la clave determinista de Preferencias: solo una
+      llamada puede iniciar su stream; la otra relee. Materializar en una lectura (el listado) es
+      aceptable: el cliente no pide ese cambio y repetir el GET da lo mismo.
 
   - name: Preferencias de programacion
     definition: >
-      Registro unico por tenant, dentro de Programacion, que guarda preferencias del dominio. Hoy
-      solo la Jornada predeterminada. Solo entran preferencias de PROGRAMACION (regla contra el
-      cajon de sastre). Codigo: PreferenciasProgramacion.
+      Registro unico por tenant, dentro de Programacion, que guarda las preferencias del dominio:
+      UN SOLO STREAM por empresa (clave pp:{tenantId}, armada con el tenant de la sesion; el
+      cliente nunca la ve ni la manda). Cada preferencia tiene su propio comando y su propio
+      evento (hoy solo JornadaPredeterminadaAsignada); nunca un evento generico. Leerla es leer
+      ese unico stream. Solo entran preferencias de PROGRAMACION (regla contra el cajon de sastre).
+      Codigo: PreferenciasProgramacion.
     context: Programacion
     date_added: 2026-10-05
+    date_updated: 2026-10-07
     rejected_synonyms: [Parametros de programacion, Ajustes de programacion, Configuracion del dominio]
     rejection_reason: >
       "Parametros" choca con los parametros de la Jornada; "ajustes" es ambiguo con corregir.
     note: >
-      Cada dominio que necesite preferencias crea su propio registro ("Preferencias de {dominio}").
-      Se planea un patron comun, pero no se generaliza hasta tener mas casos (Rule of Three,
-      MEF-ADR-0018).
+      Cada dominio que necesite preferencias crea su propio registro ("Preferencias de {dominio}"),
+      en su propio schema y con su propio prefijo (p. ej. pch:{tenantId} en control_horas). Se
+      planea un patron comun, pero no se generaliza hasta tener mas casos (Rule of Three,
+      MEF-ADR-0018). Clave (CA-ADR-0031): identidad natural = la empresa; prefijo + un componente.
+      Se descarto un Guid fijo (seria otro Guid magico que podria chocar con ids de cliente en el
+      store compartido). Hoy se ve via la marca esPredeterminada de los GET de Jornadas (#900);
+      un GET programacion/preferencias (sin id) se agrega cuando haya mas de una preferencia.
 
   - name: Advertencias de la programacion semanal
     definition: >
