@@ -100,6 +100,7 @@ public partial class ColaboradorAggregateRoot : AggregateRoot
         _fechaTerminacionVinculacionVigente = null;
         _etiquetas.Clear();
         _codigoSede = e.CodigoSede;
+        _jornadaId = null;
     }
 
     // Issue #349: registra la terminacion de la vinculacion vigente. Nunca lanza (MEF-ADR-0004

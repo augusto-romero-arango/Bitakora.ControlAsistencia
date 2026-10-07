@@ -76,6 +76,17 @@ public class PostgresFixture : IAsyncLifetime
     public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento) =>
         (await ObtenerEventosInternoAsync(schema, streamId, tipoEvento)).Count;
 
+    public async Task<long> ContarEventosDelStreamAsync(string schema, string streamId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT count(*) FROM {EscaparSchema(schema)}.mt_events WHERE stream_id = @streamId";
+        cmd.Parameters.AddWithValue("streamId", streamId);
+        return (long)(await cmd.ExecuteScalarAsync())!;
+    }
+
     /// <summary>
     /// Obtiene el primer evento del tipo indicado en el stream, sin filtrar por contenido.
     /// </summary>
