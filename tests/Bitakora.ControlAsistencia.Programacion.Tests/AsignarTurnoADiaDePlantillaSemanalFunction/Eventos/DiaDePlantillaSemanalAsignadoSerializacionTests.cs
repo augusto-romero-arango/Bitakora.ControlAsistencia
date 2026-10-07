@@ -10,6 +10,17 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
     private static readonly Guid PlantillaId = Guid.Parse("019600a0-0000-7000-8000-000000000621");
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000701");
 
+    private static readonly Turno TurnoDeTrabajo = Turno.Crear(
+        "Turno Manana", false,
+        [
+            FranjaOrdinaria.Crear(
+                new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                [SubFranja.Crear(new TimeOnly(9, 0), new TimeOnly(9, 30))],
+                [SubFranja.Crear(new TimeOnly(13, 0), new TimeOnly(14, 0))])
+        ]);
+
+    private static readonly Turno TurnoDeDescanso = Turno.Crear("Descanso Compensatorio", true, []);
+
     // Opciones reales de produccion: un resolver armado inline hace pasar el test con el tipo sin
     // registrar en el seam, y produccion falla.
     private static JsonSerializerOptions CrearOpcionesMarten() =>
@@ -18,7 +29,7 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoDatosSonValidos()
     {
-        var evento = DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 2, DiaSemana.Desde(5), TurnoId);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 2, DiaSemana.Desde(5), TurnoId, TurnoDeTrabajo, 7);
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -29,12 +40,32 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
         deserializado.Semana.Should().Be(2);
         deserializado.Dia.Should().BeSameAs(DiaSemana.Viernes);
         deserializado.TurnoId.Should().Be(TurnoId);
+        deserializado.Turno.Should().Be(TurnoDeTrabajo);
+        deserializado.VersionTurno.Should().Be(7);
+    }
+
+    // CA-5: turno con descanso y extra sobrevive el round-trip con la copia completa.
+    [Fact]
+    public void Deserializar_ReconstruyeLaCopiaDelTurnoDeDescanso_CuandoElTurnoEsDescanso()
+    {
+        var evento = DiaDePlantillaSemanalAsignado.Crear(
+            PlantillaId, 1, DiaSemana.Desde(7), TurnoId, TurnoDeDescanso, 2);
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<DiaDePlantillaSemanalAsignado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.Turno.Should().Be(TurnoDeDescanso);
+        deserializado.Turno.EsDescanso().Should().BeTrue();
+        deserializado.VersionTurno.Should().Be(2);
+        deserializado.Dia.Should().BeSameAs(DiaSemana.Domingo);
     }
 
     [Fact]
     public void Serializar_PersisteElDiaComoSuNumeroIso_SinNombreDeEnumNiEtiquetaEnEspanol()
     {
-        var evento = DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 2, DiaSemana.Desde(5), TurnoId);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 2, DiaSemana.Desde(5), TurnoId, TurnoDeTrabajo, 7);
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -51,7 +82,7 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
     [Fact]
     public void Crear_LanzaArgumentException_CuandoSemanaEsCero()
     {
-        var act = () => DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 0, DiaSemana.Desde(5), TurnoId);
+        var act = () => DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 0, DiaSemana.Desde(5), TurnoId, TurnoDeTrabajo, 7);
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{DiaDePlantillaSemanalAsignado.Mensajes.SemanaNoPositiva}*");
@@ -64,7 +95,7 @@ public class DiaDePlantillaSemanalAsignadoSerializacionTests
     {
         var opciones = new JsonSerializerOptions { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
         var json = JsonSerializer.Serialize(
-            DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 2, DiaSemana.Desde(5), TurnoId), opciones);
+            DiaDePlantillaSemanalAsignado.Crear(PlantillaId, 2, DiaSemana.Desde(5), TurnoId, TurnoDeTrabajo, 7), opciones);
 
         var act = () => JsonSerializer.Deserialize<DiaDePlantillaSemanalAsignado>(json, opciones);
 

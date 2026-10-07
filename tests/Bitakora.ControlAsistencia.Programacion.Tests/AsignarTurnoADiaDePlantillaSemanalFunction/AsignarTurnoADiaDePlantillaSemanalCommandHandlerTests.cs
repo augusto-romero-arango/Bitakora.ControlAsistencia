@@ -22,6 +22,15 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
     protected override ICommandHandlerAsync<AsignarTurnoADiaDePlantillaSemanal> Handler =>
         new AsignarTurnoADiaDePlantillaSemanalCommandHandler(EventStore);
 
+    // El TestStore reconstruye los aggregates aplicando eventos y no puebla AggregateRoot.Version:
+    // la version del stream del turno en el harness es siempre 0.
+    private const long VersionEnElHarness = 0;
+
+    private static readonly Turno CopiaTurnoCompleto =
+        Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
+
+    private static readonly Turno CopiaTurnoDescanso = Turno.Crear("Descanso Compensatorio", true, []);
+
     private PlantillaSemanalCreada CrearEventoPlantilla(int semanas = 2) =>
         PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, semanas);
 
@@ -45,7 +54,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        Then(DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+        Then(DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -57,7 +66,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
-        Then(DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+        Then(DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoDescanso, VersionEnElHarness));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -152,12 +161,46 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
     public async Task AsignarTurnoADiaDePlantillaSemanal_NoEmiteEvento_CuandoElMismoTurnoYaEstaAsignadoAEseDia()
     {
         Given(CrearEventoPlantilla(),
-            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+            DiaDePlantillaSemanalAsignado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
 
         Then(GuidAggregateId.ToString());
         Then(TurnoId.ToString());
+    }
+
+    // CA-1: la copia es la del catalogo en ese momento, incluidas las ediciones posteriores a la creacion.
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaSemanal_EmiteDiaAsignadoConLaCopiaActual_CuandoElTurnoFueEditado()
+    {
+        var franjaTarde = FranjaOrdinaria.Crear(new TimeOnly(15, 0), new TimeOnly(18, 0));
+        Given(CrearEventoPlantilla());
+        Given(TurnoId.ToString(), CrearEventoTurnoCompleto(), FranjaAgregada.Crear(TurnoId, franjaTarde));
+        var copiaEsperada = Turno.Crear("Turno Manana", false,
+            [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0)), franjaTarde]);
+
+        await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+
+        Then(DiaDePlantillaSemanalAsignado.Crear(
+            GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, copiaEsperada, VersionEnElHarness));
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    // CA-1: asignar sobre un dia ocupado por otro turno reemplaza el slot con la copia del nuevo.
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaSemanal_EmiteDiaAsignado_CuandoElDiaTieneOtroTurno()
+    {
+        var otroTurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000702");
+        Given(CrearEventoPlantilla(),
+            DiaDePlantillaSemanalAsignado.Crear(
+                GuidAggregateId, 1, DiaSemana.Desde(5), otroTurnoId, CopiaTurnoDescanso, VersionEnElHarness));
+        Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
+
+        await WhenAsync(new AsignarTurnoADiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId));
+
+        Then(DiaDePlantillaSemanalAsignado.Crear(
+            GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
+        And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 }

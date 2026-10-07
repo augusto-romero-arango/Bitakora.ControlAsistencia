@@ -23,6 +23,9 @@ public class CuadroSemanalTurnosProjectionTests
 {
     // CA-1: el PlantillaId embebido en el evento se fija DISTINTO del StreamKey a proposito -- un
     // Create que leyera e.Data.PlantillaId.ToString() en vez de e.StreamKey quedaria en evidencia.
+    private static readonly Turno CopiaTurno =
+        Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
+
     [Fact]
     public void Create_ProyectaElCuadroVacio_DesdePlantillaSemanalCreada()
     {
@@ -49,7 +52,7 @@ public class CuadroSemanalTurnosProjectionTests
         var turnoId = Guid.Parse("019600b0-0000-7000-8000-000000000001");
         var cuadroVacio = new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, []);
 
-        var evento = DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(5), turnoId);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(5), turnoId, CopiaTurno, 1);
 
         var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadroVacio);
 
@@ -67,7 +70,7 @@ public class CuadroSemanalTurnosProjectionTests
             plantillaId.ToString(), "Semana Cocina", 2,
             [new DiaDelCuadro(1, 5, turnoId1.ToString())]);
 
-        var evento = DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(5), turnoId2);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(5), turnoId2, CopiaTurno, 1);
 
         var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadroConUnDia);
 
@@ -87,10 +90,10 @@ public class CuadroSemanalTurnosProjectionTests
             [new DiaDelCuadro(1, 5, turnoId2.ToString())]);
 
         var vistaTrasSemana2 = CuadroSemanalTurnosProjection.Apply(
-            DiaDePlantillaSemanalAsignado.Crear(plantillaId, 2, DiaSemana.Desde(1), turnoId3),
+            DiaDePlantillaSemanalAsignado.Crear(plantillaId, 2, DiaSemana.Desde(1), turnoId3, CopiaTurno, 1),
             cuadroPrevio);
         var vistaFinal = CuadroSemanalTurnosProjection.Apply(
-            DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(7), turnoId4),
+            DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(7), turnoId4, CopiaTurno, 1),
             vistaTrasSemana2);
 
         vistaFinal.Dias.Should().BeEquivalentTo(

@@ -85,24 +85,8 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         return plantilla;
     }
 
-    // Declina con resultado, nunca lanza (CA-ADR-0030). La precedencia es parte del contrato:
-    // plantilla retirada > semana fuera de rango > sin cambios (idempotencia) > asignado.
-    internal ResultadoAsignarDia AsignarDia(int semana, DiaSemana dia, Guid turnoId)
-    {
-        if (!_estaActiva)
-            return ResultadoAsignarDia.PlantillaRetirada;
-
-        if (semana > _semanas)
-            return ResultadoAsignarDia.SemanaFueraDeRango;
-
-        if (_dias.TryGetValue((semana, dia), out var turnoActual) && turnoActual == turnoId)
-            return ResultadoAsignarDia.SinCambios;
-
-        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.Parse(Id), semana, dia, turnoId);
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
-        return ResultadoAsignarDia.Asignado;
-    }
+    internal ResultadoAsignarDia AsignarDia(int semana, DiaSemana dia, Guid turnoId, Turno copia, long versionTurno) =>
+        throw new NotImplementedException();
 
     // Declina con resultado, nunca lanza (CA-ADR-0030). La precedencia es parte del contrato:
     // plantilla retirada > semana fuera de rango > sin cambios; la semana se valida antes que el
