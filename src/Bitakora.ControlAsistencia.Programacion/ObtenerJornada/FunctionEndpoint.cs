@@ -22,6 +22,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         await using var session = store.QuerySession(tenantContext.TenantId);
         var jornada = await session.Events.AggregateStreamAsync<Jornada>(jornadaId.ToString(), token: ct);
 
-        return jornada is null ? new NotFoundResult() : new OkObjectResult(jornada.Describir());
+        if (jornada is null)
+            return new NotFoundResult();
+
+        // Hidratacion en vivo de Preferencias (stream pp, uno por tenant); sin Preferencias, ninguna es predeterminada.
+        var preferencias = await session.Events.AggregateStreamAsync<PreferenciasProgramacion>(
+            PreferenciasProgramacion.ComputarStreamId(tenantContext.TenantId), token: ct);
+        Guid? predeterminadaId = preferencias?.JornadaPredeterminada();
+
+        return new OkObjectResult(jornada.Describir(predeterminadaId));
     }
 }

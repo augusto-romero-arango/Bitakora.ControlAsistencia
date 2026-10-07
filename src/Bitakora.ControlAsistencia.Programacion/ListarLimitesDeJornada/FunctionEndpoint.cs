@@ -76,7 +76,7 @@ public class FunctionEndpoint(
             faltante = jornada!.ComoVista();
         }
 
-        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take));
+        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take, predeterminadaId));
     }
 }
 
@@ -84,16 +84,17 @@ public sealed record ListaLimitesDeJornadaRespuesta(
     IReadOnlyList<JornadaRespuesta> Elementos,
     string? SiguienteCursor);
 
-// CA-3: cada elemento tiene la forma de ObtenerJornada; los minutos de la vista se traducen aqui.
+// Cada elemento tiene la forma de ObtenerJornada; los minutos de la vista se traducen aqui.
 internal static class LimitesDeJornadaRespuesta
 {
-    public static JornadaRespuesta DesdeVista(LimitesDeJornada vista) => new(
+    public static JornadaRespuesta DesdeVista(LimitesDeJornada vista, Guid? predeterminadaId = null) => new(
         Guid.Parse(vista.Id),
         Convertir(vista.HorasSemanalesEnMinutos),
         Convertir(vista.TopeDiarioEnMinutos),
         Convertir(vista.MinimoDiarioEnMinutos),
         vista.DiasDescansoPorSemana,
-        vista.Descripcion);
+        vista.Descripcion,
+        predeterminadaId is { } p && vista.Id == p.ToString());
 
     private static HorasYMinutosRespuesta Convertir(int minutos) => new(minutos / 60, minutos % 60);
 }
@@ -124,7 +125,8 @@ internal sealed record CursorJornada(int Horas, int Tope, string Id)
 internal static class ComposicionListadoLimites
 {
     public static ListaLimitesDeJornadaRespuesta Componer(
-        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take)
+        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take,
+        Guid? predeterminadaId = null)
     {
         IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
             ? vista
@@ -155,6 +157,6 @@ internal static class ComposicionListadoLimites
         }
 
         return new ListaLimitesDeJornadaRespuesta(
-            filas.Select(LimitesDeJornadaRespuesta.DesdeVista).ToList(), siguienteCursor);
+            filas.Select(f => LimitesDeJornadaRespuesta.DesdeVista(f, predeterminadaId)).ToList(), siguienteCursor);
     }
 }

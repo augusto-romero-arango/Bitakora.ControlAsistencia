@@ -65,4 +65,46 @@ public class ComposicionListadoLimitesTests
 
         ids.Should().Equal(IdA, IdP, IdB);
     }
+
+    [Fact]
+    public void Componer_MarcaSoloLaPredeterminada_CuandoSeIndicaSuId()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, P, B], null, null, null, IdP);
+
+        respuesta.Elementos.Where(e => e.EsPredeterminada).Select(e => e.JornadaId).Should().Equal(IdP);
+    }
+
+    [Fact]
+    public void Componer_MarcaLaPredeterminadaRecienMaterializada_CuandoLaVistaNoLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, B], P, null, null, IdP);
+
+        respuesta.Elementos.Where(e => e.EsPredeterminada).Select(e => e.JornadaId).Should().Equal(IdP);
+    }
+
+    [Fact]
+    public void Componer_NoMarcaNinguna_CuandoNoHayPredeterminada()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, P, B], null, null, null);
+
+        respuesta.Elementos.Should().OnlyContain(e => !e.EsPredeterminada);
+    }
+
+    [Fact]
+    public void Componer_MarcaExactamenteUnaEnTodoElRecorrido_CuandoSePagina()
+    {
+        var vista = new[] { A, P, B };
+        var marcadas = new List<Guid>();
+        CursorJornada? cursor = null;
+
+        for (var i = 0; i < 5; i++)
+        {
+            var pagina = ComposicionListadoLimites.Componer(vista, null, cursor, 1, IdP);
+            marcadas.AddRange(pagina.Elementos.Where(e => e.EsPredeterminada).Select(e => e.JornadaId));
+            if (pagina.SiguienteCursor is null) break;
+            cursor = CursorJornada.Decodificar(pagina.SiguienteCursor);
+        }
+
+        marcadas.Should().Equal(IdP);
+    }
 }
