@@ -79,7 +79,9 @@ public class CrearJornadaCommandHandlerTests : CommandHandlerAsyncTest<CrearJorn
         Given(Evento(GuidAggregateId));
         var comando = Comando(Guid.NewGuid()) with
         {
-            HorasSemanales = new(-1, 60), TopeDiario = new(-2, 61), MinimoDiario = new(-3, -1)
+            HorasSemanales = new(-1, 60),
+            TopeDiario = new(-2, 61),
+            MinimoDiario = new(-3, -1)
         };
         var act = async () => await WhenAsync(comando);
         var errores = (await act.Should().ThrowExactlyAsync<AggregateException>()).Which.InnerExceptions;

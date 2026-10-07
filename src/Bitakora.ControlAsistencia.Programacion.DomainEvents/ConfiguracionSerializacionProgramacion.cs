@@ -47,5 +47,6 @@ public static class ConfiguracionSerializacionProgramacion
         HorasYMinutos.ConfigurarSerializacion(resolver);
         LimitesJornada.ConfigurarSerializacion(resolver);
         JornadaCreada.ConfigurarSerializacion(resolver);
+        LimitesJornadaModificados.ConfigurarSerializacion(resolver);
     }
 }

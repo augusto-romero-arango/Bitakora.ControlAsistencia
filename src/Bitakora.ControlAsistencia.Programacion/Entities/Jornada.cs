@@ -16,6 +16,19 @@ public partial class Jornada : AggregateRoot
         _limites = evento.Limites;
     }
 
+    public void Apply(LimitesJornadaModificados evento) => _limites = evento.Limites;
+
+    internal ResultadoModificarLimites ModificarLimites(LimitesJornada limites)
+    {
+        if (_limites.Equals(limites))
+            return ResultadoModificarLimites.SinCambios;
+
+        var evento = LimitesJornadaModificados.Crear(_jornadaId, limites);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoModificarLimites.Modificados;
+    }
+
     internal JornadaRespuesta Describir() => new(
         _jornadaId,
         Convertir(_limites.HorasSemanales),

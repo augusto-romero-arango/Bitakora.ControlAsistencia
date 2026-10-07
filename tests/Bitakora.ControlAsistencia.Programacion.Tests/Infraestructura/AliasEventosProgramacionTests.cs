@@ -165,4 +165,12 @@ public class AliasEventosProgramacionTests
 
         AliasDe<PlantillaSemanalRetirada>(options).Should().Be("plantilla_semanal_retirada");
     }
+
+    [Fact]
+    public void LimitesJornadaModificados_TieneAliasLimitesJornadaModificados()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<LimitesJornadaModificados>(options).Should().Be("limites_jornada_modificados");
+    }
 }
