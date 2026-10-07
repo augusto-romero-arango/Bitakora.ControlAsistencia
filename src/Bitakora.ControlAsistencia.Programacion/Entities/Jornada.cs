@@ -5,6 +5,13 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class Jornada : AggregateRoot
 {
-    public void Apply(JornadaCreada evento) => throw new NotImplementedException();
-    internal static Jornada Iniciar(JornadaCreada evento) => throw new NotImplementedException();
+    public void Apply(JornadaCreada evento) => Id = evento.JornadaId.ToString();
+
+    internal static Jornada Iniciar(JornadaCreada evento)
+    {
+        var jornada = new Jornada();
+        jornada._uncommittedEvents.Add(evento);
+        jornada.Apply(evento);
+        return jornada;
+    }
 }

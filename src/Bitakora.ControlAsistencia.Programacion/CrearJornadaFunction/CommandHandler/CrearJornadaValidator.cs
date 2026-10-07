@@ -5,5 +5,11 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction.CommandHa
 
 public class CrearJornadaValidator : AbstractValidator<Comando>
 {
-    public CrearJornadaValidator() => throw new NotImplementedException();
+    public CrearJornadaValidator()
+    {
+        RuleFor(x => x.JornadaId).NotEmpty();
+        RuleFor(x => x.HorasSemanales).NotNull();
+        RuleFor(x => x.TopeDiario).NotNull();
+        RuleFor(x => x.MinimoDiario).NotNull();
+    }
 }
