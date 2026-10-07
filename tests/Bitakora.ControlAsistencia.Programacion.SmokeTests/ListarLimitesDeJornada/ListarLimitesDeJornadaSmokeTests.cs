@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarLimitesDeJornada;
 
-public class ListarLimitesDeJornadaSmokeTests(ApiFixture api)
+public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string Ruta = "/api/programacion/jornadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -111,6 +111,48 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api)
         vistos.Should().OnlyHaveUniqueItems();
         vistos.Should().Contain([id1, id2]);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarLimitesDeJornada_MaterializaLaPredeterminadaUnaSolaVez_CuandoSeListaSinPreferencias()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var schema = PostgresFixture.SchemaProgramacion;
+        var streamPreferencias = PostgresFixture.StreamIdPreferencias(postgres.TenantId);
+
+        var lista = await Polling.WaitUntilAsync(async () =>
+        {
+            var l = await ListarAsync("", ct);
+            return l.Elementos.Any(e => EsPredeterminadaInicial(e)) ? l : null;
+        }, Timeout);
+
+        lista.Elementos.Should().Contain(e => EsPredeterminadaInicial(e));
+        (await postgres.ContarEventosAsync(schema, streamPreferencias, "jornada_predeterminada_asignada"))
+            .Should().Be(1);
+        (await postgres.ContarEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+            .Should().Be(1);
+
+        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+            .Single();
+        var predeterminadaId = Guid.Parse(
+            (asignada.TryGetProperty("JornadaId", out var id) ? id : asignada.GetProperty("jornadaId"))
+            .GetString()!);
+        lista.Elementos.Should().ContainSingle(e => e.JornadaId == predeterminadaId);
+
+        await ListarAsync("", ct);
+
+        (await postgres.ContarEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+            .Should().Be(1, "un segundo GET no debe escribir eventos");
+        (await postgres.ContarEventosAsync(schema, predeterminadaId.ToString(), "jornada_creada"))
+            .Should().Be(1);
+    }
+
+    private static bool EsPredeterminadaInicial(ElementoSmoke e) =>
+        e.HorasSemanales == new HorasYMinutosSmoke(42, 0)
+        && e.TopeDiario == new HorasYMinutosSmoke(8, 0)
+        && e.MinimoDiario == new HorasYMinutosSmoke(0, 0)
+        && e.DiasDescansoPorSemana == 1;
 
     [Fact]
     [Trait("Category", "Smoke")]
