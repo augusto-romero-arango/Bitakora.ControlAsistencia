@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.AsignarJornadaPredeterminadaFunction;
+
+public record AsignarJornadaPredeterminadaBody(Guid JornadaId);
