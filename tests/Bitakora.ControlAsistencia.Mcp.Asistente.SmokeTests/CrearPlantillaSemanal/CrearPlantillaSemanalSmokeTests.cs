@@ -115,4 +115,34 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(turnoInexistente);
     }
+
+    // El turno inline persiste entre corridas por diseno (nombre derivado de la
+    // franja), asi que la primera corrida lo crea y las siguientes lo reutilizan.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaSemanal_CreaOReutilizaElTurnoInline_CuandoElDiaTraeFranja()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nombrePlantilla = $"[TEST] Plantilla MCP {Guid.CreateVersion7()}";
+        const string franjaExclusiva = "03:17-11:43";
+        const string dias = """[{"semana":1,"dia":"lunes","franja":"03:17-11:43"}]""";
+
+        var creada = await mcp.Cliente.CallToolAsync(
+            "crear_plantilla_semanal",
+            new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
+            cancellationToken: ct);
+        creada.IsError.Should().NotBeTrue();
+
+        using var texto = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
+        texto.RootElement.GetProperty("diasAsignados").GetInt32().Should().Be(1);
+        var inline = texto.RootElement.GetProperty("turnosInline").EnumerateArray().Single();
+        inline.GetProperty("nombre").GetString().Should().Be(franjaExclusiva);
+        inline.GetProperty("accion").GetString().Should().BeOneOf("creo", "reutilizo");
+
+        var retirada = await mcp.Cliente.CallToolAsync(
+            "retirar_plantilla_semanal",
+            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            cancellationToken: ct);
+        retirada.IsError.Should().NotBeTrue();
+    }
 }

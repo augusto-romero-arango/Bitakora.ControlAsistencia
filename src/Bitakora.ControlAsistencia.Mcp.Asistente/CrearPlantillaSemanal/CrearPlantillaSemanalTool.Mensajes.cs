@@ -38,10 +38,6 @@ public partial class CrearPlantillaSemanalTool
         public static string DiaDuplicado =>
             ResourceManager.GetString(nameof(DiaDuplicado))!;
 
-        /// <summary>{0}: semana de la entrada; {1}: dia de la entrada.</summary>
-        public static string TurnoObligatorioEnEntrada =>
-            ResourceManager.GetString(nameof(TurnoObligatorioEnEntrada))!;
-
         /// <summary>{0}: nombres de turno que faltan; {1}: nombres disponibles en el catalogo.</summary>
         public static string TurnosNoExisten =>
             ResourceManager.GetString(nameof(TurnosNoExisten))!;
@@ -55,5 +51,33 @@ public partial class CrearPlantillaSemanalTool
 
         public static string NotaVisibilidadEventual =>
             ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
+
+        /// <summary>{0}: semana de la entrada; {1}: dia de la entrada.</summary>
+        public static string TurnoOFranjaObligatorio =>
+            ResourceManager.GetString(nameof(TurnoOFranjaObligatorio))!;
+
+        /// <summary>{0}: semana de la entrada; {1}: dia de la entrada.</summary>
+        public static string TurnoYFranjaExcluyentes =>
+            ResourceManager.GetString(nameof(TurnoYFranjaExcluyentes))!;
+
+        /// <summary>{0}: semana; {1}: dia; {2}: valor de franja recibido.</summary>
+        public static string FranjaInvalida =>
+            ResourceManager.GetString(nameof(FranjaInvalida))!;
+
+        /// <summary>{0}: nombre derivado del turno inline que ya existe con otro contenido.</summary>
+        public static string TurnoInlineEnConflicto =>
+            ResourceManager.GetString(nameof(TurnoInlineEnConflicto))!;
+
+        /// <summary>{0}: nombre derivado del turno inline; {1}: turnos inline ya creados.</summary>
+        public static string TurnoInlineNombreDuplicado =>
+            ResourceManager.GetString(nameof(TurnoInlineNombreDuplicado))!;
+
+        /// <summary>{0}: nombre derivado del turno inline; {1}: motivo del dominio; {2}: turnos inline ya creados.</summary>
+        public static string FalloTurnoInline =>
+            ResourceManager.GetString(nameof(FalloTurnoInline))!;
+
+        /// <summary>Texto de {1}/{2} cuando no quedo creado ningun turno inline.</summary>
+        public static string NingunTurnoInlineCreado =>
+            ResourceManager.GetString(nameof(NingunTurnoInlineCreado))!;
     }
 }
