@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
@@ -156,41 +157,38 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
             .Select(x => (x.Inline, x.Ficha, Clase: Clasificar(x.Inline, x.Ficha)))
             .ToList();
 
-        if (clasificadas.FirstOrDefault(x => x.Clase == ClaseInline.Distinto) is { Inline: not null } conflicto)
-            return string.Format(Mensajes.TurnoInlineEnConflicto, conflicto.Inline.Nombre);
+        if (clasificadas.FirstOrDefault(x => x.Clase == ClaseInline.Distinto).Inline is { } enConflicto)
+            return string.Format(Mensajes.TurnoInlineEnConflicto, enConflicto.Nombre);
 
         var turnosInline = new List<TurnoInlineResumen>();
         var creados = new List<string>();
 
         foreach (var (inline, ficha, clase) in clasificadas)
         {
-            var turnoId = ficha is null ? Guid.CreateVersion7().ToString() : ficha.Id;
+            var turnoId = ficha?.Id;
 
-            if (clase == ClaseInline.Equivalente)
+            if (clase == ClaseInline.Nuevo)
             {
-                turnosInline.Add(new TurnoInlineResumen(inline.Nombre, AccionReutilizo));
-                turnoIdPorNombre[inline.Nombre] = turnoId;
-                continue;
-            }
-
-            if (ficha is null)
-            {
-                var respuestaCrear = await programacion.CrearTurno(Guid.Parse(turnoId), inline.Nombre, false, ct);
+                var nuevoId = Guid.CreateVersion7();
+                var respuestaCrear = await programacion.CrearTurno(nuevoId, inline.Nombre, false, ct);
                 if (await respuestaCrear.LeerFalloAsync(ct) is { } falloCrear)
-                    return respuestaCrear.StatusCode == System.Net.HttpStatusCode.Conflict
+                    return respuestaCrear.StatusCode == HttpStatusCode.Conflict
                         ? string.Format(Mensajes.TurnoInlineNombreDuplicado, inline.Nombre, ListarCreados(creados))
                         : string.Format(Mensajes.FalloTurnoInline, inline.Nombre, falloCrear, ListarCreados(creados));
                 creados.Add(inline.Nombre);
+                turnoId = nuevoId.ToString();
             }
 
-            var respuestaFranja = await programacion.AgregarFranja(
-                turnoId, new FranjaAAgregar(inline.Inicio, inline.Fin, inline.DiaOffsetEnviado, null), ct);
-            if (await respuestaFranja.LeerFalloAsync(ct) is { } falloFranja)
-                return string.Format(Mensajes.FalloTurnoInline, inline.Nombre, falloFranja, ListarCreados(creados));
+            if (clase != ClaseInline.Equivalente)
+            {
+                var respuestaFranja = await programacion.AgregarFranja(
+                    turnoId!, new FranjaAAgregar(inline.Inicio, inline.Fin, inline.DiaOffsetEnviado, null), ct);
+                if (await respuestaFranja.LeerFalloAsync(ct) is { } falloFranja)
+                    return string.Format(Mensajes.FalloTurnoInline, inline.Nombre, falloFranja, ListarCreados(creados));
+            }
 
-            turnosInline.Add(new TurnoInlineResumen(
-                inline.Nombre, ficha is null ? AccionCreo : AccionCompleto));
-            turnoIdPorNombre[inline.Nombre] = turnoId;
+            turnosInline.Add(new TurnoInlineResumen(inline.Nombre, AccionPorClase[clase]));
+            turnoIdPorNombre[inline.Nombre] = turnoId!;
         }
 
         var plantillaId = Guid.CreateVersion7();
@@ -224,9 +222,12 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
             turnosInline.Count > 0 ? turnosInline : null));
     }
 
-    private const string AccionCreo = "creo";
-    private const string AccionReutilizo = "reutilizo";
-    private const string AccionCompleto = "completo";
+    private static readonly Dictionary<ClaseInline, string> AccionPorClase = new()
+    {
+        [ClaseInline.Nuevo] = "creo",
+        [ClaseInline.Equivalente] = "reutilizo",
+        [ClaseInline.Vacio] = "completo"
+    };
 
     private static string ListarCreados(List<string> creados) =>
         creados.Count > 0 ? string.Join(", ", creados) : Mensajes.NingunTurnoInlineCreado;

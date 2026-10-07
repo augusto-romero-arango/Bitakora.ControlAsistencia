@@ -64,7 +64,7 @@ public class CrearPlantillaSemanalToolTests
 
     private static string ExtraerPlantillaIdEnviado(Fakes fakes)
     {
-        var post = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Post);
+        var post = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaPlantillas);
         return JsonNode.Parse(post.Cuerpo!)!["plantillaId"]!.GetValue<string>();
     }
 
@@ -391,7 +391,6 @@ public class CrearPlantillaSemanalToolTests
     private static void NoEscribioNada(Fakes fakes) =>
         fakes.Handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
 
-    // CA-1
     [Fact]
     public async Task CrearPlantillaSemanal_CreaTurnoInlineConNombreDerivadoYAsignaElDia_CuandoLaFranjaNoTieneHomonimo()
     {
@@ -455,7 +454,6 @@ public class CrearPlantillaSemanalToolTests
         franjaBody["diaOffsetFin"]!.GetValue<int>().Should().Be(1);
     }
 
-    // CA-2
     [Fact]
     public async Task CrearPlantillaSemanal_CreaUnSoloTurno_CuandoDosDiasTraenLaMismaFranjaEscritaDistinto()
     {
@@ -475,7 +473,6 @@ public class CrearPlantillaSemanalToolTests
         JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Should().ContainSingle();
     }
 
-    // CA-3
     [Fact]
     public async Task CrearPlantillaSemanal_ReutilizaElTurno_CuandoElHomonimoEsEquivalente()
     {
@@ -491,7 +488,6 @@ public class CrearPlantillaSemanalToolTests
         JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Single()!["accion"]!.GetValue<string>().Should().Be("reutilizo");
     }
 
-    // CA-4
     [Fact]
     public async Task CrearPlantillaSemanal_AgregaLaFranjaAlHomonimoVacio_CuandoElTurnoNoTieneFranjas()
     {
@@ -507,7 +503,6 @@ public class CrearPlantillaSemanalToolTests
         JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Single()!["accion"]!.GetValue<string>().Should().Be("completo");
     }
 
-    // CA-5
     private static async Task AssertConflictoSinEscribir(string catalogo)
     {
         var fakes = CrearTool(turnosJson: catalogo);
@@ -538,7 +533,6 @@ public class CrearPlantillaSemanalToolTests
     public Task CrearPlantillaSemanal_AbortaSinEscribir_CuandoElHomonimoEsDescanso() =>
         AssertConflictoSinEscribir(CatalogoCon("07:00-17:00", "", esDescanso: true));
 
-    // CA-6
     [Fact]
     public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaFranjaTieneFormatoInvalido()
     {

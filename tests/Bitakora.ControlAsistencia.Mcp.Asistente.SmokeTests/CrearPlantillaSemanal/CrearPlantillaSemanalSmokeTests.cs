@@ -116,7 +116,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(turnoInexistente);
     }
 
-    // CA-7 (#651): el turno inline persiste entre corridas por diseno (nombre derivado de la
+    // El turno inline persiste entre corridas por diseno (nombre derivado de la
     // franja), asi que la primera corrida lo crea y las siguientes lo reutilizan.
     [Fact]
     [Trait("Category", "Smoke")]
