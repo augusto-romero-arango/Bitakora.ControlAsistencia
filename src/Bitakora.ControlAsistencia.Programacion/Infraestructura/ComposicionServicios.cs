@@ -83,6 +83,7 @@ public static class ComposicionServicios
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
         services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
         services.AddScoped<ILectorLimitesJornada, LectorReadSideProgramacion>();
+        services.AddScoped<ILectorPlantillasPorJornada, LectorReadSideProgramacion>();
         services.AddScoped<IAlmacenPreferenciasProgramacion, AlmacenPreferenciasProgramacion>();
         services.AddScoped<IAseguradorJornadaPredeterminada, AseguradorJornadaPredeterminada>();
 

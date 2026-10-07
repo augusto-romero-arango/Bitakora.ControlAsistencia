@@ -613,6 +613,17 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveILectorPlantillasPorJornada_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var lector = scope.ServiceProvider.GetRequiredService<ILectorPlantillasPorJornada>();
+
+        lector.Should().BeOfType<LectorReadSideProgramacion>();
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElHandlerDeCrearPlantillaSemanal_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();

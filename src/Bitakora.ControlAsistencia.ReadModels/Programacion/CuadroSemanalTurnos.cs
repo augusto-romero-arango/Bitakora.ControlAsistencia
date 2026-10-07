@@ -24,7 +24,8 @@ public sealed record CuadroSemanalTurnos(
     string Id,
     string Nombre,
     int Semanas,
-    IReadOnlyList<DiaDelCuadro> Dias);
+    IReadOnlyList<DiaDelCuadro> Dias,
+    Guid? JornadaId = null);
 
 /// <summary>
 /// Un dia asignado del cuadro: la referencia viva al turno (TurnoId, CA-ADR-0034 decision 2), nunca

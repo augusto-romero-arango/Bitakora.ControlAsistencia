@@ -36,6 +36,12 @@ public sealed partial class CuadroSemanalTurnosProjection
     public static CuadroSemanalTurnos Apply(DiaDePlantillaSemanalQuitado e, CuadroSemanalTurnos vista) =>
         Reconstruir(vista, vista.Dias.Where(d => !CoincideSlot(d, e.Semana, e.Dia)));
 
+    public static CuadroSemanalTurnos Apply(JornadaDePlantillaSemanalAsignada e, CuadroSemanalTurnos vista) =>
+        vista with { JornadaId = e.JornadaId };
+
+    public static CuadroSemanalTurnos Apply(JornadaDePlantillaSemanalQuitada e, CuadroSemanalTurnos vista) =>
+        vista with { JornadaId = null };
+
     public static bool ShouldDelete(PlantillaSemanalRetirada e) => true;
 
     private static bool CoincideSlot(DiaDelCuadro dia, int semana, DiaSemana diaSemana) =>
