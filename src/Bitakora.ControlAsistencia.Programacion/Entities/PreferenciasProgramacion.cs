@@ -21,8 +21,17 @@ public partial class PreferenciasProgramacion : AggregateRoot
 
     internal Guid JornadaPredeterminada() => _jornadaPredeterminadaId;
 
-    internal ResultadoAsignarJornadaPredeterminada AsignarJornadaPredeterminada(Guid jornadaId) =>
-        throw new NotImplementedException();
+    internal ResultadoAsignarJornadaPredeterminada AsignarJornadaPredeterminada(Guid jornadaId, string tenantId)
+    {
+        Id = ComputarStreamId(tenantId);
+        if (_jornadaPredeterminadaId == jornadaId)
+            return ResultadoAsignarJornadaPredeterminada.SinCambios;
+
+        var evento = new JornadaPredeterminadaAsignada(jornadaId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAsignarJornadaPredeterminada.Asignada;
+    }
 
     public void Apply(JornadaPredeterminadaAsignada evento) => _jornadaPredeterminadaId = evento.JornadaId;
 }

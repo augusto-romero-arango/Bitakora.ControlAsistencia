@@ -4,4 +4,8 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarJornadaPredeterminadaFu
 
 public class AsignarJornadaPredeterminadaBodyValidator : AbstractValidator<AsignarJornadaPredeterminadaBody>
 {
+    public AsignarJornadaPredeterminadaBodyValidator()
+    {
+        RuleFor(x => x.JornadaId).NotEmpty();
+    }
 }
