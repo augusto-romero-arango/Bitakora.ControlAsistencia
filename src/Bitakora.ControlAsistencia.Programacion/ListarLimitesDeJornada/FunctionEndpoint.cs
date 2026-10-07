@@ -1,6 +1,7 @@
 using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
@@ -14,7 +15,8 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarLimitesDeJornada;
 // Listado de la vista LimitesDeJornada: keyset por (HorasSemanalesEnMinutos, TopeDiarioEnMinutos,
 // Id), take opcional (max 200), sobre { elementos, siguienteCursor } con cursor opaco, sin total
 // (CA-ADR-0039). Comparte la ruta con CrearJornada (POST); cada uno declara su verbo.
-public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
+public class FunctionEndpoint(
+    IDocumentStore store, ITenantContext tenantContext, IAseguradorJornadaPredeterminada asegurador)
 {
     private const int TakeMaximo = 200;
 
@@ -114,4 +116,11 @@ internal sealed record CursorJornada(int Horas, int Tope, string Id)
             return null;
         }
     }
+}
+
+internal static class ComposicionListadoLimites
+{
+    public static ListaLimitesDeJornadaRespuesta Componer(
+        IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada predeterminada, CursorJornada? cursor, int? take) =>
+        throw new NotImplementedException();
 }

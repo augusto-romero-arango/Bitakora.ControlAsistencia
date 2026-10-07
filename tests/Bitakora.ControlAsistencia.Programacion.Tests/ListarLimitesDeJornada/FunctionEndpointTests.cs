@@ -13,7 +13,7 @@ public class FunctionEndpointTests
     {
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString(queryString);
-        var resultado = await new FunctionEndpoint(null!, null!).Run(context.Request, CancellationToken.None);
+        var resultado = await new FunctionEndpoint(null!, null!, null!).Run(context.Request, CancellationToken.None);
         return resultado.Should().BeAssignableTo<IStatusCodeActionResult>().Subject.StatusCode;
     }
 

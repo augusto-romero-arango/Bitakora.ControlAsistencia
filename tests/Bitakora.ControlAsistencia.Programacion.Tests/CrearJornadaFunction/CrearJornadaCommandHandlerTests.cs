@@ -50,27 +50,13 @@ public class CrearJornadaCommandHandlerTests : CommandHandlerAsyncTest<CrearJorn
     }
 
     [Fact]
-    public async Task CrearJornada_LanzaRecursoYaExisteException_CuandoIdGeneralEstaReservado()
+    public async Task CrearJornada_EmiteJornadaCreada_CuandoElIdEsElQueFueGeneralReservado()
     {
-        var otraId = GuidAggregateId;
-        Given(Evento(otraId));
-        var act = async () => await WhenAsync(Comando(JornadaGeneral.Id));
-        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
-            .WithMessage($"*{CrearJornadaCommandHandler.Mensajes.JornadaGeneralReservada}*");
-        Then(JornadaGeneral.Id.ToString());
-        And<Jornada, string>(j => j.Id, otraId.ToString());
-    }
-
-    [Fact]
-    public async Task CrearJornada_PriorizaReservaGeneral_CuandoLimitesSonInvalidos()
-    {
-        Given(Evento(GuidAggregateId));
-        var comando = Comando(JornadaGeneral.Id) with { TopeDiario = new(0, 60) };
-        var act = async () => await WhenAsync(comando);
-        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
-            .WithMessage($"*{CrearJornadaCommandHandler.Mensajes.JornadaGeneralReservada}*");
-        Then(JornadaGeneral.Id.ToString());
-        And<Jornada, string>(j => j.Id, GuidAggregateId.ToString());
+        var id = Guid.Parse("00000000-0000-4000-8000-000000000001");
+        Given();
+        await WhenAsync(Comando(id));
+        Then(id.ToString(), Evento(id));
+        And<Jornada, string>(id.ToString(), j => j.Id, id.ToString());
     }
 
     [Fact]
