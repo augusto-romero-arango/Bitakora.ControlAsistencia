@@ -1,11 +1,9 @@
 ## Implementado
-- `CI / build-and-test` clasifica todo el diff del PR mediante la API REST paginada, coteja `changed_files` y falla ante respuestas vacias, incompletas o invalidas. Evalua las dos rutas de renombrados. Solo omite pasos pesados para `docs/**`, `README.md` y `CLAUDE.md` raiz; emite un Job Summary explicito.
-- El camino no documental conserva restore, build, tests y cobertura, incluidos los pasos con `always()`. No se modificaron los otros workflows ni los triggers/permisos de CI.
-- `scripts/test_ci_pr_impact.py` prueba el clasificador real y el wiring; `scripts/verify-ci-policy.sh` ejecuta las pruebas y valida YAML.
+- `docs/adr/ca-adr-0034-plantilla-semanal-de-turnos.md`: decision 2 reescrita (copia sincronizada, porque, correccion MEF-ADR-0046, 5 lineas de mecanica), decision 5 enmendada (N1 con datos propios, grouper rechazado, ventana eventual), Alternativas, Consecuencias, Estado, Referencias y Control de cambios (2026-10-06).
+- `CLAUDE.md`: fila de CA-ADR-0034 del indice tematico actualizada.
 
 ## Verificacion
-- `bash scripts/verify-ci-policy.sh`: 9 pruebas exitosas y sintaxis YAML valida con Ruby Psych. Incluye paginas posteriores, errores de API, diff incompleto, renombrados, borrados y rutas mixtas.
-- `git diff --check`: sin errores.
+Solo documentacion; revision manual de coherencia con lo conservado (retiro sin cascada, DiaSemana ISO, 201/204, aplicar desde catalogo).
 
 ## Pendiente/bloqueos
-- No se ejecuto un PR real en GitHub Actions desde este stage; pendiente evidencia del run de CI tras publicar el PR. No se ejecuto .NET (no se cambio C#).
+Ninguno.
