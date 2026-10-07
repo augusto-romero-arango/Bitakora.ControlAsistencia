@@ -248,6 +248,42 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 
+    // Issue #855: la proyeccion N1 de limites de jornada se registra Async en el worker.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraLimitesDeJornadaProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("LimitesDeJornada");
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaLimitesDeJornadaConRevisionNumerica()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(LimitesDeJornada));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaLimitesDeJornadaSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(LimitesDeJornada));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_limitesdejornada");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(LimitesDeJornada.Id));
+    }
+
     // Issue #755: la proyeccion N2 de ausencias se registra Async en el worker.
     [Fact]
     public void ConfigurarProgramacion_RegistraAusenciaVigenteProjectionComoAsync()
