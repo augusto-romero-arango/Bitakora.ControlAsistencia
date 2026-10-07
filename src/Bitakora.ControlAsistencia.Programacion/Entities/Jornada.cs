@@ -36,7 +36,8 @@ public partial class Jornada : AggregateRoot
         Convertir(_limites.TopeDiario),
         Convertir(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana,
-        _limites.ToString());
+        _limites.ToString(),
+        predeterminadaId == _jornadaId);
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 
