@@ -113,7 +113,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     public async Task CrearTurno_EmiteTurnoCreadoConFranjasVacias_CuandoEsDescansoEsTrue()
     {
         const string nombreDescanso = "Descanso Compensatorio";
-        var descripcionEsperada = $"{nombreDescanso} {CatalogoTurnos.Mensajes.LabelDescanso}";
+        var descripcionEsperada = $"{nombreDescanso} {Turno.Mensajes.LabelDescanso}";
         var comando = new CrearTurno(GuidAggregateId, nombreDescanso, [], EsDescanso: true);
         var eventoEsperado = TurnoCreado.CrearDescanso(comando.TurnoId, comando.Nombre);
 

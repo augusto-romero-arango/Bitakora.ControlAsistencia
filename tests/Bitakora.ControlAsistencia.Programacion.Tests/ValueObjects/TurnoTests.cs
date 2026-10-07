@@ -83,7 +83,7 @@ public class TurnoTests
     }
 
     [Fact]
-    public void FranjaQueEmpiezaA_RetornaLaFranja_CuandoExisteUnaQueEmpiezaEseDia()
+    public void FranjaQueEmpiezaA_RetornaLaFranja_CuandoUnaFranjaEmpiezaEsaHora()
     {
         TurnoDeTrabajo().FranjaQueEmpiezaA(new TimeOnly(6, 0)).Should().Be(Manana());
     }
