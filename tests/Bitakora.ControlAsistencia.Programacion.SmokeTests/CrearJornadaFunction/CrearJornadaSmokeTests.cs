@@ -22,6 +22,16 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task HealthCheck_DebeResponder200_CuandoElEntornoEstaDisponible()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar201YPersistirJornadaCreada_CuandoPayloadEsValido()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
@@ -63,6 +73,23 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
     {
         var response = await _client.PostAsJsonAsync(Ruta,
             Payload(Guid.CreateVersion7(), 31, descansos: 7), TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar400_CuandoFaltaElTopeDiario()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.PostAsJsonAsync(Ruta, new
+        {
+            jornadaId = Guid.CreateVersion7(),
+            horasSemanales = new { horas = 30, minutos = 17 },
+            topeDiario = (object?)null,
+            minimoDiario = new { horas = 0, minutos = 0 },
+            diasDescansoPorSemana = 1
+        }, ct);
+
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }
