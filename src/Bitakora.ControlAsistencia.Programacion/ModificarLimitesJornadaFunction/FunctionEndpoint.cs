@@ -29,15 +29,9 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             await commandRouter.InvokeAsync(comando, ct);
         }
-        catch (PrecondicionComandoException ex)
+        catch (RecursoNoEncontradoException ex)
         {
-            switch (ex)
-            {
-                case RecursoNoEncontradoException:
-                    return new NotFoundObjectResult(ex.Message);
-                default:
-                    throw;
-            }
+            return new NotFoundObjectResult(ex.Message);
         }
         catch (AggregateException ex)
         {

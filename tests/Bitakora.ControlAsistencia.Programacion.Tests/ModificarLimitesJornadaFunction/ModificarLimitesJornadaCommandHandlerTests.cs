@@ -46,8 +46,7 @@ public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTes
         var act = async () => await WhenAsync(Comando(GuidAggregateId));
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{ModificarLimitesJornadaCommandHandler.Mensajes.JornadaNoEncontrada}*");
-        Then();
-        And<Jornada, string?>(j => j.Id, null);
+        Then(GuidAggregateId.ToString());
     }
 
     [Fact]
