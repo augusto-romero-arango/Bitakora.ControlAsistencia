@@ -169,6 +169,23 @@ module "service_bus" {
         }
       ]
     }
+    # Issue #893 (antes de #883): Programacion publica DisenoDeTurnoActualizado cuando cambia
+    # o se retira un turno; Programacion sincroniza las plantillas semanales (CA-ADR-0034).
+    # Fan-out simple, sin sesiones (MEF-ADR-0026); smoke-tests cubre la publicacion
+    # antes de desplegar el consumidor (MEF-ADR-0013).
+    "diseno-de-turno-actualizado" = {
+      subscriptions = [
+        {
+          name               = "programacion-escucha-diseno-de-turno"
+          correlation_filter = null
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
   }
   tags = local.tags
 }
@@ -334,4 +351,3 @@ module "container_app" {
     azurerm_role_assignment.projections_worker_kv_secrets_user,
   ]
 }
-
