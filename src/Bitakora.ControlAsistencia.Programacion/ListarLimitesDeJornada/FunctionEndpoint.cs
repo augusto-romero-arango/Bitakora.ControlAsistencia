@@ -84,7 +84,7 @@ public sealed record ListaLimitesDeJornadaRespuesta(
     IReadOnlyList<JornadaRespuesta> Elementos,
     string? SiguienteCursor);
 
-// CA-3: cada elemento tiene la forma de ObtenerJornada; los minutos de la vista se traducen aqui.
+// Cada elemento tiene la forma de ObtenerJornada; los minutos de la vista se traducen aqui.
 internal static class LimitesDeJornadaRespuesta
 {
     public static JornadaRespuesta DesdeVista(LimitesDeJornada vista, Guid? predeterminadaId = null) => new(
