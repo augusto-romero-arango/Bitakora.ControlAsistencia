@@ -21,5 +21,8 @@ public partial class PreferenciasProgramacion : AggregateRoot
 
     internal Guid JornadaPredeterminada() => _jornadaPredeterminadaId;
 
+    internal ResultadoAsignarJornadaPredeterminada AsignarJornadaPredeterminada(Guid jornadaId) =>
+        throw new NotImplementedException();
+
     public void Apply(JornadaPredeterminadaAsignada evento) => _jornadaPredeterminadaId = evento.JornadaId;
 }
