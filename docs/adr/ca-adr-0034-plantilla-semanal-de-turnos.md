@@ -4,9 +4,10 @@
 
 Aceptado (sesion de planeacion 2026-09-04; implementacion en #620-#629). Enmendado 2026-09-05 (refinamiento
 de toda la cadena): tope de semanas, codificacion del dia, codigos HTTP e idempotencia (CA-ADR-0035), read-side
-N1 + composicion en lectura (decision 5), turno inline diferido a #651. Enmendado 2026-10-06 (#886): decisiones 2 y 5 -- la plantilla guarda una copia
-sincronizada de sus turnos y de los limites de su Jornada (consistencia eventual con autocorreccion) y el
-cuadro vuelve a N1 con datos propios; implementacion en #887, #888, #883, #884, #882, #867, #868 y #889.
+N1 + composicion en lectura (decision 5), turno inline diferido a #651. Enmendado 2026-10-06 (#886):
+decisiones 2 y 5 -- la plantilla guarda una copia sincronizada de sus turnos y de los limites de su Jornada
+(consistencia eventual con autocorreccion) y el cuadro vuelve a N1 con datos propios; implementacion en #887,
+#888, #883, #884, #882, #867, #868 y #889.
 
 ## Contexto
 
@@ -107,8 +108,10 @@ Enmienda 2026-10-06 (#886). Reescribe la decision original ("referencia viva, no
 - **Codigos de exito (enmienda 2026-09-05, CA-ADR-0035)**: `201 Created` + `Location` en el `POST`, `204 No
   Content` en `PUT`/`DELETE` -- la transaccion confirma antes de responder; el 202 heredado del marco era
   impreciso. **Idempotencia**: PUT con el mismo turno, DELETE sobre un dia ya vacio y retirar una plantilla ya
-  retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409. El 409 queda para conflictos reales
-  (plantilla retirada, semana fuera de rango, turno retirado/incompleto) y el 404 para recurso inexistente.
+  retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409 (precision 2026-10-06, decision 2: el PUT
+  con el mismo turno solo es no-op si la copia esta al dia; si la version del catalogo es mayor, actualiza la
+  copia). El 409 queda para conflictos reales (plantilla retirada, semana fuera de rango, turno
+  retirado/incompleto) y el 404 para recurso inexistente.
 - **Solo turnos completos son asignables a un dia** (decision del experto 2026-09-05, espejo de #613): 409
   `TurnoIncompleto`. La verificacion lee el aggregate `CatalogoTurnos` del mismo store (`EvaluarAsignabilidad`),
   no la vista `FichaTurno`: local, sincrono y consistente.
@@ -211,10 +214,11 @@ Enmienda 2026-10-04 (#828, tool `aplicar_plantilla_semanal`).
 
 - Issues: #620 (crear), #621 (asignar dia), #622 (quitar dia), #623 (retirar), #624 (vista N1), #625
   (GET + composicion), #626 (nombre unico), #627-#628 (tools de Comandos), #629 (tools de Consultas), #651
-  (turno inline), #640 (correccion de codigos HTTP de los endpoints existentes); #886 (enmienda de copia sincronizada), #887 (VO `Turno`), #888, #883, #884, #867, #868,
-  #889, #882; harness#849, harness#850.
+  (turno inline), #640 (correccion de codigos HTTP de los endpoints existentes); #886 (enmienda de copia
+  sincronizada), #887 (VO `Turno`), #888, #883, #884, #867, #868, #889, #882; harness#849, harness#850.
 - MEF-ADR-0004, MEF-ADR-0011, MEF-ADR-0012, MEF-ADR-0018, MEF-ADR-0034, MEF-ADR-0035, MEF-ADR-0036,
-  MEF-ADR-0041, MEF-ADR-0042, MEF-ADR-0043, MEF-ADR-0046, MEF-ADR-0047, MEF-ADR-0048;
+  MEF-ADR-0041, MEF-ADR-0042, MEF-ADR-0043, MEF-ADR-0046 (citado para declarar que no aplica, decision 2),
+  MEF-ADR-0047, MEF-ADR-0048;
   CA-ADR-0028, CA-ADR-0029, CA-ADR-0030, CA-ADR-0031, CA-ADR-0033, CA-ADR-0035.
 - Glosario: Plantilla de turnos, Plantilla semanal de turnos, Cuadro semanal de turnos, Turno (enmienda),
   Ventana de trabajo, Programador de turnos.
