@@ -4,7 +4,6 @@ using Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaSemanalFun
 using Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.Tests.AsignarTurnoADiaDePlantillaSemanalFunction;
-using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
