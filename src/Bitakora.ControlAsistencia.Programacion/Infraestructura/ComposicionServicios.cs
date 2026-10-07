@@ -114,6 +114,9 @@ public static class ComposicionServicios
             // Issue #755: par 2 para AusenciaVigente (ListarAusenciasDelEquipo), mismo motivo.
             options.Schema.For<AusenciaVigente>().UseNumericRevisions(true);
 
+            // Issue #855: par 2 para LimitesDeJornada (ListarLimitesDeJornada), mismo motivo.
+            options.Schema.For<LimitesDeJornada>().UseNumericRevisions(true);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>
