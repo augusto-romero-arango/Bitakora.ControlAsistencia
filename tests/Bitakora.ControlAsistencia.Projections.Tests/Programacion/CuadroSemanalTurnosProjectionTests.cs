@@ -151,4 +151,68 @@ public class CuadroSemanalTurnosProjectionTests
 
         debeBorrarse.Should().BeTrue();
     }
+
+    private static LimitesJornada LimitesDeEjemplo() =>
+        LimitesJornada.Crear(HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(10, 0), HorasYMinutos.Crear(4, 0), 1);
+
+    // CA-1: el JornadaId viene del payload; el resto de la vista no cambia (CA-2).
+    [Fact]
+    public void Apply_FijaLaJornada_CuandoJornadaDePlantillaSemanalAsignadaSobreCuadroSinJornada()
+    {
+        var plantillaId = Guid.NewGuid();
+        var jornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
+        var turnoId = Guid.Parse("019600b0-0000-7000-8000-000000000001");
+        var cuadro = new CuadroSemanalTurnos(
+            plantillaId.ToString(), "Semana Cocina", 2, [new DiaDelCuadro(1, 5, turnoId.ToString())]);
+
+        var evento = JornadaDePlantillaSemanalAsignada.Crear(plantillaId, jornadaId, LimitesDeEjemplo(), 1);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadro);
+
+        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(
+            plantillaId.ToString(), "Semana Cocina", 2, [new DiaDelCuadro(1, 5, turnoId.ToString())], jornadaId));
+    }
+
+    // CA-1: una segunda asignacion reemplaza la Jornada.
+    [Fact]
+    public void Apply_ReemplazaLaJornada_CuandoJornadaDePlantillaSemanalAsignadaSobreCuadroConJornada()
+    {
+        var plantillaId = Guid.NewGuid();
+        var jornadaVieja = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
+        var jornadaNueva = Guid.Parse("019600b0-0000-7000-8000-0000000000a2");
+        var cuadro = new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], jornadaVieja);
+
+        var evento = JornadaDePlantillaSemanalAsignada.Crear(plantillaId, jornadaNueva, LimitesDeEjemplo(), 2);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadro);
+
+        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], jornadaNueva));
+    }
+
+    // CA-1: quitar la Jornada vuelve JornadaId a null.
+    [Fact]
+    public void Apply_DejaLaJornadaEnNull_CuandoJornadaDePlantillaSemanalQuitada()
+    {
+        var plantillaId = Guid.NewGuid();
+        var jornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
+        var cuadro = new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], jornadaId);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(JornadaDePlantillaSemanalQuitada.Crear(plantillaId), cuadro);
+
+        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], null));
+    }
+
+    // CA-1: un cuadro recien creado no tiene Jornada.
+    [Fact]
+    public void Create_ProyectaCuadroSinJornada_DesdePlantillaSemanalCreada()
+    {
+        var evento = new Event<PlantillaSemanalCreada>(PlantillaSemanalCreada.Crear(Guid.NewGuid(), "Semana Cocina", 2))
+        {
+            StreamKey = "plantilla-002",
+            Version = 1,
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+
+        CuadroSemanalTurnosProjection.Create(evento).JornadaId.Should().BeNull();
+    }
 }
