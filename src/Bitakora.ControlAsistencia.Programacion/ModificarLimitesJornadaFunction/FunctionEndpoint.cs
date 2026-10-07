@@ -9,9 +9,41 @@ namespace Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunctio
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("ModificarLimitesJornada")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "programacion/jornadas/{id}/limites")]
         HttpRequest req,
         string id,
-        CancellationToken ct) => throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (!Guid.TryParse(id, out var jornadaId))
+            return new BadRequestObjectResult("El id de la jornada no es un Guid valido");
+
+        var (body, error) = await requestValidator.ValidarAsync<ModificarLimitesJornadaBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new ModificarLimitesJornada(jornadaId, body!.HorasSemanales, body.TopeDiario,
+            body.MinimoDiario, body.DiasDescansoPorSemana);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (PrecondicionComandoException ex)
+        {
+            switch (ex)
+            {
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(ex.InnerExceptions.Select(e => e.Message));
+        }
+
+        return new NoContentResult();
+    }
 }

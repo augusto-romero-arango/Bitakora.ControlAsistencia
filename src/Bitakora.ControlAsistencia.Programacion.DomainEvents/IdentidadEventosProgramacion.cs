@@ -38,6 +38,7 @@ public static class IdentidadEventosProgramacion
         typeof(PlantillaSemanalRetirada),
         typeof(AusenciaProgramada),
         typeof(AusenciaCancelada),
-        typeof(JornadaCreada)
+        typeof(JornadaCreada),
+        typeof(LimitesJornadaModificados)
     ];
 }
