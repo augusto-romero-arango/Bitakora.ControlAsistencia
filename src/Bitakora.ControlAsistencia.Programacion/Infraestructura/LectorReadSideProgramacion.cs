@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
 using Marten;
@@ -17,7 +18,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 // forma explicita: la clase no expone superficie publica propia y ninguna de las dos vistas queda
 // arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
-    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada, ILectorPlantillasPorJornada
+    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno
 {
     async Task<IReadOnlyList<string>> ILectorNombresTurno.ObtenerNombresAsync(CancellationToken ct)
     {
@@ -37,6 +38,17 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         await using var session = store.QuerySession(tenantContext.TenantId);
         return await session.Query<CuadroSemanalTurnos>()
             .Where(c => c.JornadaId == jornadaId)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+    }
+
+    async Task<IReadOnlyList<string>> ILectorPlantillasPorTurno.ObtenerPlantillaIdsAsync(
+        Guid turnoId, CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        var turno = turnoId.ToString();
+        return await session.Query<CuadroSemanalTurnos>()
+            .Where(c => c.Dias.Any(d => d.TurnoId == turno))
             .Select(c => c.Id)
             .ToListAsync(ct);
     }

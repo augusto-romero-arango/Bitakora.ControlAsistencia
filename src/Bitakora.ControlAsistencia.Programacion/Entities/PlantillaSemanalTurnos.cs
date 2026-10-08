@@ -10,7 +10,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
 {
     private int _semanas;
     private bool _estaActiva;
-    private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno);
+    private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno, bool Retirado = false);
 
     private readonly Dictionary<(int Semana, DiaSemana Dia), DiaAsignado> _dias = new();
 
@@ -27,6 +27,12 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
 
     // Remove sobre una clave ausente devuelve false sin lanzar (MEF-ADR-0004 capa 4).
     public void Apply(DiaDePlantillaSemanalQuitado evento) => _dias.Remove((evento.Semana, evento.Dia));
+
+    public void Apply(TurnoDePlantillaSemanalSincronizado evento)
+    {
+        foreach (var clave in _dias.Where(d => d.Value.TurnoId == evento.TurnoId).Select(d => d.Key).ToList())
+            _dias[clave] = new DiaAsignado(evento.TurnoId, evento.Turno, evento.VersionTurno, evento.Retirado);
+    }
 
     public void Apply(PlantillaSemanalRetirada evento) => _estaActiva = false;
 
@@ -47,6 +53,28 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     public void Apply(AdvertenciasDePlantillaSemanalCalculadas evento) => Advertencias = evento.Advertencias;
 
     internal IReadOnlyList<AdvertenciaPlantillaSemanal> Advertencias { get; private set; } = [];
+
+    internal long VersionDelTurno(Guid turnoId) =>
+        _dias.Values.Where(d => d.TurnoId == turnoId).Select(d => d.VersionTurno).DefaultIfEmpty(0).Max();
+
+    private bool UsaElTurno(Guid turnoId) => _dias.Values.Any(d => d.TurnoId == turnoId);
+
+    // Declina con resultado (CA-ADR-0030). Una version menor o igual a la vigente (desorden del bus,
+    // reentrega) o un turno que ningun dia usa no emiten nada (CA-ADR-0034).
+    internal ResultadoSincronizarTurno SincronizarTurno(Guid turnoId, Turno copia, long version, bool retirado)
+    {
+        if (!_estaActiva)
+            return ResultadoSincronizarTurno.PlantillaRetirada;
+
+        if (!UsaElTurno(turnoId) || VersionDelTurno(turnoId) >= version)
+            return ResultadoSincronizarTurno.SinCambios;
+
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(Guid.Parse(Id), turnoId, copia, version, retirado);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        Auditar();
+        return ResultadoSincronizarTurno.Sincronizado;
+    }
 
     internal Guid? JornadaId { get; private set; }
 
@@ -90,7 +118,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     {
         var calculadas = AuditoriaPlantillaSemanal.Auditar(
             _semanas,
-            _dias.Select(d => new DiaDePlantillaAuditado(d.Key.Semana, d.Key.Dia, d.Value.Turno, Retirado: false)),
+            _dias.Select(d => new DiaDePlantillaAuditado(d.Key.Semana, d.Key.Dia, d.Value.Turno, d.Value.Retirado)),
             Limites);
         if (calculadas.SequenceEqual(Advertencias))
             return;

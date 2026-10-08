@@ -5,6 +5,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventDriven.CritterStack;
 using Cosmos.EventDriven.CritterStack.AzureServiceBus;
@@ -84,10 +85,12 @@ public static class ComposicionServicios
         services.AgregarTenantResolverControlAsistencia();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
+        services.AgregarWolverinePrivateEventRouter();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
         services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
         services.AddScoped<ILectorLimitesJornada, LectorReadSideProgramacion>();
         services.AddScoped<ILectorPlantillasPorJornada, LectorReadSideProgramacion>();
+        services.AddScoped<ILectorPlantillasPorTurno, LectorReadSideProgramacion>();
         services.AddScoped<IAlmacenPreferenciasProgramacion, AlmacenPreferenciasProgramacion>();
         services.AddScoped<IAseguradorJornadaPredeterminada, AseguradorJornadaPredeterminada>();
 

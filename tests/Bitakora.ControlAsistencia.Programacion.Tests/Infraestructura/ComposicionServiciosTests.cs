@@ -196,6 +196,33 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeTurnoDePlantillaSemanalSincronizado()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(TurnoDePlantillaSemanalSincronizado)).Alias;
+
+        alias.Should().Be("turno_de_plantilla_semanal_sincronizado");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElRouterDeEventosPrivadosYElLectorDePlantillasPorTurno()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var router = () => scope.ServiceProvider.GetRequiredService<IPrivateEventRouter>();
+        var lector = () => scope.ServiceProvider.GetRequiredService<
+            Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado.ILectorPlantillasPorTurno>();
+
+        router.Should().NotThrow();
+        lector.Should().NotThrow();
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaSemanalAsignada()
     {
         await using var provider = ComponerServiceProvider();

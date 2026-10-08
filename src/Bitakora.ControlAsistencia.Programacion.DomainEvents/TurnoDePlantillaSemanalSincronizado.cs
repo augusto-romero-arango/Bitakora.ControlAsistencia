@@ -1,7 +1,8 @@
+using System.Reflection;
+using System.Text.Json.Serialization.Metadata;
+
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Forma minima para compilar los tests read-side de #882; #883 es su dueno (persistencia, alias,
-// serializacion y emision) y puede reajustar su forma.
 public sealed class TurnoDePlantillaSemanalSincronizado
 {
     public Guid PlantillaId { get; private set; }
@@ -22,4 +23,20 @@ public sealed class TurnoDePlantillaSemanalSincronizado
             VersionTurno = versionTurno,
             Retirado = retirado
         };
+
+    public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
+    {
+        var tipo = typeof(TurnoDePlantillaSemanalSincronizado);
+        var ctor = tipo.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, Type.EmptyTypes)!;
+        resolver.Modifiers.Add(info =>
+        {
+            if (info.Type != tipo || info.Kind != JsonTypeInfoKind.Object) return;
+            info.CreateObject = () => (TurnoDePlantillaSemanalSincronizado)ctor.Invoke(null);
+            foreach (var propiedad in info.Properties)
+            {
+                var campo = tipo.GetField($"<{propiedad.Name}>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                propiedad.Set = (obj, valor) => campo.SetValue(obj, valor);
+            }
+        });
+    }
 }
