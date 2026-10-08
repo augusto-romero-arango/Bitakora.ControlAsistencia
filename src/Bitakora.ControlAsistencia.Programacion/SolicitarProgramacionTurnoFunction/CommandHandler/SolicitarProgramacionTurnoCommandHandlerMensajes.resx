@@ -23,6 +23,9 @@
   <data name="SolicitudYaExiste" xml:space="preserve">
     <value>Ya existe una solicitud de programacion con ese Id</value>
   </data>
+  <data name="JornadaNoEncontrada" xml:space="preserve">
+    <value>No se encontro la jornada con el Id especificado</value>
+  </data>
   <data name="TurnoNoEncontrado" xml:space="preserve">
     <value>No se encontro el turno con el Id especificado en el catalogo</value>
   </data>

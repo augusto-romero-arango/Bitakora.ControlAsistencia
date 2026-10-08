@@ -189,4 +189,34 @@ public class SolicitarProgramacionTurnoValidatorTests
         resultado.Errors.Should().Contain(e =>
             e.PropertyName.Contains(nameof(SedeProgramada.Nombre)));
     }
+
+    // Issue #861 CA-5: JornadaId es opcional; la ausencia se expresa con null, no con Guid vacio.
+    [Fact]
+    public async Task DebeSerValido_CuandoNoTraeJornadaId()
+    {
+        var resultado = await _validator.ValidateAsync(
+            ComandoValido() with { JornadaId = null }, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DebeSerValido_CuandoTraeJornadaIdConValor()
+    {
+        var resultado = await _validator.ValidateAsync(
+            ComandoValido() with { JornadaId = Guid.NewGuid() }, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DebeTenerError_CuandoJornadaIdEsGuidVacio()
+    {
+        var resultado = await _validator.ValidateAsync(
+            ComandoValido() with { JornadaId = Guid.Empty }, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e =>
+            e.PropertyName == nameof(SolicitarProgramacionTurno.JornadaId));
+    }
 }

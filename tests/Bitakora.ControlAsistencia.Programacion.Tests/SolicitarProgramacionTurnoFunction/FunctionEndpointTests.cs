@@ -153,6 +153,37 @@ public class FunctionEndpointTests
 
         (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
+
+    // Issue #861 CA-5: el comando con jornadaId sigue respondiendo 201 sin Location.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna201SinLocation_CuandoElComandoTraeJornadaId()
+    {
+        var comando = ComandoValido() with { JornadaId = Guid.NewGuid() };
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(comando),
+            new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([])));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.Should().BeAssignableTo<CreatedResult>().Which.Location.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna404_CuandoLaJornadaNoExiste()
+    {
+        var comando = ComandoValido() with { JornadaId = Guid.NewGuid() };
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(comando),
+            new FakeSolicitudCommandRouter(lanzar: new RecursoNoEncontradoException(
+                SolicitarProgramacionTurnoCommandHandler.Mensajes.JornadaNoEncontrada)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundObjectResult>()
+            .Which.Value.Should().Be(SolicitarProgramacionTurnoCommandHandler.Mensajes.JornadaNoEncontrada);
+    }
 }
 
 internal class FakeSolicitudRequestValidator : IRequestValidator

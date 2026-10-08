@@ -1099,4 +1099,85 @@ public class SolicitarProgramacionTurnoSmokeTests(
         (await postgres.ContarEventosAsync(
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
     }
+
+    private static object PayloadJornada(Guid id, int semanalesHoras = 42) => new
+    {
+        jornadaId = id,
+        horasSemanales = new { horas = semanalesHoras, minutos = 0 },
+        topeDiario = new { horas = 8, minutos = 30 },
+        minimoDiario = new { horas = 4, minutos = 0 },
+        diasDescansoPorSemana = 1
+    };
+
+    private async Task<Guid> CrearTurnoParaJornadaAsync(string nombre, CancellationToken ct)
+    {
+        var turnoId = Guid.CreateVersion7();
+        var respuesta = await _client.PostAsJsonAsync(
+            "/api/programacion/turnos", TurnoSimplePayload(turnoId, nombre), ct);
+        respuesta.StatusCode.Should().Be(HttpStatusCode.Created);
+        return turnoId;
+    }
+
+    private static object PayloadSolicitud(Guid solicitudId, Guid turnoId, string fecha, Guid? jornadaId) => new
+    {
+        id = solicitudId,
+        turnoId,
+        colaborador = new
+        {
+            identificacion = "CC-861861861",
+            codigoColaborador = Guid.CreateVersion7().ToString(),
+            nombreCompleto = "[TEST] Smoke Jornada"
+        },
+        fechas = new[] { fecha },
+        jornadaId
+    };
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_DebePublicarLaJornadaEstampada_CuandoTraeJornadaId()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", PayloadJornada(jornadaId, 42), ct))
+            .StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.Conflict);
+        var turnoId = await CrearTurnoParaJornadaAsync("[TEST] Turno Smoke Jornada", ct);
+
+        var conJornada = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/solicitudes",
+            PayloadSolicitud(conJornada, turnoId, "2026-11-02", jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var mensaje = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == conJornada, Timeout);
+        mensaje.Jornada.Should().NotBeNull();
+        mensaje.Jornada!.HorasSemanalesEnMinutos.Should().Be(2520);
+        mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(510);
+        mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(240);
+        mensaje.Jornada.DiasDescansoPorSemana.Should().Be(1);
+
+        var sinJornada = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/solicitudes",
+            PayloadSolicitud(sinJornada, turnoId, "2026-11-03", null), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var mensajePredeterminada = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == sinJornada, Timeout);
+        var preferencias = await postgres.LeerEventosDeStreamAsync(
+            SchemaProgramacion, postgres.TenantId, PostgresFixture.StreamIdPreferencias(postgres.TenantId));
+        var predeterminadaId = preferencias
+            .Select(e => e.TryGetProperty("JornadaId", out var id) ? id.GetString() : null)
+            .Last(id => id is not null);
+        mensajePredeterminada.Jornada.Should().NotBeNull();
+        mensajePredeterminada.Jornada!.JornadaId.ToString().Should().Be(predeterminadaId);
+
+        var desconocida = await _client.PostAsJsonAsync("/api/programacion/solicitudes",
+            PayloadSolicitud(Guid.CreateVersion7(), turnoId, "2026-11-04", Guid.NewGuid()), ct);
+        desconocida.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

@@ -13,11 +13,14 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 {
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateEventSender;
+    private readonly IAseguradorJornadaPredeterminada _asegurador;
 
     public SolicitarProgramacionTurnoCommandHandler(
         IEventStore eventStore,
-        IPrivateEventSender privateEventSender)
+        IPrivateEventSender privateEventSender,
+        IAseguradorJornadaPredeterminada asegurador)
     {
+        _asegurador = asegurador;
         _eventStore = eventStore;
         _privateEventSender = privateEventSender;
     }
