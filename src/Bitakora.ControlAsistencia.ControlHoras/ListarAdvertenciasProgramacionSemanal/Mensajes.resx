@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="SuperaHorasSemanales" xml:space="preserve">
+    <value>supera las horas semanales en {0}</value>
+  </data>
+  <data name="PorDebajoDeHorasSemanales" xml:space="preserve">
+    <value>{0} por debajo de las horas semanales</value>
+  </data>
+  <data name="FaltanDiasDeDescanso" xml:space="preserve">
+    <value>le faltan {0} {1} de descanso</value>
+  </data>
+  <data name="SobranDiasDeDescanso" xml:space="preserve">
+    <value>le sobran {0} {1} de descanso</value>
+  </data>
+  <data name="SuperaTopeDiario" xml:space="preserve">
+    <value>supera el tope diario en {0}</value>
+  </data>
+  <data name="PorDebajoDelMinimoDiario" xml:space="preserve">
+    <value>{0} por debajo del mínimo diario</value>
+  </data>
+  <data name="DiaUno" xml:space="preserve">
+    <value>día</value>
+  </data>
+  <data name="DiaVarios" xml:space="preserve">
+    <value>días</value>
+  </data>
+  <data name="SinProgramar" xml:space="preserve">
+    <value>{0} {1} sin programar</value>
+  </data>
+  <data name="TieneAusencias" xml:space="preserve">
+    <value>tiene ausencias</value>
+  </data>
+  <data name="SeparadorMotivos" xml:space="preserve">
+    <value> y </value>
+  </data>
+  <data name="DescripcionJornada" xml:space="preserve">
+    <value>{0} semanales, tope diario {1}, mínimo diario {2}, {3} de descanso por semana</value>
+  </data>
+  <data name="FormatoHoras" xml:space="preserve">
+    <value>{0} h</value>
+  </data>
+  <data name="FormatoMinutos" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="FormatoHorasMinutos" xml:space="preserve">
+    <value>{0} h {1} min</value>
+  </data>
+  <data name="CursorInvalido" xml:space="preserve">
+    <value>El cursor no es valido; use el siguienteCursor de la respuesta anterior sin modificarlo</value>
+  </data>
+  <data name="FechaObligatoria" xml:space="preserve">
+    <value>Fecha es obligatoria</value>
+  </data>
+</root>
