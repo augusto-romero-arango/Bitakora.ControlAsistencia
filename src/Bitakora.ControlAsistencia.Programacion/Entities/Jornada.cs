@@ -69,7 +69,7 @@ public partial class Jornada : AggregateRoot
         EnMinutos(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana);
 
-    internal JornadaProgramada Estampar() => throw new NotImplementedException();
+    internal JornadaProgramada Estampar() => new(_jornadaId, _limites);
 
     internal static Jornada Iniciar(JornadaCreada evento)
     {
