@@ -1100,10 +1100,10 @@ public class SolicitarProgramacionTurnoSmokeTests(
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
     }
 
-    private static object PayloadJornada(Guid id, int semanalesHoras = 42) => new
+    private static object PayloadJornada(Guid id, int semanalesMinutos) => new
     {
         jornadaId = id,
-        horasSemanales = new { horas = semanalesHoras, minutos = 0 },
+        horasSemanales = new { horas = 42, minutos = semanalesMinutos },
         topeDiario = new { horas = 8, minutos = 30 },
         minimoDiario = new { horas = 4, minutos = 0 },
         diasDescansoPorSemana = 1
@@ -1144,8 +1144,9 @@ public class SolicitarProgramacionTurnoSmokeTests(
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         var jornadaId = Guid.CreateVersion7();
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", PayloadJornada(jornadaId, 42), ct))
-            .StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.Conflict);
+        var minutosSemanales = Random.Shared.Next(1, 60);
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", PayloadJornada(jornadaId, minutosSemanales), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
         var turnoId = await CrearTurnoParaJornadaAsync("[TEST] Turno Smoke Jornada", ct);
 
         var conJornada = Guid.CreateVersion7();
@@ -1156,7 +1157,8 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var mensaje = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == conJornada, Timeout);
         mensaje.Jornada.Should().NotBeNull();
-        mensaje.Jornada!.HorasSemanalesEnMinutos.Should().Be(2520);
+        mensaje.Jornada!.JornadaId.Should().Be(jornadaId);
+        mensaje.Jornada.HorasSemanalesEnMinutos.Should().Be(2520 + minutosSemanales);
         mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(510);
         mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(240);
         mensaje.Jornada.DiasDescansoPorSemana.Should().Be(1);
