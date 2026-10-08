@@ -43,6 +43,7 @@ public static class IdentidadEventosProgramacion
         typeof(JornadaPredeterminadaAsignada),
         typeof(JornadaDePlantillaSemanalAsignada),
         typeof(JornadaDePlantillaSemanalQuitada),
-        typeof(AdvertenciasDePlantillaSemanalCalculadas)
+        typeof(AdvertenciasDePlantillaSemanalCalculadas),
+        typeof(TurnoDePlantillaSemanalSincronizado)
     ];
 }
