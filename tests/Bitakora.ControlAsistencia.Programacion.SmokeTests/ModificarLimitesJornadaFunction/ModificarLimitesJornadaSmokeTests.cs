@@ -2,13 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ModificarLimitesJornadaFunction;
 
-public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture postgres, ServiceBusFixture serviceBus)
 {
     private const string Ruta = "/api/programacion/jornadas";
+    private const string TopicSalida = "limites-de-jornada-actualizados";
+    private const string Suscripcion = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private readonly HttpClient _client = api.Client;
 
@@ -88,6 +91,57 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
         (await conflicto.Content.ReadAsStringAsync(ct)).Should().Contain(idA.ToString());
         (await _client.PutAsJsonAsync($"{Ruta}/{idA}/limites", Limites(30, minutos), ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ModificarLimitesJornada_DebePublicarLimitesActualizadosConVersion2_CuandoLosLimitesCambian()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+        var id = Guid.CreateVersion7();
+        var minutos = Random.Shared.Next(1, 60);
+        (await _client.PostAsJsonAsync(Ruta, CrearPayload(id, 30, minutos), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var modificada = await _client.PutAsJsonAsync($"{Ruta}/{id}/limites", Limites(31, minutos), ct);
+
+        modificada.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var evento = await serviceBus.WaitForMessageAsync<LimitesDeJornadaActualizados>(
+            TopicSalida, Suscripcion, e => e.JornadaId == id, Timeout);
+        evento.HorasSemanalesEnMinutos.Should().Be(31 * 60 + minutos);
+        evento.TopeDiarioEnMinutos.Should().Be(8 * 60);
+        evento.MinimoDiarioEnMinutos.Should().Be(0);
+        evento.DiasDescansoPorSemana.Should().Be(1);
+        evento.Version.Should().Be(2);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ModificarLimitesJornada_NoDebePublicar_CuandoLosLimitesYaEstanAlcanzados()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+        var id = Guid.CreateVersion7();
+        var minutos = Random.Shared.Next(1, 60);
+        (await _client.PostAsJsonAsync(Ruta, CrearPayload(id, 30, minutos), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        var destino = Limites(31, minutos);
+        (await _client.PutAsJsonAsync($"{Ruta}/{id}/limites", destino, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+        await serviceBus.WaitForMessageAsync<LimitesDeJornadaActualizados>(
+            TopicSalida, Suscripcion, e => e.JornadaId == id, Timeout);
+
+        var repetida = await _client.PutAsJsonAsync($"{Ruta}/{id}/limites", destino, ct);
+
+        repetida.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            serviceBus.WaitForMessageAsync<LimitesDeJornadaActualizados>(
+                TopicSalida, Suscripcion, e => e.JornadaId == id, TimeSpan.FromSeconds(3)));
     }
 
     private static object CrearPayload(Guid id, int horas, int minutos) => new
