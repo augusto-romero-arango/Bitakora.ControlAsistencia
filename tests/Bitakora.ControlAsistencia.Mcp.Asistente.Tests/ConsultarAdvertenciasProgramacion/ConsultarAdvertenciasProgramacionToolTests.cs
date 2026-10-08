@@ -36,10 +36,14 @@ public class ConsultarAdvertenciasProgramacionToolTests
     {
         var lista = new
         {
-            desde = "2026-10-12", hasta = "2026-10-18", anioIso = 2026, numeroSemana = 42,
+            desde = "2026-10-12",
+            hasta = "2026-10-18",
+            anioIso = 2026,
+            numeroSemana = 42,
             elementos = Enumerable.Range(1, elementos).Select(i => new
             {
-                codigoColaborador = $"C-{i:000}", nombreCompleto = $"Colaborador {i}",
+                codigoColaborador = $"C-{i:000}",
+                nombreCompleto = $"Colaborador {i}",
                 advertencias = new[] { new { tipo = "SuperaHorasSemanales", descripcion = "supera las horas semanales en 1 h" } },
                 casillas = Array.Empty<object>()
             }),
@@ -76,7 +80,7 @@ public class ConsultarAdvertenciasProgramacionToolTests
     }
 
     [Fact]
-    public async Task ConsultarAdvertenciasProgramacion_ResponderMensajeSinLlamarAlDominio_CuandoLaFechaEsInvalida()
+    public async Task ConsultarAdvertenciasProgramacion_RespondeMensajeSinLlamarAlDominio_CuandoLaFechaEsInvalida()
     {
         var (tool, adv, fichas) = Armar("{}");
 

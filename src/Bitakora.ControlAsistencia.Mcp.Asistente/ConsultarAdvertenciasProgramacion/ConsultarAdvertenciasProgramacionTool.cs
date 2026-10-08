@@ -80,10 +80,8 @@ public partial class ConsultarAdvertenciasProgramacionTool(
 
         if (lista.Elementos.Count == 0)
         {
-            var criterio = sedeNormalizada is null && filtrosEtiqueta.Count == 0 && codigosPedidos is null
-                ? ""
-                : $" ({DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos)})";
-            return string.Format(Mensajes.NadieTieneAdvertencias, semana, criterio);
+            var criterio = DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos);
+            return string.Format(Mensajes.NadieTieneAdvertencias, semana, criterio.Length == 0 ? "" : $" ({criterio})");
         }
 
         var hayMas = lista.Elementos.Count > MaximoColaboradores;
@@ -123,16 +121,19 @@ public partial class ConsultarAdvertenciasProgramacionTool(
 
     private static string DescribirSemana(DateOnly lunes, DateOnly domingo) =>
         lunes.Month == domingo.Month
-            ? $"{lunes.Day} al {domingo.Day} de {domingo.ToString("MMMM", Cultura)} de {domingo.Year}"
-            : $"{lunes.Day} de {lunes.ToString("MMMM", Cultura)} al {domingo.Day} de {domingo.ToString("MMMM", Cultura)} de {domingo.Year}";
+            ? string.Format(Mensajes.SemanaMismoMes, lunes.Day, domingo.Day, Mes(domingo), domingo.Year)
+            : string.Format(Mensajes.SemanaEntreMeses, lunes.Day, Mes(lunes), domingo.Day, Mes(domingo), domingo.Year);
+
+    private static string Mes(DateOnly fecha) => fecha.ToString("MMMM", Cultura);
 
     private static string DescribirCriterio(
         string? sede, IReadOnlyList<FiltroEtiqueta> etiquetas, IReadOnlyList<string>? codigos) =>
         string.Join("; ", new[]
         {
-            sede is null ? null : $"sede {sede}",
-            etiquetas.Count == 0 ? null : $"etiquetas {string.Join(", ", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))}",
-            codigos is null ? null : $"codigos {string.Join(", ", codigos)}"
+            sede is null ? null : string.Format(Mensajes.CriterioSede, sede),
+            etiquetas.Count == 0 ? null : string.Format(
+                Mensajes.CriterioEtiquetas, string.Join(", ", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))),
+            codigos is null ? null : string.Format(Mensajes.CriterioCodigos, string.Join(", ", codigos))
         }.Where(p => p is not null));
 
     private static string Formatear(DateOnly fecha) => fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

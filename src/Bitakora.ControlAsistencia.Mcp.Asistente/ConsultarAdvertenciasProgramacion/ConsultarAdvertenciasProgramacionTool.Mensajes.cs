@@ -24,5 +24,17 @@ public partial class ConsultarAdvertenciasProgramacionTool
 
         /// <summary>{0}: cursor a reenviar.</summary>
         public static string NotaMasColaboradores => ResourceManager.GetString(nameof(NotaMasColaboradores))!;
+
+        /// <summary>{0}: dia del lunes, {1}: dia del domingo, {2}: mes, {3}: anio.</summary>
+        public static string SemanaMismoMes => ResourceManager.GetString(nameof(SemanaMismoMes))!;
+
+        /// <summary>{0}: dia del lunes, {1}: mes del lunes, {2}: dia del domingo, {3}: mes del domingo, {4}: anio.</summary>
+        public static string SemanaEntreMeses => ResourceManager.GetString(nameof(SemanaEntreMeses))!;
+
+        public static string CriterioSede => ResourceManager.GetString(nameof(CriterioSede))!;
+
+        public static string CriterioEtiquetas => ResourceManager.GetString(nameof(CriterioEtiquetas))!;
+
+        public static string CriterioCodigos => ResourceManager.GetString(nameof(CriterioCodigos))!;
     }
 }

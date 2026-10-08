@@ -35,4 +35,19 @@
   <data name="NotaMasColaboradores" xml:space="preserve">
     <value>Puede haber mas colaboradores con advertencias. Para acotar usa sede, etiquetas o codigos_colaborador; para ver los siguientes, repite con cursor = {0}</value>
   </data>
+  <data name="SemanaMismoMes" xml:space="preserve">
+    <value>{0} al {1} de {2} de {3}</value>
+  </data>
+  <data name="SemanaEntreMeses" xml:space="preserve">
+    <value>{0} de {1} al {2} de {3} de {4}</value>
+  </data>
+  <data name="CriterioSede" xml:space="preserve">
+    <value>sede {0}</value>
+  </data>
+  <data name="CriterioEtiquetas" xml:space="preserve">
+    <value>etiquetas {0}</value>
+  </data>
+  <data name="CriterioCodigos" xml:space="preserve">
+    <value>codigos {0}</value>
+  </data>
 </root>

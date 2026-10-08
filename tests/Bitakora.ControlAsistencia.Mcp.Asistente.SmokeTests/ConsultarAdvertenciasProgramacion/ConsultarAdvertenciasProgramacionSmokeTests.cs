@@ -57,7 +57,7 @@ public partial class ConsultarAdvertenciasProgramacionSmokeTests(McpFixture mcp,
         crearTurno.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
-        var lunes = hoy.AddDays(7 + (8 - (int)hoy.DayOfWeek) % 7 + 7);
+        var lunes = hoy.AddDays((8 - (int)hoy.DayOfWeek) % 7 + 14);
         var fechas = Enumerable.Range(0, 7).Select(i => lunes.AddDays(i).ToString("yyyy-MM-dd")).ToArray();
 
         var solicitud = await programacion.Client.PostAsJsonAsync("/api/programacion/solicitudes", new
