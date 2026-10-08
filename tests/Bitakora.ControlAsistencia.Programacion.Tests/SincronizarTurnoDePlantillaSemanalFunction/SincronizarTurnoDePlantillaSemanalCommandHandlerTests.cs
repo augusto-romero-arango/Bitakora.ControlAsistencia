@@ -70,16 +70,18 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
         await WhenAsync(new SincronizarTurnoDePlantillaSemanal(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false));
 
         // 600 min supera el tope de 480 en 120 los dos dias; total 1200 de 2400.
+        AdvertenciaPlantillaSemanal[] esperadas =
+        [
+            AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(1, 1200),
+            AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(1, 1),
+            AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(1), 120),
+            AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(2), 120),
+            .. SinTurno(3, 4, 5, 6, 7)
+        ];
         Then(
             TurnoDePlantillaSemanalSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false),
-            Advertencias([
-                AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(1, 1200),
-                AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(1, 1),
-                AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(1), 120),
-                AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(2), 120),
-                .. SinTurno(3, 4, 5, 6, 7)]));
-        And<PlantillaSemanalTurnos, int>(p => p.CopiasDelTurno(TurnoId).Count, 2);
-        And<PlantillaSemanalTurnos, bool>(p => p.CopiasDelTurno(TurnoId).All(c => c.Equals(TurnoDeDiezHoras)), true);
+            Advertencias(esperadas));
+        And<PlantillaSemanalTurnos, bool>(p => p.Advertencias.SequenceEqual(esperadas), true);
         And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(TurnoId), 2);
     }
 
@@ -93,7 +95,7 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
         await WhenAsync(new SincronizarTurnoDePlantillaSemanal(GuidAggregateId, TurnoId, otroNombre, 2, false));
 
         Then(TurnoDePlantillaSemanalSincronizado.Crear(GuidAggregateId, TurnoId, otroNombre, 2, false));
-        And<PlantillaSemanalTurnos, bool>(p => p.CopiasDelTurno(TurnoId).All(c => c.Equals(otroNombre)), true);
+        And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(TurnoId), 2);
     }
 
     [Fact]
@@ -109,14 +111,19 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new SincronizarTurnoDePlantillaSemanal(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false));
 
+        // Solo el lunes supera el tope: el martes conserva su turno de 480 min.
+        AdvertenciaPlantillaSemanal[] esperadas =
+        [
+            AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(1, 1320),
+            AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(1, 1),
+            AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(1), 120),
+            .. SinTurno(3, 4, 5, 6, 7)
+        ];
         Then(
             TurnoDePlantillaSemanalSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false),
-            Advertencias([
-                AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(1, 1320),
-                AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(1, 1),
-                AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(1), 120),
-                .. SinTurno(3, 4, 5, 6, 7)]));
-        And<PlantillaSemanalTurnos, bool>(p => p.CopiasDelTurno(OtroTurnoId).All(c => c.Equals(TurnoOtro)), true);
+            Advertencias(esperadas));
+        And<PlantillaSemanalTurnos, bool>(p => p.Advertencias.SequenceEqual(esperadas), true);
+        And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(OtroTurnoId), 1);
     }
 
     [Fact]
@@ -128,7 +135,6 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
 
         Then();
         And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(TurnoId), 3);
-        And<PlantillaSemanalTurnos, bool>(p => p.CopiasDelTurno(TurnoId).All(c => c.Equals(TurnoDeOchoHoras)), true);
     }
 
     [Fact]
@@ -140,7 +146,6 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
 
         Then();
         And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(TurnoId), 5);
-        And<PlantillaSemanalTurnos, bool>(p => p.CopiasDelTurno(TurnoId).All(c => c.Equals(TurnoDeOchoHoras)), true);
     }
 
     [Fact]
@@ -151,7 +156,7 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
         await WhenAsync(new SincronizarTurnoDePlantillaSemanal(GuidAggregateId, OtroTurnoId, TurnoOtro, 9, false));
 
         Then();
-        And<PlantillaSemanalTurnos, int>(p => p.CopiasDelTurno(OtroTurnoId).Count, 0);
+        And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(OtroTurnoId), 0);
     }
 
     [Fact]
@@ -166,13 +171,17 @@ public class SincronizarTurnoDePlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new SincronizarTurnoDePlantillaSemanal(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true));
 
+        AdvertenciaPlantillaSemanal[] esperadas =
+        [
+            AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(1, 2400),
+            AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(1, 1),
+            .. SinTurno(1, 2, 3, 4, 5, 6, 7)
+        ];
         Then(
             TurnoDePlantillaSemanalSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true),
-            Advertencias([
-                AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(1, 2400),
-                AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(1, 1),
-                .. SinTurno(1, 2, 3, 4, 5, 6, 7)]));
-        And<PlantillaSemanalTurnos, bool>(p => p.TurnoEstaRetirado(TurnoId), true);
+            Advertencias(esperadas));
+        And<PlantillaSemanalTurnos, bool>(p => p.Advertencias.SequenceEqual(esperadas), true);
+        And<PlantillaSemanalTurnos, long>(p => p.VersionDelTurno(TurnoId), 2);
     }
 
     [Fact]

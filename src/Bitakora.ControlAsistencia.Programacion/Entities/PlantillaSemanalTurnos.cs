@@ -54,14 +54,10 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
 
     internal IReadOnlyList<AdvertenciaPlantillaSemanal> Advertencias { get; private set; } = [];
 
-    internal IReadOnlyList<Turno> CopiasDelTurno(Guid turnoId) =>
-        _dias.Values.Where(d => d.TurnoId == turnoId).Select(d => d.Turno).ToList();
-
     internal long VersionDelTurno(Guid turnoId) =>
         _dias.Values.Where(d => d.TurnoId == turnoId).Select(d => d.VersionTurno).DefaultIfEmpty(0).Max();
 
-    internal bool TurnoEstaRetirado(Guid turnoId) =>
-        _dias.Values.Any(d => d.TurnoId == turnoId && d.Retirado);
+    private bool UsaElTurno(Guid turnoId) => _dias.Values.Any(d => d.TurnoId == turnoId);
 
     // Declina con resultado (CA-ADR-0030). Una version menor o igual a la vigente (desorden del bus,
     // reentrega) o un turno que ningun dia usa no emiten nada (CA-ADR-0034).
@@ -70,7 +66,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         if (!_estaActiva)
             return ResultadoSincronizarTurno.PlantillaRetirada;
 
-        if (VersionDelTurno(turnoId) is var vigente && (!_dias.Values.Any(d => d.TurnoId == turnoId) || vigente >= version))
+        if (!UsaElTurno(turnoId) || VersionDelTurno(turnoId) >= version)
             return ResultadoSincronizarTurno.SinCambios;
 
         var evento = TurnoDePlantillaSemanalSincronizado.Crear(Guid.Parse(Id), turnoId, copia, version, retirado);

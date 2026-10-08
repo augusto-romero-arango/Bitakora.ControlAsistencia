@@ -7,9 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado;
 
-// Dos cambios rapidos sobre una misma plantilla escriben concurrentemente su stream; el reintento por
-// concurrencia optimista de Wolverine lo resuelve (fan-out, MEF-ADR-0026) y la version por turno
-// descarta el desorden.
+// Fan-out sin sesion (MEF-ADR-0026): dos cambios rapidos sobre una misma plantilla pueden chocar por
+// concurrencia optimista; el perdedor termina en la DLQ (fallo visible) y reprocesarlo es idempotente
+// porque la version por turno descarta lo ya aplicado.
 public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<FunctionEndpoint> logger)
     : PrivateEventEndpointBase<DisenoDeTurnoActualizado>(privateEventRouter, logger)
 {
