@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoLimitesDeJornadaActualizados;
 
+// Fan-out sin sesion, misma topologia que #883 (MEF-ADR-0026): el perdedor de un choque por
+// concurrencia optimista va a la DLQ y reprocesarlo es idempotente por la version de la Jornada.
 public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<FunctionEndpoint> logger)
     : PrivateEventEndpointBase<LimitesDeJornadaActualizados>(privateEventRouter, logger)
 {
