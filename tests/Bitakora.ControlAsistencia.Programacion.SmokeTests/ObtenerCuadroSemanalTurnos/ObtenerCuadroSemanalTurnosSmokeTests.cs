@@ -46,7 +46,19 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         string Nombre,
         int Semanas,
         bool Completa,
-        IReadOnlyList<DiaDelCuadroRespuestaSmoke> Dias);
+        IReadOnlyList<DiaDelCuadroRespuestaSmoke> Dias,
+        JornadaDelCuadroRespuestaSmoke? Jornada = null,
+        IReadOnlyList<AdvertenciaDelCuadroRespuestaSmoke>? Advertencias = null);
+
+    private sealed record HorasYMinutosRespuestaSmoke(int Horas, int Minutos);
+
+    private sealed record JornadaDelCuadroRespuestaSmoke(
+        string Id,
+        HorasYMinutosRespuestaSmoke HorasSemanales,
+        string? Descripcion);
+
+    private sealed record AdvertenciaDelCuadroRespuestaSmoke(
+        string Tipo, int? Semana, int? Dia, string? Descripcion);
 
     private static string RutaObtener(Guid plantillaId) => $"{RutaPlantillas}/{plantillaId}";
 
@@ -100,6 +112,55 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que AsignarTurnoADia funcione");
 
         return (plantillaId, turnoId, nombreTurno);
+    }
+
+    private async Task<(Guid PlantillaId, Guid JornadaId, Guid TurnoId, int Minutos)> CrearPlantillaConJornadaYTurnoAsync(
+        CancellationToken ct)
+    {
+        var plantillaId = Guid.CreateVersion7();
+        var jornadaId = Guid.CreateVersion7();
+        var turnoId = Guid.CreateVersion7();
+        var minutos = Random.Shared.Next(1, 60);
+
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
+        {
+            jornadaId,
+            horasSemanales = new { horas = 30, minutos },
+            topeDiario = new { horas = 8, minutos = 0 },
+            minimoDiario = new { horas = 0, minutos = 0 },
+            diasDescansoPorSemana = 1
+        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange depende de que CrearJornada funcione");
+        (await _client.PostAsJsonAsync(RutaPlantillas, new
+        {
+            plantillaId,
+            nombre = $"[TEST] Plantilla Advertencias {plantillaId}",
+            semanas = 1
+        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange depende de que CrearPlantillaSemanal funcione");
+        (await _client.PutAsJsonAsync($"{RutaPlantillas}/{plantillaId}/jornada", new { jornadaId }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent,
+                "el arrange depende de que AsignarJornadaAPlantillaSemanal funcione");
+        (await _client.PostAsJsonAsync("/api/programacion/turnos", new
+        {
+            turnoId,
+            nombre = $"[TEST] Turno Advertencias {turnoId}",
+            ordinarias = new[]
+            {
+                new
+                {
+                    inicio = "06:00:00",
+                    fin = "14:00:00",
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
+            }
+        }, ct)).IsSuccessStatusCode.Should().BeTrue("el arrange depende de que CrearTurno funcione");
+        (await _client.PutAsJsonAsync($"{RutaPlantillas}/{plantillaId}/dias/1/1", new { turnoId }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent,
+                "el arrange depende de que AsignarTurnoADia funcione");
+
+        return (plantillaId, jornadaId, turnoId, minutos);
     }
 
     // Reintenta el GET hasta que la proyeccion asincrona satisfaga la condicion (404 = el worker
@@ -205,5 +266,34 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
 
         var quedoNotFound = await EsperarQueDesaparezcaAsync(plantillaId, ct);
         quedoNotFound.Should().BeTrue("el cuadro deberia desaparecer del read-side tras retirar la plantilla");
+    }
+
+    // CA-6
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerCuadroSemanalTurnos_MuestraJornadaYAdvertenciasYReflejaLaFranjaAgregada_CuandoLaPlantillaTieneJornada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (plantillaId, jornadaId, turnoId, minutos) = await CrearPlantillaConJornadaYTurnoAsync(ct);
+
+        var cuadro = await EsperarCuadroAsync(
+            plantillaId,
+            c => c.Jornada is not null && c.Dias.Count == 1
+                && c.Advertencias is { } a && a.Any(x => x.Tipo == "DiaSinTurno"),
+            ct);
+
+        cuadro.Jornada!.Id.Should().Be(jornadaId.ToString());
+        cuadro.Jornada.HorasSemanales.Should().Be(new HorasYMinutosRespuestaSmoke(30, minutos));
+        cuadro.Advertencias!.Should().Contain(a => a.Tipo == "DiaSinTurno" && !string.IsNullOrEmpty(a.Descripcion));
+        var descripcionInicial = cuadro.Dias.Single().Turno.Descripcion;
+
+        var agregarResponse = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/{turnoId}:agregar-franja", new { inicio = "15:00:00", fin = "17:00:00" }, ct);
+        agregarResponse.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange depende de que AgregarFranja funcione");
+
+        var actualizado = await EsperarCuadroAsync(
+            plantillaId, c => c.Dias.Single().Turno.Descripcion != descripcionInicial, ct);
+        actualizado.Dias.Single().Turno.Descripcion.Should().NotBe(descripcionInicial);
     }
 }
