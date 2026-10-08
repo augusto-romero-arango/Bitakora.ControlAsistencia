@@ -8,6 +8,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class Jornada : AggregateRoot
 {
+    private const int MinutosPorHora = 60;
     private Guid _jornadaId;
     private LimitesJornada _limites = null!;
     private long _version;
@@ -50,20 +51,22 @@ public partial class Jornada : AggregateRoot
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 
+    private static int EnMinutos(HorasYMinutos valor) => valor.Horas * MinutosPorHora + valor.Minutos;
+
     internal LimitesDeJornada ComoVista() => new(
         _jornadaId.ToString(),
-        _limites.HorasSemanales.Horas * 60 + _limites.HorasSemanales.Minutos,
-        _limites.TopeDiario.Horas * 60 + _limites.TopeDiario.Minutos,
-        _limites.MinimoDiario.Horas * 60 + _limites.MinimoDiario.Minutos,
+        EnMinutos(_limites.HorasSemanales),
+        EnMinutos(_limites.TopeDiario),
+        EnMinutos(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana,
         _limites.ToString());
 
     internal LimitesDeJornadaActualizados ComoLimitesActualizados() => new(
         _jornadaId,
         _version,
-        _limites.HorasSemanales.Horas * 60 + _limites.HorasSemanales.Minutos,
-        _limites.TopeDiario.Horas * 60 + _limites.TopeDiario.Minutos,
-        _limites.MinimoDiario.Horas * 60 + _limites.MinimoDiario.Minutos,
+        EnMinutos(_limites.HorasSemanales),
+        EnMinutos(_limites.TopeDiario),
+        EnMinutos(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana);
 
     internal static Jornada Iniciar(JornadaCreada evento)

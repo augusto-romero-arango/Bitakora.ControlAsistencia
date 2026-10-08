@@ -95,7 +95,7 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ModificarLimitesJornada_DebePublicarLimitesActualizadosConVersion2_CuandoLosLimitesCambian()
+    public async Task ModificarLimitesJornada_PublicaLimitesDeJornadaActualizadosConVersion2_CuandoLosLimitesCambian()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
@@ -120,7 +120,7 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ModificarLimitesJornada_NoDebePublicar_CuandoLosLimitesYaEstanAlcanzados()
+    public async Task ModificarLimitesJornada_NoPublica_CuandoLosLimitesYaEstanAlcanzados()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
