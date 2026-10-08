@@ -483,4 +483,75 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         diaDepurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty(
             "el turno sin marcaciones deja la franja anomala, sin horas por concepto");
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ProgramacionTurnoDiarioSolicitada_PersisteLaJornadaEstampada_CuandoElEventoLaTrae()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        var jornadaId = Guid.CreateVersion7();
+        var fecha = new DateOnly(2026, 4, 12);
+
+        async Task<JsonElement> PublicarYLeer(object? jornada)
+        {
+            var solicitudId = Guid.CreateVersion7();
+            var codigoColaborador = Guid.CreateVersion7().ToString();
+            var evento = new Dictionary<string, object?>
+            {
+                ["SolicitudId"] = solicitudId,
+                ["Colaborador"] = new
+                {
+                    Identificacion = "CC-555666777",
+                    CodigoColaborador = codigoColaborador,
+                    NombreCompleto = "[TEST] Smoke Jornada [TEST] Estampada"
+                },
+                ["Fecha"] = fecha.ToString("yyyy-MM-dd"),
+                ["DetalleTurno"] = new
+                {
+                    Nombre = "[TEST] Turno Jornada",
+                    FranjasOrdinarias = new[]
+                    {
+                        new
+                        {
+                            HoraInicio = "08:00:00", HoraFin = "16:00:00", DiaOffsetFin = 0,
+                            Descansos = Array.Empty<object>(), Extras = Array.Empty<object>()
+                        }
+                    }
+                }
+            };
+            if (jornada is not null) evento["Jornada"] = jornada;
+
+            await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
+
+            var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
+            var existe = await postgres.ExisteEventoAsync(
+                SchemaControlHoras, streamId, "turno_diario_asignado", Timeout,
+                campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+            existe.Should().BeTrue($"turno_diario_asignado deberia existir en {streamId}");
+
+            return await postgres.ObtenerEventoAsync<JsonElement>(
+                SchemaControlHoras, streamId, "turno_diario_asignado",
+                "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
+        }
+
+        var conJornada = await PublicarYLeer(new
+        {
+            JornadaId = jornadaId,
+            HorasSemanalesEnMinutos = 2520,
+            TopeDiarioEnMinutos = 510,
+            MinimoDiarioEnMinutos = 240,
+            DiasDescansoPorSemana = 1
+        });
+        var persistida = conJornada.GetProperty("Jornada").Deserialize<JornadaProgramada>();
+        persistida.Should().Be(new JornadaProgramada(jornadaId, 2520, 510, 240, 1));
+
+        var sinJornada = await PublicarYLeer(null);
+        var hayJornada = sinJornada.TryGetProperty("Jornada", out var valor)
+            && valor.ValueKind != JsonValueKind.Null;
+        hayJornada.Should().BeFalse("sin DetalleJornada en el mensaje la Jornada persiste null");
+    }
 }

@@ -36,7 +36,8 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         // que ve las tres islas de eventos (CA-ADR-0029 decision #5, payload por rol).
         var evento = new TurnoDiarioAsignado(
             streamId, MapearColaboradorProgramado(@event.Colaborador), @event.Fecha,
-            MapearTurnoDiario(@event.DetalleTurno), @event.SolicitudId);
+            MapearTurnoDiario(@event.DetalleTurno), @event.SolicitudId,
+            MapearJornada(@event.Jornada));
 
         var existe = await _eventStore.ExistsAsync<ControlDiarioAggregateRoot>(streamId, ct);
 
@@ -76,6 +77,12 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
 
     private static SedeProgramada? MapearSede(DetalleSede? sede) =>
         sede is null ? null : new SedeProgramada(sede.Id, sede.Nombre, sede.CentroDeCostos);
+
+    private static JornadaProgramada? MapearJornada(DetalleJornada? jornada) =>
+        jornada is null
+            ? null
+            : new JornadaProgramada(jornada.JornadaId, jornada.HorasSemanalesEnMinutos,
+                jornada.TopeDiarioEnMinutos, jornada.MinimoDiarioEnMinutos, jornada.DiasDescansoPorSemana);
 
     private static SubFranjaProgramada MapearSubFranja(DetalleSubFranja sub) =>
         new(sub.HoraInicio, sub.HoraFin, sub.DiaOffsetInicio, sub.DiaOffsetFin, sub.Descripcion);
