@@ -37,28 +37,28 @@ public static class CalculadorAdvertencias
                 [],
                 casillas.Select(_ => (IReadOnlyList<AdvertenciaDiaria>)[]).ToList());
 
-        var diarias = casillas.Select(c => Diarias(c, jornada)).ToList();
+        var diarias = casillas.Select(c => AdvertenciasDelDia(c, jornada)).ToList();
 
         var semanales = new List<AdvertenciaSemanal>();
-        var total = casillas.Sum(c => c.MinutosOrdinarios);
-        if (total > jornada.HorasSemanalesEnMinutos)
-            semanales.Add(new(TipoAdvertenciaSemanal.SuperaHorasSemanales, total - jornada.HorasSemanalesEnMinutos));
-        else if (esJuzgable && total < jornada.HorasSemanalesEnMinutos)
-            semanales.Add(new(TipoAdvertenciaSemanal.PorDebajoDeHorasSemanales, jornada.HorasSemanalesEnMinutos - total));
+        var excesoHoras = casillas.Sum(c => c.MinutosOrdinarios) - jornada.HorasSemanalesEnMinutos;
+        if (excesoHoras > 0)
+            semanales.Add(new(TipoAdvertenciaSemanal.SuperaHorasSemanales, excesoHoras));
+        else if (esJuzgable && excesoHoras < 0)
+            semanales.Add(new(TipoAdvertenciaSemanal.PorDebajoDeHorasSemanales, -excesoHoras));
 
         if (esJuzgable && jornada.DiasDescansoPorSemana > 0)
         {
-            var descansos = casillas.Count(c => c.Tipo == TipoCasilla.Descanso);
-            if (descansos < jornada.DiasDescansoPorSemana)
-                semanales.Add(new(TipoAdvertenciaSemanal.FaltanDiasDeDescanso, jornada.DiasDescansoPorSemana - descansos));
-            else if (descansos > jornada.DiasDescansoPorSemana)
-                semanales.Add(new(TipoAdvertenciaSemanal.SobranDiasDeDescanso, descansos - jornada.DiasDescansoPorSemana));
+            var excesoDescansos = casillas.Count(c => c.Tipo == TipoCasilla.Descanso) - jornada.DiasDescansoPorSemana;
+            if (excesoDescansos < 0)
+                semanales.Add(new(TipoAdvertenciaSemanal.FaltanDiasDeDescanso, -excesoDescansos));
+            else if (excesoDescansos > 0)
+                semanales.Add(new(TipoAdvertenciaSemanal.SobranDiasDeDescanso, excesoDescansos));
         }
 
         return new ResultadoAdvertencias(semanales, diarias);
     }
 
-    private static IReadOnlyList<AdvertenciaDiaria> Diarias(CasillaDia casilla, JornadaAplicada jornada)
+    private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada jornada)
     {
         if (casilla.Tipo != TipoCasilla.Trabajo)
             return [];

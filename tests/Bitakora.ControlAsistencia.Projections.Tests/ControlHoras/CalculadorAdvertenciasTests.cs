@@ -27,16 +27,20 @@ public class CalculadorAdvertenciasTests
     private static AdvertenciaSemanal Semanal(TipoAdvertenciaSemanal t, int m) => new(t, m);
 
     // CA-1
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void Calcular_SuperaTopeDiario_CuandoTrabajoSuperaElTope(bool juzgable)
+    [Fact]
+    public void Calcular_SuperaTopeDiario_CuandoTrabajoSuperaElTopeEnSemanaJuzgable()
     {
-        var casillas = juzgable
-            ? Semana(T(600), T(420), T(420), T(420), T(420), T(420), D())
-            : Semana(T(600), T(420));
+        var casillas = Semana(T(600), T(420), T(420), T(420), T(420), T(420), D());
 
-        var r = CalculadorAdvertencias.Calcular(casillas, Jornada, juzgable);
+        var r = CalculadorAdvertencias.Calcular(casillas, Jornada, true);
+
+        r.Diarias[0].Should().Equal(Diaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120));
+    }
+
+    [Fact]
+    public void Calcular_SuperaTopeDiario_CuandoTrabajoSuperaElTopeEnSemanaNoJuzgable()
+    {
+        var r = CalculadorAdvertencias.Calcular(Semana(T(600), T(420)), Jornada, false);
 
         r.Diarias[0].Should().Equal(Diaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120));
     }

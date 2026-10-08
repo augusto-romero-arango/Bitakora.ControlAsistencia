@@ -329,7 +329,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.Casillas.Should().HaveCount(7);
     }
 
-    // #865 - advertencias
     private static readonly JornadaProgramada JornadaC = new(Guid.Parse("cccccccc-0000-0000-0000-000000000000"), 2520, 480, 240, 1);
     private static readonly JornadaProgramada JornadaD = new(Guid.Parse("dddddddd-0000-0000-0000-000000000000"), 2520, 600, 240, 1);
     private static TurnoDiario DiezHoras() => new("Largo", [Franja(6, 16)], "");
