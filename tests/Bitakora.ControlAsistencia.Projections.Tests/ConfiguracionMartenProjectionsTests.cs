@@ -505,6 +505,16 @@ public class ConfiguracionMartenProjectionsTests
             .AssertProyeccionAsyncRegistrada("TurnoVigente");
     }
 
+    // Issue #864 CA-7: proyeccion N2 de las advertencias de la programacion semanal, lifecycle Async.
+    [Fact]
+    public void ConfigurarControlHoras_RegistraAdvertenciasProgramacionSemanalProjectionComoAsync()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("AdvertenciasProgramacionSemanal");
+    }
+
     // Issue #328, mismo gotcha de "Numeric Revisioned Documents" que el issue #294 ya peno sobre el
     // read model anterior (retirado por #323): Marten aplica ProjectionDocumentPolicy SOLO a los
     // documentos que son target de una proyeccion REGISTRADA en el store (UseNumericRevisions =

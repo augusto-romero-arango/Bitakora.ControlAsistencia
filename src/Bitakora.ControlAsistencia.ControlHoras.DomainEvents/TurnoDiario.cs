@@ -54,4 +54,7 @@ public record TurnoDiario(
             .SelectMany(tramo => tramo.RomperEnMedianoche())
             .Select(tramo => tramo.ResolverA(fecha))
             .ToList();
+
+    /// <summary>Suma de los tramos ordinarios de todas sus franjas (0 si no tiene franjas).</summary>
+    public int MinutosOrdinarios() => throw new NotImplementedException();
 }
