@@ -11,7 +11,7 @@ public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<Fu
     : PrivateEventEndpointBase<LimitesDeJornadaActualizados>(privateEventRouter, logger)
 {
     [Function("SincronizarPlantillasCuandoLimitesDeJornadaActualizados")]
-    public Task Run(
+    public async Task Run(
         [ServiceBusTrigger(
             topicName: "limites-de-jornada-actualizados",
             subscriptionName: "programacion-escucha-limites-de-jornada",
@@ -19,5 +19,5 @@ public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<Fu
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
         CancellationToken ct)
-        => throw new NotImplementedException();
+        => await ProcesarMensaje(message, messageActions, ct);
 }

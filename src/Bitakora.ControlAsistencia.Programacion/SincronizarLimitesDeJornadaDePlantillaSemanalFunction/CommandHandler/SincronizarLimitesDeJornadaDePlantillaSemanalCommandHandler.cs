@@ -1,3 +1,5 @@
+using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaSemanalFunction.CommandHandler;
@@ -10,6 +12,13 @@ public partial class SincronizarLimitesDeJornadaDePlantillaSemanalCommandHandler
     public SincronizarLimitesDeJornadaDePlantillaSemanalCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(SincronizarLimitesDeJornadaDePlantillaSemanal command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(SincronizarLimitesDeJornadaDePlantillaSemanal command, CancellationToken ct = default)
+    {
+        var plantilla = await _eventStore.GetAggregateRootAsync<PlantillaSemanalTurnos>(
+            command.PlantillaId, ct);
+        if (plantilla is null)
+            throw new RecursoNoEncontradoException(Mensajes.PlantillaNoEncontrada);
+
+        plantilla.SincronizarLimitesDeJornada(command.JornadaId, command.Limites, command.Version);
+    }
 }

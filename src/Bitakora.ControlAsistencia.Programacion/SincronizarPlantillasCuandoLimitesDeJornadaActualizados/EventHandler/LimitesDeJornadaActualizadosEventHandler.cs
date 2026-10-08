@@ -1,5 +1,7 @@
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaSemanalFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -16,6 +18,23 @@ public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsyn
         _commandRouter = commandRouter;
     }
 
-    public Task HandleAsync(LimitesDeJornadaActualizados @event, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(LimitesDeJornadaActualizados @event, CancellationToken ct = default)
+    {
+        var limites = Reinstanciar(@event);
+        var plantillaIds = await _lector.ObtenerPlantillaIdsAsync(@event.JornadaId, ct);
+
+        foreach (var plantillaId in plantillaIds)
+            await _commandRouter.InvokeAsync(new SincronizarLimitesDeJornadaDePlantillaSemanal(
+                Guid.Parse(plantillaId), @event.JornadaId, limites, @event.Version), ct);
+    }
+
+    // Los factories del VO validan: datos no reinstanciables lanzan y el mensaje va a la DLQ.
+    private static LimitesJornada Reinstanciar(LimitesDeJornadaActualizados evento) =>
+        LimitesJornada.Crear(
+            DesdeMinutos(evento.HorasSemanalesEnMinutos),
+            DesdeMinutos(evento.TopeDiarioEnMinutos),
+            DesdeMinutos(evento.MinimoDiarioEnMinutos),
+            evento.DiasDescansoPorSemana);
+
+    private static HorasYMinutos DesdeMinutos(int minutos) => HorasYMinutos.Crear(minutos / 60, minutos % 60);
 }
