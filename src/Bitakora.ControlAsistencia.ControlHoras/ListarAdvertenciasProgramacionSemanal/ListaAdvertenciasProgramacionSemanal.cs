@@ -2,7 +2,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarAdvertenciasProgramacion
 
 public sealed record TiempoHM(int Horas, int Minutos)
 {
-    public static TiempoHM DesdeMinutos(int minutos) => throw new NotImplementedException();
+    public static TiempoHM DesdeMinutos(int minutos) => new(minutos / 60, minutos % 60);
 }
 
 public sealed record AdvertenciaPresentada(string Tipo, TiempoHM? Horas, int? Dias, string Descripcion);
