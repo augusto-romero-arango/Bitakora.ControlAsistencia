@@ -76,6 +76,13 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         return ResultadoSincronizarTurno.Sincronizado;
     }
 
+    public void Apply(LimitesDeJornadaDePlantillaSemanalSincronizados evento) =>
+        throw new NotImplementedException();
+
+    internal ResultadoSincronizarLimitesDeJornada SincronizarLimitesDeJornada(
+        Guid jornadaId, LimitesJornada limites, long version) =>
+        throw new NotImplementedException();
+
     internal Guid? JornadaId { get; private set; }
 
     internal LimitesJornada? Limites { get; private set; }

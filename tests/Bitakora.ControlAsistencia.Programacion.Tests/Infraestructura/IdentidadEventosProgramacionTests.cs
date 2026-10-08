@@ -42,7 +42,8 @@ public class IdentidadEventosProgramacionTests
             typeof(JornadaDePlantillaSemanalAsignada),
             typeof(JornadaDePlantillaSemanalQuitada),
             typeof(AdvertenciasDePlantillaSemanalCalculadas),
-            typeof(TurnoDePlantillaSemanalSincronizado)
+            typeof(TurnoDePlantillaSemanalSincronizado),
+            typeof(LimitesDeJornadaDePlantillaSemanalSincronizados)
         ]);
     }
 

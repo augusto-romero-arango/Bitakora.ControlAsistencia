@@ -236,7 +236,7 @@ public class CuadroSemanalTurnosProjectionTests
             HorasYMinutos.Crear(40, 30), HorasYMinutos.Crear(9, 0), HorasYMinutos.Crear(2, 15), 2);
 
         var vista = CuadroSemanalTurnosProjection.Apply(
-            LimitesDeJornadaDePlantillaSemanalSincronizados.Crear(Guid.NewGuid(), nuevos, 2), previa);
+            LimitesDeJornadaDePlantillaSemanalSincronizados.Crear(Guid.NewGuid(), JornadaId, nuevos, 2), previa);
 
         vista.Should().BeEquivalentTo(Vista(
             [], jornadaId: JornadaId, limites: new LimitesDelCuadro(2430, 540, 135, 2, nuevos.ToString())));
