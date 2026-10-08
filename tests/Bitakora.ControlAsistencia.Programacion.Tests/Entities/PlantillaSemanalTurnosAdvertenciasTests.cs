@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantilla;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Entities;
 
@@ -29,21 +30,6 @@ public class PlantillaSemanalTurnosAdvertenciasTests
         plantilla.AsignarJornada(JornadaA, Limites(semanales), 1);
         return plantilla;
     }
-
-    // Oraculo escrito a mano: semana vacia con Jornada de N horas semanales, tope 8 h y 1 descanso.
-    private static IEnumerable<AdvertenciaPlantillaSemanal> SemanaVacia(int semana, int semanales) =>
-        new[]
-        {
-            AdvertenciaPlantillaSemanal.PorDebajoDeHorasSemanales(semana, semanales * 60),
-            AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(semana, 1)
-        }.Concat(Enumerable.Range(1, 7)
-            .Select(d => AdvertenciaPlantillaSemanal.DiaSinTurno(semana, DiaSemana.Desde(d))));
-
-    private static AdvertenciaPlantillaSemanal[] PlantillaVaciaConJornada(int semanas, int semanales) =>
-        Enumerable.Range(1, semanas).SelectMany(s => SemanaVacia(s, semanales)).ToArray();
-
-    private static AdvertenciaPlantillaSemanal[] SoloSinJornada =>
-        [AdvertenciaPlantillaSemanal.PlantillaSinJornada()];
 
     private static List<AdvertenciasDePlantillaSemanalCalculadas> Calculadas(PlantillaSemanalTurnos plantilla) =>
         plantilla.UncommittedEvents.OfType<AdvertenciasDePlantillaSemanalCalculadas>().ToList();

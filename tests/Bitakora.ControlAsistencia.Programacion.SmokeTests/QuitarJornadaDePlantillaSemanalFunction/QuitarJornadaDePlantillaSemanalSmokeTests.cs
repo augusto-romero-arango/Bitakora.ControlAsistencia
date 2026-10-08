@@ -8,6 +8,7 @@ namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.QuitarJornadaDePlan
 public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string TipoEventoQuitada = "jornada_de_plantilla_semanal_quitada";
+    private const string TipoEventoAdvertencias = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _client = api.Client;
@@ -74,6 +75,9 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
             PostgresFixture.SchemaProgramacion, plantillaId.ToString(), TipoEventoQuitada, Timeout);
         existe.Should().BeTrue(
             $"el evento {TipoEventoQuitada} deberia existir en el stream {plantillaId}");
+        (await postgres.ContarEventosAsync(
+            PostgresFixture.SchemaProgramacion, plantillaId.ToString(), TipoEventoAdvertencias))
+            .Should().Be(3, "quitar la Jornada re-audita la plantilla: crear, asignar y quitar auditan cada uno");
     }
 
     [Fact]

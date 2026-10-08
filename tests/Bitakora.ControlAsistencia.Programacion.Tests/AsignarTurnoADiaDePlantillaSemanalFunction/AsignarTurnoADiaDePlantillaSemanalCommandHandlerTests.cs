@@ -7,6 +7,7 @@ using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanal
 using Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Tests.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
@@ -56,8 +57,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         Then(DiaDePlantillaSemanalAsignado.Crear(
             GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness),
-            AdvertenciasDePlantillaSemanalCalculadas.Crear(
-            GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
+            AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -71,8 +71,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         Then(DiaDePlantillaSemanalAsignado.Crear(
             GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoDescanso, VersionEnElHarness),
-            AdvertenciasDePlantillaSemanalCalculadas.Crear(
-            GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
+            AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -191,8 +190,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         Then(DiaDePlantillaSemanalAsignado.Crear(
             GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, copiaEsperada, VersionEnElHarness),
-            AdvertenciasDePlantillaSemanalCalculadas.Crear(
-            GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
+            AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -210,8 +208,7 @@ public class AsignarTurnoADiaDePlantillaSemanalCommandHandlerTests
 
         Then(DiaDePlantillaSemanalAsignado.Crear(
             GuidAggregateId, 1, DiaSemana.Desde(5), TurnoId, CopiaTurnoCompleto, VersionEnElHarness),
-            AdvertenciasDePlantillaSemanalCalculadas.Crear(
-            GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
+            AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 }

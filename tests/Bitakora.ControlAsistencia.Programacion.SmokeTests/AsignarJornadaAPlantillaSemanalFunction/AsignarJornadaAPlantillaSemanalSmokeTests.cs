@@ -8,6 +8,7 @@ namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarJornadaAPlan
 public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string TipoEventoAsignada = "jornada_de_plantilla_semanal_asignada";
+    private const string TipoEventoAdvertencias = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _client = api.Client;
@@ -66,6 +67,9 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
             PostgresFixture.SchemaProgramacion, plantillaId.ToString(), TipoEventoAsignada, Timeout);
         existe.Should().BeTrue(
             $"el evento {TipoEventoAsignada} deberia existir en el stream {plantillaId}");
+        (await postgres.ContarEventosAsync(
+            PostgresFixture.SchemaProgramacion, plantillaId.ToString(), TipoEventoAdvertencias))
+            .Should().Be(2, "asociar la Jornada re-audita la plantilla tras las advertencias de su creacion");
     }
 
     [Fact]

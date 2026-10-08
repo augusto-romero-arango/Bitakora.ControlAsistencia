@@ -90,7 +90,7 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     {
         var calculadas = AuditoriaPlantillaSemanal.Auditar(
             _semanas,
-            _dias.Select(d => new DiaDePlantillaAuditado(d.Key.Semana, d.Key.Dia, d.Value.Turno, false)),
+            _dias.Select(d => new DiaDePlantillaAuditado(d.Key.Semana, d.Key.Dia, d.Value.Turno, Retirado: false)),
             Limites);
         if (calculadas.SequenceEqual(Advertencias))
             return;

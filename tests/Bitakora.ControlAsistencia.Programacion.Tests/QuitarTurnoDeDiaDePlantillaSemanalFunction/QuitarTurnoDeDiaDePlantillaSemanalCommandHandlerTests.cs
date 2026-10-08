@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Tests.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.QuitarTurnoDeDiaDePlantillaSemanalFunction.CommandHandler;
@@ -33,8 +34,7 @@ public class QuitarTurnoDeDiaDePlantillaSemanalCommandHandlerTests
         await WhenAsync(new QuitarTurnoDeDiaDePlantillaSemanal(GuidAggregateId, 1, DiaSemana.Desde(5)));
 
         Then(DiaDePlantillaSemanalQuitado.Crear(GuidAggregateId, 1, DiaSemana.Desde(5)),
-            AdvertenciasDePlantillaSemanalCalculadas.Crear(
-            GuidAggregateId, [AdvertenciaPlantillaSemanal.PlantillaSinJornada()]));
+            AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
