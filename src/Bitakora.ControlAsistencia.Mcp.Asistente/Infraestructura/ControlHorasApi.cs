@@ -31,4 +31,11 @@ public sealed class ControlHorasApi(HttpClient http)
 
         return http.SendAsync(request, ct);
     }
+
+    public Task<HttpResponseMessage> ListarAdvertenciasProgramacionSemanal(
+        DateOnly fecha,
+        IReadOnlyList<string>? codigosColaborador,
+        int take,
+        string? cursor,
+        CancellationToken ct) => throw new NotImplementedException();
 }

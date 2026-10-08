@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasTreintaTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasTreintaYUnaTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -42,7 +42,8 @@ public class ComposicionDelServidorTests
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
                 "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
-                "consultar_programacion", "consultar_ausencias", "solicitar_programacion_turno",
+                "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
+                "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia"
             ]);
@@ -129,6 +130,8 @@ public class ComposicionDelServidorTests
         ("consultar_programacion", "Consulta que turno rige a cada colaborador en un rango de fechas",
             "\"readOnlyHint\": true"),
         ("consultar_ausencias", "Consulta quien falta en un periodo: por colaborador, sus ausencias",
+            "\"readOnlyHint\": true"),
+        ("consultar_advertencias_programacion", "Consulta las advertencias de la programacion semanal",
             "\"readOnlyHint\": true"),
         ("solicitar_programacion_turno", "Programa un turno a una lista de colaboradores en una sede",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -276,6 +279,18 @@ public class ComposicionDelServidorTests
     public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_ausencias").Should().BeEquivalentTo(
             [("desde", true), ("hasta", true), ("codigos_colaborador", false)]);
+
+    [Fact]
+    public void ConsultarAdvertenciasProgramacion_DeclaraSusCincoParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_advertencias_programacion").Should().BeEquivalentTo(
+            [("fecha", false), ("sede", false), ("etiquetas", false), ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarAdvertenciasProgramacion_TodosSusParametrosSonString_CuandoSeInspeccionaLaTool() =>
+        MetodoDe("consultar_advertencias_programacion").GetParameters()
+            .Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null)
+            .Select(p => p.ParameterType)
+            .Should().OnlyContain(t => t == typeof(string));
 
     [Fact]
     public void SolicitarProgramacionTurno_DeclaraLaSedeDeProgramacionComoOpcional_CuandoSeInspeccionaLaTool() =>

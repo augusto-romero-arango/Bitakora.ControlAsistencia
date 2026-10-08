@@ -1,0 +1,51 @@
+{
+  "desde": "2026-10-12",
+  "hasta": "2026-10-18",
+  "anioIso": 2026,
+  "numeroSemana": 42,
+  "elementos": [
+    {
+      "codigoColaborador": "C-102",
+      "nombreCompleto": "Ana Pérez",
+      "jornada": { "id": "0198a000-0000-7000-8000-000000000001", "descripcion": "42 h semanales" },
+      "horasOrdinariasProgramadas": { "horas": 48, "minutos": 0 },
+      "esJuzgable": true,
+      "motivoNoJuzgable": null,
+      "diasSinProgramar": 0,
+      "tieneAusencias": false,
+      "advertencias": [
+        { "tipo": "SuperaHorasSemanales", "horas": { "horas": 6, "minutos": 0 }, "dias": null, "descripcion": "supera las horas semanales en 6 h" },
+        { "tipo": "FaltanDiasDeDescanso", "horas": null, "dias": 1, "descripcion": "le falta 1 día de descanso" }
+      ],
+      "casillas": [
+        {
+          "fecha": "2026-10-13", "tipo": "Turno", "nombreTurno": "Manana",
+          "horasOrdinarias": { "horas": 8, "minutos": 0 }, "advertencias": [], "motivoAusencia": null
+        },
+        {
+          "fecha": "2026-10-14", "tipo": "Turno", "nombreTurno": "Largo",
+          "horasOrdinarias": { "horas": 10, "minutos": 0 },
+          "advertencias": [
+            { "tipo": "SuperaTopeDiario", "horas": { "horas": 2, "minutos": 0 }, "dias": null, "descripcion": "supera el tope diario en 2 h" }
+          ],
+          "motivoAusencia": null
+        }
+      ]
+    },
+    {
+      "codigoColaborador": "C-103",
+      "nombreCompleto": "Luis Gómez",
+      "jornada": null,
+      "horasOrdinariasProgramadas": { "horas": 30, "minutos": 0 },
+      "esJuzgable": true,
+      "motivoNoJuzgable": null,
+      "diasSinProgramar": 0,
+      "tieneAusencias": false,
+      "advertencias": [
+        { "tipo": "FaltanHorasSemanales", "horas": { "horas": 12, "minutos": 0 }, "dias": null, "descripcion": "le faltan 12 h para las horas semanales" }
+      ],
+      "casillas": []
+    }
+  ],
+  "siguienteCursor": null
+}
