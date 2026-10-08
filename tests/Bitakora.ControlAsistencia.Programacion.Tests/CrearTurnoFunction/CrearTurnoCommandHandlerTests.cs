@@ -58,6 +58,19 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, string>(c => c.ToString(), $"{NombreTurno} (08:00-16:00)");
     }
 
+    [Fact]
+    public async Task CrearTurno_NoPublicaDisenoDeTurno_CuandoCreaElTurno()
+    {
+        var comando = ComandoConUnaFranja(GuidAggregateId);
+
+        Given();
+        await WhenAsync(comando);
+
+        Then(TurnoCreado.Crear(comando.TurnoId, comando.Nombre, comando.ToDatosFranjas()));
+        ThenIsPublishedPrivately();
+        And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
+    }
+
     // CA-4: handler lanza excepcion cuando turno ya existe (idempotencia -> 409 Conflict)
     [Fact]
     public async Task CrearTurno_LanzaRecursoYaExisteException_CuandoTurnoYaExiste()

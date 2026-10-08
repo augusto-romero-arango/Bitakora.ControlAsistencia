@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
@@ -15,7 +16,7 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000605");
 
     protected override ICommandHandlerAsync<QuitarSubFranja> Handler =>
-        new QuitarSubFranjaCommandHandler(EventStore);
+        new QuitarSubFranjaCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurnoConFranjaNocturna() =>
         TurnoCreado.Crear(TurnoId, "Turno Manana",
@@ -134,5 +135,23 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
+    }
+
+    [Fact]
+    public async Task QuitarSubFranja_PublicaDisenoDeTurnoActualizado_CuandoEmiteDescansoQuitado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna(), CrearEventoDescansoAgregado());
+
+        await WhenAsync(new QuitarSubFranja(
+            TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso, new TimeOnly(2, 0)));
+
+        Then(TurnoId.ToString(), DescansoQuitado.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 3, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(new TimeOnly(22, 0), new TimeOnly(6, 0), 1, [], [], "(22:00-06:00+1)")],
+            false));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 0);
     }
 }

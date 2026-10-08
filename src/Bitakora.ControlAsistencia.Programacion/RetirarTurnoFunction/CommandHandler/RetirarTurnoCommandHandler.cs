@@ -1,5 +1,7 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHandler;
@@ -7,8 +9,13 @@ namespace Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHa
 public partial class RetirarTurnoCommandHandler : ICommandHandlerAsync<RetirarTurno>
 {
     private readonly IEventStore _eventStore;
+    private readonly IPrivateEventSender _privateEventSender;
 
-    public RetirarTurnoCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
+    public RetirarTurnoCommandHandler(IEventStore eventStore, IPrivateEventSender privateEventSender)
+    {
+        _eventStore = eventStore;
+        _privateEventSender = privateEventSender;
+    }
 
     public async Task HandleAsync(RetirarTurno command, CancellationToken ct = default)
     {

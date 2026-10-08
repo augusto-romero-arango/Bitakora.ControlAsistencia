@@ -1,6 +1,8 @@
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction.CommandHandler;
@@ -10,8 +12,13 @@ namespace Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction.Comman
 public partial class QuitarSubFranjaCommandHandler : ICommandHandlerAsync<QuitarSubFranja>
 {
     private readonly IEventStore _eventStore;
+    private readonly IPrivateEventSender _privateEventSender;
 
-    public QuitarSubFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
+    public QuitarSubFranjaCommandHandler(IEventStore eventStore, IPrivateEventSender privateEventSender)
+    {
+        _eventStore = eventStore;
+        _privateEventSender = privateEventSender;
+    }
 
     public async Task HandleAsync(QuitarSubFranja command, CancellationToken ct = default)
     {

@@ -2,6 +2,7 @@
 // diseno de turno por pasos (CA-ADR-0033).
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -18,7 +19,7 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
     private static readonly SedeProgramada Chapinero = new("SEDE-CHAPINERO", "Chapinero");
 
     protected override ICommandHandlerAsync<AsignarSedeAFranja> Handler =>
-        new AsignarSedeAFranjaCommandHandler(EventStore);
+        new AsignarSedeAFranjaCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurnoConFranjaSinSede() =>
         TurnoCreado.Crear(TurnoId, "Turno Manana",
@@ -151,6 +152,43 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
         await act.Should().ThrowExactlyAsync<ArgumentException>()
             .WithMessage($"*{FranjaOrdinaria.Mensajes.SedeIncompleta}*");
         Then(TurnoId.ToString());
+        And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, null);
+    }
+
+    [Fact]
+    public async Task AsignarSedeAFranja_PublicaDisenoDeTurnoActualizadoConSede_CuandoEmiteSedeDeFranjaAsignada()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranjaSinSede());
+
+        await WhenAsync(new AsignarSedeAFranja(TurnoId, new TimeOnly(14, 0), Chapinero));
+
+        Then(TurnoId.ToString(), SedeDeFranjaAsignada.Crear(TurnoId,
+            FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0), sede: Chapinero)));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [],
+                "(14:00-22:00)[sede:Chapinero]",
+                new DetalleSede("SEDE-CHAPINERO", "Chapinero"))],
+            false));
+        And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, Chapinero);
+    }
+
+    [Fact]
+    public async Task AsignarSedeAFranja_PublicaDisenoDeTurnoActualizadoSinSede_CuandoEmiteSedeDeFranjaRetirada()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranjaConSede());
+
+        await WhenAsync(new AsignarSedeAFranja(TurnoId, new TimeOnly(14, 0), null));
+
+        Then(TurnoId.ToString(), SedeDeFranjaRetirada.Crear(TurnoId,
+            FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "(14:00-22:00)")],
+            false));
         And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, null);
     }

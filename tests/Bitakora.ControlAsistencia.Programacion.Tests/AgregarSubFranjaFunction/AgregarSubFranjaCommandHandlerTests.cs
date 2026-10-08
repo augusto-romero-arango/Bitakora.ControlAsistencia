@@ -2,6 +2,7 @@
 // del diseno de turno por pasos (CA-ADR-0033).
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -17,7 +18,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000603");
 
     protected override ICommandHandlerAsync<AgregarSubFranja> Handler =>
-        new AgregarSubFranjaCommandHandler(EventStore);
+        new AgregarSubFranjaCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurnoConFranjaNocturna() =>
         TurnoCreado.Crear(TurnoId, "Turno Manana",
@@ -140,5 +141,52 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 0);
+    }
+
+    [Fact]
+    public async Task AgregarSubFranja_PublicaDisenoDeTurnoActualizadoConDescanso_CuandoEmiteDescansoAgregado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna());
+
+        await WhenAsync(new AgregarSubFranja(
+            TurnoId, new TimeOnly(22, 0), TipoSubFranja.Descanso,
+            new TimeOnly(2, 0), new TimeOnly(2, 30)));
+
+        Then(TurnoId.ToString(), DescansoAgregado.Crear(TurnoId,
+            FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+                .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30))));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
+                [new DetalleSubFranja(new TimeOnly(2, 0), new TimeOnly(2, 30), 1, 1, "(02:00-02:30)")],
+                [], "(22:00-06:00+1)[Descansos:(02:00-02:30)]")],
+            false));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
+    }
+
+    [Fact]
+    public async Task AgregarSubFranja_PublicaDisenoDeTurnoActualizadoConExtra_CuandoEmiteExtraAgregado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranjaNocturna());
+
+        await WhenAsync(new AgregarSubFranja(
+            TurnoId, new TimeOnly(22, 0), TipoSubFranja.Extra,
+            new TimeOnly(5, 0), new TimeOnly(6, 0)));
+
+        Then(TurnoId.ToString(), ExtraAgregado.Crear(TurnoId,
+            FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
+                .ConExtra(new TimeOnly(5, 0), new TimeOnly(6, 0))));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
+                [],
+                [new DetalleSubFranja(new TimeOnly(5, 0), new TimeOnly(6, 0), 1, 1, "(05:00-06:00)")],
+                "(22:00-06:00+1)[Extras:(05:00-06:00)]")],
+            false));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
     }
 }
