@@ -37,5 +37,20 @@ public sealed class ControlHorasApi(HttpClient http)
         IReadOnlyList<string>? codigosColaborador,
         int take,
         string? cursor,
-        CancellationToken ct) => throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/control-horas/advertencias-programacion-semanal")
+        {
+            Content = JsonContent.Create(new
+            {
+                fecha,
+                codigosColaborador,
+                soloConAdvertencias = true,
+                take,
+                cursor
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }
