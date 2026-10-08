@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Tests.CrearJornadaFunction;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -14,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.ModificarLimitesJornadaF
 public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTest<ModificarLimitesJornada>
 {
     protected override ICommandHandlerAsync<ModificarLimitesJornada> Handler =>
-        new ModificarLimitesJornadaCommandHandler(EventStore, _asegurador, _lector);
+        new ModificarLimitesJornadaCommandHandler(EventStore, _asegurador, _lector, PrivateEventSender);
 
     private static readonly Guid JornadaB = Guid.Parse("0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a62");
 
@@ -39,6 +40,8 @@ public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTes
         await WhenAsync(Comando(GuidAggregateId));
         Then(LimitesJornadaModificados.Crear(GuidAggregateId, LimitesJornada.Crear(
             HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(8, 0), HorasYMinutos.Crear(0, 0), 1)));
+        ThenIsPublishedPrivately(new LimitesDeJornadaActualizados(
+            GuidAggregateId, 2, 44 * 60, 8 * 60, 0, 1));
         And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 44);
     }
 
@@ -48,6 +51,7 @@ public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTes
         Given(Creada(GuidAggregateId));
         await WhenAsync(Comando(GuidAggregateId, horasSemanales: 42));
         Then();
+        ThenIsPublishedPrivately();
         And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 42);
     }
 
@@ -96,6 +100,7 @@ public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTes
         Given(JornadaCreada.Crear(GuidAggregateId, Limites(42, 9)));
         await WhenAsync(new ModificarLimitesJornada(GuidAggregateId, new(42, 0), new(9, 0), new(0, 0), 1));
         Then();
+        ThenIsPublishedPrivately();
         And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 42);
     }
 }
