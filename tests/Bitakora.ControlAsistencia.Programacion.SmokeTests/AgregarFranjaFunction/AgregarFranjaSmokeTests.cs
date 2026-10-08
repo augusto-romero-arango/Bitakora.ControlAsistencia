@@ -105,7 +105,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, S
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarFranja_DebePublicarDisenoDeTurnoActualizado_CuandoSeAgregaLaPrimeraFranja()
+    public async Task AgregarFranja_PublicaDisenoDeTurnoActualizado_CuandoSeAgregaLaPrimeraFranja()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");

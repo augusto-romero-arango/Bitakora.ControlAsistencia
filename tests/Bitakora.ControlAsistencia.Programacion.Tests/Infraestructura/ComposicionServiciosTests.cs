@@ -59,7 +59,8 @@ public class ComposicionServiciosTests
         (typeof(CancelacionTurnoDiarioSolicitada), "cancelacion-turno-diario-solicitada"),
         (typeof(AusenciaDiariaProgramada), "ausencia-diaria-programada"),
         (typeof(AusenciaDiariaCancelada), "ausencia-diaria-cancelada"),
-        (typeof(LimitesDeJornadaActualizados), "limites-de-jornada-actualizados")
+        (typeof(LimitesDeJornadaActualizados), "limites-de-jornada-actualizados"),
+        (typeof(DisenoDeTurnoActualizado), "diseno-de-turno-actualizado")
     ];
 
     private static ServiceProvider ComponerServiceProvider()

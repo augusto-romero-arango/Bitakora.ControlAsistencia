@@ -18,9 +18,9 @@ public class DisenoDeTurnoActualizadoPortabilidadTests
             false,
             [new DetalleFranjaOrdinaria(
                 new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
-                [new DetalleSubFranja(new TimeOnly(2, 0), new TimeOnly(2, 30), 1, 1, "(02:00-02:30)")],
-                [new DetalleSubFranja(new TimeOnly(5, 0), new TimeOnly(6, 0), 1, 1, "(05:00-06:00)")],
-                "(22:00-06:00+1)[Descansos:(02:00-02:30)][Extras:(05:00-06:00)][sede:Chapinero]",
+                [new DetalleSubFranja(new TimeOnly(2, 0), new TimeOnly(2, 30), 1, 1, "(02:00+1-02:30+1)")],
+                [new DetalleSubFranja(new TimeOnly(5, 0), new TimeOnly(6, 0), 1, 1, "(05:00+1-06:00+1)")],
+                "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-06:00+1)][sede:Chapinero]",
                 new DetalleSede("SEDE-CHAPINERO", "Chapinero", "CC-01"))],
             true);
         var opciones = CrearOpcionesBus();
