@@ -26,18 +26,22 @@ public sealed class ProgramacionTurnoDiarioSolicitada : IPrivateEvent
     // solo deja null si el parametro lo admite.
     public DetalleSede? Sede { get; private set; }
 
+    public DetalleJornada? Jornada { get; private set; }
+
     public ProgramacionTurnoDiarioSolicitada(
         Guid solicitudId,
         ResumenColaborador colaborador,
         DateOnly fecha,
         DetalleTurno detalleTurno,
-        DetalleSede? sede = null)
+        DetalleSede? sede = null,
+        DetalleJornada? jornada = null)
     {
         SolicitudId = solicitudId;
         Colaborador = colaborador;
         Fecha = fecha;
         DetalleTurno = detalleTurno;
         Sede = sede;
+        Jornada = jornada;
     }
 
     // Constructor para Marten/serializacion

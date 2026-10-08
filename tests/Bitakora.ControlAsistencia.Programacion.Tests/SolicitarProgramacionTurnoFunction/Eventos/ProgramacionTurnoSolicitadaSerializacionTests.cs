@@ -341,4 +341,35 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         evento.Sede.Should().NotBeNull();
         evento.Sede!.CentroDeCostos.Should().BeNull();
     }
+
+    // Issue #861 CA-1: la copia de la Jornada es un campo aditivo y opcional (mismo precedente que
+    // Sede, #331): los streams escritos antes no llevan la clave "Jornada".
+    [Fact]
+    public void Deserializar_DejaJornadaEnNull_CuandoElJsonPersistidoNoLlevaEseCampo()
+    {
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
+
+        evento.Jornada.Should().BeNull();
+    }
+
+    [Fact]
+    public void RoundTrip_PreservaLaJornada_CuandoLaJornadaEstaPoblada()
+    {
+        var jornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000861");
+        var limites = LimitesJornada.Crear(
+            HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1);
+        var evento = new ProgramacionTurnoSolicitada(
+            Id, ColaboradorEsperado, [Fecha1], TurnoEsperado, jornada: new JornadaProgramada(jornadaId, limites));
+        var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Jornada.Should().NotBeNull();
+        restaurado.Jornada!.JornadaId.Should().Be(jornadaId);
+        restaurado.Jornada.Limites.Should().Be(
+            LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
+        restaurado.Jornada.Limites.ToString().Should().Be(limites.ToString());
+    }
 }
