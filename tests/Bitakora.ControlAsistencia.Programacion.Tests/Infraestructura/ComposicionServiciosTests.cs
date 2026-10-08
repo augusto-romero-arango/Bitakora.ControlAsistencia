@@ -209,6 +209,19 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeLimitesDeJornadaDePlantillaSemanalSincronizados()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(LimitesDeJornadaDePlantillaSemanalSincronizados)).Alias;
+
+        alias.Should().Be("limites_de_jornada_de_plantilla_semanal_sincronizados");
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElRouterDeEventosPrivadosYElLectorDePlantillasPorTurno()
     {
         await using var provider = ComponerServiceProvider();

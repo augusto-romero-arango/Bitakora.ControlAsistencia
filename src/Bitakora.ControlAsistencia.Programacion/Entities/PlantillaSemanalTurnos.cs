@@ -76,6 +76,30 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
         return ResultadoSincronizarTurno.Sincronizado;
     }
 
+    public void Apply(LimitesDeJornadaDePlantillaSemanalSincronizados evento)
+    {
+        Limites = evento.Limites;
+        VersionJornada = evento.VersionJornada;
+    }
+
+    // Declina con resultado (CA-ADR-0030). Otra Jornada, ninguna, o version menor o igual a la de la
+    // copia no emiten nada (CA-ADR-0034).
+    internal ResultadoSincronizarLimitesDeJornada SincronizarLimitesDeJornada(
+        Guid jornadaId, LimitesJornada limites, long version)
+    {
+        if (!_estaActiva)
+            return ResultadoSincronizarLimitesDeJornada.PlantillaRetirada;
+
+        if (JornadaId != jornadaId || VersionJornada >= version)
+            return ResultadoSincronizarLimitesDeJornada.SinCambios;
+
+        var evento = LimitesDeJornadaDePlantillaSemanalSincronizados.Crear(Guid.Parse(Id), jornadaId, limites, version);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        Auditar();
+        return ResultadoSincronizarLimitesDeJornada.Sincronizado;
+    }
+
     internal Guid? JornadaId { get; private set; }
 
     internal LimitesJornada? Limites { get; private set; }
