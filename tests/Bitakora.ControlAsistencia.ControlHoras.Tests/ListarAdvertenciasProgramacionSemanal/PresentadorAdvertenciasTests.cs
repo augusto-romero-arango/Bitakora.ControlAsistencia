@@ -69,9 +69,9 @@ public class PresentadorAdvertenciasTests
     public void Presentar_ArmaDescripcionesDeDescansoYDeficit()
     {
         var doc = Doc(Jornada, 2160, 0, false, true,
-            Enumerable.Range(0, 7).Select(i => Casilla(i, 480, i == 0
-                ? new AdvertenciaDiaria(TipoAdvertenciaDiaria.PorDebajoDelMinimoDiario, 90)
-                : null!)).Select((c, i) => i == 0 ? c : c with { Advertencias = [] }).ToList(),
+            Enumerable.Range(0, 7).Select(i => i == 0
+                ? Casilla(i, 480, new AdvertenciaDiaria(TipoAdvertenciaDiaria.PorDebajoDelMinimoDiario, 90))
+                : Casilla(i, 480)).ToList(),
             new AdvertenciaSemanal(TipoAdvertenciaSemanal.PorDebajoDeHorasSemanales, 240),
             new AdvertenciaSemanal(TipoAdvertenciaSemanal.FaltanDiasDeDescanso, 1),
             new AdvertenciaSemanal(TipoAdvertenciaSemanal.SobranDiasDeDescanso, 1));

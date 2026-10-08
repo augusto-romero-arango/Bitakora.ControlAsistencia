@@ -168,11 +168,17 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
         respuesta.TryGetProperty("total", out _).Should().BeFalse();
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(500)]
+    [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarAdvertenciasProgramacionSemanal_Retorna200_CuandoTakeEstaFueraDeRango(int take)
+    public async Task ListarAdvertenciasProgramacionSemanal_Retorna200_CuandoTakeEsCero() =>
+        await VerificarTakeFueraDeRangoAsync(0);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAdvertenciasProgramacionSemanal_Retorna200_CuandoTakeSuperaElMaximo() =>
+        await VerificarTakeFueraDeRangoAsync(500);
+
+    private async Task VerificarTakeFueraDeRangoAsync(int take)
     {
         var ct = TestContext.Current.CancellationToken;
 

@@ -5,14 +5,25 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ListarAdvertenciasProgra
 
 public class PaginaDeAdvertenciasTests
 {
-    [Theory]
-    [InlineData(null, null)]
-    [InlineData(0, 1)]
-    [InlineData(-5, 1)]
-    [InlineData(1, 1)]
-    [InlineData(500, 200)]
-    public void AcotarTake_AcotaA1_200_YConservaNull(int? take, int? esperado) =>
-        PaginaDeAdvertencias.AcotarTake(take).Should().Be(esperado);
+    [Fact]
+    public void AcotarTake_ConservaNull_CuandoNoHayTake() =>
+        PaginaDeAdvertencias.AcotarTake(null).Should().BeNull();
+
+    [Fact]
+    public void AcotarTake_AcotaAUno_CuandoTakeEsCero() =>
+        PaginaDeAdvertencias.AcotarTake(0).Should().Be(1);
+
+    [Fact]
+    public void AcotarTake_AcotaAUno_CuandoTakeEsNegativo() =>
+        PaginaDeAdvertencias.AcotarTake(-5).Should().Be(1);
+
+    [Fact]
+    public void AcotarTake_ConservaElValor_CuandoEstaEnRango() =>
+        PaginaDeAdvertencias.AcotarTake(1).Should().Be(1);
+
+    [Fact]
+    public void AcotarTake_AcotaADoscientos_CuandoTakeEsQuinientos() =>
+        PaginaDeAdvertencias.AcotarTake(500).Should().Be(PaginaDeAdvertencias.TakeMaximo);
 
     [Fact]
     public void Cortar_DevuelveTodoSinCursor_CuandoNoHayTake()

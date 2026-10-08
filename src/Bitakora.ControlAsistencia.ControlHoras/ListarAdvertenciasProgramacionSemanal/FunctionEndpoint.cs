@@ -52,7 +52,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         var anio = semana.Anio;
         var numero = semana.Numero;
         var take = PaginaDeAdvertencias.AcotarTake(filtro.Take);
-        var soloConAdvertencias = filtro.SoloConAdvertencias;
         var codigos = filtro.CodigosColaborador is { Count: > 0 } c ? c.ToList() : null;
 
         // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request (MEF-ADR-0028).
@@ -63,7 +62,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         if (codigos is not null)
             query = query.Where(a => codigos.Contains(a.CodigoColaborador));
-        if (soloConAdvertencias)
+        if (filtro.SoloConAdvertencias)
             query = query.Where(a => a.TieneAdvertencias);
         if (cursorCodigo is not null)
             query = query.Where(a => a.CodigoColaborador.CompareTo(cursorCodigo) > 0);
