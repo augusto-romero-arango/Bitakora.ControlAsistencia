@@ -5,7 +5,7 @@ using Marten.Events.Projections; // MultiStreamProjection<,> vive aqui
 
 namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
-/// <summary>Proyeccion companion N2 de AdvertenciasProgramacionSemanal .</summary>
+/// <summary>Proyeccion companion N2 de AdvertenciasProgramacionSemanal: agrupa los streams diarios por (colaborador, semana ISO).</summary>
 public sealed partial class AdvertenciasProgramacionSemanalProjection
     : MultiStreamProjection<AdvertenciasProgramacionSemanal, string>
 {
@@ -21,8 +21,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
 
     public static string Clave(string codigoColaborador, DateOnly fecha)
     {
-        var anio = ISOWeek.GetYear(fecha.ToDateTime(TimeOnly.MinValue));
-        var semana = ISOWeek.GetWeekOfYear(fecha.ToDateTime(TimeOnly.MinValue));
+        var (anio, semana) = SemanaIso(fecha);
         return $"{codigoColaborador}:{anio}-W{semana:00}";
     }
 
@@ -46,7 +45,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var turno = evento.DetalleTurno;
         var minutos = turno.MinutosOrdinarios();
         var esDescanso = turno.FranjasOrdinarias.Count == 0;
-        var indice = Indice(evento.Fecha);
+        var indice = Indice(vista, evento.Fecha);
         var actual = vista.Casillas[indice];
 
         var casilla = actual.AusenciaId is not null
@@ -78,7 +77,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
 
     public static AdvertenciasProgramacionSemanal Apply(AusenciaDiariaAsignada evento, AdvertenciasProgramacionSemanal vista)
     {
-        var indice = Indice(evento.Fecha);
+        var indice = Indice(vista, evento.Fecha);
         var actual = vista.Casillas[indice];
 
         var cubierto = actual.AusenciaId is not null
@@ -105,7 +104,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
 
     public static AdvertenciasProgramacionSemanal? Apply(TurnoDiarioCancelado evento, AdvertenciasProgramacionSemanal vista)
     {
-        var indice = Indice(evento.Fecha);
+        var indice = Indice(vista, evento.Fecha);
         var actual = vista.Casillas[indice];
 
         var casilla = actual.AusenciaId is not null
@@ -119,7 +118,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
 
     public static AdvertenciasProgramacionSemanal? Apply(CancelacionAusenciaDiariaRegistrada evento, AdvertenciasProgramacionSemanal vista)
     {
-        var indice = Indice(evento.Fecha);
+        var indice = Indice(vista, evento.Fecha);
         var actual = vista.Casillas[indice];
 
         if (actual.AusenciaId != evento.AusenciaId)
@@ -137,15 +136,20 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         return RecalcularOBorrar(vista, indice, casilla);
     }
 
-    private static int Indice(DateOnly fecha) => ((int)fecha.DayOfWeek + 6) % 7;
+    private static int Indice(AdvertenciasProgramacionSemanal vista, DateOnly fecha) =>
+        fecha.DayNumber - vista.Lunes.DayNumber;
+
+    private static (int Anio, int Semana) SemanaIso(DateOnly fecha)
+    {
+        var dia = fecha.ToDateTime(TimeOnly.MinValue);
+        return (ISOWeek.GetYear(dia), ISOWeek.GetWeekOfYear(dia));
+    }
 
     private static CasillaDia SinProgramar(DateOnly fecha) => new(fecha, TipoCasilla.SinProgramar, "", 0);
 
     private static AdvertenciasProgramacionSemanal Nueva(string codigo, string nombre, DateOnly fecha)
     {
-        var dt = fecha.ToDateTime(TimeOnly.MinValue);
-        var anio = ISOWeek.GetYear(dt);
-        var semana = ISOWeek.GetWeekOfYear(dt);
+        var (anio, semana) = SemanaIso(fecha);
         var lunes = DateOnly.FromDateTime(ISOWeek.ToDateTime(anio, semana, DayOfWeek.Monday));
         var casillas = Enumerable.Range(0, 7).Select(i => SinProgramar(lunes.AddDays(i))).ToList();
         return new AdvertenciasProgramacionSemanal(

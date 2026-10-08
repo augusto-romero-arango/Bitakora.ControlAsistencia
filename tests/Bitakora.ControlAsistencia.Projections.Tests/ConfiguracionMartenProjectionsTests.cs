@@ -505,7 +505,6 @@ public class ConfiguracionMartenProjectionsTests
             .AssertProyeccionAsyncRegistrada("TurnoVigente");
     }
 
-    // Issue #864 CA-7: proyeccion N2 de las advertencias de la programacion semanal, lifecycle Async.
     [Fact]
     public void ConfigurarControlHoras_RegistraAdvertenciasProgramacionSemanalProjectionComoAsync()
     {
@@ -513,6 +512,34 @@ public class ConfiguracionMartenProjectionsTests
 
         provider.GetRequiredService<IControlHorasProjectionStore>()
             .AssertProyeccionAsyncRegistrada("AdvertenciasProgramacionSemanal");
+    }
+
+    // Mitad worker del par espejo (mt_version y tabla/tenancy/id, MEF-ADR-0034 seccion 6). La mitad
+    // write-side llega con la Function de consulta que la lea (#866) y debe congelar los mismos literales.
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaAdvertenciasProgramacionSemanalConRevisionNumerica()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(AdvertenciasProgramacionSemanal));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ConfigurarControlHoras_MaterializaAdvertenciasProgramacionSemanalSobreLaTablaQueConsultaraElWriteSide()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        var mapping = provider.GetRequiredService<IControlHorasProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(AdvertenciasProgramacionSemanal));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_advertenciasprogramacionsemanal");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AdvertenciasProgramacionSemanal.Id));
     }
 
     // Issue #328, mismo gotcha de "Numeric Revisioned Documents" que el issue #294 ya peno sobre el

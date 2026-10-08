@@ -1,5 +1,4 @@
-// Issue #864: unit tests de AdvertenciasProgramacionSemanalProjection (N2). Invocacion directa de
-// los metodos estaticos; oraculos armados a mano (MEF-ADR-0002).
+// Invocacion directa de los metodos estaticos de la proyeccion; oraculos armados a mano (MEF-ADR-0002).
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.ControlHoras;

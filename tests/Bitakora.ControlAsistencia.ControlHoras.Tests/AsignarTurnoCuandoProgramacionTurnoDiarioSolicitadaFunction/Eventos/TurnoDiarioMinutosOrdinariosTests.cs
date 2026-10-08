@@ -1,4 +1,3 @@
-// Issue #864 CA-1: TurnoDiario.MinutosOrdinarios() suma los tramos ordinarios de todas las franjas.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
@@ -17,7 +16,7 @@ public class TurnoDiarioMinutosOrdinariosTests
     private static TurnoDiario Turno(params FranjaProgramada[] franjas) => new("T", franjas, "");
 
     [Fact]
-    public void MinutosOrdinarios_Resta480_CuandoFranjaTieneDescanso()
+    public void MinutosOrdinarios_ExcluyeElDescanso_CuandoFranjaTieneDescanso()
     {
         Turno(Franja(8, 17, descansos: [Sub(12, 13)])).MinutosOrdinarios().Should().Be(480);
     }
