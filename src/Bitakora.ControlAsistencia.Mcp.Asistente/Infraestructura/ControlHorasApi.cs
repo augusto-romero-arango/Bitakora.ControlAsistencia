@@ -31,4 +31,26 @@ public sealed class ControlHorasApi(HttpClient http)
 
         return http.SendAsync(request, ct);
     }
+
+    public Task<HttpResponseMessage> ListarAdvertenciasProgramacionSemanal(
+        DateOnly fecha,
+        IReadOnlyList<string>? codigosColaborador,
+        int take,
+        string? cursor,
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/control-horas/advertencias-programacion-semanal")
+        {
+            Content = JsonContent.Create(new
+            {
+                fecha,
+                codigosColaborador,
+                soloConAdvertencias = true,
+                take,
+                cursor
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }
