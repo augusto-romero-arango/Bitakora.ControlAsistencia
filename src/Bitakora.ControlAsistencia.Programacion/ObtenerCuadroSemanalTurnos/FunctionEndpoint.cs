@@ -7,8 +7,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos;
 
-// GET del cuadro semanal RESUELTO: composicion en lectura con FichaTurno (CA-ADR-0034 decision 5
-// enmendada). Comparte el segmento con el DELETE de RetirarPlantillaSemanal; cada uno declara su
+// GET del cuadro semanal: lee la vista N1 tal cual, sin componer con FichaTurno (CA-ADR-0034
+// enmendado por #886). Comparte el segmento con el DELETE de RetirarPlantillaSemanal; cada uno declara su
 // verbo (MEF-ADR-0006).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {

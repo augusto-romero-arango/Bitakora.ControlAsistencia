@@ -14,8 +14,40 @@ public sealed record CuadroSemanalTurnosRespuesta(
     JornadaDelCuadroRespuesta? Jornada,
     IReadOnlyList<AdvertenciaDelCuadroRespuesta> Advertencias)
 {
-    public static CuadroSemanalTurnosRespuesta Componer(CuadroSemanalTurnos cuadro) =>
-        throw new NotImplementedException();
+    private const int MinutosPorHora = 60;
+
+    public static CuadroSemanalTurnosRespuesta Componer(CuadroSemanalTurnos cuadro) => new(
+        cuadro.Id,
+        cuadro.Nombre,
+        cuadro.Semanas,
+        cuadro.Completa,
+        cuadro.Dias
+            .Select(d => new DiaDelCuadroRespuesta(
+                d.Semana, d.Dia,
+                new TurnoDelCuadroRespuesta(d.TurnoId, d.Nombre, d.Descripcion, d.Completo, d.Retirado)))
+            .ToList(),
+        cuadro.JornadaId is { } jornadaId && cuadro.Limites is { } l
+            ? new JornadaDelCuadroRespuesta(
+                jornadaId,
+                AHorasYMinutos(l.HorasSemanalesEnMinutos),
+                AHorasYMinutos(l.TopeDiarioEnMinutos),
+                AHorasYMinutos(l.MinimoDiarioEnMinutos),
+                l.DiasDescansoPorSemana,
+                l.Descripcion)
+            : null,
+        cuadro.Advertencias.Select(ComponerAdvertencia).ToList());
+
+    private static AdvertenciaDelCuadroRespuesta ComponerAdvertencia(AdvertenciaDelCuadro a)
+    {
+        var enDias = a.Tipo is "FaltanDiasDeDescanso" or "SobranDiasDeDescanso";
+        object magnitud = enDias ? a.Magnitud : AHorasYMinutos(a.Magnitud);
+        return new AdvertenciaDelCuadroRespuesta(
+            a.Tipo, a.Semana, a.Dia, magnitud,
+            DescripcionesDeAdvertencias.Describir(a.Tipo, a.Semana, a.Dia, magnitud));
+    }
+
+    private static HorasYMinutosRespuesta AHorasYMinutos(int minutos) =>
+        new(minutos / MinutosPorHora, minutos % MinutosPorHora);
 }
 
 public sealed record DiaDelCuadroRespuesta(int Semana, int Dia, TurnoDelCuadroRespuesta Turno);

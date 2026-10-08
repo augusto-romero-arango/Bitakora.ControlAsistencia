@@ -12,31 +12,76 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 public sealed partial class CuadroSemanalTurnosProjection
     : SingleStreamProjection<CuadroSemanalTurnos, string>
 {
-    public static CuadroSemanalTurnos Create(IEvent<PlantillaSemanalCreada> e) =>
-        throw new NotImplementedException();
+    private const int DiasPorSemana = 7;
+    private const int MinutosPorHora = 60;
 
-    public static CuadroSemanalTurnos Apply(DiaDePlantillaSemanalAsignado e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+    public static CuadroSemanalTurnos Create(IEvent<PlantillaSemanalCreada> e) =>
+        new(e.StreamKey!, e.Data.Nombre, e.Data.Semanas, [], false, null, null, []);
+
+    public static CuadroSemanalTurnos Apply(DiaDePlantillaSemanalAsignado e, CuadroSemanalTurnos vista)
+    {
+        var dia = new DiaDelCuadro(
+            e.Semana, e.Dia.Numero, e.TurnoId.ToString(), e.Turno.Nombre,
+            e.Turno.ToString(), e.Turno.EstaCompleto(), false);
+        var dias = vista.Dias
+            .Where(d => !(d.Semana == e.Semana && d.Dia == e.Dia.Numero))
+            .Append(dia)
+            .OrderBy(d => d.Semana).ThenBy(d => d.Dia)
+            .ToList();
+        return ConDias(vista, dias);
+    }
 
     public static CuadroSemanalTurnos Apply(DiaDePlantillaSemanalQuitado e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        ConDias(vista, vista.Dias.Where(d => !(d.Semana == e.Semana && d.Dia == e.Dia.Numero)).ToList());
 
-    public static CuadroSemanalTurnos Apply(TurnoDePlantillaSemanalSincronizado e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+    public static CuadroSemanalTurnos Apply(TurnoDePlantillaSemanalSincronizado e, CuadroSemanalTurnos vista)
+    {
+        var turnoId = e.TurnoId.ToString();
+        var dias = vista.Dias
+            .Select(d => d.TurnoId != turnoId
+                ? d
+                : d with
+                {
+                    Nombre = e.Turno.Nombre,
+                    Descripcion = e.Turno.ToString(),
+                    Completo = e.Turno.EstaCompleto(),
+                    Retirado = e.Retirado
+                })
+            .ToList();
+        return ConDias(vista, dias);
+    }
 
     public static CuadroSemanalTurnos Apply(JornadaDePlantillaSemanalAsignada e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = e.JornadaId, Limites = ALimites(e.Limites) };
 
     public static CuadroSemanalTurnos Apply(JornadaDePlantillaSemanalQuitada e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = null, Limites = null };
 
     public static CuadroSemanalTurnos Apply(
         LimitesDeJornadaDePlantillaSemanalSincronizados e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { Limites = ALimites(e.Limites) };
 
     public static CuadroSemanalTurnos Apply(
         AdvertenciasDePlantillaSemanalCalculadas e, CuadroSemanalTurnos vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            Advertencias = e.Advertencias
+                .Select(a => new AdvertenciaDelCuadro(a.Tipo.ToString(), a.Semana, a.Dia, a.Magnitud))
+                .ToList()
+        };
 
     public static bool ShouldDelete(PlantillaSemanalRetirada e) => true;
+
+    private static CuadroSemanalTurnos ConDias(CuadroSemanalTurnos vista, IReadOnlyList<DiaDelCuadro> dias) =>
+        vista with
+        {
+            Dias = dias,
+            Completa = dias.Count == DiasPorSemana * vista.Semanas && dias.All(d => d.Completo && !d.Retirado)
+        };
+
+    private static LimitesDelCuadro ALimites(LimitesJornada l) => new(
+        EnMinutos(l.HorasSemanales), EnMinutos(l.TopeDiario), EnMinutos(l.MinimoDiario),
+        l.DiasDescansoPorSemana, l.ToString());
+
+    private static int EnMinutos(HorasYMinutos t) => t.Horas * MinutosPorHora + t.Minutos;
 }
