@@ -45,7 +45,19 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         string Nombre,
         int Semanas,
         bool Completa,
-        IReadOnlyList<DiaDelCuadroRespuestaSmoke> Dias);
+        IReadOnlyList<DiaDelCuadroRespuestaSmoke> Dias,
+        JornadaDelCuadroRespuestaSmoke? Jornada = null,
+        IReadOnlyList<AdvertenciaDelCuadroRespuestaSmoke>? Advertencias = null);
+
+    private sealed record HorasYMinutosRespuestaSmoke(int Horas, int Minutos);
+
+    private sealed record JornadaDelCuadroRespuestaSmoke(
+        string Id,
+        HorasYMinutosRespuestaSmoke HorasSemanales,
+        string? Descripcion);
+
+    private sealed record AdvertenciaDelCuadroRespuestaSmoke(
+        string Tipo, int? Semana, int? Dia, string? Descripcion);
 
     private static object PayloadPlantillaValida(Guid plantillaId, string nombre) => new
     {
@@ -96,7 +108,6 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCuadrosSemanalesTurnos_IncluyeElCuadroCreado_CuandoLaPlantillaExiste()
@@ -112,7 +123,6 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         cuadro.Dias.Should().BeEmpty();
     }
 
-    // CA-6
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCuadrosSemanalesTurnos_YaNoIncluyeElCuadro_CuandoLaPlantillaFueRetirada()
@@ -128,5 +138,42 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         var lista = await ListarHastaQueAsync(l => l.All(c => c.Id != plantillaId.ToString()), ct);
 
         lista.Should().NotContain(c => c.Id == plantillaId.ToString());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarCuadrosSemanalesTurnos_IncluyeJornadaYAdvertencias_CuandoLaPlantillaTieneJornada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaId = Guid.CreateVersion7();
+        var jornadaId = Guid.CreateVersion7();
+        var minutos = Random.Shared.Next(1, 60);
+
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
+        {
+            jornadaId,
+            horasSemanales = new { horas = 30, minutos },
+            topeDiario = new { horas = 8, minutos = 0 },
+            minimoDiario = new { horas = 0, minutos = 0 },
+            diasDescansoPorSemana = 1
+        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange depende de que CrearJornada funcione");
+        (await _client.PostAsJsonAsync(RutaPlantillas,
+            PayloadPlantillaValida(plantillaId, $"[TEST] Plantilla Listado Jornada {plantillaId}"), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
+                "el arrange depende de que CrearPlantillaSemanal funcione");
+        (await _client.PutAsJsonAsync($"{RutaPlantillas}/{plantillaId}/jornada", new { jornadaId }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent,
+                "el arrange depende de que AsignarJornadaAPlantillaSemanal funcione");
+
+        var lista = await ListarHastaQueAsync(
+            l => l.Any(c => c.Id == plantillaId.ToString() && c.Jornada is not null
+                && c.Advertencias is { Count: > 0 }),
+            ct);
+
+        var cuadro = lista.Single(c => c.Id == plantillaId.ToString());
+        cuadro.Jornada!.Id.Should().Be(jornadaId.ToString());
+        cuadro.Jornada.HorasSemanales.Should().Be(new HorasYMinutosRespuestaSmoke(30, minutos));
+        cuadro.Advertencias!.Should().Contain(a => a.Tipo == "DiaSinTurno");
     }
 }

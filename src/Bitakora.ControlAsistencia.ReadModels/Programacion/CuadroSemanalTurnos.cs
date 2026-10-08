@@ -1,40 +1,45 @@
 namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 
 /// <summary>
-/// Cuadro semanal de turnos de una plantilla: grilla dias x turnos que el Programador usa para
-/// saber si la plantilla que necesita ya existe, elegir cual usar y ver de un vistazo que turno
-/// toca cada dia.
+/// Cuadro semanal de turnos de una plantilla: grilla dias x turnos con la Jornada contra la que se
+/// audita y las advertencias vigentes, para que el Programador la corrija antes de aplicarla.
 /// </summary>
 /// <remarks>
-/// Record plano SIN partial ni comportamiento (MEF-ADR-0035): el mapeo evento -> vista vive
-/// integro en la clase companion CuadroSemanalTurnosProjection, en el worker.
-///
-/// Vive en ReadModels, la cuarta isla del repo -- cero ProjectReference (MEF-ADR-0041 decision 2):
-/// DiaDelCuadro es un tipo propio, nunca uno de Programacion.DomainEvents. Por eso Dia es int (no
-/// DiaSemana) y TurnoId es string (no Guid).
-///
-/// Id es el stream key de la plantilla (PlantillaId.ToString(), StreamIdentity.AsString), tomado
-/// de IEvent.StreamKey, nunca recomputado del payload.
-///
-/// Solo guarda lo que sale del stream de la plantilla. NombreTurno, Descripcion, TurnoRetirado y
-/// Completa NO son campos de esta vista: se derivan al juntarla con FichaTurno en la respuesta
-/// compuesta del GET (CA-ADR-0034 decision 5, N1 + composicion en la lectura).
+/// Record plano SIN partial ni comportamiento (MEF-ADR-0035). Vive en ReadModels, isla sin
+/// ProjectReference (CA-ADR-0029): todo es tipo propio, nunca uno de Programacion.DomainEvents.
+/// Id es el stream key de la plantilla. Todo llega en los eventos de la propia plantilla
+/// (CA-ADR-0034 enmendado por #886): sin composicion con FichaTurno. Sin texto de presentacion.
 /// </remarks>
+/// <param name="Completa">Estado derivado: 7 x Semanas dias con turno no retirado y completo.</param>
+/// <param name="Limites">Copia de los limites de la Jornada, o null sin Jornada.</param>
+/// <param name="Advertencias">Ultimo AdvertenciasDePlantillaSemanalCalculadas; vacia sin evento.</param>
 public sealed record CuadroSemanalTurnos(
     string Id,
     string Nombre,
     int Semanas,
     IReadOnlyList<DiaDelCuadro> Dias,
-    Guid? JornadaId = null);
+    bool Completa,
+    Guid? JornadaId,
+    LimitesDelCuadro? Limites,
+    IReadOnlyList<AdvertenciaDelCuadro> Advertencias);
 
-/// <summary>
-/// Un dia asignado del cuadro: la referencia viva al turno (TurnoId, CA-ADR-0034 decision 2), nunca
-/// una copia de su contenido. Un dia sin turno no aparece en <see cref="CuadroSemanalTurnos.Dias"/>
-/// (ausencia = vacio).
-/// </summary>
-/// <param name="Semana">Numero de semana de la plantilla (1..N).</param>
-/// <param name="Dia">Numero ISO 8601 del dia (1 = lunes .. 7 = domingo, DiaSemana.Numero mapeado en
-/// Apply -- ReadModels es isla y no referencia el VO).</param>
-/// <param name="TurnoId">El Guid del turno como string -- exactamente el Id de FichaTurno, listo
-/// para LoadAsync&lt;FichaTurno&gt;.</param>
-public sealed record DiaDelCuadro(int Semana, int Dia, string TurnoId);
+/// <summary>Un dia asignado del cuadro, con la copia plana de su turno. Dia es el numero ISO (1..7).</summary>
+public sealed record DiaDelCuadro(
+    int Semana,
+    int Dia,
+    string TurnoId,
+    string Nombre,
+    string Descripcion,
+    bool Completo,
+    bool Retirado);
+
+/// <summary>Limites de la Jornada en minutos y dias, con su descripcion calculada al proyectar.</summary>
+public sealed record LimitesDelCuadro(
+    int HorasSemanalesEnMinutos,
+    int TopeDiarioEnMinutos,
+    int MinimoDiarioEnMinutos,
+    int DiasDescansoPorSemana,
+    string Descripcion);
+
+/// <summary>Advertencia estructurada: Tipo es el codigo (nombre del tipo); Magnitud en minutos o dias.</summary>
+public sealed record AdvertenciaDelCuadro(string Tipo, int? Semana, int? Dia, int Magnitud);

@@ -7,8 +7,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos;
 
-// GET del cuadro semanal RESUELTO: composicion en lectura con FichaTurno (CA-ADR-0034 decision 5
-// enmendada). Comparte el segmento con el DELETE de RetirarPlantillaSemanal; cada uno declara su
+// GET del cuadro semanal: lee la vista N1 tal cual, sin componer con FichaTurno (CA-ADR-0034
+// enmendado por #886). Comparte el segmento con el DELETE de RetirarPlantillaSemanal; cada uno declara su
 // verbo (MEF-ADR-0006).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
@@ -33,11 +33,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (cuadro is null)
             return new NotFoundResult();
 
-        // Una unica LoadManyAsync con la union de los TurnoId distintos, nunca una por dia.
-        var turnoIds = cuadro.Dias.Select(dia => dia.TurnoId).Distinct().ToList();
-        var fichas = await session.LoadManyAsync<FichaTurno>(ct, turnoIds);
-
-        return new OkObjectResult(
-            CuadroSemanalTurnosRespuesta.Componer(cuadro, fichas.ToDictionary(ficha => ficha.Id)));
+        return new OkObjectResult(CuadroSemanalTurnosRespuesta.Componer(cuadro));
     }
 }

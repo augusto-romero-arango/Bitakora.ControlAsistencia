@@ -27,6 +27,11 @@ public sealed class AdvertenciaPlantillaSemanal
     {
     }
 
+    public TipoAdvertenciaPlantilla Tipo => _tipo;
+    public int? Semana => _semana;
+    public int? Dia => _dia;
+    public int Magnitud => _magnitud;
+
     private static AdvertenciaPlantillaSemanal Nueva(
         TipoAdvertenciaPlantilla tipo, int? semana = null, DiaSemana? dia = null, int magnitud = 0) =>
         new() { _tipo = tipo, _semana = semana, _dia = dia?.Numero, _magnitud = magnitud };

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="PlantillaSinJornada" xml:space="preserve">
+    <value>La plantilla no tiene Jornada asignada contra la cual auditarse</value>
+  </data>
+  <data name="DiaSinTurno" xml:space="preserve">
+    <value>Semana {0}, dia {1}: no tiene turno asignado</value>
+  </data>
+  <data name="SuperaTopeDiario" xml:space="preserve">
+    <value>Semana {0}, dia {1}: supera el tope diario por {2} h:min</value>
+  </data>
+  <data name="PorDebajoDelMinimoDiario" xml:space="preserve">
+    <value>Semana {0}, dia {1}: queda por debajo del minimo diario por {2} h:min</value>
+  </data>
+  <data name="SuperaHorasSemanales" xml:space="preserve">
+    <value>Semana {0}: supera las horas semanales por {2} h:min</value>
+  </data>
+  <data name="PorDebajoDeHorasSemanales" xml:space="preserve">
+    <value>Semana {0}: queda por debajo de las horas semanales por {2} h:min</value>
+  </data>
+  <data name="FaltanDiasDeDescanso" xml:space="preserve">
+    <value>Semana {0}: faltan {2} dias de descanso</value>
+  </data>
+  <data name="SobranDiasDeDescanso" xml:space="preserve">
+    <value>Semana {0}: sobran {2} dias de descanso</value>
+  </data>
+</root>
