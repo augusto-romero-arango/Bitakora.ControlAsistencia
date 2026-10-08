@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventSourcing.Abstractions;
 
@@ -9,15 +10,21 @@ public partial class Jornada : AggregateRoot
 {
     private Guid _jornadaId;
     private LimitesJornada _limites = null!;
+    private long _version;
 
     public void Apply(JornadaCreada evento)
     {
+        _version++;
         _jornadaId = evento.JornadaId;
         Id = _jornadaId.ToString();
         _limites = evento.Limites;
     }
 
-    public void Apply(LimitesJornadaModificados evento) => _limites = evento.Limites;
+    public void Apply(LimitesJornadaModificados evento)
+    {
+        _version++;
+        _limites = evento.Limites;
+    }
 
     internal LimitesJornada Limites => _limites;
 
@@ -50,6 +57,14 @@ public partial class Jornada : AggregateRoot
         _limites.MinimoDiario.Horas * 60 + _limites.MinimoDiario.Minutos,
         _limites.DiasDescansoPorSemana,
         _limites.ToString());
+
+    internal LimitesDeJornadaActualizados ComoLimitesActualizados() => new(
+        _jornadaId,
+        _version,
+        _limites.HorasSemanales.Horas * 60 + _limites.HorasSemanales.Minutos,
+        _limites.TopeDiario.Horas * 60 + _limites.TopeDiario.Minutos,
+        _limites.MinimoDiario.Horas * 60 + _limites.MinimoDiario.Minutos,
+        _limites.DiasDescansoPorSemana);
 
     internal static Jornada Iniciar(JornadaCreada evento)
     {

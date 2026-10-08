@@ -25,6 +25,7 @@ public partial class ModificarLimitesJornadaCommandHandler(
             throw new ReglaDeNegocioDeclinadaException(
                 string.Format(Mensajes.LimitesDuplicados, limites, igual.JornadaId));
 
-        jornada.ModificarLimites(limites);
+        if (jornada.ModificarLimites(limites) == ResultadoModificarLimites.Modificados)
+            await privateEventSender.PublishAsync(jornada.ComoLimitesActualizados());
     }
 }
