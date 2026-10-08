@@ -239,4 +239,49 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, string?>(
             StreamId, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
     }
+
+    private static readonly Guid JornadaAId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
+    private static readonly Guid JornadaBId = Guid.Parse("019600b0-0000-7000-8000-0000000000b2");
+
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_EstampaLaJornada_CuandoElEventoLaTrae()
+    {
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, ColaboradorResumen, Fecha, DetalleTurnoTest,
+            jornada: new DetalleJornada(JornadaAId, 2520, 510, 240, 1)));
+
+        var esperada = new JornadaProgramada(JornadaAId, 2520, 510, 240, 1);
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Colaborador, Fecha, TurnoDiarioTest, SolicitudId, esperada));
+        And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
+    }
+
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_EstampaLaJornadaNueva_CuandoReprogramaElMismoDia()
+    {
+        var turnoAnterior = new TurnoDiarioAsignado(
+            StreamId, Colaborador, Fecha, TurnoDiarioTest,
+            Guid.Parse("019600b0-0000-7000-8000-000000000002"),
+            new JornadaProgramada(JornadaAId, 2520, 510, 240, 1));
+
+        Given(StreamId, turnoAnterior);
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, ColaboradorResumen, Fecha, DetalleTurnoTest,
+            jornada: new DetalleJornada(JornadaBId, 2880, 480, 120, 2)));
+
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Colaborador, Fecha, TurnoDiarioTest, SolicitudId,
+            new JornadaProgramada(JornadaBId, 2880, 480, 120, 2)));
+        And<ControlDiarioAggregateRoot, Guid>(StreamId, c => c.UltimaSolicitudId, SolicitudId);
+    }
+
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_DejaJornadaNula_CuandoElEventoNoLaTrae()
+    {
+        await WhenAsync(CrearEvento());
+
+        Then(StreamId, new TurnoDiarioAsignado(
+            StreamId, Colaborador, Fecha, TurnoDiarioTest, SolicitudId, null));
+        And<ControlDiarioAggregateRoot, Guid>(StreamId, c => c.UltimaSolicitudId, SolicitudId);
+    }
 }

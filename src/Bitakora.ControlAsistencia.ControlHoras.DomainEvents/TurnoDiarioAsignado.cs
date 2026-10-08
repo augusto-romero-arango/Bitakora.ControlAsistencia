@@ -25,19 +25,22 @@ public sealed class TurnoDiarioAsignado
     public DateOnly Fecha { get; private set; }
     public TurnoDiario DetalleTurno { get; private set; } = null!;
     public Guid SolicitudId { get; private set; }
+    public JornadaProgramada? Jornada { get; private set; }
 
     public TurnoDiarioAsignado(
         string id,
         ColaboradorProgramado informacionColaborador,
         DateOnly fecha,
         TurnoDiario detalleTurno,
-        Guid solicitudId)
+        Guid solicitudId,
+        JornadaProgramada? jornada = null)
     {
         Id = id;
         InformacionColaborador = informacionColaborador;
         Fecha = fecha;
         DetalleTurno = detalleTurno;
         SolicitudId = solicitudId;
+        Jornada = jornada;
     }
 
     // Constructor para Marten/serializacion
