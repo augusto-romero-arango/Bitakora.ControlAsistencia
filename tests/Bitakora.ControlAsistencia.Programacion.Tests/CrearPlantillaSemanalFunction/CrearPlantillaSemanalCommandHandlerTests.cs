@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Tests.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
@@ -40,7 +41,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -54,7 +55,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -103,7 +104,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -119,7 +120,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -187,7 +188,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Given();
         await WhenAsync(comando);
 
-        Then(eventoEsperado);
+        Then(eventoEsperado, AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -226,7 +227,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         await WhenAsync(comando);
 
         Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2),
-            JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+            JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, AdvertenciasEsperadasPlantilla.PlantillaVaciaConJornada(2, 42)));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 
@@ -269,7 +271,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 
         await WhenAsync(comando);
 
-        Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2));
+        Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2),
+            AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
     }
 }

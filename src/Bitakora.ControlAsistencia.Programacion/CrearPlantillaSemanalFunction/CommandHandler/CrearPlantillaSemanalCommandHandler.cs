@@ -42,9 +42,10 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
         }
 
         var evento = PlantillaSemanalCreada.Crear(command.PlantillaId, command.Nombre, command.Semanas);
-        var plantilla = PlantillaSemanalTurnos.Iniciar(evento);
-        if (jornada is not null)
-            plantilla.AsignarJornada(command.JornadaId!.Value, jornada.Limites, jornada.Version);
+        var plantilla = jornada is null
+            ? PlantillaSemanalTurnos.Iniciar(evento)
+            : PlantillaSemanalTurnos.IniciarConJornada(
+                evento, command.JornadaId!.Value, jornada.Limites, jornada.Version);
         _eventStore.StartStream(plantilla);
     }
 

@@ -181,4 +181,13 @@ public class AliasEventosProgramacionTests
 
         AliasDe<JornadaPredeterminadaAsignada>(options).Should().Be("jornada_predeterminada_asignada");
     }
+
+    [Fact]
+    public void AdvertenciasDePlantillaSemanalCalculadas_TieneAliasAdvertenciasDePlantillaSemanalCalculadas()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<AdvertenciasDePlantillaSemanalCalculadas>(options)
+            .Should().Be("advertencias_de_plantilla_semanal_calculadas");
+    }
 }

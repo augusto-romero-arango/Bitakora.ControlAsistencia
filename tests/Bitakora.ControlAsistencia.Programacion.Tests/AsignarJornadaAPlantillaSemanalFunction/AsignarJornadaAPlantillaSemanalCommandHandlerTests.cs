@@ -3,6 +3,7 @@ using Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaSemanalFun
 using Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
+using Bitakora.ControlAsistencia.Programacion.Tests.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
@@ -40,7 +41,8 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
 
         await WhenAsync(new AsignarJornadaAPlantillaSemanal(GuidAggregateId, JornadaId));
 
-        Then(JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        Then(JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(GuidAggregateId, AdvertenciasEsperadasPlantilla.PlantillaVaciaConJornada(2, 42)));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 

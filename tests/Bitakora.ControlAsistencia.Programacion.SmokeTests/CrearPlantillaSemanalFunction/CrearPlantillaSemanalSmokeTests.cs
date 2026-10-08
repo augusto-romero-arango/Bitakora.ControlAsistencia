@@ -9,6 +9,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
 {
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoPlantillaSemanalCreada = "plantilla_semanal_creada";
+    private const string TipoEventoAdvertenciasCalculadas = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _client = api.Client;
@@ -56,6 +57,11 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
             SchemaProgramacion, plantillaId.ToString(), TipoEventoPlantillaSemanalCreada, Timeout);
         existe.Should().BeTrue(
             $"el evento {TipoEventoPlantillaSemanalCreada} deberia existir en el stream {plantillaId}");
+
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), TipoEventoAdvertenciasCalculadas, Timeout,
+            campoJson: "PlantillaId", valorJson: plantillaId.ToString()))
+            .Should().BeTrue("una plantilla sin Jornada emite sus advertencias (PlantillaSinJornada)");
     }
 
     [Fact]
@@ -129,6 +135,10 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
             SchemaProgramacion, plantillaId.ToString(), "jornada_de_plantilla_semanal_asignada", Timeout,
             campoJson: "JornadaId", valorJson: jornadaId.ToString()))
             .Should().BeTrue("la plantilla nace con la Jornada asignada en el mismo stream");
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), TipoEventoAdvertenciasCalculadas, Timeout,
+            campoJson: "PlantillaId", valorJson: plantillaId.ToString()))
+            .Should().BeTrue("la plantilla creada con Jornada emite sus advertencias del estado final");
     }
 
     [Fact]
