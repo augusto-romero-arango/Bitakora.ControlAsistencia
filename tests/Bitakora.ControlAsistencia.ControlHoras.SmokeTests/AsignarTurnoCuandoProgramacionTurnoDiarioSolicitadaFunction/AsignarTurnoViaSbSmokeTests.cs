@@ -496,7 +496,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var jornadaId = Guid.CreateVersion7();
         var fecha = new DateOnly(2026, 4, 12);
 
-        async Task<JsonElement> PublicarYLeer(object jornada)
+        async Task<JsonElement> PublicarYLeer(object? jornada)
         {
             var solicitudId = Guid.CreateVersion7();
             var codigoColaborador = Guid.CreateVersion7().ToString();
@@ -523,7 +523,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
                     }
                 }
             };
-            if (jornada is not null) evento["DetalleJornada"] = jornada;
+            if (jornada is not null) evento["Jornada"] = jornada;
 
             await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
 
@@ -549,7 +549,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var persistida = conJornada.GetProperty("Jornada").Deserialize<JornadaProgramada>();
         persistida.Should().Be(new JornadaProgramada(jornadaId, 2520, 510, 240, 1));
 
-        var sinJornada = await PublicarYLeer(null!);
+        var sinJornada = await PublicarYLeer(null);
         var hayJornada = sinJornada.TryGetProperty("Jornada", out var valor)
             && valor.ValueKind != JsonValueKind.Null;
         hayJornada.Should().BeFalse("sin DetalleJornada en el mensaje la Jornada persiste null");
