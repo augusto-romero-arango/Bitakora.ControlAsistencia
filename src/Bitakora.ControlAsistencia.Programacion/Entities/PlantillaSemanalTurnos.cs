@@ -28,6 +28,8 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     // Remove sobre una clave ausente devuelve false sin lanzar (MEF-ADR-0004 capa 4).
     public void Apply(DiaDePlantillaSemanalQuitado evento) => _dias.Remove((evento.Semana, evento.Dia));
 
+    public void Apply(TurnoDePlantillaSemanalSincronizado evento) => throw new NotImplementedException();
+
     public void Apply(PlantillaSemanalRetirada evento) => _estaActiva = false;
 
     public void Apply(JornadaDePlantillaSemanalAsignada evento)
@@ -47,6 +49,15 @@ public partial class PlantillaSemanalTurnos : AggregateRoot
     public void Apply(AdvertenciasDePlantillaSemanalCalculadas evento) => Advertencias = evento.Advertencias;
 
     internal IReadOnlyList<AdvertenciaPlantillaSemanal> Advertencias { get; private set; } = [];
+
+    internal IReadOnlyList<Turno> CopiasDelTurno(Guid turnoId) => throw new NotImplementedException();
+
+    internal long VersionDelTurno(Guid turnoId) => throw new NotImplementedException();
+
+    internal bool TurnoEstaRetirado(Guid turnoId) => throw new NotImplementedException();
+
+    internal ResultadoSincronizarTurno SincronizarTurno(Guid turnoId, Turno copia, long version, bool retirado)
+        => throw new NotImplementedException();
 
     internal Guid? JornadaId { get; private set; }
 
