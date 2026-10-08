@@ -20,9 +20,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         IPrivateEventSender privateEventSender,
         IAseguradorJornadaPredeterminada asegurador)
     {
-        _asegurador = asegurador;
         _eventStore = eventStore;
         _privateEventSender = privateEventSender;
+        _asegurador = asegurador;
     }
 
     public async Task<ResultadoSolicitudProgramacion> HandleAsync(SolicitarProgramacionTurno command, CancellationToken ct = default)

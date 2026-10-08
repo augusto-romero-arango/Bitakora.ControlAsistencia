@@ -1162,6 +1162,8 @@ public class SolicitarProgramacionTurnoSmokeTests(
         mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(510);
         mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(240);
         mensaje.Jornada.DiasDescansoPorSemana.Should().Be(1);
+        (await postgres.ContarEventosAsync(
+            SchemaProgramacion, conJornada.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
 
         var sinJornada = Guid.CreateVersion7();
         (await _client.PostAsJsonAsync("/api/programacion/solicitudes",
@@ -1178,8 +1180,11 @@ public class SolicitarProgramacionTurnoSmokeTests(
         mensajePredeterminada.Jornada.Should().NotBeNull();
         mensajePredeterminada.Jornada!.JornadaId.ToString().Should().Be(predeterminadaId);
 
+        var solicitudDesconocida = Guid.CreateVersion7();
         var desconocida = await _client.PostAsJsonAsync("/api/programacion/solicitudes",
-            PayloadSolicitud(Guid.CreateVersion7(), turnoId, "2026-11-04", Guid.NewGuid()), ct);
+            PayloadSolicitud(solicitudDesconocida, turnoId, "2026-11-04", Guid.NewGuid()), ct);
         desconocida.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await postgres.ContarEventosAsync(
+            SchemaProgramacion, solicitudDesconocida.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
     }
 }

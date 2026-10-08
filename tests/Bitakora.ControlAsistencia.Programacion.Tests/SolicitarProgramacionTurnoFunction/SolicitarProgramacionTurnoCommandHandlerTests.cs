@@ -697,7 +697,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
     // --- Issue #861: resolucion de la Jornada ---
 
-    // CA-3
     [Fact]
     public async Task SolicitarProgramacionTurno_EstampaLaJornadaEnAmbosEventos_CuandoTraeJornadaId()
     {
@@ -719,7 +718,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 
-    // CA-4a
     [Fact]
     public async Task SolicitarProgramacionTurno_EstampaLaPredeterminada_CuandoNoTraeJornadaId()
     {
@@ -743,7 +741,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         _asegurador.Invocaciones.Should().Be(1);
     }
 
-    // CA-4b
     [Fact]
     public async Task SolicitarProgramacionTurno_NoConsultaAlAsegurador_CuandoTraeJornadaId()
     {
@@ -761,7 +758,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         _asegurador.Invocaciones.Should().Be(0);
     }
 
-    // CA-4c
     [Fact]
     public async Task SolicitarProgramacionTurno_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoExiste()
     {
