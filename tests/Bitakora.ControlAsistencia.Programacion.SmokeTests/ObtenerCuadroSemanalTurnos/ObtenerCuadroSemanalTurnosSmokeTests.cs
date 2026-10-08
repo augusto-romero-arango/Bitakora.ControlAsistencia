@@ -2,12 +2,12 @@
 // programacion/plantillas-semanales, el turno con POST programacion/turnos y el dia se asigna con
 // PUT .../dias/{semana}/{dia} -- los mismos comandos que las proyecciones consumen.
 //
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa CuadroSemanalTurnos y FichaTurno
+// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa CuadroSemanalTurnos
 // DESPUES de persistir sus eventos, por eso los casos de exito van envueltos en
 // Polling.WaitUntilAsync -- unica excepcion documentada al "no usar Polling directo en tests".
 //
-// Alcance black-box: la composicion Completa/Retirado ya la cubre CuadroSemanalTurnosRespuestaTests
-// (CA-1..CA-3); aqui solo el shape basico y los bordes 404/400 contra dev.
+// Alcance black-box: Completa/Retirado ya los cubren los tests de la proyeccion; aqui el shape, la
+// jornada, las advertencias, la sincronizacion del turno y los bordes 404/400 contra dev.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -86,7 +86,7 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
     };
 
     // Plantilla de 1 semana con un unico dia (1/1) asignado -- 1 de los 7 dias, suficiente para
-    // ejercitar la composicion sin agotar el catalogo ISO completo (CA-5 del issue #625).
+    // ejercitar el cuadro sin agotar el catalogo ISO completo.
     private async Task<(Guid PlantillaId, Guid TurnoId, string NombreTurno)> CrearPlantillaTurnoYAsignarDiaAsync(
         CancellationToken ct)
     {
@@ -196,7 +196,6 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerCuadroSemanalTurnos_DebeRetornar200ConElCuadroResuelto_CuandoLaPlantillaTieneUnDiaAsignado()
@@ -217,7 +216,6 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         dia.Turno.Retirado.Should().BeFalse();
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerCuadroSemanalTurnos_Retorna404SinBody_CuandoLaPlantillaNoExiste()
@@ -230,7 +228,6 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         (await response.Content.ReadAsStringAsync(ct)).Should().BeEmpty();
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerCuadroSemanalTurnos_Retorna400_CuandoElIdDeRutaNoEsUnGuidValido()
@@ -242,7 +239,6 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerCuadroSemanalTurnos_MarcaElTurnoRetiradoYBorraElCuadroRetirado()
@@ -268,7 +264,6 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api)
         quedoNotFound.Should().BeTrue("el cuadro deberia desaparecer del read-side tras retirar la plantilla");
     }
 
-    // CA-6
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerCuadroSemanalTurnos_MuestraJornadaYAdvertenciasYReflejaLaFranjaAgregada_CuandoLaPlantillaTieneJornada()

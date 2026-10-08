@@ -108,7 +108,6 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCuadrosSemanalesTurnos_IncluyeElCuadroCreado_CuandoLaPlantillaExiste()
@@ -124,7 +123,6 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         cuadro.Dias.Should().BeEmpty();
     }
 
-    // CA-6
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCuadrosSemanalesTurnos_YaNoIncluyeElCuadro_CuandoLaPlantillaFueRetirada()
@@ -142,7 +140,6 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         lista.Should().NotContain(c => c.Id == plantillaId.ToString());
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCuadrosSemanalesTurnos_IncluyeJornadaYAdvertencias_CuandoLaPlantillaTieneJornada()

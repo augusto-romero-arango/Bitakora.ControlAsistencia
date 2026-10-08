@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 
@@ -39,7 +40,8 @@ public sealed record CuadroSemanalTurnosRespuesta(
 
     private static AdvertenciaDelCuadroRespuesta ComponerAdvertencia(AdvertenciaDelCuadro a)
     {
-        var enDias = a.Tipo is "FaltanDiasDeDescanso" or "SobranDiasDeDescanso";
+        var enDias = a.Tipo is nameof(TipoAdvertenciaPlantilla.FaltanDiasDeDescanso)
+            or nameof(TipoAdvertenciaPlantilla.SobranDiasDeDescanso);
         object magnitud = enDias ? a.Magnitud : AHorasYMinutos(a.Magnitud);
         return new AdvertenciaDelCuadroRespuesta(
             a.Tipo, a.Semana, a.Dia, magnitud,
