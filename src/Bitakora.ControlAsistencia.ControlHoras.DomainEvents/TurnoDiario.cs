@@ -56,5 +56,10 @@ public record TurnoDiario(
             .ToList();
 
     /// <summary>Suma de los tramos ordinarios de todas sus franjas (0 si no tiene franjas).</summary>
-    public int MinutosOrdinarios() => throw new NotImplementedException();
+    public int MinutosOrdinarios() =>
+        FranjasOrdinarias
+            .SelectMany(franja => franja.Segmentar())
+            .SelectMany(tramo => tramo.RomperEnMedianoche())
+            .Where(tramo => tramo.Tipo == TipoBloque.Ordinaria)
+            .Sum(tramo => tramo.Fin - tramo.Inicio);
 }
