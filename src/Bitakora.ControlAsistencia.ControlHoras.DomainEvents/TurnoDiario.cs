@@ -54,4 +54,14 @@ public record TurnoDiario(
             .SelectMany(tramo => tramo.RomperEnMedianoche())
             .Select(tramo => tramo.ResolverA(fecha))
             .ToList();
+
+    /// <summary>
+    /// Suma de los tramos ordinarios de todas sus franjas (0 si no tiene franjas). Un turno que cruza
+    /// la medianoche cuenta completo: pertenece al dia en que empieza.
+    /// </summary>
+    public int MinutosOrdinarios() =>
+        FranjasOrdinarias
+            .SelectMany(franja => franja.Segmentar())
+            .Where(tramo => tramo.Tipo == TipoBloque.Ordinaria)
+            .Sum(tramo => tramo.Fin - tramo.Inicio);
 }
