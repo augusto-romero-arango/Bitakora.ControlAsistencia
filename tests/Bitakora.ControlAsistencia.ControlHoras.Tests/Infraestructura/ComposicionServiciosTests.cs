@@ -44,6 +44,7 @@ using ObtenerDepuracionDelDiaEndpoint = Bitakora.ControlAsistencia.ControlHoras.
 using ListarTurnosVigentesEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.FunctionEndpoint;
 using ListarAsistenciasDiariasEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias.FunctionEndpoint;
 using ListarResumenesAsistenciaEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia.FunctionEndpoint;
+using ListarAdvertenciasProgramacionSemanalEndpoint = Bitakora.ControlAsistencia.ControlHoras.ListarAdvertenciasProgramacionSemanal.FunctionEndpoint;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
@@ -645,4 +646,16 @@ public class ComposicionServiciosTests
             opciones.ConnectionString.Should().Be(connectionStringReal);
         });
     }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarAdvertenciasProgramacionSemanal_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarAdvertenciasProgramacionSemanalEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
 }
+
