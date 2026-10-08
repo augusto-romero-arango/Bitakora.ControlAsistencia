@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler;
@@ -10,8 +11,13 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.Com
 public partial class AsignarSedeAFranjaCommandHandler : ICommandHandlerAsync<AsignarSedeAFranja>
 {
     private readonly IEventStore _eventStore;
+    private readonly IPrivateEventSender _privateEventSender;
 
-    public AsignarSedeAFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
+    public AsignarSedeAFranjaCommandHandler(IEventStore eventStore, IPrivateEventSender privateEventSender)
+    {
+        _eventStore = eventStore;
+        _privateEventSender = privateEventSender;
+    }
 
     public async Task HandleAsync(AsignarSedeAFranja command, CancellationToken ct = default)
     {
@@ -31,5 +37,9 @@ public partial class AsignarSedeAFranjaCommandHandler : ICommandHandlerAsync<Asi
 
         if (mensajeDeRechazo is not null)
             throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
+
+        var diseno = catalogo.ObtenerDisenoPublicable();
+        if (diseno is not null)
+            await _privateEventSender.PublishAsync(diseno);
     }
 }

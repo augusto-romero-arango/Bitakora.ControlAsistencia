@@ -2,17 +2,20 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AgregarFranjaFunction;
 
-public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoFranjaAgregada = "franja_agregada";
+    private const string TopicDisenoDeTurno = "diseno-de-turno-actualizado";
+    private const string Suscripcion = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private static string RutaAgregarFranja(Guid turnoId) => $"{RutaTurnos}/{turnoId}:agregar-franja";
@@ -98,6 +101,34 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
             RutaAgregarFranja(turnoId), payloadSolapada, ct);
 
         segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_PublicaDisenoDeTurnoActualizado_CuandoSeAgregaLaPrimeraFranja()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoVacioAsync(turnoId, "[TEST] Turno Publica Diseno", ct);
+        await serviceBus.PurgeAsync(TopicDisenoDeTurno, Suscripcion);
+
+        var payload = new { inicio = "08:00:00", fin = "16:00:00" };
+        var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var evento = await serviceBus.WaitForMessageAsync<DisenoDeTurnoActualizado>(
+            TopicDisenoDeTurno, Suscripcion, e => e.TurnoId == turnoId, Timeout);
+
+        evento.Version.Should().Be(2);
+        evento.Retirado.Should().BeFalse();
+        evento.EsDescanso.Should().BeFalse();
+        var franja = evento.Franjas.Should().ContainSingle().Which;
+        franja.HoraInicio.Should().Be(new TimeOnly(8, 0));
+        franja.HoraFin.Should().Be(new TimeOnly(16, 0));
+        franja.DiaOffsetFin.Should().Be(0);
     }
 
     // CA-5: turno inexistente -> 404 (KeyNotFoundException, patron de RetirarTurnoFunction).

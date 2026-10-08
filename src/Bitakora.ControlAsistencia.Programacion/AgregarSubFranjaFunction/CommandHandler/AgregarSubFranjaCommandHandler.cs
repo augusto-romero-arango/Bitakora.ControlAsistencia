@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.CommandHandler;
@@ -10,8 +11,13 @@ namespace Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.Comma
 public partial class AgregarSubFranjaCommandHandler : ICommandHandlerAsync<AgregarSubFranja>
 {
     private readonly IEventStore _eventStore;
+    private readonly IPrivateEventSender _privateEventSender;
 
-    public AgregarSubFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
+    public AgregarSubFranjaCommandHandler(IEventStore eventStore, IPrivateEventSender privateEventSender)
+    {
+        _eventStore = eventStore;
+        _privateEventSender = privateEventSender;
+    }
 
     public async Task HandleAsync(AgregarSubFranja command, CancellationToken ct = default)
     {
@@ -39,5 +45,9 @@ public partial class AgregarSubFranjaCommandHandler : ICommandHandlerAsync<Agreg
 
         if (mensajeDeRechazo is not null)
             throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
+
+        var diseno = catalogo.ObtenerDisenoPublicable();
+        if (diseno is not null)
+            await _privateEventSender.PublishAsync(diseno);
     }
 }

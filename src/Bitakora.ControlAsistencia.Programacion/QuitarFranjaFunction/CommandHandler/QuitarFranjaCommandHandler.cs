@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler;
@@ -9,8 +10,13 @@ namespace Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHa
 public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFranja>
 {
     private readonly IEventStore _eventStore;
+    private readonly IPrivateEventSender _privateEventSender;
 
-    public QuitarFranjaCommandHandler(IEventStore eventStore) => _eventStore = eventStore;
+    public QuitarFranjaCommandHandler(IEventStore eventStore, IPrivateEventSender privateEventSender)
+    {
+        _eventStore = eventStore;
+        _privateEventSender = privateEventSender;
+    }
 
     public async Task HandleAsync(QuitarFranja command, CancellationToken ct = default)
     {
@@ -28,5 +34,9 @@ public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFra
 
         if (mensajeDeRechazo is not null)
             throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
+
+        var diseno = catalogo.ObtenerDisenoPublicable();
+        if (diseno is not null)
+            await _privateEventSender.PublishAsync(diseno);
     }
 }

@@ -2,6 +2,7 @@
 // turno por pasos (CA-ADR-0033).
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -17,7 +18,7 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000602");
 
     protected override ICommandHandlerAsync<AgregarFranja> Handler =>
-        new AgregarFranjaCommandHandler(EventStore);
+        new AgregarFranjaCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurnoIncompleto() =>
         TurnoCreado.Crear(TurnoId, "Turno Manana", []);
@@ -141,5 +142,36 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
         Then(TurnoId.ToString());
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_PublicaDisenoDeTurnoActualizado_CuandoEmiteFranjaAgregada()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoIncompleto());
+
+        await WhenAsync(new AgregarFranja(TurnoId, new TimeOnly(14, 0), new TimeOnly(22, 0)));
+
+        Then(TurnoId.ToString(), FranjaAgregada.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "(14:00-22:00)")],
+            false));
+        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), true);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_NoPublica_CuandoElTurnoFueRetirado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(), TurnoRetirado.Crear(TurnoId));
+
+        var act = async () => await WhenAsync(
+            new AgregarFranja(TurnoId, new TimeOnly(14, 0), new TimeOnly(22, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>();
+        Then(TurnoId.ToString());
+        ThenIsPublishedPrivately();
+        And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
+            c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 }

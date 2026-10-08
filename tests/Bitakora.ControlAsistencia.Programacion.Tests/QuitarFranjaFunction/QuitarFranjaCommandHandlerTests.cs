@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -15,7 +16,7 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
     private static readonly SedeProgramada Sede = new("SEDE-SUBA", "Suba");
 
     protected override ICommandHandlerAsync<QuitarFranja> Handler =>
-        new QuitarFranjaCommandHandler(EventStore);
+        new QuitarFranjaCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurnoConDosFranjas() =>
         TurnoCreado.Crear(TurnoId, "Turno Manana",
@@ -112,5 +113,21 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
             .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
         Then(TurnoId.ToString());
         And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), true);
+    }
+
+    [Fact]
+    public async Task QuitarFranja_PublicaDisenoDeTurnoActualizado_CuandoEmiteFranjaQuitada()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConDosFranjas());
+
+        await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(6, 0)));
+
+        Then(TurnoId.ToString(), FranjaQuitada.Crear(TurnoId, FranjaEsperadaConDescansoYSede()));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "(14:00-22:00)")],
+            false));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
     }
 }

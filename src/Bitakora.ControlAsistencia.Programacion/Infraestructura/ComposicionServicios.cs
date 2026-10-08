@@ -71,6 +71,8 @@ public static class ComposicionServicios
                     "ausencia-diaria-cancelada");
                 options.PublicarEventoServerless<LimitesDeJornadaActualizados>(
                     "limites-de-jornada-actualizados");
+                options.PublicarEventoServerless<DisenoDeTurnoActualizado>(
+                    "diseno-de-turno-actualizado");
             });
 
         services.AgregarMartenEventStore();

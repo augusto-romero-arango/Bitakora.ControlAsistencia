@@ -1,6 +1,7 @@
 // Issue #500: retirar un turno del catalogo -- ya no asignable a nuevas solicitudes
 
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -16,7 +17,7 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000500");
 
     protected override ICommandHandlerAsync<RetirarTurno> Handler =>
-        new RetirarTurnoCommandHandler(EventStore);
+        new RetirarTurnoCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurno() =>
         TurnoCreado.Crear(TurnoId, "Turno Manana",
@@ -74,5 +75,34 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{RetirarTurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(TurnoId.ToString());
+    }
+
+    [Fact]
+    public async Task RetirarTurno_PublicaDisenoDeTurnoActualizadoRetirado_CuandoEmiteTurnoRetirado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+
+        await WhenAsync(new RetirarTurno(TurnoId));
+
+        Then(TurnoId.ToString(), TurnoRetirado.Crear(TurnoId));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 2, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")],
+            true));
+        And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
+            c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
+    }
+
+    [Fact]
+    public async Task RetirarTurno_NoPublica_CuandoElTurnoYaEstaRetirado()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno(), TurnoRetirado.Crear(TurnoId));
+
+        await WhenAsync(new RetirarTurno(TurnoId));
+
+        Then(TurnoId.ToString());
+        ThenIsPublishedPrivately();
+        And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
+            c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 }
