@@ -33,11 +33,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (cuadro is null)
             return new NotFoundResult();
 
-        // Una unica LoadManyAsync con la union de los TurnoId distintos, nunca una por dia.
-        var turnoIds = cuadro.Dias.Select(dia => dia.TurnoId).Distinct().ToList();
-        var fichas = await session.LoadManyAsync<FichaTurno>(ct, turnoIds);
-
-        return new OkObjectResult(
-            CuadroSemanalTurnosRespuesta.Componer(cuadro, fichas.ToDictionary(ficha => ficha.Id)));
+        return new OkObjectResult(CuadroSemanalTurnosRespuesta.Componer(cuadro));
     }
 }

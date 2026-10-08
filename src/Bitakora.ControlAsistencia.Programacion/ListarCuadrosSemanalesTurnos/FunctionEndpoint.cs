@@ -30,16 +30,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             .OrderBy(cuadro => cuadro.Nombre).ThenBy(cuadro => cuadro.Id)
             .ToListAsync(ct);
 
-        // Una unica LoadManyAsync con la union de los TurnoId distintos de TODOS los cuadros, nunca
-        // una por cuadro.
-        var turnoIds = cuadros.SelectMany(cuadro => cuadro.Dias.Select(dia => dia.TurnoId))
-            .Distinct()
-            .ToList();
-        var fichas = await session.LoadManyAsync<FichaTurno>(ct, turnoIds);
-        var fichasPorId = fichas.ToDictionary(ficha => ficha.Id);
-
-        return new OkObjectResult(cuadros
-            .Select(cuadro => CuadroSemanalTurnosRespuesta.Componer(cuadro, fichasPorId))
-            .ToList());
+        return new OkObjectResult(cuadros.Select(CuadroSemanalTurnosRespuesta.Componer).ToList());
     }
 }

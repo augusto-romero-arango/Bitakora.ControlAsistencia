@@ -1,15 +1,8 @@
-// Invocacion DIRECTA de los metodos estaticos, no el DSL Given/When/Then de
-// CommandHandlerTestBase: aqui se prueba una funcion pura evento -> vista, sin abrir ningun stream.
-//
-// Cada oraculo se arma a mano (MEF-ADR-0002, no-tautologia): las vistas previas y las esperadas se
-// construyen con el constructor posicional del record, nunca reusando la logica del SUT.
-//
-// BeEquivalentTo, no Be: CuadroSemanalTurnos es un record plano sin igualdad por valor sobre su
-// coleccion Dias.
-//
-// Sin test para "Apply de un evento de dia sobre un stream sin creacion": esa garantia es
-// estructural -- la clase no declara ningun Create para esos eventos, y el dispatcher generado no
-// materializa nada sin un Create previo. Un test sobre esa ausencia seria tautologico.
+// Invocacion DIRECTA de los metodos estaticos: funcion pura evento -> vista, sin abrir streams.
+// Cada oraculo se arma a mano con el constructor posicional (MEF-ADR-0002); los datos de la copia
+// del turno (nombre, descripcion) salen de la fixture CopiaTurno, nunca de la logica del SUT.
+// BeEquivalentTo con orden estricto donde importa: los records planos no tienen igualdad por
+// valor sobre sus colecciones.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -24,14 +17,38 @@ public class CuadroSemanalTurnosProjectionTests
     private static readonly Turno CopiaTurno =
         Turno.Crear("Turno Manana", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
 
-    // CA-1: el PlantillaId embebido en el evento se fija DISTINTO del StreamKey a proposito -- un
-    // Create que leyera e.Data.PlantillaId.ToString() en vez de e.StreamKey quedaria en evidencia.
+    private static readonly Turno CopiaIncompleta = Turno.Crear("Turno Nuevo", false, []);
+
+    private static CuadroSemanalTurnos Vista(
+        IReadOnlyList<DiaDelCuadro> dias,
+        int semanas = 1,
+        bool completa = false,
+        Guid? jornadaId = null,
+        LimitesDelCuadro? limites = null,
+        IReadOnlyList<AdvertenciaDelCuadro>? advertencias = null) =>
+        new("plantilla-001", "Semana Cocina", semanas, dias, completa, jornadaId, limites, advertencias ?? []);
+
+    private static DiaDelCuadro DiaCompleto(int semana, int dia, Guid turnoId) =>
+        new(semana, dia, turnoId.ToString(), "Turno Manana", CopiaTurno.ToString(), true, false);
+
+    private static LimitesJornada LimitesDeEjemplo() =>
+        LimitesJornada.Crear(HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(10, 0), HorasYMinutos.Crear(4, 0), 1);
+
+    private static LimitesDelCuadro LimitesDelCuadroDeEjemplo() =>
+        new(2640, 600, 240, 1, LimitesDeEjemplo().ToString());
+
+    private static readonly Guid TurnoA = Guid.Parse("019600b0-0000-7000-8000-000000000001");
+    private static readonly Guid TurnoB = Guid.Parse("019600b0-0000-7000-8000-000000000002");
+    private static readonly Guid JornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
+
+    private static IReadOnlyList<DiaDelCuadro> SemanaCompletaSin(int diaFaltante, Guid turnoId) =>
+        Enumerable.Range(1, 7).Where(d => d != diaFaltante).Select(d => DiaCompleto(1, d, turnoId)).ToList();
+
     [Fact]
-    public void Create_ProyectaElCuadroVacio_DesdePlantillaSemanalCreada()
+    public void Create_ProyectaElCuadroVacioSinJornadaNiAdvertencias_DesdePlantillaSemanalCreada()
     {
-        var plantillaIdDelPayload = Guid.Parse("019600b0-0000-7000-8000-000000000099");
-        var plantillaCreada = PlantillaSemanalCreada.Crear(plantillaIdDelPayload, "Semana Cocina", 2);
-        var evento = new Event<PlantillaSemanalCreada>(plantillaCreada)
+        var payload = PlantillaSemanalCreada.Crear(Guid.Parse("019600b0-0000-7000-8000-000000000099"), "Semana Cocina", 2);
+        var evento = new Event<PlantillaSemanalCreada>(payload)
         {
             StreamKey = "plantilla-001",
             Version = 1,
@@ -40,182 +57,227 @@ public class CuadroSemanalTurnosProjectionTests
 
         var vista = CuadroSemanalTurnosProjection.Create(evento);
 
-        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos("plantilla-001", "Semana Cocina", 2, []));
+        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(
+            "plantilla-001", "Semana Cocina", 2, [], false, null, null, []));
     }
 
-    // CA-2. TurnoId es turnoId.ToString() (formato "D", minusculas): construir el esperado con la
-    // misma llamada es el valor de dato de la fixture, no la logica del SUT.
     [Fact]
-    public void Apply_AgregaElDia_CuandoDiaDePlantillaSemanalAsignadoSobreCuadroVacio()
+    public void Apply_GuardaLaCopiaDelTurnoEnElDia_CuandoDiaDePlantillaSemanalAsignado()
     {
-        var plantillaId = Guid.NewGuid();
-        var turnoId = Guid.Parse("019600b0-0000-7000-8000-000000000001");
-        var cuadroVacio = new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, []);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(5), TurnoA, CopiaTurno, 1);
 
-        var evento = DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(5), turnoId, CopiaTurno, 1);
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, Vista([], semanas: 2));
 
-        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadroVacio);
-
-        vista.Dias.Should().BeEquivalentTo([new DiaDelCuadro(1, 5, turnoId.ToString())]);
+        vista.Should().BeEquivalentTo(Vista([DiaCompleto(1, 5, TurnoA)], semanas: 2, completa: false));
     }
 
-    // CA-2: reasignar el MISMO slot reemplaza el turno, no agrega un segundo elemento.
+    [Fact]
+    public void Apply_MarcaElDiaIncompleto_CuandoLaCopiaDelTurnoNoTieneFranjas()
+    {
+        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(2), TurnoA, CopiaIncompleta, 1);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, Vista([]));
+
+        vista.Dias.Should().BeEquivalentTo(
+            [new DiaDelCuadro(1, 2, TurnoA.ToString(), "Turno Nuevo", CopiaIncompleta.ToString(), false, false)]);
+    }
+
     [Fact]
     public void Apply_ReemplazaElDia_CuandoDiaDePlantillaSemanalAsignadoSobreElMismoSlot()
     {
-        var plantillaId = Guid.NewGuid();
-        var turnoId1 = Guid.Parse("019600b0-0000-7000-8000-000000000001");
-        var turnoId2 = Guid.Parse("019600b0-0000-7000-8000-000000000002");
-        var cuadroConUnDia = new CuadroSemanalTurnos(
-            plantillaId.ToString(), "Semana Cocina", 2,
-            [new DiaDelCuadro(1, 5, turnoId1.ToString())]);
+        var previa = Vista([DiaCompleto(1, 5, TurnoA)], semanas: 2);
+        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(5), TurnoB, CopiaTurno, 1);
 
-        var evento = DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(5), turnoId2, CopiaTurno, 1);
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
 
-        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadroConUnDia);
-
-        vista.Dias.Should().BeEquivalentTo([new DiaDelCuadro(1, 5, turnoId2.ToString())]);
+        vista.Dias.Should().BeEquivalentTo([DiaCompleto(1, 5, TurnoB)]);
     }
 
-    // CA-2: la vista se lee lunes -> domingo (MEF-ADR-0041), no en el orden de asignacion.
     [Fact]
-    public void Apply_OrdenaLosDiasPorSemanaYDia_CuandoSeAsignanVariosSlotsDesordenados()
+    public void Apply_OrdenaLosDiasPorSemanaYDia_CuandoSeAsignanSlotsDesordenados()
     {
-        var plantillaId = Guid.NewGuid();
-        var turnoId2 = Guid.Parse("019600b0-0000-7000-8000-000000000002");
-        var turnoId3 = Guid.Parse("019600b0-0000-7000-8000-000000000003");
-        var turnoId4 = Guid.Parse("019600b0-0000-7000-8000-000000000004");
-        var cuadroPrevio = new CuadroSemanalTurnos(
-            plantillaId.ToString(), "Semana Cocina", 2,
-            [new DiaDelCuadro(1, 5, turnoId2.ToString())]);
+        var previa = Vista([DiaCompleto(1, 5, TurnoA)], semanas: 2);
 
-        var vistaTrasSemana2 = CuadroSemanalTurnosProjection.Apply(
-            DiaDePlantillaSemanalAsignado.Crear(plantillaId, 2, DiaSemana.Desde(1), turnoId3, CopiaTurno, 1),
-            cuadroPrevio);
-        var vistaFinal = CuadroSemanalTurnosProjection.Apply(
-            DiaDePlantillaSemanalAsignado.Crear(plantillaId, 1, DiaSemana.Desde(7), turnoId4, CopiaTurno, 1),
-            vistaTrasSemana2);
+        var tras = CuadroSemanalTurnosProjection.Apply(
+            DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 2, DiaSemana.Desde(1), TurnoA, CopiaTurno, 1), previa);
+        var vista = CuadroSemanalTurnosProjection.Apply(
+            DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(7), TurnoA, CopiaTurno, 1), tras);
 
-        vistaFinal.Dias.Should().BeEquivalentTo(
-            [
-                new DiaDelCuadro(1, 5, turnoId2.ToString()),
-                new DiaDelCuadro(1, 7, turnoId4.ToString()),
-                new DiaDelCuadro(2, 1, turnoId3.ToString()),
-            ],
-            opciones => opciones.WithStrictOrdering());
+        vista.Dias.Should().BeEquivalentTo(
+            [DiaCompleto(1, 5, TurnoA), DiaCompleto(1, 7, TurnoA), DiaCompleto(2, 1, TurnoA)],
+            o => o.WithStrictOrdering());
     }
 
-    // CA-3.
     [Fact]
-    public void Apply_QuitaElDiaCuyoSlotCoincide_CuandoDiaDePlantillaSemanalQuitado()
+    public void Apply_MarcaCompleta_CuandoDiaDePlantillaSemanalAsignadoCierraLosSieteDiasCompletos()
     {
-        var plantillaId = Guid.NewGuid();
-        var turnoId5 = Guid.Parse("019600b0-0000-7000-8000-000000000005");
-        var turnoId6 = Guid.Parse("019600b0-0000-7000-8000-000000000006");
-        var cuadroConDosDias = new CuadroSemanalTurnos(
-            plantillaId.ToString(), "Semana Cocina", 2,
-            [
-                new DiaDelCuadro(1, 5, turnoId5.ToString()),
-                new DiaDelCuadro(1, 6, turnoId6.ToString()),
-            ]);
+        var previa = Vista(SemanaCompletaSin(3, TurnoA));
+        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(3), TurnoA, CopiaTurno, 1);
 
-        var evento = DiaDePlantillaSemanalQuitado.Crear(plantillaId, 1, DiaSemana.Desde(5));
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
 
-        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadroConDosDias);
-
-        vista.Dias.Should().BeEquivalentTo([new DiaDelCuadro(1, 6, turnoId6.ToString())]);
+        vista.Completa.Should().BeTrue();
     }
 
-    // CA-3: Apply nunca lanza (MEF-ADR-0004 capa 4) -- quitar un slot ausente deja la vista igual.
+    [Fact]
+    public void Apply_DejaCompletaEnFalso_CuandoElDiaAsignadoTieneTurnoIncompleto()
+    {
+        var previa = Vista(SemanaCompletaSin(3, TurnoA));
+        var evento = DiaDePlantillaSemanalAsignado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(3), TurnoB, CopiaIncompleta, 1);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
+
+        vista.Completa.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_QuitaElDiaYRecalculaCompleta_CuandoDiaDePlantillaSemanalQuitado()
+    {
+        var previa = Vista(SemanaCompletaSin(0, TurnoA), completa: true);
+        var evento = DiaDePlantillaSemanalQuitado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(5));
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
+
+        vista.Should().BeEquivalentTo(Vista(SemanaCompletaSin(5, TurnoA), completa: false));
+    }
+
     [Fact]
     public void Apply_DejaLaVistaSinCambios_CuandoDiaDePlantillaSemanalQuitadoSobreSlotAusente()
     {
-        var plantillaId = Guid.NewGuid();
-        var turnoId6 = Guid.Parse("019600b0-0000-7000-8000-000000000006");
-        var cuadroSinEseSlot = new CuadroSemanalTurnos(
-            plantillaId.ToString(), "Semana Cocina", 2,
-            [new DiaDelCuadro(1, 6, turnoId6.ToString())]);
+        var previa = Vista([DiaCompleto(1, 6, TurnoA)], semanas: 2);
 
-        var evento = DiaDePlantillaSemanalQuitado.Crear(plantillaId, 1, DiaSemana.Desde(5));
+        var vista = CuadroSemanalTurnosProjection.Apply(
+            DiaDePlantillaSemanalQuitado.Crear(Guid.NewGuid(), 1, DiaSemana.Desde(5)), previa);
 
-        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadroSinEseSlot);
-
-        vista.Should().BeEquivalentTo(cuadroSinEseSlot);
+        vista.Should().BeEquivalentTo(previa);
     }
 
-    // CA-4: el retiro borra el cuadro -- la memoria queda en el stream y el nombre queda libre
-    // para reusarse (CA-ADR-0034 decision 4).
+    [Fact]
+    public void Apply_ActualizaLaCopiaEnTodosLosDiasConEseTurnoId_CuandoTurnoDePlantillaSemanalSincronizado()
+    {
+        var turnoNuevo = Turno.Crear("Turno Tarde", false, [FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))]);
+        var previa = Vista([DiaCompleto(1, 1, TurnoA), DiaCompleto(1, 2, TurnoB), DiaCompleto(1, 3, TurnoA)]);
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(Guid.NewGuid(), TurnoA, turnoNuevo, 2, false);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
+
+        var sincronizado = new DiaDelCuadro(0, 0, "", "Turno Tarde", turnoNuevo.ToString(), true, false);
+        vista.Dias.Should().BeEquivalentTo(
+            [
+                sincronizado with { Semana = 1, Dia = 1, TurnoId = TurnoA.ToString() },
+                DiaCompleto(1, 2, TurnoB),
+                sincronizado with { Semana = 1, Dia = 3, TurnoId = TurnoA.ToString() },
+            ],
+            o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Apply_MarcaRetiradoYQuitaCompleta_CuandoTurnoDePlantillaSemanalSincronizadoRetirado()
+    {
+        var previa = Vista(SemanaCompletaSin(0, TurnoA), completa: true);
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(Guid.NewGuid(), TurnoA, CopiaTurno, 3, true);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
+
+        vista.Completa.Should().BeFalse();
+        vista.Dias.Should().OnlyContain(d => d.Retirado);
+    }
+
+    [Fact]
+    public void Apply_RecalculaCompleta_CuandoTurnoDePlantillaSemanalSincronizadoCompletaElTurno()
+    {
+        var dias = Enumerable.Range(1, 7)
+            .Select(d => new DiaDelCuadro(1, d, TurnoA.ToString(), "Turno Nuevo", CopiaIncompleta.ToString(), false, false))
+            .ToList();
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(Guid.NewGuid(), TurnoA, CopiaTurno, 2, false);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, Vista(dias));
+
+        vista.Completa.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_DejaLaVistaIgual_CuandoTurnoDePlantillaSemanalSincronizadoDeTurnoSinDias()
+    {
+        var previa = Vista([DiaCompleto(1, 1, TurnoA)]);
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(Guid.NewGuid(), TurnoB, CopiaTurno, 2, false);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
+
+        vista.Should().BeEquivalentTo(previa);
+    }
+
+    [Fact]
+    public void Apply_GuardaJornadaYLimites_CuandoJornadaDePlantillaSemanalAsignada()
+    {
+        var evento = JornadaDePlantillaSemanalAsignada.Crear(Guid.NewGuid(), JornadaId, LimitesDeEjemplo(), 1);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, Vista([DiaCompleto(1, 5, TurnoA)]));
+
+        vista.Should().BeEquivalentTo(Vista(
+            [DiaCompleto(1, 5, TurnoA)], jornadaId: JornadaId, limites: LimitesDelCuadroDeEjemplo()));
+    }
+
+    [Fact]
+    public void Apply_DejaJornadaYLimitesEnNull_CuandoJornadaDePlantillaSemanalQuitada()
+    {
+        var previa = Vista([], jornadaId: JornadaId, limites: LimitesDelCuadroDeEjemplo());
+
+        var vista = CuadroSemanalTurnosProjection.Apply(JornadaDePlantillaSemanalQuitada.Crear(Guid.NewGuid()), previa);
+
+        vista.Should().BeEquivalentTo(Vista([]));
+    }
+
+    [Fact]
+    public void Apply_ReemplazaLosLimites_CuandoLimitesDeJornadaDePlantillaSemanalSincronizados()
+    {
+        var previa = Vista([], jornadaId: JornadaId, limites: LimitesDelCuadroDeEjemplo());
+        var nuevos = LimitesJornada.Crear(
+            HorasYMinutos.Crear(40, 30), HorasYMinutos.Crear(9, 0), HorasYMinutos.Crear(2, 15), 2);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(
+            LimitesDeJornadaDePlantillaSemanalSincronizados.Crear(Guid.NewGuid(), nuevos, 2), previa);
+
+        vista.Should().BeEquivalentTo(Vista(
+            [], jornadaId: JornadaId, limites: new LimitesDelCuadro(2430, 540, 135, 2, nuevos.ToString())));
+    }
+
+    [Fact]
+    public void Apply_ReemplazaLaListaCompleta_CuandoAdvertenciasDePlantillaSemanalCalculadas()
+    {
+        var previa = Vista([], advertencias: [new AdvertenciaDelCuadro("DiaSinTurno", 1, 3, 0)]);
+        var evento = AdvertenciasDePlantillaSemanalCalculadas.Crear(Guid.NewGuid(),
+        [
+            AdvertenciaPlantillaSemanal.PlantillaSinJornada(),
+            AdvertenciaPlantillaSemanal.SuperaTopeDiario(1, DiaSemana.Desde(2), 30),
+            AdvertenciaPlantillaSemanal.FaltanDiasDeDescanso(2, 1),
+        ]);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(evento, previa);
+
+        vista.Advertencias.Should().BeEquivalentTo(
+            [
+                new AdvertenciaDelCuadro("PlantillaSinJornada", null, null, 0),
+                new AdvertenciaDelCuadro("SuperaTopeDiario", 1, 2, 30),
+                new AdvertenciaDelCuadro("FaltanDiasDeDescanso", 2, null, 1),
+            ],
+            o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Apply_VaciaLasAdvertencias_CuandoAdvertenciasDePlantillaSemanalCalculadasSinElementos()
+    {
+        var previa = Vista([], advertencias: [new AdvertenciaDelCuadro("DiaSinTurno", 1, 3, 0)]);
+
+        var vista = CuadroSemanalTurnosProjection.Apply(
+            AdvertenciasDePlantillaSemanalCalculadas.Crear(Guid.NewGuid(), []), previa);
+
+        vista.Advertencias.Should().BeEmpty();
+    }
+
     [Fact]
     public void ShouldDelete_BorraElCuadro_CuandoPlantillaSemanalRetirada()
     {
-        var evento = PlantillaSemanalRetirada.Crear(Guid.NewGuid());
-
-        var debeBorrarse = CuadroSemanalTurnosProjection.ShouldDelete(evento);
-
-        debeBorrarse.Should().BeTrue();
-    }
-
-    private static LimitesJornada LimitesDeEjemplo() =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(10, 0), HorasYMinutos.Crear(4, 0), 1);
-
-    // CA-1: el JornadaId viene del payload; el resto de la vista no cambia (CA-2).
-    [Fact]
-    public void Apply_FijaLaJornada_CuandoJornadaDePlantillaSemanalAsignadaSobreCuadroSinJornada()
-    {
-        var plantillaId = Guid.NewGuid();
-        var jornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
-        var turnoId = Guid.Parse("019600b0-0000-7000-8000-000000000001");
-        var cuadro = new CuadroSemanalTurnos(
-            plantillaId.ToString(), "Semana Cocina", 2, [new DiaDelCuadro(1, 5, turnoId.ToString())]);
-
-        var evento = JornadaDePlantillaSemanalAsignada.Crear(plantillaId, jornadaId, LimitesDeEjemplo(), 1);
-
-        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadro);
-
-        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(
-            plantillaId.ToString(), "Semana Cocina", 2, [new DiaDelCuadro(1, 5, turnoId.ToString())], jornadaId));
-    }
-
-    // CA-1: una segunda asignacion reemplaza la Jornada.
-    [Fact]
-    public void Apply_ReemplazaLaJornada_CuandoJornadaDePlantillaSemanalAsignadaSobreCuadroConJornada()
-    {
-        var plantillaId = Guid.NewGuid();
-        var jornadaVieja = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
-        var jornadaNueva = Guid.Parse("019600b0-0000-7000-8000-0000000000a2");
-        var cuadro = new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], jornadaVieja);
-
-        var evento = JornadaDePlantillaSemanalAsignada.Crear(plantillaId, jornadaNueva, LimitesDeEjemplo(), 2);
-
-        var vista = CuadroSemanalTurnosProjection.Apply(evento, cuadro);
-
-        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], jornadaNueva));
-    }
-
-    // CA-1: quitar la Jornada vuelve JornadaId a null.
-    [Fact]
-    public void Apply_DejaLaJornadaEnNull_CuandoJornadaDePlantillaSemanalQuitada()
-    {
-        var plantillaId = Guid.NewGuid();
-        var jornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
-        var cuadro = new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], jornadaId);
-
-        var vista = CuadroSemanalTurnosProjection.Apply(JornadaDePlantillaSemanalQuitada.Crear(plantillaId), cuadro);
-
-        vista.Should().BeEquivalentTo(new CuadroSemanalTurnos(plantillaId.ToString(), "Semana Cocina", 2, [], null));
-    }
-
-    // CA-1: un cuadro recien creado no tiene Jornada.
-    [Fact]
-    public void Create_ProyectaCuadroSinJornada_DesdePlantillaSemanalCreada()
-    {
-        var evento = new Event<PlantillaSemanalCreada>(PlantillaSemanalCreada.Crear(Guid.NewGuid(), "Semana Cocina", 2))
-        {
-            StreamKey = "plantilla-002",
-            Version = 1,
-            Timestamp = DateTimeOffset.UtcNow,
-        };
-
-        CuadroSemanalTurnosProjection.Create(evento).JornadaId.Should().BeNull();
+        CuadroSemanalTurnosProjection.ShouldDelete(PlantillaSemanalRetirada.Crear(Guid.NewGuid())).Should().BeTrue();
     }
 }

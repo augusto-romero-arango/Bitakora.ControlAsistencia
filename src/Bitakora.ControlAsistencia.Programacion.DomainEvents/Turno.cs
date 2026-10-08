@@ -16,6 +16,8 @@ public sealed partial class Turno : IEquatable<Turno>
     public static Turno Crear(string nombre, bool esDescanso, IEnumerable<FranjaOrdinaria> franjas) =>
         new() { _nombre = nombre, _esDescanso = esDescanso, _franjas = franjas.ToList() };
 
+    public string Nombre => _nombre;
+
     public bool EsDescanso() => _esDescanso;
 
     public int MinutosOrdinarios() => _esDescanso ? 0 : _franjas.Sum(f => f.MinutosOrdinarios());
