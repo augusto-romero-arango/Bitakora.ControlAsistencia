@@ -1,7 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -41,5 +40,9 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
 
         if (mensajeDeRechazo is not null)
             throw new ReglaDeNegocioDeclinadaException(mensajeDeRechazo);
+
+        var diseno = catalogo.ObtenerDisenoPublicable();
+        if (diseno is not null)
+            await _privateEventSender.PublishAsync(diseno);
     }
 }

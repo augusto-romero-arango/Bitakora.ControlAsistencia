@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
@@ -10,10 +11,15 @@ public class CatalogoTurnos : AggregateRoot
     private Turno _turno = Turno.Crear(string.Empty, false, []);
     private bool _estaActivo;
 
+    // Version del stream tal como la ve el aggregate: un evento por Apply, tanto al rehidratar como
+    // al emitir. No depende de AggregateRoot.Version, que el harness de tests no puebla.
+    private long _eventosAplicados;
+
     internal Turno Turno => _turno;
 
     public void Apply(TurnoCreado evento)
     {
+        _eventosAplicados++;
         Id = evento.TurnoId.ToString();
         _turno = Turno.Crear(evento.Nombre, evento.EsDescanso, evento.FranjasOrdinarias);
         _estaActivo = true;
@@ -21,26 +27,62 @@ public class CatalogoTurnos : AggregateRoot
 
     // MEF-ADR-0004 capa 4: no lanza -- la guarda de "ya retirado" decide en Retirar(), antes de
     // emitir.
-    public void Apply(TurnoRetirado evento) => _estaActivo = false;
+    public void Apply(TurnoRetirado evento)
+    {
+        _eventosAplicados++;
+        _estaActivo = false;
+    }
 
     // MEF-ADR-0004 capa 4: las transformaciones del Turno no lanzan ni invocan factories con
     // invariantes (ConDescanso/ConExtra); sobre un stream anomalo devuelven el turno igual, porque
     // un Apply que lanza deja el aggregate roto para siempre.
-    public void Apply(FranjaAgregada evento) => _turno = _turno.ConFranja(evento.Franja);
+    public void Apply(FranjaAgregada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranja(evento.Franja);
+    }
 
-    public void Apply(DescansoAgregado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    public void Apply(DescansoAgregado evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
 
-    public void Apply(ExtraAgregado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    public void Apply(ExtraAgregado evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
 
-    public void Apply(FranjaQuitada evento) => _turno = _turno.SinFranjaQueEmpiezaA(evento.Franja);
+    public void Apply(FranjaQuitada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.SinFranjaQueEmpiezaA(evento.Franja);
+    }
 
-    public void Apply(DescansoQuitado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    public void Apply(DescansoQuitado evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
 
-    public void Apply(ExtraQuitado evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    public void Apply(ExtraQuitado evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
 
-    public void Apply(SedeDeFranjaAsignada evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    public void Apply(SedeDeFranjaAsignada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
 
-    public void Apply(SedeDeFranjaRetirada evento) => _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    public void Apply(SedeDeFranjaRetirada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
 
     // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
     // razon del rechazo y el handler la traduce al status code (409 Conflict).
@@ -227,6 +269,37 @@ public class CatalogoTurnos : AggregateRoot
             ? ResultadoAsignabilidadTurno.Asignable
             : ResultadoAsignabilidadTurno.Incompleto;
     }
+
+    // Diseno completo resultante, listo para el bus (payload plano, CA-ADR-0025). Null cuando el
+    // comando no emitio eventos (no-op): nada que publicar. La version es la del stream despues del
+    // cambio: la cargada mas los eventos pendientes.
+    internal DisenoDeTurnoActualizado? ObtenerDisenoPublicable()
+    {
+        if (_uncommittedEvents.Count == 0)
+            return null;
+
+        var detalle = _turno.Programar();
+        return new DisenoDeTurnoActualizado(
+            Guid.Parse(Id!),
+            _eventosAplicados,
+            _turno.Nombre,
+            _turno.EsDescanso(),
+            detalle.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
+            !_estaActivo);
+    }
+
+    private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>
+        new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,
+            franja.Descansos.Select(MapearSubFranja).ToList().AsReadOnly(),
+            franja.Extras.Select(MapearSubFranja).ToList().AsReadOnly(),
+            franja.Descripcion,
+            franja.Sede is null
+                ? null
+                : new DetalleSede(franja.Sede.Id, franja.Sede.Nombre, franja.Sede.CentroDeCostos));
+
+    private static DetalleSubFranja MapearSubFranja(SubFranjaProgramada subFranja) =>
+        new(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio,
+            subFranja.DiaOffsetFin, subFranja.Descripcion);
 
     public override string ToString() => _turno.ToString();
 
