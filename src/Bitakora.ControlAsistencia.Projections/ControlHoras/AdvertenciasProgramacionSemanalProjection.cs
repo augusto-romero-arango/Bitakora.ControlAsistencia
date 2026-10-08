@@ -174,13 +174,20 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         casillas[indice] = casilla;
         var sinProgramar = casillas.Count(c => c.Tipo == TipoCasilla.SinProgramar);
         var tieneAusencias = casillas.Any(c => c.Tipo == TipoCasilla.Ausencia);
+        var esJuzgable = sinProgramar == 0 && !tieneAusencias;
+        var advertencias = CalculadorAdvertencias.Calcular(casillas, vista.Jornada, esJuzgable);
+        var conAdvertencias = casillas
+            .Select((c, i) => c with { Advertencias = advertencias.Diarias[i] })
+            .ToList();
         return vista with
         {
-            Casillas = casillas,
+            Casillas = conAdvertencias,
             MinutosOrdinariosProgramados = casillas.Sum(c => c.MinutosOrdinarios),
             DiasSinProgramar = sinProgramar,
             TieneAusencias = tieneAusencias,
-            EsJuzgable = sinProgramar == 0 && !tieneAusencias
+            EsJuzgable = esJuzgable,
+            AdvertenciasSemanales = advertencias.Semanales,
+            TieneAdvertencias = advertencias.TieneAdvertencias
         };
     }
 }

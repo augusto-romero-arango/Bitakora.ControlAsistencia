@@ -328,4 +328,66 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.MinutosOrdinariosProgramados.Should().Be(840);
         v.Casillas.Should().HaveCount(7);
     }
+
+    private static readonly JornadaProgramada JornadaC = new(Guid.Parse("cccccccc-0000-0000-0000-000000000000"), 2520, 480, 240, 1);
+    private static readonly JornadaProgramada JornadaD = new(Guid.Parse("dddddddd-0000-0000-0000-000000000000"), 2520, 600, 240, 1);
+    private static TurnoDiario DiezHoras() => new("Largo", [Franja(6, 16)], "");
+
+    [Fact]
+    public void Apply_AgregaSuperaTopeDiarioEnLaCasilla_CuandoTrabajoSuperaElTope()
+    {
+        var v = Aplica(null, Asigna(0, DiezHoras(), JornadaC));
+
+        Casilla(v, 0).Advertencias.Should().Equal(new AdvertenciaDiaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120));
+        v.AdvertenciasSemanales.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_MideDiaSinJornadaContraLaJornadaDeLaSemana_CuandoElDiaLlegaConNull()
+    {
+        var v = Aplica(null, Asigna(1, Manana(), JornadaC), Asigna(0, DiezHoras()));
+
+        Casilla(v, 0).Advertencias.Should().Equal(new AdvertenciaDiaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120));
+    }
+
+    [Fact]
+    public void Apply_NoAgregaAdvertencias_CuandoSemanaSinJornada()
+    {
+        var v = Aplica(null, Asigna(0, DiezHoras()));
+
+        Casilla(v, 0).Advertencias.Should().BeEmpty();
+        v.AdvertenciasSemanales.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ReMideLaSemana_CuandoLlegaUnaJornadaNueva()
+    {
+        var v = Aplica(null, Asigna(0, DiezHoras(), JornadaC), Asigna(1, Manana(), JornadaD));
+
+        Casilla(v, 0).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_AgregaSuperaHorasSemanales_CuandoSemanaJuzgableSuperaElTotal()
+    {
+        var v = Aplica(null,
+            Asigna(0, Manana(), JornadaC), Asigna(1, Manana()), Asigna(2, Manana()), Asigna(3, Manana()),
+            Asigna(4, Manana()), Asigna(5, Manana()), Asigna(6, Libre()));
+
+        v.EsJuzgable.Should().BeTrue();
+        v.AdvertenciasSemanales.Should().Equal(new AdvertenciaSemanal(TipoAdvertenciaSemanal.SuperaHorasSemanales, 360));
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_LimpiaAdvertencias_CuandoSeCorrigeElDia()
+    {
+        var v = Aplica(null, Asigna(0, DiezHoras(), JornadaC), Asigna(0, Manana()));
+
+        Casilla(v, 0).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
 }

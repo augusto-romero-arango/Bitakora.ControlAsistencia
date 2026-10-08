@@ -19,7 +19,11 @@ public sealed record AdvertenciasProgramacionSemanal(
     int DiasSinProgramar,
     bool TieneAusencias,
     bool EsJuzgable,
-    IReadOnlyList<CasillaDia> Casillas);
+    IReadOnlyList<CasillaDia> Casillas)
+{
+    public IReadOnlyList<AdvertenciaSemanal> AdvertenciasSemanales { get; init; } = [];
+    public bool TieneAdvertencias { get; init; }
+}
 
 /// <summary>Jornada de la semana: id y los cuatro valores en minutos (sin nombre).</summary>
 public sealed record JornadaAplicada(
@@ -48,6 +52,9 @@ public sealed record CasillaDia(
     int MinutosOrdinarios,
     string? MotivoAusencia = null,
     Guid? AusenciaId = null,
-    TurnoCubiertoSemana? TurnoCubierto = null);
+    TurnoCubiertoSemana? TurnoCubierto = null)
+{
+    public IReadOnlyList<AdvertenciaDiaria> Advertencias { get; init; } = [];
+}
 
 public sealed record TurnoCubiertoSemana(string NombreTurno, int MinutosOrdinarios, bool EsDescanso);
