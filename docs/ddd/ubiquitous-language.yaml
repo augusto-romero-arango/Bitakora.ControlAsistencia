@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-07 (sesion planner, refinamiento de #856/#890/#858 y decision #901: la
+# Ultima actualizacion: 2026-10-10 (sesion planner, refinamiento de #869: la desactivacion de la
+#   Jornada verifica en el servidor solo la predeterminada y las plantillas; el uso por vinculaciones
+#   lo verifica el cliente. Tocados: Jornada.)
+# Actualizacion previa: 2026-10-07 (sesion planner, refinamiento de #856/#890/#858 y decision #901: la
 #   Jornada no tiene nombre; no hay General en memoria ni Guid fijo -- la Jornada predeterminada
 #   se materializa la primera vez que se necesita, con Guid al vuelo, junto con Preferencias de
 #   programacion (pp:{tenantId}, un stream por empresa, un evento por preferencia). Tocadas:
@@ -1026,10 +1029,13 @@ terms:
       valores, sin nombre) al programar, por colaborador: el cliente manda solo el JornadaId asignado
       y el servidor arma la copia desde su catalogo; sin JornadaId estampa la predeterminada;
       editarla nunca cambia lo programado. Se desactiva (no se retira) y no se puede desactivar en
-      uso (mejor esfuerzo, 409). Sus limites se modifican como un todo (ModificarLimitesJornada).
+      uso (mejor esfuerzo, 409): el servidor verifica la predeterminada y las plantillas; el uso por
+      vinculaciones lo verifica el cliente (enmienda 2026-10-10, #869). Desactivada sigue editable,
+      bloquea la unicidad de limites y, si una vinculacion la tiene, se estampa tal cual.
+      Sus limites se modifican como un todo (ModificarLimitesJornada).
       Una plantilla referencia una Jornada solo para auditar su diseno.
     context: Programacion
-    date_updated: 2026-10-07
+    date_updated: 2026-10-10
     rejected_synonyms: [Configuracion de jornada, Perfil de jornada, Esquema de jornada, Jornada pactada (como parametro), Topes]
     rejection_reason: >
       "Configuracion" ya nombra otras cosas en el codigo (ConfiguracionSerializacion*,
