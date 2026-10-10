@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-07 (sesion planner, refinamiento de #856/#890/#858 y decision #901: la
+# Ultima actualizacion: 2026-10-10 (sesion planner, refinamiento de #853: Dia sin programar gana
+#   su uso anticipado para el Programador -- consulta ListarDiasSinProgramar, dentro de la vigencia
+#   de la vinculacion; la ausencia cubre el dia. "Cobertura de la programacion" no se acuna.
+#   Tocados: Dia sin programar.)
+# Actualizacion previa: 2026-10-07 (sesion planner, refinamiento de #856/#890/#858 y decision #901: la
 #   Jornada no tiene nombre; no hay General en memoria ni Guid fijo -- la Jornada predeterminada
 #   se materializa la primera vez que se necesita, con Guid al vuelo, junto con Preferencias de
 #   programacion (pp:{tenantId}, un stream por empresa, un evento por preferencia). Tocadas:
@@ -1495,11 +1499,14 @@ terms:
       "Trabajo sin programacion" (las marcaciones quedan crudas, sin desglose: solo la
       programacion les da significado -- reversion 2026-08-20 de la presuncion de trabajo
       ordinario); vacio, es avalable por el Aprobador ("no vino y no debia venir").
+      Uso anticipado (2026-10-10, #853): el Programador consulta ANTES del periodo a quien le
+      faltan dias por programar (ListarDiasSinProgramar). Cuenta solo dentro de la vigencia de
+      la vinculacion; una ausencia cubre el dia, asi que no es dia sin programar.
     context: ControlHoras
     date_added: 2026-08-17
-    date_updated: 2026-08-20
-    rejected_synonyms: [hueco, dia vacio]
-    rejection_reason: "hueco es jerga sin dignidad de dominio; vacio confunde con el dia sin marcaciones"
+    date_updated: 2026-10-10
+    rejected_synonyms: [hueco, dia vacio, cobertura de la programacion]
+    rejection_reason: "hueco es jerga sin dignidad de dominio; vacio confunde con el dia sin marcaciones; cobertura de la programacion (borrador #853) nombraba la pregunta, no el concepto: el concepto ya era Dia sin programar"
 
   - name: Hora liquidable
     definition: >
