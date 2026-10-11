@@ -20,8 +20,8 @@ module "postgresql" {
   source                 = "../../modules/postgresql"
   name                   = "psql-${local.prefix_short}"
   resource_group_name    = module.resource_group.name
-  location               = "centralus" # eastus2 restringida para PostgreSQL Flexible Server
-  zone                   = "2"         # zona asignada por Azure al crear el servidor
+  location               = "centralus"
+  zone                   = "2" # zona asignada por Azure al crear el servidor
   administrator_login    = "pgadmin"
   administrator_password = var.postgresql_admin_password
   database_name          = "controlasistencias"
