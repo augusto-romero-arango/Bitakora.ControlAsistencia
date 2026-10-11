@@ -16,9 +16,9 @@ variable "environment" {
 }
 
 variable "location" {
-  description = "Region de Azure"
+  description = "Region de Azure (centralus: la suscripcion Azure Cosmos no tiene cuota de App Service en eastus2)"
   type        = string
-  default     = "eastus2"
+  default     = "centralus"
 }
 
 variable "project_short" {
