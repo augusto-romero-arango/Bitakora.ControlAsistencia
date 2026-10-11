@@ -6,6 +6,12 @@ public static class PaginaDeDiasSinProgramar
 
     public static int? AcotarTake(int? take) => take is null ? null : Math.Clamp(take.Value, 1, TakeMaximo);
 
+    public static IReadOnlyList<ColaboradorVigente> PosterioresAlCursor(
+        IEnumerable<ColaboradorVigente> colaboradores, string? cursorCodigo) =>
+        colaboradores
+            .Where(c => cursorCodigo is null || string.CompareOrdinal(c.CodigoColaborador, cursorCodigo) > 0)
+            .ToList();
+
     public static (IReadOnlyList<T> Elementos, string? SiguienteCursor) Cortar<T>(
         IReadOnlyList<T> filasPedidas, int? take, Func<T, string> codigo)
     {

@@ -65,9 +65,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         var hasta = ventana.Hasta;
         var take = PaginaDeDiasSinProgramar.AcotarTake(filtro.Take);
 
-        var pedidos = colaboradores
-            .Where(c => cursorCodigo is null || string.CompareOrdinal(c.CodigoColaborador, cursorCodigo) > 0)
-            .ToList();
+        var pedidos = PaginaDeDiasSinProgramar.PosterioresAlCursor(colaboradores, cursorCodigo);
         var codigos = pedidos.Select(c => c.CodigoColaborador).Distinct().ToList();
 
         // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request (MEF-ADR-0028).
@@ -83,8 +81,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         var calculados = CalculadorDiasSinProgramar.Calcular(
             desde, hasta, pedidos, existentes.Select(e => (e.CodigoColaborador, e.Fecha)));
 
-        var filas = take is null ? calculados : calculados.Take(take.Value + 1).ToList();
-        var (pagina, siguienteCursor) = PaginaDeDiasSinProgramar.Cortar(filas, take, f => f.CodigoColaborador);
+        var (pagina, siguienteCursor) = PaginaDeDiasSinProgramar.Cortar(calculados, take, f => f.CodigoColaborador);
 
         return new OkObjectResult(new ListaDiasSinProgramar(desde, hasta, ventana.RangoRecortado, pagina, siguienteCursor));
     }
