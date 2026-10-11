@@ -6,5 +6,9 @@ public static class VentanaConsulta
 {
     public const int CotaDias = 35;
 
-    public static VentanaAplicada Recortar(DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
+    public static VentanaAplicada Recortar(DateOnly desde, DateOnly hasta)
+    {
+        var hastaMaxima = desde.AddDays(CotaDias - 1);
+        return hasta > hastaMaxima ? new VentanaAplicada(hastaMaxima, true) : new VentanaAplicada(hasta, false);
+    }
 }
