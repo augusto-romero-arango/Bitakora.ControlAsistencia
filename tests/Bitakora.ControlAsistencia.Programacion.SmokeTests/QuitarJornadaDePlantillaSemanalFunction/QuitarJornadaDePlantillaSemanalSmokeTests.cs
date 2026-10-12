@@ -6,7 +6,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.QuitarJornadaDePlantillaSemanalFunction;
 
 public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
+    : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private const string TipoEventoQuitada = "jornada_de_plantilla_semanal_quitada";
     private const string TipoEventoAdvertencias = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -29,19 +34,15 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
         return plantillaId;
     }
 
-    private async Task<Guid> CrearPlantillaConJornadaAsync(CancellationToken ct)
+    private async Task<Guid> CrearPlantillaConJornadaAsync(FirmaDeLimites firma, CancellationToken ct)
     {
+        await _limpieza.PrepararAsync(firma);
         var plantillaId = await CrearPlantillaAsync(ct);
         var jornadaId = Guid.CreateVersion7();
+        _limpieza.Registrar(jornadaId);
 
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
-        {
-            jornadaId,
-            horasSemanales = new { horas = 30, minutos = Random.Shared.Next(1, 60) },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent,
@@ -66,7 +67,7 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
-        var plantillaId = await CrearPlantillaConJornadaAsync(ct);
+        var plantillaId = await CrearPlantillaConJornadaAsync(LimitesDePrueba.QuitarJornadaPersiste, ct);
 
         var response = await _client.DeleteAsync(Ruta(plantillaId), ct);
 
@@ -87,7 +88,7 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
-        var plantillaId = await CrearPlantillaConJornadaAsync(ct);
+        var plantillaId = await CrearPlantillaConJornadaAsync(LimitesDePrueba.QuitarJornadaSinNuevosEventos, ct);
         var streamId = plantillaId.ToString();
 
         (await _client.DeleteAsync(Ruta(plantillaId), ct))

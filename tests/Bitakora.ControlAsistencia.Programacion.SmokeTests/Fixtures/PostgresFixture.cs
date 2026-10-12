@@ -6,7 +6,7 @@ using Npgsql;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
-// Issue #335: gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
+// Gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
 // en el event store (CrearTurnoCommandHandler -> IEventStore.StartStream), asi que sus smoke tests
 // necesitan verificar ese efecto secundario y no solo el status code (MEF-ADR-0013, "Alcance de un
 // smoke test: cobertura completa de efectos secundarios"). turno_creado no cruza ningun bus: la
@@ -126,6 +126,47 @@ public class PostgresFixture : IAsyncLifetime
         await docs.ExecuteNonQueryAsync();
     }
 
+    // CA-ADR-0040: busca por contenido las Jornadas del tenant con esos cuatro limites y borra sus
+    // streams y documentos. La firma reservada nunca se purga.
+    public async Task PurgarJornadasPorFirmaAsync(string schema, string tenantId, FirmaDeLimites firma)
+    {
+        if (firma == LimitesDePrueba.Reservada)
+            throw new ArgumentException("La firma reservada de la Jornada predeterminada nunca se purga.", nameof(firma));
+
+        var ids = new List<string>();
+        await using (var conn = new NpgsqlConnection(_connectionString))
+        {
+            await conn.OpenAsync();
+            await using (var existe = conn.CreateCommand())
+            {
+                existe.CommandText = $"SELECT to_regclass('{EscaparSchema(schema)}.mt_doc_limitesdejornada') IS NOT NULL";
+                if (!(bool)(await existe.ExecuteScalarAsync())!)
+                    return;
+            }
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT id::text FROM {EscaparSchema(schema)}.mt_doc_limitesdejornada
+                WHERE tenant_id = @tenant
+                  AND (data ->> 'HorasSemanalesEnMinutos')::int = @semanales
+                  AND (data ->> 'TopeDiarioEnMinutos')::int = @tope
+                  AND (data ->> 'MinimoDiarioEnMinutos')::int = @minimo
+                  AND (data ->> 'DiasDescansoPorSemana')::int = @descansos
+                """;
+            cmd.Parameters.AddWithValue("tenant", tenantId);
+            cmd.Parameters.AddWithValue("semanales", firma.HorasSemanalesEnMinutos);
+            cmd.Parameters.AddWithValue("tope", firma.TopeDiarioEnMinutos);
+            cmd.Parameters.AddWithValue("minimo", firma.MinimoDiarioEnMinutos);
+            cmd.Parameters.AddWithValue("descansos", firma.DiasDescansoPorSemana);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                ids.Add(reader.GetString(0));
+        }
+
+        if (ids.Count > 0)
+            await BorrarStreamsAsync(schema, tenantId, ids);
+    }
+
     // Cuenta TODOS los eventos del stream (cualquier tipo), acotado por tenant: sirve para demostrar
     // que una segunda lectura no escribio nada.
     public async Task<int> ContarEventosDeStreamAsync(string schema, string tenantId, string streamId)
@@ -181,7 +222,7 @@ public class PostgresFixture : IAsyncLifetime
         }, timeout);
     }
 
-    // Issue #665 CA-3: cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
+    // Cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
     // agrego un evento adicional al stream, algo que ExisteEventoAsync (>= 1) no distingue.
     public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento)
     {
@@ -210,7 +251,7 @@ public class PostgresFixture : IAsyncLifetime
         return JsonSerializer.Deserialize<T>(json)!;
     }
 
-    // Issue #700 CA-4: lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
+    // Lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
     // write-side), donde UnitOfWorkMiddleware de Cosmos 3.x estampa la identidad de tenancy.
     public Task<string> ObtenerHeaderDeEventoAsync(
         string schema, string streamId, string tipoEvento, string header, TimeSpan timeout)

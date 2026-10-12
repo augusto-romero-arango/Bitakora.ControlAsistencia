@@ -6,8 +6,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.CrearJornadaFunction;
 
-public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private const string Ruta = "/api/programacion/jornadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private readonly HttpClient _client = api.Client;
@@ -36,10 +40,12 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar201YPersistirJornadaCreada_CuandoPayloadEsValido()
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var firma = LimitesDePrueba.CrearJornadaPersiste;
+        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
         var id = Guid.CreateVersion7();
-        var payload = Payload(id, Random.Shared.Next(1, 60));
+        _limpieza.Registrar(id);
+        var payload = firma.PayloadCrear(id);
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Headers.Location.Should().NotBeNull();
@@ -70,16 +76,18 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar409_CuandoLosLimitesIgualanAOtraJornada()
     {
+        var firma = LimitesDePrueba.CrearJornadaDuplicada;
+        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
         var idA = Guid.CreateVersion7();
-        var minutos = Random.Shared.Next(1, 60);
-        (await _client.PostAsJsonAsync(Ruta, Payload(idA, minutos), ct))
+        _limpieza.Registrar(idA);
+        (await _client.PostAsJsonAsync(Ruta, firma.PayloadCrear(idA), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         await Polling.WaitUntilTrueAsync(
             async () => (await ListarAsync(ct)).Any(e => e.GetProperty("jornadaId").GetGuid() == idA),
             Timeout);
 
-        var response = await _client.PostAsJsonAsync(Ruta, Payload(Guid.CreateVersion7(), minutos), ct);
+        var response = await _client.PostAsJsonAsync(Ruta, firma.PayloadCrear(Guid.CreateVersion7()), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await response.Content.ReadAsStringAsync(ct)).Should().Contain(idA.ToString());
@@ -114,12 +122,14 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_Retorna201_CuandoIdEsElQueAntesEraLaGeneral()
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var firma = LimitesDePrueba.CrearJornadaIdGeneral;
+        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
         var id = Guid.Parse("00000000-0000-4000-8000-000000000001");
+        _limpieza.Registrar(id);
         await postgres.BorrarStreamsAsync(PostgresFixture.SchemaProgramacion, postgres.TenantId, [id.ToString()]);
 
-        var response = await _client.PostAsJsonAsync(Ruta, Payload(id, 37), ct);
+        var response = await _client.PostAsJsonAsync(Ruta, firma.PayloadCrear(id), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         (await postgres.ExisteEventoAsync(PostgresFixture.SchemaProgramacion, id.ToString(), "jornada_creada",
