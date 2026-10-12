@@ -54,40 +54,47 @@ public class PostgresFixture : IAsyncLifetime
         _connectionString = connectionString;
 
         TenantId = IdentidadDePrueba.Desde(configuration).TenantId;
-        await LimpiarJornadaPredeterminadaAsync(SchemaProgramacion, TenantId);
     }
 
     public const string SchemaProgramacion = "programacion";
 
     public static string StreamIdPreferencias(string tenantId) => $"pp:{tenantId}";
 
-    // Cada corrida debe ejercer la materializacion real, asi que se borran los
-    // streams de TODAS las Jornadas que alguna vez fueron predeterminadas (historial de pp:{tenant}),
-    // sus documentos en la vista y el stream de Preferencias. Acotado por tenant_id.
-    public async Task LimpiarJornadaPredeterminadaAsync(string schema, string tenantId)
+    public const string PrefijoTenantDesechable = "tenant-smoke-";
+
+    // CA-ADR-0040: borra todo lo del tenant desechable en el schema, en cada tabla con columna tenant_id.
+    // Rechaza cualquier id que no sea desechable para no tocar nunca tenant-smoke ni un tenant real.
+    public async Task BorrarTenantAsync(string schema, string tenantId)
     {
-        var streamPreferencias = StreamIdPreferencias(tenantId);
-        var aBorrar = new List<string> { streamPreferencias };
+        if (string.IsNullOrWhiteSpace(tenantId)
+            || !tenantId.StartsWith(PrefijoTenantDesechable, StringComparison.Ordinal))
+            throw new ArgumentException(
+                $"Solo se borran tenants que empiezan por '{PrefijoTenantDesechable}'.", nameof(tenantId));
 
-        await using (var conn = new NpgsqlConnection(_connectionString))
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        var tablas = new List<string>();
+        await using (var cmd = conn.CreateCommand())
         {
-            await conn.OpenAsync();
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"""
-                SELECT to_regclass('{EscaparSchema(schema)}.mt_events') IS NOT NULL
+            cmd.CommandText = """
+                SELECT table_name FROM information_schema.columns
+                WHERE table_schema = @schema AND column_name = 'tenant_id'
                 """;
-            if (!(bool)(await cmd.ExecuteScalarAsync())!)
-                return;
+            cmd.Parameters.AddWithValue("schema", EscaparSchema(schema));
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                tablas.Add(reader.GetString(0));
         }
 
-        var historial = await LeerEventosDeStreamAsync(schema, tenantId, streamPreferencias);
-        foreach (var data in historial)
+        foreach (var tabla in tablas.OrderBy(t => t switch { "mt_events" => 0, "mt_streams" => 1, _ => 2 }))
         {
-            if (data.TryGetProperty("JornadaId", out var id) || data.TryGetProperty("jornadaId", out id))
-                aBorrar.Add(id.ToString());
+            await using var delete = conn.CreateCommand();
+            delete.CommandText =
+                $"DELETE FROM {EscaparSchema(schema)}.\"{tabla.Replace("\"", "\"\"")}\" WHERE tenant_id = @tenant";
+            delete.Parameters.AddWithValue("tenant", tenantId);
+            await delete.ExecuteNonQueryAsync();
         }
-
-        await BorrarStreamsAsync(schema, tenantId, aBorrar);
     }
 
     // Borra streams (eventos + registro del stream) y sus documentos en la vista LimitesDeJornada,

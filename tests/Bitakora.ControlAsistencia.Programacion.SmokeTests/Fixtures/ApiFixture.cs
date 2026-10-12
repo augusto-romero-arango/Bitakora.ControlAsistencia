@@ -16,6 +16,18 @@ public class ApiFixture : IAsyncLifetime
     // Issue #700 CA-4: el oraculo con que se compara la identidad que estampan el event store y el bus.
     public string OrganizationMembershipId { get; private set; } = null!;
 
+    private string _baseUrl = null!;
+    private IdentidadDePrueba _identidad = null!;
+
+    public HttpClient CrearClienteParaTenant(string tenantId)
+    {
+        var cliente = new HttpClient { BaseAddress = new Uri(_baseUrl) };
+        cliente.DefaultRequestHeaders.Add(HeaderTenantId, tenantId);
+        cliente.DefaultRequestHeaders.Add(HeaderUserId, _identidad.UserId);
+        cliente.DefaultRequestHeaders.Add(HeaderOrganizationMembershipId, _identidad.OrganizationMembershipId);
+        return cliente;
+    }
+
     public async ValueTask InitializeAsync()
     {
         var configuration = new ConfigurationBuilder()
@@ -31,6 +43,8 @@ public class ApiFixture : IAsyncLifetime
 
         Client = new HttpClient { BaseAddress = new Uri(baseUrl) };
         var identidad = IdentidadDePrueba.Desde(configuration);
+        _baseUrl = baseUrl;
+        _identidad = identidad;
         Client.DefaultRequestHeaders.Add(HeaderTenantId, identidad.TenantId);
         Client.DefaultRequestHeaders.Add(HeaderUserId, identidad.UserId);
         Client.DefaultRequestHeaders.Add(HeaderOrganizationMembershipId, identidad.OrganizationMembershipId);
