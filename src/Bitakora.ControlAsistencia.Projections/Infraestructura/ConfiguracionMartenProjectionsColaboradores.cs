@@ -72,6 +72,9 @@ public static class ConfiguracionMartenProjectionsColaboradores
                 // punto 3, seccion 7): el config-test verifica exactamente estas tres. La
                 // habilitacion real de las columnas es responsabilidad del write-side de este
                 // dominio (issue #360, ComposicionServicios.AgregarServiciosColaboradores).
+                // El documento destino de cada proyeccion debe llevar [MaterializadoPorProyeccion]: las
+                // guardas de DocumentosMarcadosPorProyeccionTests y ComposicionServiciosTests verifican
+                // que el Function App declare UseNumericRevisions(true) para el.
                 opts.Events.MetadataConfig.CorrelationIdEnabled = true;
                 opts.Events.MetadataConfig.CausationIdEnabled = true;
                 opts.Events.MetadataConfig.HeadersEnabled = true;

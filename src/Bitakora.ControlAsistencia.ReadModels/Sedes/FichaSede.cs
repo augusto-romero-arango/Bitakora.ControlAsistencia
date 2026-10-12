@@ -25,6 +25,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.Sedes;
 /// partir del {codigo} de ruta con el mismo metodo del aggregate, nunca partiendo el Id a mano
 /// (MEF-ADR-0037).
 /// </remarks>
+[MaterializadoPorProyeccion]
 public sealed record FichaSede(
     string Id,
     string Codigo,
