@@ -9,8 +9,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.SolicitarProgramacionTurnoFunction;
 
 public class SolicitarProgramacionTurnoSmokeTests(
-    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
+    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private readonly HttpClient _client = api.Client;
 
     private const string TopicSalida = "programacion-turno-diario-solicitada";
@@ -1100,15 +1104,6 @@ public class SolicitarProgramacionTurnoSmokeTests(
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
     }
 
-    private static object PayloadJornada(Guid id, int semanalesMinutos) => new
-    {
-        jornadaId = id,
-        horasSemanales = new { horas = 42, minutos = semanalesMinutos },
-        topeDiario = new { horas = 8, minutos = 30 },
-        minimoDiario = new { horas = 4, minutos = 0 },
-        diasDescansoPorSemana = 1
-    };
-
     private async Task<Guid> CrearTurnoParaJornadaAsync(string nombre, CancellationToken ct)
     {
         var turnoId = Guid.CreateVersion7();
@@ -1138,14 +1133,15 @@ public class SolicitarProgramacionTurnoSmokeTests(
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var firma = LimitesDePrueba.SolicitarProgramacion;
+        await _limpieza.PrepararAsync(firma);
 
         var ct = TestContext.Current.CancellationToken;
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         var jornadaId = Guid.CreateVersion7();
-        var minutosSemanales = Random.Shared.Next(1, 60);
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", PayloadJornada(jornadaId, minutosSemanales), ct))
+        _limpieza.Registrar(jornadaId);
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         var turnoId = await CrearTurnoParaJornadaAsync("[TEST] Turno Smoke Jornada", ct);
 
@@ -1158,10 +1154,10 @@ public class SolicitarProgramacionTurnoSmokeTests(
             TopicSalida, Suscripcion, e => e.SolicitudId == conJornada, Timeout);
         mensaje.Jornada.Should().NotBeNull();
         mensaje.Jornada!.JornadaId.Should().Be(jornadaId);
-        mensaje.Jornada.HorasSemanalesEnMinutos.Should().Be(2520 + minutosSemanales);
-        mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(510);
-        mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(240);
-        mensaje.Jornada.DiasDescansoPorSemana.Should().Be(1);
+        mensaje.Jornada.HorasSemanalesEnMinutos.Should().Be(firma.HorasSemanalesEnMinutos);
+        mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(firma.TopeDiarioEnMinutos);
+        mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(firma.MinimoDiarioEnMinutos);
+        mensaje.Jornada.DiasDescansoPorSemana.Should().Be(firma.DiasDescansoPorSemana);
         (await postgres.ContarEventosAsync(
             SchemaProgramacion, conJornada.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
 

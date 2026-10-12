@@ -16,8 +16,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarCuadrosSemanalesTurnos;
 
-public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
+public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private readonly HttpClient _client = api.Client;
 
     private const string RutaPlantillas = "/api/programacion/plantillas-semanales";
@@ -147,16 +151,11 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
         var ct = TestContext.Current.CancellationToken;
         var plantillaId = Guid.CreateVersion7();
         var jornadaId = Guid.CreateVersion7();
-        var minutos = Random.Shared.Next(1, 60);
+        var firma = LimitesDePrueba.ListarCuadros;
+        await _limpieza.PrepararAsync(firma);
+        _limpieza.Registrar(jornadaId);
 
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
-        {
-            jornadaId,
-            horasSemanales = new { horas = 30, minutos },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct)).StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
         (await _client.PostAsJsonAsync(RutaPlantillas,
             PayloadPlantillaValida(plantillaId, $"[TEST] Plantilla Listado Jornada {plantillaId}"), ct))
@@ -173,7 +172,8 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api)
 
         var cuadro = lista.Single(c => c.Id == plantillaId.ToString());
         cuadro.Jornada!.Id.Should().Be(jornadaId.ToString());
-        cuadro.Jornada.HorasSemanales.Should().Be(new HorasYMinutosRespuestaSmoke(30, minutos));
+        cuadro.Jornada.HorasSemanales.Should().Be(
+            new HorasYMinutosRespuestaSmoke(firma.SemanalesHoras, firma.SemanalesMinutos));
         cuadro.Advertencias!.Should().Contain(a => a.Tipo == "DiaSinTurno");
     }
 }

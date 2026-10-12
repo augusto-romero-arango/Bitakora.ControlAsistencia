@@ -6,8 +6,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ObtenerJornada;
 
-public class ObtenerJornadaSmokeTests(ApiFixture api)
+public class ObtenerJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private readonly HttpClient _client = api.Client;
 
     [Fact]
@@ -23,18 +27,13 @@ public class ObtenerJornadaSmokeTests(ApiFixture api)
     [Trait("Category", "Smoke")]
     public async Task ObtenerJornada_DebeRetornar200ConLaJornada_CuandoExiste()
     {
+        var firma = LimitesDePrueba.ObtenerJornada;
+        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
-        var minutos = Random.Shared.Next(1, 60);
-        var payload = new
-        {
-            jornadaId = Guid.CreateVersion7(),
-            horasSemanales = new { horas = 30, minutos },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        };
+        var jornadaId = Guid.CreateVersion7();
+        _limpieza.Registrar(jornadaId);
 
-        var creada = await _client.PostAsJsonAsync("/api/programacion/jornadas", payload, ct);
+        var creada = await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct);
         creada.StatusCode.Should().Be(HttpStatusCode.Created);
         creada.Headers.Location.Should().NotBeNull();
 
@@ -42,14 +41,14 @@ public class ObtenerJornadaSmokeTests(ApiFixture api)
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        body.GetProperty("jornadaId").GetGuid().Should().Be(payload.jornadaId);
-        body.GetProperty("horasSemanales").GetProperty("horas").GetInt32().Should().Be(30);
-        body.GetProperty("horasSemanales").GetProperty("minutos").GetInt32().Should().Be(minutos);
-        body.GetProperty("topeDiario").GetProperty("horas").GetInt32().Should().Be(8);
-        body.GetProperty("topeDiario").GetProperty("minutos").GetInt32().Should().Be(0);
-        body.GetProperty("minimoDiario").GetProperty("horas").GetInt32().Should().Be(0);
-        body.GetProperty("minimoDiario").GetProperty("minutos").GetInt32().Should().Be(0);
-        body.GetProperty("diasDescansoPorSemana").GetInt32().Should().Be(1);
+        body.GetProperty("jornadaId").GetGuid().Should().Be(jornadaId);
+        body.GetProperty("horasSemanales").GetProperty("horas").GetInt32().Should().Be(firma.SemanalesHoras);
+        body.GetProperty("horasSemanales").GetProperty("minutos").GetInt32().Should().Be(firma.SemanalesMinutos);
+        body.GetProperty("topeDiario").GetProperty("horas").GetInt32().Should().Be(firma.TopeHoras);
+        body.GetProperty("topeDiario").GetProperty("minutos").GetInt32().Should().Be(firma.TopeMinutos);
+        body.GetProperty("minimoDiario").GetProperty("horas").GetInt32().Should().Be(firma.MinimoHoras);
+        body.GetProperty("minimoDiario").GetProperty("minutos").GetInt32().Should().Be(firma.MinimoMinutos);
+        body.GetProperty("diasDescansoPorSemana").GetInt32().Should().Be(firma.DiasDescansoPorSemana);
         body.GetProperty("descripcion").GetString().Should().NotBeNullOrWhiteSpace();
     }
 

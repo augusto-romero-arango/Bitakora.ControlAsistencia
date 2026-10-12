@@ -5,8 +5,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarJornadaPredeterminadaFunction;
 
-public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private const string RutaJornadas = "/api/programacion/jornadas";
     private const string RutaPredeterminada = "/api/programacion/preferencias/jornada-predeterminada";
     private const string TipoEvento = "jornada_predeterminada_asignada";
@@ -25,17 +29,12 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
     [Trait("Category", "Smoke")]
     public async Task AsignarJornadaPredeterminada_DebeRetornar204YPersistirLaPredeterminada_CuandoLaJornadaExiste()
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var firma = LimitesDePrueba.AsignarPredeterminada;
+        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
         var jornadaId = Guid.CreateVersion7();
-        var creada = await _client.PostAsJsonAsync(RutaJornadas, new
-        {
-            jornadaId,
-            horasSemanales = new { horas = 30, minutos = Random.Shared.Next(1, 60) },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        }, ct);
+        _limpieza.Registrar(jornadaId);
+        var creada = await _client.PostAsJsonAsync(RutaJornadas, firma.PayloadCrear(jornadaId), ct);
         creada.StatusCode.Should().Be(HttpStatusCode.Created);
         var streamPreferencias = PostgresFixture.StreamIdPreferencias(postgres.TenantId);
         var asignacionesAntes = await postgres.ContarEventosAsync(
