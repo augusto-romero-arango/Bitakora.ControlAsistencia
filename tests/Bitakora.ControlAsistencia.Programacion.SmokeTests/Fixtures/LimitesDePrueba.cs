@@ -22,20 +22,22 @@ public sealed record FirmaDeLimites(
 
     public object Limites() => new
     {
-        horasSemanales = new { horas = SemanalesHoras, minutos = SemanalesMinutos },
-        topeDiario = new { horas = TopeHoras, minutos = TopeMinutos },
-        minimoDiario = new { horas = MinimoHoras, minutos = MinimoMinutos },
+        horasSemanales = HorasYMinutos(HorasSemanalesEnMinutos),
+        topeDiario = HorasYMinutos(TopeDiarioEnMinutos),
+        minimoDiario = HorasYMinutos(MinimoDiarioEnMinutos),
         diasDescansoPorSemana = DiasDescansoPorSemana
     };
 
     public object PayloadCrear(Guid jornadaId) => new
     {
         jornadaId,
-        horasSemanales = new { horas = SemanalesHoras, minutos = SemanalesMinutos },
-        topeDiario = new { horas = TopeHoras, minutos = TopeMinutos },
-        minimoDiario = new { horas = MinimoHoras, minutos = MinimoMinutos },
+        horasSemanales = HorasYMinutos(HorasSemanalesEnMinutos),
+        topeDiario = HorasYMinutos(TopeDiarioEnMinutos),
+        minimoDiario = HorasYMinutos(MinimoDiarioEnMinutos),
         diasDescansoPorSemana = DiasDescansoPorSemana
     };
+
+    private static object HorasYMinutos(int totalMinutos) => new { horas = totalMinutos / 60, minutos = totalMinutos % 60 };
 }
 
 // Cada Jornada que crea un smoke de Programacion tiene aqui una firma propia: la restriccion de

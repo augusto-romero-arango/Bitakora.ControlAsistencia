@@ -101,7 +101,8 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         await _limpieza.PrepararAsync(firma);
         var jornadaId = Guid.CreateVersion7();
         _limpieza.Registrar(jornadaId);
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
         return jornadaId;
     }

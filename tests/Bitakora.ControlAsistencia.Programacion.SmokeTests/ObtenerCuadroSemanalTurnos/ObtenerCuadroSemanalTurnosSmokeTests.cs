@@ -128,7 +128,8 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api, PostgresFixtur
         await _limpieza.PrepararAsync(firma);
         _limpieza.Registrar(jornadaId);
 
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
         (await _client.PostAsJsonAsync(RutaPlantillas, new
         {

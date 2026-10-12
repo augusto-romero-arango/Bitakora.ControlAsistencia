@@ -41,7 +41,8 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
         var jornadaId = Guid.CreateVersion7();
         _limpieza.Registrar(jornadaId);
 
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent,

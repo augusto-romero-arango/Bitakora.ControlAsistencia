@@ -33,7 +33,8 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
             semanas = 1
         }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearPlantillaSemanal funcione");
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
 
         return (plantillaId, jornadaId);
@@ -104,7 +105,8 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
             LimitesDePrueba.AsignarAPlantillaAutocorrigeOrigen, ct);
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await _client.PutAsJsonAsync($"/api/programacion/jornadas/{jornadaId}/limites", destino.Limites(), ct)).StatusCode.Should().Be(HttpStatusCode.NoContent,
+        (await _client.PutAsJsonAsync($"/api/programacion/jornadas/{jornadaId}/limites", destino.Limites(), ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange depende de que ModificarLimitesJornada funcione");
 
         var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);

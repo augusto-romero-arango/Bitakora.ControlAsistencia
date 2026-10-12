@@ -6,7 +6,7 @@ using Npgsql;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
-// Issue #335: gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
+// Gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
 // en el event store (CrearTurnoCommandHandler -> IEventStore.StartStream), asi que sus smoke tests
 // necesitan verificar ese efecto secundario y no solo el status code (MEF-ADR-0013, "Alcance de un
 // smoke test: cobertura completa de efectos secundarios"). turno_creado no cruza ningun bus: la
@@ -222,7 +222,7 @@ public class PostgresFixture : IAsyncLifetime
         }, timeout);
     }
 
-    // Issue #665 CA-3: cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
+    // Cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
     // agrego un evento adicional al stream, algo que ExisteEventoAsync (>= 1) no distingue.
     public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento)
     {
@@ -251,7 +251,7 @@ public class PostgresFixture : IAsyncLifetime
         return JsonSerializer.Deserialize<T>(json)!;
     }
 
-    // Issue #700 CA-4: lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
+    // Lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
     // write-side), donde UnitOfWorkMiddleware de Cosmos 3.x estampa la identidad de tenancy.
     public Task<string> ObtenerHeaderDeEventoAsync(
         string schema, string streamId, string tipoEvento, string header, TimeSpan timeout)

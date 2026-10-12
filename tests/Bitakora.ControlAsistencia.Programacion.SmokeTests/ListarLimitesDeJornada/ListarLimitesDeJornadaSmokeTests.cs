@@ -160,6 +160,7 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     {
         var ct = TestContext.Current.CancellationToken;
         var id = await CrearJornadaAsync(LimitesDePrueba.ListarMarcaPredeterminada, ct);
+        await _limpieza.RecordarPredeterminadaAsync(_client);
 
         var asignada = await _client.PutAsJsonAsync(
             "/api/programacion/preferencias/jornada-predeterminada", new { jornadaId = id }, ct);

@@ -40,6 +40,7 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
         var asignacionesAntes = await postgres.ContarEventosAsync(
             PostgresFixture.SchemaProgramacion, streamPreferencias, TipoEvento);
 
+        await _limpieza.RecordarPredeterminadaAsync(_client);
         var asignada = await _client.PutAsJsonAsync(RutaPredeterminada, new { jornadaId }, ct);
 
         asignada.StatusCode.Should().Be(HttpStatusCode.NoContent);
