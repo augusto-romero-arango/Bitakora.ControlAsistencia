@@ -1,34 +1,42 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels;
-using Microsoft.Extensions.DependencyInjection;
+using JasperFx.Events.Projections;
 using Marten;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests;
 
 public class DocumentosMarcadosPorProyeccionTests
 {
     private const string ConnectionStringDummy = "Host=localhost;Database=dummy";
+    private const string NamespaceReadModels = "Bitakora.ControlAsistencia.ReadModels";
 
-    private static IEnumerable<Type> TiposPublicados(IDocumentStore store) =>
-        store.Options.Events.Projections().SelectMany(fuente =>
-        {
-            var metodo = fuente.GetType().GetInterfaces()
-                .SelectMany(i => i.GetMethods())
-                .First(m => m.Name == "PublishedTypes");
-            return (IEnumerable<Type>)metodo.Invoke(fuente, null)!;
-        });
+    private static readonly string[] DominiosConStore = ["ControlHoras", "Colaboradores", "Programacion", "Sedes"];
 
-    private static IReadOnlyCollection<Type> TiposMarcados(string dominio) =>
+    private static IEnumerable<Type> TiposMarcados() =>
         typeof(MaterializadoPorProyeccionAttribute).Assembly.GetTypes()
-            .Where(t => t.Namespace == $"Bitakora.ControlAsistencia.ReadModels.{dominio}"
-                && t.IsDefined(typeof(MaterializadoPorProyeccionAttribute), inherit: false))
-            .ToList();
+            .Where(t => t.IsDefined(typeof(MaterializadoPorProyeccionAttribute), inherit: false));
 
-    private static void AssertParidad(IDocumentStore store, string dominio)
+    // ISubscriptionSource no expone PublishedTypes(): hace falta el cast a IProjectionSource.
+    private static IEnumerable<Type> TiposPublicados(IDocumentStore store) =>
+        store.Options.Events.Projections()
+            .Cast<IProjectionSource<IDocumentOperations, IQuerySession>>()
+            .SelectMany(fuente => fuente.PublishedTypes());
+
+    private static void AssertParidad<TStore>(Action<IServiceCollection> configurarDominio, string dominio)
+        where TStore : IDocumentStore
     {
-        var publicados = TiposPublicados(store).Distinct().Select(t => t.FullName).Order().ToList();
-        var marcados = TiposMarcados(dominio).Select(t => t.FullName).Order().ToList();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        configurarDominio(services);
+        using var provider = services.BuildServiceProvider();
+
+        var publicados = TiposPublicados(provider.GetRequiredService<TStore>())
+            .Select(t => t.FullName).Distinct().Order().ToList();
+        var marcados = TiposMarcados()
+            .Where(t => t.Namespace == $"{NamespaceReadModels}.{dominio}")
+            .Select(t => t.FullName).Order().ToList();
 
         marcados.Should().NotBeEmpty();
         publicados.Should().NotBeEmpty();
@@ -38,46 +46,32 @@ public class DocumentosMarcadosPorProyeccionTests
     }
 
     [Fact]
-    public void ConfigurarControlHoras_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.ConfigurarControlHoras(ConnectionStringDummy);
-        using var provider = services.BuildServiceProvider();
-
-        AssertParidad(provider.GetRequiredService<IControlHorasProjectionStore>(), "ControlHoras");
-    }
+    public void ConfigurarControlHoras_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones() =>
+        AssertParidad<IControlHorasProjectionStore>(
+            services => services.ConfigurarControlHoras(ConnectionStringDummy), "ControlHoras");
 
     [Fact]
-    public void ConfigurarColaboradores_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.ConfigurarColaboradores(ConnectionStringDummy);
-        using var provider = services.BuildServiceProvider();
-
-        AssertParidad(provider.GetRequiredService<IColaboradoresProjectionStore>(), "Colaboradores");
-    }
+    public void ConfigurarColaboradores_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones() =>
+        AssertParidad<IColaboradoresProjectionStore>(
+            services => services.ConfigurarColaboradores(ConnectionStringDummy), "Colaboradores");
 
     [Fact]
-    public void ConfigurarProgramacion_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.ConfigurarProgramacion(ConnectionStringDummy);
-        using var provider = services.BuildServiceProvider();
-
-        AssertParidad(provider.GetRequiredService<IProgramacionProjectionStore>(), "Programacion");
-    }
+    public void ConfigurarProgramacion_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones() =>
+        AssertParidad<IProgramacionProjectionStore>(
+            services => services.ConfigurarProgramacion(ConnectionStringDummy), "Programacion");
 
     [Fact]
-    public void ConfigurarSedes_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.ConfigurarSedes(ConnectionStringDummy);
-        using var provider = services.BuildServiceProvider();
+    public void ConfigurarSedes_MarcaExactamenteLosDocumentosQueMaterializanSusProyecciones() =>
+        AssertParidad<ISedesProjectionStore>(
+            services => services.ConfigurarSedes(ConnectionStringDummy), "Sedes");
 
-        AssertParidad(provider.GetRequiredService<ISedesProjectionStore>(), "Sedes");
+    // Un tipo marcado fuera de estos namespaces escaparia a las cuatro paridades de arriba: un
+    // dominio nuevo con store en el worker necesita aqui su entrada y su propio test de paridad.
+    [Fact]
+    public void MaterializadoPorProyeccion_SoloMarcaDocumentosDeDominiosConParidadVerificada()
+    {
+        var namespacesCubiertos = DominiosConStore.Select(dominio => $"{NamespaceReadModels}.{dominio}");
+
+        TiposMarcados().Select(t => t.Namespace).Distinct().Should().BeSubsetOf(namespacesCubiertos);
     }
 }

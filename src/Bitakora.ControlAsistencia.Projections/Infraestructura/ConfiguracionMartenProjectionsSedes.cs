@@ -72,9 +72,6 @@ public static class ConfiguracionMartenProjectionsSedes
                 // punto 3, seccion 7): el config-test verifica exactamente estas tres. La
                 // habilitacion real de las columnas es responsabilidad del write-side de este
                 // dominio (issue #455, ComposicionServicios.AgregarServiciosSedes).
-                // El documento destino de cada proyeccion debe llevar [MaterializadoPorProyeccion]: las
-                // guardas de DocumentosMarcadosPorProyeccionTests y ComposicionServiciosTests verifican
-                // que el Function App declare UseNumericRevisions(true) para el.
                 opts.Events.MetadataConfig.CorrelationIdEnabled = true;
                 opts.Events.MetadataConfig.CausationIdEnabled = true;
                 opts.Events.MetadataConfig.HeadersEnabled = true;
@@ -103,6 +100,11 @@ public static class ConfiguracionMartenProjectionsSedes
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
+                // Cada proyeccion registrada aqui hace que Marten fije mt_version bigint en su documento
+                // destino: ese documento debe llevar [MaterializadoPorProyeccion], y las guardas de
+                // DocumentosMarcadosPorProyeccionTests (worker) y ComposicionServiciosTests (Function
+                // App) verifican que el Function App declare UseNumericRevisions(true) para el.
+                //
                 // Issue #461: primera proyeccion concreta del dominio -- N1 (SingleStreamProjection
                 // sobre el stream de SedeAggregateRoot). Async es el lifecycle canonico del worker
                 // (MEF-ADR-0034 seccion 3); Inline solo seria valido con justificacion explicita en

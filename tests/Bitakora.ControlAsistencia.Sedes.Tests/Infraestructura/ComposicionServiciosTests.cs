@@ -15,8 +15,8 @@
 using System.Globalization;
 using System.Reflection;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
+using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
