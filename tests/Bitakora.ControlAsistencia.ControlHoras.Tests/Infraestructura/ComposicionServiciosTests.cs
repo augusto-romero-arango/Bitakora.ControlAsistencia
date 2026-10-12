@@ -387,6 +387,37 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(AsistenciaDiaria.Id));
     }
 
+    // Mitad Function App del par cuya mitad worker congela ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaAdvertenciasProgramacionSemanalConRevisionNumerica: los
+    // literales tienen que cambiar en los dos lados a la vez.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAdvertenciasProgramacionSemanal()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AdvertenciasProgramacionSemanal));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveAdvertenciasProgramacionSemanalSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AdvertenciasProgramacionSemanal));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_advertenciasprogramacionsemanal");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AdvertenciasProgramacionSemanal.Id));
+    }
+
     // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
     // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
     // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
