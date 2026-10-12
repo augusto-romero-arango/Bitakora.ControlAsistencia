@@ -49,7 +49,7 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
             .Should().Be(asignacionesAntes + 1);
         var eventos = await postgres.LeerEventosDeStreamAsync(
             PostgresFixture.SchemaProgramacion, postgres.TenantId, streamPreferencias);
-        eventos[^1].GetProperty("jornadaId").GetGuid().Should().Be(jornadaId);
+        eventos[^1].GetProperty("JornadaId").GetGuid().Should().Be(jornadaId);
 
         var eventosTrasPrimera = await postgres.ContarEventosDeStreamAsync(
             PostgresFixture.SchemaProgramacion, postgres.TenantId, streamPreferencias);
