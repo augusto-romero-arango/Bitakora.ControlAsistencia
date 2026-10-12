@@ -4,6 +4,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 /// Limites de una Jornada para que el Programador elija cual asignar. Un documento por Jornada;
 /// Id es el stream key (JornadaId.ToString()). Tiempos siempre en minutos.
 /// </summary>
+[MaterializadoPorProyeccion]
 public sealed record LimitesDeJornada(
     string Id,
     int HorasSemanalesEnMinutos,

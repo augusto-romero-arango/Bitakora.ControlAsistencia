@@ -103,6 +103,11 @@ public static class ConfiguracionMartenProjectionsControlHoras
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
+                // Cada proyeccion registrada aqui hace que Marten fije mt_version bigint en su documento
+                // destino: ese documento debe llevar [MaterializadoPorProyeccion], y las guardas de
+                // DocumentosMarcadosPorProyeccionTests (worker) y ComposicionServiciosTests (Function
+                // App) verifican que el Function App declare UseNumericRevisions(true) para el.
+                //
                 // Issue #328 CA-3: proyeccion del turno vigente. N1 -- un solo stream
                 // (CodigoColaborador, Fecha) -- lifecycle Async es el canonico del worker (MEF-ADR-0034
                 // seccion 3); Inline solo seria valido con justificacion explicita del issue, que

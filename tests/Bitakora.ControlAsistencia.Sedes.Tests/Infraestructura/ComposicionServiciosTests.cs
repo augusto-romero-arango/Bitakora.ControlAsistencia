@@ -16,6 +16,7 @@ using System.Globalization;
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;
+using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.ReadModels.Sedes;
 using Bitakora.ControlAsistencia.Sedes.Infraestructura;
 using JasperFx.MultiTenancy; // TenancyStyle (NO Marten.*: vive en JasperFx.MultiTenancy)
@@ -529,5 +530,29 @@ public class ComposicionServiciosTests
 
             opciones.ConnectionString.Should().Be(connectionStringReal);
         });
+    }
+
+    [Fact]
+    public async Task AgregarServiciosSedes_DeclaraRevisionNumericaEnTodoDocumentoMarcadoPorProyeccion()
+    {
+        var marcados = typeof(MaterializadoPorProyeccionAttribute).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Bitakora.ControlAsistencia.ReadModels.Sedes"
+                && t.IsDefined(typeof(MaterializadoPorProyeccionAttribute), inherit: false))
+            .ToList();
+        marcados.Should().NotBeEmpty();
+
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var options = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options;
+
+        foreach (var tipo in marcados)
+        {
+            var mapping = options.FindOrResolveDocumentType(tipo);
+
+            mapping.Metadata.Revision.Enabled.Should().BeTrue(
+                "falta declarar Schema.For<{0}>().UseNumericRevisions(true) en ComposicionServicios", tipo.Name);
+            mapping.Metadata.Revision.Type.Should().Be("bigint", "revision de {0}", tipo.Name);
+            mapping.Metadata.Version.Enabled.Should().BeFalse("version de {0}", tipo.Name);
+        }
     }
 }

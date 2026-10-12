@@ -20,6 +20,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 /// completa del colaborador: ningun cliente de calendario las consume. NombreCompleto llega ya
 /// concatenado en el payload del evento -- el worker no lo compone.
 /// </summary>
+[MaterializadoPorProyeccion]
 public sealed record TurnoVigente(
     string Id,
     string CodigoColaborador,

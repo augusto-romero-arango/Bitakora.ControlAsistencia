@@ -6,6 +6,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 /// por ausencia (N2). PrimerDiaVigente/UltimoDiaVigente limitan TramosVigentes para filtrar por
 /// cruce con el periodo.
 /// </summary>
+[MaterializadoPorProyeccion]
 public sealed record AusenciaVigente(
     Guid Id,
     string CodigoColaborador,

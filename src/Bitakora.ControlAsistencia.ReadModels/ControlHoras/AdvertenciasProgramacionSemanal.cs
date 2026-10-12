@@ -6,6 +6,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 /// AdvertenciasProgramacionSemanalProjection, en el worker.
 /// Id = "{CodigoColaborador}:{AnioIso}-W{NumeroSemana:00}".
 /// </summary>
+[MaterializadoPorProyeccion]
 public sealed record AdvertenciasProgramacionSemanal(
     string Id,
     string CodigoColaborador,

@@ -28,6 +28,7 @@ using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -700,5 +701,29 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ListarDiasSinProgramarEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_DeclaraRevisionNumericaEnTodoDocumentoMarcadoPorProyeccion()
+    {
+        var marcados = typeof(MaterializadoPorProyeccionAttribute).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Bitakora.ControlAsistencia.ReadModels.ControlHoras"
+                && t.IsDefined(typeof(MaterializadoPorProyeccionAttribute), inherit: false))
+            .ToList();
+        marcados.Should().NotBeEmpty();
+
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var options = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options;
+
+        foreach (var tipo in marcados)
+        {
+            var mapping = options.FindOrResolveDocumentType(tipo);
+
+            mapping.Metadata.Revision.Enabled.Should().BeTrue(
+                "falta declarar Schema.For<{0}>().UseNumericRevisions(true) en ComposicionServicios", tipo.Name);
+            mapping.Metadata.Revision.Type.Should().Be("bigint", "revision de {0}", tipo.Name);
+            mapping.Metadata.Version.Enabled.Should().BeFalse("version de {0}", tipo.Name);
+        }
     }
 }

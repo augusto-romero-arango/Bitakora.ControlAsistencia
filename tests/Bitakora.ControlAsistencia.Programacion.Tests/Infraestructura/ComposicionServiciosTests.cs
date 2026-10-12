@@ -27,6 +27,7 @@ using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -674,5 +675,29 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<CrearPlantillaSemanalCommandHandler>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_DeclaraRevisionNumericaEnTodoDocumentoMarcadoPorProyeccion()
+    {
+        var marcados = typeof(MaterializadoPorProyeccionAttribute).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Bitakora.ControlAsistencia.ReadModels.Programacion"
+                && t.IsDefined(typeof(MaterializadoPorProyeccionAttribute), inherit: false))
+            .ToList();
+        marcados.Should().NotBeEmpty();
+
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var options = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options;
+
+        foreach (var tipo in marcados)
+        {
+            var mapping = options.FindOrResolveDocumentType(tipo);
+
+            mapping.Metadata.Revision.Enabled.Should().BeTrue(
+                "falta declarar Schema.For<{0}>().UseNumericRevisions(true) en ComposicionServicios", tipo.Name);
+            mapping.Metadata.Revision.Type.Should().Be("bigint", "revision de {0}", tipo.Name);
+            mapping.Metadata.Version.Enabled.Should().BeFalse("version de {0}", tipo.Name);
+        }
     }
 }
