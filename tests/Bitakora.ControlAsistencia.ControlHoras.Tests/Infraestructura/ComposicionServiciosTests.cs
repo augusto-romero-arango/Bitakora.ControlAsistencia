@@ -387,9 +387,10 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(AsistenciaDiaria.Id));
     }
 
-    // Mitad Function App del par cuya mitad worker congela ConfiguracionMartenProjectionsTests
-    // .ConfigurarControlHoras_MaterializaAdvertenciasProgramacionSemanalConRevisionNumerica: los
-    // literales tienen que cambiar en los dos lados a la vez.
+    // Mitad Function App de los dos pares espejo cuya mitad worker congelan, en
+    // ConfiguracionMartenProjectionsTests, ..._MaterializaAdvertenciasProgramacionSemanalConRevisionNumerica
+    // y ..._MaterializaAdvertenciasProgramacionSemanalSobreLaTablaQueConsultaraElWriteSide: los
+    // literales de los dos tests de abajo tienen que cambiar en los dos lados a la vez.
     [Fact]
     public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAdvertenciasProgramacionSemanal()
     {
