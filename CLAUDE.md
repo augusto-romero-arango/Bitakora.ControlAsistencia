@@ -19,7 +19,7 @@ Sistema de control de asistencias y cálculo de horas según legislación labora
 
 Este proyecto consume el plugin `mefisto@augusto-romero-arango-harness` desde el marketplace privado registrado en `.claude/settings.json`. Los skills, agentes, scripts y ADRs del marco arquitectónico vienen del plugin, no del repo del proyecto.
 
-- **Repositorio del harness**: https://github.com/augusto-romero-arango/eda-evsourcing-azure-harness
+- **Repositorio del harness**: https://github.com/augusto-romero-arango/mefisto
 - **Actualizar**: `/plugin update mefisto`.
 - **Setup para nuevos desarrolladores**: ver `docs/setup-desarrolladores.md`.
 
