@@ -62,8 +62,8 @@ public class PostgresFixture : IAsyncLifetime
 
     public const string PrefijoTenantDesechable = "tenant-smoke-";
 
-    // CA-ADR-0040: borra todo lo del tenant desechable en el schema, en cada tabla con columna tenant_id.
-    // Rechaza cualquier id que no sea desechable para no tocar nunca tenant-smoke ni un tenant real.
+    // CA-ADR-0040: la guarda de prefijo impide borrar tenant-smoke o un tenant real. mt_events va antes
+    // que mt_streams por la FK entre ambas.
     public async Task BorrarTenantAsync(string schema, string tenantId)
     {
         if (string.IsNullOrWhiteSpace(tenantId)
@@ -78,8 +78,9 @@ public class PostgresFixture : IAsyncLifetime
         await using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = """
-                SELECT table_name FROM information_schema.columns
-                WHERE table_schema = @schema AND column_name = 'tenant_id'
+                SELECT c.table_name FROM information_schema.columns c
+                JOIN information_schema.tables t USING (table_schema, table_name)
+                WHERE c.table_schema = @schema AND c.column_name = 'tenant_id' AND t.table_type = 'BASE TABLE'
                 """;
             cmd.Parameters.AddWithValue("schema", EscaparSchema(schema));
             await using var reader = await cmd.ExecuteReaderAsync();
