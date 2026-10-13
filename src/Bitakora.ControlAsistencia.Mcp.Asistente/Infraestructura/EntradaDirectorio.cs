@@ -12,4 +12,5 @@ public sealed record EntradaDirectorio(
     string CodigoColaborador,
     string? CodigoSede,
     DateOnly VigenteDesde,
-    DateOnly? VigenteHasta);
+    DateOnly? VigenteHasta,
+    Guid? JornadaId = null);

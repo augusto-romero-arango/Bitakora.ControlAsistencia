@@ -15,7 +15,8 @@ public sealed record FichaColaborador(
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
-    string? CodigoSede);
+    string? CodigoSede,
+    Guid? JornadaId = null);
 
 /// <summary>Etiqueta en su forma original de presentacion (sin normalizar).</summary>
 public sealed record EtiquetaFicha(string Categoria, string Valor);

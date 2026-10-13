@@ -13,7 +13,8 @@ public sealed record CandidatoProgramacion(
     string NombreCompleto,
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
-    string? CodigoSede = null);
+    string? CodigoSede = null,
+    Guid? JornadaId = null);
 
 public sealed record ResultadoEjecucion(
     IReadOnlyList<ColaboradorProgramadoResumen> Programados,
