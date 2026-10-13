@@ -1,7 +1,6 @@
-// Issue #277 CA-1: IdentidadEventosProgramacion.TiposPersistidos debe listar exactamente los
-// tipos que se persisten en el event store de Programacion -- ni de mas (ningun evento de bus),
-// ni de menos (el olvido que este issue corrige). No usa el harness Given/When/Then: se verifica un
-// dato estatico de configuracion -- el que consumen ComposicionServicios (write-side) y
+// IdentidadEventosProgramacion.TiposPersistidos debe incluir todo tipo que se persiste en el event
+// store de Programacion. No usa el harness Given/When/Then: se verifica un dato estatico de
+// configuracion -- el que consumen ComposicionServicios (write-side) y
 // ConfiguracionMartenProjectionsProgramacion (read-side) --, no el comportamiento de un handler.
 
 using AwesomeAssertions;
@@ -13,11 +12,9 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    // Oraculo derivado del write-side, complementario del literal de arriba: la asercion literal
-    // congela la lista de hoy, pero un evento persistido que se agregue manana solo la pone roja si
-    // alguien recuerda editar el test -- justo el olvido que el #237 dejo armado. Esta guarda no
-    // necesita ese recuerdo: enumera por reflexion los eventos que los aggregate roots del dominio
-    // aplican al rehidratar y exige que todos esten registrados.
+    // Oraculo derivado del write-side: un evento persistido nuevo la pone roja sin que nadie recuerde
+    // editar el test. Enumera por reflexion los eventos que los aggregate roots del dominio aplican al
+    // rehidratar y exige que todos esten registrados.
     [Fact]
     public void TiposPersistidos_IncluyeTodoEventoQueAplicaUnAggregateRootDelDominio()
     {

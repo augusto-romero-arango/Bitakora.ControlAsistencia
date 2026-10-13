@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
-using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.DesactivarJornadaFunction;
 

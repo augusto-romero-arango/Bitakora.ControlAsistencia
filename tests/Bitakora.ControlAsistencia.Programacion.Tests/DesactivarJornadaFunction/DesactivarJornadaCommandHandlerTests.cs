@@ -53,7 +53,6 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{DesactivarJornadaCommandHandler.Mensajes.JornadaNoEncontrada}*");
         Then(JornadaX.ToString());
-        And<Jornada, bool>(JornadaX.ToString(), j => j.Activa, false);
     }
 
     [Fact]
@@ -100,8 +99,6 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
         DesactivarJornadaCommandHandler.Mensajes.JornadaNoEncontrada.Should().NotBeNullOrWhiteSpace();
         DesactivarJornadaCommandHandler.Mensajes.JornadaPredeterminada.Should().NotBeNullOrWhiteSpace();
         DesactivarJornadaCommandHandler.Mensajes.JornadaEnUsoPorPlantillas.Should().NotBeNullOrWhiteSpace();
-        Then();
-        And<Jornada, bool>(JornadaX.ToString(), j => j.Activa, false);
     }
 
     private sealed class FakeLectorPlantillas : ILectorPlantillasPorJornada
