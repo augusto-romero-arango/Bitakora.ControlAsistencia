@@ -1,7 +1,7 @@
 # CA-ADR-0040: Eliminacion de datos de smoke que pueden volver fragil al test
 
 ## Estado
-Aceptado (2026-10-12). Precisa MEF-ADR-0013 (smoke tests contra dev). Origen: issue #952. Enmendado por #953 (tenant desechable) y por #992 (tenant propio por test, nunca borrado).
+Aceptado (2026-10-12). Precisa MEF-ADR-0013 (smoke tests contra dev). Origen: issue #952. Enmendado por #953 (tenant desechable), por #992 (tenant propio por test, nunca borrado) y por #994 (limpieza semanal).
 
 ## Contexto
 MEF-ADR-0013 aisla los datos de cada smoke con IDs unicos (`Guid.CreateVersion7()`) y no exige cleanup. Eso basta cuando la unicidad es por llave. Una Jornada, en cambio, se rechaza con 409 si sus limites (horas semanales, tope diario, minimo diario, dias de descanso) igualan los de otra del tenant, incluidas las desactivadas (#869). La restriccion es por contenido: dos jornadas con GUIDs distintos chocan igual. Los smoke de Programacion generaban limites con `Random` (59 combinaciones), las jornadas se acumulaban en dev y el run de CI fallaba con 409 en 9 de 14 casos.
@@ -13,9 +13,15 @@ MEF-ADR-0013 aisla los datos de cada smoke con IDs unicos (`Guid.CreateVersion7(
 4. **Alcance vigente**: jornadas y el singleton por tenant `PreferenciasProgramacion` (`pp:{tenantId}`) de `Programacion.SmokeTests`. Extender la politica a otro dato requiere su propio issue.
 5. **Predeterminada**: ningun test de Programacion modifica la Jornada predeterminada ni el stream `pp:tenant-smoke`; cada tenant propio obtiene la suya por `AseguradorJornadaPredeterminada` al primer uso. `tenant-smoke` se conserva para los tests aislados por GUID y para ControlHoras/MCP.
 6. **Los smoke nunca borran datos de Marten**: ningun fixture ejecuta `DELETE`/`TRUNCATE` sobre `mt_events`, `mt_streams` ni documentos de Marten. Postgres queda de solo lectura (aserciones sobre eventos y vistas). Origen: el 2026-10-13 los `DELETE` de los fixtures dejaron huecos en la secuencia de eventos y el daemon de proyecciones quedo detenido en el hueco 1590 (21 smoke fallaron, run 38416139087).
+7. **Limpieza semanal (#994)**: el workflow `limpiar-tenants-smoke.yml` (domingo + `workflow_dispatch`, secret `POSTGRES_CONNECTION_STRING`, sin alerta) ejecuta `scripts/limpiar-tenants-smoke.sql` por schema (`programacion`, `control_horas`, `colaboradores`, `sedes`), en una transaccion por schema y sin `TRUNCATE`.
+   - **Alcance**: solo `tenant_id = 'tenant-smoke'` o `LIKE 'tenant-smoke-%'`; ningun otro tenant. Una guarda del script rechaza cualquier `DELETE` sin ese filtro.
+   - **Limite de seguridad del daemon**: solo se borran streams cuyo ultimo `seq_id` es estrictamente menor que `min(last_seq_id)` de `{schema}.mt_event_progression`; el detector de huecos de Marten solo lee `mt_events` desde la marca hacia arriba, asi que un borrado por debajo no crea huecos visibles. Sin progresion en el schema, se omite.
+   - **Antiguedad**: streams con `mt_streams.timestamp` de mas de 24 h y documentos `mt_doc_*` con `mt_last_modified` de mas de 24 h.
+   - **Orden**: `mt_events`, luego `mt_streams`; el summary del job publica filas por schema y tabla y el limite usado.
+   - Esta excepcion a la decision 6 es solo del job de higiene; los smoke siguen sin borrar.
 
 ## Consecuencias
 - Los smoke de jornadas son deterministas: dos runs seguidos no colisionan, sin purga previa ni borrado final.
-- Residuo aceptado: los tenants `tenant-smoke-*` quedan en dev, aislados por tenant. Su higiene periodica, sin borrar eventos en caliente, se define en #994.
+- Residuo aceptado: los tenants `tenant-smoke-*` quedan en dev, aislados por tenant. Su higiene es la limpieza semanal de la decision 7 (#994), que respeta el limite de seguridad del daemon.
 - La tolerancia del daemon a huecos legitimos de secuencia se trata en #993.
 - Un test con tenant propio no depende del orden de ejecucion ni del estado de `tenant-smoke`.

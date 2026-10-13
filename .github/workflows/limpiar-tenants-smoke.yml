@@ -1,0 +1,33 @@
+name: Limpiar tenants de smoke
+
+# Issue #994 / CA-ADR-0040: limpieza semanal de tenant-smoke y tenant-smoke-* en dev.
+# Solo borra streams por debajo de min(last_seq_id) de mt_event_progression y con mas de 24 h.
+on:
+  schedule:
+    - cron: '0 7 * * 0' # domingo 07:00 UTC (02:00 Colombia)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: limpiar-tenants-smoke
+  cancel-in-progress: false
+
+jobs:
+  limpiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Asegurar psql
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -y && sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Limpiar tenants de smoke
+        env:
+          POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
+        run: ./scripts/limpiar-tenants-smoke.sh
