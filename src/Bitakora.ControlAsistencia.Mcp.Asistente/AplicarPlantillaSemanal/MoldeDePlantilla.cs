@@ -46,7 +46,7 @@ internal sealed class MoldeDePlantilla
             return (new HashSet<Guid>(), fallo);
 
         var idsDelMolde = cuadro.Dias.Select(d => Guid.Parse(d.Turno.Id)).ToHashSet();
-        var catalogo = await respuesta.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
+        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(OpcionesLectura, ct))?.Elementos ?? [];
         return (catalogo
             .Select(TurnoAProgramar.De)
             .Where(t => t.TieneFranjaSinSede && idsDelMolde.Contains(t.Id))

@@ -16,7 +16,7 @@ public static class CatalogoDeTurnos
     {
         var texto = await programacion.GetStringAsync("/api/programacion/turnos", ct);
         using var documento = JsonDocument.Parse(texto);
-        foreach (var turno in documento.RootElement.EnumerateArray())
+        foreach (var turno in documento.RootElement.GetProperty("elementos").EnumerateArray())
             if (turno.GetProperty("nombre").GetString() == nombre)
                 return JsonDocument.Parse(turno.GetRawText());
 

@@ -17,7 +17,7 @@ internal static class EntornoDeSedes
 
     /// <summary>Catalogo con un turno de una franja; sedeIdDeLaFranja null = franja sin sede prearmada.</summary>
     public static string TurnosConUnaFranja(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new[]
+        new { elementos = new[]
         {
             new
             {
@@ -42,7 +42,7 @@ internal static class EntornoDeSedes
                 descripcion = "",
                 completo = true
             }
-        },
+        } },
         Web);
 
     /// <summary>Maestro de sedes: SUBA activa (Sede Suba, CC-100), NORTE inactiva; FANTASMA no existe.</summary>

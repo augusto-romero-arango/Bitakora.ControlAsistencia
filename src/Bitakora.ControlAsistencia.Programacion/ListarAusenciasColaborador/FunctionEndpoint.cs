@@ -12,6 +12,8 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador;
 // Function QUERY (MEF-ADR-0042) via (b1): hidrata AusenciasColaborador en vivo (MEF-ADR-0035).
 public partial class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
+    private const int TakeMaximo = 200;
+
     [GeneratedRegex(@"\A[A-Za-z0-9._~-]+\z")]
     private static partial Regex CodigoUrlSafe();
 
@@ -51,10 +53,24 @@ public partial class FunctionEndpoint(IDocumentStore store, ITenantContext tenan
             return new ObjectResult("Desde no puede ser posterior a Hasta")
             { StatusCode = StatusCodes.Status422UnprocessableEntity };
 
+        if (filtro.Take is { } take && (take < 1 || take > TakeMaximo))
+            return new ObjectResult($"Take debe ser un entero entre 1 y {TakeMaximo}")
+            { StatusCode = StatusCodes.Status422UnprocessableEntity };
+
+        CursorAusenciaColaborador? cursor = null;
+        if (!string.IsNullOrEmpty(filtro.Cursor))
+        {
+            cursor = CursorAusenciaColaborador.Decodificar(filtro.Cursor);
+            if (cursor is null)
+                return new ObjectResult("El cursor no es valido")
+                { StatusCode = StatusCodes.Status422UnprocessableEntity };
+        }
+
         await using var session = store.QuerySession(tenantContext.TenantId);
         var ausencias = await session.Events.AggregateStreamAsync<AusenciasColaborador>(
             AusenciasColaborador.ComputarStreamId(codigo!), token: ct);
 
-        return new OkObjectResult(ausencias?.ListarAusenciasVigentes(desde, hasta) ?? []);
+        return new OkObjectResult(PaginaAusenciasColaborador.Componer(
+            ausencias?.ListarAusenciasVigentes(desde, hasta) ?? [], filtro.Take, cursor));
     }
 }

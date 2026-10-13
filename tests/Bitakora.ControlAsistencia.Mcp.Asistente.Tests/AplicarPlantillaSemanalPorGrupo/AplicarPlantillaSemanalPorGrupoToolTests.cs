@@ -26,7 +26,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     };
 
     private static string Plantillas(bool completa = true, bool turnoBRetirado = false) => JsonSerializer.Serialize(
-        new[]
+        new { elementos = new[]
         {
             new
             {
@@ -44,11 +44,11 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
                     Slot(2, 7, TurnoB, true, turnoBRetirado)
                 }
             }
-        },
+        } },
         Web);
 
     private static string Turnos(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new[] { TurnoA, TurnoB }.Select(id => new
+        new { elementos = new[] { TurnoA, TurnoB }.Select(id => new
         {
             id,
             nombre = $"Turno {id[^1]}",
@@ -65,7 +65,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
             },
             descripcion = "",
             completo = true
-        }),
+        }) },
         Web);
 
     private static object Ficha(int numero, string vigenteDesde = "2025-01-01", string? codigoSede = "SUBA") => new
@@ -133,7 +133,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaLaEtiqueta_CuandoTambienFaltaLaPlantilla()
     {
-        var entorno = Crear(plantillasJson: "[]");
+        var entorno = Crear(plantillasJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(entorno, plantilla: "[TEST] Plantilla que no existe", etiquetas: "area");
 
@@ -145,7 +145,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaElSelectorObligatorio_CuandoTambienFaltaLaPlantilla()
     {
-        var entorno = Crear(plantillasJson: "[]");
+        var entorno = Crear(plantillasJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
             entorno, plantilla: "[TEST] Plantilla que no existe", sede: null, etiquetas: null);

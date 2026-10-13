@@ -50,10 +50,10 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api)
 
         var lista = (await respuesta.Content.ReadFromJsonAsync<ListaAusenciasDelEquipo>(ct))!;
 
-        if (lista.Colaboradores.Count == 0)
+        if (lista.Elementos.Count == 0)
             return string.Format(Mensajes.NadieFalta, Formatear(lista.Desde), Formatear(lista.Hasta));
 
-        var visibles = lista.Colaboradores.Take(MaximoColaboradores)
+        var visibles = lista.Elementos.Take(MaximoColaboradores)
             .Select(c => new ColaboradorAusente(
                 c.CodigoColaborador,
                 c.NombreCompleto,
@@ -64,7 +64,7 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api)
             Formatear(lista.Desde),
             Formatear(lista.Hasta),
             ComponerNota(lista, visibles.Count),
-            lista.Colaboradores.Count,
+            lista.Elementos.Count,
             visibles.Count,
             visibles));
     }
@@ -76,9 +76,9 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api)
         if (lista.RangoRecortado)
             partes.Add(string.Format(Mensajes.NotaRecorte, Formatear(lista.Desde), Formatear(lista.Hasta)));
 
-        if (lista.Colaboradores.Count > visibles)
+        if (lista.Elementos.Count > visibles)
             partes.Add(string.Format(
-                Mensajes.NotaTruncado, visibles, lista.Colaboradores.Count, lista.Colaboradores.Count - visibles));
+                Mensajes.NotaTruncado, visibles, lista.Elementos.Count, lista.Elementos.Count - visibles));
 
         return partes.Count > 0 ? string.Join(" ", partes) : null;
     }

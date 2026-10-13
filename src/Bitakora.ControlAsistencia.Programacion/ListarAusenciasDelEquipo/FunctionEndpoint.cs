@@ -10,6 +10,8 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarAusenciasDelEquipo;
 
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
+    private const int TakeMaximo = 200;
+
     [Function("ListarAusenciasDelEquipo")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "query", Route = "programacion/ausencias")]
@@ -41,6 +43,19 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             return new ObjectResult("Desde no puede ser posterior a Hasta")
             { StatusCode = StatusCodes.Status422UnprocessableEntity };
 
+        if (filtro.Take is { } take && (take < 1 || take > TakeMaximo))
+            return new ObjectResult($"Take debe ser un entero entre 1 y {TakeMaximo}")
+            { StatusCode = StatusCodes.Status422UnprocessableEntity };
+
+        CursorAusenciasEquipo? cursor = null;
+        if (!string.IsNullOrEmpty(filtro.Cursor))
+        {
+            cursor = CursorAusenciasEquipo.Decodificar(filtro.Cursor);
+            if (cursor is null)
+                return new ObjectResult("El cursor no es valido")
+                { StatusCode = StatusCodes.Status422UnprocessableEntity };
+        }
+
         var rango = RangoConsulta.Recortar(desde, hasta);
         var hastaAplicado = rango.HastaAplicado;
 
@@ -54,6 +69,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var vigentes = await consulta.ToListAsync(ct);
 
-        return new OkObjectResult(ListaAusenciasDelEquipo.Componer(desde, rango, vigentes));
+        return new OkObjectResult(ListaAusenciasDelEquipo.Componer(desde, rango, vigentes, filtro.Take, cursor));
     }
 }

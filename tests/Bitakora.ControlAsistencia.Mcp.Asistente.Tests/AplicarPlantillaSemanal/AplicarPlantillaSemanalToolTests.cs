@@ -27,7 +27,7 @@ public class AplicarPlantillaSemanalToolTests
     private static string Plantillas(
         string nombre = "Semana A", int semanas = 2, bool completa = true,
         bool turnoBCompleto = true, bool turnoBRetirado = false) => JsonSerializer.Serialize(
-        new[]
+        new { elementos = new[]
         {
             new
             {
@@ -50,11 +50,11 @@ public class AplicarPlantillaSemanalToolTests
                 id = "01a07000-1000-7000-9000-000000000002", nombre = "Semana B", semanas = 1, completa = true,
                 dias = Array.Empty<object>()
             }
-        },
+        } },
         Web);
 
     private static string Turnos(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new[] { TurnoA, TurnoB }.Select(id => new
+        new { elementos = new[] { TurnoA, TurnoB }.Select(id => new
         {
             id,
             nombre = $"Turno {id[^1]}",
@@ -71,7 +71,7 @@ public class AplicarPlantillaSemanalToolTests
             },
             descripcion = "",
             completo = true
-        }),
+        }) },
         Web);
 
     private static string DirectorioDe(string identificacion, string vigenteDesde, string? codigoSede = "SUBA") =>

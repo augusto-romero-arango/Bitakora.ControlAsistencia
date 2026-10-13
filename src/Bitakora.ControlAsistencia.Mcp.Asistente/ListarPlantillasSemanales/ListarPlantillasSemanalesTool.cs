@@ -33,7 +33,7 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
         var respuesta = await api.ListarPlantillasSemanales(ct);
         respuesta.EnsureSuccessStatusCode();
 
-        var catalogo = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<CuadroSemanalTurnos>>(ct)
+        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(ct))?.Elementos
             ?? [];
 
         if (!string.IsNullOrWhiteSpace(filtroNombre))
