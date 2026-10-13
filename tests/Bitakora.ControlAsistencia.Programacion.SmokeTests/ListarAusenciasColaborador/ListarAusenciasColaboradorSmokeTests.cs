@@ -24,6 +24,8 @@ public class ListarAusenciasColaboradorSmokeTests(ApiFixture api)
         DateOnly FechaFin,
         IReadOnlyList<TramoSmoke> TramosVigentes);
 
+    private sealed record ListaSmoke(IReadOnlyList<AusenciaSmoke> Elementos, string? SiguienteCursor);
+
     private static string Ruta(string codigo) => $"/api/programacion/colaboradores/{codigo}/ausencias";
 
     private async Task<HttpResponseMessage> ConsultarAsync(string codigo, object? filtro, CancellationToken ct)
@@ -72,7 +74,7 @@ public class ListarAusenciasColaboradorSmokeTests(ApiFixture api)
         var response = await ConsultarAsync(codigo, new { desde = "2027-05-01", hasta = "2027-05-31" }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var ausencias = await response.Content.ReadFromJsonAsync<List<AusenciaSmoke>>(JsonOptions, ct);
+        var ausencias = (await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, ct))!.Elementos;
         var ausencia = ausencias.Should().ContainSingle(a => a.Id == ausenciaId).Subject;
         ausencia.Motivo.Should().Be("Vacaciones");
         ausencia.FechaInicio.Should().Be(new DateOnly(2027, 5, 13));
@@ -97,9 +99,11 @@ public class ListarAusenciasColaboradorSmokeTests(ApiFixture api)
         var response = await ConsultarAsync(codigo, new { desde = "2027-06-08", hasta = "2027-06-30" }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var ausencias = await response.Content.ReadFromJsonAsync<List<AusenciaSmoke>>(JsonOptions, ct);
-        ausencias!.Select(a => a.Id).Should().Equal(temprana, tardia);
-        ausencias![0].TramosVigentes.Should().Equal(new TramoSmoke(new DateOnly(2027, 6, 5), new DateOnly(2027, 6, 10)));
+        var lista = (await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, ct))!;
+        lista.SiguienteCursor.Should().BeNull("sin Take el endpoint devuelve todas las vigentes");
+        var ausencias = lista.Elementos;
+        ausencias.Select(a => a.Id).Should().Equal(temprana, tardia);
+        ausencias[0].TramosVigentes.Should().Equal(new TramoSmoke(new DateOnly(2027, 6, 5), new DateOnly(2027, 6, 10)));
     }
 
     [Fact]
@@ -112,8 +116,48 @@ public class ListarAusenciasColaboradorSmokeTests(ApiFixture api)
             Guid.CreateVersion7().ToString(), new { desde = "2027-05-01", hasta = "2027-05-31" }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var ausencias = await response.Content.ReadFromJsonAsync<List<AusenciaSmoke>>(JsonOptions, ct);
-        ausencias.Should().BeEmpty();
+        var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, ct);
+        lista!.Elementos.Should().BeEmpty();
+        lista.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAusenciasColaborador_RecorreDosPaginasPorPrimerDia_CuandoSeUsaTakeYCursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigo = Guid.CreateVersion7().ToString();
+        var tardia = Guid.CreateVersion7();
+        var temprana = Guid.CreateVersion7();
+
+        (await ProgramarAsync(codigo, tardia, "2027-07-20", "2027-07-22", ct)).StatusCode.Should().Be(HttpStatusCode.Created);
+        (await ProgramarAsync(codigo, temprana, "2027-07-05", "2027-07-07", ct)).StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var primera = await ConsultarAsync(codigo, new { desde = "2027-07-01", hasta = "2027-07-31", take = 1 }, ct);
+        primera.StatusCode.Should().Be(HttpStatusCode.OK);
+        var paginaUno = (await primera.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, ct))!;
+        paginaUno.Elementos.Select(a => a.Id).Should().Equal(temprana);
+        paginaUno.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var segunda = await ConsultarAsync(
+            codigo, new { desde = "2027-07-01", hasta = "2027-07-31", take = 1, cursor = paginaUno.SiguienteCursor }, ct);
+        segunda.StatusCode.Should().Be(HttpStatusCode.OK);
+        var paginaDos = (await segunda.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, ct))!;
+        paginaDos.Elementos.Select(a => a.Id).Should().Equal(tardia);
+        paginaDos.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAusenciasColaborador_Retorna422_CuandoElCursorEsInvalido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await ConsultarAsync(
+            Guid.CreateVersion7().ToString(),
+            new { desde = "2027-05-01", hasta = "2027-05-31", cursor = "no-es-un-cursor" }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     [Fact]

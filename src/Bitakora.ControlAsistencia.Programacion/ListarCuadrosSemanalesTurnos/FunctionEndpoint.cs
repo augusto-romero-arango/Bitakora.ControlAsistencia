@@ -39,16 +39,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // ITenantContext -- nunca a un tenant id que llegara por query string.
         await using var session = store.QuerySession(tenantContext.TenantId);
 
-        // El orden (Nombre, Id) es ordinal y se aplica en memoria: el catalogo es acotado y asi el
-        // corte keyset no depende de la colacion de la base.
-        var todas = await session.Query<CuadroSemanalTurnos>().ToListAsync(ct);
-        var posteriores = todas
-            .OrderBy(x => x.Nombre, StringComparer.Ordinal).ThenBy(x => x.Id, StringComparer.Ordinal)
-            .Where(x => cursor is not { } c
-                || string.CompareOrdinal(x.Nombre, c.Nombre) > 0
-                || (x.Nombre == c.Nombre && string.CompareOrdinal(x.Id, c.Id) > 0));
-        var pedidas = (take is { } t ? posteriores.Take(t + 1) : posteriores).ToList();
+        var catalogo = await session.Query<CuadroSemanalTurnos>().ToListAsync(ct);
 
-        return new OkObjectResult(PaginaCuadrosSemanalesTurnos.Cortar(pedidas, take));
+        return new OkObjectResult(PaginaCuadrosSemanalesTurnos.Componer(catalogo, take, cursor));
     }
 }

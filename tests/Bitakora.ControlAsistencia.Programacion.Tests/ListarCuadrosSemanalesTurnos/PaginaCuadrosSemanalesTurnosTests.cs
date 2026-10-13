@@ -54,4 +54,28 @@ public class PaginaCuadrosSemanalesTurnosTests
 
         CursorCuadroSemanalTurnos.Decodificar(cursor.Codificar()).Should().Be(cursor);
     }
+
+    [Fact]
+    public void Componer_OrdenaPorNombreOrdinalYLuegoPorId_CuandoNoHayTake()
+    {
+        var empate = Cuadro("id-0", "Semana B");
+
+        var respuesta = PaginaCuadrosSemanalesTurnos.Componer([C, B, empate, A], null, null);
+
+        respuesta.Elementos.Select(e => e.Id).Should().Equal("id-a", "id-0", "id-b", "id-c");
+        respuesta.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_ContinuaDespuesDelCursorSinRepetirNiSaltar_CuandoSeReenviaElCursor()
+    {
+        var primera = PaginaCuadrosSemanalesTurnos.Componer([C, B, A], 2, null);
+
+        var segunda = PaginaCuadrosSemanalesTurnos.Componer(
+            [C, B, A], 2, CursorCuadroSemanalTurnos.Decodificar(primera.SiguienteCursor!));
+
+        primera.Elementos.Select(e => e.Id).Should().Equal("id-a", "id-b");
+        segunda.Elementos.Select(e => e.Id).Should().Equal("id-c");
+        segunda.SiguienteCursor.Should().BeNull();
+    }
 }

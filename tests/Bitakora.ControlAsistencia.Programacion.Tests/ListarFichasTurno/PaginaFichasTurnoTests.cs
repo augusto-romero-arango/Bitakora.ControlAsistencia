@@ -52,4 +52,42 @@ public class PaginaFichasTurnoTests
 
         CursorFichaTurno.Decodificar(cursor.Codificar()).Should().Be(cursor);
     }
+
+    [Fact]
+    public void Componer_OrdenaPorNombreOrdinalYLuegoPorId_CuandoNoHayTake()
+    {
+        var empate = Ficha("id-0", "Cocina Noche");
+        var minuscula = Ficha("id-d", "cocina");
+
+        var respuesta = PaginaFichasTurno.Componer([C, minuscula, B, A, empate], null, null);
+
+        respuesta.Elementos.Should().Equal(A, empate, B, C, minuscula);
+        respuesta.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_ContinuaDespuesDelCursorSinRepetirNiSaltar_CuandoSeReenviaElCursor()
+    {
+        var primera = PaginaFichasTurno.Componer([C, B, A], 1, null);
+
+        var segunda = PaginaFichasTurno.Componer(
+            [C, B, A], 1, CursorFichaTurno.Decodificar(primera.SiguienteCursor!));
+        var tercera = PaginaFichasTurno.Componer(
+            [C, B, A], 1, CursorFichaTurno.Decodificar(segunda.SiguienteCursor!));
+
+        primera.Elementos.Should().Equal(A);
+        segunda.Elementos.Should().Equal(B);
+        tercera.Elementos.Should().Equal(C);
+        tercera.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_DesempataPorId_CuandoElCursorApuntaAUnNombreRepetido()
+    {
+        var empate = Ficha("id-z", "Cocina Noche");
+
+        var respuesta = PaginaFichasTurno.Componer([A, B, empate, C], null, new CursorFichaTurno("Cocina Noche", "id-b"));
+
+        respuesta.Elementos.Should().Equal(empate, C);
+    }
 }
