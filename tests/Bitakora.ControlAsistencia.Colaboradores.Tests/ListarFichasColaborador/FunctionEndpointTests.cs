@@ -192,6 +192,17 @@ public class FunctionEndpointTests
         unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
+    [Fact]
+    public async Task ListarFichasColaborador_NoRechazaElFiltro_CuandoNoTraeTake()
+    {
+        var request = FakeHttpRequest(contentType: "application/json", body: """{"fechaReferencia":"2026-08-14"}""");
+
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
+
+        // store nulo: superar la validacion del borde equivale a llegar a la QuerySession.
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
+    }
+
     // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
     [Fact]
     public void TakeEfectivo_NoAplicaTope_CuandoElFiltroNoTraeTake() =>
