@@ -9,8 +9,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.SolicitarProgramacionTurnoFunction;
 
 public class SolicitarProgramacionTurnoSmokeTests(
-    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
+    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private readonly HttpClient _client = api.Client;
 
     private const string TopicSalida = "programacion-turno-diario-solicitada";
@@ -91,7 +95,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         fechas = new[] { "2025-08-01", "2025-08-02" }
     };
 
-    // Issue #700 CA-4: Cosmos 3.x estampa el tercer dato de identidad en la metadata del evento
+    // Cosmos 3.x estampa el tercer dato de identidad en la metadata del evento
     // persistido (UnitOfWorkMiddleware) y en cada mensaje publicado (TenancyDelivery). Este comando
     // tiene ambos efectos, asi que un solo escenario cubre los dos planos.
     [Fact]
@@ -205,7 +209,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         new[] { evento1.Fecha, evento2.Fecha }.Should()
             .BeEquivalentTo(new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
 
-        // Issue #436: el body ya envia la terna y el handler la pasa TAL CUAL al bus. Este oraculo
+        // El body ya envia la terna y el handler la pasa TAL CUAL al bus. Este oraculo
         // acredita end-to-end ese pass-through: los tres valores que salen al bus son, literalmente,
         // los tres que entraron por HTTP. Si un mapeo permutara dos campos de la terna (todos
         // string, ninguna diferencia de tipo que delate la permutacion), el defecto aparece aqui.
@@ -217,7 +221,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         evento1.DetalleTurno.Nombre.Should().Be(nombreTurno);
         evento1.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
 
-        // Issue #331 CA-2: la solicitud no incluye sede -> el comportamiento actual (anterior al
+        // La solicitud no incluye sede -> el comportamiento actual (anterior al
         // issue) queda intacto: el evento diario publicado lleva Sede = null.
         evento1.Sede.Should().BeNull();
         evento2.Sede.Should().BeNull();
@@ -267,7 +271,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // Arrange: solicitud con sede -- issue #331 CA-1
+        // Arrange: solicitud con sede
         var solicitudId = Guid.CreateVersion7();
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var sedeId = "SEDE-01";
@@ -297,7 +301,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var sedeEsperada = new DetalleSede(sedeId, sedeNombre);
         evento.Sede.Should().Be(sedeEsperada);
 
-        // Issue #341 CA-3: el turno del catalogo NO trae sedes prearmadas en sus franjas -> la
+        // El turno del catalogo NO trae sedes prearmadas en sus franjas -> la
         // cascada (franja.Sede ?? sedePorDefecto) aplica la sede de la solicitud a la UNICA franja.
         evento.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         evento.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeEsperada);
@@ -337,7 +341,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
             TurnoConFranjasMixtasPayload(turnoId, sedeSuba.Id, sedeSuba.Nombre), ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // Arrange: solicitud CON sede -- issue #341 CA-1
+        // Arrange: solicitud CON sede
         var solicitudId = Guid.CreateVersion7();
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var payload = new
@@ -623,7 +627,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var crearTurnoResponse = await _client.PostAsJsonAsync("/api/programacion/turnos", turnoPayload, ct);
         crearTurnoResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // Arrange: solicitud SIN sede -- issue #341 CA-2: la franja con sede del catalogo la
+        // Arrange: solicitud SIN sede: la franja con sede del catalogo la
         // conserva (el catalogo le gana al "sin sede" de la solicitud tambien).
         var solicitudId = Guid.CreateVersion7();
         var codigoColaborador = Guid.CreateVersion7().ToString();
@@ -720,7 +724,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // Issue #500 CA-4: un turno retirado del catalogo ya no es asignable a nuevas solicitudes.
+    // Un turno retirado del catalogo ya no es asignable a nuevas solicitudes.
     // Guarda transaccional contra el CatalogoTurnos que el handler ya carga (Tell-don't-Ask,
     // MEF-ADR-0012) -- no consulta la vista FichaTurno, asi que no hay consistencia eventual que
     // esperar entre el DELETE y este POST.
@@ -759,7 +763,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // Issue #613 CA-6: un turno incompleto (creado sin franjas ordinarias y sin marca de descanso,
+    // Un turno incompleto (creado sin franjas ordinarias y sin marca de descanso,
     // ya posible desde #599) no es programable -- declina con 409, mismo mecanismo que el turno
     // retirado de arriba. Requiere #599 desplegado en dev (el POST sin "ordinarias" responde 400
     // hasta entonces).
@@ -899,7 +903,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #331 CA-3: sede presente pero con Id vacio se rechaza con 400, sin emitir eventos.
+    // Sede presente pero con Id vacio se rechaza con 400, sin emitir eventos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_Retorna400_CuandoSedeTieneIdVacio()
@@ -924,7 +928,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #331 CA-3: sede presente pero con Nombre en blanco se rechaza con 400, sin emitir eventos.
+    // Sede presente pero con Nombre en blanco se rechaza con 400, sin emitir eventos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_Retorna400_CuandoSedeTieneNombreEnBlanco()
@@ -1100,15 +1104,6 @@ public class SolicitarProgramacionTurnoSmokeTests(
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(0);
     }
 
-    private static object PayloadJornada(Guid id, int semanalesMinutos) => new
-    {
-        jornadaId = id,
-        horasSemanales = new { horas = 42, minutos = semanalesMinutos },
-        topeDiario = new { horas = 8, minutos = 30 },
-        minimoDiario = new { horas = 4, minutos = 0 },
-        diasDescansoPorSemana = 1
-    };
-
     private async Task<Guid> CrearTurnoParaJornadaAsync(string nombre, CancellationToken ct)
     {
         var turnoId = Guid.CreateVersion7();
@@ -1138,14 +1133,15 @@ public class SolicitarProgramacionTurnoSmokeTests(
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var firma = LimitesDePrueba.SolicitarProgramacion;
+        await _limpieza.PrepararAsync(firma);
 
         var ct = TestContext.Current.CancellationToken;
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         var jornadaId = Guid.CreateVersion7();
-        var minutosSemanales = Random.Shared.Next(1, 60);
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", PayloadJornada(jornadaId, minutosSemanales), ct))
+        _limpieza.Registrar(jornadaId);
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         var turnoId = await CrearTurnoParaJornadaAsync("[TEST] Turno Smoke Jornada", ct);
 
@@ -1158,10 +1154,10 @@ public class SolicitarProgramacionTurnoSmokeTests(
             TopicSalida, Suscripcion, e => e.SolicitudId == conJornada, Timeout);
         mensaje.Jornada.Should().NotBeNull();
         mensaje.Jornada!.JornadaId.Should().Be(jornadaId);
-        mensaje.Jornada.HorasSemanalesEnMinutos.Should().Be(2520 + minutosSemanales);
-        mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(510);
-        mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(240);
-        mensaje.Jornada.DiasDescansoPorSemana.Should().Be(1);
+        mensaje.Jornada.HorasSemanalesEnMinutos.Should().Be(firma.HorasSemanalesEnMinutos);
+        mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(firma.TopeDiarioEnMinutos);
+        mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(firma.MinimoDiarioEnMinutos);
+        mensaje.Jornada.DiasDescansoPorSemana.Should().Be(firma.DiasDescansoPorSemana);
         (await postgres.ContarEventosAsync(
             SchemaProgramacion, conJornada.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
 

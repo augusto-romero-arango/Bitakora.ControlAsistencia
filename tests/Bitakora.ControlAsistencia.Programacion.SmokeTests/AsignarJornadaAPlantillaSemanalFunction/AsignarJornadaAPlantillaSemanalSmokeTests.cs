@@ -6,18 +6,25 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarJornadaAPlantillaSemanalFunction;
 
 public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
+    : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private const string TipoEventoAsignada = "jornada_de_plantilla_semanal_asignada";
     private const string TipoEventoAdvertencias = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _client = api.Client;
 
-    private async Task<(Guid PlantillaId, Guid JornadaId, int Minutos)> CrearPlantillaYJornadaAsync(CancellationToken ct)
+    private async Task<(Guid PlantillaId, Guid JornadaId)> CrearPlantillaYJornadaAsync(
+        FirmaDeLimites firma, CancellationToken ct)
     {
+        await _limpieza.PrepararAsync(firma);
         var plantillaId = Guid.CreateVersion7();
         var jornadaId = Guid.CreateVersion7();
-        var minutos = Random.Shared.Next(1, 60);
+        _limpieza.Registrar(jornadaId);
 
         (await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
         {
@@ -26,17 +33,11 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
             semanas = 1
         }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearPlantillaSemanal funcione");
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", new
-        {
-            jornadaId,
-            horasSemanales = new { horas = 30, minutos },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
 
-        return (plantillaId, jornadaId, minutos);
+        return (plantillaId, jornadaId);
     }
 
     private static string Ruta(Guid plantillaId) =>
@@ -55,10 +56,8 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_DebeRetornar204YPersistirElEvento_CuandoLaJornadaExiste()
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
-
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId, _) = await CrearPlantillaYJornadaAsync(ct);
+        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaPersiste, ct);
 
         var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
 
@@ -76,10 +75,8 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_DebeRetornar204SinNuevosEventos_CuandoSeRepiteConLaCopiaAlDia()
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
-
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId, _) = await CrearPlantillaYJornadaAsync(ct);
+        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaRepite, ct);
         var streamId = plantillaId.ToString();
 
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
@@ -101,19 +98,15 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_DebeAutocorregirLaCopia_CuandoLosLimitesDeLaJornadaCambiaron()
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
-
+        var destino = LimitesDePrueba.AsignarAPlantillaAutocorrigeDestino;
+        await _limpieza.PrepararAsync(destino);
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId, minutos) = await CrearPlantillaYJornadaAsync(ct);
+        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(
+            LimitesDePrueba.AsignarAPlantillaAutocorrigeOrigen, ct);
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await _client.PutAsJsonAsync($"/api/programacion/jornadas/{jornadaId}/limites", new
-        {
-            horasSemanales = new { horas = 33, minutos },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        }, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent,
+        (await _client.PutAsJsonAsync($"/api/programacion/jornadas/{jornadaId}/limites", destino.Limites(), ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange depende de que ModificarLimitesJornada funcione");
 
         var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
@@ -134,7 +127,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     public async Task AsignarJornada_DebeRetornar404_CuandoLaJornadaNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, _, _) = await CrearPlantillaYJornadaAsync(ct);
+        var (plantillaId, _) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaJornadaNoExiste, ct);
 
         var response = await _client.PutAsJsonAsync(
             Ruta(plantillaId), new { jornadaId = Guid.CreateVersion7() }, ct);
@@ -147,7 +140,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     public async Task AsignarJornada_DebeRetornar404_CuandoLaPlantillaNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (_, jornadaId, _) = await CrearPlantillaYJornadaAsync(ct);
+        var (_, jornadaId) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaPlantillaNoExiste, ct);
 
         var response = await _client.PutAsJsonAsync(Ruta(Guid.CreateVersion7()), new { jornadaId }, ct);
 
@@ -159,7 +152,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     public async Task AsignarJornada_DebeRetornar409_CuandoLaPlantillaEstaRetirada()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, jornadaId, _) = await CrearPlantillaYJornadaAsync(ct);
+        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaPlantillaRetirada, ct);
 
         (await _client.DeleteAsync($"/api/programacion/plantillas-semanales/{plantillaId}", ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent,
