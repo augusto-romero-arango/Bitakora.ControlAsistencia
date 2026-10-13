@@ -221,15 +221,25 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
         };
 
         JsonElement elemento = default;
-        await Polling.WaitUntilTrueAsync(async () =>
+        var proyectada = await Polling.WaitUntilTrueAsync(async () =>
         {
             var respuesta = await ConsultarOkAsync(filtro, ct);
             var elementos = respuesta.GetProperty("elementos");
             if (elementos.GetArrayLength() == 0)
                 return false;
-            elemento = elementos[0].Clone();
+
+            var candidato = elementos[0];
+            var casillasProyectadas = candidato.GetProperty("casillas");
+            if (casillasProyectadas.GetArrayLength() != 7
+                || casillasProyectadas.EnumerateArray()
+                    .Any(c => c.GetProperty("tipo").GetString() != "Trabajo"))
+                return false;
+
+            elemento = candidato.Clone();
             return true;
         }, Timeout);
+        proyectada.Should().BeTrue(
+            "la semana debia quedar proyectada completa (7 casillas en Trabajo) dentro del timeout");
 
         elemento.GetProperty("codigoColaborador").GetString().Should().Be(codigoColaborador);
 
