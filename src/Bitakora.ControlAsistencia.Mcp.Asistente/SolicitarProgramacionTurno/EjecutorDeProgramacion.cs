@@ -142,7 +142,8 @@ internal static class EjecutorDeProgramacion
                         envio.Entrada.CodigoColaborador,
                         envio.Entrada.NombreCompleto),
                     envio.Dias,
-                    planDeSede.Para(envio.Entrada).Sede);
+                    planDeSede.Para(envio.Entrada).Sede,
+                    envio.Entrada.JornadaId);
 
                 var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
 
