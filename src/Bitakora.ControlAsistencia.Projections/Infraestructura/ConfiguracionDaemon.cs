@@ -2,16 +2,9 @@ using Marten;
 
 namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
 
-/// <summary>
-/// Configuracion del daemon compartida por los 4 named stores del worker (issue #993,
-/// MEF-ADR-0034, MEF-ADR-0018).
-/// </summary>
 public static class ConfiguracionDaemon
 {
-    /// <summary>
-    /// Tiempo tras el cual un hueco de secuencia estancado se salta aunque haya transacciones vivas.
-    /// </summary>
-    public static readonly TimeSpan TiempoMaximoDeHuecoEstancado = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan TiempoMaximoDeHuecoEstancado = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Fija Projections.SkipStaleGapsDespiteLiveTransactionsAfter (null por defecto = nunca salta).

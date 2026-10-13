@@ -91,13 +91,9 @@ public static class AssertsProyecciones
     }
 
     /// <summary>
-    /// Issue #993: el daemon del named store salta un hueco de secuencia estancado tras 5 minutos
-    /// aunque Marten vea transacciones vivas que podrian llenarlo (valvula
-    /// Projections.SkipStaleGapsDespiteLiveTransactionsAfter, null por defecto = nunca salta). Los 4
-    /// stores comparten base y proceso, y cada lider HotCold mantiene una transaccion abierta, asi
-    /// que sin el tope un hueco legitimo detiene el store indefinidamente. Como AsyncMode, la opcion
-    /// solo se expone en la superficie mutable (StoreOptions), de ahi la conversion. El 5 minutos es
-    /// literal (oraculo independiente, MEF-ADR-0002), no se lee de la fuente de produccion.
+    /// El daemon del named store salta un hueco de secuencia estancado tras 5 minutos aunque vea
+    /// transacciones vivas. El 5 es literal (oraculo independiente, MEF-ADR-0002): no leerlo de la
+    /// fuente de produccion. Como AsyncMode, la opcion solo se expone en StoreOptions.
     /// </summary>
     public static void AssertSaltoDeHuecosEstancadosEnCincoMinutos(this IDocumentStore store)
     {

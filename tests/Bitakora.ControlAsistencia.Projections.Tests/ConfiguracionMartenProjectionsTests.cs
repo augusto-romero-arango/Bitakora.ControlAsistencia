@@ -364,7 +364,7 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 
-    // --- Issue #993 CA-2: tolerancia a huecos legitimos de secuencia, un test por store ---
+    // --- Tolerancia a huecos de secuencia estancados, un test por store ---
 
     [Fact]
     public void ConfigurarProgramacion_FijaElSaltoDeHuecosEstancadosEnCincoMinutos()

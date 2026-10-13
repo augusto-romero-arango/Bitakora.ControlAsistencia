@@ -73,12 +73,12 @@ public static class ConfiguracionMartenProjectionsProgramacion
                 // -- no el event store, sino el query-side del Function App (session.LoadAsync).
                 opts.Policies.AllDocumentsAreMultiTenanted();
 
+                opts.TolerarHuecosEstancados();
+
                 // Replica de la configuracion de metadata del write-side (MEF-ADR-0034 seccion 6
                 // punto 3, seccion 7): el config-test verifica exactamente estas tres. La
                 // habilitacion real de las columnas es responsabilidad del write-side de este
                 // dominio (issue #232).
-                opts.TolerarHuecosEstancados(); // issue #993: ver ConfiguracionDaemon
-
                 opts.Events.MetadataConfig.CorrelationIdEnabled = true;
                 opts.Events.MetadataConfig.CausationIdEnabled = true;
                 opts.Events.MetadataConfig.HeadersEnabled = true;
