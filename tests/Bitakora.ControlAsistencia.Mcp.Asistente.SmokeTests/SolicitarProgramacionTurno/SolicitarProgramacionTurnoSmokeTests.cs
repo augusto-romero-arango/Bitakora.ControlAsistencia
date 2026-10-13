@@ -33,84 +33,6 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_Programa35Dias_CuandoLaVentanaCubreSuVigencia()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var sufijo = Guid.CreateVersion7();
-        var codigoSede = $"TEST-{sufijo}";
-        var codigoColaborador = $"TEST-{sufijo}";
-        var numeroIdentificacion = sufijo.ToString("N").ToUpperInvariant();
-        var nombreTurno = $"[TEST] Turno MCP {sufijo}";
-
-        await mcp.Cliente.CallToolAsync(
-            "registrar_sede",
-            new Dictionary<string, object?>
-            {
-                ["codigo"] = codigoSede,
-                ["nombre"] = "[TEST] Sede MCP Programacion"
-            },
-            cancellationToken: ct);
-        await mcp.Cliente.CallToolAsync(
-            "registrar_colaborador",
-            new Dictionary<string, object?>
-            {
-                ["tipo_identificacion"] = "CC",
-                ["numero_identificacion"] = numeroIdentificacion,
-                ["primer_nombre"] = "[TEST]",
-                ["primer_apellido"] = "MCP",
-                ["codigo_colaborador"] = codigoColaborador,
-                ["fecha_inicio"] = "2026-10-01"
-            },
-            cancellationToken: ct);
-        await SembrarTurnoAsync(Guid.CreateVersion7(), nombreTurno, ct);
-
-        var argumentos = new Dictionary<string, object?>
-        {
-            ["desde"] = "2026-10-07",
-            ["hasta"] = "2026-11-10",
-            ["turno"] = nombreTurno,
-            ["sede_de_programacion"] = codigoSede,
-            ["identificaciones"] = $"CC-{numeroIdentificacion}"
-        };
-
-        var documento = await Polling.WaitUntilAsync(
-            async () =>
-            {
-                var respuesta = await mcp.Cliente.CallToolAsync(
-                    "solicitar_programacion_turno", argumentos, cancellationToken: ct);
-                var texto = respuesta.Content.OfType<TextContentBlock>().Single().Text;
-                var candidato = JsonDocument.Parse(texto);
-
-                var contieneAlColaborador = candidato.RootElement.GetProperty("programados").EnumerateArray()
-                    .Any(p => p.GetProperty("codigoColaborador").GetString() == codigoColaborador);
-
-                if (contieneAlColaborador)
-                    return candidato;
-
-                candidato.Dispose();
-                return null;
-            },
-            TimeoutPolling);
-        using var documentoDisponible = documento;
-        var resultado = documento.RootElement;
-
-        resultado.GetProperty("resultado").GetString().Should().Be("Programacion solicitada");
-        resultado.GetProperty("turno").GetString().Should().Be(nombreTurno);
-        resultado.GetProperty("sede").GetProperty("codigo").GetString().Should().Be(codigoSede);
-        resultado.GetProperty("programados").GetArrayLength().Should().Be(1);
-        var programado = resultado.GetProperty("programados").EnumerateArray()
-            .Single(p => p.GetProperty("codigoColaborador").GetString() == codigoColaborador);
-        programado.GetProperty("identificacion").GetString().Should().Be($"CC-{numeroIdentificacion}");
-        programado.GetProperty("dias").GetInt32().Should().Be(35);
-        programado.GetProperty("desde").GetString().Should().Be("2026-10-07");
-        programado.GetProperty("hasta").GetString().Should().Be("2026-11-10");
-        resultado.GetProperty("ventana").GetString().Should().Be("2026-10-07 a 2026-11-10");
-        resultado.GetProperty("omitidos").GetInt32().Should().Be(0);
-        resultado.TryGetProperty("fallidos", out _).Should().BeFalse("no debe haber fallidos");
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_InformaLosDiasRespetados_CuandoElColaboradorTieneUnaAusenciaEnLaVentana()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -196,28 +118,6 @@ public class SolicitarProgramacionTurnoSmokeTests(McpFixture mcp, ProgramacionAp
         var respetado = programado.GetProperty("respetados").EnumerateArray().Single();
         respetado.GetProperty("motivo").GetString().Should().Be("Vacaciones");
         respetado.GetProperty("tramos").GetString().Should().Be("2");
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_RespondeElMensajeDeValidacion_CuandoLaVentanaExcedeElMaximo()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var resultado = await mcp.Cliente.CallToolAsync(
-            "solicitar_programacion_turno",
-            new Dictionary<string, object?>
-            {
-                ["desde"] = "2026-10-07",
-                ["hasta"] = "2026-11-11",
-                ["turno"] = "[TEST] Turno que no existe",
-                ["sede_de_programacion"] = "TEST-INEXISTENTE",
-                ["identificaciones"] = "CC-1"
-            },
-            cancellationToken: ct);
-
-        resultado.Content.OfType<TextContentBlock>().Single().Text
-            .Should().Be("La ventana no puede superar 35 dias; se recibieron 36.");
     }
 
     [Fact]

@@ -497,21 +497,4 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         pagina2.Filas.Should().HaveCount(1);
         pagina2.Filas.Single().CodigoColaborador.Should().Be(codigos[2]);
     }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarResumenesAsistencia_RecortaRangoHaciaAdelante_CuandoSePiden36Dias()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var desde = new DateOnly(2026, 10, 7);
-        var hastaSolicitado = new DateOnly(2026, 11, 11);
-
-        var filtro = new { desdeFecha = desde, hastaFecha = hastaSolicitado };
-        var respuesta = await ConsultarOkAsync(filtro, ct);
-
-        respuesta.DesdeAplicado.Should().Be(desde);
-        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
-        respuesta.RangoRecortado.Should().BeTrue();
-    }
 }

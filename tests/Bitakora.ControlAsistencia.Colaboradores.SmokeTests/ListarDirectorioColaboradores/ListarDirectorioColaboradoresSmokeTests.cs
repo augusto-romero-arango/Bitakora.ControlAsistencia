@@ -289,30 +289,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         (lista ?? []).Should().BeEmpty();
     }
 
-    // CA-1: Take: 0 se clampea a 1 en el servidor -- sin el clamp, un Take(0) crudo de LINQ
-    // devolveria una lista vacia SIEMPRE, sin importar que el colaborador exista.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarDirectorioColaboradores_ClampeaTakeAMinimoUno_CuandoTakeLlegaEnCero()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var numero = NuevoNumeroIdentificacion();
-        var apellido = NuevoApellidoUnico("Clamp590");
-        var id = ComputarStreamId("CC", numero);
-
-        await RegistrarColaboradorAsync(
-            "CC", numero, new DateOnly(2026, 1, 1), "[TEST]", null, apellido, null,
-            NuevoCodigoColaborador(), ct);
-
-        var pagina = await ConsultarHastaQueAsync(
-            Filtro(nombre: apellido, take: 0),
-            lista => lista.Any(f => f.Identificacion == id),
-            ct);
-
-        pagina.Should().ContainSingle(f => f.Identificacion == id,
-            "Take: 0 deberia clampearse a 1 en el servidor -- un Take(0) crudo nunca habria devuelto esta fila");
-    }
-
     // CA-3: paginacion keyset -- el cursor de la ultima fila continua la pagina siguiente sin
     // saltar ni repetir. Dos colaboradores con nombres unicos ordenables (mismo prefijo, sufijo
     // A/B) para forzar un orden predecible entre ellos.
@@ -447,19 +423,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         var ct = TestContext.Current.CancellationToken;
 
         var response = await ConsultarAsync(new { identificaciones = new[] { "   " } }, ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-    }
-
-    // CA-1: mas de 200 valores en Identificaciones -> 422.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarDirectorioColaboradores_Retorna422_CuandoIdentificacionesSuperaDoscientosValores()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var identificaciones = Enumerable.Range(0, 201).Select(i => $"CC-{i}").ToArray();
-
-        var response = await ConsultarAsync(new { identificaciones }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }

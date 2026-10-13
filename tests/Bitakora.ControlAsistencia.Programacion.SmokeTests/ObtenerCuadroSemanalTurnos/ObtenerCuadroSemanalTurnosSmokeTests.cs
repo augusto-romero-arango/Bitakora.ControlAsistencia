@@ -244,7 +244,7 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api, PostgresFixtur
     public async Task ObtenerCuadroSemanalTurnos_MarcaElTurnoRetiradoYBorraElCuadroRetirado()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (plantillaId, turnoId, _) = await CrearPlantillaTurnoYAsignarDiaAsync(ct);
+        var (plantillaId, turnoId, nombreTurno) = await CrearPlantillaTurnoYAsignarDiaAsync(ct);
         await EsperarCuadroAsync(plantillaId, c => c.Dias.Count == 1, ct);
 
         var retiroTurnoResponse = await _client.DeleteAsync($"{RutaTurnos}/{turnoId}", ct);
@@ -253,7 +253,7 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api, PostgresFixtur
 
         var cuadroConTurnoRetirado = await EsperarCuadroAsync(
             plantillaId, c => c.Dias.Single().Turno.Retirado, ct);
-        cuadroConTurnoRetirado.Dias.Single().Turno.Nombre.Should().BeNull();
+        cuadroConTurnoRetirado.Dias.Single().Turno.Nombre.Should().Be(nombreTurno);
         cuadroConTurnoRetirado.Completa.Should().BeFalse();
 
         var retiroPlantillaResponse = await _client.DeleteAsync(RutaObtener(plantillaId), ct);
