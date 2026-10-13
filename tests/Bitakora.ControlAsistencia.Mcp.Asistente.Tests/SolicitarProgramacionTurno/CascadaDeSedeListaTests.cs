@@ -93,7 +93,7 @@ public class CascadaDeSedeListaTests
         await Ejecutar(entorno, null, "CC-1111,CC-2222,CC-3333");
 
         entorno.LecturasDelMaestro.Should().ContainSingle();
-        entorno.LecturasDelMaestro.Single().RequestUri!.Query.Should().NotContain("activa");
+        entorno.LecturasDelMaestro.Single().RequestUri!.Query.Should().BeEmpty("sin filtro y sin take: devuelve todo el maestro");
         entorno.Sedes.Requests.Should().OnlyContain(
             r => r.RequestUri!.AbsolutePath == EntornoDeSedes.RutaMaestroDeSedes,
             "nunca N lecturas de sedes/fichas/{codigo}");
