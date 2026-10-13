@@ -196,7 +196,8 @@ public sealed record DirectorioColaboradorRespuesta(
     string CodigoColaborador,
     string? CodigoSede,
     DateOnly VigenteDesde,
-    DateOnly? VigenteHasta)
+    DateOnly? VigenteHasta,
+    Guid? JornadaId = null)
 {
     // El centinela se lee de la propia vista, nunca de un literal repetido aqui.
     public static DirectorioColaboradorRespuesta DesdeVista(DirectorioColaborador vista) =>

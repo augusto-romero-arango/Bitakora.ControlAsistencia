@@ -271,6 +271,30 @@ public class FunctionEndpointTests
             VigenteHasta: null));
     }
 
+    // Issue #860 CA-3: JornadaId viaja tal cual desde la vista, null incluido.
+    [Theory]
+    [InlineData("11111111-1111-1111-1111-111111111111")]
+    [InlineData(null)]
+    public void DesdeVista_CopiaJornadaIdTalCual_CuandoTraduceElDirectorio(string? jornadaId)
+    {
+        Guid? esperado = jornadaId is null ? null : Guid.Parse(jornadaId);
+        var vista = new DirectorioColaborador(
+            Id: "CC-79879078",
+            TipoDocumento: "CC",
+            NumeroDocumento: "79879078",
+            NombreCompleto: "Juan Pablo Bermudez",
+            TokensNombre: ["juan", "pablo", "bermudez"],
+            CodigoColaborador: "COL-001",
+            VigenteDesde: new DateOnly(2024, 1, 15),
+            VigenteHasta: new DateOnly(2025, 6, 30),
+            CodigoSede: "SEDE-BOG",
+            JornadaId: esperado);
+
+        var respuesta = DirectorioColaboradorRespuesta.DesdeVista(vista);
+
+        respuesta.JornadaId.Should().Be(esperado);
+    }
+
     // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
     [Fact]
     public void TakeEfectivo_NoAplicaTope_CuandoHayIdentificacionesSinTake() =>

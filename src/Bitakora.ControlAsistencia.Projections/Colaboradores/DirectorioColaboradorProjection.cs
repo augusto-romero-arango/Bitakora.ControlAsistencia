@@ -71,4 +71,7 @@ public sealed partial class DirectorioColaboradorProjection
     // evento y no existe evento de retiro (DomainEvents/SedeAsignada.cs).
     public static DirectorioColaborador Apply(SedeAsignada e, DirectorioColaborador vista) =>
         vista with { CodigoSede = e.CodigoSede };
+
+    public static DirectorioColaborador Apply(JornadaAsignada e, DirectorioColaborador vista) =>
+        throw new NotImplementedException();
 }

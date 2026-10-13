@@ -79,7 +79,8 @@ public sealed record FichaColaboradorRespuesta(
     DateOnly? VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
     IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
-    string? CodigoSede = null)
+    string? CodigoSede = null,
+    Guid? JornadaId = null)
 {
     // El centinela se lee de la propia vista (FichaColaborador.CentinelaVigenciaAbierta), nunca de
     // un literal repetido aqui: quien lo escribe es el worker, en otro proceso, y ReadModels es el

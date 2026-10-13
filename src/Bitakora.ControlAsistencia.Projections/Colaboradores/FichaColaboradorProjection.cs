@@ -125,4 +125,7 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
     // SedeAsignada.cs).
     public static FichaColaborador Apply(SedeAsignada e, FichaColaborador vista) =>
         vista with { CodigoSede = e.CodigoSede };
+
+    public static FichaColaborador Apply(JornadaAsignada e, FichaColaborador vista) =>
+        throw new NotImplementedException();
 }
