@@ -68,7 +68,8 @@ public sealed record FichaColaborador(
     DateOnly VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
     IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
-    string? CodigoSede = null)
+    string? CodigoSede = null,
+    Guid? JornadaId = null)
 {
     /// <summary>
     /// Valor de <see cref="VigenteHasta"/> que significa "vinculacion abierta" (sin terminacion
