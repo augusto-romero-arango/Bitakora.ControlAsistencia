@@ -53,7 +53,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         var desde = filtro.DesdeFecha.Value;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
         var hastaAplicado = rangoAplicado.HastaAplicado;
-        var take = PaginaDeCodigos.AcotarTake(filtro.Take);
+        var take = PaginaDeCodigos.AcotarTake(filtro.Take ?? 50);
 
         // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
         // (mitigacion estructural contra BOLA/IDOR, MEF-ADR-0028).
@@ -75,7 +75,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // Nunca 404: un rango sin datos son filas SinDatos (o una lista vacia cuando no hay
         // CodigosColaborador pedido), no un error.
         return new OkObjectResult(new ListaResumenesAsistencia(
-            desde, hastaAplicado, rangoAplicado.RangoRecortado, filas));
+            desde, hastaAplicado, rangoAplicado.RangoRecortado, filas, null));
     }
 
     // Con CodigosColaborador explicito la pagina se recorta sobre la lista pedida, sin consultar

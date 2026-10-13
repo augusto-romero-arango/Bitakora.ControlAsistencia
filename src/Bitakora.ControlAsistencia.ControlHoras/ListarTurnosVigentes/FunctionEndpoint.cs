@@ -83,6 +83,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // Nunca 404: un rango sin turnos vigentes es 200 con Turnos: [], no un error.
         return new OkObjectResult(new ListaTurnosVigentes(
             desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado,
-            turnos.Select(TurnoVigenteRespuesta.Desde).ToList()));
+            turnos.Select(TurnoVigenteRespuesta.Desde).ToList(), null));
     }
 }

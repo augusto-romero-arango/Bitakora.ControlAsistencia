@@ -120,4 +120,36 @@ public class FunctionEndpointTests
 
         resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
+
+    [Fact]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoTakeEsCero()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"desdeFecha":"2026-05-01","hastaFecha":"2026-05-10","take":0}"""));
+
+        r.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoTakeSuperaElMaximo()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"desdeFecha":"2026-05-01","hastaFecha":"2026-05-10","take":201}"""));
+
+        r.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoElCursorNoSeDecodifica()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"desdeFecha":"2026-05-01","hastaFecha":"2026-05-10","cursor":"@@no-base64@@"}"""));
+
+        r.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoElCursorEsUnValorCrudoConLaFormaVieja()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"desdeFecha":"2026-05-01","hastaFecha":"2026-05-10","cursor":"EMP-001"}"""));
+
+        r.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
 }

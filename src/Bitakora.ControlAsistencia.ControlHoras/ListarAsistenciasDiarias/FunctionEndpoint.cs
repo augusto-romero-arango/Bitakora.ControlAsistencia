@@ -74,6 +74,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         // Nunca 404: un rango sin documentos son filas sinteticas, no un error.
         return new OkObjectResult(new ListaAsistenciasDiarias(
-            desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado, filas));
+            desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado, filas, null));
     }
 }
