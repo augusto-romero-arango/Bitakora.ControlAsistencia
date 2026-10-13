@@ -45,7 +45,8 @@ public sealed partial class DirectorioColaboradorProjection
             CodigoColaborador = e.Codigo,
             VigenteDesde = e.FechaInicio,
             VigenteHasta = DirectorioColaborador.CentinelaVigenciaAbierta,
-            CodigoSede = e.CodigoSede
+            CodigoSede = e.CodigoSede,
+            JornadaId = null
         };
 
     public static DirectorioColaborador Apply(VinculacionTerminada e, DirectorioColaborador vista) =>
@@ -73,5 +74,5 @@ public sealed partial class DirectorioColaboradorProjection
         vista with { CodigoSede = e.CodigoSede };
 
     public static DirectorioColaborador Apply(JornadaAsignada e, DirectorioColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = e.JornadaId };
 }

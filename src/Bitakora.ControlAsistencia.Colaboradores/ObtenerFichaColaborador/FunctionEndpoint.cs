@@ -95,5 +95,6 @@ public sealed record FichaColaboradorRespuesta(
             ficha.VigenteHasta == FichaColaborador.CentinelaVigenciaAbierta ? null : ficha.VigenteHasta,
             ficha.Etiquetas,
             ficha.EtiquetasNormalizadas,
-            ficha.CodigoSede);
+            ficha.CodigoSede,
+            ficha.JornadaId);
 }

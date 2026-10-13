@@ -209,5 +209,6 @@ public sealed record DirectorioColaboradorRespuesta(
             vista.CodigoColaborador,
             vista.CodigoSede,
             vista.VigenteDesde,
-            vista.VigenteHasta == DirectorioColaborador.CentinelaVigenciaAbierta ? null : vista.VigenteHasta);
+            vista.VigenteHasta == DirectorioColaborador.CentinelaVigenciaAbierta ? null : vista.VigenteHasta,
+            vista.JornadaId);
 }

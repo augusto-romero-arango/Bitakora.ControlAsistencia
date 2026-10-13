@@ -67,7 +67,8 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
             VigenteHasta = FichaColaborador.CentinelaVigenciaAbierta,
             Etiquetas = [],
             EtiquetasNormalizadas = new Dictionary<string, string>(),
-            CodigoSede = e.CodigoSede
+            CodigoSede = e.CodigoSede,
+            JornadaId = null
         };
 
     // CA-2 (primera mitad): VigenteHasta = FechaEfectiva.
@@ -127,5 +128,5 @@ public sealed partial class FichaColaboradorProjection : SingleStreamProjection<
         vista with { CodigoSede = e.CodigoSede };
 
     public static FichaColaborador Apply(JornadaAsignada e, FichaColaborador vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = e.JornadaId };
 }
