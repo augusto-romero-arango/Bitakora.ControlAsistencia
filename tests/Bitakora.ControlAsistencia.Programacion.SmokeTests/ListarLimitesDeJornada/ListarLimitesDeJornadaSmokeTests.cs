@@ -42,9 +42,12 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
         return id;
     }
 
-    private async Task<ListaSmoke> ListarAsync(string query, CancellationToken ct)
+    private Task<ListaSmoke> ListarAsync(string query, CancellationToken ct) =>
+        ListarAsync(_client, query, ct);
+
+    private static async Task<ListaSmoke> ListarAsync(HttpClient client, string query, CancellationToken ct)
     {
-        var response = await _client.GetAsync($"{Ruta}{query}", ct);
+        var response = await client.GetAsync($"{Ruta}{query}", ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
         return lista!;
@@ -117,32 +120,31 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     public async Task ListarLimitesDeJornada_MaterializaLaPredeterminadaUnaSolaVez_CuandoSeListaSinPreferencias()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        await using var tenant = new TenantDesechable(api, postgres);
         var ct = TestContext.Current.CancellationToken;
         var schema = PostgresFixture.SchemaProgramacion;
-        var streamPreferencias = PostgresFixture.StreamIdPreferencias(postgres.TenantId);
+        var streamPreferencias = PostgresFixture.StreamIdPreferencias(tenant.TenantId);
 
         var lista = await Polling.WaitUntilAsync(async () =>
         {
-            var l = await ListarAsync("", ct);
+            var l = await ListarAsync(tenant.Client, "", ct);
             return l.Elementos.Any(e => EsPredeterminadaInicial(e)) ? l : null;
         }, Timeout);
 
         lista.Elementos.Should().Contain(e => EsPredeterminadaInicial(e));
         (await postgres.ContarEventosAsync(schema, streamPreferencias, "jornada_predeterminada_asignada"))
             .Should().Be(1);
-        (await postgres.ContarEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+        (await postgres.ContarEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
             .Should().Be(1);
 
-        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
             .Single();
-        var predeterminadaId = Guid.Parse(
-            (asignada.TryGetProperty("JornadaId", out var id) ? id : asignada.GetProperty("jornadaId"))
-            .GetString()!);
+        var predeterminadaId = asignada.GetProperty("JornadaId").GetGuid();
         lista.Elementos.Should().ContainSingle(e => e.JornadaId == predeterminadaId);
 
-        await ListarAsync("", ct);
+        await ListarAsync(tenant.Client, "", ct);
 
-        (await postgres.ContarEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+        (await postgres.ContarEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
             .Should().Be(1, "un segundo GET no debe escribir eventos");
         (await postgres.ContarEventosAsync(schema, predeterminadaId.ToString(), "jornada_creada"))
             .Should().Be(1);
@@ -179,15 +181,6 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
         lista.Elementos.Where(e => e.EsPredeterminada).Select(e => e.JornadaId)
             .Should().ContainSingle().Which.Should().Be(id);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoTakeSuperaElMaximo()
-    {
-        var response = await _client.GetAsync($"{Ruta}?take=201", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]

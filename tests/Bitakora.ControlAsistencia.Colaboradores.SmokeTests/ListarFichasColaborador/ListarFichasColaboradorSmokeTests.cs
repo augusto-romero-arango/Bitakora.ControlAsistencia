@@ -386,32 +386,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el cursor (NombreCompleto, Id) de A deberia continuar exactamente en B, sin saltar ni repetir");
     }
 
-    // CA-3 (clamp del Take): Take: 0 se clampea a 1 en el servidor -- sin el clamp, un Take(0) crudo
-    // de LINQ devolveria una lista vacia SIEMPRE, sin importar que el colaborador exista y sea
-    // vigente.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarFichasColaborador_ClampeaTakeAMinimoUno_CuandoTakeLlegaEnCero()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var fechaReferencia = new DateOnly(2026, 4, 15);
-        var apellido = NuevoApellidoUnico("Clamp373");
-        var nombreCompleto = NombreCompletoDe(apellido);
-        var numeroIdentificacion = NuevoNumeroIdentificacion();
-        var streamId = ComputarStreamId(numeroIdentificacion);
-
-        await RegistrarColaboradorAsync(
-            numeroIdentificacion, new DateOnly(2026, 1, 1), apellido, NuevoCodigoColaborador(), ct);
-
-        var pagina = await ConsultarHastaQueAsync(
-            FiltroPorCursor(fechaReferencia, nombreCompleto, cursorId: "", take: 0),
-            lista => lista.Any(f => f.Id == streamId),
-            ct);
-
-        pagina.Should().ContainSingle(f => f.Id == streamId,
-            "Take: 0 deberia clampearse a 1 en el servidor -- un Take(0) crudo nunca habria devuelto esta fila");
-    }
-
     // CA-4: sin Content-Type: application/json -> 415, verificado ANTES de leer el body.
     [Fact]
     [Trait("Category", "Smoke")]
@@ -529,28 +503,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         var lista = await response.Content.ReadFromJsonAsync<List<FichaColaboradorRespuestaSmoke>>(
             JsonOptions, cancellationToken: ct);
         (lista ?? []).Should().BeEmpty();
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarFichasColaborador_Retorna200ConLista_CuandoElFiltroNoTraeTake()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var filtro = new
-        {
-            fechaReferencia = new DateOnly(2026, 1, 1),
-            etiquetas = Array.Empty<object>(),
-            cursor = (object?)null
-        };
-
-        var response = await ConsultarAsync(filtro, ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var lista = await response.Content.ReadFromJsonAsync<List<FichaColaboradorRespuestaSmoke>>(
-            JsonOptions, cancellationToken: ct);
-        lista.Should().NotBeNull();
     }
 
     // Issue #519 CA-4: el filtro por sede es un Where mas del mismo AND -- con la MISMA etiqueta

@@ -85,4 +85,25 @@ public class FichaColaboradorRespuestaTests
 
         respuesta.CodigoSede.Should().Be("SEDE-BOG-01");
     }
+
+    // --- Issue #860 CA-3: la respuesta expone JornadaId tal cual viene de la vista (sin centinela). ---
+
+    [Fact]
+    public void DesdeVista_CopiaJornadaId_CuandoLaFichaTieneJornadaAsignada()
+    {
+        var j1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var ficha = FichaConVigenteHasta(CentinelaVigenciaAbierta) with { JornadaId = j1 };
+
+        var respuesta = FichaColaboradorRespuesta.DesdeVista(ficha);
+
+        respuesta.JornadaId.Should().Be(j1);
+    }
+
+    [Fact]
+    public void DesdeVista_DejaJornadaIdNulo_CuandoLaFichaNoTieneJornadaAsignada()
+    {
+        var respuesta = FichaColaboradorRespuesta.DesdeVista(FichaConVigenteHasta(CentinelaVigenciaAbierta));
+
+        respuesta.JornadaId.Should().BeNull();
+    }
 }

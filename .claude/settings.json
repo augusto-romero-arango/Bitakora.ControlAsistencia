@@ -44,7 +44,7 @@
     "augusto-romero-arango-harness": {
       "source": {
         "source": "github",
-        "repo": "augusto-romero-arango/eda-evsourcing-azure-harness"
+        "repo": "augusto-romero-arango/mefisto"
       },
       "autoUpdate": true
     }
