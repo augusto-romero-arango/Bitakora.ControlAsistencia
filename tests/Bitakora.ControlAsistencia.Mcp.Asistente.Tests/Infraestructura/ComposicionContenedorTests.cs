@@ -1,5 +1,6 @@
 using System.Reflection;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarAdvertenciasProgramacion;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -25,26 +26,31 @@ public class ComposicionContenedorTests
 
         var services = new ServiceCollection();
         services.ConfigurarServiciosMcp(configuracion);
-        return services.BuildServiceProvider();
+        return services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
     }
 
     private static IEnumerable<Type> TiposDeTool() =>
         typeof(ResolutorCandidatosPorGrupo).Assembly
             .GetTypes()
             .Where(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Any(m => m.GetParameters()
-                    .Any(p => p.GetCustomAttribute<McpToolTriggerAttribute>() is not null)));
+                .Any(m => m.GetCustomAttribute<FunctionAttribute>() is not null
+                    && m.GetParameters().Any(p => p.GetCustomAttribute<McpToolTriggerAttribute>() is not null)));
 
     [Fact]
     public void ConfigurarServiciosMcp_ActivaCadaTool_ConElContenedorReal()
     {
         using var proveedor = ConstruirProveedor();
+        using var alcance = proveedor.CreateScope();
         var tipos = TiposDeTool().ToList();
 
         tipos.Should().NotBeEmpty();
         foreach (var tipo in tipos)
         {
-            var activar = () => ActivatorUtilities.CreateInstance(proveedor, tipo);
+            var activar = () => ActivatorUtilities.CreateInstance(alcance.ServiceProvider, tipo);
             activar.Should().NotThrow($"la tool {tipo.Name} debe poder activarse desde el contenedor");
         }
     }
@@ -53,11 +59,11 @@ public class ComposicionContenedorTests
     public void ConfigurarServiciosMcp_ActivaConsultarAdvertenciasProgramacionTool()
     {
         using var proveedor = ConstruirProveedor();
-        var tipo = TiposDeTool().Single(t => t.Name == "ConsultarAdvertenciasProgramacionTool");
+        using var alcance = proveedor.CreateScope();
 
-        var tool = ActivatorUtilities.CreateInstance(proveedor, tipo);
+        var activar = () => ActivatorUtilities.CreateInstance<ConsultarAdvertenciasProgramacionTool>(alcance.ServiceProvider);
 
-        tool.Should().NotBeNull();
+        activar.Should().NotThrow();
     }
 
     [Fact]
