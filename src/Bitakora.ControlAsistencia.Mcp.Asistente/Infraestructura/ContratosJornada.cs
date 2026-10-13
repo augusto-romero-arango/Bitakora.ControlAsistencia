@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -26,6 +29,35 @@ public sealed record JornadaDescrita(
 
 public static class ValidadorDuracion
 {
-    public static bool TryParsear(string? texto, out HorasYMinutosJornada duracion) =>
-        throw new NotImplementedException();
+    private const int HorasMaximas = 999;
+    private const int MinutosMaximos = 59;
+
+    public static bool TryParsear(string? texto, out HorasYMinutosJornada duracion)
+    {
+        duracion = new HorasYMinutosJornada(0, 0);
+        var partes = texto?.Split(':');
+        if (partes is not [{ Length: >= 1 and <= 3 } horasTexto, { Length: 2 } minutosTexto])
+            return false;
+        if (!horasTexto.All(char.IsAsciiDigit) || !minutosTexto.All(char.IsAsciiDigit))
+            return false;
+
+        var horas = int.Parse(horasTexto, CultureInfo.InvariantCulture);
+        var minutos = int.Parse(minutosTexto, CultureInfo.InvariantCulture);
+        if (horas > HorasMaximas || minutos > MinutosMaximos)
+            return false;
+
+        duracion = new HorasYMinutosJornada(horas, minutos);
+        return true;
+    }
+}
+
+internal static class LecturaDeJornada
+{
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
+
+    public static async Task<JornadaDescrita> LeerDescritaAsync(this HttpResponseMessage respuesta, CancellationToken ct)
+    {
+        var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaJornada>(OpcionesLectura, ct))!;
+        return new JornadaDescrita(ficha.JornadaId, ficha.Descripcion, ficha.EsPredeterminada);
+    }
 }

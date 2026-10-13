@@ -42,20 +42,24 @@ public sealed class ProgramacionApi(HttpClient http)
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", sedeDeFranja, ct);
 
     public Task<HttpResponseMessage> ListarJornadas(int take, string? cursor, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.GetAsync(
+            cursor is null
+                ? $"api/programacion/jornadas?take={take}"
+                : $"api/programacion/jornadas?take={take}&cursor={Uri.EscapeDataString(cursor)}",
+            ct);
 
     public Task<HttpResponseMessage> ObtenerJornada(string id, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.GetAsync($"api/programacion/jornadas/{Uri.EscapeDataString(id)}", ct);
 
     public Task<HttpResponseMessage> CrearJornada(JornadaACrear jornada, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync("api/programacion/jornadas", jornada, ct);
 
     public Task<HttpResponseMessage> ModificarLimitesJornada(
         string id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PutAsJsonAsync($"api/programacion/jornadas/{Uri.EscapeDataString(id)}/limites", limites, ct);
 
     public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);
 
     public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
         http.GetAsync("api/programacion/plantillas-semanales", ct);

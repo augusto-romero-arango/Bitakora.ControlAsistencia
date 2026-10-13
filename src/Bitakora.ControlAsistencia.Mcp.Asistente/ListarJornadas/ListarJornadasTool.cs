@@ -1,4 +1,8 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarJornadas;
@@ -8,6 +12,45 @@ public partial class ListarJornadasTool(ProgramacionApi api)
     internal const string NombreTool = "listar_jornadas";
     internal const int MaximoJornadas = 50;
 
-    public Task<string> Run(ToolInvocationContext context, string? cursor, CancellationToken ct) =>
-        throw new NotImplementedException();
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
+
+    [Function("ListarJornadas")]
+    public async Task<string> Run(
+        [McpToolTrigger(
+            NombreTool,
+            "Lista el catalogo de Jornadas: los limites de tiempo de trabajo contra los que se verifica "
+            + "la programacion (horas semanales, tope diario, minimo diario y dias de descanso por semana). "
+            + "Cada Jornada se identifica por su jornada_id y se describe por sus limites; marca cual es la "
+            + "predeterminada, la que se estampa a quien no tiene una asignada.")]
+        [McpMetadata("""{"readOnlyHint": true}""")]
+        ToolInvocationContext context,
+        [McpToolProperty(
+            "cursor",
+            "Cursor opaco de la pagina siguiente, tal como lo devolvio la llamada anterior.")]
+        string? cursor,
+        CancellationToken ct)
+    {
+        var respuesta = await api.ListarJornadas(MaximoJornadas + 1, cursor, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var sobre = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaJornada>>(OpcionesLectura, ct))!;
+        var visibles = sobre.Elementos.Take(MaximoJornadas)
+            .Select(f => new JornadaDescrita(f.JornadaId, f.Descripcion, f.EsPredeterminada))
+            .ToList();
+        var hayMas = sobre.Elementos.Count > MaximoJornadas || sobre.SiguienteCursor is not null;
+
+        return RespuestaJson.Serializar(new CatalogoDeJornadas(
+            visibles.Count,
+            visibles,
+            hayMas ? sobre.SiguienteCursor : null,
+            hayMas ? Mensajes.NotaMasJornadas : null));
+    }
 }
+
+/// <summary>Respuesta de listar_jornadas: modalidad catalogo de CA-ADR-0039, sin total.</summary>
+public sealed record CatalogoDeJornadas(
+    int Mostrando,
+    IReadOnlyList<JornadaDescrita> Jornadas,
+    string? SiguienteCursor,
+    string? Nota);
