@@ -41,6 +41,22 @@ public sealed class ProgramacionApi(HttpClient http)
         http.PostAsJsonAsync(
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", sedeDeFranja, ct);
 
+    public Task<HttpResponseMessage> ListarJornadas(int take, string? cursor, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ObtenerJornada(string id, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> CrearJornada(JornadaACrear jornada, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ModificarLimitesJornada(
+        string id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
         http.GetAsync("api/programacion/plantillas-semanales", ct);
 

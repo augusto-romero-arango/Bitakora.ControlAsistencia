@@ -16,7 +16,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
         "solicitar_programacion_turno",
         "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo",
-        "programar_ausencia", "cancelar_ausencia"
+        "programar_ausencia", "cancelar_ausencia",
+        "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -55,12 +56,17 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["aplicar_plantilla_semanal"] = ["desde", "hasta", "plantilla", "identificaciones"],
         ["aplicar_plantilla_semanal_por_grupo"] = ["desde", "hasta", "plantilla"],
         ["programar_ausencia"] = ["identificacion", "desde", "hasta", "motivo"],
-        ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"]
+        ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"],
+        ["listar_jornadas"] = [],
+        ["crear_jornada"] = ["horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
+        ["modificar_limites_jornada"] =
+            ["jornada_id", "horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
+        ["asignar_jornada_predeterminada"] = ["jornada_id"]
     };
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasTreintaYUnaTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasTreintaYCincoTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -106,7 +112,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "asignar_turno_a_dia" or "quitar_turno_de_dia" or "solicitar_programacion_turno"
                 or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
                 or "aplicar_plantilla_semanal_por_grupo"
-                or "programar_ausencia" or "cancelar_ausencia";
+                or "programar_ausencia" or "cancelar_ausencia"
+                or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }
