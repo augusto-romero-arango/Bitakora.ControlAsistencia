@@ -42,7 +42,7 @@ public sealed record FirmaDeLimites(
 
 // Cada Jornada que crea un smoke de Programacion tiene aqui una firma propia: la restriccion de
 // unicidad es por contenido (CA-ADR-0040). Reservada es la firma de la Jornada predeterminada que
-// otros proyectos de smoke reutilizan; nunca se purga.
+// otros proyectos de smoke reutilizan en tenant-smoke; ningun test de Programacion la modifica.
 public static class LimitesDePrueba
 {
     public static readonly FirmaDeLimites Reservada = Firma(42, 0);

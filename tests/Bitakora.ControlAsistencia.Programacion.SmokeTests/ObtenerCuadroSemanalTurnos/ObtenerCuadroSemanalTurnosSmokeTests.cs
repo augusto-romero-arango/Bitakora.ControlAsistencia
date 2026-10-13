@@ -16,13 +16,13 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ObtenerCuadroSemanalTurnos;
 
-public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
+public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api) : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private const string RutaPlantillas = "/api/programacion/plantillas-semanales";
     private const string RutaTurnos = "/api/programacion/turnos";
@@ -125,8 +125,6 @@ public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api, PostgresFixtur
         var jornadaId = Guid.CreateVersion7();
         var turnoId = Guid.CreateVersion7();
         var firma = LimitesDePrueba.ObtenerCuadro;
-        await _limpieza.PrepararAsync(firma);
-        _limpieza.Registrar(jornadaId);
 
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created,

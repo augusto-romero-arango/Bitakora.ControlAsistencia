@@ -8,17 +8,17 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ModificarLimitesJornadaFunction;
 
 public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture postgres, ServiceBusFixture serviceBus)
-    : IAsyncDisposable
+    : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string Ruta = "/api/programacion/jornadas";
     private const string TopicSalida = "limites-de-jornada-actualizados";
     private const string Suscripcion = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private static object Limites(int horas, int minutos, int topeHoras = 8, int topeMinutos = 0) => new
     {
@@ -41,12 +41,11 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
     [Trait("Category", "Smoke")]
     public async Task ModificarLimitesJornada_DebeRetornar204YPersistirLosLimites_CuandoPayloadEsValido()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var origen = LimitesDePrueba.ModificarOrigen;
         var firmaDestino = LimitesDePrueba.ModificarDestino;
-        await _limpieza.PrepararAsync(origen, firmaDestino);
         var ct = TestContext.Current.CancellationToken;
         var id = Guid.CreateVersion7();
-        _limpieza.Registrar(id);
         var creada = await _client.PostAsJsonAsync(Ruta, origen.PayloadCrear(id), ct);
         creada.StatusCode.Should().Be(HttpStatusCode.Created);
         var destino = firmaDestino.Limites();
@@ -73,12 +72,9 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
     {
         var firmaA = LimitesDePrueba.ModificarConflictoA;
         var firmaB = LimitesDePrueba.ModificarConflictoB;
-        await _limpieza.PrepararAsync(firmaA, firmaB);
         var ct = TestContext.Current.CancellationToken;
         var idA = Guid.CreateVersion7();
         var idB = Guid.CreateVersion7();
-        _limpieza.Registrar(idA);
-        _limpieza.Registrar(idB);
         (await _client.PostAsJsonAsync(Ruta, firmaA.PayloadCrear(idA), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         (await _client.PostAsJsonAsync(Ruta, firmaB.PayloadCrear(idB), ct))
@@ -106,10 +102,8 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
         var ct = TestContext.Current.CancellationToken;
         var origen = LimitesDePrueba.ModificarPublicaOrigen;
         var destino = LimitesDePrueba.ModificarPublicaDestino;
-        await _limpieza.PrepararAsync(origen, destino);
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
         var id = Guid.CreateVersion7();
-        _limpieza.Registrar(id);
         (await _client.PostAsJsonAsync(Ruta, origen.PayloadCrear(id), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
 
@@ -134,10 +128,8 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
         var ct = TestContext.Current.CancellationToken;
         var origen = LimitesDePrueba.ModificarNoPublicaOrigen;
         var firmaDestino = LimitesDePrueba.ModificarNoPublicaDestino;
-        await _limpieza.PrepararAsync(origen, firmaDestino);
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
         var id = Guid.CreateVersion7();
-        _limpieza.Registrar(id);
         (await _client.PostAsJsonAsync(Ruta, origen.PayloadCrear(id), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         var destino = firmaDestino.Limites();
@@ -179,10 +171,8 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
     public async Task ModificarLimitesJornada_DebeRetornar400_CuandoElTopeDiarioEsInvalido()
     {
         var origen = LimitesDePrueba.ModificarTopeInvalido;
-        await _limpieza.PrepararAsync(origen);
         var ct = TestContext.Current.CancellationToken;
         var id = Guid.CreateVersion7();
-        _limpieza.Registrar(id);
         (await _client.PostAsJsonAsync(Ruta, origen.PayloadCrear(id), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
 

@@ -6,15 +6,15 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarLimitesDeJornada;
 
-public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
+public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string Ruta = "/api/programacion/jornadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -33,9 +33,7 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
     private async Task<Guid> CrearJornadaAsync(FirmaDeLimites firma, CancellationToken ct)
     {
-        await _limpieza.PrepararAsync(firma);
         var id = Guid.CreateVersion7();
-        _limpieza.Registrar(id);
         var response = await _client.PostAsJsonAsync(Ruta, firma.PayloadCrear(id), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearJornada funcione");
@@ -120,31 +118,30 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     public async Task ListarLimitesDeJornada_MaterializaLaPredeterminadaUnaSolaVez_CuandoSeListaSinPreferencias()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
-        await using var tenant = new TenantDesechable(api, postgres);
         var ct = TestContext.Current.CancellationToken;
         var schema = PostgresFixture.SchemaProgramacion;
-        var streamPreferencias = PostgresFixture.StreamIdPreferencias(tenant.TenantId);
+        var streamPreferencias = PostgresFixture.StreamIdPreferencias(_tenant.TenantId);
 
         var lista = await Polling.WaitUntilAsync(async () =>
         {
-            var l = await ListarAsync(tenant.Client, "", ct);
+            var l = await ListarAsync(_tenant.Client, "", ct);
             return l.Elementos.Any(e => EsPredeterminadaInicial(e)) ? l : null;
         }, Timeout);
 
         lista.Elementos.Should().Contain(e => EsPredeterminadaInicial(e));
         (await postgres.ContarEventosAsync(schema, streamPreferencias, "jornada_predeterminada_asignada"))
             .Should().Be(1);
-        (await postgres.ContarEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
+        (await postgres.ContarEventosDeStreamAsync(schema, _tenant.TenantId, streamPreferencias))
             .Should().Be(1);
 
-        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
+        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, _tenant.TenantId, streamPreferencias))
             .Single();
         var predeterminadaId = asignada.GetProperty("JornadaId").GetGuid();
         lista.Elementos.Should().ContainSingle(e => e.JornadaId == predeterminadaId);
 
-        await ListarAsync(tenant.Client, "", ct);
+        await ListarAsync(_tenant.Client, "", ct);
 
-        (await postgres.ContarEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
+        (await postgres.ContarEventosDeStreamAsync(schema, _tenant.TenantId, streamPreferencias))
             .Should().Be(1, "un segundo GET no debe escribir eventos");
         (await postgres.ContarEventosAsync(schema, predeterminadaId.ToString(), "jornada_creada"))
             .Should().Be(1);
@@ -162,7 +159,6 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     {
         var ct = TestContext.Current.CancellationToken;
         var id = await CrearJornadaAsync(LimitesDePrueba.ListarMarcaPredeterminada, ct);
-        await _limpieza.RecordarPredeterminadaAsync(_client);
 
         var asignada = await _client.PutAsJsonAsync(
             "/api/programacion/preferencias/jornada-predeterminada", new { jornadaId = id }, ct);
