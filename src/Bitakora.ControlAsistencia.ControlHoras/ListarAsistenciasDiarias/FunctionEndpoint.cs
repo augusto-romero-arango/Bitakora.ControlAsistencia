@@ -56,6 +56,19 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             return new ObjectResult("DesdeFecha no puede ser posterior a HastaFecha")
             { StatusCode = StatusCodes.Status422UnprocessableEntity };
 
+        if (!PaginaDeAsistenciasDiarias.TakeEnRango(filtro.Take))
+            return new ObjectResult("Take debe estar entre 1 y 200")
+            { StatusCode = StatusCodes.Status422UnprocessableEntity };
+
+        DateOnly? cursorFecha = null;
+        if (filtro.Cursor is not null)
+        {
+            if (!CursorOpaco.TryDecodificar(filtro.Cursor, out var decodificada))
+                return new ObjectResult("El cursor no es valido")
+                { StatusCode = StatusCodes.Status422UnprocessableEntity };
+            cursorFecha = decodificada;
+        }
+
         var codigoColaborador = filtro.CodigoColaborador;
         var desde = filtro.DesdeFecha.Value;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
@@ -72,8 +85,12 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var filas = SintesisCalendarioAsistencia.Completar(desde, rangoAplicado.HastaAplicado, documentos);
 
+        var (pagina, siguienteCursor) = PaginaDeAsistenciasDiarias.Cortar(
+            PaginaDeAsistenciasDiarias.PosterioresAlCursor(filas, cursorFecha),
+            filtro.Take, f => CursorOpaco.Codificar(f.Fecha));
+
         // Nunca 404: un rango sin documentos son filas sinteticas, no un error.
         return new OkObjectResult(new ListaAsistenciasDiarias(
-            desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado, filas, null));
+            desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado, pagina, siguienteCursor));
     }
 }

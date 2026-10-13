@@ -62,7 +62,7 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
 
         var lista = (await respuesta.Content.ReadFromJsonAsync<ListaTurnosVigentes>(ct))!;
 
-        var visibles = lista.Turnos.Take(MaximoDias)
+        var visibles = lista.Elementos.Take(MaximoDias)
             .Select(t => new DiaProgramado(
                 t.CodigoColaborador,
                 t.NombreCompleto,
@@ -72,10 +72,10 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
             .ToList();
 
         return RespuestaJson.Serializar(new ProgramacionVigente(
-            lista.DesdeAplicado,
-            lista.HastaAplicado,
+            lista.Desde,
+            lista.Hasta,
             ComponerNota(lista, visibles.Count),
-            lista.Turnos.Count,
+            lista.Elementos.Count,
             visibles.Count,
             visibles));
     }
@@ -87,8 +87,8 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
         if (lista.RangoRecortado)
             partes.Add(Mensajes.NotaRecorte);
 
-        if (lista.Turnos.Count > visibles)
-            partes.Add(string.Format(Mensajes.NotaTruncado, visibles, lista.Turnos.Count));
+        if (lista.Elementos.Count > visibles)
+            partes.Add(string.Format(Mensajes.NotaTruncado, visibles, lista.Elementos.Count));
 
         return partes.Count > 0 ? string.Join(" ", partes) : null;
     }

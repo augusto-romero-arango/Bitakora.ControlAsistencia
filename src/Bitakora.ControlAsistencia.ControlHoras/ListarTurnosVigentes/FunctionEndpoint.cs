@@ -57,6 +57,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             return new ObjectResult("DesdeFecha no puede ser posterior a HastaFecha")
             { StatusCode = StatusCodes.Status422UnprocessableEntity };
 
+        if (!PaginaDeTurnosVigentes.TakeEnRango(filtro.Take))
+            return NoProcesable("Take debe estar entre 1 y 200");
+
+        string? cursorCodigo = null;
+        DateOnly cursorFecha = default;
+        if (filtro.Cursor is not null && !CursorOpaco.TryDecodificar(filtro.Cursor, out cursorCodigo, out cursorFecha))
+            return NoProcesable("El cursor no es valido");
+
         var desde = filtro.DesdeFecha.Value;
         var codigoColaborador = filtro.CodigoColaborador;
         var sedeId = filtro.SedeId;
@@ -75,14 +83,28 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (!string.IsNullOrEmpty(sedeId))
             query = query.Where(v => v.Bloques.Any(b => b.SedeId == sedeId));
 
-        var turnos = await query
+        if (cursorCodigo is not null)
+            query = query.Where(v => v.CodigoColaborador.CompareTo(cursorCodigo) > 0
+                                     || (v.CodigoColaborador == cursorCodigo && v.Fecha > cursorFecha));
+
+        var ordenada = query
             .OrderBy(v => v.CodigoColaborador)
-            .ThenBy(v => v.Fecha)
-            .ToListAsync(ct);
+            .ThenBy(v => v.Fecha);
+
+        // Take + 1 para saber si hay mas sin contar (CA-ADR-0039): sin Take, todo lo que cumple el filtro.
+        var turnos = filtro.Take is { } take
+            ? await ordenada.Take(take + 1).ToListAsync(ct)
+            : await ordenada.ToListAsync(ct);
+
+        var (pagina, siguienteCursor) = PaginaDeTurnosVigentes.Cortar(
+            turnos, filtro.Take, v => CursorOpaco.Codificar(v.CodigoColaborador, v.Fecha));
 
         // Nunca 404: un rango sin turnos vigentes es 200 con Turnos: [], no un error.
         return new OkObjectResult(new ListaTurnosVigentes(
             desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado,
-            turnos.Select(TurnoVigenteRespuesta.Desde).ToList(), null));
+            pagina.Select(TurnoVigenteRespuesta.Desde).ToList(), siguienteCursor));
     }
+
+    private static ObjectResult NoProcesable(string mensaje) =>
+        new(mensaje) { StatusCode = StatusCodes.Status422UnprocessableEntity };
 }
