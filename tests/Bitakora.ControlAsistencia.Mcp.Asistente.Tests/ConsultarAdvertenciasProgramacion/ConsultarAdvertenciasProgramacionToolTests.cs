@@ -14,7 +14,7 @@ public class ConsultarAdvertenciasProgramacionToolTests
     private static readonly RelojFalso Hoy = new(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.FromHours(-5)));
 
     private static (ConsultarAdvertenciasProgramacionTool Tool, HandlerEnlatado Advertencias, HandlerEnlatado Fichas)
-        Armar(string jsonAdvertencias, string jsonFichas = "[]", HttpStatusCode status = HttpStatusCode.OK)
+        Armar(string jsonAdvertencias, string jsonFichas = """{"elementos":[]}""", HttpStatusCode status = HttpStatusCode.OK)
     {
         var (clienteAdv, handlerAdv) = ClienteFalso.Con(jsonAdvertencias, status);
         var (clienteFichas, handlerFichas) = ClienteFalso.Con(jsonFichas);

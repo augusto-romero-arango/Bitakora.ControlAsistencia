@@ -21,6 +21,7 @@
 using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador;
+using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -203,16 +204,126 @@ public class FunctionEndpointTests
         await act.Should().ThrowExactlyAsync<NullReferenceException>();
     }
 
-    // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
-    [Fact]
-    public void TakeEfectivo_NoAplicaTope_CuandoElFiltroNoTraeTake() =>
-        FunctionEndpoint.TakeEfectivo(take: null).Should().BeNull();
+    // --- CA-4: entrada invalida del sobre unico (CA-ADR-0039) -> 422 ---
 
     [Fact]
-    public void TakeEfectivo_AcotaA200_CuandoElTakeEnviadoSuperaElTope() =>
-        FunctionEndpoint.TakeEfectivo(take: 500).Should().Be(200);
+    public async Task ListarFichasColaborador_Retorna422_CuandoTakeEsCero()
+    {
+        var request = FakeHttpRequest("application/json", """{"fechaReferencia":"2026-08-14","take":0}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
 
     [Fact]
-    public void TakeEfectivo_AcotaA1_CuandoElTakeEnviadoEsMenorQue1() =>
-        FunctionEndpoint.TakeEfectivo(take: 0).Should().Be(1);
+    public async Task ListarFichasColaborador_Retorna422_CuandoTakeSuperaElMaximoDe200()
+    {
+        var request = FakeHttpRequest("application/json", """{"fechaReferencia":"2026-08-14","take":201}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_Retorna422_CuandoElCursorEsIndescifrable()
+    {
+        var request = FakeHttpRequest("application/json", """{"fechaReferencia":"2026-08-14","cursor":"esto-no-es-un-cursor"}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_Retorna422_CuandoElCursorTraeLaFormaVieja()
+    {
+        var request = FakeHttpRequest(
+            "application/json",
+            """{"fechaReferencia":"2026-08-14","cursor":{"nombreCompleto":"Ana Torres","id":"CC-1"}}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_NoRechazaElTake_CuandoEsElMaximoDe200()
+    {
+        var request = FakeHttpRequest("application/json", """{"fechaReferencia":"2026-08-14","take":200}""");
+
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
+    }
+
+    // --- Cursor opaco ---
+
+    [Fact]
+    public void CursorFicha_RecuperaLasClavesKeyset_CuandoSeDecodificaLoCodificado()
+    {
+        var cursor = CursorFicha.Codificar("Ana María Torres", "CC-1098765432");
+
+        CursorFicha.TryDecodificar(cursor, out var decodificado).Should().BeTrue();
+        decodificado.Should().Be(new CursorFicha("Ana María Torres", "CC-1098765432"));
+        cursor.Should().MatchRegex("^[A-Za-z0-9_-]+$");
+    }
+
+    [Fact]
+    public void CursorFicha_NoDecodifica_CuandoElTextoEsIndescifrable()
+    {
+        CursorFicha.TryDecodificar("esto no es base64url!", out var decodificado).Should().BeFalse();
+        decodificado.Should().BeNull();
+    }
+
+    // --- Sobre { elementos, siguienteCursor } (CA-2) ---
+
+    private static FichaColaborador Ficha(string id, string nombre) => new(
+        Id: id, NombreCompleto: nombre, CodigoColaborador: "COL-" + id,
+        VigenteDesde: new DateOnly(2025, 1, 1), VigenteHasta: FichaColaborador.CentinelaVigenciaAbierta,
+        Etiquetas: [], EtiquetasNormalizadas: new Dictionary<string, string>());
+
+    [Fact]
+    public void Componer_DevuelveTodoSinCursor_CuandoNoHayTake()
+    {
+        var lista = FunctionEndpoint.Componer([Ficha("CC-1", "Ana"), Ficha("CC-2", "Beto")], take: null);
+
+        lista.Elementos.Select(e => e.Id).Should().Equal("CC-1", "CC-2");
+        lista.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_NoTraeCursor_CuandoLaPaginaNoTieneMasFilas()
+    {
+        var lista = FunctionEndpoint.Componer([Ficha("CC-1", "Ana"), Ficha("CC-2", "Beto")], take: 2);
+
+        lista.Elementos.Should().HaveCount(2);
+        lista.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_RecortaALaPaginaYApuntaALaUltimaFilaEntregada_CuandoHayUnaFilaDeMas()
+    {
+        var lista = FunctionEndpoint.Componer(
+            [Ficha("CC-1", "Ana"), Ficha("CC-2", "Beto"), Ficha("CC-3", "Carla")], take: 2);
+
+        lista.Elementos.Should().HaveCount(2);
+        lista.SiguienteCursor.Should().NotBeNull();
+        CursorFicha.TryDecodificar(lista.SiguienteCursor!, out var cursor).Should().BeTrue();
+        cursor.Should().Be(new CursorFicha("Beto", "CC-2"));
+    }
+
+    [Fact]
+    public void Componer_DevuelveListaVacia_CuandoNoHayFichas()
+    {
+        var lista = FunctionEndpoint.Componer([], take: 10);
+
+        lista.Elementos.Should().BeEmpty();
+        lista.SiguienteCursor.Should().BeNull();
+    }
 }

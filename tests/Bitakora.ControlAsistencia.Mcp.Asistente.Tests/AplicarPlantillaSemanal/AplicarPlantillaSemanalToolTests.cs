@@ -76,12 +76,15 @@ public class AplicarPlantillaSemanalToolTests
 
     private static string DirectorioDe(string identificacion, string vigenteDesde, string? codigoSede = "SUBA") =>
         JsonSerializer.Serialize(
-            new[]
+            new
             {
+                elementos = new[]
+                {
                 new
                 {
                     identificacion, nombreCompleto = "Nombre AR01", codigoColaborador = "AR01", codigoSede,
                     vigenteDesde, vigenteHasta = (string?)null
+                }
                 }
             },
             Web);

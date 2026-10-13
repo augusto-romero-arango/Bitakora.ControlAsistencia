@@ -20,6 +20,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas;
 // centinela ni equivalente) -- MEF-ADR-0041 decision 4, "el DTO de respuesta es excepcion".
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
+    internal static ListaCategoriasDeEtiquetas Componer(IReadOnlyList<CategoriaDeEtiquetas> filas, int? take) =>
+        throw new NotImplementedException();
+
     [Function("ListarCategoriasDeEtiquetas")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "colaboradores/etiquetas/categorias")]

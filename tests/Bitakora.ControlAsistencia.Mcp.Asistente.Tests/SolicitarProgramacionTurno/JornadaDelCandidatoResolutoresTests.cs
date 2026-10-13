@@ -10,25 +10,25 @@ public class JornadaDelCandidatoResolutoresTests
     private static readonly Guid J1 = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     private const string DirectorioJson = """
-        [
+        {"elementos":[
           {"identificacion":"CC-1","nombreCompleto":"Ana","codigoColaborador":"A1","codigoSede":null,
            "vigenteDesde":"2025-01-01","vigenteHasta":null,"jornadaId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
           {"identificacion":"CC-2","nombreCompleto":"Beto","codigoColaborador":"B2","codigoSede":null,
            "vigenteDesde":"2025-01-01","vigenteHasta":null,"jornadaId":null},
           {"identificacion":"CC-3","nombreCompleto":"Cami","codigoColaborador":"C3","codigoSede":null,
            "vigenteDesde":"2025-01-01","vigenteHasta":null}
-        ]
+        ]}
         """;
 
     private const string FichasJson = """
-        [
+        {"elementos":[
           {"id":"CC-1","nombreCompleto":"Ana","codigoColaborador":"A1","vigenteDesde":"2025-01-01",
            "vigenteHasta":null,"etiquetas":[],"codigoSede":null,"jornadaId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
           {"id":"CC-2","nombreCompleto":"Beto","codigoColaborador":"B2","vigenteDesde":"2025-01-01",
            "vigenteHasta":null,"etiquetas":[],"codigoSede":null,"jornadaId":null},
           {"id":"CC-3","nombreCompleto":"Cami","codigoColaborador":"C3","vigenteDesde":"2025-01-01",
            "vigenteHasta":null,"etiquetas":[],"codigoSede":null}
-        ]
+        ]}
         """;
 
     [Fact]

@@ -64,7 +64,7 @@ internal static class EntornoDeSedes
 
     public static string Directorio(params (string Identificacion, string Codigo, string? CodigoSede)[] entradas) =>
         JsonSerializer.Serialize(
-            entradas.Select(e => new
+            new { elementos = entradas.Select(e => new
             {
                 identificacion = e.Identificacion,
                 nombreCompleto = $"Nombre {e.Codigo}",
@@ -72,12 +72,12 @@ internal static class EntornoDeSedes
                 codigoSede = e.CodigoSede,
                 vigenteDesde = "2025-01-01",
                 vigenteHasta = (string?)null
-            }),
+            }) },
             Web);
 
     public static string Fichas(params (string Identificacion, string Codigo, string? CodigoSede)[] entradas) =>
         JsonSerializer.Serialize(
-            entradas.Select(e => new
+            new { elementos = entradas.Select(e => new
             {
                 id = e.Identificacion,
                 nombreCompleto = $"Nombre {e.Codigo}",
@@ -86,7 +86,7 @@ internal static class EntornoDeSedes
                 vigenteHasta = (string?)null,
                 etiquetas = Array.Empty<object>(),
                 codigoSede = e.CodigoSede
-            }),
+            }) },
             Web);
 
     /// <summary>

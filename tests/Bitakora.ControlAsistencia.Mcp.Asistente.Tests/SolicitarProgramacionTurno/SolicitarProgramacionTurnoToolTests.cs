@@ -435,7 +435,7 @@ public class SolicitarProgramacionTurnoToolTests
     [Fact]
     public async Task SolicitarProgramacionTurno_AceptaLaVentana_CuandoTieneExactamente31Dias()
     {
-        var fakes = CrearTool(directorioJson: "[]");
+        var fakes = CrearTool(directorioJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
             fakes.Tool, desde: "2026-09-01", hasta: "2026-10-01", identificaciones: "CC-9999",
@@ -455,7 +455,7 @@ public class SolicitarProgramacionTurnoToolTests
             vigenteDesde = "2025-01-01",
             vigenteHasta = (string?)null
         }).ToList();
-        var directorio = System.Text.Json.JsonSerializer.Serialize(entradas);
+        var directorio = System.Text.Json.JsonSerializer.Serialize(new { elementos = entradas });
 
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
         programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);

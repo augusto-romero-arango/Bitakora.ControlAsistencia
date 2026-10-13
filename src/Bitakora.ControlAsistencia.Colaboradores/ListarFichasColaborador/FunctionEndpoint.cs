@@ -173,6 +173,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         return new OkObjectResult(fichas.Select(FichaColaboradorRespuesta.DesdeVista).ToList());
     }
 
+    internal static ListaFichasColaborador Componer(IReadOnlyList<FichaColaborador> filas, int? take) =>
+        throw new NotImplementedException();
+
     // Take enviado se acota en el servidor (MEF-ADR-0042 seccion 2); sin Take (null) el llamador
     // interno recibe todo el filtro, sin tope -- desviacion documentada en CA-ADR-0038.
     internal static int? TakeEfectivo(int? take) =>
@@ -243,4 +246,9 @@ public sealed record FiltroEtiqueta(string Categoria, string Valor);
 // Cursor keyset: los dos campos visibles de la ultima fila recibida (orden
 // OrderBy(NombreCompleto).ThenBy(Id) -- decision de refinamiento del issue). Cursor con un solo
 // campo presente (el otro ausente/null) es 422 -- "cursor incompleto".
-public sealed record CursorFicha(string NombreCompleto, string Id);
+public sealed record CursorFicha(string NombreCompleto, string Id)
+{
+    public static string Codificar(string nombreCompleto, string id) => throw new NotImplementedException();
+
+    public static bool TryDecodificar(string cursor, out CursorFicha? resultado) => throw new NotImplementedException();
+}

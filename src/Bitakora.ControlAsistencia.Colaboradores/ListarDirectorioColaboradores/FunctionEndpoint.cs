@@ -158,6 +158,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         return new OkObjectResult(directorio.Select(DirectorioColaboradorRespuesta.DesdeVista).ToList());
     }
 
+    internal static ListaDirectorioColaboradores Componer(IReadOnlyList<DirectorioColaborador> filas, int? take) =>
+        throw new NotImplementedException();
+
     // CA-ADR-0038: con identificaciones el resultado queda acotado por la entrada, asi que sin Take
     // devuelve todo (null) y con Take lo respeta sin tope superior. Solo por nombre conserva default y tope.
     internal static int? TakeEfectivo(bool tieneIdentificaciones, int? take) => (tieneIdentificaciones, take) switch
@@ -183,7 +186,12 @@ public sealed record FiltroListarDirectorioColaboradores(
 
 // Cursor keyset: los dos campos visibles de la ultima fila recibida, en el orden
 // OrderBy(NombreCompleto).ThenBy(Id).
-public sealed record CursorDirectorio(string NombreCompleto, string Identificacion);
+public sealed record CursorDirectorio(string NombreCompleto, string Identificacion)
+{
+    public static string Codificar(string nombreCompleto, string identificacion) => throw new NotImplementedException();
+
+    public static bool TryDecodificar(string cursor, out CursorDirectorio? resultado) => throw new NotImplementedException();
+}
 
 // DTO de respuesta, excepcion bajo Rule of Three (MEF-ADR-0018, MEF-ADR-0041 decision 4) por el
 // mismo motivo que FichaColaboradorRespuesta: oculta el centinela de vigencia abierta y TokensNombre,

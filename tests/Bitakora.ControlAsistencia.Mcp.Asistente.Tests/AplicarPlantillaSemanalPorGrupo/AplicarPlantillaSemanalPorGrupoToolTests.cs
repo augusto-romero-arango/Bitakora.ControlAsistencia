@@ -114,7 +114,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
             var cuerpo = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
             lock (consultas)
                 consultas.Add(JsonNode.Parse(cuerpo)!);
-            return EntornoDeSedes.Respuesta(HttpStatusCode.OK, JsonSerializer.Serialize(fichas ?? [], Web));
+            return EntornoDeSedes.Respuesta(HttpStatusCode.OK, JsonSerializer.Serialize(new { elementos = fichas ?? [] }, Web));
         });
 
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
