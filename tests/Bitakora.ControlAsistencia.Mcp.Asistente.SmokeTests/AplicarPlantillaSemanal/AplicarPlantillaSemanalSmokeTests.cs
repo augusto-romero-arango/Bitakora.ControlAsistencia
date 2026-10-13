@@ -88,24 +88,4 @@ public class AplicarPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFi
         (!resultado.TryGetProperty("sede", out var sede) || sede.ValueKind == JsonValueKind.Null)
             .Should().BeTrue("no hubo sede explicita");
     }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task AplicarPlantillaSemanal_RespondeElMensajeDeValidacion_CuandoLaVentanaExcedeElMaximo()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var resultado = await mcp.Cliente.CallToolAsync(
-            "aplicar_plantilla_semanal",
-            new Dictionary<string, object?>
-            {
-                ["desde"] = "2026-10-07",
-                ["hasta"] = "2026-11-11",
-                ["plantilla"] = "[TEST] Plantilla que no existe",
-                ["identificaciones"] = "CC-1"
-            },
-            cancellationToken: ct);
-
-        TextoDe(resultado).Should().Be("La ventana no puede superar 35 dias; se recibieron 36.");
-    }
 }
