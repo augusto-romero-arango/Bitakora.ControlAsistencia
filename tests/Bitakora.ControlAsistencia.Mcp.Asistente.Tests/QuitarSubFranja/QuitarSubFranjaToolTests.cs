@@ -32,7 +32,8 @@ public class QuitarSubFranjaToolTests
         handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosConHijasJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaQuitarSubFranja, statusQuitar, cuerpoQuitar);
 
-        var tool = new QuitarSubFranjaTool(new ProgramacionApi(clienteProgramacion));
+        var programacionApi = new ProgramacionApi(clienteProgramacion);
+        var tool = new QuitarSubFranjaTool(programacionApi, new ResolutorTurnoPorNombre(programacionApi));
 
         return new Fakes(tool, handlerProgramacion);
     }

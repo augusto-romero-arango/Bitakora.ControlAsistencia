@@ -44,10 +44,10 @@ public class CascadaDeSedeListaTests
 
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoTool>();
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores),
-            logger);
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)), logger);
         return new Entorno(tool, programacion, sedes, logger);
     }
 

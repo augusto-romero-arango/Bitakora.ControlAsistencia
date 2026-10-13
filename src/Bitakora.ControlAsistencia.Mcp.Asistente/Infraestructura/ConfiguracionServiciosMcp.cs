@@ -19,7 +19,11 @@ public static class ConfiguracionServiciosMcp
         services.AddSingleton<IValidadorTokenAuthKit>(
             ValidadorTokenAuthKit.ParaAuthorizationServer(configuration["Mcp:AuthorizationServer"]));
 
-        // Transient: envuelve un cliente tipado, que no debe capturarse en un singleton.
+        // Transient: envuelven un cliente tipado, que no debe capturarse en un singleton.
+        services.AddTransient<ResolutorTurnoPorNombre>();
+        services.AddTransient<ResolutorPlantillaPorNombre>();
+        services.AddTransient<ResolutorSedePorCodigo>();
+        services.AddTransient<ResolutorCandidatosPorLista>();
         services.AddTransient<ResolutorCandidatosPorGrupo>();
 
         return services;

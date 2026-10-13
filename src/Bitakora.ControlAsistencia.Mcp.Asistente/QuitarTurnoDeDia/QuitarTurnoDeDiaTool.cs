@@ -10,11 +10,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarTurnoDeDia;
 // slot atomico). Un DELETE sobre un dia ya vacio responde 204 sin evento (idempotente,
 // #622/harness#850): esta tool lo reporta como exito, no como error. El 404/409 del DELETE se
 // traduce a texto, nunca a excepcion (CA-ADR-0030).
-public partial class QuitarTurnoDeDiaTool(ProgramacionApi programacion)
+public partial class QuitarTurnoDeDiaTool(ProgramacionApi programacion, ResolutorPlantillaPorNombre resolutorPlantilla)
 {
     internal const string NombreTool = "quitar_turno_de_dia";
-
-    private readonly ResolutorPlantillaPorNombre resolutorPlantilla = new(programacion);
 
     [Function("QuitarTurnoDeDia")]
     public async Task<string> Run(

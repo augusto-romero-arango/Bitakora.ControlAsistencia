@@ -7,11 +7,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarSubFranja;
 // Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id + ficha vigente
 // para el eco) + POST programacion/turnos/{id}:quitar-subfranja (paso 4 MEF-ADR-0043). El
 // 400/404/409 del POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
-public partial class QuitarSubFranjaTool(ProgramacionApi programacion)
+public partial class QuitarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "quitar_subfranja";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("QuitarSubFranja")]
     public async Task<string> Run(

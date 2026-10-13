@@ -28,7 +28,8 @@ public class RetirarTurnoToolTests
         handler.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
         handler.Responde(HttpMethod.Delete, $"{RutaTurnos}/{TurnoIdCocinaManana}", statusDelete, cuerpoDelete);
 
-        var tool = new RetirarTurnoTool(new ProgramacionApi(cliente));
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new RetirarTurnoTool(programacionApi, new ResolutorTurnoPorNombre(programacionApi));
         return new Fakes(tool, handler);
     }
 

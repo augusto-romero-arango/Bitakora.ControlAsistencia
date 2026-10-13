@@ -26,7 +26,9 @@ public class RetirarPlantillaSemanalToolTests
         handler.Responde(HttpMethod.Get, RutaPlantillas, statusPlantillas, plantillasJson ?? PlantillasJson);
         handler.Responde(HttpMethod.Delete, $"{RutaPlantillas}/{PlantillaIdCocina}", statusDelete, cuerpoDelete);
 
-        var tool = new RetirarPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new RetirarPlantillaSemanalTool(
+            programacionApi, new ResolutorPlantillaPorNombre(programacionApi));
         return new Fakes(tool, handler);
     }
 

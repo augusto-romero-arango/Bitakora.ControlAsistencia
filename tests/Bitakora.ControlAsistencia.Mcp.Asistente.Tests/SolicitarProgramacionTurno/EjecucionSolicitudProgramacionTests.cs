@@ -55,11 +55,11 @@ public class EjecucionSolicitudProgramacionTests
 
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoTool>();
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores),
-            logger,
-            reloj ?? TimeProvider.System);
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)),
+            logger, reloj ?? TimeProvider.System);
         return new EntornoLista(tool, logger);
     }
 
@@ -91,11 +91,11 @@ public class EjecucionSolicitudProgramacionTests
 
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoPorGrupoTool>();
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores),
-            logger,
-            reloj ?? TimeProvider.System);
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)),
+            logger, reloj ?? TimeProvider.System);
         return new EntornoGrupo(tool, logger);
     }
 

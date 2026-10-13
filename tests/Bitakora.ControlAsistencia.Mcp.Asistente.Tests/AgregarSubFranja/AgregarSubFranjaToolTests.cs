@@ -31,7 +31,8 @@ public class AgregarSubFranjaToolTests
         handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaAgregarSubFranja, statusAgregar, cuerpoAgregar);
 
-        var tool = new AgregarSubFranjaTool(new ProgramacionApi(clienteProgramacion));
+        var programacionApi = new ProgramacionApi(clienteProgramacion);
+        var tool = new AgregarSubFranjaTool(programacionApi, new ResolutorTurnoPorNombre(programacionApi));
 
         return new Fakes(tool, handlerProgramacion);
     }

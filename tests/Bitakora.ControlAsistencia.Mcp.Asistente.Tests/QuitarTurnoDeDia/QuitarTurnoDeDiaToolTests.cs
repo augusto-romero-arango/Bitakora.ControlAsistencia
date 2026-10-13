@@ -33,7 +33,9 @@ public class QuitarTurnoDeDiaToolTests
         handler.Responde(
             HttpMethod.Delete, $"{RutaPlantillas}/{PlantillaIdCocina}/dias/{semana}/{diaIso}", statusDelete, cuerpoDelete);
 
-        var tool = new QuitarTurnoDeDiaTool(new ProgramacionApi(cliente));
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new QuitarTurnoDeDiaTool(
+            programacionApi, new ResolutorPlantillaPorNombre(programacionApi));
         return new Fakes(tool, handler);
     }
 

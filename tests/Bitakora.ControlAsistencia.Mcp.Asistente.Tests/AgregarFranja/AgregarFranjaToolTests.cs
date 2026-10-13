@@ -38,7 +38,9 @@ public class AgregarFranjaToolTests
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
 
-        var tool = new AgregarFranjaTool(new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes));
+        var programacionApi = new ProgramacionApi(clienteProgramacion);
+        var tool = new AgregarFranjaTool(
+            programacionApi, new ResolutorTurnoPorNombre(programacionApi), new ResolutorSedePorCodigo(new SedesApi(clienteSedes)));
 
         return new Fakes(tool, handlerProgramacion, handlerSedes);
     }

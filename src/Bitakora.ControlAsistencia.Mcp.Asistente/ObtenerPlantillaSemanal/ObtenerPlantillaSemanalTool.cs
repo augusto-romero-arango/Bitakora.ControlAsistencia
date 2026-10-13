@@ -11,11 +11,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ObtenerPlantillaSemanal;
 // una linea por dia ("nombre (descripcion)") agrupada por semana con clave lunes..domingo, para
 // que el asistente lo lea como tabla. El detalle con franjas de cada turno sigue siendo
 // obtener_turno.
-public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api)
+public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorPlantillaPorNombre resolutor)
 {
     internal const string NombreTool = "obtener_plantilla_semanal";
-
-    private readonly ResolutorPlantillaPorNombre resolutor = new(api);
 
     [Function("ObtenerPlantillaSemanal")]
     public async Task<string> Run(

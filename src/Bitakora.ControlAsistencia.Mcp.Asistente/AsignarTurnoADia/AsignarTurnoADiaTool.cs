@@ -9,12 +9,10 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarTurnoADia;
 // (paso 2 MEF-ADR-0043): correccion puntual de un solo dia sobre una plantilla ya creada
 // (CA-ADR-0034 decision 4, dia = slot atomico). El 404/409 del PUT se traduce a texto, nunca a
 // excepcion (CA-ADR-0030).
-public partial class AsignarTurnoADiaTool(ProgramacionApi programacion)
+public partial class AsignarTurnoADiaTool(
+    ProgramacionApi programacion, ResolutorPlantillaPorNombre resolutorPlantilla, ResolutorTurnoPorNombre resolutorTurno)
 {
     internal const string NombreTool = "asignar_turno_a_dia";
-
-    private readonly ResolutorPlantillaPorNombre resolutorPlantilla = new(programacion);
-    private readonly ResolutorTurnoPorNombre resolutorTurno = new(programacion);
 
     [Function("AsignarTurnoADia")]
     public async Task<string> Run(
