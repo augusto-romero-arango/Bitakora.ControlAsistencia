@@ -16,7 +16,7 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarCuadrosSemanalesTurnos;
 
-public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixture postgres) : IDisposable
+public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api) : IDisposable
 {
     private readonly TenantDeTest _tenant = new(api);
 

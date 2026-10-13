@@ -40,6 +40,7 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : 
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar201YPersistirJornadaCreada_CuandoPayloadEsValido()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var firma = LimitesDePrueba.CrearJornadaPersiste;
         var ct = TestContext.Current.CancellationToken;
         var id = Guid.CreateVersion7();
@@ -118,6 +119,7 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : 
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_Retorna201_CuandoIdEsElQueAntesEraLaGeneral()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var firma = LimitesDePrueba.CrearJornadaIdGeneral;
         var ct = TestContext.Current.CancellationToken;
         var id = Guid.Parse("00000000-0000-4000-8000-000000000001");

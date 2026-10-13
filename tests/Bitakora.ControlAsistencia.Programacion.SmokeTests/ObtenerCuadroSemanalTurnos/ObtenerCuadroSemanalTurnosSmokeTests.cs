@@ -16,7 +16,7 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ObtenerCuadroSemanalTurnos;
 
-public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api, PostgresFixture postgres) : IDisposable
+public class ObtenerCuadroSemanalTurnosSmokeTests(ApiFixture api) : IDisposable
 {
     private readonly TenantDeTest _tenant = new(api);
 

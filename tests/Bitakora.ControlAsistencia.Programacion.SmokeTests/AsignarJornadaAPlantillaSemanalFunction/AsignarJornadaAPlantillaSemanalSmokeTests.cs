@@ -54,6 +54,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_DebeRetornar204YPersistirElEvento_CuandoLaJornadaExiste()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
         var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaPersiste, ct);
 
@@ -73,6 +74,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_DebeRetornar204SinNuevosEventos_CuandoSeRepiteConLaCopiaAlDia()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
         var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(LimitesDePrueba.AsignarAPlantillaRepite, ct);
         var streamId = plantillaId.ToString();
@@ -96,6 +98,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     [Trait("Category", "Smoke")]
     public async Task AsignarJornada_DebeAutocorregirLaCopia_CuandoLosLimitesDeLaJornadaCambiaron()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var destino = LimitesDePrueba.AsignarAPlantillaAutocorrigeDestino;
         var ct = TestContext.Current.CancellationToken;
         var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(

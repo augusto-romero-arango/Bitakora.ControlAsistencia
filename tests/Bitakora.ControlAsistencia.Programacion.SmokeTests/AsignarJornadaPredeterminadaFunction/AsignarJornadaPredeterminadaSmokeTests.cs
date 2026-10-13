@@ -29,6 +29,7 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
     [Trait("Category", "Smoke")]
     public async Task AsignarJornadaPredeterminada_DebeRetornar204YPersistirLaPredeterminada_CuandoLaJornadaExiste()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var firma = LimitesDePrueba.AsignarPredeterminada;
         var ct = TestContext.Current.CancellationToken;
         var jornadaId = Guid.CreateVersion7();

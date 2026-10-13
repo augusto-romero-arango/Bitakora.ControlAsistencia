@@ -41,6 +41,7 @@ public class ModificarLimitesJornadaSmokeTests(ApiFixture api, PostgresFixture p
     [Trait("Category", "Smoke")]
     public async Task ModificarLimitesJornada_DebeRetornar204YPersistirLosLimites_CuandoPayloadEsValido()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var origen = LimitesDePrueba.ModificarOrigen;
         var firmaDestino = LimitesDePrueba.ModificarDestino;
         var ct = TestContext.Current.CancellationToken;

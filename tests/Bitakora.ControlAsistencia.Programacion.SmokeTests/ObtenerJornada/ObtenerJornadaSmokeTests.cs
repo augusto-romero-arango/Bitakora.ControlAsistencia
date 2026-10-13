@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ObtenerJornada;
 
-public class ObtenerJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IDisposable
+public class ObtenerJornadaSmokeTests(ApiFixture api) : IDisposable
 {
     private readonly TenantDeTest _tenant = new(api);
 

@@ -1131,6 +1131,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_DebePublicarLaJornadaEstampada_CuandoTraeJornadaId()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
         var firma = LimitesDePrueba.SolicitarProgramacion;
