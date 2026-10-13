@@ -85,6 +85,8 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
 
     private sealed record DirectorioJornadaSmoke(string Identificacion, Guid? JornadaId);
 
+    private sealed record DirectorioSmoke(List<DirectorioJornadaSmoke> Elementos);
+
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
     // identidad del stream (y por lo tanto el Id de la ficha) es Identificacion.ToString()
     // ("CC-<numero>"), no un Guid nuevo por llamada.
@@ -348,14 +350,14 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         {
             using var request = new HttpRequestMessage(MetodoQuery, "/api/colaboradores/directorio")
             {
-                Content = JsonContent.Create(new { identificaciones = new[] { id }, take = 50 })
+                Content = JsonContent.Create(new { identificaciones = new[] { id } })
             };
             var response = await _client.SendAsync(request, ct);
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var lista = await response.Content.ReadFromJsonAsync<List<DirectorioJornadaSmoke>>(
+            var lista = await response.Content.ReadFromJsonAsync<DirectorioSmoke>(
                 JsonOptions, cancellationToken: ct);
-            var entrada = lista?.FirstOrDefault(e => e.Identificacion == id);
+            var entrada = lista?.Elementos.FirstOrDefault(e => e.Identificacion == id);
             return entrada is not null && hasta(entrada) ? entrada : null;
         }, Timeout);
 

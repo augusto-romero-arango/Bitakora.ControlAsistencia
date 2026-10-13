@@ -27,7 +27,9 @@ public class AplicarPlantillaSemanalToolTests
     private static string Plantillas(
         string nombre = "Semana A", int semanas = 2, bool completa = true,
         bool turnoBCompleto = true, bool turnoBRetirado = false) => JsonSerializer.Serialize(
-        new { elementos = new[]
+        new
+        {
+            elementos = new[]
         {
             new
             {
@@ -50,17 +52,20 @@ public class AplicarPlantillaSemanalToolTests
                 id = "01a07000-1000-7000-9000-000000000002", nombre = "Semana B", semanas = 1, completa = true,
                 dias = Array.Empty<object>()
             }
-        } },
+        }
+        },
         Web);
 
     private static string Turnos(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new { elementos = new[] { TurnoA, TurnoB }.Select(id => new
+        new
         {
-            id,
-            nombre = $"Turno {id[^1]}",
-            esDescanso = false,
-            horarioResumido = "06:00-14:00",
-            franjas = new[]
+            elementos = new[] { TurnoA, TurnoB }.Select(id => new
+            {
+                id,
+                nombre = $"Turno {id[^1]}",
+                esDescanso = false,
+                horarioResumido = "06:00-14:00",
+                franjas = new[]
             {
                 new
                 {
@@ -69,19 +74,23 @@ public class AplicarPlantillaSemanalToolTests
                     sedeId = sedeIdDeLaFranja, nombreSede = (string?)null, descripcion = ""
                 }
             },
-            descripcion = "",
-            completo = true
-        }) },
+                descripcion = "",
+                completo = true
+            })
+        },
         Web);
 
     private static string DirectorioDe(string identificacion, string vigenteDesde, string? codigoSede = "SUBA") =>
         JsonSerializer.Serialize(
-            new[]
+            new
             {
+                elementos = new[]
+                {
                 new
                 {
                     identificacion, nombreCompleto = "Nombre AR01", codigoColaborador = "AR01", codigoSede,
                     vigenteDesde, vigenteHasta = (string?)null
+                }
                 }
             },
             Web);

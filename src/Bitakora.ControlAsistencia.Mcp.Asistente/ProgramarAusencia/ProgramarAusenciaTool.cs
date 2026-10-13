@@ -77,8 +77,8 @@ public partial class ProgramarAusenciaTool(ProgramacionApi programacion, Colabor
         var respuestaDirectorio = await colaboradores.BuscarEnDirectorio([solicitada], 1, ct);
         if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
-        var directorio = await respuestaDirectorio.Content
-            .ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
+        var directorio = (await respuestaDirectorio.Content
+            .ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos.ToList() ?? [];
 
         var entrada = directorio.FirstOrDefault(e => string.Equals(
             e.Identificacion.Trim(), solicitada, StringComparison.OrdinalIgnoreCase));

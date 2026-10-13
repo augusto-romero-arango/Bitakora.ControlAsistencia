@@ -87,7 +87,7 @@ public class EjecucionSolicitudProgramacionTests
         var (clienteSedes, _) = ClienteFalso.Con(SedeJson, HttpStatusCode.OK);
         var (clienteColaboradores, _) = ClienteFalso.ConFuncion(_ => Respuesta(
             HttpStatusCode.OK,
-            JsonSerializer.Serialize(fichas, new JsonSerializerOptions(JsonSerializerDefaults.Web))));
+            JsonSerializer.Serialize(new { elementos = fichas }, new JsonSerializerOptions(JsonSerializerDefaults.Web))));
 
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoPorGrupoTool>();
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(

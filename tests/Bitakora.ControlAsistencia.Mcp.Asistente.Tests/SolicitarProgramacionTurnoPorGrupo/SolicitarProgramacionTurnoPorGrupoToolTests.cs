@@ -93,7 +93,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
             var pagina = nodo["cursor"] is null ? 0 : ++cursoresVistos;
             var fichas = pagina < paginas.Count ? paginas[pagina] : [];
             return Respuesta(HttpStatusCode.OK, JsonSerializer.Serialize(
-                fichas, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+                new { elementos = fichas }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         });
 
         return new Entorno

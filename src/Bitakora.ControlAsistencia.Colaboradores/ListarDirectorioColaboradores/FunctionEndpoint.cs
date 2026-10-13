@@ -1,3 +1,5 @@
+using System.Buffers.Text;
+using System.Text;
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
@@ -16,10 +18,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarDirectorioColaboradores
 // ListarFichasColaborador hizo sobre la ficha.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
-    // Tope de pagina (MEF-ADR-0042 seccion 2): el Take del cliente jamas llega crudo a Marten.
+    // Take opcional, 1..200 o 422 tambien con identificaciones (CA-ADR-0039 decision 9).
     private const int TakeMaximo = 200;
-
-    private const int TakeDefaultPorNombre = 50;
 
     // Containment JSONB del filtro por tokens: un array jsonb @> otro array jsonb es "el primero
     // contiene TODOS los elementos del segundo" -- la semantica exacta de "contiene todos los
@@ -92,11 +92,18 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (!tieneIdentificaciones && tokensNombre.Count == 0)
             return NoProcesable("Debe indicar identificaciones o nombre");
 
-        // Cursor con un solo campo presente -> 422. Un cursor con AMBOS campos ausentes cae en la
-        // misma rama: quien no quiere paginar omite "cursor" por completo, no envia un objeto vacio.
-        if (filtro.Cursor is { } cursorRecibido
-            && (cursorRecibido.NombreCompleto is null || cursorRecibido.Identificacion is null))
-            return NoProcesable("El cursor debe traer NombreCompleto e Identificacion, o ninguno de los dos");
+        if (filtro.Take is { } takeRecibido && (takeRecibido < 1 || takeRecibido > TakeMaximo))
+            return NoProcesable($"Take debe estar entre 1 y {TakeMaximo}");
+
+        // El cursor llega como JsonElement para que un no-string (la forma vieja, un objeto) sea 422 y
+        // no un 400 de deserializacion.
+        CursorDirectorio? cursor = null;
+        if (filtro.Cursor is { ValueKind: not (JsonValueKind.Null or JsonValueKind.Undefined) } cursorCrudo)
+        {
+            if (cursorCrudo.ValueKind != JsonValueKind.String
+                || !CursorDirectorio.TryDecodificar(cursorCrudo.GetString()!, out cursor))
+                return NoProcesable("El cursor no es valido");
+        }
 
         // MEF-ADR-0028: la sesion se abre SIEMPRE acotada al tenant que resuelve ITenantContext --
         // nunca a un tenant id que llegara por el body.
@@ -139,33 +146,37 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // Paginacion keyset: "nombre > cursor.NombreCompleto OR (nombre == cursor.NombreCompleto AND
         // id > cursor.Identificacion)". CompareTo(...) traduce a SQL sobre campos string; string.Compare
         // no (verificado en el spike de ListarFichasColaborador para este mismo shape de predicado).
-        if (filtro.Cursor is { NombreCompleto: { } cursorNombre, Identificacion: { } cursorId })
+        if (cursor is { } c)
         {
+            var cursorNombre = c.NombreCompleto;
+            var cursorId = c.Identificacion;
             query = query.Where(d =>
                 d.NombreCompleto.CompareTo(cursorNombre) > 0
                 || (d.NombreCompleto == cursorNombre && d.Id.CompareTo(cursorId) > 0));
         }
 
         var ordenada = query.OrderBy(d => d.NombreCompleto).ThenBy(d => d.Id);
-        var paginada = TakeEfectivo(tieneIdentificaciones, filtro.Take) is { } take
-            ? ordenada.Take(take)
-            : ordenada;
-        var directorio = await paginada.ToListAsync(ct);
+        var directorio = filtro.Take is { } take
+            ? await ordenada.Take(take + 1).ToListAsync(ct)
+            : await ordenada.ToListAsync(ct);
 
-        // Lista plana sin envoltura: el cliente deriva el cursor de la ultima fila y detecta el fin
-        // por una pagina con menos de Take filas. Los colaboradores con vinculacion terminada SI
-        // aparecen -- el directorio no filtra por vigencia.
-        return new OkObjectResult(directorio.Select(DirectorioColaboradorRespuesta.DesdeVista).ToList());
+        // Take + 1 filas: la sobrante solo indica que hay siguienteCursor (CA-ADR-0039). Los
+        // colaboradores con vinculacion terminada SI aparecen -- el directorio no filtra por vigencia.
+        return new OkObjectResult(Componer(directorio, filtro.Take));
     }
 
-    // CA-ADR-0038: con identificaciones el resultado queda acotado por la entrada, asi que sin Take
-    // devuelve todo (null) y con Take lo respeta sin tope superior. Solo por nombre conserva default y tope.
-    internal static int? TakeEfectivo(bool tieneIdentificaciones, int? take) => (tieneIdentificaciones, take) switch
+    internal static ListaDirectorioColaboradores Componer(IReadOnlyList<DirectorioColaborador> filas, int? take)
     {
-        (true, null) => null,
-        (true, { } valor) => Math.Max(valor, 1),
-        (false, _) => Math.Clamp(take ?? TakeDefaultPorNombre, 1, TakeMaximo),
-    };
+        if (take is not { } t || filas.Count <= t)
+            return new ListaDirectorioColaboradores(
+                filas.Select(DirectorioColaboradorRespuesta.DesdeVista).ToList(), null);
+
+        var pagina = filas.Take(t).ToList();
+        var ultima = pagina[^1];
+        return new ListaDirectorioColaboradores(
+            pagina.Select(DirectorioColaboradorRespuesta.DesdeVista).ToList(),
+            CursorDirectorio.Codificar(ultima.NombreCompleto, ultima.Id));
+    }
 
     // MEF-ADR-0042 seccion 3: el 422 se emite con mensaje, nunca como codigo pelado.
     private static ObjectResult NoProcesable(string mensaje) =>
@@ -178,12 +189,35 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 public sealed record FiltroListarDirectorioColaboradores(
     IReadOnlyList<string>? Identificaciones,
     string? Nombre,
-    CursorDirectorio? Cursor,
+    JsonElement? Cursor,
     int? Take = null);
 
-// Cursor keyset: los dos campos visibles de la ultima fila recibida, en el orden
-// OrderBy(NombreCompleto).ThenBy(Id).
-public sealed record CursorDirectorio(string NombreCompleto, string Identificacion);
+// Cursor opaco: las claves keyset (NombreCompleto, Id) de la ultima fila en JSON + base64url. Solo
+// este endpoint lo interpreta; uno indescifrable o incompleto es 422.
+public sealed record CursorDirectorio(string NombreCompleto, string Identificacion)
+{
+    public static string Codificar(string nombreCompleto, string identificacion) =>
+        Base64Url.EncodeToString(
+            Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new CursorDirectorio(nombreCompleto, identificacion))));
+
+    public static bool TryDecodificar(string cursor, out CursorDirectorio? resultado)
+    {
+        resultado = null;
+        try
+        {
+            var decodificado = JsonSerializer.Deserialize<CursorDirectorio>(
+                Encoding.UTF8.GetString(Base64Url.DecodeFromChars(cursor)));
+            if (decodificado is not { NombreCompleto: not null, Identificacion: not null })
+                return false;
+            resultado = decodificado;
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException)
+        {
+            return false;
+        }
+    }
+}
 
 // DTO de respuesta, excepcion bajo Rule of Three (MEF-ADR-0018, MEF-ADR-0041 decision 4) por el
 // mismo motivo que FichaColaboradorRespuesta: oculta el centinela de vigencia abierta y TokensNombre,
