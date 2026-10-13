@@ -7,13 +7,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.ListarFichasSede;
 
-// Issue #461 (creacion): Function GET de listado sobre FichaSede -- mismo segmento de recurso que
-// ObtenerFichaSede ("sedes/fichas"), sin QUERY: el filtro Activa es un unico par campo=valor en
-// igualdad (MEF-ADR-0042 seccion 1). Keyset por (Codigo, Id), take opcional (max 200), sobre
-// { elementos, siguienteCursor } sin total (CA-ADR-0039).
-//
-// CA-6: sin filtro devuelve todas las fichas; "?activa=true"/"?activa=false" filtra por la bandera
-// de asignabilidad.
+// Comparte el segmento "sedes/fichas" con ObtenerFichaSede. GET y no QUERY: el filtro Activa es un
+// unico par campo=valor en igualdad (MEF-ADR-0042 seccion 1). Keyset por (Codigo, Id), take opcional
+// (max 200), sobre { elementos, siguienteCursor } sin total (CA-ADR-0039).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const int TakeMaximo = 200;
@@ -50,8 +46,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 return new BadRequestObjectResult("El cursor no es valido");
         }
 
-        // CA-6/MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantContext -- nunca a un tenant id que llegara por query string.
+        // MEF-ADR-0028: QuerySession acotada al tenant de ITenantContext, nunca a uno del request.
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<FichaSede> query = session.Query<FichaSede>();

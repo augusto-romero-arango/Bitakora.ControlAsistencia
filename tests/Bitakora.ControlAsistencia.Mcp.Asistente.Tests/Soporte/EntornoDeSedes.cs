@@ -53,18 +53,18 @@ internal static class EntornoDeSedes
         new
         {
             elementos = new[]
-        {
-            new
             {
-                id = "s:suba", codigo = "SUBA", nombre = "Sede Suba", ciudad = "Bogota", direccion = "Cra 1",
-                centroDeCostos = "CC-100", activa = true, dispositivos = Array.Empty<string>()
-            },
-            new
-            {
-                id = "s:norte", codigo = "NORTE", nombre = "Sede Norte", ciudad = "Bogota", direccion = "Cra 2",
-                centroDeCostos = "CC-200", activa = false, dispositivos = Array.Empty<string>()
+                new
+                {
+                    id = "s:suba", codigo = "SUBA", nombre = "Sede Suba", ciudad = "Bogota", direccion = "Cra 1",
+                    centroDeCostos = "CC-100", activa = true, dispositivos = Array.Empty<string>()
+                },
+                new
+                {
+                    id = "s:norte", codigo = "NORTE", nombre = "Sede Norte", ciudad = "Bogota", direccion = "Cra 2",
+                    centroDeCostos = "CC-200", activa = false, dispositivos = Array.Empty<string>()
+                }
             }
-        }
         },
         Web);
 
