@@ -99,7 +99,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         var (pagina, siguienteCursor) = PaginaDeTurnosVigentes.Cortar(
             turnos, filtro.Take, v => CursorOpaco.Codificar(v.CodigoColaborador, v.Fecha));
 
-        // Nunca 404: un rango sin turnos vigentes es 200 con Turnos: [], no un error.
+        // Nunca 404: un rango sin turnos vigentes es 200 con Elementos: [], no un error.
         return new OkObjectResult(new ListaTurnosVigentes(
             desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado,
             pagina.Select(TurnoVigenteRespuesta.Desde).ToList(), siguienteCursor));

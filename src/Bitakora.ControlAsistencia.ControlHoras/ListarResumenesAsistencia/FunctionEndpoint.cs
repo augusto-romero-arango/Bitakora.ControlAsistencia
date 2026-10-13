@@ -54,12 +54,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             return NoProcesable("Take debe estar entre 1 y 200");
 
         string? cursorCodigo = null;
-        if (filtro.Cursor is not null)
-        {
-            if (!CursorOpaco.TryDecodificar(filtro.Cursor, out var decodificado))
-                return NoProcesable("El cursor no es valido");
-            cursorCodigo = decodificado;
-        }
+        if (filtro.Cursor is not null && !CursorOpaco.TryDecodificar(filtro.Cursor, out cursorCodigo))
+            return NoProcesable("El cursor no es valido");
 
         var desde = filtro.DesdeFecha.Value;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
@@ -82,11 +78,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var filas = AgregadorResumenAsistencia.Agregar(desde, hastaAplicado, codigosPagina, documentos);
 
-        // Nunca 404: un rango sin datos son filas SinDatos (o una lista vacia cuando no hay
-        // CodigosColaborador pedido), no un error.
         var (pagina, siguienteCursor) = PaginaDeResumenesAsistencia.Cortar(
             filas, filtro.Take, f => CursorOpaco.Codificar(f.CodigoColaborador));
 
+        // Nunca 404: un rango sin datos son filas SinDatos (o una lista vacia cuando no hay
+        // CodigosColaborador pedido), no un error.
         return new OkObjectResult(new ListaResumenesAsistencia(
             desde, hastaAplicado, rangoAplicado.RangoRecortado, pagina, siguienteCursor));
     }

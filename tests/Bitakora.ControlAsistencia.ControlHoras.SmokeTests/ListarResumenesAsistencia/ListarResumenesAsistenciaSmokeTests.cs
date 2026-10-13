@@ -55,10 +55,11 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         IReadOnlyDictionary<string, decimal> TotalHorasPorConcepto);
 
     private sealed record ListaResumenesAsistenciaSmoke(
-        DateOnly DesdeAplicado,
-        DateOnly HastaAplicado,
+        DateOnly Desde,
+        DateOnly Hasta,
         bool RangoRecortado,
-        IReadOnlyList<ResumenAsistenciaSmoke> Filas);
+        IReadOnlyList<ResumenAsistenciaSmoke> Elementos,
+        string? SiguienteCursor);
 
     private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
     {
@@ -262,10 +263,10 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         var filtro = new { desdeFecha = desde, hastaFecha = hasta };
         var respuesta = await ConsultarOkAsync(filtro, ct);
 
-        respuesta.DesdeAplicado.Should().Be(desde);
-        respuesta.HastaAplicado.Should().Be(hasta);
+        respuesta.Desde.Should().Be(desde);
+        respuesta.Hasta.Should().Be(hasta);
         respuesta.RangoRecortado.Should().BeFalse();
-        respuesta.Filas.Should().BeEmpty();
+        respuesta.Elementos.Should().BeEmpty();
     }
 
     [Fact]
@@ -293,10 +294,10 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         };
         var respuesta = await ConsultarOkAsync(filtro, ct);
 
-        respuesta.Filas.Should().HaveCount(2);
-        respuesta.Filas.Select(f => f.CodigoColaborador).Should().Equal(codigoUno, codigoDos);
+        respuesta.Elementos.Should().HaveCount(2);
+        respuesta.Elementos.Select(f => f.CodigoColaborador).Should().Equal(codigoUno, codigoDos);
 
-        respuesta.Filas.Should().OnlyContain(f =>
+        respuesta.Elementos.Should().OnlyContain(f =>
             f.DiasSinProgramar == 3
             && f.SinDatos == 3
             && f.DiasConTurno == 0
@@ -341,12 +342,12 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         };
 
         var respuesta = await ConsultarHastaQueAsync(
-            filtro, lista => lista.Filas.Single().SinDatos == 31, ct);
+            filtro, lista => lista.Elementos.Single().SinDatos == 31, ct);
 
-        respuesta.DesdeAplicado.Should().Be(new DateOnly(2026, 10, 7));
-        respuesta.HastaAplicado.Should().Be(new DateOnly(2026, 11, 10));
+        respuesta.Desde.Should().Be(new DateOnly(2026, 10, 7));
+        respuesta.Hasta.Should().Be(new DateOnly(2026, 11, 10));
         respuesta.RangoRecortado.Should().BeFalse();
-        var fila = respuesta.Filas.Single();
+        var fila = respuesta.Elementos.Single();
         fila.CodigoColaborador.Should().Be(codigoColaborador);
 
         // Eje programacion: dos turnos + descanso + sin programar (1 real + 31 vacios).
@@ -402,28 +403,27 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         };
 
         var respuesta = await ConsultarHastaQueAsync(
-            filtro, lista => lista.Filas.First().DiasConTurno == 1, ct);
+            filtro, lista => lista.Elementos.First().DiasConTurno == 1, ct);
 
-        respuesta.Filas.Should().HaveCount(2);
-        respuesta.Filas.Select(f => f.CodigoColaborador).Should().Equal(codigoConDatos, codigoSinDatos);
+        respuesta.Elementos.Should().HaveCount(2);
+        respuesta.Elementos.Select(f => f.CodigoColaborador).Should().Equal(codigoConDatos, codigoSinDatos);
 
-        var filaConDatos = respuesta.Filas[0];
+        var filaConDatos = respuesta.Elementos[0];
         filaConDatos.DiasConTurno.Should().Be(1);
         filaConDatos.DiasSinProgramar.Should().Be(3);
         filaConDatos.Pendientes.Should().Be(1);
         filaConDatos.SinDatos.Should().Be(3);
         filaConDatos.TotalHorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(8.00m);
 
-        var filaSinDatos = respuesta.Filas[1];
+        var filaSinDatos = respuesta.Elementos[1];
         filaSinDatos.DiasConTurno.Should().Be(0);
         filaSinDatos.DiasSinProgramar.Should().Be(4);
         filaSinDatos.SinDatos.Should().Be(4);
         filaSinDatos.TotalHorasPorConcepto.Should().BeEmpty();
     }
 
-    // Rama sin filtro: el universo se descubre entre los documentos del rango. Take=200 (el maximo)
-    // reduce el riesgo de que el colaborador sembrado quede fuera de la pagina si el rango acumula
-    // colaboradores de otras corridas futuras de este mismo test.
+    // Rama sin filtro: el universo se descubre entre los documentos del rango. Sin Take la respuesta
+    // trae todos los colaboradores del rango, incluidos los de otras corridas de este mismo test.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarResumenesAsistencia_ApareceEnElUniversoDescubierto_CuandoNoSeEnviaCodigosColaboradorYElColaboradorTieneDatos()
@@ -439,23 +439,22 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
 
         await PublicarDiaConJornadaAsync(codigoColaborador, desde, "[TEST] Turno Universo Descubierto");
 
-        var filtro = new { desdeFecha = desde, hastaFecha = hasta, take = 200 };
+        var filtro = new { desdeFecha = desde, hastaFecha = hasta };
 
         var respuesta = await ConsultarHastaQueAsync(
-            filtro, lista => lista.Filas.Any(f => f.CodigoColaborador == codigoColaborador), ct);
+            filtro, lista => lista.Elementos.Any(f => f.CodigoColaborador == codigoColaborador), ct);
 
-        var fila = respuesta.Filas.Single(f => f.CodigoColaborador == codigoColaborador);
+        var fila = respuesta.Elementos.Single(f => f.CodigoColaborador == codigoColaborador);
         fila.DiasConTurno.Should().Be(1);
         fila.Pendientes.Should().Be(1);
     }
 
-    // Keyset por CodigoColaborador ascendente sobre la lista pedida -- cursor ">" y fin de lista =
-    // pagina con menos filas que Take. No siembra ningun documento real: el modo con
-    // CodigosColaborador explicito pagina sobre la lista dada sin descubrir nada en Marten, asi que
-    // el mecanismo de paginacion es verificable sin depender de la consistencia eventual del worker.
+    // Keyset por CodigoColaborador ascendente sobre la lista pedida, con el cursor opaco que devuelve
+    // la pagina anterior. No siembra ningun documento real: con CodigosColaborador explicito la
+    // pagina se arma sobre la lista dada, sin depender de la consistencia eventual del worker.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarResumenesAsistencia_PaginaConKeysetPorCodigoColaborador_CuandoSeEnviaCursor()
+    public async Task ListarResumenesAsistencia_RecorreDosPaginasConSiguienteCursor_CuandoSeEnviaTake()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -471,30 +470,38 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
         var desde = new DateOnly(2025, 2, 1);
         var hasta = new DateOnly(2025, 2, 1);
 
-        var filtroPagina1 = new
+        var pagina1 = await ConsultarOkAsync(
+            new { desdeFecha = desde, hastaFecha = hasta, codigosColaborador = codigos, take = 2 }, ct);
+
+        pagina1.Elementos.Select(f => f.CodigoColaborador).Should().Equal(codigos[0], codigos[1]);
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var pagina2 = await ConsultarOkAsync(
+            new { desdeFecha = desde, hastaFecha = hasta, codigosColaborador = codigos, take = 2, cursor = pagina1.SiguienteCursor },
+            ct);
+
+        pagina2.Elementos.Select(f => f.CodigoColaborador).Should().Equal(codigos[2]);
+        pagina2.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarResumenesAsistencia_Retorna422_CuandoElCursorEsElCodigoCrudo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // La forma vieja del cursor (el ultimo codigo en claro) ya no se acepta.
+        var codigo = Guid.CreateVersion7().ToString();
+        var filtro = new
         {
-            desdeFecha = desde,
-            hastaFecha = hasta,
-            codigosColaborador = codigos,
-            take = 2
+            desdeFecha = new DateOnly(2025, 2, 1),
+            hastaFecha = new DateOnly(2025, 2, 1),
+            codigosColaborador = new[] { codigo },
+            cursor = codigo
         };
-        var pagina1 = await ConsultarOkAsync(filtroPagina1, ct);
 
-        pagina1.Filas.Should().HaveCount(2);
-        pagina1.Filas.Select(f => f.CodigoColaborador).Should().Equal(codigos[0], codigos[1]);
+        var response = await ConsultarAsync(filtro, ct);
 
-        var filtroPagina2 = new
-        {
-            desdeFecha = desde,
-            hastaFecha = hasta,
-            codigosColaborador = codigos,
-            cursor = codigos[1],
-            take = 2
-        };
-        var pagina2 = await ConsultarOkAsync(filtroPagina2, ct);
-
-        // Fin de lista: la pagina trae menos filas que el Take pedido.
-        pagina2.Filas.Should().HaveCount(1);
-        pagina2.Filas.Single().CodigoColaborador.Should().Be(codigos[2]);
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 }
