@@ -50,17 +50,23 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.DesdeFecha > filtro.HastaFecha)
             return NoProcesable("DesdeFecha no puede ser posterior a HastaFecha");
 
+        if (!PaginaDeResumenesAsistencia.TakeEnRango(filtro.Take))
+            return NoProcesable("Take debe estar entre 1 y 200");
+
+        string? cursorCodigo = null;
+        if (filtro.Cursor is not null && !CursorOpaco.TryDecodificar(filtro.Cursor, out cursorCodigo))
+            return NoProcesable("El cursor no es valido");
+
         var desde = filtro.DesdeFecha.Value;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
         var hastaAplicado = rangoAplicado.HastaAplicado;
-        var take = PaginaDeCodigos.AcotarTake(filtro.Take);
 
         // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
         // (mitigacion estructural contra BOLA/IDOR, MEF-ADR-0028).
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         var codigosPagina = await DeterminarCodigosPaginaAsync(
-            session, filtro.CodigosColaborador, filtro.Cursor, desde, hastaAplicado, take, ct);
+            session, filtro.CodigosColaborador, cursorCodigo, desde, hastaAplicado, filtro.Take, ct);
 
         IReadOnlyList<AsistenciaDiaria> documentos = codigosPagina.Count == 0
             ? []
@@ -72,10 +78,13 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var filas = AgregadorResumenAsistencia.Agregar(desde, hastaAplicado, codigosPagina, documentos);
 
+        var (pagina, siguienteCursor) = PaginaDeResumenesAsistencia.Cortar(
+            filas, filtro.Take, f => CursorOpaco.Codificar(f.CodigoColaborador));
+
         // Nunca 404: un rango sin datos son filas SinDatos (o una lista vacia cuando no hay
         // CodigosColaborador pedido), no un error.
         return new OkObjectResult(new ListaResumenesAsistencia(
-            desde, hastaAplicado, rangoAplicado.RangoRecortado, filas));
+            desde, hastaAplicado, rangoAplicado.RangoRecortado, pagina, siguienteCursor));
     }
 
     // Con CodigosColaborador explicito la pagina se recorta sobre la lista pedida, sin consultar
@@ -94,11 +103,15 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         string? cursor,
         DateOnly desde,
         DateOnly hastaAplicado,
-        int take,
+        int? take,
         CancellationToken ct)
     {
+        // Take + 1: el sobrante le dice a Cortar que hay mas paginas.
         if (codigosSolicitados is not null)
-            return PaginaDeCodigos.Recortar(codigosSolicitados, cursor, take);
+        {
+            var posteriores = PaginaDeResumenesAsistencia.PosterioresAlCursor(codigosSolicitados, cursor);
+            return take is null ? posteriores : posteriores.Take(take.Value + 1).ToList();
+        }
 
         IQueryable<AsistenciaDiaria> query = session.Query<AsistenciaDiaria>()
             .Where(a => a.Fecha >= desde && a.Fecha <= hastaAplicado);
@@ -106,12 +119,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (cursor is not null)
             query = query.Where(a => a.CodigoColaborador.CompareTo(cursor) > 0);
 
-        return await query
+        var codigos = query
             .Select(a => a.CodigoColaborador)
             .Distinct()
-            .OrderBy(codigo => codigo)
-            .Take(take)
-            .ToListAsync(ct);
+            .OrderBy(codigo => codigo);
+
+        return take is null
+            ? await codigos.ToListAsync(ct)
+            : await codigos.Take(take.Value + 1).ToListAsync(ct);
     }
 
     // RFC 10008 seccion 2.1 / MEF-ADR-0042 seccion 3: el 422 se emite como ObjectResult con mensaje,
