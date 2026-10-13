@@ -139,7 +139,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_RechazaLaEtiqueta_CuandoTambienFaltanTurnoYSedeDeProgramacion()
     {
-        var entorno = CrearEntorno(turnosJson: "[]");
+        var entorno = CrearEntorno(turnosJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
             entorno, turno: "[TEST] Turno que no existe", sedeDeProgramacion: "FANTASMA",
@@ -155,7 +155,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_RechazaElSelectorObligatorio_CuandoTambienFaltaElTurno()
     {
-        var entorno = CrearEntorno(turnosJson: "[]");
+        var entorno = CrearEntorno(turnosJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
             entorno, turno: "[TEST] Turno que no existe", sede: null, etiquetas: null);

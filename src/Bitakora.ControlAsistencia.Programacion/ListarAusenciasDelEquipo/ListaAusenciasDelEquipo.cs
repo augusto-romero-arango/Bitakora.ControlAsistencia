@@ -15,11 +15,13 @@ public sealed record ListaAusenciasDelEquipo(
     DateOnly Desde,
     DateOnly Hasta,
     bool RangoRecortado,
-    IReadOnlyList<AusenciasDeColaborador> Colaboradores)
+    IReadOnlyList<AusenciasDeColaborador> Elementos,
+    string? SiguienteCursor = null)
 {
     // Los tramos se recortan al periodo aplicado; el calendario por dia lo arma el cliente.
     public static ListaAusenciasDelEquipo Componer(
-        DateOnly desde, RangoAplicado rango, IEnumerable<AusenciaVigente> vigentes)
+        DateOnly desde, RangoAplicado rango, IEnumerable<AusenciaVigente> vigentes,
+        int? take = null, CursorAusenciasEquipo? cursor = null)
     {
         var hasta = rango.HastaAplicado;
 

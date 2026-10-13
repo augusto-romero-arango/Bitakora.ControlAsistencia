@@ -373,7 +373,7 @@ public class CrearPlantillaSemanalToolTests
         $$"""{"horaInicio":"{{inicio}}:00","horaFin":"{{fin}}:00","diaOffsetFin":{{offsetFin}},"descansos":{{descansos}},"extras":[],"sedeId":{{(sedeId is null ? "null" : $"\"{sedeId}\"")}},"nombreSede":null,"descripcion":""}""";
 
     private static string CatalogoCon(string nombre, string franjas, bool esDescanso = false) =>
-        $$"""[{"id":"{{IdHomonimo}}","nombre":"{{nombre}}","esDescanso":{{(esDescanso ? "true" : "false")}},"horarioResumido":"","franjas":[{{franjas}}],"descripcion":"","completo":true}]""";
+        $$"""{"elementos":[{"id":"{{IdHomonimo}}","nombre":"{{nombre}}","esDescanso":{{(esDescanso ? "true" : "false")}},"horarioResumido":"","franjas":[{{franjas}}],"descripcion":"","completo":true}]}""";
 
     private static string DiasInline(params (string Dia, string Franja)[] entradas) =>
         "[" + string.Join(",", entradas.Select(e => $$"""{"semana":1,"dia":"{{e.Dia}}","franja":"{{e.Franja}}"}""")) + "]";

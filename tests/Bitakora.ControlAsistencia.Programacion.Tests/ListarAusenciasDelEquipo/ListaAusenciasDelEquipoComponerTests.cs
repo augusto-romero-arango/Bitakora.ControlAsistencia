@@ -53,7 +53,7 @@ public class ListaAusenciasDelEquipoComponerTests
 
         var lista = ListaAusenciasDelEquipo.Componer(Oct(13), Semana13Al19, [licencia, partidaFueraDelPeriodo, vacacionesPartidas]);
 
-        lista.Colaboradores.Should().BeEquivalentTo(new[]
+        lista.Elementos.Should().BeEquivalentTo(new[]
         {
             new AusenciasDeColaborador("EMP-001", "Ana Ramirez",
             [
@@ -80,7 +80,7 @@ public class ListaAusenciasDelEquipoComponerTests
         lista.Desde.Should().Be(Oct(7));
         lista.Hasta.Should().Be(new DateOnly(2026, 11, 10));
         lista.RangoRecortado.Should().BeTrue();
-        lista.Colaboradores.Single().Ausencias.Should().ContainSingle()
+        lista.Elementos.Single().Ausencias.Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new AusenciaDelPeriodo(VacacionesAna, "Vacaciones",
                 [new TramoAplicado(new DateOnly(2026, 11, 7), new DateOnly(2026, 11, 10))]));
     }

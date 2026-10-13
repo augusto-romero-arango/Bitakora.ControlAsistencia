@@ -2,7 +2,7 @@
   "desde": "2026-10-01",
   "hasta": "2026-10-07",
   "rangoRecortado": false,
-  "colaboradores": [
+  "elementos": [
     {
       "codigoColaborador": "COL-001",
       "nombreCompleto": "Colaborador 001",
