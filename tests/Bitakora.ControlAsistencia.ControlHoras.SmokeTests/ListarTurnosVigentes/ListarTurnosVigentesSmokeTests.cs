@@ -14,8 +14,7 @@
 // test no referencia ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5). TipoBloqueSmoke
 // replica el ORDEN de valores del enum de produccion porque STJ lo serializa como el entero
 // subyacente -- si produccion reordenara alguno, la comparacion falla y delata el cambio de
-// contrato. El limite de 35 dias se afirma con fechas literales, nunca leyendo
-// RangoConsulta.CotaDias.
+// contrato.
 //
 // Sin PostgresFixture: la persistencia de turno_diario_asignado ya la cubre
 // AsignarTurnoViaSbSmokeTests; aqui solo interesa que la vista materializada llegue al endpoint.
