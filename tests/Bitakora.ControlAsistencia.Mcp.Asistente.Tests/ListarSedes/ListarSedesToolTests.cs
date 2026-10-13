@@ -25,7 +25,7 @@ public class ListarSedesToolTests
         var (_, handler) = await Ejecutar("listar-sedes.json");
 
         handler.UltimaRequest!.RequestUri!.PathAndQuery.Should()
-            .Be("/api/sedes/fichas?activa=true", "revision del PR #512: solo sedes activas");
+            .Be("/api/sedes/fichas?activa=true", "revision del PR #512: solo sedes activas, sin take (CA-ADR-0038)");
     }
 
     [Fact]

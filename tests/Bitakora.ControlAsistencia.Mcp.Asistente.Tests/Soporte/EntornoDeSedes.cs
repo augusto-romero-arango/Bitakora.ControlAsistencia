@@ -50,7 +50,9 @@ internal static class EntornoDeSedes
 
     /// <summary>Maestro de sedes: SUBA activa (Sede Suba, CC-100), NORTE inactiva; FANTASMA no existe.</summary>
     public static string MaestroDeSedes() => JsonSerializer.Serialize(
-        new[]
+        new
+        {
+            elementos = new[]
         {
             new
             {
@@ -62,6 +64,7 @@ internal static class EntornoDeSedes
                 id = "s:norte", codigo = "NORTE", nombre = "Sede Norte", ciudad = "Bogota", direccion = "Cra 2",
                 centroDeCostos = "CC-200", activa = false, dispositivos = Array.Empty<string>()
             }
+        }
         },
         Web);
 
@@ -108,7 +111,7 @@ internal static class EntornoDeSedes
             return Respuesta(statusMaestro, statusMaestro == HttpStatusCode.OK ? MaestroDeSedes() : "boom");
 
         var codigo = Uri.UnescapeDataString(ruta.Split('/').Last());
-        var ficha = JsonDocument.Parse(MaestroDeSedes()).RootElement.EnumerateArray()
+        var ficha = JsonDocument.Parse(MaestroDeSedes()).RootElement.GetProperty("elementos").EnumerateArray()
             .FirstOrDefault(s => s.GetProperty("codigo").GetString() == codigo);
         return ficha.ValueKind == JsonValueKind.Undefined
             ? Respuesta(HttpStatusCode.NotFound, "")

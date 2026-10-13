@@ -50,6 +50,10 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         bool Activa,
         IReadOnlyList<string> Dispositivos);
 
+    private sealed record ListaFichasSedeRespuestaSmoke(
+        List<FichaSedeRespuestaSmoke> Elementos,
+        string? SiguienteCursor);
+
     // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta/query y esta sujeto al charset
     // URL-safe, del que "[", "]" y el espacio quedan fuera.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
@@ -107,9 +111,19 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         var response = await _client.GetAsync(ruta, ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var lista = await response.Content.ReadFromJsonAsync<List<FichaSedeRespuestaSmoke>>(
+        var sobre = await response.Content.ReadFromJsonAsync<ListaFichasSedeRespuestaSmoke>(
             JsonOptions, cancellationToken: ct);
-        return lista ?? [];
+        return sobre?.Elementos ?? [];
+    }
+
+    private async Task<ListaFichasSedeRespuestaSmoke> ListarPaginaAsync(string query, CancellationToken ct)
+    {
+        var response = await _client.GetAsync($"{RutaListado}?{query}", ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var sobre = await response.Content.ReadFromJsonAsync<ListaFichasSedeRespuestaSmoke>(
+            JsonOptions, cancellationToken: ct);
+        return sobre!;
     }
 
     // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion -- unica
@@ -189,6 +203,41 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         var ct = TestContext.Current.CancellationToken;
 
         var response = await _client.GetAsync($"{RutaListado}?activa=no-es-booleano", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // CA-ADR-0039: recorrido de dos paginas con take=1 y siguienteCursor (sin validar tamanos, CA-ADR-0041).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasSede_RecorreDosPaginas_CuandoSeUsaTakeYSiguienteCursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await RegistrarSedeAsync(NuevoCodigo(), ct);
+        await RegistrarSedeAsync(NuevoCodigo(), ct);
+
+        var primera = await Polling.WaitUntilAsync(async () =>
+        {
+            var pagina = await ListarPaginaAsync("take=1", ct);
+            return pagina.SiguienteCursor is not null ? pagina : null;
+        }, Timeout);
+
+        primera.Elementos.Should().HaveCount(1);
+
+        var segunda = await ListarPaginaAsync(
+            $"take=1&cursor={Uri.EscapeDataString(primera.SiguienteCursor!)}", ct);
+
+        segunda.Elementos.Should().HaveCount(1);
+        segunda.Elementos[0].Codigo.Should().NotBe(primera.Elementos[0].Codigo);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasSede_Retorna400_CuandoElCursorEsInvalido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.GetAsync($"{RutaListado}?cursor=%25%25no-es-un-cursor", ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
