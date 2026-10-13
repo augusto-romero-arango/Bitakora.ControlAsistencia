@@ -2,6 +2,7 @@ using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DesactivarJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.DesactivarJornadaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
