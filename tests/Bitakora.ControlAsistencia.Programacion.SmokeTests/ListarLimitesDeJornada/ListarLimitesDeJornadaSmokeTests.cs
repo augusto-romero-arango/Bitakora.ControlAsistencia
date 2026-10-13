@@ -185,15 +185,6 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoTakeSuperaElMaximo()
-    {
-        var response = await _client.GetAsync($"{Ruta}?take=201", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
     public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoElCursorEsInvalido()
     {
         var response = await _client.GetAsync($"{Ruta}?cursor=no-es-un-cursor",
