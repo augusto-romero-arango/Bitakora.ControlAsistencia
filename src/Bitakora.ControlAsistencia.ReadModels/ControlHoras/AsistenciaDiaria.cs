@@ -39,6 +39,7 @@ public enum PlanDelDia
 /// sede"). Es del DIA completo, a diferencia del homonimo EnConflictoDeSede de
 /// DepuracionDelDia.FranjaDepurada, que es por franja.
 /// </summary>
+[MaterializadoPorProyeccion]
 public sealed record AsistenciaDiaria(
     string Id,
     string CodigoColaborador,

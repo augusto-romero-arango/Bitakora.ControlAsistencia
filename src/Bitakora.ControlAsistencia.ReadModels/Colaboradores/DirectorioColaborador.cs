@@ -25,6 +25,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 ///
 /// No lleva etiquetas: la busqueda por grupo sigue siendo del QUERY de fichas.
 /// </remarks>
+[MaterializadoPorProyeccion]
 public sealed record DirectorioColaborador(
     string Id,
     string TipoDocumento,
@@ -34,7 +35,8 @@ public sealed record DirectorioColaborador(
     string CodigoColaborador,
     DateOnly VigenteDesde,
     DateOnly VigenteHasta,
-    string? CodigoSede = null)
+    string? CodigoSede = null,
+    Guid? JornadaId = null)
 {
     private const char SeparadorDeTokens = ' ';
 

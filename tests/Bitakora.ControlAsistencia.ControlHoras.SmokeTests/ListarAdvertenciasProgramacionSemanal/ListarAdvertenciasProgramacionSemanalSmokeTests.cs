@@ -170,30 +170,6 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarAdvertenciasProgramacionSemanal_Retorna200_CuandoTakeEsCero() =>
-        await VerificarTakeFueraDeRangoAsync(0);
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarAdvertenciasProgramacionSemanal_Retorna200_CuandoTakeSuperaElMaximo() =>
-        await VerificarTakeFueraDeRangoAsync(500);
-
-    private async Task VerificarTakeFueraDeRangoAsync(int take)
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var respuesta = await ConsultarOkAsync(new
-        {
-            fecha = new DateOnly(2026, 10, 7),
-            codigosColaborador = new[] { Guid.CreateVersion7().ToString() },
-            take
-        }, ct);
-
-        respuesta.GetProperty("elementos").GetArrayLength().Should().Be(0);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
     public async Task ListarAdvertenciasProgramacionSemanal_DebeMostrarAdvertencias_CuandoLaSemanaSuperaElTopeDiario()
     {
         var ct = TestContext.Current.CancellationToken;

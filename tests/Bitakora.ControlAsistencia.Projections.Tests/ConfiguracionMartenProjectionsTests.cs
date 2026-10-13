@@ -515,7 +515,9 @@ public class ConfiguracionMartenProjectionsTests
     }
 
     // Mitad worker del par espejo (mt_version y tabla/tenancy/id, MEF-ADR-0034 seccion 6). La mitad
-    // write-side llega con la Function de consulta que la lea (#866) y debe congelar los mismos literales.
+    // write-side la congelan en ComposicionServiciosTests los tests espejo
+    // ...EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAdvertenciasProgramacionSemanal y
+    // ...ResuelveAdvertenciasProgramacionSemanalSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto.
     [Fact]
     public void ConfigurarControlHoras_MaterializaAdvertenciasProgramacionSemanalConRevisionNumerica()
     {

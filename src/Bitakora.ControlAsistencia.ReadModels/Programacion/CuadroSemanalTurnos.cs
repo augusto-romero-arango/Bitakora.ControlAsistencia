@@ -13,6 +13,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 /// <param name="Completa">Estado derivado: 7 x Semanas dias con turno no retirado y completo.</param>
 /// <param name="Limites">Copia de los limites de la Jornada, o null sin Jornada.</param>
 /// <param name="Advertencias">Ultimo AdvertenciasDePlantillaSemanalCalculadas; vacia sin evento.</param>
+[MaterializadoPorProyeccion]
 public sealed record CuadroSemanalTurnos(
     string Id,
     string Nombre,

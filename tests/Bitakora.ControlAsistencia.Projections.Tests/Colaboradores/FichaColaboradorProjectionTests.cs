@@ -337,4 +337,65 @@ public class FichaColaboradorProjectionTests
         vista.CodigoSede.Should().BeNull();
         vista.CodigoColaborador.Should().Be("EMP-002");
     }
+
+    // --- Issue #860 CA-1: JornadaId (Jornada asignada a la vinculacion vigente) ---
+
+    [Fact]
+    public void Apply_DejaJornadaIdNulo_CuandoVinculacionIniciadaYNoSeAsignoJornada()
+    {
+        var vistaPrevia = new FichaColaborador("CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), new DateOnly(9999, 12, 31), [], new Dictionary<string, string>(), CodigoSede: "SEDE-BOG-01");
+        var evento = new VinculacionIniciada("EMP-001", new DateOnly(2026, 8, 1));
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        vista.JornadaId.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_AsignaJornadaId_CuandoJornadaAsignada()
+    {
+        var j1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var vistaPrevia = new FichaColaborador("CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), new DateOnly(9999, 12, 31), [], new Dictionary<string, string>(), CodigoSede: "SEDE-BOG-01");
+
+        var vista = FichaColaboradorProjection.Apply(new JornadaAsignada(j1), vistaPrevia);
+
+        vista.JornadaId.Should().Be(j1);
+        // El resto de la vista no cambia con la asignacion de Jornada.
+        vista.Id.Should().Be(vistaPrevia.Id);
+        vista.NombreCompleto.Should().Be(vistaPrevia.NombreCompleto);
+        vista.CodigoColaborador.Should().Be("EMP-001");
+        vista.VigenteDesde.Should().Be(new DateOnly(2026, 8, 1));
+        vista.VigenteHasta.Should().Be(new DateOnly(9999, 12, 31));
+        vista.CodigoSede.Should().Be("SEDE-BOG-01");
+    }
+
+    [Fact]
+    public void Apply_ReemplazaJornadaId_CuandoJornadaAsignadaEsUnaReasignacion()
+    {
+        var j1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var j2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var vistaPrevia = (new FichaColaborador("CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), new DateOnly(9999, 12, 31), [], new Dictionary<string, string>(), CodigoSede: "SEDE-BOG-01")) with { JornadaId = j1 };
+
+        var vista = FichaColaboradorProjection.Apply(new JornadaAsignada(j2), vistaPrevia);
+
+        vista.JornadaId.Should().Be(j2);
+    }
+
+    [Fact]
+    public void Apply_LimpiaJornadaId_CuandoVinculacionIniciadaEsUnReingreso()
+    {
+        var j1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var vistaPrevia = (new FichaColaborador("CC-123456", "Ana Ramirez", "EMP-001", new DateOnly(2026, 8, 1), new DateOnly(9999, 12, 31), [], new Dictionary<string, string>(), CodigoSede: "SEDE-BOG-01")) with
+        {
+            VigenteHasta = new DateOnly(2025, 12, 31),
+            JornadaId = j1
+        };
+        var evento = new VinculacionIniciada("EMP-002", new DateOnly(2026, 3, 1));
+
+        var vista = FichaColaboradorProjection.Apply(evento, vistaPrevia);
+
+        // El reingreso nace limpio: VinculacionIniciada no trae Jornada.
+        vista.JornadaId.Should().BeNull();
+        vista.CodigoColaborador.Should().Be("EMP-002");
+    }
 }
