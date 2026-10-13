@@ -38,7 +38,7 @@ public partial class ListarTurnosTool(ProgramacionApi api)
         var respuesta = await api.ListarTurnos(ct);
         respuesta.EnsureSuccessStatusCode();
 
-        var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaTurno>>(ct)
+        var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(ct))?.Elementos
             ?? [];
 
         if (!string.IsNullOrWhiteSpace(filtroNombre))

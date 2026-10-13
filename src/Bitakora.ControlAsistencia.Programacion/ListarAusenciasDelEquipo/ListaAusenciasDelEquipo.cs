@@ -37,9 +37,20 @@ public sealed record ListaAusenciasDelEquipo(
                     .ToList()))
             .OrderBy(c => c.NombreCompleto, StringComparer.Ordinal)
             .ThenBy(c => c.CodigoColaborador, StringComparer.Ordinal)
+            .Where(c => cursor is not { } k
+                || string.CompareOrdinal(c.NombreCompleto, k.NombreCompleto) > 0
+                || (c.NombreCompleto == k.NombreCompleto
+                    && string.CompareOrdinal(c.CodigoColaborador, k.CodigoColaborador) > 0))
             .ToList();
 
-        return new ListaAusenciasDelEquipo(desde, hasta, rango.RangoRecortado, colaboradores);
+        if (take is not { } tope || colaboradores.Count <= tope)
+            return new ListaAusenciasDelEquipo(desde, hasta, rango.RangoRecortado, colaboradores);
+
+        var pagina = colaboradores.Take(tope).ToList();
+        var ultimo = pagina[^1];
+        return new ListaAusenciasDelEquipo(
+            desde, hasta, rango.RangoRecortado, pagina,
+            new CursorAusenciasEquipo(ultimo.NombreCompleto, ultimo.CodigoColaborador).Codificar());
     }
 
     private static List<TramoAplicado> Recortar(IReadOnlyList<TramoDeAusencia> tramos, DateOnly desde, DateOnly hasta) =>

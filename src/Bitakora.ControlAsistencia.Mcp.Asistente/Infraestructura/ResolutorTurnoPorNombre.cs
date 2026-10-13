@@ -22,7 +22,7 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoResolucionTurno(null, fallo, []);
 
-        var catalogo = await respuesta.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
+        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(OpcionesLectura, ct))?.Elementos ?? [];
         var normalizado = NormalizarNombre(nombre);
         var ficha = catalogo.FirstOrDefault(f => NormalizarNombre(f.Nombre) == normalizado);
 
@@ -43,7 +43,7 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoResolucionVariosTurnos([], fallo, []);
 
-        var catalogo = await respuesta.Content.ReadFromJsonAsync<List<FichaTurno>>(OpcionesLectura, ct) ?? [];
+        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(OpcionesLectura, ct))?.Elementos ?? [];
         var porNombreNormalizado = catalogo
             .GroupBy(f => NormalizarNombre(f.Nombre))
             .ToDictionary(g => g.Key, g => g.First());

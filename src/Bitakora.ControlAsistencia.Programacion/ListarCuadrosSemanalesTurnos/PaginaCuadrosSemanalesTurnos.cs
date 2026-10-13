@@ -8,6 +8,14 @@ public sealed record ListaCuadrosSemanalesTurnosRespuesta(
 
 internal static class PaginaCuadrosSemanalesTurnos
 {
-    public static ListaCuadrosSemanalesTurnosRespuesta Cortar(IReadOnlyList<CuadroSemanalTurnos> pedidas, int? take) =>
-        throw new NotImplementedException();
+    public static ListaCuadrosSemanalesTurnosRespuesta Cortar(IReadOnlyList<CuadroSemanalTurnos> pedidas, int? take)
+    {
+        var pagina = take is { } tope ? pedidas.Take(tope).ToList() : pedidas.ToList();
+        var siguienteCursor = take is { } t && pedidas.Count > t
+            ? new CursorCuadroSemanalTurnos(pagina[^1].Nombre, pagina[^1].Id).Codificar()
+            : null;
+
+        return new ListaCuadrosSemanalesTurnosRespuesta(
+            pagina.Select(CuadroSemanalTurnosRespuesta.Componer).ToList(), siguienteCursor);
+    }
 }

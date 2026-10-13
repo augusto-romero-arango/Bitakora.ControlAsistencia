@@ -73,8 +73,8 @@ public partial class CancelarAusenciaTool(ProgramacionApi programacion, Colabora
             entrada.CodigoColaborador, fechaDesde, fechaHasta, ct);
         if (await respuestaAusencias.LeerFalloAsync(ct) is { } falloAusencias)
             return string.Format(Mensajes.RechazoDelDominio, falloAusencias);
-        var ausencias = await respuestaAusencias.Content
-            .ReadFromJsonAsync<List<AusenciaListada>>(OpcionesLectura, ct) ?? [];
+        var ausencias = (await respuestaAusencias.Content
+            .ReadFromJsonAsync<SobreDeLista<AusenciaListada>>(OpcionesLectura, ct))?.Elementos ?? [];
 
         var porCancelar = ausencias
             .Select(a => (Ausencia: a, Fechas: DiasDe(a.TramosVigentes, fechaDesde, fechaHasta)))

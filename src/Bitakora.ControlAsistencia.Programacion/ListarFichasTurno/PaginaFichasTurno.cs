@@ -6,6 +6,13 @@ public sealed record ListaFichasTurnoRespuesta(IReadOnlyList<FichaTurno> Element
 
 internal static class PaginaFichasTurno
 {
-    public static ListaFichasTurnoRespuesta Cortar(IReadOnlyList<FichaTurno> pedidas, int? take) =>
-        throw new NotImplementedException();
+    public static ListaFichasTurnoRespuesta Cortar(IReadOnlyList<FichaTurno> pedidas, int? take)
+    {
+        if (take is not { } tope || pedidas.Count <= tope)
+            return new ListaFichasTurnoRespuesta(pedidas, null);
+
+        var pagina = pedidas.Take(tope).ToList();
+        var ultima = pagina[^1];
+        return new ListaFichasTurnoRespuesta(pagina, new CursorFichaTurno(ultima.Nombre, ultima.Id).Codificar());
+    }
 }
