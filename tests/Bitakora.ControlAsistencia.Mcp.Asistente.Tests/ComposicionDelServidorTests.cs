@@ -387,6 +387,7 @@ public class ComposicionDelServidorTests
             .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
             .Single(a => a?.PropertyName == "sede_de_programacion")!.Description;
 
+        descripcionTool.Should().NotBeNull();
         foreach (var texto in new[] { descripcionTool, descripcionParametro })
         {
             texto.Should().NotContain("nunca la asumas");
