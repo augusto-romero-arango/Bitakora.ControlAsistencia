@@ -121,7 +121,7 @@ public class ConsultarAdvertenciasProgramacionToolTests
     [Fact]
     public async Task ConsultarAdvertenciasProgramacion_RespondeFraseSinLlamarAlDominio_CuandoElGrupoNoTieneColaboradores()
     {
-        var (tool, adv, _) = Armar(Leer("advertencias-semana.json"), "[]");
+        var (tool, adv, _) = Armar(Leer("advertencias-semana.json"), """{"elementos":[]}""");
 
         var resultado = await Ejecutar(tool, fecha: "2026-10-14", sede: "NORTE");
 

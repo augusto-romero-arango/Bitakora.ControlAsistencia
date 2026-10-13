@@ -25,8 +25,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador;
 // skills/projections/naming.md).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
-    // CA-3: tope de pagina (MEF-ADR-0042 seccion 2) -- el Take del cliente jamas llega crudo a
-    // Marten.
+    // Take opcional, 1..200 o 422 (CA-ADR-0039); sin Take el llamador interno recibe todo el filtro
+    // (CA-ADR-0038).
     private const int TakeMaximo = 200;
 
     // Containment JSONB del filtro AND por etiquetas (CA-2). Ver el comentario en Run para por que
@@ -68,12 +68,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.FechaReferencia == default)
             return NoProcesable("FechaReferencia es obligatoria");
 
-        // CA-4: cursor keyset con un solo campo presente (el otro ausente/null) -> 422 "incompleto".
-        // Un cursor con AMBOS campos ausentes cae en la misma rama -- un cliente que no quiere
-        // paginar debe omitir "cursor" por completo (null), no enviar un objeto vacio.
         if (filtro.Take is { } takeRecibido && (takeRecibido < 1 || takeRecibido > TakeMaximo))
             return NoProcesable($"Take debe estar entre 1 y {TakeMaximo}");
 
+        // El cursor llega como JsonElement para que un no-string (la forma vieja, un objeto) sea 422 y
+        // no un 400 de deserializacion.
         CursorFicha? cursor = null;
         if (filtro.Cursor is { ValueKind: not (JsonValueKind.Null or JsonValueKind.Undefined) } cursorCrudo)
         {
@@ -176,9 +175,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // mismo DTO de respuesta -- ya excepcion bajo MEF-ADR-0041 decision 4 -- para el mismo read
         // model, ahora con un segundo consumidor.
         //
-        // CA-4: nunca 404 -- una pagina sin resultados es 200 con lista vacia. Sin envelope
-        // (propuesta del issue, MEF-ADR-0018): el cliente deriva el cursor de NombreCompleto/Id de
-        // la ultima fila; fin de la lista = pagina con menos de Take filas.
+        // CA-4: nunca 404 -- una pagina sin resultados es 200 con elementos vacios. Se piden Take + 1
+        // filas: la sobrante solo indica que hay siguienteCursor (CA-ADR-0039).
         return new OkObjectResult(Componer(fichas, filtro.Take));
     }
 
@@ -256,9 +254,8 @@ public sealed record FiltroListarFichasColaborador(
 // Etiqueta.Crear rechaza el par (categoria/valor vacios), la respuesta es 422.
 public sealed record FiltroEtiqueta(string Categoria, string Valor);
 
-// Cursor keyset: los dos campos visibles de la ultima fila recibida (orden
-// OrderBy(NombreCompleto).ThenBy(Id) -- decision de refinamiento del issue). Cursor con un solo
-// campo presente (el otro ausente/null) es 422 -- "cursor incompleto".
+// Cursor opaco: las claves keyset (NombreCompleto, Id) de la ultima fila en JSON + base64url. Solo
+// este endpoint lo interpreta; uno indescifrable o incompleto es 422.
 public sealed record CursorFicha(string NombreCompleto, string Id)
 {
     public static string Codificar(string nombreCompleto, string id) =>

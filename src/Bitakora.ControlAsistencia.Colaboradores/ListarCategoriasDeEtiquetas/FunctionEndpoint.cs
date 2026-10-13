@@ -12,8 +12,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas;
 // namespace por query (skills/projections/read-apis.md): esta clase FunctionEndpoint no colisiona
 // con ninguna otra del mismo ensamblado porque cada query vive en su propio namespace.
 //
-// Sin filtros ni paginacion en esta primera version (opcion B, decision de refinamiento): la UI trae
-// el catalogo entero de un tiro y autocompleta en memoria -- el volumen es de decenas, no miles.
+// Sin filtros. Keyset por Id con take opcional (max 200) y sobre { elementos, siguienteCursor } con
+// cursor opaco, sin total (CA-ADR-0039); sin take devuelve el catalogo entero (CA-ADR-0038).
 //
 // La vista se serializa tal cual (sin DTO de respuesta): a diferencia de FichaColaborador (#356),
 // CategoriaDeEtiquetas no tiene ningun campo interno de indexacion/filtrado que ocultar (ni
@@ -59,17 +59,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         await using var session = store.QuerySession(tenantContext.TenantId);
 
-        // Opcion B (decision de refinamiento): catalogo entero de un tiro, sin filtros ni
-        // paginacion. CA-6: sin ninguna etiqueta asignada, coleccion vacia con 200 (nunca 404 --
-        // una lista vacia es una respuesta valida, no un recurso ausente).
-        //
-        // OrderBy(Id) -- la categoria normalizada, que es la PK del documento: un SELECT sin ORDER
-        // BY devuelve las filas en el orden fisico del heap de Postgres, que cambia cuando el
-        // daemon reescribe una fila al aplicar un evento. Sin este orden dos consultas consecutivas
-        // pueden devolver el mismo catalogo permutado, y el consumidor (autocompletado que cachea
-        // el catalogo entre aperturas del control) veria un diff espurio. Mismo criterio que los
-        // otros dos listados del BC (ListarFichasColaborador, ListarTurnosVigentes), aqui sin
-        // cursor porque no hay paginacion.
+        // Sin categorias: 200 con elementos vacios, nunca 404. OrderBy(Id) -- la categoria
+        // normalizada, PK del documento -- es la clave keyset y ademas evita el orden fisico del heap
+        // de Postgres, que cambia cuando el daemon reescribe una fila.
         IQueryable<CategoriaDeEtiquetas> query = session.Query<CategoriaDeEtiquetas>();
         if (cursorId is not null)
             query = query.Where(categoria => categoria.Id.CompareTo(cursorId) > 0);

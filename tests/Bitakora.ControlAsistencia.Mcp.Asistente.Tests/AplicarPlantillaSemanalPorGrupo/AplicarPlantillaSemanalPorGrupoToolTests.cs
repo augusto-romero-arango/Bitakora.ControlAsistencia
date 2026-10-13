@@ -26,7 +26,9 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     };
 
     private static string Plantillas(bool completa = true, bool turnoBRetirado = false) => JsonSerializer.Serialize(
-        new { elementos = new[]
+        new
+        {
+            elementos = new[]
         {
             new
             {
@@ -44,17 +46,20 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
                     Slot(2, 7, TurnoB, true, turnoBRetirado)
                 }
             }
-        } },
+        }
+        },
         Web);
 
     private static string Turnos(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new { elementos = new[] { TurnoA, TurnoB }.Select(id => new
+        new
         {
-            id,
-            nombre = $"Turno {id[^1]}",
-            esDescanso = false,
-            horarioResumido = "06:00-14:00",
-            franjas = new[]
+            elementos = new[] { TurnoA, TurnoB }.Select(id => new
+            {
+                id,
+                nombre = $"Turno {id[^1]}",
+                esDescanso = false,
+                horarioResumido = "06:00-14:00",
+                franjas = new[]
             {
                 new
                 {
@@ -63,9 +68,10 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
                     sedeId = sedeIdDeLaFranja, nombreSede = (string?)null, descripcion = ""
                 }
             },
-            descripcion = "",
-            completo = true
-        }) },
+                descripcion = "",
+                completo = true
+            })
+        },
         Web);
 
     private static object Ficha(int numero, string vigenteDesde = "2025-01-01", string? codigoSede = "SUBA") => new

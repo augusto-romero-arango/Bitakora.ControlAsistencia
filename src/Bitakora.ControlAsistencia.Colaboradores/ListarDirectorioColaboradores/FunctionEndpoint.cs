@@ -18,7 +18,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarDirectorioColaboradores
 // ListarFichasColaborador hizo sobre la ficha.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
-    // Tope de pagina (MEF-ADR-0042 seccion 2): el Take del cliente jamas llega crudo a Marten.
+    // Take opcional, 1..200 o 422 tambien con identificaciones (CA-ADR-0039 decision 9).
     private const int TakeMaximo = 200;
 
     // Containment JSONB del filtro por tokens: un array jsonb @> otro array jsonb es "el primero
@@ -92,11 +92,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (!tieneIdentificaciones && tokensNombre.Count == 0)
             return NoProcesable("Debe indicar identificaciones o nombre");
 
-        // Cursor con un solo campo presente -> 422. Un cursor con AMBOS campos ausentes cae en la
-        // misma rama: quien no quiere paginar omite "cursor" por completo, no envia un objeto vacio.
         if (filtro.Take is { } takeRecibido && (takeRecibido < 1 || takeRecibido > TakeMaximo))
             return NoProcesable($"Take debe estar entre 1 y {TakeMaximo}");
 
+        // El cursor llega como JsonElement para que un no-string (la forma vieja, un objeto) sea 422 y
+        // no un 400 de deserializacion.
         CursorDirectorio? cursor = null;
         if (filtro.Cursor is { ValueKind: not (JsonValueKind.Null or JsonValueKind.Undefined) } cursorCrudo)
         {
@@ -160,9 +160,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             ? await ordenada.Take(take + 1).ToListAsync(ct)
             : await ordenada.ToListAsync(ct);
 
-        // Lista plana sin envoltura: el cliente deriva el cursor de la ultima fila y detecta el fin
-        // por una pagina con menos de Take filas. Los colaboradores con vinculacion terminada SI
-        // aparecen -- el directorio no filtra por vigencia.
+        // Take + 1 filas: la sobrante solo indica que hay siguienteCursor (CA-ADR-0039). Los
+        // colaboradores con vinculacion terminada SI aparecen -- el directorio no filtra por vigencia.
         return new OkObjectResult(Componer(directorio, filtro.Take));
     }
 
@@ -193,8 +192,8 @@ public sealed record FiltroListarDirectorioColaboradores(
     JsonElement? Cursor,
     int? Take = null);
 
-// Cursor keyset: los dos campos visibles de la ultima fila recibida, en el orden
-// OrderBy(NombreCompleto).ThenBy(Id).
+// Cursor opaco: las claves keyset (NombreCompleto, Id) de la ultima fila en JSON + base64url. Solo
+// este endpoint lo interpreta; uno indescifrable o incompleto es 422.
 public sealed record CursorDirectorio(string NombreCompleto, string Identificacion)
 {
     public static string Codificar(string nombreCompleto, string identificacion) =>
