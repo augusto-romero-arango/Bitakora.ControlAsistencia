@@ -6,13 +6,13 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ObtenerJornada;
 
-public class ObtenerJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
+public class ObtenerJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -28,10 +28,8 @@ public class ObtenerJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) 
     public async Task ObtenerJornada_DebeRetornar200ConLaJornada_CuandoExiste()
     {
         var firma = LimitesDePrueba.ObtenerJornada;
-        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
 
         var creada = await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct);
         creada.StatusCode.Should().Be(HttpStatusCode.Created);

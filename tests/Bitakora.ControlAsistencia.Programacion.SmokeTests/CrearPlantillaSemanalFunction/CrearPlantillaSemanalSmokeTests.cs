@@ -6,18 +6,18 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.CrearPlantillaSemanalFunction;
 
 public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
-    : IAsyncDisposable
+    : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoPlantillaSemanalCreada = "plantilla_semanal_creada";
     private const string TipoEventoAdvertenciasCalculadas = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private static object PayloadValido(Guid? plantillaId = null, int semanas = 2)
     {
@@ -98,9 +98,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
     private async Task<Guid> CrearJornadaAsync(CancellationToken ct)
     {
         var firma = LimitesDePrueba.CrearPlantillaConJornada;
-        await _limpieza.PrepararAsync(firma);
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");

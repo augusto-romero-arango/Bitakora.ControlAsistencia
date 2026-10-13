@@ -5,16 +5,16 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarJornadaPredeterminadaFunction;
 
-public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
+public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string RutaJornadas = "/api/programacion/jornadas";
     private const string RutaPredeterminada = "/api/programacion/preferencias/jornada-predeterminada";
     private const string TipoEvento = "jornada_predeterminada_asignada";
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -30,17 +30,13 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
     public async Task AsignarJornadaPredeterminada_DebeRetornar204YPersistirLaPredeterminada_CuandoLaJornadaExiste()
     {
         var firma = LimitesDePrueba.AsignarPredeterminada;
-        await _limpieza.PrepararAsync(firma);
         var ct = TestContext.Current.CancellationToken;
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
         var creada = await _client.PostAsJsonAsync(RutaJornadas, firma.PayloadCrear(jornadaId), ct);
         creada.StatusCode.Should().Be(HttpStatusCode.Created);
-        var streamPreferencias = PostgresFixture.StreamIdPreferencias(postgres.TenantId);
+        var streamPreferencias = PostgresFixture.StreamIdPreferencias(_tenant.TenantId);
         var asignacionesAntes = await postgres.ContarEventosAsync(
             PostgresFixture.SchemaProgramacion, streamPreferencias, TipoEvento);
-
-        await _limpieza.RecordarPredeterminadaAsync(_client);
         var asignada = await _client.PutAsJsonAsync(RutaPredeterminada, new { jornadaId }, ct);
 
         asignada.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -48,16 +44,16 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
         (await postgres.ContarEventosAsync(PostgresFixture.SchemaProgramacion, streamPreferencias, TipoEvento))
             .Should().Be(asignacionesAntes + 1);
         var eventos = await postgres.LeerEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamPreferencias);
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamPreferencias);
         eventos[^1].GetProperty("JornadaId").GetGuid().Should().Be(jornadaId);
 
         var eventosTrasPrimera = await postgres.ContarEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamPreferencias);
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamPreferencias);
         var repetida = await _client.PutAsJsonAsync(RutaPredeterminada, new { jornadaId }, ct);
 
         repetida.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await postgres.ContarEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamPreferencias))
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamPreferencias))
             .Should().Be(eventosTrasPrimera);
     }
 

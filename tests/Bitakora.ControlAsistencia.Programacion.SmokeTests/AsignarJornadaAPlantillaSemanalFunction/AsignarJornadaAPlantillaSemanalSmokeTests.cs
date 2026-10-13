@@ -6,25 +6,23 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarJornadaAPlantillaSemanalFunction;
 
 public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
-    : IAsyncDisposable
+    : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string TipoEventoAsignada = "jornada_de_plantilla_semanal_asignada";
     private const string TipoEventoAdvertencias = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private async Task<(Guid PlantillaId, Guid JornadaId)> CrearPlantillaYJornadaAsync(
         FirmaDeLimites firma, CancellationToken ct)
     {
-        await _limpieza.PrepararAsync(firma);
         var plantillaId = Guid.CreateVersion7();
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
 
         (await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
         {
@@ -82,13 +80,13 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
         var eventosTrasPrimera = await postgres.ContarEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamId);
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamId);
 
         var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         var eventosTrasSegunda = await postgres.ContarEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamId);
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamId);
         eventosTrasSegunda.Should().Be(eventosTrasPrimera);
     }
 
@@ -99,7 +97,6 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
     public async Task AsignarJornada_DebeAutocorregirLaCopia_CuandoLosLimitesDeLaJornadaCambiaron()
     {
         var destino = LimitesDePrueba.AsignarAPlantillaAutocorrigeDestino;
-        await _limpieza.PrepararAsync(destino);
         var ct = TestContext.Current.CancellationToken;
         var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(
             LimitesDePrueba.AsignarAPlantillaAutocorrigeOrigen, ct);
@@ -113,7 +110,7 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         var copias = (await postgres.LeerEventosDeStreamAsync(
-                PostgresFixture.SchemaProgramacion, postgres.TenantId, plantillaId.ToString()))
+                PostgresFixture.SchemaProgramacion, _tenant.TenantId, plantillaId.ToString()))
             .Where(e => e.TryGetProperty("VersionJornada", out _))
             .ToList();
         copias.Should().HaveCount(2, "la reasignacion con la copia atrasada emite la autocorreccion");
