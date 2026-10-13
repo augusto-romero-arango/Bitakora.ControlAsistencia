@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.MultiTenancy;
@@ -9,6 +10,25 @@ public partial class DesactivarJornadaCommandHandler(
     IEventStore eventStore, ILectorPlantillasPorJornada lectorPlantillas, ITenantContext tenantContext)
     : ICommandHandlerAsync<Comando>
 {
-    public Task HandleAsync(Comando command, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task HandleAsync(Comando command, CancellationToken ct = default)
+    {
+        var jornada = await eventStore.GetAggregateRootAsync<Jornada>(command.JornadaId.ToString(), ct);
+        if (jornada is null)
+            throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
+
+        if (!jornada.Activa)
+            return;
+
+        var preferencias = await eventStore.GetAggregateRootAsync<PreferenciasProgramacion>(
+            PreferenciasProgramacion.ComputarStreamId(tenantContext.TenantId), ct);
+        if (preferencias?.JornadaPredeterminada() == command.JornadaId)
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaPredeterminada);
+
+        var plantillas = await lectorPlantillas.ObtenerPlantillaIdsAsync(command.JornadaId, ct);
+        if (plantillas.Count > 0)
+            throw new ReglaDeNegocioDeclinadaException(
+                $"{Mensajes.JornadaEnUsoPorPlantillas} {string.Join(", ", plantillas)}");
+
+        jornada.Desactivar();
+    }
 }

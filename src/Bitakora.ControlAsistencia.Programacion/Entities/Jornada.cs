@@ -22,11 +22,20 @@ public partial class Jornada : AggregateRoot
         _activa = true;
     }
 
-    public void Apply(JornadaDesactivada evento) => throw new NotImplementedException();
+    public void Apply(JornadaDesactivada evento) => _activa = false;
 
     internal bool Activa => _activa;
 
-    internal ResultadoDesactivarJornada Desactivar() => throw new NotImplementedException();
+    internal ResultadoDesactivarJornada Desactivar()
+    {
+        if (!_activa)
+            return ResultadoDesactivarJornada.YaInactiva;
+
+        var evento = new JornadaDesactivada(_jornadaId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoDesactivarJornada.Desactivada;
+    }
 
     public void Apply(LimitesJornadaModificados evento)
     {
@@ -54,7 +63,8 @@ public partial class Jornada : AggregateRoot
         Convertir(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana,
         _limites.ToString(),
-        predeterminadaId == _jornadaId);
+        predeterminadaId == _jornadaId,
+        _activa);
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 
