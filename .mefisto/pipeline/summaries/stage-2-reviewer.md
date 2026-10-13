@@ -1,22 +1,28 @@
-# Stage 2 - Reviewer (#886)
+# Stage 2 - Reviewer (issue #994)
 
 ## Resultado
+Los cambios del writer cubren CA-1, CA-2, CA-3, CA-4 y CA-6: workflow semanal + `workflow_dispatch` con `secrets.POSTGRES_CONNECTION_STRING`, SQL por schema (`programacion`, `control_horas`, `colaboradores`, `sedes` -- coinciden con `SchemaDelDominio` del worker de proyecciones), una transaccion por schema, limite `max(seq_id) < min(last_seq_id)`, antiguedad > 24 h, orden `mt_events` -> `mt_streams`, `mt_doc_*` por `mt_last_modified`, summary con filas y limite, y CA-ADR-0040 (decision 7) mas la fila de `CLAUDE.md` actualizados. No se tocaron rutas prohibidas.
 
-Aprobado con correcciones menores. La enmienda del writer cumple CA-1..CA-4: decision 2 reescrita (porque,
-correccion de MEF-ADR-0046, cinco lineas de mecanica, `CatalogoTurnos` como stream por turno), decision 5 en
-N1 con datos propios conservando el rechazo del grouper y declarando la ventana eventual, Consecuencias /
-Estado / Control de cambios con las referencias pedidas, y fila del indice tematico de `CLAUDE.md`
-actualizada. Solo documentacion; ninguna ruta prohibida tocada.
+Habia un bug bloqueante: la guarda de `TRUNCATE` hacia `grep -i truncate` sobre el archivo SQL completo, y el comentario "Nunca TRUNCATE" del encabezado la disparaba siempre. El job habria abortado en cada ejecucion.
+
+CA-5 (evidencia en dev tras un `workflow_dispatch`, sin aviso de high water en App Insights y con el smoke de Programacion pasando) queda pendiente: requiere ejecutarlo en dev despues del merge.
 
 ## Correcciones
-
-- CA-5: la decision 4 seguia diciendo sin matiz que "PUT con el mismo turno" es no-op; se agrega la precision
-  de la autocorreccion (no-op solo si la copia esta al dia), coherente con la decision 2 y CA-ADR-0035.
-- Referencias: MEF-ADR-0046 anotado como "citado para declarar que no aplica".
-- Reflujo de lineas largas (>120) introducidas en "Estado" y "Referencias".
+- `scripts/limpiar-tenants-smoke.sh`:
+  - La guarda estatica ahora evalua el SQL sin comentarios `--`. Tambien exige al menos un `DELETE FROM`, no distingue mayusculas y tolera espacios variables.
+  - La salida de `psql` (NOTICE y errores) se ve en el log del job. Antes iba a `/dev/null` y un fallo quedaba sin diagnostico.
+  - El parseo de la cadena Npgsql recorta los espacios alrededor de las claves (p. ej. `; Database=`).
+- `scripts/limpiar-tenants-smoke.sql`:
+  - Nueva guarda en tiempo de ejecucion: si la tabla temporal `elegibles` contiene un tenant fuera de `tenant-smoke*`, aborta con `RAISE EXCEPTION`.
+  - `set_config` se ejecuta con `\gset` para que no imprima una fila suelta en la salida.
 
 ## Verificacion
-
-- Revision del diff completo contra el issue y busqueda de restos contradictorios (`snapshot`, `FichaTurno`,
-  `sin copia`, `drift`) en el ADR: solo quedan menciones historicas o marcadas como superadas.
-- Sin codigo C#: no aplica build ni tests.
+- `bash -n` sobre el script: OK.
+- Script ejecutado con un `psql` simulado: variables PG* bien derivadas (incluye un password con `=`), summary en `$GITHUB_STEP_SUMMARY` con tablas de limite y filas.
+- Guardas negativas: un `DELETE` sin filtro -> rc=1; un `TRUNCATE` real -> rc=1; el SQL real pasa.
+- SQL ejecutado contra un Postgres local efimero (`initdb`/`pg_ctl`) con tablas tipo Marten conjoined:
+  - Solo se borraron los streams de `tenant-smoke`/`tenant-smoke-*` con antiguedad > 24 h y `max(seq_id) < 50` (el min de la progresion).
+  - Se conservaron: el stream con `max = 50` (limite estricto), el stream reciente, `tenant-real` y `tenant-smokex`.
+  - En `mt_doc_vista` solo se borro el documento smoke viejo.
+  - Un schema sin tablas -> `OMITIDO`; un schema no permitido (`public`) -> error.
+- No hay codigo C# en el diff; no aplica `dotnet build`/`test`.

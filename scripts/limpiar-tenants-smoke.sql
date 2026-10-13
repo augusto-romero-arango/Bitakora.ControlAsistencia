@@ -8,7 +8,7 @@
 --  * Orden: mt_events y luego mt_streams (FK). Nunca TRUNCATE.
 -- Salida: lineas "RESULT|schema|tabla|filas" y "LIMITE|schema|seq_id" via RAISE NOTICE.
 BEGIN;
-SELECT set_config('smoke.schema', :'schema', true);
+SELECT set_config('smoke.schema', :'schema', true) AS smoke_schema \gset
 
 DO $limpieza$
 DECLARE
@@ -44,6 +44,12 @@ BEGIN
           AND (SELECT max(e.seq_id) FROM %1$I.mt_events e
                WHERE e.tenant_id = s.tenant_id AND e.stream_id = s.id) < %2$L
     $q$, v_schema, v_limite);
+
+    -- Guarda en tiempo de ejecucion (CA-2): ningun stream elegible fuera de tenant-smoke*.
+    IF EXISTS (SELECT 1 FROM elegibles
+               WHERE NOT (tenant_id = 'tenant-smoke' OR tenant_id LIKE 'tenant-smoke-%')) THEN
+        RAISE EXCEPTION 'Guarda: stream elegible fuera de tenant-smoke en %', v_schema;
+    END IF;
 
     EXECUTE format($q$
         DELETE FROM %1$I.mt_events e USING elegibles x

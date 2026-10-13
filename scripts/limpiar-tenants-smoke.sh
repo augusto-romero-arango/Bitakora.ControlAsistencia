@@ -7,13 +7,21 @@ set -euo pipefail
 dir="$(cd "$(dirname "$0")" && pwd)"
 sql="$dir/limpiar-tenants-smoke.sql"
 
-# Guarda (CA-2): toda sentencia DELETE del script debe filtrar por tenant; sin TRUNCATE.
-if grep -qiE 'truncate' "$sql"; then echo "::error::El script contiene TRUNCATE"; exit 1; fi
-sin_filtro=$(awk 'BEGIN{RS=";"} /DELETE FROM/ && !/tenant-smoke/ {c++} END{print c+0}' "$sql")
-if [ "$sin_filtro" -ne 0 ]; then echo "::error::DELETE sin filtro de tenant-smoke"; exit 1; fi
+# Guarda estatica (CA-2): sobre el SQL sin comentarios, ninguna sentencia TRUNCATE y toda
+# sentencia DELETE filtra por tenant-smoke. Los comentarios se excluyen para que la
+# documentacion del propio script ("Nunca TRUNCATE") no dispare la guarda.
+codigo="$(sed -e 's/--.*$//' "$sql")"
+if printf '%s\n' "$codigo" | grep -qiE '\btruncate\b'; then echo "::error::El script contiene TRUNCATE"; exit 1; fi
+n_delete=$(printf '%s\n' "$codigo" | awk 'BEGIN{RS=";"} toupper($0) ~ /DELETE[[:space:]]+FROM/ {c++} END{print c+0}')
+sin_filtro=$(printf '%s\n' "$codigo" | awk 'BEGIN{RS=";"} toupper($0) ~ /DELETE[[:space:]]+FROM/ && !/tenant-smoke/ {c++} END{print c+0}')
+if [ "$n_delete" -eq 0 ] || [ "$sin_filtro" -ne 0 ]; then echo "::error::DELETE sin filtro de tenant-smoke"; exit 1; fi
 
 # Convertir cadena Npgsql (Host=..;Database=..;Username=..;Password=..) a variables PG*.
-get() { printf '%s' "$POSTGRES_CONNECTION_STRING" | tr ';' '\n' | awk -F= -v k="$1" 'tolower($1)==tolower(k){sub(/^[^=]*=/,""); print; exit}'; }
+get() {
+  printf '%s' "$POSTGRES_CONNECTION_STRING" | tr ';' '\n' | awk -F= -v k="$1" '
+    { clave=$1; gsub(/^[[:space:]]+|[[:space:]]+$/, "", clave) }
+    tolower(clave)==tolower(k) { sub(/^[^=]*=/, ""); print; exit }'
+}
 PGHOST="$(get Host)"; [ -n "$PGHOST" ] || PGHOST="$(get Server)"
 PGPORT="$(get Port)"; [ -n "$PGPORT" ] || PGPORT=5432
 PGDATABASE="$(get Database)"
@@ -27,7 +35,8 @@ salida="$(mktemp)"
 trap 'rm -f "$salida"' EXIT
 for schema in programacion control_horas colaboradores sedes; do
   echo "== Schema $schema =="
-  psql -v ON_ERROR_STOP=1 -v schema="$schema" -X -q -f "$sql" 2>&1 | tee -a "$salida" >/dev/null
+  # La salida (NOTICE y errores) queda en el log del job y en $salida para el summary.
+  psql -v ON_ERROR_STOP=1 -v schema="$schema" -X -q -f "$sql" 2>&1 | tee -a "$salida"
 done
 
 {
