@@ -230,13 +230,12 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
 
             var candidato = elementos[0];
             var casillasProyectadas = candidato.GetProperty("casillas");
-            if (casillasProyectadas.GetArrayLength() != 7
-                || casillasProyectadas.EnumerateArray()
-                    .Any(c => c.GetProperty("tipo").GetString() != "Trabajo"))
-                return false;
-
-            elemento = candidato.Clone();
-            return true;
+            var semanaCompleta = casillasProyectadas.GetArrayLength() == 7
+                && casillasProyectadas.EnumerateArray()
+                    .All(c => c.GetProperty("tipo").GetString() == "Trabajo");
+            if (semanaCompleta)
+                elemento = candidato.Clone();
+            return semanaCompleta;
         }, Timeout);
         proyectada.Should().BeTrue(
             "la semana debia quedar proyectada completa (7 casillas en Trabajo) dentro del timeout");
