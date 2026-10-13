@@ -56,13 +56,27 @@ on:
       AZURE_SUBSCRIPTION_ID:
         required: true
 
-# Exclusion deliberada frente a smoke-tests-dominio.yml: SIN grupo de concurrencia
-# 'smoke-tests-dev' (decision 1 del refinamiento del issue #516). La razon de ser de ese grupo es
-# que dos suites consumiendo la unica suscripcion 'smoke-tests' del Service Bus de dev se roban
-# mutuamente los mensajes (cada CompleteMessageAsync de una destruye el que la otra esperaba).
-# Esta suite es fase 1: solo lectura + error paths -- no consume mensajes de Service Bus ni
-# compite con las otras suites por ningun recurso. Si algun dia gana una fase de siembra e2e
-# ([TEST] + polling via MCP), ESE issue la mete al grupo.
+# Esta suite entra al grupo de concurrencia 'smoke-tests-dev' de smoke-tests-dominio.yml (issue
+# #1023; antes quedaba fuera por la decision 1 del refinamiento del issue #516, cuando era solo
+# lectura). Ahora tiene fase de siembra e2e ([TEST] + polling via MCP): sus escrituras publican a
+# los topics de dev (p. ej. 'DiaDepurado' en 'dia-depurado') que consumen las suites de dominio
+# por la unica suscripcion 'smoke-tests'. Corriendo a la vez, la suite de dominio recibe mensajes
+# ajenos y falla (push 2026-10-13 22:01, runs 38474825652 y 38474825774).
+#
+# Mismo grupo, no uno propio: el recurso en disputa es esa suscripcion y la comparten todas las
+# suites. El nombre es un literal fijo (nunca ${{ github.workflow }}: un workflow llamado hereda
+# el nombre del caller y daria un grupo distinto por invocador). cancel-in-progress: false para no
+# cancelar el smoke que verifica un deploy en curso; 'queue: max' porque con 'single' la tercera
+# corrida en llegar cancelaria a la que espera (un push a PublicEvents/PrivateEvents dispara
+# varios deploys a la vez). Detalle en smoke-tests-dominio.yml.
+#
+# OJO si corres actionlint local: hasta 1.7.12 no conoce 'queue' y lo reporta como clave
+# inesperada. Es atraso del linter, no un error; no borres la linea por ese hallazgo.
+concurrency:
+  group: smoke-tests-dev
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   smoke-tests:
     runs-on: ubuntu-latest
