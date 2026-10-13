@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurnoPorGrupo;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
@@ -99,9 +100,10 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         return new Entorno
         {
             Tool = new SolicitarProgramacionTurnoPorGrupoTool(
-                new ProgramacionApi(clienteProgramacion),
-                new SedesApi(clienteSedes),
-                new ColaboradoresApi(clienteColaboradores)),
+                new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+                new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+                new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+                new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores))),
             Programacion = programacion,
             Sedes = sedes,
             Colaboradores = colaboradores,
@@ -526,7 +528,9 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         var (clienteColaboradores, _) = ClienteFalso.Con("boom", HttpStatusCode.InternalServerError);
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await tool.Run(
             null!, VentanaDesde, VentanaHasta, Turno, SedeProgramacion, null, "area:cocina",

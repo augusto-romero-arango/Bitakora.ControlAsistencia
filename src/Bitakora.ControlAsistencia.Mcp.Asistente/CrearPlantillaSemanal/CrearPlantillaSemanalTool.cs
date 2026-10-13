@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantillaSemanal;
 // huerfanas). Cada rechazo por dia se traduce a texto y no detiene al resto (CA-ADR-0030): la
 // plantilla queda incompleta y visible. Un dia puede traer una franja inline (CA-ADR-0034 decision
 // 6): el turno se resuelve/crea en el catalogo con nombre derivado antes de escribir la plantilla.
-public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
+public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "crear_plantilla_semanal";
     internal const int MinimoSemanas = 1;
@@ -23,8 +23,6 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion)
     internal const int DiasPorSemana = 7;
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("CrearPlantillaSemanal")]
     public async Task<string> Run(

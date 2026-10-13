@@ -50,9 +50,10 @@ public class SolicitarProgramacionTurnoToolTests
             directorioJson ?? DirectorioJson, statusDirectorio);
 
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
         return new Fakes(tool, handlerProgramacion, handlerSedes, handlerColaboradores);
     }
@@ -224,9 +225,10 @@ public class SolicitarProgramacionTurnoToolTests
         var (clienteColaboradores, _) = ClienteFalso.Con(DirectorioJson, HttpStatusCode.OK);
 
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await Ejecutar(
             tool, identificaciones: "CC-1111,CC-2222", ct: TestContext.Current.CancellationToken);
@@ -467,9 +469,10 @@ public class SolicitarProgramacionTurnoToolTests
                 Content = new StringContent(directorio, Encoding.UTF8, "application/json")
             });
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
         var identificaciones = string.Join(",", entradas.Select(e => e.identificacion));
 
         var resultado = await Ejecutar(tool, identificaciones: identificaciones, ct: TestContext.Current.CancellationToken);

@@ -7,11 +7,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarFranja;
 // Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id + ficha vigente
 // para el eco) + POST programacion/turnos/{id}:quitar-franja (paso 4 MEF-ADR-0043). El 404/409 del
 // POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
-public partial class QuitarFranjaTool(ProgramacionApi programacion)
+public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "quitar_franja";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("QuitarFranja")]
     public async Task<string> Run(

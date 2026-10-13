@@ -8,12 +8,10 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarFranja;
 // ResolutorTurnoPorNombre) + GET sedes/fichas/{codigo} (solo si viene codigo_sede) + POST
 // programacion/turnos/{id}:agregar-franja (paso 4 MEF-ADR-0043). El 400/404/409 del POST se
 // traduce a texto, nunca a excepcion (CA-ADR-0030).
-public partial class AgregarFranjaTool(ProgramacionApi programacion, SedesApi sedes)
+public partial class AgregarFranjaTool(
+    ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "agregar_franja";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
-    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
 
     [Function("AgregarFranja")]
     public async Task<string> Run(

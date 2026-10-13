@@ -8,11 +8,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.RetirarTurno;
 // ResolutorTurnoPorNombre) + DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043): referencia
 // por nombre, mismo resolutor que solicitar_programacion_turno (MEF-ADR-0018). El 404/409 del
 // DELETE se devuelve como texto, nunca como excepcion (CA-ADR-0030).
-public partial class RetirarTurnoTool(ProgramacionApi programacion)
+public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "retirar_turno";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("RetirarTurno")]
     public async Task<string> Run(

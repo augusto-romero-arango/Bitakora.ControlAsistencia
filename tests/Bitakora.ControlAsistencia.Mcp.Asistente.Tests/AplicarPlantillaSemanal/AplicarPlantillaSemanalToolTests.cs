@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AplicarPlantillaSemanal;
@@ -124,7 +125,9 @@ public class AplicarPlantillaSemanalToolTests
 
         var tool = new AplicarPlantillaSemanalTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
         return new Entorno(tool, programacion);
     }
 

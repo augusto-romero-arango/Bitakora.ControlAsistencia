@@ -41,7 +41,9 @@ public class AsignarTurnoADiaToolTests
         handler.Responde(
             HttpMethod.Put, $"{RutaPlantillas}/{PlantillaIdCocina}/dias/{semana}/{diaIso}", statusPut, cuerpoPut);
 
-        var tool = new AsignarTurnoADiaTool(new ProgramacionApi(cliente));
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new AsignarTurnoADiaTool(
+            programacionApi, new ResolutorPlantillaPorNombre(programacionApi), new ResolutorTurnoPorNombre(programacionApi));
         return new Fakes(tool, handler);
     }
 

@@ -58,7 +58,9 @@ public class CrearPlantillaSemanalToolTests
             $"{RutaTurnos}/",
             (_, cuerpo) => new HttpResponseMessage(statusAgregarFranja?.Invoke(cuerpo) ?? HttpStatusCode.NoContent));
 
-        var tool = new CrearPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new CrearPlantillaSemanalTool(
+            programacionApi, new ResolutorTurnoPorNombre(programacionApi));
         return new Fakes(tool, handler);
     }
 
@@ -308,7 +310,9 @@ public class CrearPlantillaSemanalToolTests
                 { Content = new StringContent(motivoRechazo, Encoding.UTF8, "application/json") }
                 : new HttpResponseMessage(HttpStatusCode.NoContent));
 
-        var tool = new CrearPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new CrearPlantillaSemanalTool(
+            programacionApi, new ResolutorTurnoPorNombre(programacionApi));
 
         var resultado = await tool.Run(
             null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, TestContext.Current.CancellationToken);

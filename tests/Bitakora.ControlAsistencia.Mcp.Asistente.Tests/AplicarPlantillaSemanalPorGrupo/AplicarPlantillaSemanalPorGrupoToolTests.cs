@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanalPorGrupo;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 using Microsoft.Extensions.Logging;
 
@@ -125,7 +126,9 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
 
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores), logger);
+            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)), logger);
         return new Entorno(tool, programacion, consultas);
     }
 
@@ -430,7 +433,9 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         var (clienteColaboradores, _) = ClienteFalso.Con("boom", HttpStatusCode.InternalServerError);
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await tool.Run(
             null!, "2026-09-01", "2026-09-14", "Semana A", null, null, "area:cocina",
