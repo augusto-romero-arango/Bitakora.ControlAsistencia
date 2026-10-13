@@ -91,6 +91,19 @@ public static class AssertsProyecciones
     }
 
     /// <summary>
+    /// El daemon del named store salta un hueco de secuencia estancado tras 5 minutos aunque vea
+    /// transacciones vivas. El 5 es literal (oraculo independiente, MEF-ADR-0002): no leerlo de la
+    /// fuente de produccion. Como AsyncMode, la opcion solo se expone en StoreOptions.
+    /// </summary>
+    public static void AssertSaltoDeHuecosEstancadosEnCincoMinutos(this IDocumentStore store)
+    {
+        var opciones = (StoreOptions)store.Options;
+
+        opciones.Projections.SkipStaleGapsDespiteLiveTransactionsAfter
+            .Should().Be(TimeSpan.FromMinutes(5));
+    }
+
+    /// <summary>
     /// El named store lee el event store con la misma identidad de stream que el write-side ya
     /// declara (Cosmos.EventSourcing.CritterStack 2.1.0: Events.StreamIdentity = AsString): los
     /// stream keys de este BC son siempre strings -- e.Id.ToString() en la raiz de solicitud,

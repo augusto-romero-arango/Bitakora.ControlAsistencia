@@ -364,6 +364,40 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 
+    // --- Tolerancia a huecos de secuencia estancados, un test por store ---
+
+    [Fact]
+    public void ConfigurarProgramacion_FijaElSaltoDeHuecosEstancadosEnCincoMinutos()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>().AssertSaltoDeHuecosEstancadosEnCincoMinutos();
+    }
+
+    [Fact]
+    public void ConfigurarControlHoras_FijaElSaltoDeHuecosEstancadosEnCincoMinutos()
+    {
+        using var provider = ProviderDeControlHoras();
+
+        provider.GetRequiredService<IControlHorasProjectionStore>().AssertSaltoDeHuecosEstancadosEnCincoMinutos();
+    }
+
+    [Fact]
+    public void ConfigurarColaboradores_FijaElSaltoDeHuecosEstancadosEnCincoMinutos()
+    {
+        using var provider = ProviderDeColaboradores();
+
+        provider.GetRequiredService<IColaboradoresProjectionStore>().AssertSaltoDeHuecosEstancadosEnCincoMinutos();
+    }
+
+    [Fact]
+    public void ConfigurarSedes_FijaElSaltoDeHuecosEstancadosEnCincoMinutos()
+    {
+        using var provider = ProviderDeSedes();
+
+        provider.GetRequiredService<ISedesProjectionStore>().AssertSaltoDeHuecosEstancadosEnCincoMinutos();
+    }
+
     // --- ControlHoras (CA-2, CA-3, CA-6, CA-7) ---
 
     [Fact]
