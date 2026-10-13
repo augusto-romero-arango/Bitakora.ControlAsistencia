@@ -13,7 +13,8 @@ public sealed record CandidatoProgramacion(
     string NombreCompleto,
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
-    string? CodigoSede = null);
+    string? CodigoSede = null,
+    Guid? JornadaId = null);
 
 public sealed record ResultadoEjecucion(
     IReadOnlyList<ColaboradorProgramadoResumen> Programados,
@@ -141,7 +142,8 @@ internal static class EjecutorDeProgramacion
                         envio.Entrada.CodigoColaborador,
                         envio.Entrada.NombreCompleto),
                     envio.Dias,
-                    planDeSede.Para(envio.Entrada).Sede);
+                    planDeSede.Para(envio.Entrada).Sede,
+                    envio.Entrada.JornadaId);
 
                 var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
 
