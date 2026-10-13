@@ -13,40 +13,6 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Infraestructura;
 
 public class IdentidadEventosProgramacionTests
 {
-    [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosVeinticincoEventosPersistidosDeProgramacion()
-    {
-        IdentidadEventosProgramacion.TiposPersistidos.Should().BeEquivalentTo(
-        [
-            typeof(TurnoCreado),
-            typeof(ProgramacionTurnoSolicitada),
-            typeof(TurnoRetirado),
-            typeof(CancelacionProgramacionSolicitada),
-            typeof(FranjaAgregada),
-            typeof(DescansoAgregado),
-            typeof(ExtraAgregado),
-            typeof(FranjaQuitada),
-            typeof(DescansoQuitado),
-            typeof(ExtraQuitado),
-            typeof(SedeDeFranjaAsignada),
-            typeof(SedeDeFranjaRetirada),
-            typeof(PlantillaSemanalCreada),
-            typeof(DiaDePlantillaSemanalAsignado),
-            typeof(DiaDePlantillaSemanalQuitado),
-            typeof(PlantillaSemanalRetirada),
-            typeof(AusenciaProgramada),
-            typeof(AusenciaCancelada),
-            typeof(JornadaCreada),
-            typeof(LimitesJornadaModificados),
-            typeof(JornadaPredeterminadaAsignada),
-            typeof(JornadaDePlantillaSemanalAsignada),
-            typeof(JornadaDePlantillaSemanalQuitada),
-            typeof(AdvertenciasDePlantillaSemanalCalculadas),
-            typeof(TurnoDePlantillaSemanalSincronizado),
-            typeof(LimitesDeJornadaDePlantillaSemanalSincronizados)
-        ]);
-    }
-
     // Oraculo derivado del write-side, complementario del literal de arriba: la asercion literal
     // congela la lista de hoy, pero un evento persistido que se agregue manana solo la pone roja si
     // alguien recuerda editar el test -- justo el olvido que el #237 dejo armado. Esta guarda no

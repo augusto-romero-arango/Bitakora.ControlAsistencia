@@ -11,6 +11,7 @@ public partial class Jornada : AggregateRoot
     private Guid _jornadaId;
     private LimitesJornada _limites = null!;
     private long _version;
+    private bool _activa;
 
     public void Apply(JornadaCreada evento)
     {
@@ -18,7 +19,14 @@ public partial class Jornada : AggregateRoot
         _jornadaId = evento.JornadaId;
         Id = _jornadaId.ToString();
         _limites = evento.Limites;
+        _activa = true;
     }
+
+    public void Apply(JornadaDesactivada evento) => throw new NotImplementedException();
+
+    internal bool Activa => _activa;
+
+    internal ResultadoDesactivarJornada Desactivar() => throw new NotImplementedException();
 
     public void Apply(LimitesJornadaModificados evento)
     {
