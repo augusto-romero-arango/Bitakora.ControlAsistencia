@@ -31,8 +31,8 @@ public class ListarSedesTool(SedesApi api)
         var respuesta = await api.ListarFichasActivas(ct);
         respuesta.EnsureSuccessStatusCode();
 
-        var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaSede>>(ct)
-            ?? [];
+        IReadOnlyList<FichaSede> fichas =
+            (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaSede>>(ct))?.Elementos ?? [];
 
         if (!string.IsNullOrWhiteSpace(filtroNombre))
             fichas = [.. fichas.Where(f => FiltroDeNombre.Contiene(f.Nombre, filtroNombre))];
