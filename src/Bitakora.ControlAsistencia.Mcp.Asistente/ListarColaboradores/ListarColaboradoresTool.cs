@@ -68,7 +68,7 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
 
         respuesta.EnsureSuccessStatusCode();
 
-        var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaColaborador>>(ct)
+        var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaColaborador>>(ct))?.Elementos
             ?? [];
 
         var visibles = fichas.Take(MaximoColaboradores).Select(Remodelar).ToList();

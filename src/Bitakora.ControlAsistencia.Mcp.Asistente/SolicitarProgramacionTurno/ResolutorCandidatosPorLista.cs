@@ -15,7 +15,7 @@ public sealed class ResolutorCandidatosPorLista(ColaboradoresApi colaboradores)
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoCandidatos([], fallo);
 
-        var directorio = await respuesta.Content.ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
+        var directorio = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos.ToList() ?? [];
         var normalizadas = identificaciones.Select(i => i.Trim().ToUpperInvariant()).ToHashSet();
 
         var candidatos = directorio

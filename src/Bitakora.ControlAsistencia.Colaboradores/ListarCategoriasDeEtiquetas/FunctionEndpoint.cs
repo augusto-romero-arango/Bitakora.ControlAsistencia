@@ -20,8 +20,16 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarCategoriasDeEtiquetas;
 // centinela ni equivalente) -- MEF-ADR-0041 decision 4, "el DTO de respuesta es excepcion".
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
-    internal static ListaCategoriasDeEtiquetas Componer(IReadOnlyList<CategoriaDeEtiquetas> filas, int? take) =>
-        throw new NotImplementedException();
+    private const int TakeMaximo = 200;
+
+    internal static ListaCategoriasDeEtiquetas Componer(IReadOnlyList<CategoriaDeEtiquetas> filas, int? take)
+    {
+        if (take is not { } t || filas.Count <= t)
+            return new ListaCategoriasDeEtiquetas(filas, null);
+
+        var pagina = filas.Take(t).ToList();
+        return new ListaCategoriasDeEtiquetas(pagina, CursorCategoria.Codificar(pagina[^1].Id));
+    }
 
     [Function("ListarCategoriasDeEtiquetas")]
     public async Task<IActionResult> Run(
@@ -33,6 +41,22 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // ITenantContext -- nunca a un tenant id que llegara por ruta o query string (mitigacion
         // estructural contra BOLA/IDOR, skills/projections/read-apis.md). Este GET no recibe ningun
         // segmento de ruta que pudiera confundirse con un tenant.
+        int? take = null;
+        if (req.Query.TryGetValue("take", out var takeCrudo) && takeCrudo.Count > 0)
+        {
+            if (!int.TryParse(takeCrudo[0], out var valor) || valor < 1 || valor > TakeMaximo)
+                return new BadRequestObjectResult($"take debe ser un entero entre 1 y {TakeMaximo}");
+            take = valor;
+        }
+
+        string? cursorId = null;
+        if (req.Query.TryGetValue("cursor", out var cursorCrudo) && !string.IsNullOrEmpty(cursorCrudo[0]))
+        {
+            if (!CursorCategoria.TryDecodificar(cursorCrudo[0]!, out var decodificado))
+                return new BadRequestObjectResult("El cursor no es valido");
+            cursorId = decodificado;
+        }
+
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         // Opcion B (decision de refinamiento): catalogo entero de un tiro, sin filtros ni
@@ -46,10 +70,15 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // el catalogo entre aperturas del control) veria un diff espurio. Mismo criterio que los
         // otros dos listados del BC (ListarFichasColaborador, ListarTurnosVigentes), aqui sin
         // cursor porque no hay paginacion.
-        var categorias = await session.Query<CategoriaDeEtiquetas>()
-            .OrderBy(categoria => categoria.Id)
-            .ToListAsync(ct);
+        IQueryable<CategoriaDeEtiquetas> query = session.Query<CategoriaDeEtiquetas>();
+        if (cursorId is not null)
+            query = query.Where(categoria => categoria.Id.CompareTo(cursorId) > 0);
 
-        return new OkObjectResult(categorias);
+        var ordenada = query.OrderBy(categoria => categoria.Id);
+        var filas = take is { } t
+            ? await ordenada.Take(t + 1).ToListAsync(ct)
+            : await ordenada.ToListAsync(ct);
+
+        return new OkObjectResult(Componer(filas, take));
     }
 }

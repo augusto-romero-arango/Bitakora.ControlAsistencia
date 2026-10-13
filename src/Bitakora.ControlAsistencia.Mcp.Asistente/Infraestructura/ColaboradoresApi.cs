@@ -26,7 +26,7 @@ public sealed class ColaboradoresApi(HttpClient http)
         IReadOnlyList<FiltroEtiqueta> etiquetas,
         int? take,
         CancellationToken ct,
-        CursorFichas? cursor = null)
+        string? cursor = null)
     {
         var request = new HttpRequestMessage(Query, "api/colaboradores/fichas")
         {
@@ -72,9 +72,6 @@ public sealed class ColaboradoresApi(HttpClient http)
     public Task<HttpResponseMessage> Registrar(RegistroColaboradorSolicitado datos, CancellationToken ct) =>
         http.PostAsJsonAsync("api/colaboradores", datos, ct);
 }
-
-/// <summary>Cursor keyset {NombreCompleto, Id} de la ultima ficha de la pagina anterior.</summary>
-public sealed record CursorFichas(string NombreCompleto, string Id);
 
 /// <summary>Par categoria:valor SIN normalizar, tal como lo espera el body del QUERY upstream.</summary>
 public sealed record FiltroEtiqueta(string Categoria, string Valor);

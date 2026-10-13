@@ -59,7 +59,7 @@ public partial class BuscarColaboradoresTool(ColaboradoresApi api)
 
         respuesta.EnsureSuccessStatusCode();
 
-        var entradas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<EntradaDirectorio>>(ct)
+        var entradas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(ct))?.Elementos
             ?? [];
 
         var visibles = entradas.Take(MaximoColaboradores).Select(Remodelar).ToList();
