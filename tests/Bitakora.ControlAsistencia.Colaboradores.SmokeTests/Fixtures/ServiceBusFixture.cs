@@ -132,9 +132,7 @@ public class ServiceBusFixture : IAsyncLifetime
                 }
 
                 await receiver.CompleteMessageAsync(received);
-                throw new InvalidOperationException(
-                    $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
-                    $"Contenido: {received.Body}");
+                continue;
             }
             catch (JsonException)
             {
