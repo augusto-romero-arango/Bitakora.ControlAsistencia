@@ -59,6 +59,7 @@ public sealed record EtiquetaFicha(string Categoria, string Valor);
 /// #520). Parametro opcional al final del record para no romper la posicion de los constructores
 /// posicionales existentes (mismo criterio que VinculacionIniciada.CodigoSede).
 /// </remarks>
+[MaterializadoPorProyeccion]
 public sealed record FichaColaborador(
     string Id,
     string NombreCompleto,
@@ -67,7 +68,8 @@ public sealed record FichaColaborador(
     DateOnly VigenteHasta,
     IReadOnlyList<EtiquetaFicha> Etiquetas,
     IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
-    string? CodigoSede = null)
+    string? CodigoSede = null,
+    Guid? JornadaId = null)
 {
     /// <summary>
     /// Valor de <see cref="VigenteHasta"/> que significa "vinculacion abierta" (sin terminacion

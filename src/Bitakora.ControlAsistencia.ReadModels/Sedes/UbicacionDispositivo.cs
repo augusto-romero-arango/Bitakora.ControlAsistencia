@@ -20,4 +20,5 @@ namespace Bitakora.ControlAsistencia.ReadModels.Sedes;
 /// No es calco del aggregate: SedeAggregateRoot modela una lista de dispositivos por sede; esta
 /// vista invierte la relacion -- una sede por dispositivo (MEF-ADR-0041).
 /// </remarks>
+[MaterializadoPorProyeccion]
 public sealed record UbicacionDispositivo(string Id, string SedeId);

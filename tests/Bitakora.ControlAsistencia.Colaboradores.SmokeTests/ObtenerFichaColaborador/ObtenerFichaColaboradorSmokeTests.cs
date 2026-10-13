@@ -80,7 +80,10 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
         DateOnly? VigenteHasta,
         IReadOnlyList<EtiquetaFichaSmoke> Etiquetas,
         IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
-        string? CodigoSede = null);
+        string? CodigoSede = null,
+        Guid? JornadaId = null);
+
+    private sealed record DirectorioJornadaSmoke(string Identificacion, Guid? JornadaId);
 
     // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
     // identidad del stream (y por lo tanto el Id de la ficha) es Identificacion.ToString()
@@ -100,6 +103,8 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
     // puedan asumir compartiendo el mismo metodo.
     private static string IdDeRuta(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
+
+    private static readonly HttpMethod MetodoQuery = new("QUERY");
 
     private static string Ruta(string id) => $"/api/colaboradores/fichas/{id}";
 
@@ -335,6 +340,51 @@ public class ObtenerFichaColaboradorSmokeTests(ApiFixture api)
 
         respuesta.CodigoSede.Should().BeNull(
             "el reingreso sin codigoSede debe limpiar la sede de la vinculacion anterior");
+    }
+
+    private Task<DirectorioJornadaSmoke> EsperarDirectorioAsync(
+        string id, CancellationToken ct, Func<DirectorioJornadaSmoke, bool> hasta) =>
+        Polling.WaitUntilAsync(async () =>
+        {
+            using var request = new HttpRequestMessage(MetodoQuery, "/api/colaboradores/directorio")
+            {
+                Content = JsonContent.Create(new { identificaciones = new[] { id }, take = 50 })
+            };
+            var response = await _client.SendAsync(request, ct);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var lista = await response.Content.ReadFromJsonAsync<List<DirectorioJornadaSmoke>>(
+                JsonOptions, cancellationToken: ct);
+            var entrada = lista?.FirstOrDefault(e => e.Identificacion == id);
+            return entrada is not null && hasta(entrada) ? entrada : null;
+        }, Timeout);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaColaborador_DebeMostrarLaJornadaAsignada_CuandoSeLeAsignoUnaJornada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var id = IdDeRuta(numeroIdentificacion);
+        var jornadaId = Guid.CreateVersion7();
+
+        await RegistrarColaboradorAsync(
+            numeroIdentificacion, new DateOnly(2026, 5, 4), NuevoCodigoColaborador(), ct);
+
+        var fichaInicial = await EsperarFichaAsync(id, ct);
+        fichaInicial.JornadaId.Should().BeNull("un colaborador recien registrado no tiene Jornada asignada");
+        var directorioInicial = await EsperarDirectorioAsync(id, ct, _ => true);
+        directorioInicial.JornadaId.Should().BeNull();
+
+        var asignacion = await _client.PutAsJsonAsync($"/api/colaboradores/{id}/jornada", new { jornadaId }, ct);
+        asignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que AsignarJornada funcione");
+
+        var ficha = await EsperarFichaAsync(id, ct, hasta: f => f.JornadaId == jornadaId);
+        var directorio = await EsperarDirectorioAsync(id, ct, e => e.JornadaId == jornadaId);
+
+        ficha.JornadaId.Should().Be(jornadaId);
+        directorio.JornadaId.Should().Be(jornadaId);
     }
 
     // CA-4 (issue #386): el {id} en minusculas resuelve la MISMA ficha que su forma canonica --

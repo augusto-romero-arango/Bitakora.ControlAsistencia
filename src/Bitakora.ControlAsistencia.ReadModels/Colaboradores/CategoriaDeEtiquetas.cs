@@ -44,6 +44,7 @@ public sealed record ValorCategoria(string Valor, string ValorNormalizado);
 /// reingreso-nace-limpio (ambos exigirian estado por colaborador, territorio N3 sin beneficio hoy
 /// para el proposito del autocompletado -- Rule of Three, MEF-ADR-0018).
 /// </remarks>
+[MaterializadoPorProyeccion]
 public sealed record CategoriaDeEtiquetas(
     string Id,
     string Categoria,

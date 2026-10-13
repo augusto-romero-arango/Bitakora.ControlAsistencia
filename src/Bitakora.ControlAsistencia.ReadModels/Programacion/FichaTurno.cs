@@ -21,6 +21,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 /// EsDescanso || Franjas.Count > 0. Responde "ya es programable este turno" sin que el consumidor
 /// tenga que inspeccionar Franjas por su cuenta.
 /// </remarks>
+[MaterializadoPorProyeccion]
 public sealed record FichaTurno(
     string Id,
     string Nombre,

@@ -28,6 +28,7 @@ using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
+using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -387,6 +388,38 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(AsistenciaDiaria.Id));
     }
 
+    // Mitad Function App de los dos pares espejo cuya mitad worker congelan, en
+    // ConfiguracionMartenProjectionsTests, ..._MaterializaAdvertenciasProgramacionSemanalConRevisionNumerica
+    // y ..._MaterializaAdvertenciasProgramacionSemanalSobreLaTablaQueConsultaraElWriteSide: los
+    // literales de los dos tests de abajo tienen que cambiar en los dos lados a la vez.
+    [Fact]
+    public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAdvertenciasProgramacionSemanal()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AdvertenciasProgramacionSemanal));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_ResuelveAdvertenciasProgramacionSemanalSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(AdvertenciasProgramacionSemanal));
+
+        mapping.TableName.QualifiedName.Should().Be("control_horas.mt_doc_advertenciasprogramacionsemanal");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(AdvertenciasProgramacionSemanal.Id));
+    }
+
     // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
     // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
     // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
@@ -668,5 +701,29 @@ public class ComposicionServiciosTests
         var act = () => ActivatorUtilities.CreateInstance<ListarDiasSinProgramarEndpoint>(scope.ServiceProvider);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_DeclaraRevisionNumericaEnTodoDocumentoMarcadoPorProyeccion()
+    {
+        var marcados = typeof(MaterializadoPorProyeccionAttribute).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Bitakora.ControlAsistencia.ReadModels.ControlHoras"
+                && t.IsDefined(typeof(MaterializadoPorProyeccionAttribute), inherit: false))
+            .ToList();
+        marcados.Should().NotBeEmpty();
+
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var options = scope.ServiceProvider.GetRequiredService<IDocumentStore>().Options;
+
+        foreach (var tipo in marcados)
+        {
+            var mapping = options.FindOrResolveDocumentType(tipo);
+
+            mapping.Metadata.Revision.Enabled.Should().BeTrue(
+                "falta declarar Schema.For<{0}>().UseNumericRevisions(true) en ComposicionServicios", tipo.Name);
+            mapping.Metadata.Revision.Type.Should().Be("bigint", "revision de {0}", tipo.Name);
+            mapping.Metadata.Version.Enabled.Should().BeFalse("version de {0}", tipo.Name);
+        }
     }
 }
