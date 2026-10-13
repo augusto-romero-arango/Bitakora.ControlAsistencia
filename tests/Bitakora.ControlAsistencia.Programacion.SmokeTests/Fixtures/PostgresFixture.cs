@@ -6,7 +6,7 @@ using Npgsql;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
-// Issue #335: gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
+// Gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
 // en el event store (CrearTurnoCommandHandler -> IEventStore.StartStream), asi que sus smoke tests
 // necesitan verificar ese efecto secundario y no solo el status code (MEF-ADR-0013, "Alcance de un
 // smoke test: cobertura completa de efectos secundarios"). turno_creado no cruza ningun bus: la
@@ -54,40 +54,48 @@ public class PostgresFixture : IAsyncLifetime
         _connectionString = connectionString;
 
         TenantId = IdentidadDePrueba.Desde(configuration).TenantId;
-        await LimpiarJornadaPredeterminadaAsync(SchemaProgramacion, TenantId);
     }
 
     public const string SchemaProgramacion = "programacion";
 
     public static string StreamIdPreferencias(string tenantId) => $"pp:{tenantId}";
 
-    // Cada corrida debe ejercer la materializacion real, asi que se borran los
-    // streams de TODAS las Jornadas que alguna vez fueron predeterminadas (historial de pp:{tenant}),
-    // sus documentos en la vista y el stream de Preferencias. Acotado por tenant_id.
-    public async Task LimpiarJornadaPredeterminadaAsync(string schema, string tenantId)
+    public const string PrefijoTenantDesechable = "tenant-smoke-";
+
+    // CA-ADR-0040: la guarda de prefijo impide borrar tenant-smoke o un tenant real. mt_events va antes
+    // que mt_streams por la FK entre ambas.
+    public async Task BorrarTenantAsync(string schema, string tenantId)
     {
-        var streamPreferencias = StreamIdPreferencias(tenantId);
-        var aBorrar = new List<string> { streamPreferencias };
+        if (string.IsNullOrWhiteSpace(tenantId)
+            || !tenantId.StartsWith(PrefijoTenantDesechable, StringComparison.Ordinal))
+            throw new ArgumentException(
+                $"Solo se borran tenants que empiezan por '{PrefijoTenantDesechable}'.", nameof(tenantId));
 
-        await using (var conn = new NpgsqlConnection(_connectionString))
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+
+        var tablas = new List<string>();
+        await using (var cmd = conn.CreateCommand())
         {
-            await conn.OpenAsync();
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"""
-                SELECT to_regclass('{EscaparSchema(schema)}.mt_events') IS NOT NULL
+            cmd.CommandText = """
+                SELECT c.table_name FROM information_schema.columns c
+                JOIN information_schema.tables t USING (table_schema, table_name)
+                WHERE c.table_schema = @schema AND c.column_name = 'tenant_id' AND t.table_type = 'BASE TABLE'
                 """;
-            if (!(bool)(await cmd.ExecuteScalarAsync())!)
-                return;
+            cmd.Parameters.AddWithValue("schema", EscaparSchema(schema));
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                tablas.Add(reader.GetString(0));
         }
 
-        var historial = await LeerEventosDeStreamAsync(schema, tenantId, streamPreferencias);
-        foreach (var data in historial)
+        foreach (var tabla in tablas.OrderBy(t => t switch { "mt_events" => 0, "mt_streams" => 1, _ => 2 }))
         {
-            if (data.TryGetProperty("JornadaId", out var id) || data.TryGetProperty("jornadaId", out id))
-                aBorrar.Add(id.ToString());
+            await using var delete = conn.CreateCommand();
+            delete.CommandText =
+                $"DELETE FROM {EscaparSchema(schema)}.\"{tabla.Replace("\"", "\"\"")}\" WHERE tenant_id = @tenant";
+            delete.Parameters.AddWithValue("tenant", tenantId);
+            await delete.ExecuteNonQueryAsync();
         }
-
-        await BorrarStreamsAsync(schema, tenantId, aBorrar);
     }
 
     // Borra streams (eventos + registro del stream) y sus documentos en la vista LimitesDeJornada,
@@ -124,6 +132,47 @@ public class PostgresFixture : IAsyncLifetime
         docs.Parameters.AddWithValue("tenant", tenantId);
         docs.Parameters.AddWithValue("ids", ids);
         await docs.ExecuteNonQueryAsync();
+    }
+
+    // CA-ADR-0040: busca por contenido las Jornadas del tenant con esos cuatro limites y borra sus
+    // streams y documentos. La firma reservada nunca se purga.
+    public async Task PurgarJornadasPorFirmaAsync(string schema, string tenantId, FirmaDeLimites firma)
+    {
+        if (firma == LimitesDePrueba.Reservada)
+            throw new ArgumentException("La firma reservada de la Jornada predeterminada nunca se purga.", nameof(firma));
+
+        var ids = new List<string>();
+        await using (var conn = new NpgsqlConnection(_connectionString))
+        {
+            await conn.OpenAsync();
+            await using (var existe = conn.CreateCommand())
+            {
+                existe.CommandText = $"SELECT to_regclass('{EscaparSchema(schema)}.mt_doc_limitesdejornada') IS NOT NULL";
+                if (!(bool)(await existe.ExecuteScalarAsync())!)
+                    return;
+            }
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT id::text FROM {EscaparSchema(schema)}.mt_doc_limitesdejornada
+                WHERE tenant_id = @tenant
+                  AND (data ->> 'HorasSemanalesEnMinutos')::int = @semanales
+                  AND (data ->> 'TopeDiarioEnMinutos')::int = @tope
+                  AND (data ->> 'MinimoDiarioEnMinutos')::int = @minimo
+                  AND (data ->> 'DiasDescansoPorSemana')::int = @descansos
+                """;
+            cmd.Parameters.AddWithValue("tenant", tenantId);
+            cmd.Parameters.AddWithValue("semanales", firma.HorasSemanalesEnMinutos);
+            cmd.Parameters.AddWithValue("tope", firma.TopeDiarioEnMinutos);
+            cmd.Parameters.AddWithValue("minimo", firma.MinimoDiarioEnMinutos);
+            cmd.Parameters.AddWithValue("descansos", firma.DiasDescansoPorSemana);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                ids.Add(reader.GetString(0));
+        }
+
+        if (ids.Count > 0)
+            await BorrarStreamsAsync(schema, tenantId, ids);
     }
 
     // Cuenta TODOS los eventos del stream (cualquier tipo), acotado por tenant: sirve para demostrar
@@ -181,7 +230,7 @@ public class PostgresFixture : IAsyncLifetime
         }, timeout);
     }
 
-    // Issue #665 CA-3: cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
+    // Cuenta exacta, sin polling -- verifica que un no-op (retirar dos veces) no
     // agrego un evento adicional al stream, algo que ExisteEventoAsync (>= 1) no distingue.
     public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento)
     {
@@ -210,7 +259,7 @@ public class PostgresFixture : IAsyncLifetime
         return JsonSerializer.Deserialize<T>(json)!;
     }
 
-    // Issue #700 CA-4: lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
+    // Lee una clave de la metadata del evento (mt_events.headers, HeadersEnabled del
     // write-side), donde UnitOfWorkMiddleware de Cosmos 3.x estampa la identidad de tenancy.
     public Task<string> ObtenerHeaderDeEventoAsync(
         string schema, string streamId, string tipoEvento, string header, TimeSpan timeout)

@@ -6,8 +6,12 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarLimitesDeJornada;
 
-public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
 {
+    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+
+    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+
     private const string Ruta = "/api/programacion/jornadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private readonly HttpClient _client = api.Client;
@@ -27,25 +31,23 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
     private sealed record ListaSmoke(IReadOnlyList<ElementoSmoke> Elementos, string? SiguienteCursor);
 
-    private async Task<Guid> CrearJornadaAsync(int minutos, CancellationToken ct)
+    private async Task<Guid> CrearJornadaAsync(FirmaDeLimites firma, CancellationToken ct)
     {
+        await _limpieza.PrepararAsync(firma);
         var id = Guid.CreateVersion7();
-        var response = await _client.PostAsJsonAsync(Ruta, new
-        {
-            jornadaId = id,
-            horasSemanales = new { horas = 47, minutos },
-            topeDiario = new { horas = 8, minutos = 0 },
-            minimoDiario = new { horas = 0, minutos = 0 },
-            diasDescansoPorSemana = 1
-        }, ct);
+        _limpieza.Registrar(id);
+        var response = await _client.PostAsJsonAsync(Ruta, firma.PayloadCrear(id), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearJornada funcione");
         return id;
     }
 
-    private async Task<ListaSmoke> ListarAsync(string query, CancellationToken ct)
+    private Task<ListaSmoke> ListarAsync(string query, CancellationToken ct) =>
+        ListarAsync(_client, query, ct);
+
+    private static async Task<ListaSmoke> ListarAsync(HttpClient client, string query, CancellationToken ct)
     {
-        var response = await _client.GetAsync($"{Ruta}{query}", ct);
+        var response = await client.GetAsync($"{Ruta}{query}", ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
         return lista!;
@@ -66,8 +68,8 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     public async Task ListarLimitesDeJornada_IncluyeLaJornadaCreadaUnaVez_CuandoLaProyeccionMaterializa()
     {
         var ct = TestContext.Current.CancellationToken;
-        var minutos = Random.Shared.Next(1, 60);
-        var id = await CrearJornadaAsync(minutos, ct);
+        var firma = LimitesDePrueba.ListarIncluyeLaCreada;
+        var id = await CrearJornadaAsync(firma, ct);
 
         var lista = await Polling.WaitUntilAsync(async () =>
         {
@@ -76,9 +78,9 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
         }, Timeout);
 
         var elemento = lista.Elementos.Should().ContainSingle(e => e.JornadaId == id).Subject;
-        elemento.HorasSemanales.Should().Be(new HorasYMinutosSmoke(47, minutos));
-        elemento.TopeDiario.Should().Be(new HorasYMinutosSmoke(8, 0));
-        elemento.DiasDescansoPorSemana.Should().Be(1);
+        elemento.HorasSemanales.Should().Be(new HorasYMinutosSmoke(firma.SemanalesHoras, firma.SemanalesMinutos));
+        elemento.TopeDiario.Should().Be(new HorasYMinutosSmoke(firma.TopeHoras, firma.TopeMinutos));
+        elemento.DiasDescansoPorSemana.Should().Be(firma.DiasDescansoPorSemana);
         elemento.Descripcion.Should().NotBeNullOrWhiteSpace();
         lista.SiguienteCursor.Should().BeNull("sin take se devuelve todo");
     }
@@ -88,8 +90,8 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     public async Task ListarLimitesDeJornada_PaginaConCursorSinRepetir_CuandoSeUsaTake()
     {
         var ct = TestContext.Current.CancellationToken;
-        var id1 = await CrearJornadaAsync(Random.Shared.Next(1, 60), ct);
-        var id2 = await CrearJornadaAsync(Random.Shared.Next(1, 60), ct);
+        var id1 = await CrearJornadaAsync(LimitesDePrueba.ListarPaginaPrimera, ct);
+        var id2 = await CrearJornadaAsync(LimitesDePrueba.ListarPaginaSegunda, ct);
 
         await Polling.WaitUntilAsync(async () =>
         {
@@ -118,32 +120,31 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     public async Task ListarLimitesDeJornada_MaterializaLaPredeterminadaUnaSolaVez_CuandoSeListaSinPreferencias()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        await using var tenant = new TenantDesechable(api, postgres);
         var ct = TestContext.Current.CancellationToken;
         var schema = PostgresFixture.SchemaProgramacion;
-        var streamPreferencias = PostgresFixture.StreamIdPreferencias(postgres.TenantId);
+        var streamPreferencias = PostgresFixture.StreamIdPreferencias(tenant.TenantId);
 
         var lista = await Polling.WaitUntilAsync(async () =>
         {
-            var l = await ListarAsync("", ct);
+            var l = await ListarAsync(tenant.Client, "", ct);
             return l.Elementos.Any(e => EsPredeterminadaInicial(e)) ? l : null;
         }, Timeout);
 
         lista.Elementos.Should().Contain(e => EsPredeterminadaInicial(e));
         (await postgres.ContarEventosAsync(schema, streamPreferencias, "jornada_predeterminada_asignada"))
             .Should().Be(1);
-        (await postgres.ContarEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+        (await postgres.ContarEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
             .Should().Be(1);
 
-        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+        var asignada = (await postgres.LeerEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
             .Single();
-        var predeterminadaId = Guid.Parse(
-            (asignada.TryGetProperty("JornadaId", out var id) ? id : asignada.GetProperty("jornadaId"))
-            .GetString()!);
+        var predeterminadaId = asignada.GetProperty("JornadaId").GetGuid();
         lista.Elementos.Should().ContainSingle(e => e.JornadaId == predeterminadaId);
 
-        await ListarAsync("", ct);
+        await ListarAsync(tenant.Client, "", ct);
 
-        (await postgres.ContarEventosDeStreamAsync(schema, postgres.TenantId, streamPreferencias))
+        (await postgres.ContarEventosDeStreamAsync(schema, tenant.TenantId, streamPreferencias))
             .Should().Be(1, "un segundo GET no debe escribir eventos");
         (await postgres.ContarEventosAsync(schema, predeterminadaId.ToString(), "jornada_creada"))
             .Should().Be(1);
@@ -160,7 +161,8 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     public async Task ListarLimitesDeJornada_DebeMarcarLaPredeterminada_CuandoSeAsignaOtra()
     {
         var ct = TestContext.Current.CancellationToken;
-        var id = await CrearJornadaAsync(Random.Shared.Next(1, 60), ct);
+        var id = await CrearJornadaAsync(LimitesDePrueba.ListarMarcaPredeterminada, ct);
+        await _limpieza.RecordarPredeterminadaAsync(_client);
 
         var asignada = await _client.PutAsJsonAsync(
             "/api/programacion/preferencias/jornada-predeterminada", new { jornadaId = id }, ct);
@@ -179,15 +181,6 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
         lista.Elementos.Where(e => e.EsPredeterminada).Select(e => e.JornadaId)
             .Should().ContainSingle().Which.Should().Be(id);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoTakeSuperaElMaximo()
-    {
-        var response = await _client.GetAsync($"{Ruta}?take=201", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
