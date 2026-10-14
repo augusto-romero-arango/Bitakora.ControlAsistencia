@@ -25,7 +25,7 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         var raiz = json.RootElement;
 
         var mostrando = raiz.GetProperty("mostrando").GetInt32();
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
+        raiz.TryGetProperty("total", out _).Should().BeFalse("CA-ADR-0039: sobre sin total");
 
         var colaboradores = raiz.GetProperty("colaboradores").EnumerateArray().ToList();
         colaboradores.Should().HaveCount(mostrando);
@@ -48,7 +48,7 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         var ct = TestContext.Current.CancellationToken;
         var resultado = await mcp.Cliente.CallToolAsync(
             "listar_colaboradores",
-            new Dictionary<string, object?> { ["fecha_referencia"] = "2026-09-01" },
+            new Dictionary<string, object?> { ["fecha_referencia"] = DateTime.UtcNow.AddHours(-5).ToString("yyyy-MM-dd") },
             cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();
@@ -58,7 +58,7 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         var raiz = json.RootElement;
 
         var mostrando = raiz.GetProperty("mostrando").GetInt32();
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
+        raiz.TryGetProperty("total", out _).Should().BeFalse("CA-ADR-0039: sobre sin total");
         raiz.GetProperty("colaboradores").EnumerateArray().ToList().Should().HaveCount(mostrando);
     }
 

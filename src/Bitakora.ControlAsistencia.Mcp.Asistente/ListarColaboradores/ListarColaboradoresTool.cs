@@ -17,7 +17,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarColaboradores;
 public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider reloj)
 {
     internal const string NombreTool = "listar_colaboradores";
-    internal const int MaximoColaboradores = 20;
+    internal const int MaximoColaboradores = 50;
     internal const int TakeUpstream = 200;
     private const string FormatoFecha = "yyyy-MM-dd";
     private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
@@ -51,6 +51,11 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             "Fecha de vigencia a evaluar, formato yyyy-MM-dd. Si se omite se usa hoy en "
             + "America/Bogota.")]
         string? fechaReferencia,
+        [McpToolProperty(
+            "cursor",
+            "Cursor opaco de la pagina siguiente del catalogo (el siguienteCursor de la respuesta "
+            + "anterior); reenvialo tal cual. Se ignora si envias identificacion.")]
+        string? cursor,
         CancellationToken ct)
     {
         if (Normalizar(identificacion) is { } identificacionPedida)
@@ -73,11 +78,7 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
 
         var visibles = fichas.Take(MaximoColaboradores).Select(Remodelar).ToList();
 
-        var nota = fichas.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, fichas.Count)
-            : null;
-
-        return RespuestaJson.Serializar(new CatalogoDeColaboradores(fichas.Count, visibles.Count, nota, visibles));
+        return RespuestaJson.Serializar(new CatalogoDeColaboradores(visibles.Count, visibles, null, null));
     }
 
     private async Task<string> ConsultarPuntual(string identificacion, CancellationToken ct)
@@ -149,10 +150,10 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
 
 /// <summary>Contrato de respuesta de listar_colaboradores hacia el asistente (remodelado, issue #530).</summary>
 public sealed record CatalogoDeColaboradores(
-    int Total,
     int Mostrando,
-    string? Nota,
-    IReadOnlyList<ColaboradorFicha> Colaboradores);
+    IReadOnlyList<ColaboradorFicha> Colaboradores,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>
 /// Colaborador remodelado token-eficiente: etiquetas en su forma original de presentacion (nunca
