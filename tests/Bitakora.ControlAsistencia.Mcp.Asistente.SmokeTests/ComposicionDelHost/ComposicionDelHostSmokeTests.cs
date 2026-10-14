@@ -9,7 +9,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
     [
         "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
         "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
-        "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
+        "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
         "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
         "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
@@ -35,6 +35,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "tipo_identificacion", "numero_identificacion", "primer_nombre",
             "primer_apellido", "codigo_colaborador", "fecha_inicio"
         ],
+        ["buscar_turnos"] = [],
         ["listar_turnos"] = [],
         ["obtener_turno"] = ["id"],
         ["crear_turno"] = ["nombre"],
@@ -73,7 +74,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasCuarentaTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasCuarentaYUnaTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
