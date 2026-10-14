@@ -246,7 +246,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ListarColaboradores_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("listar_colaboradores").Should().BeEquivalentTo(
-            [("identificacion", false), ("sede", false), ("etiquetas", false), ("fecha_referencia", false)]);
+            [("identificacion", false), ("sede", false), ("etiquetas", false), ("fecha_referencia", false), ("cursor", false)]);
 
     [Fact]
     public void BuscarColaboradores_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>

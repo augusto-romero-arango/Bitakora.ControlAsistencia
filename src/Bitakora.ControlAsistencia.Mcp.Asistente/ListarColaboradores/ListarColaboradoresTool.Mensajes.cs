@@ -24,8 +24,11 @@ public partial class ListarColaboradoresTool
         public static string RechazoDelDominio =>
             ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
-        /// <summary>{0}: colaboradores mostrados, {1}: total recibido del dominio.</summary>
-        public static string NotaTruncado =>
-            ResourceManager.GetString(nameof(NotaTruncado))!;
+        public static string NotaHayMasColaboradores =>
+            ResourceManager.GetString(nameof(NotaHayMasColaboradores))!;
+
+        /// <summary>{0}: fecha de referencia aplicada, {1}: criterios de sede/etiquetas usados (puede ir vacio).</summary>
+        public static string SinColaboradores =>
+            ResourceManager.GetString(nameof(SinColaboradores))!;
     }
 }
