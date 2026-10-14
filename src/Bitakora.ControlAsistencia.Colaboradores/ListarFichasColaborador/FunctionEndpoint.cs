@@ -247,7 +247,8 @@ public sealed record FiltroListarFichasColaborador(
     IReadOnlyList<FiltroEtiqueta>? Etiquetas,
     JsonElement? Cursor,
     int? Take = null,
-    string? CodigoSede = null);
+    string? CodigoSede = null,
+    Guid? JornadaId = null);
 
 // Par categoria:valor SIN normalizar -- el endpoint construye Etiqueta.Crear(Categoria, Valor) con
 // cada par (Tell-don't-Ask, MEF-ADR-0012: un solo algoritmo de normalizacion, el del VO). Si
