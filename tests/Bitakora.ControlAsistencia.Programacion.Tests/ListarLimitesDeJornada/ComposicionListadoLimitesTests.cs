@@ -116,12 +116,18 @@ public class ComposicionListadoLimitesTests
         respuesta.Elementos.Select(e => e.JornadaId).Should().Equal(IdA, IdB);
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(null)]
-    public void Componer_IncluyeLaPredeterminadaFaltanteEnSuPosicion_CuandoElFiltroEsActivaTrueOAusente(bool? activa)
+    [Fact]
+    public void Componer_IncluyeLaPredeterminadaFaltanteEnSuPosicion_CuandoElFiltroEsActivaTrue()
     {
-        var respuesta = ComposicionListadoLimites.Componer([A, B], P, null, null, IdP, activa);
+        var respuesta = ComposicionListadoLimites.Componer([A, B], P, null, null, IdP, activa: true);
+
+        respuesta.Elementos.Select(e => e.JornadaId).Should().Equal(IdA, IdP, IdB);
+    }
+
+    [Fact]
+    public void Componer_IncluyeLaPredeterminadaFaltanteEnSuPosicion_CuandoNoHayFiltroActiva()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, B], P, null, null, IdP, activa: null);
 
         respuesta.Elementos.Select(e => e.JornadaId).Should().Equal(IdA, IdP, IdB);
     }

@@ -7,6 +7,7 @@ using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
 using Marten;
+using Marten.Linq.MatchesSql;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -20,6 +21,12 @@ public class FunctionEndpoint(
     IDocumentStore store, ITenantContext tenantContext, IAseguradorJornadaPredeterminada asegurador)
 {
     private const int TakeMaximo = 200;
+
+    // Los documentos materializados antes de que la vista tuviera Activa no traen la clave: el record
+    // los lee como activos (default true), pero en SQL la clave ausente es NULL y l.Activa == activa
+    // los descartaria de activa=true. El coalesce replica ese default en la query.
+    private const string SqlFiltroActiva =
+        $"coalesce((data ->> '{nameof(LimitesDeJornada.Activa)}')::boolean, true) = ?";
 
     [Function("ListarLimitesDeJornada")]
     public async Task<IActionResult> Run(
@@ -58,9 +65,8 @@ public class FunctionEndpoint(
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<LimitesDeJornada> query = session.Query<LimitesDeJornada>();
-        // Desempaquetar antes: (l.Activa == filtroActiva) armaria una igualdad lifted bool?.
         if (filtroActiva is { } activa)
-            query = query.Where(l => l.Activa == activa);
+            query = query.Where(l => l.MatchesSql(SqlFiltroActiva, activa));
         if (cursor is { } c)
         {
             query = query.Where(l =>
