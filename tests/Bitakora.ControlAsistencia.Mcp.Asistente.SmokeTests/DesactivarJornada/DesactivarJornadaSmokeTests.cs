@@ -81,13 +81,13 @@ public class DesactivarJornadaSmokeTests(McpFixture mcp)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DesactivarJornada_RespondeElRechazoDelServidor_CuandoLaJornadaEsLaPredeterminada()
+    public async Task DesactivarJornada_RespondeQueEsLaPredeterminada_CuandoLaJornadaEsLaPredeterminada()
     {
         var ct = TestContext.Current.CancellationToken;
         var predeterminada = await SembradoDeJornadas.PredeterminadaActualAsync(mcp, ct);
 
         var frase = await DesactivarAsync(predeterminada.GetProperty("jornada_id").GetString()!, ct);
 
-        frase.Should().StartWith("El dominio rechazo la solicitud:");
+        frase.Should().StartWith("La Jornada es la predeterminada");
     }
 }
