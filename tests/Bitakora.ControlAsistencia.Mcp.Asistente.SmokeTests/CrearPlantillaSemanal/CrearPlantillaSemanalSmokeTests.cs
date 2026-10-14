@@ -145,4 +145,83 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             cancellationToken: ct);
         retirada.IsError.Should().NotBeTrue();
     }
+
+    // Recorrido unico de las tools de Jornada de la plantilla (issue #892): la Jornada
+    // predeterminada actual solo se lee, nunca se cambia (CA-ADR-0040).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task PlantillaSemanal_CreaConJornadaLaQuitaYLaAsigna_CuandoSeUsaLaPredeterminada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornada = await SembradoDeJornadas.PredeterminadaActualAsync(mcp, ct);
+        var jornadaId = jornada.GetProperty("jornada_id").GetString()!;
+        var sufijo = Guid.CreateVersion7();
+        var turno = $"[TEST] Turno Jornada MCP {sufijo}";
+        var nombrePlantilla = $"[TEST] Plantilla Jornada MCP {sufijo}";
+
+        (await mcp.Cliente.CallToolAsync(
+            "crear_turno", new Dictionary<string, object?> { ["nombre"] = turno }, cancellationToken: ct))
+            .IsError.Should().NotBeTrue();
+        using var ficha = await programacion.Client.EsperarFichaAsync(turno, ct);
+        (await mcp.Cliente.CallToolAsync(
+            "agregar_franja",
+            new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            cancellationToken: ct)).IsError.Should().NotBeTrue();
+
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turno}}"}]""";
+        var creada = await mcp.Cliente.CallToolAsync(
+            "crear_plantilla_semanal",
+            new Dictionary<string, object?>
+            {
+                ["nombre"] = nombrePlantilla, ["dias"] = dias, ["jornada_id"] = jornadaId
+            },
+            cancellationToken: ct);
+        creada.IsError.Should().NotBeTrue();
+        using var textoCreada = JsonDocument.Parse(SembradoDeJornadas.Texto(creada));
+        textoCreada.RootElement.GetProperty("jornada").GetProperty("jornada_id").GetString()
+            .Should().Be(jornadaId);
+
+        var detalle = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var resultado = await mcp.Cliente.CallToolAsync(
+                    "obtener_plantilla_semanal",
+                    new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+                    cancellationToken: ct);
+                var json = JsonDocument.Parse(SembradoDeJornadas.Texto(resultado));
+                return json.RootElement.TryGetProperty("jornada", out _) ? json : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
+        using (detalle)
+        {
+            detalle.RootElement.GetProperty("jornada").GetProperty("jornada_id").GetString()
+                .Should().Be(jornadaId);
+            detalle.RootElement.TryGetProperty("advertencias", out var advertencias).Should().BeTrue();
+            advertencias.ValueKind.Should().Be(JsonValueKind.Array);
+        }
+
+        var quitada = await mcp.Cliente.CallToolAsync(
+            "quitar_jornada_de_plantilla_semanal",
+            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            cancellationToken: ct);
+        quitada.IsError.Should().NotBeTrue();
+        using var textoQuitada = JsonDocument.Parse(SembradoDeJornadas.Texto(quitada));
+        textoQuitada.RootElement.TryGetProperty("resultado", out _).Should().BeTrue();
+
+        var asignada = await mcp.Cliente.CallToolAsync(
+            "asignar_jornada_a_plantilla_semanal",
+            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla, ["jornada_id"] = jornadaId },
+            cancellationToken: ct);
+        asignada.IsError.Should().NotBeTrue();
+        using var textoAsignada = JsonDocument.Parse(SembradoDeJornadas.Texto(asignada));
+        textoAsignada.RootElement.GetProperty("jornada").GetProperty("descripcion").GetString()
+            .Should().NotBeNullOrWhiteSpace();
+
+        await mcp.Cliente.CallToolAsync(
+            "retirar_plantilla_semanal",
+            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            cancellationToken: ct);
+        await mcp.Cliente.CallToolAsync(
+            "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+    }
 }
