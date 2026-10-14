@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
@@ -8,8 +9,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ListarColaboradore
 public class ListarColaboradoresSmokeTests(McpFixture mcp)
 {
     // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> dominio Colaboradores
-    // -> Marten. Los datos son los reales de dev, asi que se afirma la forma del remodelado
-    // (issue #530), no valores puntuales.
+    // -> Marten. Los datos son los reales de dev, asi que se afirma la forma del remodelado, no
+    // valores puntuales.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarColaboradores_DevuelveElCatalogoCompactoConDatosReales_CuandoSeInvocaSinFiltro()
@@ -27,6 +28,9 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         var mostrando = raiz.GetProperty("mostrando").GetInt32();
         raiz.TryGetProperty("total", out _).Should().BeFalse("CA-ADR-0039: sobre sin total");
 
+        raiz.TryGetProperty("nota", out _).Should().Be(
+            raiz.TryGetProperty("siguienteCursor", out _), "la nota solo acompana al cursor de la pagina siguiente");
+
         var colaboradores = raiz.GetProperty("colaboradores").EnumerateArray().ToList();
         colaboradores.Should().HaveCount(mostrando);
 
@@ -37,10 +41,9 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         }
     }
 
-    // CA-2 (issue #586): fecha_referencia con forma de fecha llegaba coercionada a DateTimeOffset
-    // reformateado antes de ArgumentosCrudosMcpMiddleware, y el worker respondia siempre el mensaje
-    // FechaInvalida. Ninguna tool call de esta suite ejercitaba el camino con fecha VALIDA (la de
-    // arriba omite el filtro, la de abajo manda una fecha invalida): ese gap oculto el defecto.
+    // Unica tool call con fecha_referencia VALIDA (MEF-ADR-0048 seccion 6): la extension MCP la
+    // coerciona a DateTimeOffset antes de ArgumentosCrudosMcpMiddleware, y ni la llamada sin filtro
+    // ni la de fecha invalida lo detectan.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarColaboradores_DevuelveElCatalogoCompacto_CuandoFechaReferenciaEsValida()
@@ -48,7 +51,7 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         var ct = TestContext.Current.CancellationToken;
         var resultado = await mcp.Cliente.CallToolAsync(
             "listar_colaboradores",
-            new Dictionary<string, object?> { ["fecha_referencia"] = DateTime.UtcNow.AddHours(-5).ToString("yyyy-MM-dd") },
+            new Dictionary<string, object?> { ["fecha_referencia"] = DateTime.UtcNow.AddHours(-5).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
             cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();

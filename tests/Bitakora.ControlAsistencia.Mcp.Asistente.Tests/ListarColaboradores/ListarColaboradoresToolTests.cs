@@ -89,6 +89,7 @@ public class ListarColaboradoresToolTests
 
         var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
         body["take"]!.GetValue<int>().Should().Be(50, "tope fijo del catalogo, no tope + 1 (#1057)");
+        body.ContainsKey("cursor").Should().BeFalse("sin cursor recibido se pide la primera pagina");
         ListarColaboradoresTool.MaximoColaboradores.Should().Be(50);
     }
 
@@ -144,8 +145,9 @@ public class ListarColaboradoresToolTests
         var resultado = await Tool(cliente).Run(null!, null, "SEDE-9", "area:tecnologia", null, null,
             TestContext.Current.CancellationToken);
 
-        resultado.Should().Contain("2026-08-30").And.Contain("SEDE-9").And.Contain("area:tecnologia");
-        resultado.Should().NotStartWith("{", "es una frase, nunca un sobre vacio");
+        resultado.Should().Be(
+            "No hay colaboradores vinculados con fecha de referencia 2026-08-30, sede SEDE-9, etiquetas area:tecnologia.",
+            "es una frase con el criterio usado, nunca un sobre vacio");
     }
 
     [Fact]
@@ -156,7 +158,7 @@ public class ListarColaboradoresToolTests
         var resultado = await Tool(cliente).Run(null!, null, null, null, "2026-07-01", null,
             TestContext.Current.CancellationToken);
 
-        resultado.Should().Contain("2026-07-01").And.NotStartWith("{");
+        resultado.Should().Be("No hay colaboradores vinculados con fecha de referencia 2026-07-01.");
     }
 
     [Fact]
