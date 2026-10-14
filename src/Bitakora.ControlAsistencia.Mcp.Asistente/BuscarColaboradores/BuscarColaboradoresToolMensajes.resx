@@ -24,7 +24,7 @@
     <value>Indica un nombre (palabras completas) o una o varias identificaciones para buscar.</value>
   </data>
   <data name="NotaTruncado" xml:space="preserve">
-    <value>Mostrando {0} de {1} coincidencias; acota con mas palabras del nombre o con la identificacion.</value>
+    <value>Puede haber mas coincidencias: acota con el nombre completo o la identificacion, o pregunta al usuario.</value>
   </data>
   <data name="SinCoincidencias" xml:space="preserve">
     <value>No hay colaboradores que coincidan con: {0}.</value>

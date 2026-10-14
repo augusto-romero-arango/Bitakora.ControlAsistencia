@@ -14,7 +14,7 @@ public partial class BuscarColaboradoresTool(ColaboradoresApi api)
 {
     internal const string NombreTool = "buscar_colaboradores";
     internal const int MaximoColaboradores = 20;
-    internal const int TakeUpstream = 200;
+    private const int TakeUpstream = MaximoColaboradores + 1;
 
     [Function("BuscarColaboradores")]
     public async Task<string> Run(
@@ -62,14 +62,17 @@ public partial class BuscarColaboradoresTool(ColaboradoresApi api)
         var entradas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(ct))?.Elementos
             ?? [];
 
+        if (entradas.Count == 0)
+            return string.Format(
+                Mensajes.SinCoincidencias,
+                string.Join(", ", new[] { nombreNormalizado }.OfType<string>().Concat(identificacionesNormalizadas)));
+
         var visibles = entradas.Take(MaximoColaboradores).Select(Remodelar).ToList();
 
-        var notaTruncado = entradas.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, entradas.Count)
-            : null;
+        var notaTruncado = entradas.Count > MaximoColaboradores ? Mensajes.NotaTruncado : null;
 
         return RespuestaJson.Serializar(
-            new CoincidenciasDeColaboradores(entradas.Count, visibles.Count, notaTruncado, visibles));
+            new CoincidenciasDeColaboradores(visibles.Count, notaTruncado, visibles));
     }
 
     private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
@@ -98,7 +101,6 @@ public partial class BuscarColaboradoresTool(ColaboradoresApi api)
 
 /// <summary>Contrato de respuesta de buscar_colaboradores hacia el asistente (issue #588).</summary>
 public sealed record CoincidenciasDeColaboradores(
-    int Total,
     int Mostrando,
     string? Nota,
     IReadOnlyList<ColaboradorEncontrado> Colaboradores);

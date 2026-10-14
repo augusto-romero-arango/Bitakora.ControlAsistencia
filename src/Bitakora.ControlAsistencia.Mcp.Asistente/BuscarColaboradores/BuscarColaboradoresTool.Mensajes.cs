@@ -15,7 +15,6 @@ public partial class BuscarColaboradoresTool
         public static string FaltaCriterio =>
             ResourceManager.GetString(nameof(FaltaCriterio))!;
 
-        /// <summary>{0}: colaboradores mostrados, {1}: total recibido del dominio.</summary>
         public static string NotaTruncado =>
             ResourceManager.GetString(nameof(NotaTruncado))!;
 
