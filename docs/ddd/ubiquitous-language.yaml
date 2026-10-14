@@ -9,6 +9,10 @@
 #   TurnoVigente; el llamador manda la lista de colaboradores y la malla pagina por codigo
 #   (patron de los reportes con sujetos). Nace la tool consultar_malla_turnos (#1084).
 #   Nuevos: Malla semanal de turnos.)
+# Actualizacion previa: 2026-10-14 (sesion planner, refinamiento de #1046: nace Malla semanal de
+#   turnos -- la grilla ASIGNADA colaboradores x dias de una semana, para revisar la programacion;
+#   distinta del Cuadro semanal de turnos (plantilla, sin personas). Issue #1079.
+#   Tocados: Malla semanal de turnos (nuevo), Cuadro semanal de turnos (nota de distincion).)
 # Actualizacion previa: 2026-10-10 (sesion planner, refinamiento de #853: Dia sin programar gana
 #   su uso anticipado para el Programador -- consulta ListarDiasSinProgramar, dentro de la vigencia
 #   de la vinculacion; la ausencia cubre el dia. "Cobertura de la programacion" no se acuna.
@@ -543,6 +547,31 @@ terms:
       plantillas-semanales[/{id}] (misma ruta del recurso leida desde el read-side, criterio de
       FichaTurno). Sin filtro server-side; lista tambien las incompletas. Issues #624 (vista), #625
       (GET + composicion), #629 (tools de Consultas). CA-ADR-0034 (decision 5 enmendada).
+      Distinto de la Malla semanal de turnos (2026-10-14): el cuadro es el molde sin personas; la
+      malla es la grilla ya asignada a colaboradores.
+
+  - name: Malla semanal de turnos
+    definition: >
+      Vista read-side de lo YA programado en una semana (lunes a domingo), en forma de grilla: una fila
+      por colaborador y una casilla por dia. Para que el Programador REVISE la programacion de un grupo:
+      que le toca a cada quien, que dias faltan por programar y quien esta ausente. Cada casilla trae el
+      turno con sus bloques (horario y sede), la ausencia con su motivo, "sin programar" o "fuera de
+      vinculacion". Tambien aparecen como fila los colaboradores sin nada programado en la semana. Se
+      pagina por colaborador (filas) y se navega por semanas (columnas).
+    context: ControlHoras
+    date_added: 2026-10-14
+    rejected_synonyms: [Cuadro de programacion, Cuadro semanal de programacion, Sabana semanal de turnos, Programacion semanal]
+    rejection_reason: >
+      "Cuadro" ya nombra la vista de la Plantilla semanal de turnos (sin personas): reusarlo crea
+      homonimia. "Programacion semanal" se confunde con las Advertencias de la programacion semanal.
+      Sabana es sinonimo valido pero menos usado; el experto eligio malla (2026-10-14). El glosario ya
+      reservaba Malla/Sabana para la grilla ASIGNADA al rechazarlas como sinonimo de Plantilla.
+    note: >
+      Codigo MallaSemanalTurnos. Se compone al LEER sobre TurnoVigente (patron de ListarDiasSinProgramar:
+      el llamador pasa los colaboradores vigentes, porque ControlHoras no conoce el universo), sin
+      proyeccion nueva. Se descarto extender AdvertenciasProgramacionSemanal (sin horario ni sede, sin
+      filas vacias). No reemplaza al listado por dia de consultar_programacion (#1046), que responde
+      preguntas. Issue #1079.
 
   - name: Malla semanal de turnos
     definition: >
