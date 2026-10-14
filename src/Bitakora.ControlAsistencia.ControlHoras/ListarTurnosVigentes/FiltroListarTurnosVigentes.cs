@@ -3,8 +3,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 public sealed record FiltroListarTurnosVigentes(
     DateOnly? DesdeFecha,
     DateOnly? HastaFecha,
-    string? CodigoColaborador,
+    IReadOnlyList<string>? CodigosColaborador,
     string? SedeId,
     int? Take = null,
-    string? Cursor = null,
-    IReadOnlyList<string>? CodigosColaborador = null);
+    string? Cursor = null);

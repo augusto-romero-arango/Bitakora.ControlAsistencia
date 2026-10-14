@@ -18,13 +18,14 @@ public sealed class ControlHorasApi(HttpClient http)
         string? sedeId,
         CancellationToken ct)
     {
+        string[]? codigosColaborador = string.IsNullOrEmpty(codigoColaborador) ? null : [codigoColaborador];
         var request = new HttpRequestMessage(Query, "api/control-horas/turnos-vigentes")
         {
             Content = JsonContent.Create(new
             {
                 desdeFecha = desde,
                 hastaFecha = hasta,
-                codigoColaborador,
+                codigosColaborador,
                 sedeId
             })
         };
