@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="CursorInvalido" xml:space="preserve">
+    <value>El cursor no es valido; use el siguienteCursor de la respuesta anterior sin modificarlo</value>
+  </data>
+  <data name="ColaboradoresObligatorios" xml:space="preserve">
+    <value>Colaboradores es obligatorio y no puede estar vacio</value>
+  </data>
+  <data name="VigenciaInvalida" xml:space="preserve">
+    <value>La vigencia del colaborador {0} es invalida: vigenteHasta no puede ser anterior a vigenteDesde</value>
+  </data>
+  <data name="CodigoColaboradorObligatorio" xml:space="preserve">
+    <value>Cada colaborador requiere codigoColaborador</value>
+  </data>
+  <data name="FechaObligatoria" xml:space="preserve">
+    <value>Fecha es obligatoria</value>
+  </data>
+  <data name="CodigoColaboradorRepetido" xml:space="preserve">
+    <value>El codigoColaborador {0} esta repetido en la lista de colaboradores</value>
+  </data>
+</root>
