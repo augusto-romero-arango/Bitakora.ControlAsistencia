@@ -66,6 +66,19 @@ public class DesactivarJornadaToolTests
     }
 
     [Fact]
+    public async Task DesactivarJornada_CuentaLasTerminaciones_CuandoLaUsanTresColaboradoresDosConTerminacion()
+    {
+        var entorno = CrearEntorno(Fichas("fichas-tres-dos-con-terminacion.json"));
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 3));
+        resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.VariasTerminacionesRegistradas, 2));
+        resultado.Should().NotContain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
+        entorno.Programacion.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task DesactivarJornada_NoMencionaTerminaciones_CuandoLaUsanDosColaboradoresSinVigenteHasta()
     {
         var entorno = CrearEntorno(Fichas("fichas-dos-sin-terminacion.json"));
