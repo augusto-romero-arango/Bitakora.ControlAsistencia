@@ -26,7 +26,8 @@ public sealed class ColaboradoresApi(HttpClient http)
         IReadOnlyList<FiltroEtiqueta> etiquetas,
         int? take,
         CancellationToken ct,
-        string? cursor = null)
+        string? cursor = null,
+        Guid? jornadaId = null)
     {
         var request = new HttpRequestMessage(Query, "api/colaboradores/fichas")
         {
@@ -36,7 +37,8 @@ public sealed class ColaboradoresApi(HttpClient http)
                 codigoSede,
                 etiquetas = etiquetas.Count > 0 ? etiquetas : null,
                 take,
-                cursor
+                cursor,
+                jornadaId
             }, options: OpcionesSinNulls)
         };
 
