@@ -87,7 +87,8 @@ public partial class Jornada : AggregateRoot
         _limites.TopeDiario.TotalMinutos(),
         _limites.MinimoDiario.TotalMinutos(),
         _limites.DiasDescansoPorSemana,
-        _limites.ToString());
+        _limites.ToString(),
+        _activa);
 
     internal LimitesDeJornadaActualizados ComoLimitesActualizados() => new(
         _jornadaId,
