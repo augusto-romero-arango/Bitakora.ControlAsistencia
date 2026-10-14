@@ -65,6 +65,7 @@ public class ServiceBusFixture : IAsyncLifetime
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
 
         var deadline = DateTime.UtcNow + timeout;
+        var descartados = 0;
 
         while (DateTime.UtcNow < deadline)
         {
@@ -78,36 +79,27 @@ public class ServiceBusFixture : IAsyncLifetime
             if (received is null)
                 continue;
 
+            // Las suscripciones smoke-tests son compartidas: el mensaje ajeno se completa (abandonarlo
+            // lo devolveria en bucle hasta el dead letter) y se sigue esperando.
+            await receiver.CompleteMessageAsync(received);
+
             try
             {
                 var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
-                if (deserialized is null)
-                {
-                    await receiver.CompleteMessageAsync(received);
-                    continue;
-                }
-
-                if (match(deserialized))
-                {
-                    await receiver.CompleteMessageAsync(received);
+                if (deserialized is not null && match(deserialized))
                     return (deserialized, received.ApplicationProperties);
-                }
-
-                await receiver.CompleteMessageAsync(received);
-                throw new InvalidOperationException(
-                    $"Llego mensaje de tipo {typeof(T).Name} pero no cumplio el predicado. " +
-                    $"Contenido: {received.Body}");
             }
             catch (JsonException)
             {
-                await receiver.CompleteMessageAsync(received);
-                continue;
+                // Un cuerpo que no deserializa como T tambien es un mensaje ajeno.
             }
+
+            descartados++;
         }
 
         throw new TimeoutException(
-            $"No se recibio ningun mensaje en la suscripcion {subscriptionName} " +
-            $"del topic {topicName} en {timeout.TotalSeconds}s");
+            $"No se recibio ningun mensaje que cumpliera el predicado en la suscripcion {subscriptionName} " +
+            $"del topic {topicName} en {timeout.TotalSeconds}s ({descartados} mensajes ajenos descartados)");
     }
 
     private const int TamanoPaginaDeadLetter = 100;

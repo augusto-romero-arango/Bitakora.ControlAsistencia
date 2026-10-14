@@ -91,6 +91,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.CodigoSede is { } codigoSedeEnBlanco && string.IsNullOrWhiteSpace(codigoSedeEnBlanco))
             return NoProcesable("CodigoSede, si viene, no puede estar en blanco");
 
+        // Ninguna ficha lleva Guid.Empty (AsignarJornadaBodyValidator exige NotEmpty): es error del
+        // cliente, no una consulta que deba responder 200 con lista vacia.
+        if (filtro.JornadaId == Guid.Empty)
+            return NoProcesable("JornadaId, si viene, no puede ser Guid vacio");
+
         // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012), ver NormalizarEtiquetas.
         var etiquetasNormalizadas = NormalizarEtiquetas(filtro.Etiquetas);
         if (etiquetasNormalizadas is null)
@@ -147,6 +152,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // la vigencia, el containment de etiquetas y el cursor keyset sin tocar el orden ni el Take.
         if (filtro.CodigoSede is { } codigoSede)
             query = query.Where(f => f.CodigoSede == codigoSede);
+
+        if (filtro.JornadaId is { } jornadaId)
+            query = query.Where(f => f.JornadaId == jornadaId);
 
         // CA-3: paginacion keyset -- orden OrderBy(NombreCompleto).ThenBy(Id), predicado compuesto
         // "nombre > cursor.NombreCompleto OR (nombre == cursor.NombreCompleto AND id >
@@ -247,7 +255,8 @@ public sealed record FiltroListarFichasColaborador(
     IReadOnlyList<FiltroEtiqueta>? Etiquetas,
     JsonElement? Cursor,
     int? Take = null,
-    string? CodigoSede = null);
+    string? CodigoSede = null,
+    Guid? JornadaId = null);
 
 // Par categoria:valor SIN normalizar -- el endpoint construye Etiqueta.Crear(Categoria, Valor) con
 // cada par (Tell-don't-Ask, MEF-ADR-0012: un solo algoritmo de normalizacion, el del VO). Si

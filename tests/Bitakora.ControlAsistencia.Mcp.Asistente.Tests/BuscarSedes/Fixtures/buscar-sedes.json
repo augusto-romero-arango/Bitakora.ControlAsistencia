@@ -1,0 +1,9 @@
+{
+ "elementos": [
+  { "id": "s:CH-01", "codigo": "CH-01", "nombre": "Sede Chapinero", "ciudad": "Bogotá", "direccion": "Carrera 13 # 63-20", "centroDeCostos": null, "activa": true, "dispositivos": [] },
+  { "id": "s:CHAP", "codigo": "CHAP", "nombre": "Sede Principal", "ciudad": "Medellín", "direccion": "Calle 80 # 65-10", "centroDeCostos": null, "activa": true, "dispositivos": [] },
+  { "id": "s:MED-02", "codigo": "MED-02", "nombre": "Sede Poblado", "ciudad": "Medellín", "direccion": "Carrera 43A # 1-50", "centroDeCostos": null, "activa": true, "dispositivos": [] },
+  { "id": "s:BOG-80", "codigo": "BOG-80", "nombre": "Sede Calle Ochenta", "ciudad": "Bogotá", "direccion": "Calle 80 # 100-20", "centroDeCostos": null, "activa": true, "dispositivos": [] },
+  { "id": "s:SIN-01", "codigo": "SIN-01", "nombre": "Sede Sin Ciudad", "ciudad": null, "direccion": null, "centroDeCostos": null, "activa": true, "dispositivos": [] }
+ ]
+}

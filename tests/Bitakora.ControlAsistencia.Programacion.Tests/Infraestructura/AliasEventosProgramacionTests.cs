@@ -175,6 +175,22 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
+    public void JornadaDesactivada_TieneAliasJornadaDesactivada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaDesactivada>(options).Should().Be("jornada_desactivada");
+    }
+
+    [Fact]
+    public void JornadaActivada_TieneAliasJornadaActivada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaActivada>(options).Should().Be("jornada_activada");
+    }
+
+    [Fact]
     public void JornadaPredeterminadaAsignada_TieneAliasJornadaPredeterminadaAsignada()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();

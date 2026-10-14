@@ -105,6 +105,20 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task CrearPlantillaSemanal_Retorna409_CuandoLaJornadaEstaDesactivada()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator<CrearPlantillaSemanal>(ComandoValido()),
+            new FakeCommandRouter(excepcion: new ReglaDeNegocioDeclinadaException(
+                CrearPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>()
+            .Which.Value.Should().Be(CrearPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada);
+    }
+
+    [Fact]
     public async Task CrearPlantillaSemanal_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
     {
         var fallo = new InvalidOperationException("Fallo de infraestructura");

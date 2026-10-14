@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+    <data name="FaltaCriterio" xml:space="preserve">
+    <value>Indica al menos un criterio: nombre, turno, semanas (1 a 6) o estado (incompleta o con_advertencias).</value>
+  </data>
+  <data name="SemanasInvalidas" xml:space="preserve">
+    <value>Las semanas '{0}' no son validas; usa un numero entero de 1 a 6.</value>
+  </data>
+  <data name="EstadoDesconocido" xml:space="preserve">
+    <value>El estado '{0}' no es valido; usa incompleta o con_advertencias.</value>
+  </data>
+  <data name="SinCoincidencias" xml:space="preserve">
+    <value>No hay plantillas semanales que coincidan con: {0}.</value>
+  </data>
+  <data name="NotaTruncado" xml:space="preserve">
+    <value>Hay mas coincidencias; acota el criterio o pregunta al usuario.</value>
+  </data>
+  <data name="CoincidePorNombre" xml:space="preserve">
+    <value>nombre: {0}</value>
+  </data>
+  <data name="CoincidePorTurno" xml:space="preserve">
+    <value>turno: {0} (semana {1}, {2})</value>
+  </data>
+  <data name="CoincidePorSemanas" xml:space="preserve">
+    <value>{0} semanas</value>
+  </data>
+  <data name="CoincidePorIncompleta" xml:space="preserve">
+    <value>incompleta</value>
+  </data>
+  <data name="CoincidePorConAdvertencias" xml:space="preserve">
+    <value>con advertencias</value>
+  </data>
+  <data name="PalabraAproximada" xml:space="preserve">
+    <value>{0} (~{1})</value>
+  </data>
+  <data name="CriterioNombre" xml:space="preserve">
+    <value>nombre '{0}'</value>
+  </data>
+  <data name="CriterioTurno" xml:space="preserve">
+    <value>turno '{0}'</value>
+  </data>
+  <data name="CriterioSemanas" xml:space="preserve">
+    <value>{0} semanas</value>
+  </data>
+  <data name="CriterioEstado" xml:space="preserve">
+    <value>estado {0}</value>
+  </data>
+</root>

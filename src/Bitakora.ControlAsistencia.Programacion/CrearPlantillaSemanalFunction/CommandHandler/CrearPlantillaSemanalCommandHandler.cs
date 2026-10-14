@@ -39,6 +39,8 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
             jornada = await _eventStore.GetAggregateRootAsync<Jornada>(jornadaId, ct);
             if (jornada is null)
                 throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
+            if (!jornada.Activa)
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaDesactivada);
         }
 
         var evento = PlantillaSemanalCreada.Crear(command.PlantillaId, command.Nombre, command.Semanas);
