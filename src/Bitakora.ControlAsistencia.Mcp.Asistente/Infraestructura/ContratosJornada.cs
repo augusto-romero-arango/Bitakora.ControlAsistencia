@@ -19,7 +19,8 @@ public sealed record JornadaACrear(
     HorasYMinutosJornada MinimoDiario,
     int DiasDescansoPorSemana);
 
-public sealed record JornadaDelCatalogo(string JornadaId, string Descripcion, bool EsPredeterminada)
+public sealed record JornadaDelCatalogo(
+    string JornadaId, string Descripcion, bool EsPredeterminada, bool Activa = true)
 {
     public JornadaDescrita Describir() => new(JornadaId, Descripcion, EsPredeterminada);
 }
