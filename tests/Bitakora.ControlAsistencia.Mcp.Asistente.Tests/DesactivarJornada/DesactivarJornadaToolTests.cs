@@ -106,7 +106,7 @@ public class DesactivarJornadaToolTests
     }
 
     [Fact]
-    public async Task DesactivarJornada_EnviaElPostYResponderExito_CuandoNadieLaUsaYElServidorDevuelve204()
+    public async Task DesactivarJornada_EnviaElPostYRespondeExito_CuandoNadieLaUsaYElServidorDevuelve204()
     {
         var entorno = CrearEntorno(Fichas("fichas-vacias.json"));
 

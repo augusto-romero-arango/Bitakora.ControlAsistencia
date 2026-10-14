@@ -1,4 +1,5 @@
-using System.Text.Json.Nodes;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -10,6 +11,7 @@ public partial class DesactivarJornadaTool(
 {
     internal const string NombreTool = "desactivar_jornada";
     private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
     private readonly TimeProvider _reloj = reloj ?? TimeProvider.System;
 
     [Function("DesactivarJornada")]
@@ -30,31 +32,33 @@ public partial class DesactivarJornadaTool(
             return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
 
         var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_reloj.GetUtcNow(), ZonaBogota).DateTime);
-        var fichas = await colaboradores.ListarFichas(hoy, null, [], null, ct, null, id);
-        if (await fichas.LeerFalloAsync(ct) is { } falloLectura)
+        var respuestaFichas = await colaboradores.ListarFichas(hoy, null, [], take: null, ct, jornadaId: id);
+        if (await respuestaFichas.LeerFalloAsync(ct) is { } falloLectura)
             return string.Format(Mensajes.RechazoDelDominio, falloLectura);
 
-        var elementos = JsonNode.Parse(await fichas.Content.ReadAsStringAsync(ct))?["elementos"]?.AsArray()
-            ?? [];
-        var vigentes = elementos.Count;
-        if (vigentes > 0)
-        {
-            var conTerminacion = elementos.Count(e => e?["vigenteHasta"] is not null);
-            var frase = vigentes == 1
-                ? Mensajes.JornadaEnUsoUnColaborador
-                : string.Format(Mensajes.JornadaEnUsoVariosColaboradores, vigentes);
-            if (conTerminacion == 0)
-                return frase;
-            var terminaciones = conTerminacion == 1
-                ? Mensajes.UnaTerminacionRegistrada
-                : string.Format(Mensajes.VariasTerminacionesRegistradas, conTerminacion);
-            return $"{frase}. {terminaciones}";
-        }
+        var vigentes = (await respuestaFichas.Content
+            .ReadFromJsonAsync<SobreDeLista<FichaColaborador>>(OpcionesLectura, ct))?.Elementos ?? [];
+        if (vigentes.Count > 0)
+            return FraseDeJornadaEnUso(vigentes);
 
         var respuesta = await programacion.DesactivarJornada(id, ct);
-        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
-            return string.Format(Mensajes.RechazoDelDominio, fallo);
+        return await respuesta.LeerFalloAsync(ct) is { } fallo
+            ? string.Format(Mensajes.RechazoDelDominio, fallo)
+            : Mensajes.ResultadoJornadaDesactivada;
+    }
 
-        return Mensajes.ResultadoJornadaDesactivada;
+    private static string FraseDeJornadaEnUso(IReadOnlyList<FichaColaborador> vigentes)
+    {
+        var enUso = vigentes.Count == 1
+            ? Mensajes.JornadaEnUsoUnColaborador
+            : string.Format(Mensajes.JornadaEnUsoVariosColaboradores, vigentes.Count);
+
+        var conTerminacion = vigentes.Count(f => f.VigenteHasta is not null);
+        return conTerminacion switch
+        {
+            0 => enUso,
+            1 => $"{enUso}. {Mensajes.UnaTerminacionRegistrada}",
+            _ => $"{enUso}. {string.Format(Mensajes.VariasTerminacionesRegistradas, conTerminacion)}"
+        };
     }
 }
