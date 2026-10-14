@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasTreintaYUnaTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasTreintaYCincoTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -45,8 +45,58 @@ public class ComposicionDelServidorTests
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
-                "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia"
+                "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
+                "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada"
             ]);
+    }
+
+    private static IEnumerable<ParameterInfo> ParametrosDeTool(string nombreTool) =>
+        MetodoDe(nombreTool).GetParameters().Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null);
+
+    [Fact]
+    public void ListarJornadas_DeclaraSoloElCursorComoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("listar_jornadas").Should().BeEquivalentTo([("cursor", false)]);
+
+    [Fact]
+    public void CrearJornada_DeclaraLosCuatroLimitesComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("crear_jornada").Should().BeEquivalentTo(
+            [("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
+             ("dias_descanso_por_semana", true)]);
+
+    [Fact]
+    public void ModificarLimitesJornada_DeclaraElIdYLosCuatroLimitesComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("modificar_limites_jornada").Should().BeEquivalentTo(
+            [("jornada_id", true), ("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
+             ("dias_descanso_por_semana", true)]);
+
+    [Fact]
+    public void AsignarJornadaPredeterminada_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("asignar_jornada_predeterminada").Should().BeEquivalentTo([("jornada_id", true)]);
+
+    [Fact]
+    public void ToolsDeJornada_DeclaranIdentificadoresYDuracionesComoString_CuandoSeInspeccionanLasTools()
+    {
+        var textuales = new[] { "jornada_id", "horas_semanales", "tope_diario", "minimo_diario", "cursor" };
+        foreach (var nombre in new[]
+            { "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada" })
+            foreach (var p in ParametrosDeTool(nombre)
+                .Where(p => textuales.Contains(p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName)))
+                p.ParameterType.Should().Be(typeof(string), $"{nombre}.{p.Name} viaja como texto (MEF-ADR-0047)");
+    }
+
+    [Fact]
+    public void ToolsDeJornada_PublicanSusHints_CuandoSeInspeccionanLasTools()
+    {
+        string Hints(string nombre) =>
+            ParametroTrigger(MetodoDe(nombre))!.GetCustomAttribute<McpMetadataAttribute>()!.Json;
+
+        Hints("listar_jornadas").Should().Contain("\"readOnlyHint\": true");
+        Hints("crear_jornada").Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+        foreach (var nombre in new[] { "modificar_limites_jornada", "asignar_jornada_predeterminada" })
+        {
+            Hints(nombre).Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+            Hints(nombre).Should().Contain("\"idempotentHint\": true");
+        }
     }
 
     [Fact]
