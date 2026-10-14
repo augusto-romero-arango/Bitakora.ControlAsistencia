@@ -91,8 +91,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.CodigoSede is { } codigoSedeEnBlanco && string.IsNullOrWhiteSpace(codigoSedeEnBlanco))
             return NoProcesable("CodigoSede, si viene, no puede estar en blanco");
 
-        // Issue #942: JornadaId = Guid.Empty es 422 por simetria con CodigoSede en blanco; ninguna
-        // ficha puede llevarlo (AsignarJornadaBodyValidator exige NotEmpty).
+        // Ninguna ficha lleva Guid.Empty (AsignarJornadaBodyValidator exige NotEmpty): es error del
+        // cliente, no una consulta que deba responder 200 con lista vacia.
         if (filtro.JornadaId == Guid.Empty)
             return NoProcesable("JornadaId, si viene, no puede ser Guid vacio");
 
@@ -153,7 +153,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.CodigoSede is { } codigoSede)
             query = query.Where(f => f.CodigoSede == codigoSede);
 
-        // Issue #942: igualdad plana opcional por Jornada asignada, en AND con el resto.
         if (filtro.JornadaId is { } jornadaId)
             query = query.Where(f => f.JornadaId == jornadaId);
 

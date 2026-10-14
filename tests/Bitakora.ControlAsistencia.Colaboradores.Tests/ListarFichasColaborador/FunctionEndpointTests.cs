@@ -178,9 +178,7 @@ public class FunctionEndpointTests
         unprocessable.Value.Should().BeOfType<string>();
     }
 
-    // Issue #942 CA-4: JornadaId es opcional (ausente/null no filtra), pero Guid.Empty es 422 por
-    // simetria con CodigoSede en blanco -- ninguna ficha puede tener Guid.Empty (AsignarJornadaBodyValidator
-    // exige NotEmpty). Se valida antes de abrir la QuerySession.
+    // Ninguna ficha puede tener Guid.Empty (AsignarJornadaBodyValidator exige NotEmpty).
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoElJornadaIdDelFiltroEsGuidVacio()
     {
@@ -195,7 +193,6 @@ public class FunctionEndpointTests
         unprocessable.Value.Should().BeOfType<string>();
     }
 
-    // Issue #942 CA-4: un jornadaId que no es Guid no deserializa -> JsonException -> 400.
     [Fact]
     public async Task ListarFichasColaborador_Retorna400_CuandoElJornadaIdDelFiltroNoEsGuid()
     {
@@ -208,13 +205,24 @@ public class FunctionEndpointTests
         resultado.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // Issue #942 CA-1: un jornadaId valido (o null) supera el borde y llega a la QuerySession.
-    [Theory]
-    [InlineData("""{"fechaReferencia":"2026-08-14","jornadaId":"3f2c8a52-5b0e-4a6e-9f1d-7a1c2b3d4e5f"}""")]
-    [InlineData("""{"fechaReferencia":"2026-08-14","jornadaId":null}""")]
-    public async Task ListarFichasColaborador_NoRechazaElFiltro_CuandoElJornadaIdEsValidoONulo(string body)
+    [Fact]
+    public async Task ListarFichasColaborador_NoRechazaElFiltro_CuandoElJornadaIdEsValido()
     {
-        var request = FakeHttpRequest(contentType: "application/json", body: body);
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","jornadaId":"3f2c8a52-5b0e-4a6e-9f1d-7a1c2b3d4e5f"}""");
+
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_NoRechazaElFiltro_CuandoElJornadaIdEsNulo()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","jornadaId":null}""");
 
         var act = async () => await Endpoint().Run(request, CancellationToken.None);
 
