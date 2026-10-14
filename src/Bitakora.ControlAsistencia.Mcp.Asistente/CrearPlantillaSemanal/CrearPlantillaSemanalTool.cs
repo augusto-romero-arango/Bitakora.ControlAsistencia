@@ -52,6 +52,8 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             + """[{"semana":1,"dia":"lunes","turno":"Cocina Manana"},{"semana":1,"dia":"martes","franja":"07:00-17:00"}].""",
             isRequired: true)]
         string dias,
+        [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.")]
+        string? jornadaId,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(nombre))

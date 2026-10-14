@@ -68,7 +68,7 @@ public sealed class ProgramacionApi(HttpClient http)
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 
     public Task<HttpResponseMessage> CrearPlantillaSemanal(
-        Guid plantillaId, string nombre, int semanas, CancellationToken ct) =>
+        Guid plantillaId, string nombre, int semanas, CancellationToken ct, Guid? jornadaId = null) =>
         http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas }, ct);
 
     public Task<HttpResponseMessage> AsignarTurnoADia(
@@ -77,6 +77,13 @@ public sealed class ProgramacionApi(HttpClient http)
             $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
             new { turnoId },
             ct);
+
+    public Task<HttpResponseMessage> AsignarJornadaAPlantillaSemanal(
+        string plantillaId, Guid jornadaId, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> QuitarJornadaDePlantillaSemanal(string plantillaId, CancellationToken ct) =>
+        throw new NotImplementedException();
 
     public Task<HttpResponseMessage> RetirarPlantillaSemanal(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);

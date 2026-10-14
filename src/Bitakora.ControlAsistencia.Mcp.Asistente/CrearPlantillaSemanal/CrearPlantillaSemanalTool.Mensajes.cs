@@ -12,6 +12,13 @@ public partial class CrearPlantillaSemanalTool
 
     internal static class Mensajes
     {
+        /// <summary>{0}: valor de jornada_id recibido.</summary>
+        public static string JornadaIdInvalido =>
+            ResourceManager.GetString(nameof(JornadaIdInvalido))!;
+
+        public static string JornadaNoExiste =>
+            ResourceManager.GetString(nameof(JornadaNoExiste))!;
+
         /// <summary>{0}: nombre del campo obligatorio en blanco.</summary>
         public static string CampoObligatorio =>
             ResourceManager.GetString(nameof(CampoObligatorio))!;

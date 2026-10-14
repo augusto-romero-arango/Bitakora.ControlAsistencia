@@ -74,4 +74,10 @@
   <data name="NingunTurnoInlineCreado" xml:space="preserve">
     <value>ninguno</value>
   </data>
+  <data name="JornadaIdInvalido" xml:space="preserve">
+    <value>'jornada_id' no es un identificador valido: '{0}'.</value>
+  </data>
+  <data name="JornadaNoExiste" xml:space="preserve">
+    <value>La Jornada no existe; mirala con listar_jornadas.</value>
+  </data>
 </root>
