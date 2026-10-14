@@ -57,4 +57,19 @@ public sealed class ControlHorasApi(HttpClient http)
 
         return http.SendAsync(request, ct);
     }
+
+    public Task<HttpResponseMessage> ListarMallaSemanalTurnos(
+        DateOnly fecha,
+        IReadOnlyList<ColaboradorVigenteMalla> colaboradores,
+        int? take,
+        string? cursor,
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/control-horas/malla-semanal-turnos")
+        {
+            Content = JsonContent.Create(new { fecha, colaboradores, take, cursor })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }

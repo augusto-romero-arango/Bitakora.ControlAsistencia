@@ -1,0 +1,6 @@
+{
+  "elementos": [
+    { "id": "CC-1", "nombreCompleto": "  Ana Pérez ", "codigoColaborador": "C-102", "vigenteDesde": "2024-01-15", "vigenteHasta": null, "etiquetas": [], "codigoSede": "NORTE" },
+    { "id": "CC-2", "nombreCompleto": "Luis Gómez", "codigoColaborador": "C-103", "vigenteDesde": "2024-02-01", "vigenteHasta": "2026-10-16", "etiquetas": [], "codigoSede": "NORTE" }
+  ]
+}
