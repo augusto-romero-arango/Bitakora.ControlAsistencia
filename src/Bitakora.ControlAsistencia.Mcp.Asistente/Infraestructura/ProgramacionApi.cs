@@ -133,6 +133,8 @@ public sealed class ProgramacionApi(HttpClient http)
         DateOnly desde,
         DateOnly hasta,
         IReadOnlyList<string>? codigosColaborador,
+        int? take,
+        string? cursor,
         CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/programacion/ausencias")

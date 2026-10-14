@@ -29,6 +29,20 @@ public partial class ConsultarAusenciasTool
         public static string NotaRecorte =>
             ResourceManager.GetString(nameof(NotaRecorte))!;
 
+        /// <summary>{0}: cursor del backend.</summary>
+        public static string NotaMasColaboradores =>
+            ResourceManager.GetString(nameof(NotaMasColaboradores))!;
+
+        /// <summary>{0}: criterio, {1}: periodo.</summary>
+        public static string GrupoSinColaboradores =>
+            ResourceManager.GetString(nameof(GrupoSinColaboradores))!;
+
+        public static string CriterioSede => ResourceManager.GetString(nameof(CriterioSede))!;
+
+        public static string CriterioEtiquetas => ResourceManager.GetString(nameof(CriterioEtiquetas))!;
+
+        public static string CriterioCodigos => ResourceManager.GetString(nameof(CriterioCodigos))!;
+
         /// <summary>{0}: colaboradores mostrados, {1}: total, {2}: omitidos.</summary>
         public static string NotaTruncado =>
             ResourceManager.GetString(nameof(NotaTruncado))!;

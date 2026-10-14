@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarAusencias;
 
-public partial class ConsultarAusenciasTool(ProgramacionApi api)
+public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandidatosPorGrupo resolutor)
 {
     internal const string NombreTool = "consultar_ausencias";
     internal const int MaximoColaboradores = 50;
@@ -30,6 +31,12 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api)
             "codigos_colaborador",
             "Codigos de colaborador separados por coma para ver solo a esos; omitelo para todos los ausentes del periodo.")]
         string? codigosColaborador,
+        [McpToolProperty("sede", "Codigo de la sede para ver solo a sus colaboradores.")]
+        string? sede,
+        [McpToolProperty("etiquetas", "Pares categoria:valor separados por coma; combina todos en AND.")]
+        string? etiquetas,
+        [McpToolProperty("cursor", "El siguienteCursor de la respuesta anterior, tal cual, para ver la pagina siguiente.")]
+        string? cursor,
         CancellationToken ct)
     {
         if (!TryParseFecha(desde, out var desdeFecha))
@@ -42,7 +49,7 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api)
             return Mensajes.DesdePosteriorAHasta;
 
         var respuesta = await api.ListarAusenciasDelEquipo(
-            desdeFecha, hastaFecha, SepararCodigos(codigosColaborador), ct);
+            desdeFecha, hastaFecha, SepararCodigos(codigosColaborador), null, null, ct);
 
         var fallo = await respuesta.LeerFalloAsync(ct);
         if (fallo is not null)

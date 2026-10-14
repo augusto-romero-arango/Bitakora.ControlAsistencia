@@ -38,4 +38,19 @@
   <data name="NotaTruncado" xml:space="preserve">
     <value>Mostrando {0} de {1} colaboradores con ausencias ({2} omitidos); filtra por codigos_colaborador.</value>
   </data>
+  <data name="NotaMasColaboradores" xml:space="preserve">
+    <value>Puede haber mas colaboradores con ausencias. Para acotar usa sede, etiquetas o codigos_colaborador; para ver los siguientes, repite con cursor = {0}</value>
+  </data>
+  <data name="GrupoSinColaboradores" xml:space="preserve">
+    <value>No hay colaboradores vinculados vigentes que cumplan el criterio ({0}) entre {1}.</value>
+  </data>
+  <data name="CriterioSede" xml:space="preserve">
+    <value>sede {0}</value>
+  </data>
+  <data name="CriterioEtiquetas" xml:space="preserve">
+    <value>etiquetas {0}</value>
+  </data>
+  <data name="CriterioCodigos" xml:space="preserve">
+    <value>codigos {0}</value>
+  </data>
 </root>
