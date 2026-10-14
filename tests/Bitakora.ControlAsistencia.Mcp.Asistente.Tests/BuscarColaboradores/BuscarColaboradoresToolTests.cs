@@ -23,7 +23,8 @@ public class BuscarColaboradoresToolTests
 
         var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
         body["nombre"]!.GetValue<string>().Should().Be("juan bermúdez");
-        body["take"]!.GetValue<int>().Should().Be(BuscarColaboradoresTool.TakeUpstream);
+        body["take"]!.GetValue<int>().Should().Be(BuscarColaboradoresTool.MaximoColaboradores + 1);
+        body["take"]!.GetValue<int>().Should().Be(21);
         body.ContainsKey("identificaciones").Should().BeFalse("sin identificaciones no viaja el campo");
     }
 
@@ -77,7 +78,8 @@ public class BuscarColaboradoresToolTests
             null!, "juan", null, TestContext.Current.CancellationToken);
 
         var json = JsonNode.Parse(resultado)!.AsObject();
-        json["total"]!.GetValue<int>().Should().Be(3);
+        json.ContainsKey("total").Should().BeFalse("la doctrina prohibe el total");
+        json.ContainsKey("siguienteCursor").Should().BeFalse("desambiguacion no pagina");
         json["mostrando"]!.GetValue<int>().Should().Be(3);
         json.ContainsKey("nota").Should().BeFalse("sin truncado no hay senal");
 
@@ -100,18 +102,57 @@ public class BuscarColaboradoresToolTests
     }
 
     [Fact]
-    public async Task BuscarColaboradores_TruncaConSenal_CuandoLaRespuestaTraeMasDe20Coincidencias()
+    public async Task BuscarColaboradores_TruncaConSenal_CuandoLlegan21Coincidencias()
     {
-        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("BuscarColaboradores", "buscar-colaboradores-grande.json"));
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("BuscarColaboradores", "buscar-colaboradores-21.json"));
 
         var resultado = await Tool(cliente).Run(
             null!, "juan", null, TestContext.Current.CancellationToken);
 
-        var json = JsonNode.Parse(resultado)!;
-        json["total"]!.GetValue<int>().Should().Be(25);
-        json["mostrando"]!.GetValue<int>().Should().Be(BuscarColaboradoresTool.MaximoColaboradores);
-        json["colaboradores"]!.AsArray().Should().HaveCount(BuscarColaboradoresTool.MaximoColaboradores);
-        json["nota"]!.GetValue<string>().Should().Contain("20 de 25");
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json.ContainsKey("total").Should().BeFalse("la doctrina prohibe el total");
+        json.ContainsKey("siguienteCursor").Should().BeFalse("desambiguacion no pagina");
+        json["mostrando"]!.GetValue<int>().Should().Be(20);
+        json["colaboradores"]!.AsArray().Should().HaveCount(20);
+        json["nota"]!.GetValue<string>().Should().Be(BuscarColaboradoresTool.Mensajes.NotaTruncado);
+    }
+
+    [Fact]
+    public async Task BuscarColaboradores_RespondeTodasSinNota_CuandoLlegan20Coincidencias()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("BuscarColaboradores", "buscar-colaboradores-20.json"));
+
+        var resultado = await Tool(cliente).Run(
+            null!, "juan", null, TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json.ContainsKey("total").Should().BeFalse("la doctrina prohibe el total");
+        json["mostrando"]!.GetValue<int>().Should().Be(20);
+        json["colaboradores"]!.AsArray().Should().HaveCount(20);
+        json.ContainsKey("nota").Should().BeFalse("con 20 o menos no hay senal");
+    }
+
+    [Fact]
+    public async Task BuscarColaboradores_RespondeFraseConElNombre_CuandoNoHayCoincidencias()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("BuscarColaboradores", "buscar-colaboradores-vacio.json"));
+
+        var resultado = await Tool(cliente).Run(
+            null!, "juan", null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(BuscarColaboradoresTool.Mensajes.SinCoincidencias, "juan"));
+    }
+
+    [Fact]
+    public async Task BuscarColaboradores_RespondeFraseConLasIdentificaciones_CuandoNoHayCoincidencias()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("BuscarColaboradores", "buscar-colaboradores-vacio.json"));
+
+        var resultado = await Tool(cliente).Run(
+            null!, null, "79879078, 10047766882", TestContext.Current.CancellationToken);
+
+        resultado.Should().Contain("79879078").And.Contain("10047766882");
+        resultado.Should().NotStartWith("{");
     }
 
     [Fact]

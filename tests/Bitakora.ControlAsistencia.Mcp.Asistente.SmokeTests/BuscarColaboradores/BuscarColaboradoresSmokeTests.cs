@@ -29,7 +29,8 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
         var raiz = json.RootElement;
 
         var mostrando = raiz.GetProperty("mostrando").GetInt32();
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
+        raiz.TryGetProperty("total", out _).Should().BeFalse("la doctrina prohibe el total");
+        raiz.TryGetProperty("siguienteCursor", out _).Should().BeFalse("desambiguacion no pagina");
 
         var colaboradores = raiz.GetProperty("colaboradores").EnumerateArray().ToList();
         colaboradores.Should().HaveCount(mostrando);
@@ -72,7 +73,7 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
                 new Dictionary<string, object?> { ["identificaciones"] = identificacion },
                 cancellationToken: ct);
             var documento = Sembrado.LeerJson(resultado);
-            return documento.RootElement.TryGetProperty("total", out var total) && total.GetInt32() >= 1
+            return documento.RootElement.TryGetProperty("colaboradores", out var lista) && lista.GetArrayLength() >= 1
                 ? documento
                 : null;
         }, TimeSpan.FromSeconds(60));
