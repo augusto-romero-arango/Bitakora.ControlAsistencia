@@ -44,6 +44,9 @@
   <data name="SemanaEntreMeses" xml:space="preserve">
     <value>{0} de {1} al {2} de {3} de {4}</value>
   </data>
+  <data name="SemanaEntreAnios" xml:space="preserve">
+    <value>{0} de {1} de {2} al {3} de {4} de {5}</value>
+  </data>
   <data name="CriterioSede" xml:space="preserve">
     <value>sede {0}</value>
   </data>

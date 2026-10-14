@@ -79,6 +79,20 @@ public sealed class ControlHorasApi(HttpClient http)
         IReadOnlyList<ColaboradorVigenteMalla> colaboradores,
         int take,
         string? cursor,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/control-horas/dias-sin-programar")
+        {
+            Content = JsonContent.Create(new
+            {
+                desdeFecha = desde,
+                hastaFecha = hasta,
+                colaboradores,
+                take,
+                cursor
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }

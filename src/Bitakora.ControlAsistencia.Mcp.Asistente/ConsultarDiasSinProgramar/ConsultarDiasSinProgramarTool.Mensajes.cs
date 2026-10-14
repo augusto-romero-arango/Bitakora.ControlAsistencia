@@ -32,6 +32,8 @@ public partial class ConsultarDiasSinProgramarTool
 
         public static string SemanaEntreMeses => ResourceManager.GetString(nameof(SemanaEntreMeses))!;
 
+        public static string SemanaEntreAnios => ResourceManager.GetString(nameof(SemanaEntreAnios))!;
+
         public static string CriterioSede => ResourceManager.GetString(nameof(CriterioSede))!;
 
         public static string CriterioEtiquetas => ResourceManager.GetString(nameof(CriterioEtiquetas))!;
