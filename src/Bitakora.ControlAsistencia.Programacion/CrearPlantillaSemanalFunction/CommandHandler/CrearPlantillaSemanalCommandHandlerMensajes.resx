@@ -29,5 +29,7 @@
   <data name="JornadaNoEncontrada" xml:space="preserve">
     <value>No existe la jornada indicada</value>
   </data>
-  <data name="JornadaDesactivada" xml:space="preserve"><value>La Jornada esta desactivada</value></data>
+  <data name="JornadaDesactivada" xml:space="preserve">
+    <value>La Jornada esta desactivada</value>
+  </data>
 </root>

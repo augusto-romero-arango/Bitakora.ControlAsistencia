@@ -19,6 +19,8 @@ public partial class CrearPlantillaSemanalCommandHandler
 
         public static string JornadaNoEncontrada =>
             ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
-        public static string JornadaDesactivada => ResourceManager.GetString(nameof(JornadaDesactivada))!;
+
+        public static string JornadaDesactivada =>
+            ResourceManager.GetString(nameof(JornadaDesactivada))!;
     }
 }

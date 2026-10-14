@@ -33,6 +33,9 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
     private void GivenJornada(int semanales) =>
         Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(semanales)));
 
+    private void GivenJornadaDesactivada(int semanales) =>
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(semanales)), new JornadaDesactivada(JornadaId));
+
     [Fact]
     public async Task AsignarJornadaAPlantillaSemanal_EmiteJornadaAsignada_CuandoLaJornadaExiste()
     {
@@ -102,8 +105,7 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
     public async Task AsignarJornadaAPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaJornadaEstaDesactivada()
     {
         Given(PlantillaCreada());
-        GivenJornada(42);
-        Given(JornadaId.ToString(), new JornadaDesactivada(JornadaId));
+        GivenJornadaDesactivada(42);
 
         var act = async () => await WhenAsync(new AsignarJornadaAPlantillaSemanal(GuidAggregateId, JornadaId));
 
@@ -118,8 +120,7 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
     {
         Given(PlantillaCreada(),
             JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
-        GivenJornada(42);
-        Given(JornadaId.ToString(), new JornadaDesactivada(JornadaId));
+        GivenJornadaDesactivada(42);
 
         await WhenAsync(new AsignarJornadaAPlantillaSemanal(GuidAggregateId, JornadaId));
 

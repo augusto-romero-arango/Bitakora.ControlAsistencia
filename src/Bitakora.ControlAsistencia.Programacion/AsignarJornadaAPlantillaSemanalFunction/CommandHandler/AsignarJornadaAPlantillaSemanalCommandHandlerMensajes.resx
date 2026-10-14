@@ -29,5 +29,7 @@
   <data name="PlantillaRetirada" xml:space="preserve">
     <value>La plantilla fue retirada y ya no admite cambios de diseno</value>
   </data>
-  <data name="JornadaDesactivada" xml:space="preserve"><value>La Jornada esta desactivada</value></data>
+  <data name="JornadaDesactivada" xml:space="preserve">
+    <value>La Jornada esta desactivada</value>
+  </data>
 </root>

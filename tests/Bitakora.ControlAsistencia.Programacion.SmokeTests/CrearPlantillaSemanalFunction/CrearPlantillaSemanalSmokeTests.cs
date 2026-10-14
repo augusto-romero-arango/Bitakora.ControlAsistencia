@@ -191,8 +191,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         await Polling.WaitUntilTrueAsync(
             async () => await PlantillaEstaMaterializadaAsync(plantillaId, ct), Timeout);
 
-    // CA-1/CA-2: nombre coincide exactamente, o solo difiere en mayusculas/espacios de sobra, con
-    // el de un cuadro vigente -> 409 NombreDuplicado. Espejo de CrearTurno (#497).
+    // La comparacion normaliza mayusculas y espacios de sobra, espejo de CrearTurno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearPlantillaSemanal_DebeRetornar409_CuandoElNombreYaExisteEnElCatalogo()
@@ -220,8 +219,8 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
 
         duplicado.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        // Los acentos son significativos (decision del experto en #497): un nombre que difiere
-        // solo en acentos SI se crea.
+        // Los acentos son significativos (decision del experto): un nombre que difiere solo en
+        // acentos SI se crea.
         var conAcento = await _client.PostAsJsonAsync(
             "/api/programacion/plantillas-semanales",
             new
@@ -234,7 +233,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         conAcento.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
-    // El retiro (#623/#624) libera el nombre: la vista solo ve plantillas vigentes.
+    // La vista solo ve plantillas vigentes.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearPlantillaSemanal_LiberaElNombre_CuandoLaPlantillaSeRetira()
