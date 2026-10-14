@@ -389,7 +389,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_ausencias").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("codigos_colaborador", false)]);
+            [("desde", true), ("hasta", true), ("codigos_colaborador", false), ("sede", false), ("etiquetas", false), ("cursor", false)]);
 
     [Fact]
     public void ConsultarAdvertenciasProgramacion_DeclaraSusCincoParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>

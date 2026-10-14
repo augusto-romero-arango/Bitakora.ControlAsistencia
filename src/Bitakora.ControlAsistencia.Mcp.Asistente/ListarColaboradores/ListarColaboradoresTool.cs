@@ -66,7 +66,7 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             return error;
 
         var sedeFiltro = Normalizar(sede);
-        var filtros = ParsearEtiquetas(etiquetas);
+        var filtros = FiltroEtiqueta.ParsearPares(etiquetas);
 
         var respuesta = await api.ListarFichas(
             fecha, sedeFiltro, filtros, MaximoColaboradores, ct, cursor: Normalizar(cursor));
@@ -136,16 +136,6 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             : (default, string.Format(Mensajes.FechaInvalida, fechaReferencia));
     }
 
-    // Un par mal escrito por el asistente (sin ':', o con categoria/valor vacios) se descarta en vez
-    // de viajar al dominio, que lo responderia con 422 y perderia los pares que si eran validos.
-    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
-        string.IsNullOrWhiteSpace(etiquetas)
-            ? []
-            : [.. etiquetas
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
-                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
-                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 
     private static ColaboradorFicha Remodelar(FichaColaborador ficha)
     {

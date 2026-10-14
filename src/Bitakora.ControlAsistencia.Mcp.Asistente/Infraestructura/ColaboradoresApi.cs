@@ -79,7 +79,19 @@ public sealed class ColaboradoresApi(HttpClient http)
 }
 
 /// <summary>Par categoria:valor SIN normalizar, tal como lo espera el body del QUERY upstream.</summary>
-public sealed record FiltroEtiqueta(string Categoria, string Valor);
+public sealed record FiltroEtiqueta(string Categoria, string Valor)
+{
+    // Un par mal escrito por el asistente (sin ':', o con categoria/valor vacios) se descarta en vez
+    // de viajar al dominio, que lo responderia con 422 y perderia los pares que si eran validos.
+    internal static IReadOnlyList<FiltroEtiqueta> ParsearPares(string? pares) =>
+        string.IsNullOrWhiteSpace(pares)
+            ? []
+            : [.. pares
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
+                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
+                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
+}
 
 /// <summary>
 /// Payload propio de la tool hacia POST /api/colaboradores (MEF-ADR-0039 decision 6). Serializa a
