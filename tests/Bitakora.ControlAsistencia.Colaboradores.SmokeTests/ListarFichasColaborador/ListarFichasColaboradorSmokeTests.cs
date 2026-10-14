@@ -72,7 +72,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         DateOnly? VigenteHasta,
         IReadOnlyList<EtiquetaFichaSmoke> Etiquetas,
         IReadOnlyDictionary<string, string> EtiquetasNormalizadas,
-        string? CodigoSede = null);
+        string? CodigoSede = null,
+        Guid? JornadaId = null);
 
     private sealed record ListaSmoke(List<FichaColaboradorRespuestaSmoke> Elementos, string? SiguienteCursor);
 
@@ -561,5 +562,47 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el colaborador sin sede no puede colarse en un filtro por sede");
         conFiltroDeSede.Single().CodigoSede.Should().Be(codigoSede,
             "la respuesta expone el codigo de sede de la ficha (issue #519 CA-3)");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasColaborador_DevuelveSoloLaFichaDeLaJornada_CuandoElFiltroTraeJornadaId()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var fechaReferencia = new DateOnly(2026, 5, 1);
+        var jornadaId = Guid.CreateVersion7();
+        var codigoSede = NuevaSedeUnica();
+        var numeroConJornada = NuevoNumeroIdentificacion();
+        var numeroSinJornada = NuevoNumeroIdentificacion();
+        var idConJornada = ComputarStreamId(numeroConJornada);
+        var idSinJornada = ComputarStreamId(numeroSinJornada);
+
+        await RegistrarColaboradorAsync(
+            numeroConJornada, new DateOnly(2026, 1, 1), NuevoApellidoUnico("ConJornada942"),
+            NuevoCodigoColaborador(), ct, codigoSede);
+        await RegistrarColaboradorAsync(
+            numeroSinJornada, new DateOnly(2026, 1, 1), NuevoApellidoUnico("SinJornada942"),
+            NuevoCodigoColaborador(), ct, codigoSede);
+
+        var asignacion = await _client.PutAsJsonAsync($"/api/colaboradores/{idConJornada}/jornada", new { jornadaId }, ct);
+        asignacion.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que AsignarJornada funcione");
+
+        var porJornada = await ConsultarHastaQueAsync(
+            new { fechaReferencia, jornadaId },
+            lista => lista.Any(f => f.Id == idConJornada),
+            ct);
+
+        porJornada.Should().ContainSingle().Which.Id.Should().Be(idConJornada);
+        porJornada.Single().JornadaId.Should().Be(jornadaId);
+
+        var porJornadaYSede = await ConsultarListaAsync(new { fechaReferencia, jornadaId, codigoSede }, ct);
+        porJornadaYSede.Should().ContainSingle(f => f.Id == idConJornada,
+            "jornadaId se combina en AND con codigoSede");
+
+        var otraJornada = await ConsultarListaAsync(
+            new { fechaReferencia, jornadaId = Guid.CreateVersion7(), codigoSede }, ct);
+        otraJornada.Should().BeEmpty("ninguna ficha tiene esa Jornada");
+        otraJornada.Should().NotContain(f => f.Id == idSinJornada);
     }
 }
