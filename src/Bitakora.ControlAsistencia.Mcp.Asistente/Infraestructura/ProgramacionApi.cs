@@ -59,7 +59,7 @@ public sealed class ProgramacionApi(HttpClient http)
         http.PutAsJsonAsync($"api/programacion/jornadas/{id}/limites", limites, ct);
 
     public Task<HttpResponseMessage> DesactivarJornada(Guid id, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsync($"api/programacion/jornadas/{id}:desactivar", null, ct);
 
     public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
         http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);

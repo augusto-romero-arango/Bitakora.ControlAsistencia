@@ -37,7 +37,8 @@ public sealed class ColaboradoresApi(HttpClient http)
                 codigoSede,
                 etiquetas = etiquetas.Count > 0 ? etiquetas : null,
                 take,
-                cursor
+                cursor,
+                jornadaId
             }, options: OpcionesSinNulls)
         };
 
