@@ -265,4 +265,28 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
 
         reutilizado.StatusCode.Should().Be(HttpStatusCode.Created);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaSemanal_DebeRetornar409_CuandoLaJornadaEstaDesactivada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas",
+            LimitesDePrueba.CrearPlantillaJornadaDesactivada.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created, "el arrange depende de que CrearJornada funcione");
+        (await _client.PostAsync($"/api/programacion/jornadas/{jornadaId}:desactivar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesactivarJornada funcione");
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
+        {
+            plantillaId,
+            nombre = $"[TEST] Plantilla {plantillaId}",
+            semanas = 1,
+            jornadaId
+        }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }
