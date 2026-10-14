@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 public enum TipoCoincidenciaDeHorario
@@ -28,9 +30,9 @@ public sealed class PuntajeDeHorario
         _esPunto = esPunto;
     }
 
-    public static bool TryParsear(string? valor, out PuntajeDeHorario puntaje)
+    public static bool TryParsear(string? valor, [NotNullWhen(true)] out PuntajeDeHorario? puntaje)
     {
-        puntaje = null!;
+        puntaje = null;
         var partes = (valor ?? string.Empty).Trim().Split('-');
 
         if (partes.Length == 1 && NotacionFranja.TryParseHora(partes[0].Trim(), out var hora))
@@ -69,7 +71,7 @@ public sealed class PuntajeDeHorario
         var inicioFranja = Minutos(franja.HoraInicio);
         var finFranja = Minutos(franja.HoraFin) + franja.DiaOffsetFin * MinutosPorDia;
 
-        var distancias = new[] { 0, MinutosPorDia }
+        var distancias = new[] { -MinutosPorDia, 0, MinutosPorDia }
             .Select(desplazamiento => (Inicio: _inicio + desplazamiento, Fin: _fin + desplazamiento))
             .Where(r => Entra(r.Inicio, r.Fin, inicioFranja, finFranja))
             .Select(r => Math.Abs(r.Inicio - inicioFranja) + (_esPunto ? 0 : Math.Abs(r.Fin - finFranja)))

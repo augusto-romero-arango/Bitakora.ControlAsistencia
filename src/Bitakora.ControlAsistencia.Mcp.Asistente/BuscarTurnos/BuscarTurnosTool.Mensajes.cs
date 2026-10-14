@@ -34,5 +34,14 @@ public partial class BuscarTurnosTool
 
         /// <summary>{0}: sede.</summary>
         public static string CoincidePorSede => ResourceManager.GetString(nameof(CoincidePorSede))!;
+
+        /// <summary>{0}: palabra pedida; {1}: palabra encontrada.</summary>
+        public static string PalabraAproximada => ResourceManager.GetString(nameof(PalabraAproximada))!;
+
+        public static string CriterioNombre => ResourceManager.GetString(nameof(CriterioNombre))!;
+
+        public static string CriterioHorario => ResourceManager.GetString(nameof(CriterioHorario))!;
+
+        public static string CriterioSede => ResourceManager.GetString(nameof(CriterioSede))!;
     }
 }

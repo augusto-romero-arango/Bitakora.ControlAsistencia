@@ -65,7 +65,7 @@ public static class CoincidenciaDeTexto
             : corta[i..] == larga[(i + 1)..];
     }
 
-    internal static IReadOnlyList<string> Palabras(string valor) =>
+    private static IReadOnlyList<string> Palabras(string valor) =>
         Normalizar(valor)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 

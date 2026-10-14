@@ -47,4 +47,16 @@
   <data name="CoincidePorSede" xml:space="preserve">
     <value>sede: {0}</value>
   </data>
+  <data name="PalabraAproximada" xml:space="preserve">
+    <value>{0}→{1}</value>
+  </data>
+  <data name="CriterioNombre" xml:space="preserve">
+    <value>nombre: {0}</value>
+  </data>
+  <data name="CriterioHorario" xml:space="preserve">
+    <value>horario: {0}</value>
+  </data>
+  <data name="CriterioSede" xml:space="preserve">
+    <value>sede: {0}</value>
+  </data>
 </root>

@@ -11,7 +11,7 @@ public class PuntajeDeHorarioTests
     private static CoincidenciaDeHorario? Evaluar(string pedido, params FranjaFicha[] franjas)
     {
         PuntajeDeHorario.TryParsear(pedido, out var puntaje).Should().BeTrue();
-        return puntaje.Evaluar(franjas);
+        return puntaje!.Evaluar(franjas);
     }
 
     [Fact]
@@ -79,6 +79,15 @@ public class PuntajeDeHorarioTests
 
         resultado!.Tipo.Should().Be(TipoCoincidenciaDeHorario.Exacto);
         resultado.DistanciaEnMinutos.Should().Be(0);
+    }
+
+    [Fact]
+    public void Evaluar_Entra_CuandoElRangoCruzaLaMedianocheYLaFranjaEsDeMadrugada()
+    {
+        var resultado = Evaluar("22:00-06:00", Franja("00:00", "06:00"));
+
+        resultado.Should().NotBeNull();
+        resultado!.DistanciaEnMinutos.Should().Be(120);
     }
 
     [Fact]

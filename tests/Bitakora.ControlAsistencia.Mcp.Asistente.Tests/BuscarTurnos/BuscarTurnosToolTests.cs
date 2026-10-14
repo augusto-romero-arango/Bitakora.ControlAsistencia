@@ -9,17 +9,6 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.BuscarTurnos;
 
 public class BuscarTurnosToolTests
 {
-    private static async Task<(JsonNode Json, HandlerEnlatado Handler)> Ejecutar(
-        string json, string? nombre = null, string? horario = null, string? sede = null)
-    {
-        var (cliente, handler) = ClienteFalso.Con(json);
-        var tool = new BuscarTurnosTool(new ProgramacionApi(cliente));
-
-        var texto = await tool.Run(null!, nombre, horario, sede, TestContext.Current.CancellationToken);
-
-        return (JsonNode.Parse(JsonSerializer.Serialize(texto))!, handler);
-    }
-
     private static async Task<(string Texto, HandlerEnlatado Handler)> EjecutarTexto(
         string json, string? nombre = null, string? horario = null, string? sede = null)
     {
@@ -137,7 +126,7 @@ public class BuscarTurnosToolTests
     }
 
     [Fact]
-    public async Task BuscarTurnos_ResponderConFraseSinLlamarAlServidor_CuandoNoHayCriterios()
+    public async Task BuscarTurnos_RespondeConFraseSinLlamarAlServidor_CuandoNoHayCriterios()
     {
         var (texto, handler) = await EjecutarTexto(Catalogo, "  ", null, "");
 
@@ -146,7 +135,7 @@ public class BuscarTurnosToolTests
     }
 
     [Fact]
-    public async Task BuscarTurnos_ResponderConFraseSinLlamarAlServidor_CuandoElHorarioEstaMalFormado()
+    public async Task BuscarTurnos_RespondeConFraseSinLlamarAlServidor_CuandoElHorarioEstaMalFormado()
     {
         var (texto, handler) = await EjecutarTexto(Catalogo, horario: "6am");
 
@@ -155,7 +144,7 @@ public class BuscarTurnosToolTests
     }
 
     [Fact]
-    public async Task BuscarTurnos_ResponderConFraseDelCriterio_CuandoNoHayCoincidencias()
+    public async Task BuscarTurnos_RespondeConFraseDelCriterio_CuandoNoHayCoincidencias()
     {
         var (texto, _) = await EjecutarTexto(Catalogo, nombre: "zzzzzz");
 

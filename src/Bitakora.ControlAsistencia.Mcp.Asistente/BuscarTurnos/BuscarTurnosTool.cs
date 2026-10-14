@@ -115,7 +115,7 @@ public partial class BuscarTurnosTool(ProgramacionApi api)
         || (franja.NombreSede is not null && CoincidenciaDeTexto.Evaluar(sede, franja.NombreSede).Count > 0);
 
     private static string Describir(PalabraCoincidente c) =>
-        c.Tipo == TipoCoincidenciaDePalabra.Exacta ? c.Pedida : $"{c.Pedida}\u2192{c.Encontrada}";
+        c.Tipo == TipoCoincidenciaDePalabra.Exacta ? c.Pedida : string.Format(Mensajes.PalabraAproximada, c.Pedida, c.Encontrada);
 
     private static string DescribirHorario(CoincidenciaDeHorario h)
     {
@@ -135,9 +135,9 @@ public partial class BuscarTurnosTool(ProgramacionApi api)
     private static string DescribirCriterios(string? nombre, string? horario, string? sede) =>
         string.Join(", ", new[]
         {
-            nombre is null ? null : $"nombre: {nombre}",
-            horario is null ? null : $"horario: {horario}",
-            sede is null ? null : $"sede: {sede}"
+            nombre is null ? null : string.Format(Mensajes.CriterioNombre, nombre),
+            horario is null ? null : string.Format(Mensajes.CriterioHorario, horario),
+            sede is null ? null : string.Format(Mensajes.CriterioSede, sede)
         }.OfType<string>());
 
     private static string? Limpiar(string? valor) =>

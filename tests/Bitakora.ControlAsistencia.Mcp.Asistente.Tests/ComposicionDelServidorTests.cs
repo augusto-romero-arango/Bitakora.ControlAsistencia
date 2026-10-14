@@ -267,6 +267,10 @@ public class ComposicionDelServidorTests
             [("nombre", false), ("horario", false), ("sede", false)]);
 
     [Fact]
+    public void BuscarTurnos_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("buscar_turnos").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
     public void ListarTurnos_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("listar_turnos").Should().BeEquivalentTo([("filtro_nombre", false)]);
 
