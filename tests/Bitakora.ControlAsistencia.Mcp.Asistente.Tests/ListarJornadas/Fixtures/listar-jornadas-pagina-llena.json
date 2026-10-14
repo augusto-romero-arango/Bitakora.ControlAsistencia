@@ -949,25 +949,6 @@
       "descripcion": "51:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
       "esPredeterminada": false,
       "activa": true
-    },
-    {
-      "jornadaId": "01a08700-0000-7000-9000-000000000051",
-      "horasSemanales": {
-        "horas": 52,
-        "minutos": 0
-      },
-      "topeDiario": {
-        "horas": 8,
-        "minutos": 0
-      },
-      "minimoDiario": {
-        "horas": 0,
-        "minutos": 0
-      },
-      "diasDescansoPorSemana": 1,
-      "descripcion": "52:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
-      "esPredeterminada": false,
-      "activa": true
     }
   ],
   "siguienteCursor": "eyJIb3JhcyI6MjQwMCwiVG9wZSI6NDgwLCJJZCI6IngifQ"

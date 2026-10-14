@@ -7,6 +7,7 @@ using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.MultiTenancy;
 using Marten;
+using Marten.Linq.MatchesSql;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -21,6 +22,12 @@ public class FunctionEndpoint(
 {
     private const int TakeMaximo = 200;
 
+    // Los documentos materializados antes de que la vista tuviera Activa no traen la clave: el record
+    // los lee como activos (default true), pero en SQL la clave ausente es NULL y l.Activa == activa
+    // los descartaria de activa=true. El coalesce replica ese default en la query.
+    private const string SqlFiltroActiva =
+        $"coalesce((data ->> '{nameof(LimitesDeJornada.Activa)}')::boolean, true) = ?";
+
     [Function("ListarLimitesDeJornada")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "programacion/jornadas")]
@@ -33,6 +40,15 @@ public class FunctionEndpoint(
             if (!int.TryParse(takeCrudo[0], out var valor) || valor < 1 || valor > TakeMaximo)
                 return new BadRequestObjectResult($"take debe ser un entero entre 1 y {TakeMaximo}");
             take = valor;
+        }
+
+        bool? filtroActiva = null;
+        string? filtroActivaCrudo = req.Query["activa"];
+        if (!string.IsNullOrEmpty(filtroActivaCrudo))
+        {
+            if (!bool.TryParse(filtroActivaCrudo, out var filtroActivaTipado))
+                return new BadRequestObjectResult("El filtro 'activa' debe ser true o false");
+            filtroActiva = filtroActivaTipado;
         }
 
         CursorJornada? cursor = null;
@@ -49,6 +65,8 @@ public class FunctionEndpoint(
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<LimitesDeJornada> query = session.Query<LimitesDeJornada>();
+        if (filtroActiva is { } activa)
+            query = query.Where(l => l.MatchesSql(SqlFiltroActiva, activa));
         if (cursor is { } c)
         {
             query = query.Where(l =>
@@ -76,7 +94,7 @@ public class FunctionEndpoint(
             faltante = jornada!.ComoVista();
         }
 
-        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take, predeterminadaId));
+        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take, predeterminadaId, filtroActiva));
     }
 }
 
@@ -94,7 +112,8 @@ internal static class LimitesDeJornadaRespuesta
         Convertir(vista.MinimoDiarioEnMinutos),
         vista.DiasDescansoPorSemana,
         vista.Descripcion,
-        predeterminadaId is { } p && vista.Id == p.ToString());
+        predeterminadaId is { } p && vista.Id == p.ToString(),
+        vista.Activa);
 
     private static HorasYMinutosRespuesta Convertir(int minutos) => new(minutos / 60, minutos % 60);
 }
@@ -126,8 +145,12 @@ internal static class ComposicionListadoLimites
 {
     public static ListaLimitesDeJornadaRespuesta Componer(
         IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take,
-        Guid? predeterminadaId = null)
+        Guid? predeterminadaId = null, bool? activa = null)
     {
+        // La vista llega ya filtrada por la query; solo la predeterminada faltante se evalua aqui.
+        if (predeterminada is not null && activa is { } filtro && predeterminada.Activa != filtro)
+            predeterminada = null;
+
         IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
             ? vista
             : [.. vista, predeterminada];

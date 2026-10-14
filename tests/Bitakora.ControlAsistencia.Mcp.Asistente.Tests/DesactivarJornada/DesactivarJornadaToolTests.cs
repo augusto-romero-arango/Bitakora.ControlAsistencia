@@ -11,6 +11,7 @@ public class DesactivarJornadaToolTests
 {
     private const string JornadaTexto = "01a08700-0000-7000-9000-000000000001";
     private static readonly string RutaDesactivar = $"/api/programacion/jornadas/{JornadaTexto}:desactivar";
+    private static readonly string RutaObtener = $"/api/programacion/jornadas/{JornadaTexto}";
     private const string RutaFichas = "/api/colaboradores/fichas";
     private static readonly HttpMethod Query = new("QUERY");
 
@@ -23,9 +24,14 @@ public class DesactivarJornadaToolTests
         string fichasJson,
         HttpStatusCode statusFichas = HttpStatusCode.OK,
         HttpStatusCode statusDesactivar = HttpStatusCode.NoContent,
-        string cuerpoDesactivar = "")
+        string cuerpoDesactivar = "",
+        string jornadaJson = "jornada-no-predeterminada.json",
+        HttpStatusCode statusObtener = HttpStatusCode.OK)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
+        programacion.Responde(
+            HttpMethod.Get, RutaObtener, statusObtener,
+            statusObtener == HttpStatusCode.OK ? Fixture(jornadaJson) : "");
         programacion.Responde(HttpMethod.Post, RutaDesactivar, statusDesactivar, cuerpoDesactivar);
 
         var (clienteColaboradores, colaboradores) = ClienteFalso.ConRutas();
@@ -39,12 +45,12 @@ public class DesactivarJornadaToolTests
     private static Task<string> Ejecutar(DesactivarJornadaTool tool, string jornadaId = JornadaTexto) =>
         tool.Run(null!, jornadaId, TestContext.Current.CancellationToken);
 
-    private static string Fichas(string nombre) => Fixtures.Leer("DesactivarJornada", nombre);
+    private static string Fixture(string nombre) => Fixtures.Leer("DesactivarJornada", nombre);
 
     [Fact]
     public async Task DesactivarJornada_RespondeFraseSinLlamadasHttp_CuandoElJornadaIdNoEsGuid()
     {
-        var entorno = CrearEntorno(Fichas("fichas-vacias.json"));
+        var entorno = CrearEntorno(Fixture("fichas-vacias.json"));
 
         var resultado = await Ejecutar(entorno.Tool, "no-es-guid");
 
@@ -56,57 +62,57 @@ public class DesactivarJornadaToolTests
     [Fact]
     public async Task DesactivarJornada_NoDesactivaYCuentaTodosLosVigentes_CuandoLaUsanTresColaboradoresUnoConTerminacion()
     {
-        var entorno = CrearEntorno(Fichas("fichas-tres-una-con-terminacion.json"));
+        var entorno = CrearEntorno(Fixture("fichas-tres-una-con-terminacion.json"));
 
         var resultado = await Ejecutar(entorno.Tool);
 
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 3));
         resultado.Should().Contain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
     public async Task DesactivarJornada_CuentaLasTerminaciones_CuandoLaUsanTresColaboradoresDosConTerminacion()
     {
-        var entorno = CrearEntorno(Fichas("fichas-tres-dos-con-terminacion.json"));
+        var entorno = CrearEntorno(Fixture("fichas-tres-dos-con-terminacion.json"));
 
         var resultado = await Ejecutar(entorno.Tool);
 
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 3));
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.VariasTerminacionesRegistradas, 2));
         resultado.Should().NotContain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
     public async Task DesactivarJornada_NoMencionaTerminaciones_CuandoLaUsanDosColaboradoresSinVigenteHasta()
     {
-        var entorno = CrearEntorno(Fichas("fichas-dos-sin-terminacion.json"));
+        var entorno = CrearEntorno(Fixture("fichas-dos-sin-terminacion.json"));
 
         var resultado = await Ejecutar(entorno.Tool);
 
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 2));
         resultado.Should().NotContain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
         resultado.Should().NotContain(string.Format(DesactivarJornadaTool.Mensajes.VariasTerminacionesRegistradas, 1));
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
     public async Task DesactivarJornada_UsaLaFraseSingular_CuandoLaUsaUnSoloColaboradorConTerminacion()
     {
-        var entorno = CrearEntorno(Fichas("fichas-una-con-terminacion.json"));
+        var entorno = CrearEntorno(Fixture("fichas-una-con-terminacion.json"));
 
         var resultado = await Ejecutar(entorno.Tool);
 
         resultado.Should().Contain(DesactivarJornadaTool.Mensajes.JornadaEnUsoUnColaborador);
         resultado.Should().Contain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
     public async Task DesactivarJornada_ConsultaFichasConHoyEnBogotaJornadaIdYSinTake_CuandoElJornadaIdEsValido()
     {
-        var entorno = CrearEntorno(Fichas("fichas-vacias.json"));
+        var entorno = CrearEntorno(Fixture("fichas-vacias.json"));
 
         await Ejecutar(entorno.Tool);
 
@@ -121,7 +127,7 @@ public class DesactivarJornadaToolTests
     [Fact]
     public async Task DesactivarJornada_EnviaElPostYRespondeExito_CuandoNadieLaUsaYElServidorDevuelve204()
     {
-        var entorno = CrearEntorno(Fichas("fichas-vacias.json"));
+        var entorno = CrearEntorno(Fixture("fichas-vacias.json"));
 
         var resultado = await Ejecutar(entorno.Tool);
 
@@ -135,7 +141,7 @@ public class DesactivarJornadaToolTests
     {
         const string cuerpo = "La Jornada es la predeterminada";
         var entorno = CrearEntorno(
-            Fichas("fichas-vacias.json"), statusDesactivar: HttpStatusCode.Conflict, cuerpoDesactivar: cuerpo);
+            Fixture("fichas-vacias.json"), statusDesactivar: HttpStatusCode.Conflict, cuerpoDesactivar: cuerpo);
 
         var resultado = await Ejecutar(entorno.Tool);
 
@@ -147,7 +153,7 @@ public class DesactivarJornadaToolTests
     {
         const string cuerpo = "La Jornada no existe";
         var entorno = CrearEntorno(
-            Fichas("fichas-vacias.json"), statusDesactivar: HttpStatusCode.NotFound, cuerpoDesactivar: cuerpo);
+            Fixture("fichas-vacias.json"), statusDesactivar: HttpStatusCode.NotFound, cuerpoDesactivar: cuerpo);
 
         var resultado = await Ejecutar(entorno.Tool);
 
@@ -162,6 +168,42 @@ public class DesactivarJornadaToolTests
         var resultado = await Ejecutar(entorno.Tool);
 
         resultado.Should().Be(string.Format(DesactivarJornadaTool.Mensajes.RechazoDelDominio, "503"));
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task DesactivarJornada_RespondeJornadaPredeterminadaSinFichasNiPost_CuandoLaJornadaEsLaPredeterminada()
+    {
+        var entorno = CrearEntorno(Fixture("fichas-tres-una-con-terminacion.json"), jornadaJson: "jornada-predeterminada.json");
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Be(DesactivarJornadaTool.Mensajes.JornadaPredeterminada);
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task DesactivarJornada_RespondeJornadaNoExisteSinFichasNiPost_Cuando404DelGet()
+    {
+        var entorno = CrearEntorno(Fixture("fichas-vacias.json"), statusObtener: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Be(string.Format(DesactivarJornadaTool.Mensajes.JornadaNoExiste, JornadaTexto));
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task DesactivarJornada_RespondeElRechazoDelDominioSinFichasNiPost_CuandoLaLecturaDeLaJornadaFalla()
+    {
+        var entorno = CrearEntorno(Fixture("fichas-vacias.json"), statusObtener: HttpStatusCode.InternalServerError);
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Be(string.Format(DesactivarJornadaTool.Mensajes.RechazoDelDominio, "500"));
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 }

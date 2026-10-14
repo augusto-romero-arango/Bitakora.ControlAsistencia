@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasCuarentaTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasCuarentaYDosTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -37,10 +37,11 @@ public class ComposicionDelServidorTests
         nombres.Should().BeEquivalentTo(
             [
                 "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
-                "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
-                "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
+                "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador",
+                "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
-                "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
+                "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
+                "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
                 "solicitar_programacion_turno",
@@ -149,6 +150,13 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("registrar_colaborador", "Pone a una persona bajo control de asistencia",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("buscar_sedes", "Busca sedes activas para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
+        ("buscar_turnos", "Busca turnos del catalogo para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
+        ("buscar_plantillas_semanales",
+            "Busca plantillas semanales del catalogo para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
         ("listar_turnos", "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno.",
             "\"readOnlyHint\": true"),
         ("obtener_turno", "Obtiene el detalle de un turno del catalogo: sus franjas con horario, descansos, ",
@@ -238,7 +246,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ListarColaboradores_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("listar_colaboradores").Should().BeEquivalentTo(
-            [("identificacion", false), ("sede", false), ("etiquetas", false), ("fecha_referencia", false)]);
+            [("identificacion", false), ("sede", false), ("etiquetas", false), ("fecha_referencia", false), ("cursor", false)]);
 
     [Fact]
     public void BuscarColaboradores_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
@@ -258,6 +266,33 @@ public class ComposicionDelServidorTests
                 ("segundo_nombre", false), ("primer_apellido", true), ("segundo_apellido", false),
                 ("codigo_colaborador", true), ("fecha_inicio", true), ("codigo_sede", false)
             ]);
+
+    [Fact]
+    public void BuscarSedes_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("buscar_sedes").Should().BeEquivalentTo(
+            [("nombre", false), ("ciudad", false), ("direccion", false)]);
+
+    [Fact]
+    public void BuscarSedes_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("buscar_sedes").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void BuscarTurnos_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("buscar_turnos").Should().BeEquivalentTo(
+            [("nombre", false), ("horario", false), ("sede", false)]);
+
+    [Fact]
+    public void BuscarTurnos_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("buscar_turnos").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void BuscarPlantillasSemanales_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("buscar_plantillas_semanales").Should().BeEquivalentTo(
+            [("nombre", false), ("turno", false), ("semanas", false), ("estado", false)]);
+
+    [Fact]
+    public void BuscarPlantillasSemanales_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("buscar_plantillas_semanales").Should().OnlyContain(p => p.ParameterType == typeof(string));
 
     [Fact]
     public void ListarTurnos_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>
@@ -349,12 +384,23 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ConsultarProgramacion_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_programacion").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("codigo_colaborador", false), ("sede_id", false)]);
+            [("desde", true), ("hasta", true), ("codigos_colaborador", false), ("sede", false), ("etiquetas", false),
+                ("sede_trabajo", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarProgramacion_DescribeLosDosFiltrosDeSedeYLaPaginacion_CuandoSeInspeccionaSuDescripcion()
+    {
+        var descripcion = ParametroTrigger(MetodoDe("consultar_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+
+        descripcion.Should().Contain("sede_trabajo").And.Contain("sede").And.Contain("etiquetas")
+            .And.Contain("codigos_colaborador").And.Contain("cursor");
+    }
 
     [Fact]
     public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_ausencias").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("codigos_colaborador", false)]);
+            [("desde", true), ("hasta", true), ("codigos_colaborador", false), ("sede", false), ("etiquetas", false), ("cursor", false)]);
 
     [Fact]
     public void ConsultarAdvertenciasProgramacion_DeclaraSusCincoParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>

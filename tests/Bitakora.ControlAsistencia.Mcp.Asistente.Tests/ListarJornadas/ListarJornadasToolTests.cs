@@ -36,17 +36,17 @@ public class ListarJornadasToolTests
     }
 
     [Fact]
-    public async Task ListarJornadas_PideTakeMaximoMasUno_CuandoNoRecibeCursor()
+    public async Task ListarJornadas_PideTakeIgualAlTope_CuandoNoRecibeCursor()
     {
         var (_, handler) = await Ejecutar("listar-jornadas.json");
 
         handler.UltimaRequest!.Method.Should().Be(HttpMethod.Get);
         handler.UltimaRequest.RequestUri!.AbsolutePath.Should().Be("/api/programacion/jornadas");
-        handler.UltimaRequest.RequestUri.Query.Should().Be("?take=51");
+        handler.UltimaRequest.RequestUri.Query.Should().Be("?take=50");
     }
 
     [Fact]
-    public async Task ListarJornadas_MuestraElTopeYReenviaElCursorConNota_CuandoElBackendDevuelveUnaPaginaDeMas()
+    public async Task ListarJornadas_MuestraTodosLosElementosRecibidosConCursorYNota_CuandoElSobreTraeSiguienteCursor()
     {
         var (json, _) = await Ejecutar("listar-jornadas-pagina-llena.json");
 
@@ -62,6 +62,16 @@ public class ListarJornadasToolTests
     {
         var (_, handler) = await Ejecutar("listar-jornadas.json", cursor: "abc_-DEF123");
 
-        handler.UltimaRequest!.RequestUri!.Query.Should().Contain("cursor=abc_-DEF123").And.Contain("take=51");
+        handler.UltimaRequest!.RequestUri!.Query.Should().Contain("cursor=abc_-DEF123").And.Contain("take=50");
+    }
+
+    [Fact]
+    public async Task ListarJornadas_OmiteCursorYNota_CuandoElSobreNoTraeSiguienteCursor()
+    {
+        var (json, _) = await Ejecutar("listar-jornadas.json");
+
+        json["jornadas"]!.AsArray().Should().HaveCount(2);
+        json.AsObject().ContainsKey("siguienteCursor").Should().BeFalse();
+        json.AsObject().ContainsKey("nota").Should().BeFalse();
     }
 }

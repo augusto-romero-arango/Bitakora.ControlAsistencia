@@ -59,7 +59,7 @@ Referencias:
 
 ### Conexion entre capas
 
-14. La tool pide al backend `Take = tope + 1`; si llega el extra, hay mas. Su cursor es el `siguienteCursor` del backend; no arma cursores propios. La composicion interna llama sin `Take`. La tool traduce `elementos` al nombre del recurso al remodelar.
+14. Las modalidades que paginan con el cursor del backend (catalogo y ventana temporal) piden `Take = tope`; saben que hay mas solo porque llega `siguienteCursor`, que reenvian tal cual, y nunca descartan un elemento recibido (el backend ya pide `Take + 1` por dentro y arma el cursor con el ultimo devuelto). La desambiguacion, que no pagina, pide `tope + 1` para detectar el sobrante. No arma cursores propios. La composicion interna llama sin `Take`. La tool traduce `elementos` al nombre del recurso al remodelar. Enmendada por #1057: el texto anterior (`tope + 1` con cursor) perdia un elemento por pagina; se desvia de MEF-ADR-0047 decision 4 hasta que se resuelva mefisto#2435.
 
 ## Consecuencias
 
@@ -80,3 +80,7 @@ Referencias:
 - **Cursor en encabezado `Link` (RFC 8288)**: raro con QUERY, que lleva el cursor en el body; el sobre ya era la forma de las ventanas.
 - **Lista con nombre del recurso en el backend**: el backend es API para codigo; el nombre del recurso es para el modelo, en la tool.
 - **Paginar por numero de pagina**: el backend es keyset; un offset obliga a recorrer desde el principio.
+
+## Historial
+
+- 2026-10-13: decision 14 enmendada (#1057, mefisto#2435): las modalidades que paginan piden `Take = tope` y deducen "hay mas" del `siguienteCursor`; la desambiguacion pide `tope + 1`.

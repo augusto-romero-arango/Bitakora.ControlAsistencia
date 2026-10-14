@@ -41,4 +41,10 @@
   <data name="ResultadoJornadaDesactivada" xml:space="preserve">
     <value>Jornada desactivada.</value>
   </data>
+  <data name="JornadaPredeterminada" xml:space="preserve">
+    <value>La Jornada es la predeterminada; asigna otra como predeterminada con asignar_jornada_predeterminada antes de desactivarla</value>
+  </data>
+  <data name="JornadaNoExiste" xml:space="preserve">
+    <value>La Jornada '{0}' no existe; revisa listar_jornadas.</value>
+  </data>
 </root>

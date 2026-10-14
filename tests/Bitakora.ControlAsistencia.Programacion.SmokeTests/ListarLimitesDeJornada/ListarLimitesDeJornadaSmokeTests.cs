@@ -27,7 +27,8 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
         HorasYMinutosSmoke MinimoDiario,
         int DiasDescansoPorSemana,
         string Descripcion,
-        bool EsPredeterminada);
+        bool EsPredeterminada,
+        bool Activa = true);
 
     private sealed record ListaSmoke(IReadOnlyList<ElementoSmoke> Elementos, string? SiguienteCursor);
 
@@ -185,6 +186,46 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
     {
         var response = await _client.GetAsync($"{Ruta}?cursor=no-es-un-cursor",
             TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarLimitesDeJornada_FiltraPorActiva_CuandoSeDesactivaYSeReactiva()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var id = await CrearJornadaAsync(LimitesDePrueba.ListarFiltraPorActiva, ct);
+
+        (await _client.PostAsync($"{Ruta}/{id}:desactivar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesactivarJornada funcione");
+
+        var inactivas = await Polling.WaitUntilAsync(async () =>
+        {
+            var l = await ListarAsync("?activa=false", ct);
+            return l.Elementos.Any(e => e.JornadaId == id) ? l : null;
+        }, Timeout);
+
+        inactivas.Elementos.Should().ContainSingle(e => e.JornadaId == id).Which.Activa.Should().BeFalse();
+        (await ListarAsync("?activa=true", ct)).Elementos.Should().NotContain(e => e.JornadaId == id);
+
+        (await _client.PostAsync($"{Ruta}/{id}:activar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que ActivarJornada funcione");
+
+        var activas = await Polling.WaitUntilAsync(async () =>
+        {
+            var l = await ListarAsync("?activa=true", ct);
+            return l.Elementos.Any(e => e.JornadaId == id) ? l : null;
+        }, Timeout);
+
+        activas.Elementos.Should().ContainSingle(e => e.JornadaId == id).Which.Activa.Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoActivaEsInvalido()
+    {
+        var response = await _client.GetAsync($"{Ruta}?activa=quizas", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

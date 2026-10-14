@@ -133,6 +133,8 @@ public sealed class ProgramacionApi(HttpClient http)
         DateOnly desde,
         DateOnly hasta,
         IReadOnlyList<string>? codigosColaborador,
+        int? take,
+        string? cursor,
         CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/programacion/ausencias")
@@ -141,7 +143,9 @@ public sealed class ProgramacionApi(HttpClient http)
             {
                 desde,
                 hasta,
-                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                take,
+                cursor
             })
         };
 

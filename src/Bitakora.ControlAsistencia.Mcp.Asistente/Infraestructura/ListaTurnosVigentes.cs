@@ -9,7 +9,8 @@ public sealed record ListaTurnosVigentes(
     DateOnly Desde,
     DateOnly Hasta,
     bool RangoRecortado,
-    IReadOnlyList<TurnoVigente> Elementos);
+    IReadOnlyList<TurnoVigente> Elementos,
+    string? SiguienteCursor = null);
 
 public sealed record TurnoVigente(
     string Id,

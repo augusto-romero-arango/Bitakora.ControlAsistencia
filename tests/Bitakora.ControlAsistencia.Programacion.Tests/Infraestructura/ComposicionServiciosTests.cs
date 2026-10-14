@@ -309,6 +309,16 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaActivada()
+    {
+        await using var provider = ComponerServiceProvider();
+        var store = provider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(JornadaActivada)).Alias;
+        alias.Should().Be("jornada_activada");
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDesactivada()
     {
         await using var provider = ComponerServiceProvider();

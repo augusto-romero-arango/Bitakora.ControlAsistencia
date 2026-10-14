@@ -89,7 +89,16 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     // nombres son literalmente el contrato de FiltroListarTurnosVigentes.
     private static object Filtro(
         DateOnly desde, DateOnly hasta, string? codigoColaborador = null, string? sedeId = null) =>
-        new { desdeFecha = desde, hastaFecha = hasta, codigoColaborador, sedeId };
+        new
+        {
+            desdeFecha = desde,
+            hastaFecha = hasta,
+            codigosColaborador = codigoColaborador is null ? null : new[] { codigoColaborador },
+            sedeId
+        };
+
+    private static object FiltroConLista(DateOnly desde, DateOnly hasta, params string[] codigosColaborador) =>
+        new { desdeFecha = desde, hastaFecha = hasta, codigosColaborador };
 
     private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
     {
@@ -609,6 +618,59 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         respuesta.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoColaboradorB);
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_IncluyeSoloALosColaboradoresDeLaLista_CuandoSeFiltraPorCodigosColaborador()
+    {
+        // Lista OR dentro del campo, AND con la sede, keyset intacto al paginar y lista vacia = sin
+        // filtro. Un solo sembrado de tres colaboradores para todas las consultas; A es el unico con sede.
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var fecha = new DateOnly(2026, 6, 8);
+        var sedeIdA = Guid.CreateVersion7().ToString();
+        var codigoA = Guid.CreateVersion7().ToString();
+        var codigoB = Guid.CreateVersion7().ToString();
+        var codigoC = Guid.CreateVersion7().ToString();
+
+        await PublicarTurnoConSedeAsync(
+            Guid.CreateVersion7(), codigoA, fecha, "[TEST] Turno Lista A", sedeIdA, "[TEST] Sede Lista A");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoB, fecha, "[TEST] Turno Lista B");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoC, fecha, "[TEST] Turno Lista C");
+
+        (await EsperarTurnoEnLaListaAsync(codigoA, fecha, ct)).Should().BeTrue("A deberia materializarse");
+        (await EsperarTurnoEnLaListaAsync(codigoB, fecha, ct)).Should().BeTrue("B deberia materializarse");
+        (await EsperarTurnoEnLaListaAsync(codigoC, fecha, ct)).Should().BeTrue("C deberia materializarse");
+
+        var conLista = await ConsultarOkAsync(FiltroConLista(fecha, fecha, codigoA, codigoB), ct);
+        conLista.Elementos.Should().Contain(t => t.CodigoColaborador == codigoA && t.Fecha == fecha);
+        conLista.Elementos.Should().Contain(t => t.CodigoColaborador == codigoB && t.Fecha == fecha);
+        conLista.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoC);
+
+        var conListaYSede = await ConsultarOkAsync(
+            new { desdeFecha = fecha, hastaFecha = fecha, codigosColaborador = new[] { codigoA, codigoB }, sedeId = sedeIdA },
+            ct);
+        conListaYSede.Elementos.Select(t => t.CodigoColaborador).Should().Equal(codigoA);
+
+        // El orden entre A y B depende del collation de Postgres: se afirma que las dos paginas
+        // reparten a A y B sin repetir ni perder a ninguno, no cual va primero.
+        var pagina1 = await ConsultarOkAsync(
+            new { desdeFecha = fecha, hastaFecha = fecha, codigosColaborador = new[] { codigoA, codigoB }, take = 1 }, ct);
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var pagina2 = await ConsultarOkAsync(
+            new { desdeFecha = fecha, hastaFecha = fecha, codigosColaborador = new[] { codigoA, codigoB }, take = 1, cursor = pagina1.SiguienteCursor },
+            ct);
+        pagina2.SiguienteCursor.Should().BeNull();
+        pagina1.Elementos.Concat(pagina2.Elementos).Select(t => t.CodigoColaborador)
+            .Should().BeEquivalentTo([codigoA, codigoB]);
+
+        var conListaVacia = await ConsultarOkAsync(FiltroConLista(fecha, fecha), ct);
+        conListaVacia.Elementos.Should().Contain(t => t.CodigoColaborador == codigoC && t.Fecha == fecha);
+    }
+
     private const string TopicCancelacionEntrada = "cancelacion-turno-diario-solicitada";
     private const string TopicAusenciaEntrada = "ausencia-diaria-programada";
     private const string MotivoAusencia = "Vacaciones";
@@ -735,13 +797,13 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             "el segundo turno deberia materializarse dentro del timeout");
 
         var pagina1 = await ConsultarOkAsync(
-            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigoColaborador, take = 1 }, ct);
+            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigosColaborador = new[] { codigoColaborador }, take = 1 }, ct);
 
         pagina1.Elementos.Select(t => t.Fecha).Should().Equal(primerDia);
         pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
 
         var pagina2 = await ConsultarOkAsync(
-            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigoColaborador, take = 1, cursor = pagina1.SiguienteCursor },
+            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigosColaborador = new[] { codigoColaborador }, take = 1, cursor = pagina1.SiguienteCursor },
             ct);
 
         pagina2.Elementos.Select(t => t.Fecha).Should().Equal(segundoDia);

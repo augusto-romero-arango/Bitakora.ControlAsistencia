@@ -8,10 +8,11 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
     private static readonly string[] ToolsEsperadas =
     [
         "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
-        "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
-        "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
+        "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador",
+        "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
-        "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
+        "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
+        "crear_plantilla_semanal",
         "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
         "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
         "solicitar_programacion_turno",
@@ -35,6 +36,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "tipo_identificacion", "numero_identificacion", "primer_nombre",
             "primer_apellido", "codigo_colaborador", "fecha_inicio"
         ],
+        ["buscar_sedes"] = [],
+        ["buscar_turnos"] = [],
         ["listar_turnos"] = [],
         ["obtener_turno"] = ["id"],
         ["crear_turno"] = ["nombre"],
@@ -44,6 +47,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["agregar_subfranja"] = ["turno", "franja", "tipo", "inicio", "fin"],
         ["quitar_subfranja"] = ["turno", "franja", "tipo", "inicio"],
         ["asignar_sede_franja"] = ["turno", "franja"],
+        ["buscar_plantillas_semanales"] = [],
         ["listar_plantillas_semanales"] = [],
         ["obtener_plantilla_semanal"] = ["plantilla"],
         ["crear_plantilla_semanal"] = ["nombre", "dias"],
@@ -73,7 +77,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasCuarentaTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasCuarentaYDosTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
