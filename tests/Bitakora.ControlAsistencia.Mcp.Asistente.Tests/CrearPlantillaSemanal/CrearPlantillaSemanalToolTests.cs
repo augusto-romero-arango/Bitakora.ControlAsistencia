@@ -78,7 +78,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, TestContext.Current.CancellationToken);
+            null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, null, TestContext.Current.CancellationToken);
 
         var plantillaIdEnviado = ExtraerPlantillaIdEnviado(fakes);
         Guid.TryParse(plantillaIdEnviado, out _).Should().BeTrue("plantillaId debe ser un Guid v7 valido");
@@ -117,7 +117,7 @@ public class CrearPlantillaSemanalToolTests
             var fakes = CrearTool();
             var dias = $$"""[{"semana":1,"dia":{{JsonSerializer.Serialize(valorDia)}},"turno":"Cocina Manana"}]""";
 
-            await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+            await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
             return fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Put).Ruta;
         }
@@ -138,7 +138,7 @@ public class CrearPlantillaSemanalToolTests
             """;
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(
             CrearPlantillaSemanalTool.Mensajes.TurnosNoExisten, "Turno Que No Existe", "Cocina Manana, Cocina Tarde"));
@@ -153,7 +153,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "   ", 1, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+            null!, "   ", 1, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.CampoObligatorio, "nombre"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -164,7 +164,7 @@ public class CrearPlantillaSemanalToolTests
     {
         var fakes = CrearTool();
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, "   ", TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, "   ", null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.CampoObligatorio, "dias"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -176,7 +176,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, "esto no es json", TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, "esto no es json", null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(CrearPlantillaSemanalTool.Mensajes.DiasJsonInvalido);
         fakes.Handler.Requests.Should().BeEmpty();
@@ -187,7 +187,7 @@ public class CrearPlantillaSemanalToolTests
     {
         var fakes = CrearTool();
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, "[]", TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, "[]", null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(CrearPlantillaSemanalTool.Mensajes.DiasVacio);
         fakes.Handler.Requests.Should().BeEmpty();
@@ -199,7 +199,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
         var dias = """[{"semana":1,"dia":"funes","turno":"Cocina Manana"}]""";
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.DiaDesconocido, "funes"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -211,7 +211,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
         var dias = """[{"semana":1,"dia":8,"turno":"Cocina Manana"}]""";
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.DiaDesconocido, "8"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -223,7 +223,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
         var dias = """[{"semana":2,"dia":"lunes","turno":"Cocina Manana"}]""";
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.SemanaFueraDeRango, 2, 1));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -237,7 +237,7 @@ public class CrearPlantillaSemanalToolTests
             [{"semana":1,"dia":"lunes","turno":"Cocina Manana"},{"semana":1,"dia":1,"turno":"Cocina Tarde"}]
             """;
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.DiaDuplicado, 1, 1));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -249,7 +249,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 0, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 0, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.SemanasFueraDeRango, 0));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -261,7 +261,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 7, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 7, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.SemanasFueraDeRango, 7));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -275,7 +275,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(statusPost: HttpStatusCode.Conflict, cuerpoPost: cuerpo);
 
         var resultado = await fakes.Tool.Run(
-            null!, "Semana Tipo Cocina", 1, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+            null!, "Semana Tipo Cocina", 1, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.RechazoDelDominio, cuerpo));
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
@@ -288,7 +288,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(statusPost: HttpStatusCode.BadRequest, cuerpoPost: fixture);
 
         var resultado = await fakes.Tool.Run(
-            null!, "Semana Tipo Cocina", 1, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+            null!, "Semana Tipo Cocina", 1, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.RechazoDelDominio, fixture));
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
@@ -315,7 +315,7 @@ public class CrearPlantillaSemanalToolTests
             programacionApi, new ResolutorTurnoPorNombre(programacionApi));
 
         var resultado = await tool.Run(
-            null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, TestContext.Current.CancellationToken);
+            null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, null, TestContext.Current.CancellationToken);
 
         var json = JsonNode.Parse(resultado)!;
         json["diasAsignados"]!.GetValue<int>().Should().Be(6);
@@ -339,7 +339,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
         var dias = """[{"semana":1,"turno":"Cocina Manana"}]""";
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.DiaDesconocido, ""));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -351,7 +351,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
         var dias = """[{"semana":1,"dia":"lunes"}]""";
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoOFranjaObligatorio, 1, "lunes"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -365,7 +365,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(statusPost: HttpStatusCode.ServiceUnavailable);
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, UnaEntradaValidaJson, TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.RechazoDelDominio, "503"));
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
@@ -401,7 +401,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "7:00-17:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "7:00-17:00")), null, TestContext.Current.CancellationToken);
 
         var turno = PostsATurnos(fakes).Single();
         turno["nombre"]!.GetValue<string>().Should().Be("07:00-17:00");
@@ -437,7 +437,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "22:00-06:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "22:00-06:00")), null, TestContext.Current.CancellationToken);
 
         PostsATurnos(fakes).Single()["nombre"]!.GetValue<string>().Should().Be("22:00-06:00+1");
         var franjaBody = JsonNode.Parse(AgregarFranjas(fakes).Single().Cuerpo!)!;
@@ -451,7 +451,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-07:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-07:00")), null, TestContext.Current.CancellationToken);
 
         PostsATurnos(fakes).Single()["nombre"]!.GetValue<string>().Should().Be("07:00-07:00+1");
         var franjaBody = JsonNode.Parse(AgregarFranjas(fakes).Single().Cuerpo!)!;
@@ -465,7 +465,7 @@ public class CrearPlantillaSemanalToolTests
 
         var resultado = await fakes.Tool.Run(
             null!, "Plantilla X", 1,
-            DiasInline(("lunes", "7:00-17:00"), ("martes", "07:00-17:00")),
+            DiasInline(("lunes", "7:00-17:00"), ("martes", "07:00-17:00")), null,
             TestContext.Current.CancellationToken);
 
         var turno = PostsATurnos(fakes).Single();
@@ -483,7 +483,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(turnosJson: CatalogoCon("07:00-17:00", FranjaJson("07:00", "17:00", 0)));
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "7:00-17:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "7:00-17:00")), null, TestContext.Current.CancellationToken);
 
         PostsATurnos(fakes).Should().BeEmpty();
         AgregarFranjas(fakes).Should().BeEmpty();
@@ -498,7 +498,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(turnosJson: CatalogoCon("07:00-17:00", ""));
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), null, TestContext.Current.CancellationToken);
 
         PostsATurnos(fakes).Should().BeEmpty();
         AgregarFranjas(fakes).Single().Ruta.Should().Be($"{RutaTurnos}/{IdHomonimo}:agregar-franja");
@@ -512,7 +512,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(turnosJson: catalogo);
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoInlineEnConflicto, "07:00-17:00"));
         NoEscribioNada(fakes);
@@ -543,7 +543,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "25:00-17:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "25:00-17:00")), null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.FranjaInvalida, 1, "lunes", "25:00-17:00"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -555,7 +555,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool();
         var dias = """[{"semana":1,"dia":"lunes","turno":"Cocina Manana","franja":"07:00-17:00"}]""";
 
-        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, TestContext.Current.CancellationToken);
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoYFranjaExcluyentes, 1, "lunes"));
         fakes.Handler.Requests.Should().BeEmpty();
@@ -567,7 +567,7 @@ public class CrearPlantillaSemanalToolTests
         var fakes = CrearTool(statusCrearTurno: HttpStatusCode.Conflict);
 
         var resultado = await fakes.Tool.Run(
-            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), TestContext.Current.CancellationToken);
+            null!, "Plantilla X", 1, DiasInline(("lunes", "07:00-17:00")), null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(
             CrearPlantillaSemanalTool.Mensajes.TurnoInlineNombreDuplicado,
@@ -587,7 +587,7 @@ public class CrearPlantillaSemanalToolTests
 
         var resultado = await fakes.Tool.Run(
             null!, "Plantilla X", 1,
-            DiasInline(("lunes", "07:00-17:00"), ("martes", "09:00-18:00")),
+            DiasInline(("lunes", "07:00-17:00"), ("martes", "09:00-18:00")), null,
             TestContext.Current.CancellationToken);
 
         resultado.Should().Contain("07:00-17:00").And.Contain("09:00-18:00").And.Contain("503");

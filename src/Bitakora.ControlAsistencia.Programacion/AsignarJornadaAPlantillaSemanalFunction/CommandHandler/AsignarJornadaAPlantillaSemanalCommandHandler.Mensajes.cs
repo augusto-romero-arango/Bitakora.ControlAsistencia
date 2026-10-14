@@ -18,5 +18,8 @@ public partial class AsignarJornadaAPlantillaSemanalCommandHandler
 
         public static string PlantillaRetirada =>
             ResourceManager.GetString(nameof(PlantillaRetirada))!;
+
+        public static string JornadaDesactivada =>
+            ResourceManager.GetString(nameof(JornadaDesactivada))!;
     }
 }

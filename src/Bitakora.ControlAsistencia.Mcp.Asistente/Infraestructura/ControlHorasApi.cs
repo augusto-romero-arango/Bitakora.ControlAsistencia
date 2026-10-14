@@ -14,8 +14,10 @@ public sealed class ControlHorasApi(HttpClient http)
     public Task<HttpResponseMessage> ConsultarTurnosVigentes(
         DateOnly desde,
         DateOnly hasta,
-        string? codigoColaborador,
+        IReadOnlyList<string>? codigosColaborador,
         string? sedeId,
+        int? take,
+        string? cursor,
         CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/control-horas/turnos-vigentes")
@@ -24,8 +26,10 @@ public sealed class ControlHorasApi(HttpClient http)
             {
                 desdeFecha = desde,
                 hastaFecha = hasta,
-                codigoColaborador,
-                sedeId
+                codigosColaborador = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                sedeId,
+                take,
+                cursor
             })
         };
 

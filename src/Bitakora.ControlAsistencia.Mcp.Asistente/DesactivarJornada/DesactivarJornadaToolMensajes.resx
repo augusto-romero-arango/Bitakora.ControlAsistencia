@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="JornadaIdInvalido" xml:space="preserve">
+    <value>El jornada_id '{0}' no es un identificador valido; usa el que da listar_jornadas.</value>
+  </data>
+  <data name="JornadaEnUsoUnColaborador" xml:space="preserve">
+    <value>La Jornada esta asignada a 1 colaborador vigente; reasignalo antes de desactivarla</value>
+  </data>
+  <data name="JornadaEnUsoVariosColaboradores" xml:space="preserve">
+    <value>La Jornada esta asignada a {0} colaboradores vigentes; reasignalos antes de desactivarla</value>
+  </data>
+  <data name="UnaTerminacionRegistrada" xml:space="preserve">
+    <value>1 tiene terminacion registrada y no se puede reasignar; la Jornada podra desactivarse cuando termine su vinculacion</value>
+  </data>
+  <data name="VariasTerminacionesRegistradas" xml:space="preserve">
+    <value>{0} tienen terminacion registrada y no se pueden reasignar; la Jornada podra desactivarse cuando termine su vinculacion</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la solicitud: {0}</value>
+  </data>
+  <data name="ResultadoJornadaDesactivada" xml:space="preserve">
+    <value>Jornada desactivada.</value>
+  </data>
+  <data name="JornadaPredeterminada" xml:space="preserve">
+    <value>La Jornada es la predeterminada; asigna otra como predeterminada con asignar_jornada_predeterminada antes de desactivarla</value>
+  </data>
+  <data name="JornadaNoExiste" xml:space="preserve">
+    <value>La Jornada '{0}' no existe; revisa listar_jornadas.</value>
+  </data>
+</root>
