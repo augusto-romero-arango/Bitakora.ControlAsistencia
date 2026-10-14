@@ -44,6 +44,7 @@ public class ComposicionDelServidorTests
                 "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
+                "consultar_malla_turnos",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
@@ -196,6 +197,8 @@ public class ComposicionDelServidorTests
         ("consultar_ausencias", "Consulta quien falta en un periodo: por colaborador, sus ausencias",
             "\"readOnlyHint\": true"),
         ("consultar_advertencias_programacion", "Consulta las advertencias de la programacion semanal",
+            "\"readOnlyHint\": true"),
+        ("consultar_malla_turnos", "Consulta la malla semanal de turnos",
             "\"readOnlyHint\": true"),
         ("solicitar_programacion_turno", "Programa un turno a una lista de colaboradores en una sede",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -406,6 +409,31 @@ public class ComposicionDelServidorTests
     public void ConsultarAdvertenciasProgramacion_DeclaraSusCincoParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_advertencias_programacion").Should().BeEquivalentTo(
             [("fecha", false), ("sede", false), ("etiquetas", false), ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarMallaTurnos_DeclaraSusCincoParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_malla_turnos").Should().BeEquivalentTo(
+            [("fecha", false), ("sede", false), ("etiquetas", false), ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarMallaTurnos_TodosSusParametrosSonString_CuandoSeInspeccionaLaTool() =>
+        MetodoDe("consultar_malla_turnos").GetParameters()
+            .Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null)
+            .Select(p => p.ParameterType)
+            .Should().OnlyContain(t => t == typeof(string));
+
+    [Fact]
+    public void ConsultarMallaTurnos_LaDescripcionMencionaSemanaFiltrosYPaginacion_CuandoSeInspeccionaLaTool()
+    {
+        var descripcion = MetodoDe("consultar_malla_turnos").GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolTriggerAttribute>())
+            .Single(a => a is not null)!.Description;
+
+        descripcion.Should().Contain("lunes a domingo")
+            .And.Contain("sede").And.Contain("etiquetas").And.Contain("codigos de colaborador")
+            .And.Contain("cursor")
+            .And.Contain("consultar_programacion").And.Contain("consultar_advertencias_programacion");
+    }
 
     [Fact]
     public void ConsultarAdvertenciasProgramacion_TodosSusParametrosSonString_CuandoSeInspeccionaLaTool() =>
