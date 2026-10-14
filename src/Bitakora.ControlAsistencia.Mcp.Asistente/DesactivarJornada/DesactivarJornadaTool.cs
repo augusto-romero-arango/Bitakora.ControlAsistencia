@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -30,6 +31,14 @@ public partial class DesactivarJornadaTool(
     {
         if (!Guid.TryParse(jornadaId, out var id))
             return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
+
+        var obtenida = await programacion.ObtenerJornada(id, ct);
+        if (obtenida.StatusCode == HttpStatusCode.NotFound)
+            return string.Format(Mensajes.JornadaNoExiste, jornadaId);
+        if (await obtenida.LeerFalloAsync(ct) is { } falloObtener)
+            return string.Format(Mensajes.RechazoDelDominio, falloObtener);
+        if ((await obtenida.LeerDescritaAsync(ct)).EsPredeterminada)
+            return Mensajes.JornadaPredeterminada;
 
         var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_reloj.GetUtcNow(), ZonaBogota).DateTime);
         var respuestaFichas = await colaboradores.ListarFichas(hoy, null, [], take: null, ct, jornadaId: id);
