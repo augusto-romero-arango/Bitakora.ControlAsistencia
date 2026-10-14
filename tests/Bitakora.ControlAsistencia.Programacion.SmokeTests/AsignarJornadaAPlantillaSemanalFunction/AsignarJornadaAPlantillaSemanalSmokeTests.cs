@@ -162,4 +162,19 @@ public class AsignarJornadaAPlantillaSemanalSmokeTests(ApiFixture api, PostgresF
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarJornada_DebeRetornar409_CuandoLaJornadaEstaDesactivada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (plantillaId, jornadaId) = await CrearPlantillaYJornadaAsync(
+            LimitesDePrueba.AsignarAPlantillaDesactivada, ct);
+        (await _client.PostAsync($"/api/programacion/jornadas/{jornadaId}:desactivar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesactivarJornada funcione");
+
+        var response = await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

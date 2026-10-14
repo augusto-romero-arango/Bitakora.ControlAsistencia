@@ -302,24 +302,137 @@ public class FunctionEndpointTests
         CodigoSede: "SEDE-BOG",
         JornadaId: jornadaId);
 
-    // Issue #830 (CA-ADR-0038): politica de Take, observable sin Marten.
-    [Fact]
-    public void TakeEfectivo_NoAplicaTope_CuandoHayIdentificacionesSinTake() =>
-        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: null).Should().BeNull();
+
+    // --- CA-4: entrada invalida del sobre unico (CA-ADR-0039) -> 422 ---
 
     [Fact]
-    public void TakeEfectivo_RespetaElTakeSinTopeSuperior_CuandoHayIdentificaciones() =>
-        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: 250).Should().Be(250);
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoTakeEsCero()
+    {
+        var request = FakeHttpRequest("application/json", """{"nombre":"bermudez","take":0}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
 
     [Fact]
-    public void TakeEfectivo_AcotaA1_CuandoHayIdentificacionesYTakeMenorQue1() =>
-        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: true, take: 0).Should().Be(1);
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoTakeSuperaElMaximoDe200ConIdentificaciones()
+    {
+        var request = FakeHttpRequest("application/json", """{"identificaciones":["CC-1"],"take":201}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
 
     [Fact]
-    public void TakeEfectivo_Devuelve50_CuandoSoloHayNombreSinTake() =>
-        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: false, take: null).Should().Be(50);
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoTakeSuperaElMaximoDe200PorNombre()
+    {
+        var request = FakeHttpRequest("application/json", """{"nombre":"bermudez","take":201}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
 
     [Fact]
-    public void TakeEfectivo_AcotaA200_CuandoSoloHayNombreYTakeMayorA200() =>
-        FunctionEndpoint.TakeEfectivo(tieneIdentificaciones: false, take: 500).Should().Be(200);
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoElCursorEsIndescifrable()
+    {
+        var request = FakeHttpRequest("application/json", """{"nombre":"bermudez","cursor":"esto-no-es-un-cursor"}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoElCursorTraeLaFormaVieja()
+    {
+        var request = FakeHttpRequest(
+            "application/json",
+            """{"nombre":"bermudez","cursor":{"nombreCompleto":"Ana Torres","identificacion":"CC-1"}}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<ObjectResult>().Which.StatusCode
+            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarDirectorioColaboradores_NoRechazaElFiltro_CuandoTakeEsElMaximoDe200ConIdentificaciones()
+    {
+        var request = FakeHttpRequest("application/json", """{"identificaciones":["CC-1"],"take":200}""");
+
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
+    }
+
+    // --- Cursor opaco ---
+
+    [Fact]
+    public void CursorDirectorio_RecuperaLasClavesKeyset_CuandoSeDecodificaLoCodificado()
+    {
+        var cursor = CursorDirectorio.Codificar("Ana María Torres", "CC-1098765432");
+
+        CursorDirectorio.TryDecodificar(cursor, out var decodificado).Should().BeTrue();
+        decodificado.Should().Be(new CursorDirectorio("Ana María Torres", "CC-1098765432"));
+        cursor.Should().MatchRegex("^[A-Za-z0-9_-]+$");
+    }
+
+    [Fact]
+    public void CursorDirectorio_NoDecodifica_CuandoElTextoEsIndescifrable()
+    {
+        CursorDirectorio.TryDecodificar("esto no es base64url!", out var decodificado).Should().BeFalse();
+        decodificado.Should().BeNull();
+    }
+
+    // --- Sobre { elementos, siguienteCursor } (CA-3) ---
+
+    private static DirectorioColaborador Vista(string id, string nombre) => new(
+        Id: id, TipoDocumento: "CC", NumeroDocumento: id[3..], NombreCompleto: nombre,
+        TokensNombre: [nombre.ToLowerInvariant()], CodigoColaborador: "COL-" + id,
+        VigenteDesde: new DateOnly(2025, 1, 1), VigenteHasta: DirectorioColaborador.CentinelaVigenciaAbierta);
+
+    [Fact]
+    public void Componer_DevuelveTodoSinCursor_CuandoNoHayTake()
+    {
+        var lista = FunctionEndpoint.Componer([Vista("CC-1", "Ana"), Vista("CC-2", "Beto")], take: null);
+
+        lista.Elementos.Select(e => e.Identificacion).Should().Equal("CC-1", "CC-2");
+        lista.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_NoTraeCursor_CuandoLaPaginaNoTieneMasFilas()
+    {
+        var lista = FunctionEndpoint.Componer([Vista("CC-1", "Ana"), Vista("CC-2", "Beto")], take: 2);
+
+        lista.Elementos.Should().HaveCount(2);
+        lista.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_RecortaALaPaginaYApuntaALaUltimaFilaEntregada_CuandoHayUnaFilaDeMas()
+    {
+        var lista = FunctionEndpoint.Componer(
+            [Vista("CC-1", "Ana"), Vista("CC-2", "Beto"), Vista("CC-3", "Carla")], take: 2);
+
+        lista.Elementos.Select(e => e.Identificacion).Should().Equal("CC-1", "CC-2");
+        CursorDirectorio.TryDecodificar(lista.SiguienteCursor!, out var cursor).Should().BeTrue();
+        cursor.Should().Be(new CursorDirectorio("Beto", "CC-2"));
+    }
+
+    [Fact]
+    public void Componer_DevuelveListaVacia_CuandoNoHayCoincidencias()
+    {
+        var lista = FunctionEndpoint.Componer([], take: 10);
+
+        lista.Elementos.Should().BeEmpty();
+        lista.SiguienteCursor.Should().BeNull();
+    }
 }

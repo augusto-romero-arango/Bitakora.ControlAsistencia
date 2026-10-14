@@ -8,15 +8,19 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
     private static readonly string[] ToolsEsperadas =
     [
         "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
-        "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
-        "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
+        "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador",
+        "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
-        "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
+        "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
+        "crear_plantilla_semanal",
         "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
         "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
         "solicitar_programacion_turno",
         "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo",
-        "programar_ausencia", "cancelar_ausencia"
+        "programar_ausencia", "cancelar_ausencia",
+        "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
+        "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
+        "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -32,6 +36,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             "tipo_identificacion", "numero_identificacion", "primer_nombre",
             "primer_apellido", "codigo_colaborador", "fecha_inicio"
         ],
+        ["buscar_sedes"] = [],
+        ["buscar_turnos"] = [],
         ["listar_turnos"] = [],
         ["obtener_turno"] = ["id"],
         ["crear_turno"] = ["nombre"],
@@ -41,6 +47,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["agregar_subfranja"] = ["turno", "franja", "tipo", "inicio", "fin"],
         ["quitar_subfranja"] = ["turno", "franja", "tipo", "inicio"],
         ["asignar_sede_franja"] = ["turno", "franja"],
+        ["buscar_plantillas_semanales"] = [],
         ["listar_plantillas_semanales"] = [],
         ["obtener_plantilla_semanal"] = ["plantilla"],
         ["crear_plantilla_semanal"] = ["nombre", "dias"],
@@ -55,12 +62,22 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["aplicar_plantilla_semanal"] = ["desde", "hasta", "plantilla", "identificaciones"],
         ["aplicar_plantilla_semanal_por_grupo"] = ["desde", "hasta", "plantilla"],
         ["programar_ausencia"] = ["identificacion", "desde", "hasta", "motivo"],
-        ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"]
+        ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"],
+        ["listar_jornadas"] = [],
+        ["crear_jornada"] = ["horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
+        ["modificar_limites_jornada"] =
+            ["jornada_id", "horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
+        ["asignar_jornada_predeterminada"] = ["jornada_id"],
+        ["asignar_jornada_a_plantilla_semanal"] = ["plantilla", "jornada_id"],
+        ["quitar_jornada_de_plantilla_semanal"] = ["plantilla"],
+        ["asignar_jornada"] = ["jornada_id", "identificaciones"],
+        ["asignar_jornada_por_grupo"] = ["jornada_id"],
+        ["desactivar_jornada"] = ["jornada_id"]
     };
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasTreintaYUnaTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasCuarentaYDosTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -106,7 +123,10 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "asignar_turno_a_dia" or "quitar_turno_de_dia" or "solicitar_programacion_turno"
                 or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
                 or "aplicar_plantilla_semanal_por_grupo"
-                or "programar_ausencia" or "cancelar_ausencia";
+                or "programar_ausencia" or "cancelar_ausencia"
+                or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
+                or "asignar_jornada_a_plantilla_semanal" or "quitar_jornada_de_plantilla_semanal"
+                or "asignar_jornada" or "asignar_jornada_por_grupo" or "desactivar_jornada";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }

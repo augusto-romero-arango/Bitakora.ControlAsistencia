@@ -7,9 +7,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarColaboradores;
 
-// Tool de solo lectura sobre QUERY colaboradores/fichas (listado) y GET colaboradores/fichas/{id}
-// (consulta puntual) -- issue #530. Tool consolidada (decision de refinamiento del issue):
-// identificacion? decide la ruta, no hay tool separada para el caso puntual.
+// Tool consolidada de solo lectura (CA-ADR-0039 decision 2): con identificacion es Detalle
+// (GET colaboradores/fichas/{id}); por sede o etiquetas es Catalogo (QUERY colaboradores/fichas).
+// El catalogo pide take = tope, no tope + 1: el backend ya hace Take + 1 y arma el cursor con el
+// ultimo elemento devuelto, asi que pedir uno de mas y descartarlo lo perderia en cada pagina.
 //
 // Sin enriquecimiento del nombre de sede (MEF-ADR-0018): codigoSede viaja tal cual. TimeProvider
 // resuelve fecha_referencia a "hoy" en America/Bogota cuando el parametro llega ausente -- el back
@@ -17,8 +18,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarColaboradores;
 public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider reloj)
 {
     internal const string NombreTool = "listar_colaboradores";
-    internal const int MaximoColaboradores = 20;
-    internal const int TakeUpstream = 200;
+    internal const int MaximoColaboradores = 50;
     private const string FormatoFecha = "yyyy-MM-dd";
     private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
 
@@ -51,6 +51,11 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             "Fecha de vigencia a evaluar, formato yyyy-MM-dd. Si se omite se usa hoy en "
             + "America/Bogota.")]
         string? fechaReferencia,
+        [McpToolProperty(
+            "cursor",
+            "Cursor opaco de la pagina siguiente del catalogo (el siguienteCursor de la respuesta "
+            + "anterior); reenvialo tal cual. Se ignora si envias identificacion.")]
+        string? cursor,
         CancellationToken ct)
     {
         if (Normalizar(identificacion) is { } identificacionPedida)
@@ -60,25 +65,40 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         if (error is not null)
             return error;
 
+        var sedeFiltro = Normalizar(sede);
+        var filtros = FiltroEtiqueta.ParsearPares(etiquetas);
+
         var respuesta = await api.ListarFichas(
-            fecha, Normalizar(sede), ParsearEtiquetas(etiquetas), TakeUpstream, ct);
+            fecha, sedeFiltro, filtros, MaximoColaboradores, ct, cursor: Normalizar(cursor));
 
         if (await TraducirRechazo(respuesta, ct) is { } rechazo)
             return rechazo;
 
         respuesta.EnsureSuccessStatusCode();
 
-        var fichas = await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<FichaColaborador>>(ct)
-            ?? [];
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaColaborador>>(ct)
+            ?? new SobreDeLista<FichaColaborador>([]);
 
-        var visibles = fichas.Take(MaximoColaboradores).Select(Remodelar).ToList();
+        if (sobre.Elementos.Count == 0)
+            return string.Format(
+                Mensajes.SinColaboradores,
+                fecha.ToString(FormatoFecha, CultureInfo.InvariantCulture),
+                DescribirCriterio(sedeFiltro, filtros));
 
-        var nota = fichas.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, fichas.Count)
-            : null;
+        var visibles = sobre.Elementos.Select(Remodelar).ToList();
 
-        return RespuestaJson.Serializar(new CatalogoDeColaboradores(fichas.Count, visibles.Count, nota, visibles));
+        return RespuestaJson.Serializar(new CatalogoDeColaboradores(
+            visibles.Count,
+            visibles,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null ? null : Mensajes.NotaHayMasColaboradores));
     }
+
+    private static string DescribirCriterio(string? sede, IReadOnlyList<FiltroEtiqueta> etiquetas) =>
+        (sede is null ? "" : $", sede {sede}")
+        + (etiquetas.Count == 0
+            ? ""
+            : $", etiquetas {string.Join(",", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))}");
 
     private async Task<string> ConsultarPuntual(string identificacion, CancellationToken ct)
     {
@@ -116,16 +136,6 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             : (default, string.Format(Mensajes.FechaInvalida, fechaReferencia));
     }
 
-    // Un par mal escrito por el asistente (sin ':', o con categoria/valor vacios) se descarta en vez
-    // de viajar al dominio, que lo responderia con 422 y perderia los pares que si eran validos.
-    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
-        string.IsNullOrWhiteSpace(etiquetas)
-            ? []
-            : [.. etiquetas
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
-                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
-                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 
     private static ColaboradorFicha Remodelar(FichaColaborador ficha)
     {
@@ -147,12 +157,12 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
 }
 
-/// <summary>Contrato de respuesta de listar_colaboradores hacia el asistente (remodelado, issue #530).</summary>
+/// <summary>Catalogo de listar_colaboradores (CA-ADR-0039): sin total; SiguienteCursor y Nota solo si hay mas.</summary>
 public sealed record CatalogoDeColaboradores(
-    int Total,
     int Mostrando,
-    string? Nota,
-    IReadOnlyList<ColaboradorFicha> Colaboradores);
+    IReadOnlyList<ColaboradorFicha> Colaboradores,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>
 /// Colaborador remodelado token-eficiente: etiquetas en su forma original de presentacion (nunca

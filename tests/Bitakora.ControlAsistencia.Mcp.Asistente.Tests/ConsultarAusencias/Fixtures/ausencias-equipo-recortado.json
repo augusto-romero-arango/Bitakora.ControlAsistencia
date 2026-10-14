@@ -2,7 +2,7 @@
   "desde": "2026-10-01",
   "hasta": "2026-11-04",
   "rangoRecortado": true,
-  "colaboradores": [
+  "elementos": [
     {
       "codigoColaborador": "COL-1",
       "nombreCompleto": "Ana Perez",

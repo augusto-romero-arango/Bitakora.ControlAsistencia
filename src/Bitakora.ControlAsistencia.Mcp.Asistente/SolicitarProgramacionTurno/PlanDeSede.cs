@@ -53,7 +53,7 @@ internal sealed class PlanDeSede
             if (await respuesta.LeerFalloAsync(ct) is { } fallo)
                 return (null, fallo);
 
-            var fichas = await respuesta.Content.ReadFromJsonAsync<List<FichaSede>>(OpcionesLectura, ct) ?? [];
+            var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaSede>>(OpcionesLectura, ct))?.Elementos ?? [];
             maestro = fichas
                 .GroupBy(f => f.Codigo, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);

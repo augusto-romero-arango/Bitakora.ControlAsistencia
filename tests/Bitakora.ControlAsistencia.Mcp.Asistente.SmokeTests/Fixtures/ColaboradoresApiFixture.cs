@@ -69,7 +69,7 @@ public class ColaboradoresApiFixture : IAsyncLifetime
         respuesta.EnsureSuccessStatusCode();
 
         using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync(ct));
-        return documento.RootElement.EnumerateArray()
+        return documento.RootElement.GetProperty("elementos").EnumerateArray()
             .Where(e => e.GetProperty("identificacion").GetString() == identificacion)
             .Select(e => e.TryGetProperty("jornadaId", out var jornada) ? jornada.GetString() : null)
             .FirstOrDefault();

@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurnoPorGrupo;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
@@ -37,9 +38,10 @@ public class CascadaDeSedeGrupoTests
         var (clienteColaboradores, _) = ClienteFalso.Con(fichasJson);
 
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
         return new Entorno(tool, programacion, sedes);
     }
 

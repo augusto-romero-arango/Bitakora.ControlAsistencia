@@ -1,3 +1,5 @@
+using System.Buffers.Text;
+using System.Text;
 using System.Text.Json;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
@@ -23,8 +25,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.ListarFichasColaborador;
 // skills/projections/naming.md).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
-    // CA-3: tope de pagina (MEF-ADR-0042 seccion 2) -- el Take del cliente jamas llega crudo a
-    // Marten.
+    // Take opcional, 1..200 o 422 (CA-ADR-0039); sin Take el llamador interno recibe todo el filtro
+    // (CA-ADR-0038).
     private const int TakeMaximo = 200;
 
     // Containment JSONB del filtro AND por etiquetas (CA-2). Ver el comentario en Run para por que
@@ -66,12 +68,18 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.FechaReferencia == default)
             return NoProcesable("FechaReferencia es obligatoria");
 
-        // CA-4: cursor keyset con un solo campo presente (el otro ausente/null) -> 422 "incompleto".
-        // Un cursor con AMBOS campos ausentes cae en la misma rama -- un cliente que no quiere
-        // paginar debe omitir "cursor" por completo (null), no enviar un objeto vacio.
-        if (filtro.Cursor is { } cursorRecibido
-            && (cursorRecibido.NombreCompleto is null || cursorRecibido.Id is null))
-            return NoProcesable("El cursor debe traer NombreCompleto e Id, o ninguno de los dos");
+        if (filtro.Take is { } takeRecibido && (takeRecibido < 1 || takeRecibido > TakeMaximo))
+            return NoProcesable($"Take debe estar entre 1 y {TakeMaximo}");
+
+        // El cursor llega como JsonElement para que un no-string (la forma vieja, un objeto) sea 422 y
+        // no un 400 de deserializacion.
+        CursorFicha? cursor = null;
+        if (filtro.Cursor is { ValueKind: not (JsonValueKind.Null or JsonValueKind.Undefined) } cursorCrudo)
+        {
+            if (cursorCrudo.ValueKind != JsonValueKind.String
+                || !CursorFicha.TryDecodificar(cursorCrudo.GetString()!, out cursor))
+                return NoProcesable("El cursor no es valido");
+        }
 
         // Issue #519 CA-4: el filtro por sede es igualdad plana y OPCIONAL -- ausente/null no
         // filtra, y el comportamiento previo a este issue no cambia. Presente pero en blanco es 422
@@ -82,6 +90,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // que las demas validaciones del borde.
         if (filtro.CodigoSede is { } codigoSedeEnBlanco && string.IsNullOrWhiteSpace(codigoSedeEnBlanco))
             return NoProcesable("CodigoSede, si viene, no puede estar en blanco");
+
+        // Ninguna ficha lleva Guid.Empty (AsignarJornadaBodyValidator exige NotEmpty): es error del
+        // cliente, no una consulta que deba responder 200 con lista vacia.
+        if (filtro.JornadaId == Guid.Empty)
+            return NoProcesable("JornadaId, si viene, no puede ser Guid vacio");
 
         // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012), ver NormalizarEtiquetas.
         var etiquetasNormalizadas = NormalizarEtiquetas(filtro.Etiquetas);
@@ -140,6 +153,9 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.CodigoSede is { } codigoSede)
             query = query.Where(f => f.CodigoSede == codigoSede);
 
+        if (filtro.JornadaId is { } jornadaId)
+            query = query.Where(f => f.JornadaId == jornadaId);
+
         // CA-3: paginacion keyset -- orden OrderBy(NombreCompleto).ThenBy(Id), predicado compuesto
         // "nombre > cursor.NombreCompleto OR (nombre == cursor.NombreCompleto AND id >
         // cursor.Id)". Verificado por spike propio: CompareTo(...) > 0 SI traduce a SQL sobre
@@ -147,19 +163,19 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // dedicada del documento) -- a diferencia de string.Compare(...), que Marten no puede
         // reducir y lanza BadLinqExpressionException. Cierra el NO VERIFICADO de
         // skills/projections/read-apis.md para este dominio.
-        if (filtro.Cursor is { NombreCompleto: { } cursorNombre, Id: { } cursorId })
+        if (cursor is { } c)
         {
+            var cursorNombre = c.NombreCompleto;
+            var cursorId = c.Id;
             query = query.Where(f =>
                 f.NombreCompleto.CompareTo(cursorNombre) > 0
                 || (f.NombreCompleto == cursorNombre && f.Id.CompareTo(cursorId) > 0));
         }
 
         var ordenada = query.OrderBy(f => f.NombreCompleto).ThenBy(f => f.Id);
-        var paginada = TakeEfectivo(filtro.Take) is { } take
-            ? ordenada.Take(take)
-            : ordenada;
-
-        var fichas = await paginada.ToListAsync(ct);
+        var fichas = filtro.Take is { } take
+            ? await ordenada.Take(take + 1).ToListAsync(ct)
+            : await ordenada.ToListAsync(ct);
 
         // CA-4: VigenteHasta vacio en la respuesta de vinculacion abierta -- el centinela jamas
         // sale por la API (misma regla que #356 CA-6). Reutiliza FichaColaboradorRespuesta.DesdeVista
@@ -167,16 +183,22 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // mismo DTO de respuesta -- ya excepcion bajo MEF-ADR-0041 decision 4 -- para el mismo read
         // model, ahora con un segundo consumidor.
         //
-        // CA-4: nunca 404 -- una pagina sin resultados es 200 con lista vacia. Sin envelope
-        // (propuesta del issue, MEF-ADR-0018): el cliente deriva el cursor de NombreCompleto/Id de
-        // la ultima fila; fin de la lista = pagina con menos de Take filas.
-        return new OkObjectResult(fichas.Select(FichaColaboradorRespuesta.DesdeVista).ToList());
+        // CA-4: nunca 404 -- una pagina sin resultados es 200 con elementos vacios. Se piden Take + 1
+        // filas: la sobrante solo indica que hay siguienteCursor (CA-ADR-0039).
+        return new OkObjectResult(Componer(fichas, filtro.Take));
     }
 
-    // Take enviado se acota en el servidor (MEF-ADR-0042 seccion 2); sin Take (null) el llamador
-    // interno recibe todo el filtro, sin tope -- desviacion documentada en CA-ADR-0038.
-    internal static int? TakeEfectivo(int? take) =>
-        take is { } valor ? Math.Clamp(valor, 1, TakeMaximo) : null;
+    internal static ListaFichasColaborador Componer(IReadOnlyList<FichaColaborador> filas, int? take)
+    {
+        if (take is not { } t || filas.Count <= t)
+            return new ListaFichasColaborador(filas.Select(FichaColaboradorRespuesta.DesdeVista).ToList(), null);
+
+        var pagina = filas.Take(t).ToList();
+        var ultima = pagina[^1];
+        return new ListaFichasColaborador(
+            pagina.Select(FichaColaboradorRespuesta.DesdeVista).ToList(),
+            CursorFicha.Codificar(ultima.NombreCompleto, ultima.Id));
+    }
 
     // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012). Construye
     // Etiqueta.Crear(Categoria, Valor) con cada par recibido: es el VO quien decide como se
@@ -231,16 +253,38 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 public sealed record FiltroListarFichasColaborador(
     DateOnly FechaReferencia,
     IReadOnlyList<FiltroEtiqueta>? Etiquetas,
-    CursorFicha? Cursor,
+    JsonElement? Cursor,
     int? Take = null,
-    string? CodigoSede = null);
+    string? CodigoSede = null,
+    Guid? JornadaId = null);
 
 // Par categoria:valor SIN normalizar -- el endpoint construye Etiqueta.Crear(Categoria, Valor) con
 // cada par (Tell-don't-Ask, MEF-ADR-0012: un solo algoritmo de normalizacion, el del VO). Si
 // Etiqueta.Crear rechaza el par (categoria/valor vacios), la respuesta es 422.
 public sealed record FiltroEtiqueta(string Categoria, string Valor);
 
-// Cursor keyset: los dos campos visibles de la ultima fila recibida (orden
-// OrderBy(NombreCompleto).ThenBy(Id) -- decision de refinamiento del issue). Cursor con un solo
-// campo presente (el otro ausente/null) es 422 -- "cursor incompleto".
-public sealed record CursorFicha(string NombreCompleto, string Id);
+// Cursor opaco: las claves keyset (NombreCompleto, Id) de la ultima fila en JSON + base64url. Solo
+// este endpoint lo interpreta; uno indescifrable o incompleto es 422.
+public sealed record CursorFicha(string NombreCompleto, string Id)
+{
+    public static string Codificar(string nombreCompleto, string id) =>
+        Base64Url.EncodeToString(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new CursorFicha(nombreCompleto, id))));
+
+    public static bool TryDecodificar(string cursor, out CursorFicha? resultado)
+    {
+        resultado = null;
+        try
+        {
+            var decodificado = JsonSerializer.Deserialize<CursorFicha>(
+                Encoding.UTF8.GetString(Base64Url.DecodeFromChars(cursor)));
+            if (decodificado is not { NombreCompleto: not null, Id: not null })
+                return false;
+            resultado = decodificado;
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException)
+        {
+            return false;
+        }
+    }
+}

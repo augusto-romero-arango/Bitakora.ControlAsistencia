@@ -14,7 +14,7 @@ public class ConsultarAdvertenciasProgramacionToolTests
     private static readonly RelojFalso Hoy = new(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.FromHours(-5)));
 
     private static (ConsultarAdvertenciasProgramacionTool Tool, HandlerEnlatado Advertencias, HandlerEnlatado Fichas)
-        Armar(string jsonAdvertencias, string jsonFichas = "[]", HttpStatusCode status = HttpStatusCode.OK)
+        Armar(string jsonAdvertencias, string jsonFichas = """{"elementos":[]}""", HttpStatusCode status = HttpStatusCode.OK)
     {
         var (clienteAdv, handlerAdv) = ClienteFalso.Con(jsonAdvertencias, status);
         var (clienteFichas, handlerFichas) = ClienteFalso.Con(jsonFichas);
@@ -121,7 +121,7 @@ public class ConsultarAdvertenciasProgramacionToolTests
     [Fact]
     public async Task ConsultarAdvertenciasProgramacion_RespondeFraseSinLlamarAlDominio_CuandoElGrupoNoTieneColaboradores()
     {
-        var (tool, adv, _) = Armar(Leer("advertencias-semana.json"), "[]");
+        var (tool, adv, _) = Armar(Leer("advertencias-semana.json"), """{"elementos":[]}""");
 
         var resultado = await Ejecutar(tool, fecha: "2026-10-14", sede: "NORTE");
 
@@ -170,19 +170,19 @@ public class ConsultarAdvertenciasProgramacionToolTests
     }
 
     [Fact]
-    public async Task ConsultarAdvertenciasProgramacion_PideTake51_CuandoConsultaElDominio()
+    public async Task ConsultarAdvertenciasProgramacion_PideTakeIgualAlTope_CuandoConsultaElDominio()
     {
         var (tool, adv, _) = Armar(Leer("advertencias-semana.json"));
 
         await Ejecutar(tool);
 
-        JsonNode.Parse(adv.UltimoCuerpoEnviado!)!["take"]!.GetValue<int>().Should().Be(51);
+        JsonNode.Parse(adv.UltimoCuerpoEnviado!)!["take"]!.GetValue<int>().Should().Be(50);
     }
 
     [Fact]
-    public async Task ConsultarAdvertenciasProgramacion_TopaEn50ConCursorYNota_CuandoLlegan51()
+    public async Task ConsultarAdvertenciasProgramacion_MuestraLos50RecibidosConCursorYNota_CuandoElSobreTraeSiguienteCursor()
     {
-        var (tool, _, _) = Armar(ListaDe(51, "cursor-del-dominio"));
+        var (tool, _, _) = Armar(ListaDe(50, "cursor-del-dominio"));
 
         var resultado = await Ejecutar(tool);
 
@@ -193,6 +193,20 @@ public class ConsultarAdvertenciasProgramacionToolTests
         json["nota"]!.GetValue<string>().Should().Be(string.Format(
             ConsultarAdvertenciasProgramacionTool.Mensajes.NotaMasColaboradores, "cursor-del-dominio"));
         json.ContainsKey("total").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ConsultarAdvertenciasProgramacion_ReenviaCursorYNota_CuandoLlegan30ConSiguienteCursor()
+    {
+        var (tool, _, _) = Armar(ListaDe(30, "cursor-del-dominio"));
+
+        var resultado = await Ejecutar(tool);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["colaboradores"]!.AsArray().Should().HaveCount(30);
+        json["siguienteCursor"]!.GetValue<string>().Should().Be("cursor-del-dominio");
+        json["nota"]!.GetValue<string>().Should().Be(string.Format(
+            ConsultarAdvertenciasProgramacionTool.Mensajes.NotaMasColaboradores, "cursor-del-dominio"));
     }
 
     [Fact]

@@ -50,9 +50,10 @@ public class SolicitarProgramacionTurnoToolTests
             directorioJson ?? DirectorioJson, statusDirectorio);
 
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
         return new Fakes(tool, handlerProgramacion, handlerSedes, handlerColaboradores);
     }
@@ -224,9 +225,10 @@ public class SolicitarProgramacionTurnoToolTests
         var (clienteColaboradores, _) = ClienteFalso.Con(DirectorioJson, HttpStatusCode.OK);
 
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await Ejecutar(
             tool, identificaciones: "CC-1111,CC-2222", ct: TestContext.Current.CancellationToken);
@@ -435,7 +437,7 @@ public class SolicitarProgramacionTurnoToolTests
     [Fact]
     public async Task SolicitarProgramacionTurno_AceptaLaVentana_CuandoTieneExactamente31Dias()
     {
-        var fakes = CrearTool(directorioJson: "[]");
+        var fakes = CrearTool(directorioJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
             fakes.Tool, desde: "2026-09-01", hasta: "2026-10-01", identificaciones: "CC-9999",
@@ -455,7 +457,7 @@ public class SolicitarProgramacionTurnoToolTests
             vigenteDesde = "2025-01-01",
             vigenteHasta = (string?)null
         }).ToList();
-        var directorio = System.Text.Json.JsonSerializer.Serialize(entradas);
+        var directorio = System.Text.Json.JsonSerializer.Serialize(new { elementos = entradas });
 
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
         programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
@@ -467,9 +469,10 @@ public class SolicitarProgramacionTurnoToolTests
                 Content = new StringContent(directorio, Encoding.UTF8, "application/json")
             });
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
         var identificaciones = string.Join(",", entradas.Select(e => e.identificacion));
 
         var resultado = await Ejecutar(tool, identificaciones: identificaciones, ct: TestContext.Current.CancellationToken);

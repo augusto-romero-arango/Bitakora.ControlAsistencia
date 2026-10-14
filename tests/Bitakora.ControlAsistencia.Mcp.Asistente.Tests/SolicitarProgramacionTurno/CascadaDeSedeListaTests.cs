@@ -44,10 +44,10 @@ public class CascadaDeSedeListaTests
 
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoTool>();
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion),
-            new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores),
-            logger);
+            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
+            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)), logger);
         return new Entorno(tool, programacion, sedes, logger);
     }
 
@@ -93,7 +93,7 @@ public class CascadaDeSedeListaTests
         await Ejecutar(entorno, null, "CC-1111,CC-2222,CC-3333");
 
         entorno.LecturasDelMaestro.Should().ContainSingle();
-        entorno.LecturasDelMaestro.Single().RequestUri!.Query.Should().NotContain("activa");
+        entorno.LecturasDelMaestro.Single().RequestUri!.Query.Should().BeEmpty("sin filtro y sin take: devuelve todo el maestro");
         entorno.Sedes.Requests.Should().OnlyContain(
             r => r.RequestUri!.AbsolutePath == EntornoDeSedes.RutaMaestroDeSedes,
             "nunca N lecturas de sedes/fichas/{codigo}");

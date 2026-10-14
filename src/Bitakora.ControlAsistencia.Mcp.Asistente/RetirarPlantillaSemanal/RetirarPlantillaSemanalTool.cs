@@ -8,11 +8,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.RetirarPlantillaSemanal;
 // ResolutorPlantillaPorNombre) + DELETE programacion/plantillas-semanales/{id} (paso 3
 // MEF-ADR-0043): referencia por nombre, mismo criterio que retirar_turno (MEF-ADR-0018). El
 // 404/409 del DELETE se devuelve como texto, nunca como excepcion (CA-ADR-0030).
-public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion)
+public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion, ResolutorPlantillaPorNombre resolutor)
 {
     internal const string NombreTool = "retirar_plantilla_semanal";
-
-    private readonly ResolutorPlantillaPorNombre resolutor = new(programacion);
 
     [Function("RetirarPlantillaSemanal")]
     public async Task<string> Run(

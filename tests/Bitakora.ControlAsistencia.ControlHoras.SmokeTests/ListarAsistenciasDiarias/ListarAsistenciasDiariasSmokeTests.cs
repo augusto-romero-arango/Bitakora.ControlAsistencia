@@ -72,10 +72,11 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         IReadOnlyDictionary<string, decimal> HorasPorConcepto);
 
     private sealed record ListaAsistenciasDiariasSmoke(
-        DateOnly DesdeAplicado,
-        DateOnly HastaAplicado,
+        DateOnly Desde,
+        DateOnly Hasta,
         bool RangoRecortado,
-        IReadOnlyList<FilaAsistenciaDiariaSmoke> Filas);
+        IReadOnlyList<FilaAsistenciaDiariaSmoke> Elementos,
+        string? SiguienteCursor);
 
     private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
     {
@@ -84,6 +85,17 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
             Content = JsonContent.Create(filtro)
         };
         return await _client.SendAsync(request, ct);
+    }
+
+    private async Task<ListaAsistenciasDiariasSmoke> ConsultarOkAsync(object filtro, CancellationToken ct)
+    {
+        using var response = await ConsultarAsync(filtro, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ListaAsistenciasDiariasSmoke>(
+            JsonOptions, cancellationToken: ct);
+        body.Should().NotBeNull();
+        return body!;
     }
 
     private Task<ListaAsistenciasDiariasSmoke> ConsultarHastaQueAsync(
@@ -284,15 +296,15 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
             JsonOptions, cancellationToken: ct);
 
         respuesta.Should().NotBeNull();
-        respuesta!.DesdeAplicado.Should().Be(desde);
-        respuesta.HastaAplicado.Should().Be(hasta);
+        respuesta!.Desde.Should().Be(desde);
+        respuesta.Hasta.Should().Be(hasta);
         respuesta.RangoRecortado.Should().BeFalse();
 
-        respuesta.Filas.Should().HaveCount(5);
-        respuesta.Filas.Select(f => f.Fecha).Should().Equal(
+        respuesta.Elementos.Should().HaveCount(5);
+        respuesta.Elementos.Select(f => f.Fecha).Should().Equal(
             desde, desde.AddDays(1), desde.AddDays(2), desde.AddDays(3), desde.AddDays(4));
 
-        respuesta.Filas.Should().OnlyContain(f =>
+        respuesta.Elementos.Should().OnlyContain(f =>
             f.Estado == EstadoAsistenciaPresentadoSmoke.SinDatos
             && f.Plan == PlanDelDiaSmoke.SinProgramar
             && f.NombreTurno == null
@@ -326,15 +338,15 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         var filtro = new { codigoColaborador, desdeFecha = desde, hastaFecha = hasta };
 
         var respuesta = await ConsultarHastaQueAsync(filtro, lista =>
-            lista.Filas.Any(f => f.Fecha == fechaConJornada && f.Estado != EstadoAsistenciaPresentadoSmoke.SinDatos)
-            && lista.Filas.Any(f => f.Fecha == fechaDescanso && f.Estado != EstadoAsistenciaPresentadoSmoke.SinDatos),
+            lista.Elementos.Any(f => f.Fecha == fechaConJornada && f.Estado != EstadoAsistenciaPresentadoSmoke.SinDatos)
+            && lista.Elementos.Any(f => f.Fecha == fechaDescanso && f.Estado != EstadoAsistenciaPresentadoSmoke.SinDatos),
             ct);
 
-        respuesta.Filas.Should().HaveCount(5);
-        respuesta.Filas.Select(f => f.Fecha).Should().Equal(
+        respuesta.Elementos.Should().HaveCount(5);
+        respuesta.Elementos.Select(f => f.Fecha).Should().Equal(
             desde, desde.AddDays(1), desde.AddDays(2), desde.AddDays(3), desde.AddDays(4));
 
-        var filaConJornada = respuesta.Filas.Single(f => f.Fecha == fechaConJornada);
+        var filaConJornada = respuesta.Elementos.Single(f => f.Fecha == fechaConJornada);
         filaConJornada.Estado.Should().Be(EstadoAsistenciaPresentadoSmoke.Provisional);
         filaConJornada.Plan.Should().Be(PlanDelDiaSmoke.ConJornada);
         filaConJornada.NombreTurno.Should().Be("[TEST] Turno Real Uno");
@@ -342,7 +354,7 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         filaConJornada.FranjasIncompletas.Should().BeFalse();
         filaConJornada.HorasPorConcepto.Should().ContainKey("OrdinariaDiurna").WhoseValue.Should().Be(8.00m);
 
-        var filaDescanso = respuesta.Filas.Single(f => f.Fecha == fechaDescanso);
+        var filaDescanso = respuesta.Elementos.Single(f => f.Fecha == fechaDescanso);
         filaDescanso.Estado.Should().Be(EstadoAsistenciaPresentadoSmoke.Provisional);
         filaDescanso.Plan.Should().Be(PlanDelDiaSmoke.Descanso);
         filaDescanso.NombreTurno.Should().Be("[TEST] Turno Descanso Dos");
@@ -351,10 +363,57 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
         DateOnly[] fechasSinteticas = [desde, desde.AddDays(2), desde.AddDays(4)];
         foreach (var fecha in fechasSinteticas)
         {
-            var filaSintetica = respuesta.Filas.Single(f => f.Fecha == fecha);
+            var filaSintetica = respuesta.Elementos.Single(f => f.Fecha == fecha);
             filaSintetica.Estado.Should().Be(EstadoAsistenciaPresentadoSmoke.SinDatos);
             filaSintetica.Plan.Should().Be(PlanDelDiaSmoke.SinProgramar);
             filaSintetica.NombreTurno.Should().BeNull();
         }
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAsistenciasDiarias_Retorna422_CuandoElCursorEsUnValorCrudo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var filtro = new
+        {
+            codigoColaborador = Guid.CreateVersion7().ToString(),
+            desdeFecha = new DateOnly(2026, 7, 1),
+            hastaFecha = new DateOnly(2026, 7, 5),
+            cursor = "2026-07-02"
+        };
+
+        var response = await ConsultarAsync(filtro, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    // Sin arrange por el bus: los dias sintetizados de un colaborador sin documentos bastan para
+    // recorrer las paginas.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAsistenciasDiarias_RecorreDosPaginasConSiguienteCursor_CuandoSeEnviaTake()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var desde = new DateOnly(2026, 7, 1);
+        var hasta = desde.AddDays(2);
+
+        var pagina1 = await ConsultarOkAsync(
+            new { codigoColaborador, desdeFecha = desde, hastaFecha = hasta, take = 2 }, ct);
+
+        pagina1.Elementos.Select(f => f.Fecha).Should().Equal(desde, desde.AddDays(1));
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var pagina2 = await ConsultarOkAsync(
+            new { codigoColaborador, desdeFecha = desde, hastaFecha = hasta, take = 2, cursor = pagina1.SiguienteCursor },
+            ct);
+
+        pagina2.Elementos.Select(f => f.Fecha).Should().Equal(hasta);
+        pagina2.SiguienteCursor.Should().BeNull();
+        pagina2.Desde.Should().Be(desde);
+        pagina2.Hasta.Should().Be(hasta);
     }
 }

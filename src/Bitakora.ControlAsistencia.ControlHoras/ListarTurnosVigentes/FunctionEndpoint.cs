@@ -13,9 +13,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // y su Route son los mismos que tenia sobre GET -- cruzar la frontera de verbo no los cambia
 // (MEF-ADR-0042 seccion 5).
 //
-// A diferencia del filtro homonimo de ListarAsistenciasDiarias, CodigoColaborador y SedeId son
-// OPCIONALES: su ausencia es el panorama de todos los colaboradores y la ausencia de filtro por
-// sede, nunca un 422.
+// A diferencia del filtro homonimo de ListarAsistenciasDiarias, CodigosColaborador (lista, OR
+// dentro del campo) y SedeId son OPCIONALES: su ausencia, null o lista vacia es el panorama de
+// todos los colaboradores y la ausencia de filtro por sede, nunca un 422.
 //
 // SedeId filtra "dias donde AL MENOS un bloque rige en esa sede": la sede va por bloque, nunca por
 // dia, por eso el predicado es Bloques.Any(...) y no un campo de TurnoVigente. Marten traduce esa
@@ -57,8 +57,16 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             return new ObjectResult("DesdeFecha no puede ser posterior a HastaFecha")
             { StatusCode = StatusCodes.Status422UnprocessableEntity };
 
+        if (!PaginaDeTurnosVigentes.TakeEnRango(filtro.Take))
+            return NoProcesable("Take debe estar entre 1 y 200");
+
+        string? cursorCodigo = null;
+        DateOnly cursorFecha = default;
+        if (filtro.Cursor is not null && !CursorOpaco.TryDecodificar(filtro.Cursor, out cursorCodigo, out cursorFecha))
+            return NoProcesable("El cursor no es valido");
+
         var desde = filtro.DesdeFecha.Value;
-        var codigoColaborador = filtro.CodigoColaborador;
+        var codigos = filtro.CodigosColaborador is { Count: > 0 } c ? c.ToList() : null;
         var sedeId = filtro.SedeId;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
 
@@ -69,20 +77,34 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         IQueryable<TurnoVigente> query = session.Query<TurnoVigente>()
             .Where(v => v.Fecha >= desde && v.Fecha <= rangoAplicado.HastaAplicado);
 
-        if (!string.IsNullOrEmpty(codigoColaborador))
-            query = query.Where(v => v.CodigoColaborador == codigoColaborador);
+        if (codigos is not null)
+            query = query.Where(v => codigos.Contains(v.CodigoColaborador));
 
         if (!string.IsNullOrEmpty(sedeId))
             query = query.Where(v => v.Bloques.Any(b => b.SedeId == sedeId));
 
-        var turnos = await query
-            .OrderBy(v => v.CodigoColaborador)
-            .ThenBy(v => v.Fecha)
-            .ToListAsync(ct);
+        if (cursorCodigo is not null)
+            query = query.Where(v => v.CodigoColaborador.CompareTo(cursorCodigo) > 0
+                                     || (v.CodigoColaborador == cursorCodigo && v.Fecha > cursorFecha));
 
-        // Nunca 404: un rango sin turnos vigentes es 200 con Turnos: [], no un error.
+        var ordenada = query
+            .OrderBy(v => v.CodigoColaborador)
+            .ThenBy(v => v.Fecha);
+
+        // Take + 1 para saber si hay mas sin contar (CA-ADR-0039): sin Take, todo lo que cumple el filtro.
+        var turnos = filtro.Take is { } take
+            ? await ordenada.Take(take + 1).ToListAsync(ct)
+            : await ordenada.ToListAsync(ct);
+
+        var (pagina, siguienteCursor) = PaginaDeTurnosVigentes.Cortar(
+            turnos, filtro.Take, v => CursorOpaco.Codificar(v.CodigoColaborador, v.Fecha));
+
+        // Nunca 404: un rango sin turnos vigentes es 200 con Elementos: [], no un error.
         return new OkObjectResult(new ListaTurnosVigentes(
             desde, rangoAplicado.HastaAplicado, rangoAplicado.RangoRecortado,
-            turnos.Select(TurnoVigenteRespuesta.Desde).ToList()));
+            pagina.Select(TurnoVigenteRespuesta.Desde).ToList(), siguienteCursor));
     }
+
+    private static ObjectResult NoProcesable(string mensaje) =>
+        new(mensaje) { StatusCode = StatusCodes.Status422UnprocessableEntity };
 }

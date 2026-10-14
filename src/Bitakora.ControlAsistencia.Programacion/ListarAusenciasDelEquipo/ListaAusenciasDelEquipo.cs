@@ -15,11 +15,13 @@ public sealed record ListaAusenciasDelEquipo(
     DateOnly Desde,
     DateOnly Hasta,
     bool RangoRecortado,
-    IReadOnlyList<AusenciasDeColaborador> Colaboradores)
+    IReadOnlyList<AusenciasDeColaborador> Elementos,
+    string? SiguienteCursor = null)
 {
     // Los tramos se recortan al periodo aplicado; el calendario por dia lo arma el cliente.
     public static ListaAusenciasDelEquipo Componer(
-        DateOnly desde, RangoAplicado rango, IEnumerable<AusenciaVigente> vigentes)
+        DateOnly desde, RangoAplicado rango, IEnumerable<AusenciaVigente> vigentes,
+        int? take = null, CursorAusenciasEquipo? cursor = null)
     {
         var hasta = rango.HastaAplicado;
 
@@ -35,9 +37,20 @@ public sealed record ListaAusenciasDelEquipo(
                     .ToList()))
             .OrderBy(c => c.NombreCompleto, StringComparer.Ordinal)
             .ThenBy(c => c.CodigoColaborador, StringComparer.Ordinal)
+            .Where(c => cursor is not { } k
+                || string.CompareOrdinal(c.NombreCompleto, k.NombreCompleto) > 0
+                || (c.NombreCompleto == k.NombreCompleto
+                    && string.CompareOrdinal(c.CodigoColaborador, k.CodigoColaborador) > 0))
             .ToList();
 
-        return new ListaAusenciasDelEquipo(desde, hasta, rango.RangoRecortado, colaboradores);
+        if (take is not { } tope || colaboradores.Count <= tope)
+            return new ListaAusenciasDelEquipo(desde, hasta, rango.RangoRecortado, colaboradores);
+
+        var pagina = colaboradores.Take(tope).ToList();
+        var ultimo = pagina[^1];
+        return new ListaAusenciasDelEquipo(
+            desde, hasta, rango.RangoRecortado, pagina,
+            new CursorAusenciasEquipo(ultimo.NombreCompleto, ultimo.CodigoColaborador).Codificar());
     }
 
     private static List<TramoAplicado> Recortar(IReadOnlyList<TramoDeAusencia> tramos, DateOnly desde, DateOnly hasta) =>

@@ -14,17 +14,14 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 // decision 4). Los rechazos del dominio en cada POST se traducen a texto (CA-ADR-0030) y no
 // detienen al resto del lote: el resto ya pudo haberse programado.
 public partial class SolicitarProgramacionTurnoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ProgramacionApi programacion, SedesApi sedes,
+    ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
     ILogger<SolicitarProgramacionTurnoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
     internal const string NombreTool = "solicitar_programacion_turno";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
-    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
-    private readonly ResolutorCandidatosPorLista resolutorCandidatos = new(colaboradores);
 
     [Function("SolicitarProgramacionTurno")]
     public async Task<string> Run(

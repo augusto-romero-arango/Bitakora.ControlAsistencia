@@ -6,10 +6,11 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 /// upstream lo declare string: los datos de dev traen null en turnos anteriores al campo.
 /// </summary>
 public sealed record ListaTurnosVigentes(
-    DateOnly DesdeAplicado,
-    DateOnly HastaAplicado,
+    DateOnly Desde,
+    DateOnly Hasta,
     bool RangoRecortado,
-    IReadOnlyList<TurnoVigente> Turnos);
+    IReadOnlyList<TurnoVigente> Elementos,
+    string? SiguienteCursor = null);
 
 public sealed record TurnoVigente(
     string Id,

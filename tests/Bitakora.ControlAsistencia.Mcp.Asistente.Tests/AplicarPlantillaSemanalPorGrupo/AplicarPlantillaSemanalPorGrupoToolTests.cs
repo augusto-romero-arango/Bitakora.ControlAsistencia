@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanalPorGrupo;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 using Microsoft.Extensions.Logging;
 
@@ -26,7 +27,9 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     };
 
     private static string Plantillas(bool completa = true, bool turnoBRetirado = false) => JsonSerializer.Serialize(
-        new[]
+        new
+        {
+            elementos = new[]
         {
             new
             {
@@ -44,17 +47,20 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
                     Slot(2, 7, TurnoB, true, turnoBRetirado)
                 }
             }
+        }
         },
         Web);
 
     private static string Turnos(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new[] { TurnoA, TurnoB }.Select(id => new
+        new
         {
-            id,
-            nombre = $"Turno {id[^1]}",
-            esDescanso = false,
-            horarioResumido = "06:00-14:00",
-            franjas = new[]
+            elementos = new[] { TurnoA, TurnoB }.Select(id => new
+            {
+                id,
+                nombre = $"Turno {id[^1]}",
+                esDescanso = false,
+                horarioResumido = "06:00-14:00",
+                franjas = new[]
             {
                 new
                 {
@@ -63,9 +69,10 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
                     sedeId = sedeIdDeLaFranja, nombreSede = (string?)null, descripcion = ""
                 }
             },
-            descripcion = "",
-            completo = true
-        }),
+                descripcion = "",
+                completo = true
+            })
+        },
         Web);
 
     private static object Ficha(int numero, string vigenteDesde = "2025-01-01", string? codigoSede = "SUBA") => new
@@ -114,12 +121,14 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
             var cuerpo = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
             lock (consultas)
                 consultas.Add(JsonNode.Parse(cuerpo)!);
-            return EntornoDeSedes.Respuesta(HttpStatusCode.OK, JsonSerializer.Serialize(fichas ?? [], Web));
+            return EntornoDeSedes.Respuesta(HttpStatusCode.OK, JsonSerializer.Serialize(new { elementos = fichas ?? [] }, Web));
         });
 
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores), logger);
+            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)), logger);
         return new Entorno(tool, programacion, consultas);
     }
 
@@ -133,7 +142,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaLaEtiqueta_CuandoTambienFaltaLaPlantilla()
     {
-        var entorno = Crear(plantillasJson: "[]");
+        var entorno = Crear(plantillasJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(entorno, plantilla: "[TEST] Plantilla que no existe", etiquetas: "area");
 
@@ -145,7 +154,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     [Fact]
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaElSelectorObligatorio_CuandoTambienFaltaLaPlantilla()
     {
-        var entorno = Crear(plantillasJson: "[]");
+        var entorno = Crear(plantillasJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
             entorno, plantilla: "[TEST] Plantilla que no existe", sede: null, etiquetas: null);
@@ -424,7 +433,9 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         var (clienteColaboradores, _) = ClienteFalso.Con("boom", HttpStatusCode.InternalServerError);
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ColaboradoresApi(clienteColaboradores));
+            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
+            new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await tool.Run(
             null!, "2026-09-01", "2026-09-14", "Semana A", null, null, "area:cocina",

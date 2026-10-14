@@ -1,8 +1,8 @@
 {
- "desdeAplicado": "2026-07-01",
- "hastaAplicado": "2026-07-31",
+ "desde": "2026-07-01",
+ "hasta": "2026-07-31",
  "rangoRecortado": true,
- "turnos": [
+ "elementos": [
   {
    "id": "cd:01a04458-37d4-7b5d-9476-0635b63ace65:20260706",
    "codigoColaborador": "01a04458-37d4-7b5d-9476-0635b63ace65",

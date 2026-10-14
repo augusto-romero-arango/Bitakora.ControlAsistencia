@@ -61,8 +61,8 @@ public partial class CancelarAusenciaTool(ProgramacionApi programacion, Colabora
         var respuestaDirectorio = await colaboradores.BuscarEnDirectorio([solicitada], 1, ct);
         if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
-        var directorio = await respuestaDirectorio.Content
-            .ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
+        var directorio = (await respuestaDirectorio.Content
+            .ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos.ToList() ?? [];
 
         var entrada = directorio.FirstOrDefault(e => string.Equals(
             e.Identificacion.Trim(), solicitada, StringComparison.OrdinalIgnoreCase));
@@ -73,8 +73,8 @@ public partial class CancelarAusenciaTool(ProgramacionApi programacion, Colabora
             entrada.CodigoColaborador, fechaDesde, fechaHasta, ct);
         if (await respuestaAusencias.LeerFalloAsync(ct) is { } falloAusencias)
             return string.Format(Mensajes.RechazoDelDominio, falloAusencias);
-        var ausencias = await respuestaAusencias.Content
-            .ReadFromJsonAsync<List<AusenciaListada>>(OpcionesLectura, ct) ?? [];
+        var ausencias = (await respuestaAusencias.Content
+            .ReadFromJsonAsync<SobreDeLista<AusenciaListada>>(OpcionesLectura, ct))?.Elementos ?? [];
 
         var porCancelar = ausencias
             .Select(a => (Ausencia: a, Fechas: DiasDe(a.TramosVigentes, fechaDesde, fechaHasta)))

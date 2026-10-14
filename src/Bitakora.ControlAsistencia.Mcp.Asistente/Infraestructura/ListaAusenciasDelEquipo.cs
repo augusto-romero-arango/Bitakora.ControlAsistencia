@@ -8,7 +8,8 @@ public sealed record ListaAusenciasDelEquipo(
     DateOnly Desde,
     DateOnly Hasta,
     bool RangoRecortado,
-    IReadOnlyList<AusenciasDeColaborador> Colaboradores);
+    IReadOnlyList<AusenciasDeColaborador> Elementos,
+    string? SiguienteCursor = null);
 
 public sealed record AusenciasDeColaborador(
     string CodigoColaborador,

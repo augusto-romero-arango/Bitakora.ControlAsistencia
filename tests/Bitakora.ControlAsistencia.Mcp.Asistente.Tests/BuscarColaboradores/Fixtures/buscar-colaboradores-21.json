@@ -1,0 +1,214 @@
+{
+  "elementos": [
+    {
+      "identificacion": "CC-79100001",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100001",
+      "nombreCompleto": "[TEST] Juan Coincidencia 01",
+      "codigoColaborador": "COL-C1",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100002",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100002",
+      "nombreCompleto": "[TEST] Juan Coincidencia 02",
+      "codigoColaborador": "COL-C2",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100003",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100003",
+      "nombreCompleto": "[TEST] Juan Coincidencia 03",
+      "codigoColaborador": "COL-C3",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100004",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100004",
+      "nombreCompleto": "[TEST] Juan Coincidencia 04",
+      "codigoColaborador": "COL-C4",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100005",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100005",
+      "nombreCompleto": "[TEST] Juan Coincidencia 05",
+      "codigoColaborador": "COL-C5",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100006",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100006",
+      "nombreCompleto": "[TEST] Juan Coincidencia 06",
+      "codigoColaborador": "COL-C6",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100007",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100007",
+      "nombreCompleto": "[TEST] Juan Coincidencia 07",
+      "codigoColaborador": "COL-C7",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100008",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100008",
+      "nombreCompleto": "[TEST] Juan Coincidencia 08",
+      "codigoColaborador": "COL-C8",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100009",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100009",
+      "nombreCompleto": "[TEST] Juan Coincidencia 09",
+      "codigoColaborador": "COL-C9",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100010",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100010",
+      "nombreCompleto": "[TEST] Juan Coincidencia 10",
+      "codigoColaborador": "COL-C10",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100011",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100011",
+      "nombreCompleto": "[TEST] Juan Coincidencia 11",
+      "codigoColaborador": "COL-C11",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100012",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100012",
+      "nombreCompleto": "[TEST] Juan Coincidencia 12",
+      "codigoColaborador": "COL-C12",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100013",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100013",
+      "nombreCompleto": "[TEST] Juan Coincidencia 13",
+      "codigoColaborador": "COL-C13",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100014",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100014",
+      "nombreCompleto": "[TEST] Juan Coincidencia 14",
+      "codigoColaborador": "COL-C14",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100015",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100015",
+      "nombreCompleto": "[TEST] Juan Coincidencia 15",
+      "codigoColaborador": "COL-C15",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100016",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100016",
+      "nombreCompleto": "[TEST] Juan Coincidencia 16",
+      "codigoColaborador": "COL-C16",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100017",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100017",
+      "nombreCompleto": "[TEST] Juan Coincidencia 17",
+      "codigoColaborador": "COL-C17",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100018",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100018",
+      "nombreCompleto": "[TEST] Juan Coincidencia 18",
+      "codigoColaborador": "COL-C18",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100019",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100019",
+      "nombreCompleto": "[TEST] Juan Coincidencia 19",
+      "codigoColaborador": "COL-C19",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100020",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100020",
+      "nombreCompleto": "[TEST] Juan Coincidencia 20",
+      "codigoColaborador": "COL-C20",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    },
+    {
+      "identificacion": "CC-79100021",
+      "tipoDocumento": "CC",
+      "numeroDocumento": "79100021",
+      "nombreCompleto": "[TEST] Juan Coincidencia 21",
+      "codigoColaborador": "COL-C21",
+      "codigoSede": null,
+      "vigenteDesde": "2024-01-01",
+      "vigenteHasta": null
+    }
+  ]
+}

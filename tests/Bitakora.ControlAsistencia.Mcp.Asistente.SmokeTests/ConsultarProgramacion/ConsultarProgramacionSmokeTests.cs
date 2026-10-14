@@ -25,6 +25,11 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
 
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+        if (!texto.StartsWith('{'))
+        {
+            DebeSerLaFraseDeVacio(texto);
+            return;
+        }
 
         using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
@@ -37,9 +42,8 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         DateOnly.TryParseExact(raiz.GetProperty("hasta").GetString()!, "yyyy-MM-dd",
             CultureInfo.InvariantCulture, DateTimeStyles.None, out _).Should().BeTrue();
 
-        var mostrando = raiz.GetProperty("mostrando").GetInt32();
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
-        raiz.GetProperty("turnos").EnumerateArray().ToList().Should().HaveCount(mostrando);
+        raiz.GetProperty("dias").EnumerateArray().ToList().Should().HaveCount(raiz.GetProperty("mostrando").GetInt32());
+        raiz.TryGetProperty("total", out _).Should().BeFalse("la ventana temporal no reporta total (CA-ADR-0039)");
     }
 
     // MEF-ADR-0048 seccion 2 verificacion 3: los parametros identificador opcionales tambien
@@ -55,22 +59,84 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
             {
                 ["desde"] = "2026-09-01",
                 ["hasta"] = "2026-09-07",
-                ["codigo_colaborador"] = "COL-1"
+                ["codigos_colaborador"] = "COL-1"
             },
             cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();
-        using var json = JsonDocument.Parse(resultado.Content.OfType<TextContentBlock>().Single().Text);
-        json.RootElement.GetProperty("turnos").EnumerateArray()
+        var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+        if (!texto.StartsWith('{'))
+        {
+            DebeSerLaFraseDeVacio(texto);
+            return;
+        }
+
+        using var json = JsonDocument.Parse(texto);
+        json.RootElement.GetProperty("dias").EnumerateArray()
             .Select(t => t.GetProperty("colaborador").GetString())
             .Should().AllBe("COL-1");
     }
 
-    // sede_id con forma GUID: la extension lo coerciona y ArgumentosCrudosMcpMiddleware debe
-    // restaurarlo; una sede inexistente responde la programacion vacia, nunca un error.
+    private async Task<string> CodigoDeUnaSedeExistente(CancellationToken ct)
+    {
+        var sedes = await mcp.Cliente.CallToolAsync(
+            "listar_sedes", new Dictionary<string, object?>(), cancellationToken: ct);
+        using var json = JsonDocument.Parse(sedes.Content.OfType<TextContentBlock>().Single().Text);
+        return json.RootElement.GetProperty("sedes").EnumerateArray().First().GetProperty("codigo").GetString()!;
+    }
+
+    private async Task AfirmaSobreOFrase(string parametro, string valor, CancellationToken ct)
+    {
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "consultar_programacion",
+            new Dictionary<string, object?>
+            {
+                ["desde"] = "2026-09-01",
+                ["hasta"] = "2026-09-07",
+                [parametro] = valor
+            },
+            cancellationToken: ct);
+
+        resultado.IsError.Should().NotBeTrue();
+        var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+        if (texto.StartsWith('{'))
+        {
+            using var json = JsonDocument.Parse(texto);
+            json.RootElement.TryGetProperty("dias", out _).Should().BeTrue();
+            json.RootElement.TryGetProperty("total", out _).Should().BeFalse();
+        }
+        else
+        {
+            DebeSerLaFraseDeVacio(texto);
+        }
+    }
+
+    // Sin dias (o sin colaboradores en el grupo) la tool responde una frase con el periodo; un
+    // rechazo del dominio tambien es texto, asi que se distingue por la forma de la frase.
+    private static void DebeSerLaFraseDeVacio(string texto) =>
+        texto.Should().StartWith("No hay ").And.Contain("2026-09-01");
+
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ConsultarProgramacion_DevuelveProgramacionVacia_CuandoSeFiltraPorUnaSedeSinBloques()
+    public async Task ConsultarProgramacion_AceptaElSobreOLaFrase_CuandoSeFiltraPorSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await AfirmaSobreOFrase("sede", await CodigoDeUnaSedeExistente(ct), ct);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_AceptaElSobreOLaFrase_CuandoSeFiltraPorSedeTrabajo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await AfirmaSobreOFrase("sede_trabajo", await CodigoDeUnaSedeExistente(ct), ct);
+    }
+
+    // Validacion de entrada barata (CA-ADR-0041 decision 3): el cursor viaja tal cual hasta
+    // turnos-vigentes, que rechaza uno que no decodifica.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_RespondeElRechazoDelDominio_CuandoElCursorEsInvalido()
     {
         var ct = TestContext.Current.CancellationToken;
         var resultado = await mcp.Cliente.CallToolAsync(
@@ -79,13 +145,12 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
             {
                 ["desde"] = "2026-09-01",
                 ["hasta"] = "2026-09-07",
-                ["sede_id"] = Guid.CreateVersion7().ToString()
+                ["cursor"] = "no-es-un-cursor"
             },
             cancellationToken: ct);
 
-        resultado.IsError.Should().NotBeTrue();
-        using var json = JsonDocument.Parse(resultado.Content.OfType<TextContentBlock>().Single().Text);
-        json.RootElement.GetProperty("total").GetInt32().Should().Be(0);
+        resultado.Content.OfType<TextContentBlock>().Single().Text
+            .Should().StartWith("El dominio rechazo la consulta:").And.Contain("cursor");
     }
 
     // Error path que NO toca los dominios: la validacion de fecha corta en el worker y responde

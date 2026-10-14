@@ -54,6 +54,8 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         DateOnly VigenteDesde,
         DateOnly? VigenteHasta);
 
+    private sealed record ListaSmoke(List<DirectorioColaboradorRespuestaSmoke> Elementos, string? SiguienteCursor);
+
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
     // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-"), reconstruido
@@ -67,7 +69,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
 
     private static object Filtro(
         IReadOnlyList<string>? identificaciones = null, string? nombre = null,
-        object? cursor = null, int take = 50) => new { identificaciones, nombre, cursor, take };
+        string? cursor = null, int? take = null) => new { identificaciones, nombre, cursor, take };
 
     // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
     // origina (#330), nunca sembrando el event store por fuera del API.
@@ -115,16 +117,17 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         return _client.SendAsync(request, ct);
     }
 
-    private async Task<List<DirectorioColaboradorRespuestaSmoke>> ConsultarListaAsync(
-        object filtro, CancellationToken ct)
+    private async Task<ListaSmoke> ConsultarSobreAsync(object filtro, CancellationToken ct)
     {
         var response = await ConsultarAsync(filtro, ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var lista = await response.Content.ReadFromJsonAsync<List<DirectorioColaboradorRespuestaSmoke>>(
-            JsonOptions, cancellationToken: ct);
-        return lista ?? [];
+        var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
+        return lista!;
     }
+
+    private async Task<List<DirectorioColaboradorRespuestaSmoke>> ConsultarListaAsync(
+        object filtro, CancellationToken ct) => (await ConsultarSobreAsync(filtro, ct)).Elementos;
 
     // Reintenta la consulta hasta que la proyeccion asincrona satisfaga la condicion -- unica
     // excepcion documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034
@@ -284,23 +287,20 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             Filtro(identificaciones: [$"CC-{Guid.CreateVersion7():N}"]), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var lista = await response.Content.ReadFromJsonAsync<List<DirectorioColaboradorRespuestaSmoke>>(
-            JsonOptions, cancellationToken: ct);
-        (lista ?? []).Should().BeEmpty();
+        var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
+        lista!.Elementos.Should().BeEmpty();
+        lista.SiguienteCursor.Should().BeNull();
     }
 
-    // CA-3: paginacion keyset -- el cursor de la ultima fila continua la pagina siguiente sin
-    // saltar ni repetir. Dos colaboradores con nombres unicos ordenables (mismo prefijo, sufijo
-    // A/B) para forzar un orden predecible entre ellos.
+    // #1000 CA-3/CA-6: recorrido de dos paginas con el siguienteCursor opaco del servidor. El token
+    // unico de apellido acota el filtro a A y B (el sufijo "-A"/"-B" tokeniza aparte), asi que con
+    // take 1 la pagina 1 es A con cursor y la pagina 2 es B sin cursor: ni salta ni repite.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarDirectorioColaboradores_PaginaSinSaltarNiRepetir_CuandoSeUsaElCursorDeLaUltimaFila()
+    public async Task ListarDirectorioColaboradores_PaginaSinSaltarNiRepetir_CuandoSeUsaElSiguienteCursor()
     {
         var ct = TestContext.Current.CancellationToken;
         var apellidoBase = NuevoApellidoUnico("Paginacion590");
-        var apellidoA = $"{apellidoBase}-A";
-        var apellidoB = $"{apellidoBase}-B";
-        var nombreCompletoA = $"[TEST] {apellidoA}";
 
         var numeroA = NuevoNumeroIdentificacion();
         var numeroB = NuevoNumeroIdentificacion();
@@ -308,36 +308,29 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         var idB = ComputarStreamId("CC", numeroB);
 
         await RegistrarColaboradorAsync(
-            "CC", numeroA, new DateOnly(2026, 1, 1), "[TEST]", null, apellidoA, null,
+            "CC", numeroA, new DateOnly(2026, 1, 1), "[TEST]", null, $"{apellidoBase}-A", null,
             NuevoCodigoColaborador(), ct);
         await RegistrarColaboradorAsync(
-            "CC", numeroB, new DateOnly(2026, 1, 1), "[TEST]", null, apellidoB, null,
+            "CC", numeroB, new DateOnly(2026, 1, 1), "[TEST]", null, $"{apellidoBase}-B", null,
             NuevoCodigoColaborador(), ct);
 
-        // El filtro por el token unico de apellido es obligatorio (sin identificaciones ni nombre
-        // el endpoint responde 422) y ademas aisla la pagina del ruido historico: sin el, un cursor
-        // suelto con Take: 1 devolveria cualquier fila de una corrida anterior que ordene despues.
-        // Ambos apellidos comparten ese token -- el sufijo "-A"/"-B" tokeniza aparte.
-        //
-        // Pagina 1: cursor posicionado exactamente en el nombre de A (Identificacion vacia ordena
-        // antes que cualquier Id real) -- con Take: 1 trae solo a A.
-        var pagina1 = await ConsultarHastaQueAsync(
-            Filtro(nombre: apellidoBase, cursor: new { nombreCompleto = nombreCompletoA, identificacion = "" }, take: 1),
-            lista => lista.Any(f => f.Identificacion == idA),
-            ct);
+        // Sin take: punto de sincronizacion -- ambos materializados y todo llega sin cursor.
+        var todos = await Polling.WaitUntilAsync(async () =>
+        {
+            var lista = await ConsultarSobreAsync(Filtro(nombre: apellidoBase), ct);
+            return lista.Elementos.Count == 2 ? lista : null;
+        }, Timeout);
+        todos.SiguienteCursor.Should().BeNull("sin take el directorio devuelve todas las coincidencias");
 
-        pagina1.Should().ContainSingle(f => f.Identificacion == idA,
-            "el cursor posicionado en el nombre de A, con Identificacion vacia, deberia traer solo a A");
+        var pagina1 = await ConsultarSobreAsync(Filtro(nombre: apellidoBase, take: 1), ct);
+        pagina1.Elementos.Should().ContainSingle(f => f.Identificacion == idA);
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty("queda B por recorrer");
 
-        // Pagina 2: cursor REAL de la ultima fila de la pagina 1 -- debe continuar exactamente en
-        // B, sin saltarlo ni repetir A.
-        var pagina2 = await ConsultarHastaQueAsync(
-            Filtro(nombre: apellidoBase, cursor: new { nombreCompleto = nombreCompletoA, identificacion = idA }, take: 1),
-            lista => lista.Any(f => f.Identificacion == idB),
-            ct);
-
-        pagina2.Should().ContainSingle(f => f.Identificacion == idB,
-            "el cursor (NombreCompleto, Identificacion) de A deberia continuar exactamente en B, sin saltar ni repetir");
+        var pagina2 = await ConsultarSobreAsync(
+            Filtro(nombre: apellidoBase, cursor: pagina1.SiguienteCursor, take: 1), ct);
+        pagina2.Elementos.Should().ContainSingle(f => f.Identificacion == idB,
+            "el siguienteCursor de A deberia continuar exactamente en B, sin saltar ni repetir");
+        pagina2.SiguienteCursor.Should().BeNull("B es la ultima coincidencia");
     }
 
     // CA-1: sin Content-Type: application/json -> 415, verificado ANTES de leer el body.
@@ -439,17 +432,28 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-1: cursor con un solo campo presente (falta Identificacion) -> 422.
+    // #1000 CA-4: un cursor que no salio del servidor, tambien el objeto de la forma vieja -> 422.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarDirectorioColaboradores_Retorna422_CuandoElCursorLlegaIncompleto()
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoElCursorNoEsValido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await ConsultarAsync(new { nombre = "[TEST]", cursor = "no-es-un-cursor" }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarDirectorioColaboradores_Retorna422_CuandoElCursorTraeLaFormaVieja()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var filtro = new
         {
             nombre = "[TEST]",
-            cursor = new { nombreCompleto = "[TEST] Algo" } // sin identificacion
+            cursor = new { nombreCompleto = "[TEST] Algo", identificacion = "CC-1" }
         };
 
         var response = await ConsultarAsync(filtro, ct);
