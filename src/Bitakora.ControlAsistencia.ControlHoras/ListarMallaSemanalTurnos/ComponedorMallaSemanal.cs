@@ -26,14 +26,14 @@ public static class ComponedorMallaSemanal
             .ToList();
     }
 
-    private static CasillaMalla Casilla(DateOnly fecha, ColaboradorVigente c, TurnoVigente? doc)
+    private static CasillaMalla Casilla(DateOnly fecha, ColaboradorVigente colaborador, TurnoVigente? doc)
     {
         if (doc is null)
         {
-            var vigente = fecha >= c.VigenteDesde && (c.VigenteHasta is null || fecha <= c.VigenteHasta);
-            return new CasillaMalla(
-                fecha, vigente ? TipoCasillaMalla.SinProgramar : TipoCasillaMalla.FueraDeVinculacion,
-                null, null, [], null);
+            var tipoVacia = colaborador.EstaVinculadoEl(fecha)
+                ? TipoCasillaMalla.SinProgramar
+                : TipoCasillaMalla.FueraDeVinculacion;
+            return new CasillaMalla(fecha, tipoVacia, null, null, [], null);
         }
 
         if (doc.MotivoAusencia is not null)

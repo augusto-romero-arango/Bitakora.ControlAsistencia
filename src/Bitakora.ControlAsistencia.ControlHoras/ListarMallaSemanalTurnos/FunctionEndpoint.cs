@@ -66,7 +66,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var pedidos = PaginaDeMallaSemanal.PosterioresAlCursor(
             colaboradores.OrderBy(c => c.CodigoColaborador, StringComparer.Ordinal), cursorCodigo);
-        var pagina = take is null ? pedidos : pedidos.Take(take.Value).ToList();
+        var (pagina, siguienteCursor) = PaginaDeMallaSemanal.Cortar(pedidos, take, c => c.CodigoColaborador);
         var codigos = pagina.Select(c => c.CodigoColaborador).ToList();
 
         // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request (MEF-ADR-0028).
@@ -79,9 +79,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 .ToListAsync(ct);
 
         var filas = ComponedorMallaSemanal.Componer(semana, pagina, documentos);
-        var siguienteCursor = take is not null && pedidos.Count > take.Value
-            ? CursorOpaco.Codificar(filas[^1].CodigoColaborador)
-            : null;
 
         return new OkObjectResult(new MallaSemanalTurnos(
             lunes, domingo, semana.Anio, semana.Numero, filas, siguienteCursor));
