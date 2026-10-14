@@ -69,6 +69,9 @@ public sealed class ColaboradoresApi(HttpClient http)
         return http.SendAsync(request, ct);
     }
 
+    public Task<HttpResponseMessage> AsignarJornada(string identificacion, Guid jornadaId, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> Registrar(RegistroColaboradorSolicitado datos, CancellationToken ct) =>
         http.PostAsJsonAsync("api/colaboradores", datos, ct);
 }

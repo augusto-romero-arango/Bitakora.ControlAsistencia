@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasTreintaYSieteTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasTreintaYNueveTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -47,7 +47,8 @@ public class ComposicionDelServidorTests
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
-                "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal"
+                "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
+                "asignar_jornada", "asignar_jornada_por_grupo"
             ]);
     }
 
@@ -486,5 +487,31 @@ public class ComposicionDelServidorTests
             Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"));
         instructions.Should().NotContain("pidesela siempre al usuario");
         instructions.Should().Contain("opcional");
+    }
+
+    [Fact]
+    public void AsignarJornada_DeclaraJornadaIdEIdentificacionesObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("asignar_jornada").Should().BeEquivalentTo([("jornada_id", true), ("identificaciones", true)]);
+        ParametrosDeTool("asignar_jornada").Should().OnlyContain(p => p.ParameterType == typeof(string));
+    }
+
+    [Fact]
+    public void AsignarJornadaPorGrupo_DeclaraSoloJornadaIdComoObligatorioYTodoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("asignar_jornada_por_grupo").Should().BeEquivalentTo(
+            [("jornada_id", true), ("sede", false), ("etiquetas", false)]);
+        ParametrosDeTool("asignar_jornada_por_grupo").Should().OnlyContain(p => p.ParameterType == typeof(string));
+    }
+
+    [Fact]
+    public void ToolsAsignarJornada_PublicanSusHints_CuandoSeInspeccionanLasTools()
+    {
+        foreach (var nombre in new[] { "asignar_jornada", "asignar_jornada_por_grupo" })
+        {
+            var hints = ParametroTrigger(MetodoDe(nombre))!.GetCustomAttribute<McpMetadataAttribute>()!.Json;
+            hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+            hints.Should().Contain("\"idempotentHint\": true");
+        }
     }
 }
