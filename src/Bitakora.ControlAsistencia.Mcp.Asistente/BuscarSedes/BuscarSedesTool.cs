@@ -113,7 +113,7 @@ public partial class BuscarSedesTool(SedesApi api)
     }
 
     private static string Describir(IReadOnlyList<PalabraCoincidente> coincidencias) =>
-        string.Join(", ", coincidencias.Select(c => c.Tipo == TipoCoincidenciaDePalabra.Exacta
+        string.Join(" ", coincidencias.Select(c => c.Tipo == TipoCoincidenciaDePalabra.Exacta
             ? c.Pedida
             : string.Format(Mensajes.PalabraAproximada, c.Pedida, c.Encontrada)));
 
