@@ -275,4 +275,25 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
             AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
     }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaJornadaEstaDesactivada()
+    {
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2, JornadaId);
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)));
+        Given(JornadaId.ToString(), new JornadaDesactivada(JornadaId));
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, string>(p => p.Id, string.Empty);
+    }
+
+    [Fact]
+    public void Mensajes_JornadaDesactivadaTieneTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        CrearPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
+    }
 }

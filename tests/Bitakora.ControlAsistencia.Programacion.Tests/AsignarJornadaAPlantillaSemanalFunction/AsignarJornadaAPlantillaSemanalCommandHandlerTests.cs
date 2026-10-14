@@ -97,4 +97,39 @@ public class AsignarJornadaAPlantillaSemanalCommandHandlerTests
         Then(GuidAggregateId.ToString());
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
     }
+
+    [Fact]
+    public async Task AsignarJornadaAPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaJornadaEstaDesactivada()
+    {
+        Given(PlantillaCreada());
+        GivenJornada(42);
+        Given(JornadaId.ToString(), new JornadaDesactivada(JornadaId));
+
+        var act = async () => await WhenAsync(new AsignarJornadaAPlantillaSemanal(GuidAggregateId, JornadaId));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AsignarJornadaAPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
+    }
+
+    [Fact]
+    public async Task AsignarJornadaAPlantillaSemanal_NoEmiteEventos_CuandoLaPlantillaYaTieneLaJornadaDesactivada()
+    {
+        Given(PlantillaCreada(),
+            JornadaDePlantillaSemanalAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        GivenJornada(42);
+        Given(JornadaId.ToString(), new JornadaDesactivada(JornadaId));
+
+        await WhenAsync(new AsignarJornadaAPlantillaSemanal(GuidAggregateId, JornadaId));
+
+        Then();
+        And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, JornadaId);
+    }
+
+    [Fact]
+    public void Mensajes_JornadaDesactivadaTieneTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        AsignarJornadaAPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
+    }
 }
