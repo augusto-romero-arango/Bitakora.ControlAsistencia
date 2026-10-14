@@ -30,7 +30,7 @@
     <value>No hay colaboradores vinculados vigentes que cumplan el criterio ({0}) en la semana del {1}.</value>
   </data>
   <data name="NotaMasColaboradores" xml:space="preserve">
-    <value>Hay mas colaboradores en la malla. Para ver los siguientes, repite con cursor = {0}</value>
+    <value>Hay mas colaboradores en la malla. Para acotar usa sede, etiquetas o codigos_colaborador; para ver los siguientes, repite con cursor = {0}</value>
   </data>
   <data name="SemanaMismoMes" xml:space="preserve">
     <value>{0} al {1} de {2} de {3}</value>

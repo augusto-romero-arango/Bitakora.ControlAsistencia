@@ -20,6 +20,6 @@ public sealed record CasillaMallaSemanal(
     IReadOnlyList<BloqueMallaSemanal> Bloques,
     string? MotivoAusencia);
 
-public sealed record BloqueMallaSemanal(string? SedeId, string? NombreSede);
+public sealed record BloqueMallaSemanal(string? NombreSede);
 
 public sealed record ColaboradorVigenteMalla(string CodigoColaborador, DateOnly VigenteDesde, DateOnly? VigenteHasta);

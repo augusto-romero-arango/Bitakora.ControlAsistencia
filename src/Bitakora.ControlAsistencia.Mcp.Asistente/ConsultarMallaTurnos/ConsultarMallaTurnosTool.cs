@@ -8,20 +8,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarMallaTurnos;
 
-public partial class ConsultarMallaTurnosTool
+public partial class ConsultarMallaTurnosTool(
+    ControlHorasApi controlHoras, ResolutorCandidatosPorGrupo resolutor, TimeProvider reloj)
 {
-    private readonly ControlHorasApi _controlHoras;
-    private readonly ResolutorCandidatosPorGrupo _resolutor;
-    private readonly TimeProvider _reloj;
-
-    public ConsultarMallaTurnosTool(
-        ControlHorasApi controlHoras, ResolutorCandidatosPorGrupo resolutor, TimeProvider reloj)
-    {
-        _controlHoras = controlHoras;
-        _resolutor = resolutor;
-        _reloj = reloj;
-    }
-
     internal const string NombreTool = "consultar_malla_turnos";
     internal const int MaximoColaboradores = 50;
     private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
@@ -41,15 +30,15 @@ public partial class ConsultarMallaTurnosTool
             + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty("fecha", "Cualquier dia de la semana a revisar, formato yyyy-MM-dd.")]
+        [McpToolProperty("fecha", "Cualquier dia de la semana a revisar, formato yyyy-MM-dd. Si se omite, la proxima semana.")]
         string? fecha,
-        [McpToolProperty("sede", "Codigo de la sede.")]
+        [McpToolProperty("sede", "Codigo de la sede para revisar solo a sus colaboradores.")]
         string? sede,
-        [McpToolProperty("etiquetas", "Pares categoria:valor separados por coma.")]
+        [McpToolProperty("etiquetas", "Pares categoria:valor separados por coma; combina todos en AND.")]
         string? etiquetas,
-        [McpToolProperty("codigos_colaborador", "Codigos de colaborador separados por coma.")]
+        [McpToolProperty("codigos_colaborador", "Codigos de colaborador separados por coma para casos puntuales.")]
         string? codigosColaborador,
-        [McpToolProperty("cursor", "El siguienteCursor de la respuesta anterior.")]
+        [McpToolProperty("cursor", "El siguienteCursor de la respuesta anterior, tal cual, para ver la pagina siguiente.")]
         string? cursor,
         CancellationToken ct)
     {
@@ -57,7 +46,7 @@ public partial class ConsultarMallaTurnosTool
         if (error is not null)
             return error;
 
-        var lunes = fechaConsulta.AddDays(-(((int)fechaConsulta.DayOfWeek + 6) % 7));
+        var lunes = fechaConsulta.AddDays(-IndiceIso(fechaConsulta));
         var domingo = lunes.AddDays(6);
         var semana = DescribirSemana(lunes, domingo);
 
@@ -65,7 +54,7 @@ public partial class ConsultarMallaTurnosTool
         var sedeNormalizada = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
         var filtrosEtiqueta = FiltroEtiqueta.ParsearPares(etiquetas);
 
-        var grupo = await _resolutor.ResolverAsync(lunes, sedeNormalizada, filtrosEtiqueta, ct);
+        var grupo = await resolutor.ResolverAsync(lunes, sedeNormalizada, filtrosEtiqueta, ct);
         if (grupo.FalloDeLectura is { } falloGrupo)
             return string.Format(Mensajes.RechazoDelDominio, falloGrupo);
 
@@ -77,7 +66,7 @@ public partial class ConsultarMallaTurnosTool
             return string.Format(
                 Mensajes.GrupoSinColaboradores, DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos), semana);
 
-        var respuesta = await _controlHoras.ListarMallaSemanalTurnos(
+        var respuesta = await controlHoras.ListarMallaSemanalTurnos(
             lunes,
             [.. candidatos.Select(c => new ColaboradorVigenteMalla(c.CodigoColaborador, c.VigenteDesde, c.VigenteHasta))],
             MaximoColaboradores,
@@ -90,12 +79,12 @@ public partial class ConsultarMallaTurnosTool
         var lista = (await respuesta.Content.ReadFromJsonAsync<ListaMallaSemanal>(OpcionesLectura, ct))!;
         var nombres = candidatos
             .GroupBy(c => c.CodigoColaborador, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().NombreCompleto, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => g.First().NombreCompleto.Trim(), StringComparer.OrdinalIgnoreCase);
 
         var visibles = lista.Elementos
             .Select(f => new ColaboradorEnMalla(
                 f.CodigoColaborador,
-                (nombres.GetValueOrDefault(f.CodigoColaborador) ?? string.Empty).Trim(),
+                nombres.GetValueOrDefault(f.CodigoColaborador, string.Empty),
                 [.. f.Casillas.Select(DescribirDia)]))
             .ToList();
 
@@ -123,14 +112,14 @@ public partial class ConsultarMallaTurnosTool
             _ => Mensajes.DiaSinProgramar
         };
 
-        return $"{Formatear(c.Fecha)} {DiasAbreviados[((int)c.Fecha.DayOfWeek + 6) % 7]}: {estado}";
+        return $"{Formatear(c.Fecha)} {DiasAbreviados[IndiceIso(c.Fecha)]}: {estado}";
     }
 
     private (DateOnly Fecha, string? Error) ResolverFecha(string? fecha)
     {
         if (string.IsNullOrWhiteSpace(fecha))
         {
-            var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_reloj.GetUtcNow(), ZonaBogota).DateTime);
+            var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime);
             return (hoy.AddDays(7), null);
         }
 
@@ -159,6 +148,8 @@ public partial class ConsultarMallaTurnosTool
 
         return partes.Count == 0 ? Mensajes.CriterioTodos : string.Join("; ", partes);
     }
+
+    private static int IndiceIso(DateOnly fecha) => ((int)fecha.DayOfWeek + 6) % 7;
 
     private static string Formatear(DateOnly fecha) => fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
