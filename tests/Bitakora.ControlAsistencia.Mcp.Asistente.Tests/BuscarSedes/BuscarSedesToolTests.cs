@@ -106,6 +106,14 @@ public class BuscarSedesToolTests
     }
 
     [Fact]
+    public async Task BuscarSedes_PriorizaLaDeMasPalabrasCoincidentes_CuandoElNombreTieneVarias()
+    {
+        var (texto, _) = await EjecutarTexto(Catalogo, nombre: "sede chapinero");
+
+        Codigos(Parsear(texto)).Should().Equal("CH-01", "BOG-80", "MED-02", "CHAP", "SIN-01");
+    }
+
+    [Fact]
     public async Task BuscarSedes_OmiteCiudadYDireccion_CuandoLaSedeNoLasTiene()
     {
         var (texto, _) = await EjecutarTexto(Catalogo, nombre: "sin");
