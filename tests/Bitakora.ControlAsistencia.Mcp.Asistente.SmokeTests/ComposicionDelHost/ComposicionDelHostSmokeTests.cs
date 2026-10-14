@@ -19,7 +19,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "programar_ausencia", "cancelar_ausencia",
         "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
         "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
-        "asignar_jornada", "asignar_jornada_por_grupo"
+        "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -67,12 +67,13 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["asignar_jornada_a_plantilla_semanal"] = ["plantilla", "jornada_id"],
         ["quitar_jornada_de_plantilla_semanal"] = ["plantilla"],
         ["asignar_jornada"] = ["jornada_id", "identificaciones"],
-        ["asignar_jornada_por_grupo"] = ["jornada_id"]
+        ["asignar_jornada_por_grupo"] = ["jornada_id"],
+        ["desactivar_jornada"] = ["jornada_id"]
     };
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasTreintaYNueveTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasCuarentaTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -121,7 +122,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "programar_ausencia" or "cancelar_ausencia"
                 or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
                 or "asignar_jornada_a_plantilla_semanal" or "quitar_jornada_de_plantilla_semanal"
-                or "asignar_jornada" or "asignar_jornada_por_grupo";
+                or "asignar_jornada" or "asignar_jornada_por_grupo" or "desactivar_jornada";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }

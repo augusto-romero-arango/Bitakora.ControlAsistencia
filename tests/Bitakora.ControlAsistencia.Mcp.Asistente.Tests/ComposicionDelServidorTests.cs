@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasTreintaYNueveTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasCuarentaTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -48,7 +48,7 @@ public class ComposicionDelServidorTests
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
-                "asignar_jornada", "asignar_jornada_por_grupo"
+                "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada"
             ]);
     }
 
@@ -513,5 +513,21 @@ public class ComposicionDelServidorTests
             hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
             hints.Should().Contain("\"idempotentHint\": true");
         }
+    }
+
+    [Fact]
+    public void DesactivarJornada_DeclaraJornadaIdComoObligatorioDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("desactivar_jornada").Should().BeEquivalentTo([("jornada_id", true)]);
+        ParametrosDeTool("desactivar_jornada").Should().OnlyContain(p => p.ParameterType == typeof(string));
+    }
+
+    [Fact]
+    public void DesactivarJornada_PublicaSusHints_CuandoSeInspeccionaLaTool()
+    {
+        var hints = ParametroTrigger(MetodoDe("desactivar_jornada"))!.GetCustomAttribute<McpMetadataAttribute>()!.Json;
+        hints.Should().Contain("\"readOnlyHint\": false");
+        hints.Should().Contain("\"destructiveHint\": false");
+        hints.Should().Contain("\"idempotentHint\": true");
     }
 }
