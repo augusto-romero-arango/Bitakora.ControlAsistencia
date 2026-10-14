@@ -126,7 +126,7 @@ internal static class ComposicionListadoLimites
 {
     public static ListaLimitesDeJornadaRespuesta Componer(
         IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take,
-        Guid? predeterminadaId = null)
+        Guid? predeterminadaId = null, bool? activa = null)
     {
         IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
             ? vista

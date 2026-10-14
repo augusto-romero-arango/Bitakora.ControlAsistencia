@@ -107,4 +107,32 @@ public class ComposicionListadoLimitesTests
 
         marcadas.Should().Equal(IdP);
     }
+
+    [Fact]
+    public void Componer_NoIncluyeLaPredeterminadaFaltante_CuandoElFiltroEsActivaFalse()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, B], P, null, null, IdP, activa: false);
+
+        respuesta.Elementos.Select(e => e.JornadaId).Should().Equal(IdA, IdB);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(null)]
+    public void Componer_IncluyeLaPredeterminadaFaltanteEnSuPosicion_CuandoElFiltroEsActivaTrueOAusente(bool? activa)
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A, B], P, null, null, IdP, activa);
+
+        respuesta.Elementos.Select(e => e.JornadaId).Should().Equal(IdA, IdP, IdB);
+    }
+
+    [Fact]
+    public void Componer_ExponeActivaDeLaVista_EnCadaElemento()
+    {
+        var inactiva = A with { Activa = false };
+
+        var respuesta = ComposicionListadoLimites.Componer([inactiva, B], null, null, null);
+
+        respuesta.Elementos.Select(e => e.Activa).Should().Equal(false, true);
+    }
 }
