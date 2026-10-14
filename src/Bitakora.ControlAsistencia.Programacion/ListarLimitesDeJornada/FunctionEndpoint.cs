@@ -35,6 +35,15 @@ public class FunctionEndpoint(
             take = valor;
         }
 
+        bool? filtroActiva = null;
+        string? filtroActivaCrudo = req.Query["activa"];
+        if (!string.IsNullOrEmpty(filtroActivaCrudo))
+        {
+            if (!bool.TryParse(filtroActivaCrudo, out var filtroActivaTipado))
+                return new BadRequestObjectResult("El filtro 'activa' debe ser true o false");
+            filtroActiva = filtroActivaTipado;
+        }
+
         CursorJornada? cursor = null;
         if (req.Query.TryGetValue("cursor", out var cursorCrudo) && !string.IsNullOrEmpty(cursorCrudo[0]))
         {
@@ -49,6 +58,9 @@ public class FunctionEndpoint(
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<LimitesDeJornada> query = session.Query<LimitesDeJornada>();
+        // Desempaquetar antes: (l.Activa == filtroActiva) armaria una igualdad lifted bool?.
+        if (filtroActiva is { } activa)
+            query = query.Where(l => l.Activa == activa);
         if (cursor is { } c)
         {
             query = query.Where(l =>
@@ -76,7 +88,7 @@ public class FunctionEndpoint(
             faltante = jornada!.ComoVista();
         }
 
-        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take, predeterminadaId));
+        return new OkObjectResult(ComposicionListadoLimites.Componer(pagina, faltante, cursor, take, predeterminadaId, filtroActiva));
     }
 }
 
@@ -94,7 +106,8 @@ internal static class LimitesDeJornadaRespuesta
         Convertir(vista.MinimoDiarioEnMinutos),
         vista.DiasDescansoPorSemana,
         vista.Descripcion,
-        predeterminadaId is { } p && vista.Id == p.ToString());
+        predeterminadaId is { } p && vista.Id == p.ToString(),
+        vista.Activa);
 
     private static HorasYMinutosRespuesta Convertir(int minutos) => new(minutos / 60, minutos % 60);
 }
@@ -128,6 +141,10 @@ internal static class ComposicionListadoLimites
         IReadOnlyList<LimitesDeJornada> vista, LimitesDeJornada? predeterminada, CursorJornada? cursor, int? take,
         Guid? predeterminadaId = null, bool? activa = null)
     {
+        // La vista llega ya filtrada por la query; solo la predeterminada faltante se evalua aqui.
+        if (predeterminada is not null && activa is { } filtro && predeterminada.Activa != filtro)
+            predeterminada = null;
+
         IEnumerable<LimitesDeJornada> todas = predeterminada is null || vista.Any(l => l.Id == predeterminada.Id)
             ? vista
             : [.. vista, predeterminada];

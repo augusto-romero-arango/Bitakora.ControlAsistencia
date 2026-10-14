@@ -15,13 +15,13 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
         Proyectar(e.StreamKey!, e.Data.Limites);
 
     public static LimitesDeJornada Apply(LimitesJornadaModificados e, LimitesDeJornada vista) =>
-        Proyectar(vista.Id, e.Limites);
+        Proyectar(vista.Id, e.Limites) with { Activa = vista.Activa };
 
     public static LimitesDeJornada Apply(JornadaDesactivada e, LimitesDeJornada vista) =>
-        throw new NotImplementedException();
+        vista with { Activa = false };
 
     public static LimitesDeJornada Apply(JornadaActivada e, LimitesDeJornada vista) =>
-        throw new NotImplementedException();
+        vista with { Activa = true };
 
     private static LimitesDeJornada Proyectar(string id, LimitesJornada limites) =>
         new(id,
