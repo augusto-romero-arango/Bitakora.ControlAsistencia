@@ -58,6 +58,9 @@ public sealed class ProgramacionApi(HttpClient http)
         Guid id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
         http.PutAsJsonAsync($"api/programacion/jornadas/{id}/limites", limites, ct);
 
+    public Task<HttpResponseMessage> DesactivarJornada(Guid id, CancellationToken ct) =>
+        http.PostAsync($"api/programacion/jornadas/{id}:desactivar", null, ct);
+
     public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
         http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);
 
@@ -130,6 +133,8 @@ public sealed class ProgramacionApi(HttpClient http)
         DateOnly desde,
         DateOnly hasta,
         IReadOnlyList<string>? codigosColaborador,
+        int? take,
+        string? cursor,
         CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/programacion/ausencias")
@@ -138,7 +143,9 @@ public sealed class ProgramacionApi(HttpClient http)
             {
                 desde,
                 hasta,
-                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                take,
+                cursor
             })
         };
 

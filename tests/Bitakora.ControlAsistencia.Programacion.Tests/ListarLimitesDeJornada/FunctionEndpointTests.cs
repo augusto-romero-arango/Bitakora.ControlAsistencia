@@ -34,4 +34,10 @@ public class FunctionEndpointTests
     {
         (await EjecutarAsync("?cursor=%25%25no-es-un-cursor")).Should().Be(StatusCodes.Status400BadRequest);
     }
+
+    [Fact]
+    public async Task ListarLimitesDeJornada_Retorna400_CuandoActivaNoEsBooleano()
+    {
+        (await EjecutarAsync("?activa=quizas")).Should().Be(StatusCodes.Status400BadRequest);
+    }
 }

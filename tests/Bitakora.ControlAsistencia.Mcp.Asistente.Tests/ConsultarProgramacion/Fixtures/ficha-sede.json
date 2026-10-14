@@ -1,0 +1,10 @@
+{
+  "id": "01a043a0-aaaa-7000-8000-00000000a001",
+  "codigo": "NORTE",
+  "nombre": "Norte",
+  "ciudad": "Bogota",
+  "direccion": "Cra 1 # 2-3",
+  "centroDeCostos": "CC-100",
+  "activa": true,
+  "dispositivos": []
+}

@@ -1,0 +1,123 @@
+{
+ "elementos": [
+  {
+   "id": "id-1",
+   "nombre": "Turno Nocturno Vigilancia",
+   "esDescanso": false,
+   "horarioResumido": "x",
+   "franjas": [
+    {
+     "horaInicio": "22:00:00",
+     "horaFin": "06:00:00",
+     "diaOffsetFin": 1,
+     "descansos": [],
+     "extras": [],
+     "sedeId": "SEDE-NORTE",
+     "nombreSede": "Norte",
+     "descripcion": ""
+    }
+   ],
+   "descripcion": "",
+   "completo": true
+  },
+  {
+   "id": "id-2",
+   "nombre": "Vigilancia Diurno",
+   "esDescanso": false,
+   "horarioResumido": "x",
+   "franjas": [
+    {
+     "horaInicio": "06:00:00",
+     "horaFin": "14:00:00",
+     "diaOffsetFin": 0,
+     "descansos": [],
+     "extras": [],
+     "sedeId": "SEDE-NORTE",
+     "nombreSede": "Norte",
+     "descripcion": ""
+    }
+   ],
+   "descripcion": "",
+   "completo": true
+  },
+  {
+   "id": "id-3",
+   "nombre": "Cocina Manana",
+   "esDescanso": false,
+   "horarioResumido": "x",
+   "franjas": [
+    {
+     "horaInicio": "06:00:00",
+     "horaFin": "14:00:00",
+     "diaOffsetFin": 0,
+     "descansos": [],
+     "extras": [],
+     "sedeId": "SEDE-CENTRO",
+     "nombreSede": "Centro",
+     "descripcion": ""
+    }
+   ],
+   "descripcion": "",
+   "completo": true
+  },
+  {
+   "id": "id-4",
+   "nombre": "Vigilancia Nocturno En Construccion",
+   "esDescanso": false,
+   "horarioResumido": "x",
+   "franjas": [],
+   "descripcion": "",
+   "completo": false
+  },
+  {
+   "id": "id-5",
+   "nombre": "Descanso Vigilancia",
+   "esDescanso": true,
+   "horarioResumido": "x",
+   "franjas": [],
+   "descripcion": "",
+   "completo": true
+  },
+  {
+   "id": "id-6",
+   "nombre": "Vigilancia Tarde",
+   "esDescanso": false,
+   "horarioResumido": "x",
+   "franjas": [
+    {
+     "horaInicio": "05:00:00",
+     "horaFin": "13:00:00",
+     "diaOffsetFin": 0,
+     "descansos": [],
+     "extras": [],
+     "sedeId": "SEDE-NORTE",
+     "nombreSede": "Norte",
+     "descripcion": ""
+    }
+   ],
+   "descripcion": "",
+   "completo": true
+  },
+  {
+   "id": "id-7",
+   "nombre": "Vigilancia Madrugada",
+   "esDescanso": false,
+   "horarioResumido": "x",
+   "franjas": [
+    {
+     "horaInicio": "05:00:00",
+     "horaFin": "08:00:00",
+     "diaOffsetFin": 0,
+     "descansos": [],
+     "extras": [],
+     "sedeId": "SEDE-NORTE",
+     "nombreSede": "Norte",
+     "descripcion": ""
+    }
+   ],
+   "descripcion": "",
+   "completo": true
+  }
+ ],
+ "siguienteCursor": null
+}
