@@ -143,7 +143,9 @@ public sealed class ProgramacionApi(HttpClient http)
             {
                 desde,
                 hasta,
-                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                take,
+                cursor
             })
         };
 

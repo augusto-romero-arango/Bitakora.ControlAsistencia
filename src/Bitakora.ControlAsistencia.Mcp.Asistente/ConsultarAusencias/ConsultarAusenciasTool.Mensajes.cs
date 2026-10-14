@@ -21,7 +21,7 @@ public partial class ConsultarAusenciasTool
         public static string RechazoDelDominio =>
             ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
-        /// <summary>{0}: desde aplicado, {1}: hasta aplicado.</summary>
+        /// <summary>{0}: desde aplicado, {1}: hasta aplicado, {2}: criterio entre parentesis o vacio.</summary>
         public static string NadieFalta =>
             ResourceManager.GetString(nameof(NadieFalta))!;
 
@@ -42,9 +42,5 @@ public partial class ConsultarAusenciasTool
         public static string CriterioEtiquetas => ResourceManager.GetString(nameof(CriterioEtiquetas))!;
 
         public static string CriterioCodigos => ResourceManager.GetString(nameof(CriterioCodigos))!;
-
-        /// <summary>{0}: colaboradores mostrados, {1}: total, {2}: omitidos.</summary>
-        public static string NotaTruncado =>
-            ResourceManager.GetString(nameof(NotaTruncado))!;
     }
 }

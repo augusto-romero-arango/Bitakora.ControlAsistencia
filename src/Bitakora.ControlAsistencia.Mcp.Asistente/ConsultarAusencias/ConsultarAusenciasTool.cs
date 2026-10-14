@@ -18,9 +18,11 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
             NombreTool,
             "Consulta quien falta en un periodo: por colaborador, sus ausencias (vacaciones, "
             + "incapacidad medica, licencia remunerada o ausencia no remunerada) con los dias que "
-            + "caen en el periodo. Periodo de maximo 35 dias. Filtra opcionalmente por codigos de "
-            + "colaborador (para tu equipo, sacalos de listar_colaboradores por sede o etiquetas). "
-            + "Para un solo colaborador, pasa solo su codigo.")]
+            + "caen en el periodo. Periodo de maximo 35 dias. Filtra opcionalmente por sede, por "
+            + "etiquetas (pares categoria:valor) o por codigos de colaborador; si combinas, se "
+            + "intersectan. Para un solo colaborador, pasa solo su codigo. Muestra hasta 50 "
+            + "colaboradores por pagina; si hay mas, la respuesta trae siguienteCursor: repite con "
+            + "cursor para ver la siguiente pagina.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Fecha inicial del periodo, formato yyyy-MM-dd.", isRequired: true)]
@@ -48,8 +50,31 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
         if (desdeFecha > hastaFecha)
             return Mensajes.DesdePosteriorAHasta;
 
+        var codigosPedidos = SepararCodigos(codigosColaborador);
+        var sedeNormalizada = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
+        var filtrosEtiqueta = ParsearEtiquetas(etiquetas);
+        var criterio = DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos);
+
+        IReadOnlyList<string>? sujetos = codigosPedidos;
+        if (sedeNormalizada is not null || filtrosEtiqueta.Count > 0)
+        {
+            var grupo = await resolutor.ResolverAsync(desdeFecha, sedeNormalizada, filtrosEtiqueta, ct);
+            if (grupo.FalloDeLectura is { } falloGrupo)
+                return string.Format(Mensajes.RechazoDelDominio, falloGrupo);
+
+            var codigosGrupo = grupo.Candidatos.Select(c => c.CodigoColaborador).ToList();
+            sujetos = codigosPedidos is null
+                ? codigosGrupo
+                : [.. codigosGrupo.Where(c => codigosPedidos.Contains(c, StringComparer.OrdinalIgnoreCase))];
+
+            if (sujetos.Count == 0)
+                return string.Format(
+                    Mensajes.GrupoSinColaboradores, criterio, $"{Formatear(desdeFecha)} y {Formatear(hastaFecha)}");
+        }
+
         var respuesta = await api.ListarAusenciasDelEquipo(
-            desdeFecha, hastaFecha, SepararCodigos(codigosColaborador), null, null, ct);
+            desdeFecha, hastaFecha, sujetos, MaximoColaboradores,
+            string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
 
         var fallo = await respuesta.LeerFalloAsync(ct);
         if (fallo is not null)
@@ -58,9 +83,11 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
         var lista = (await respuesta.Content.ReadFromJsonAsync<ListaAusenciasDelEquipo>(ct))!;
 
         if (lista.Elementos.Count == 0)
-            return string.Format(Mensajes.NadieFalta, Formatear(lista.Desde), Formatear(lista.Hasta));
+            return string.Format(
+                Mensajes.NadieFalta, Formatear(lista.Desde), Formatear(lista.Hasta),
+                criterio.Length == 0 ? "" : $" ({criterio})");
 
-        var visibles = lista.Elementos.Take(MaximoColaboradores)
+        var visibles = lista.Elementos
             .Select(c => new ColaboradorAusente(
                 c.CodigoColaborador,
                 c.NombreCompleto,
@@ -70,25 +97,43 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
         return RespuestaJson.Serializar(new AusenciasDelPeriodo(
             Formatear(lista.Desde),
             Formatear(lista.Hasta),
-            ComponerNota(lista, visibles.Count),
-            lista.Elementos.Count,
             visibles.Count,
-            visibles));
+            visibles,
+            lista.SiguienteCursor,
+            ComponerNota(lista)));
     }
 
-    private static string? ComponerNota(ListaAusenciasDelEquipo lista, int visibles)
+    private static string? ComponerNota(ListaAusenciasDelEquipo lista)
     {
         var partes = new List<string>();
 
         if (lista.RangoRecortado)
             partes.Add(string.Format(Mensajes.NotaRecorte, Formatear(lista.Desde), Formatear(lista.Hasta)));
 
-        if (lista.Elementos.Count > visibles)
-            partes.Add(string.Format(
-                Mensajes.NotaTruncado, visibles, lista.Elementos.Count, lista.Elementos.Count - visibles));
+        if (lista.SiguienteCursor is not null)
+            partes.Add(string.Format(Mensajes.NotaMasColaboradores, lista.SiguienteCursor));
 
         return partes.Count > 0 ? string.Join(" ", partes) : null;
     }
+
+    private static string DescribirCriterio(
+        string? sede, IReadOnlyList<FiltroEtiqueta> etiquetas, IReadOnlyList<string>? codigos) =>
+        string.Join("; ", new[]
+        {
+            sede is null ? null : string.Format(Mensajes.CriterioSede, sede),
+            etiquetas.Count == 0 ? null : string.Format(
+                Mensajes.CriterioEtiquetas, string.Join(", ", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))),
+            codigos is null ? null : string.Format(Mensajes.CriterioCodigos, string.Join(", ", codigos))
+        }.Where(p => p is not null));
+
+    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
+        string.IsNullOrWhiteSpace(etiquetas)
+            ? []
+            : [.. etiquetas
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
+                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
+                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 
     private static string Compactar(TramoAplicado tramo) =>
         tramo.Desde == tramo.Hasta
@@ -111,10 +156,10 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
 public sealed record AusenciasDelPeriodo(
     string Desde,
     string Hasta,
-    string? Nota,
-    int Total,
     int Mostrando,
-    IReadOnlyList<ColaboradorAusente> Colaboradores);
+    IReadOnlyList<ColaboradorAusente> Colaboradores,
+    string? SiguienteCursor,
+    string? Nota);
 
 public sealed record ColaboradorAusente(
     string Codigo,
