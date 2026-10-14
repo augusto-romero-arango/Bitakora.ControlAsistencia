@@ -32,7 +32,28 @@
   <data name="NotaRecorte" xml:space="preserve">
     <value>El rango pedido excedia la cota del servidor y fue recortado al rango aplicado.</value>
   </data>
-  <data name="NotaTruncado" xml:space="preserve">
-    <value>Mostrando {0} de {1} dias programados; refina el rango o los filtros.</value>
+  <data name="NotaMasDias" xml:space="preserve">
+    <value>Hay mas dias programados. Para acotar usa codigos_colaborador, sede, etiquetas, sede_trabajo o un rango menor; para ver los siguientes, repite con el siguienteCursor como cursor. Los dias de un colaborador pueden quedar partidos entre paginas.</value>
+  </data>
+  <data name="SedeTrabajoNoExiste" xml:space="preserve">
+    <value>No existe una sede con codigo '{0}'; consulta el catalogo con listar_sedes.</value>
+  </data>
+  <data name="GrupoSinColaboradores" xml:space="preserve">
+    <value>No hay colaboradores para el criterio {0} en el periodo {1}.</value>
+  </data>
+  <data name="SinProgramacion" xml:space="preserve">
+    <value>No hay dias programados en el periodo {0}{1}.</value>
+  </data>
+  <data name="CriterioSede" xml:space="preserve">
+    <value>sede {0}</value>
+  </data>
+  <data name="CriterioEtiquetas" xml:space="preserve">
+    <value>etiquetas {0}</value>
+  </data>
+  <data name="CriterioCodigos" xml:space="preserve">
+    <value>colaboradores {0}</value>
+  </data>
+  <data name="CriterioSedeTrabajo" xml:space="preserve">
+    <value>trabajando en la sede {0}</value>
   </data>
 </root>

@@ -19,7 +19,7 @@ public sealed partial class ResolutorPlantillaPorNombre(ProgramacionApi programa
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoResolucionPlantilla(null, fallo, []);
 
-        var catalogo = await respuesta.Content.ReadFromJsonAsync<List<CuadroSemanalTurnos>>(OpcionesLectura, ct) ?? [];
+        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(OpcionesLectura, ct))?.Elementos ?? [];
         var normalizado = NormalizarNombre(nombre);
         var cuadro = catalogo.FirstOrDefault(c => NormalizarNombre(c.Nombre) == normalizado);
 

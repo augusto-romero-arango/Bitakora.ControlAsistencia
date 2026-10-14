@@ -15,13 +15,14 @@ public sealed class ResolutorCandidatosPorLista(ColaboradoresApi colaboradores)
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoCandidatos([], fallo);
 
-        var directorio = await respuesta.Content.ReadFromJsonAsync<List<EntradaDirectorio>>(OpcionesLectura, ct) ?? [];
+        var directorio = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos.ToList() ?? [];
         var normalizadas = identificaciones.Select(i => i.Trim().ToUpperInvariant()).ToHashSet();
 
         var candidatos = directorio
             .Where(e => normalizadas.Contains(e.Identificacion.Trim().ToUpperInvariant()))
             .Select(e => new CandidatoProgramacion(
-                e.Identificacion, e.CodigoColaborador, e.NombreCompleto, e.VigenteDesde, e.VigenteHasta, e.CodigoSede))
+                e.Identificacion, e.CodigoColaborador, e.NombreCompleto, e.VigenteDesde, e.VigenteHasta, e.CodigoSede,
+                e.JornadaId))
             .ToList();
 
         return new ResultadoCandidatos(candidatos, null);

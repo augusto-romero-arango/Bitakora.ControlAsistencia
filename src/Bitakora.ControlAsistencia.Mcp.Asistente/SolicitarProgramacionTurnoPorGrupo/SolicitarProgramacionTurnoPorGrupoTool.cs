@@ -9,17 +9,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurnoPorGrupo;
 
 public partial class SolicitarProgramacionTurnoPorGrupoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ProgramacionApi programacion, SedesApi sedes,
+    ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
     ILogger<SolicitarProgramacionTurnoPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
     internal const string NombreTool = "solicitar_programacion_turno_por_grupo";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
-    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
-    private readonly ResolutorCandidatosPorGrupo resolutorCandidatos = new(colaboradores);
 
     [Function("SolicitarProgramacionTurnoPorGrupo")]
     public async Task<string> Run(

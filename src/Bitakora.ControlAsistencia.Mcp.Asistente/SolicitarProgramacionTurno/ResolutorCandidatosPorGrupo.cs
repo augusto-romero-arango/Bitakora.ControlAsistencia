@@ -16,10 +16,11 @@ public sealed class ResolutorCandidatosPorGrupo(ColaboradoresApi colaboradores)
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return new ResultadoCandidatos([], fallo);
 
-        var fichas = await respuesta.Content.ReadFromJsonAsync<List<FichaColaborador>>(OpcionesLectura, ct) ?? [];
+        var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaColaborador>>(OpcionesLectura, ct))?.Elementos.ToList() ?? [];
         var candidatos = fichas
             .Select(f => new CandidatoProgramacion(
-                f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta, f.CodigoSede))
+                f.Id, f.CodigoColaborador, f.NombreCompleto, f.VigenteDesde, f.VigenteHasta, f.CodigoSede,
+                f.JornadaId))
             .ToList();
 
         return new ResultadoCandidatos(candidatos, null);

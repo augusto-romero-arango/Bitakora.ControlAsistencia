@@ -104,4 +104,36 @@ public class FunctionEndpointTests
 
         codigo.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
+
+    [Fact]
+    public async Task ListarAsistenciasDiarias_Retorna422_CuandoTakeEsCero()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"codigoColaborador":"E001","desdeFecha":"2026-07-01","hastaFecha":"2026-07-10","take":0}"""));
+
+        r.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarAsistenciasDiarias_Retorna422_CuandoTakeSuperaElMaximo()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"codigoColaborador":"E001","desdeFecha":"2026-07-01","hastaFecha":"2026-07-10","take":201}"""));
+
+        r.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarAsistenciasDiarias_Retorna422_CuandoElCursorNoSeDecodifica()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"codigoColaborador":"E001","desdeFecha":"2026-07-01","hastaFecha":"2026-07-10","cursor":"@@no-base64@@"}"""));
+
+        r.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task ListarAsistenciasDiarias_Retorna422_CuandoElCursorEsUnValorCrudoConLaFormaVieja()
+    {
+        var r = await EjecutarAsync(RequestJson("""{"codigoColaborador":"E001","desdeFecha":"2026-07-01","hastaFecha":"2026-07-10","cursor":"EMP-001"}"""));
+
+        r.Should().Be(StatusCodes.Status422UnprocessableEntity);
+    }
 }

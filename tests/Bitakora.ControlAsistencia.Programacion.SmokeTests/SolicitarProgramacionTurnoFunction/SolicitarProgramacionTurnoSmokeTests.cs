@@ -9,13 +9,13 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.SolicitarProgramacionTurnoFunction;
 
 public class SolicitarProgramacionTurnoSmokeTests(
-    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres) : IAsyncDisposable
+    ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres) : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private const string TopicSalida = "programacion-turno-diario-solicitada";
     private const string Suscripcion = "smoke-tests";
@@ -1131,16 +1131,15 @@ public class SolicitarProgramacionTurnoSmokeTests(
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_DebePublicarLaJornadaEstampada_CuandoTraeJornadaId()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
         var firma = LimitesDePrueba.SolicitarProgramacion;
-        await _limpieza.PrepararAsync(firma);
 
         var ct = TestContext.Current.CancellationToken;
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
 
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         var turnoId = await CrearTurnoParaJornadaAsync("[TEST] Turno Smoke Jornada", ct);
@@ -1169,7 +1168,7 @@ public class SolicitarProgramacionTurnoSmokeTests(
         var mensajePredeterminada = await serviceBus.WaitForMessageAsync<ProgramacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == sinJornada, Timeout);
         var preferencias = await postgres.LeerEventosDeStreamAsync(
-            SchemaProgramacion, postgres.TenantId, PostgresFixture.StreamIdPreferencias(postgres.TenantId));
+            SchemaProgramacion, _tenant.TenantId, PostgresFixture.StreamIdPreferencias(_tenant.TenantId));
         var predeterminadaId = preferencias
             .Select(e => e.TryGetProperty("JornadaId", out var id) ? id.GetString() : null)
             .Last(id => id is not null);

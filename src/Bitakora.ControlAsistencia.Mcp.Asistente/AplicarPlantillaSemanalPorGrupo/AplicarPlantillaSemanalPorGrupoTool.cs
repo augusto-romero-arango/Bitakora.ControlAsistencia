@@ -10,14 +10,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanalPorGrupo;
 
 public partial class AplicarPlantillaSemanalPorGrupoTool(
-    ProgramacionApi programacion, SedesApi sedes, ColaboradoresApi colaboradores,
+    ProgramacionApi programacion, SedesApi sedes,
+    ResolutorPlantillaPorNombre resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
     ILogger<AplicarPlantillaSemanalPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
-    private readonly ResolutorPlantillaPorNombre resolutorPlantillas = new(programacion);
-    private readonly ResolutorSedePorCodigo resolutorSedes = new(sedes);
-    private readonly ResolutorCandidatosPorGrupo resolutorCandidatos = new(colaboradores);
 
     internal const string NombreTool = "aplicar_plantilla_semanal_por_grupo";
 

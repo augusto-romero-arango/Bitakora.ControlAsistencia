@@ -9,9 +9,8 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
 {
     // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> dominio Colaboradores
     // -> Marten. "test" es un token real: las suites de Colaboradores registran colaboradores
-    // [TEST] ... en dev y TokenizarNombre (#587) separa por todo caracter no alfanumerico. Se
-    // afirma la forma del remodelado (issue #588), no valores puntuales -- los datos de dev
-    // cambian entre corridas.
+    // [TEST] ... en dev y TokenizarNombre separa por todo caracter no alfanumerico. Se afirma la
+    // forma del remodelado, no valores puntuales -- los datos de dev cambian entre corridas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task BuscarColaboradores_DevuelveLasCoincidenciasConDatosReales_CuandoSeBuscaPorNombre()
@@ -29,7 +28,8 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
         var raiz = json.RootElement;
 
         var mostrando = raiz.GetProperty("mostrando").GetInt32();
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
+        raiz.TryGetProperty("total", out _).Should().BeFalse("la doctrina prohibe el total");
+        raiz.TryGetProperty("siguienteCursor", out _).Should().BeFalse("desambiguacion no pagina");
 
         var colaboradores = raiz.GetProperty("colaboradores").EnumerateArray().ToList();
         colaboradores.Should().HaveCount(mostrando);
@@ -72,7 +72,7 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
                 new Dictionary<string, object?> { ["identificaciones"] = identificacion },
                 cancellationToken: ct);
             var documento = Sembrado.LeerJson(resultado);
-            return documento.RootElement.TryGetProperty("total", out var total) && total.GetInt32() >= 1
+            return documento.RootElement.TryGetProperty("colaboradores", out var lista) && lista.GetArrayLength() >= 1
                 ? documento
                 : null;
         }, TimeSpan.FromSeconds(60));

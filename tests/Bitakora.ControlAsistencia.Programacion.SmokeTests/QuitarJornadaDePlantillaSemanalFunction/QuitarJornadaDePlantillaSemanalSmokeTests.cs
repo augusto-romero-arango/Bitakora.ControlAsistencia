@@ -6,17 +6,17 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.QuitarJornadaDePlantillaSemanalFunction;
 
 public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
-    : IAsyncDisposable
+    : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string TipoEventoQuitada = "jornada_de_plantilla_semanal_quitada";
     private const string TipoEventoAdvertencias = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private static string Ruta(Guid plantillaId) =>
         $"/api/programacion/plantillas-semanales/{plantillaId}/jornada";
@@ -36,10 +36,8 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
 
     private async Task<Guid> CrearPlantillaConJornadaAsync(FirmaDeLimites firma, CancellationToken ct)
     {
-        await _limpieza.PrepararAsync(firma);
         var plantillaId = await CrearPlantillaAsync(ct);
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
 
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created,
@@ -94,13 +92,13 @@ public class QuitarJornadaDePlantillaSemanalSmokeTests(ApiFixture api, PostgresF
         (await _client.DeleteAsync(Ruta(plantillaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
         var eventosTrasPrimera = await postgres.ContarEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamId);
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamId);
 
         var response = await _client.DeleteAsync(Ruta(plantillaId), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         var eventosTrasSegunda = await postgres.ContarEventosDeStreamAsync(
-            PostgresFixture.SchemaProgramacion, postgres.TenantId, streamId);
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, streamId);
         eventosTrasSegunda.Should().Be(eventosTrasPrimera);
     }
 

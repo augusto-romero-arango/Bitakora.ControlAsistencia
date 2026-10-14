@@ -5,8 +5,9 @@
 // TurnoCreado, por eso los casos de exito van envueltos en Polling.WaitUntilAsync -- unica
 // excepcion documentada al "no usar Polling directo en tests".
 //
-// Aislamiento SIN cleanup, contra un entorno sin paginacion que ACUMULA fichas de corridas
-// anteriores: cada test filtra sus propias filas por Id unico, nunca por conteo ni posicion.
+// Aislamiento SIN cleanup, contra un entorno que ACUMULA fichas de corridas anteriores: cada test
+// filtra sus propias filas por Id unico, nunca por conteo ni posicion. El recorrido con cursor usa
+// un tenant propio (CA-ADR-0040) para no caminar el catalogo acumulado del tenant compartido.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -17,7 +18,7 @@ namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarFichasTurno;
 
 public class ListarFichasTurnoSmokeTests(ApiFixture api)
 {
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => api.Client;
 
     private const string RutaTurnos = "/api/programacion/turnos";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -39,6 +40,8 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         string Descripcion,
         bool Completo);
 
+    private sealed record ListaSmoke(IReadOnlyList<FichaTurnoRespuestaSmoke> Elementos, string? SiguienteCursor);
+
     private static object PayloadTurno(Guid turnoId, string nombre) => new
     {
         turnoId,
@@ -55,9 +58,12 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         }
     };
 
-    private async Task CrearTurnoAsync(Guid turnoId, string nombre, CancellationToken ct)
+    private Task CrearTurnoAsync(Guid turnoId, string nombre, CancellationToken ct) =>
+        CrearTurnoAsync(_client, turnoId, nombre, ct);
+
+    private static async Task CrearTurnoAsync(HttpClient client, Guid turnoId, string nombre, CancellationToken ct)
     {
-        var response = await _client.PostAsJsonAsync(RutaTurnos, PayloadTurno(turnoId, nombre), ct);
+        var response = await client.PostAsJsonAsync(RutaTurnos, PayloadTurno(turnoId, nombre), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
     }
@@ -80,12 +86,18 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
 
     private async Task<List<FichaTurnoRespuestaSmoke>> ListarAsync(CancellationToken ct)
     {
-        var response = await _client.GetAsync(RutaTurnos, ct);
+        var lista = await ListarPaginaAsync(_client, "", ct);
+        lista.SiguienteCursor.Should().BeNull("sin take el endpoint devuelve todo el catalogo");
+        return [.. lista.Elementos];
+    }
+
+    private static async Task<ListaSmoke> ListarPaginaAsync(HttpClient client, string query, CancellationToken ct)
+    {
+        var response = await client.GetAsync($"{RutaTurnos}{query}", ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var lista = await response.Content.ReadFromJsonAsync<List<FichaTurnoRespuestaSmoke>>(
-            JsonOptions, cancellationToken: ct);
-        return lista ?? [];
+        var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
+        return lista!;
     }
 
     // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion.
@@ -107,7 +119,6 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-4
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasTurno_IncluyeLaFichaCreada_CuandoSeConsultaElListadoCompleto()
@@ -125,7 +136,7 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         ficha.EsDescanso.Should().BeFalse();
     }
 
-    // CA-4: orden estable por Nombre, verificado por posicion RELATIVA entre dos fichas nuevas
+    // Orden estable por Nombre, verificado por posicion RELATIVA entre dos fichas nuevas
     // (el listado acumula fichas de corridas anteriores).
     [Fact]
     [Trait("Category", "Smoke")]
@@ -173,5 +184,43 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         var ficha = lista.Should().ContainSingle(f => f.Id == turnoId.ToString()).Subject;
         ficha.HorarioResumido.Should().Be("06:00-14:00");
         ficha.EsDescanso.Should().BeFalse();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasTurno_RecorreDosPaginasSinRepetir_CuandoSeUsaTakeYCursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var tenant = new TenantDeTest(api);
+        var turnoIdA = Guid.CreateVersion7();
+        var turnoIdB = Guid.CreateVersion7();
+
+        await CrearTurnoAsync(tenant.Client, turnoIdA, $"[TEST] AAA Pagina {turnoIdA}", ct);
+        await CrearTurnoAsync(tenant.Client, turnoIdB, $"[TEST] ZZZ Pagina {turnoIdB}", ct);
+        await Polling.WaitUntilAsync(async () =>
+        {
+            var todo = await ListarPaginaAsync(tenant.Client, "", ct);
+            return todo.Elementos.Count(f => f.Id == turnoIdA.ToString() || f.Id == turnoIdB.ToString()) == 2
+                ? todo
+                : null;
+        }, Timeout);
+
+        var primera = await ListarPaginaAsync(tenant.Client, "?take=1", ct);
+        primera.Elementos.Select(f => f.Id).Should().Equal(turnoIdA.ToString());
+        primera.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var segunda = await ListarPaginaAsync(
+            tenant.Client, $"?take=1&cursor={Uri.EscapeDataString(primera.SiguienteCursor!)}", ct);
+        segunda.Elementos.Select(f => f.Id).Should().Equal(turnoIdB.ToString());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarFichasTurno_Retorna400_CuandoElCursorEsInvalido()
+    {
+        var response = await _client.GetAsync($"{RutaTurnos}?cursor=no-es-un-cursor",
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

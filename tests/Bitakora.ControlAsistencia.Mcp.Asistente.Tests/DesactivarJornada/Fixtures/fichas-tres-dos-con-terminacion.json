@@ -1,0 +1,7 @@
+{
+  "elementos": [
+    {"id":"CC-1","nombreCompleto":"Ana Torres","codigoColaborador":"C1","vigenteDesde":"2025-01-01","vigenteHasta":null,"etiquetas":[],"etiquetasNormalizadas":[],"codigoSede":"SUBA","jornadaId":"01a08700-0000-7000-9000-000000000001"},
+    {"id":"CC-2","nombreCompleto":"Luis Rojas","codigoColaborador":"C2","vigenteDesde":"2025-01-01","vigenteHasta":"2026-12-31","etiquetas":[],"etiquetasNormalizadas":[],"codigoSede":"SUBA","jornadaId":"01a08700-0000-7000-9000-000000000001"},
+    {"id":"CC-3","nombreCompleto":"Eva Mora","codigoColaborador":"C3","vigenteDesde":"2025-03-01","vigenteHasta":"2027-01-15","etiquetas":[],"etiquetasNormalizadas":[],"codigoSede":null,"jornadaId":"01a08700-0000-7000-9000-000000000001"}
+  ]
+}

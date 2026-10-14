@@ -29,7 +29,8 @@ public class ListarAusenciasDelEquipoSmokeTests(ApiFixture api)
         DateOnly Desde,
         DateOnly Hasta,
         bool RangoRecortado,
-        IReadOnlyList<ColaboradorSmoke> Colaboradores);
+        IReadOnlyList<ColaboradorSmoke> Elementos,
+        string? SiguienteCursor);
 
     private async Task<HttpResponseMessage> ConsultarAsync(object? filtro, CancellationToken ct)
     {
@@ -90,16 +91,16 @@ public class ListarAusenciasDelEquipoSmokeTests(ApiFixture api)
         var encontrado = await Polling.WaitUntilTrueAsync(async () =>
         {
             lista = await ConsultarListaAsync(filtro, ct);
-            return lista!.Colaboradores.Count == 2;
+            return lista!.Elementos.Count == 2;
         }, Timeout);
 
         encontrado.Should().BeTrue("la proyeccion AusenciaVigente deberia materializar ambas ausencias");
         lista!.RangoRecortado.Should().BeFalse();
-        lista.Colaboradores.Select(c => c.CodigoColaborador).Should().Equal(codigoAna, codigoLuis);
-        var ana = lista.Colaboradores[0];
+        lista.Elementos.Select(c => c.CodigoColaborador).Should().Equal(codigoAna, codigoLuis);
+        var ana = lista.Elementos[0];
         ana.Ausencias.Should().ContainSingle(a => a.Id == ausenciaAna)
             .Which.Tramos.Should().Equal(new TramoSmoke(new DateOnly(2027, 9, 13), new DateOnly(2027, 9, 19)));
-        var luis = lista.Colaboradores[1];
+        var luis = lista.Elementos[1];
         luis.Ausencias.Should().ContainSingle(a => a.Id == ausenciaLuis)
             .Which.Tramos.Should().Equal(new TramoSmoke(new DateOnly(2027, 9, 15), new DateOnly(2027, 9, 16)));
     }
@@ -122,11 +123,11 @@ public class ListarAusenciasDelEquipoSmokeTests(ApiFixture api)
         var encontrado = await Polling.WaitUntilTrueAsync(async () =>
         {
             lista = await ConsultarListaAsync(filtro, ct);
-            return lista!.Colaboradores.Count > 0;
+            return lista!.Elementos.Count > 0;
         }, Timeout);
 
         encontrado.Should().BeTrue("la proyeccion AusenciaVigente deberia materializar la ausencia");
-        lista!.Colaboradores.Select(c => c.CodigoColaborador).Should().Equal(codigoLuis);
+        lista!.Elementos.Select(c => c.CodigoColaborador).Should().Equal(codigoLuis);
     }
 
     [Fact]
@@ -138,8 +139,51 @@ public class ListarAusenciasDelEquipoSmokeTests(ApiFixture api)
         var lista = await ConsultarListaAsync(
             new { desde = "2027-05-01", hasta = "2027-05-07", colaboradores = new[] { Guid.CreateVersion7().ToString() } }, ct);
 
-        lista!.Colaboradores.Should().BeEmpty();
+        lista!.Elementos.Should().BeEmpty();
         lista.RangoRecortado.Should().BeFalse();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAusenciasDelEquipo_RecorreDosPaginasPorColaborador_CuandoSeUsaTakeYCursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var codigoAna = Guid.CreateVersion7().ToString();
+        var codigoLuis = Guid.CreateVersion7().ToString();
+
+        (await ProgramarAsync(codigoAna, Guid.CreateVersion7(), "[TEST] Ana Pagina Smoke", "2027-11-08", "2027-11-10", "Vacaciones", ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        (await ProgramarAsync(codigoLuis, Guid.CreateVersion7(), "[TEST] Luis Pagina Smoke", "2027-11-09", "2027-11-11", "Vacaciones", ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var colaboradores = new[] { codigoAna, codigoLuis };
+        var encontrado = await Polling.WaitUntilTrueAsync(async () =>
+            (await ConsultarListaAsync(new { desde = "2027-11-08", hasta = "2027-11-14", colaboradores }, ct))!
+                .Elementos.Count == 2, Timeout);
+        encontrado.Should().BeTrue("la proyeccion AusenciaVigente deberia materializar ambas ausencias");
+
+        var primera = await ConsultarListaAsync(
+            new { desde = "2027-11-08", hasta = "2027-11-14", colaboradores, take = 1 }, ct);
+        primera!.Elementos.Select(c => c.CodigoColaborador).Should().Equal(codigoAna);
+        primera.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var segunda = await ConsultarListaAsync(
+            new { desde = "2027-11-08", hasta = "2027-11-14", colaboradores, take = 1, cursor = primera.SiguienteCursor }, ct);
+        segunda!.Elementos.Select(c => c.CodigoColaborador).Should().Equal(codigoLuis);
+        segunda.Desde.Should().Be(new DateOnly(2027, 11, 8));
+        segunda.Hasta.Should().Be(new DateOnly(2027, 11, 14));
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAusenciasDelEquipo_Retorna422_CuandoElCursorEsInvalido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await ConsultarAsync(
+            new { desde = "2027-05-01", hasta = "2027-05-07", cursor = "no-es-un-cursor" }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     [Fact]

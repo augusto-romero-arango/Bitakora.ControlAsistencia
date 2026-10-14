@@ -6,18 +6,18 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.CrearPlantillaSemanalFunction;
 
 public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture postgres)
-    : IAsyncDisposable
+    : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoPlantillaSemanalCreada = "plantilla_semanal_creada";
     private const string TipoEventoAdvertenciasCalculadas = "advertencias_de_plantilla_semanal_calculadas";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private static object PayloadValido(Guid? plantillaId = null, int semanas = 2)
     {
@@ -98,9 +98,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
     private async Task<Guid> CrearJornadaAsync(CancellationToken ct)
     {
         var firma = LimitesDePrueba.CrearPlantillaConJornada;
-        await _limpieza.PrepararAsync(firma);
         var jornadaId = Guid.CreateVersion7();
-        _limpieza.Registrar(jornadaId);
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearJornada funcione");
@@ -193,8 +191,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         await Polling.WaitUntilTrueAsync(
             async () => await PlantillaEstaMaterializadaAsync(plantillaId, ct), Timeout);
 
-    // CA-1/CA-2: nombre coincide exactamente, o solo difiere en mayusculas/espacios de sobra, con
-    // el de un cuadro vigente -> 409 NombreDuplicado. Espejo de CrearTurno (#497).
+    // La comparacion normaliza mayusculas y espacios de sobra, espejo de CrearTurno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearPlantillaSemanal_DebeRetornar409_CuandoElNombreYaExisteEnElCatalogo()
@@ -222,8 +219,8 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
 
         duplicado.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
-        // Los acentos son significativos (decision del experto en #497): un nombre que difiere
-        // solo en acentos SI se crea.
+        // Los acentos son significativos (decision del experto): un nombre que difiere solo en
+        // acentos SI se crea.
         var conAcento = await _client.PostAsJsonAsync(
             "/api/programacion/plantillas-semanales",
             new
@@ -236,7 +233,7 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
         conAcento.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
-    // El retiro (#623/#624) libera el nombre: la vista solo ve plantillas vigentes.
+    // La vista solo ve plantillas vigentes.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearPlantillaSemanal_LiberaElNombre_CuandoLaPlantillaSeRetira()
@@ -266,5 +263,29 @@ public class CrearPlantillaSemanalSmokeTests(ApiFixture api, PostgresFixture pos
             new { plantillaId = Guid.CreateVersion7(), nombre = nombreOriginal, semanas = 1 }, ct);
 
         reutilizado.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaSemanal_DebeRetornar409_CuandoLaJornadaEstaDesactivada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas",
+            LimitesDePrueba.CrearPlantillaJornadaDesactivada.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created, "el arrange depende de que CrearJornada funcione");
+        (await _client.PostAsync($"/api/programacion/jornadas/{jornadaId}:desactivar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesactivarJornada funcione");
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
+        {
+            plantillaId,
+            nombre = $"[TEST] Plantilla {plantillaId}",
+            semanas = 1,
+            jornadaId
+        }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }

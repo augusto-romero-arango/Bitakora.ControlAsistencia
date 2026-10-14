@@ -132,7 +132,7 @@ public class CancelarAusenciaToolTests
     [Fact]
     public async Task CancelarAusencia_ExplicaYNoCancela_CuandoNoHayAusenciasEnElPeriodo()
     {
-        var fakes = CrearTool("[]");
+        var fakes = CrearTool("""{"elementos":[]}""");
 
         var resultado = await Ejecutar(fakes.Tool);
 

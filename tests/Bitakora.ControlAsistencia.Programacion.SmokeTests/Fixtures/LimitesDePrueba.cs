@@ -42,7 +42,7 @@ public sealed record FirmaDeLimites(
 
 // Cada Jornada que crea un smoke de Programacion tiene aqui una firma propia: la restriccion de
 // unicidad es por contenido (CA-ADR-0040). Reservada es la firma de la Jornada predeterminada que
-// otros proyectos de smoke reutilizan; nunca se purga.
+// otros proyectos de smoke reutilizan en tenant-smoke; ningun test de Programacion la modifica.
 public static class LimitesDePrueba
 {
     public static readonly FirmaDeLimites Reservada = Firma(42, 0);
@@ -76,7 +76,15 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites ListarPaginaPrimera = Firma(47, 2);
     public static readonly FirmaDeLimites ListarPaginaSegunda = Firma(47, 3);
     public static readonly FirmaDeLimites ListarMarcaPredeterminada = Firma(47, 4);
+    public static readonly FirmaDeLimites ListarFiltraPorActiva = Firma(47, 5);
     public static readonly FirmaDeLimites AsignarPredeterminada = Firma(30, 20);
+    public static readonly FirmaDeLimites DesactivarJornadaPersiste = Firma(30, 21);
+    public static readonly FirmaDeLimites DesactivarJornadaPredeterminada = Firma(30, 22);
+    public static readonly FirmaDeLimites DesactivarJornadaEnPlantilla = Firma(30, 23);
+    public static readonly FirmaDeLimites AsignarPredeterminadaDesactivada = Firma(30, 24);
+    public static readonly FirmaDeLimites AsignarAPlantillaDesactivada = Firma(30, 25);
+    public static readonly FirmaDeLimites CrearPlantillaJornadaDesactivada = Firma(30, 26);
+    public static readonly FirmaDeLimites ActivarJornadaPersiste = Firma(30, 27);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
 

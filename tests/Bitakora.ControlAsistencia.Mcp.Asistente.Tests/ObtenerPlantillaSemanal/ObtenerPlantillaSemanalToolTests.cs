@@ -15,6 +15,12 @@ public class ObtenerPlantillaSemanalToolTests
 {
     private const string RutaListado = "/api/programacion/plantillas-semanales";
 
+    private static ObtenerPlantillaSemanalTool CrearTool(HttpClient cliente)
+    {
+        var api = new ProgramacionApi(cliente);
+        return new ObtenerPlantillaSemanalTool(api, new ResolutorPlantillaPorNombre(api));
+    }
+
     private static (HttpClient Cliente, HandlerFuncional Handler) ClienteConCatalogoYDetalle(
         string fixtureListado, string fixtureDetalle, HttpStatusCode statusDetalle = HttpStatusCode.OK)
     {
@@ -30,7 +36,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, handler) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
@@ -57,7 +63,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, _) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
@@ -71,7 +77,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, _) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
@@ -85,7 +91,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, _) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
@@ -99,7 +105,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, handler) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "  [TEST]   semana   cocina  ", TestContext.Current.CancellationToken);
@@ -113,7 +119,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, _) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cafeteria", TestContext.Current.CancellationToken);
@@ -126,7 +132,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, handler) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Plantilla Inexistente", TestContext.Current.CancellationToken);
@@ -140,7 +146,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, handler) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json", HttpStatusCode.NotFound);
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
@@ -156,7 +162,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, _) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal-dos-semanas.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Bodega", TestContext.Current.CancellationToken);
@@ -181,7 +187,7 @@ public class ObtenerPlantillaSemanalToolTests
         {
             Content = new StringContent("catalogo no disponible")
         });
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(
             null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
@@ -195,7 +201,7 @@ public class ObtenerPlantillaSemanalToolTests
     {
         var (cliente, _) = ClienteConCatalogoYDetalle(
             "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
+        var tool = CrearTool(cliente);
 
         var resultado = await tool.Run(null!, "   ", TestContext.Current.CancellationToken);
 

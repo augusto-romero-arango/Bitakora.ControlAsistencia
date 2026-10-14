@@ -9,11 +9,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarSubFranja;
 // MEF-ADR-0043). Descanso y extra comparten forma exacta: una tool con tipo, no cuatro
 // (MEF-ADR-0047 decision 4). El 400/404/409 del POST se traduce a texto, nunca a excepcion
 // (CA-ADR-0030).
-public partial class AgregarSubFranjaTool(ProgramacionApi programacion)
+public partial class AgregarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "agregar_subfranja";
-
-    private readonly ResolutorTurnoPorNombre resolutor = new(programacion);
 
     [Function("AgregarSubFranja")]
     public async Task<string> Run(

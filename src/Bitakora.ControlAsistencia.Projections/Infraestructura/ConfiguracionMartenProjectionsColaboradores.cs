@@ -68,6 +68,8 @@ public static class ConfiguracionMartenProjectionsColaboradores
                 // read model que este worker llegue a materializar para Colaboradores.
                 opts.Policies.AllDocumentsAreMultiTenanted();
 
+                opts.TolerarHuecosEstancados();
+
                 // Replica de la configuracion de metadata del write-side (MEF-ADR-0034 seccion 6
                 // punto 3, seccion 7): el config-test verifica exactamente estas tres. La
                 // habilitacion real de las columnas es responsabilidad del write-side de este

@@ -1,6 +1,6 @@
 // Issue #357: smoke tests de ListarCategoriasDeEtiquetas, GET colaboradores/etiquetas/categorias --
-// Function GET read-side (opcion B, decision de refinamiento: catalogo COMPLETO de un tiro, sin
-// filtros ni paginacion) sobre la proyeccion CategoriaDeEtiquetas (receta N2,
+// Function GET read-side (sin filtros; desde #1000, sobre { elementos, siguienteCursor } con keyset
+// por Id, take opcional y cursor opaco, CA-ADR-0039) sobre la proyeccion CategoriaDeEtiquetas (receta N2,
 // MultiStreamProjection<CategoriaDeEtiquetas, string>, MEF-ADR-0034/0035): la PRIMERA N2 de este BC
 // -- eventos EtiquetaAsignada de MUCHOS streams de ColaboradorAggregateRoot convergen en el MISMO
 // documento cuando comparten categoria normalizada.
@@ -13,8 +13,8 @@
 // Sin ObtenerCategoriaDeEtiquetas por id en este issue (el documento ya tiene id direccionable,
 // pero se agrega solo si un caso real lo pide -- Rule of Three, MEF-ADR-0018): por eso este archivo
 // SOLO cubre el caso "Listado" de la doctrina read-side (skills/projections/read-apis.md), nunca
-// "recurso existente"/"recurso no encontrado" via id de ruta -- este endpoint no toma ningun
-// segmento de ruta ni body, asi que tampoco hay casos de validacion 400/422 que probar.
+// "recurso existente"/"recurso no encontrado" via id de ruta. La unica validacion de entrada que se
+// prueba aqui es el cursor indescifrable (400); los topes de take no van en smoke (CA-ADR-0041).
 //
 // Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza CategoriaDeEtiquetas
 // DESPUES de que Colaboradores persiste sus eventos. Los casos de exito envuelven la consulta en
@@ -86,6 +86,8 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
     private sealed record CategoriaDeEtiquetasSmoke(
         string Id, string Categoria, IReadOnlyList<ValorCategoriaSmoke> Valores);
 
+    private sealed record ListaSmoke(List<CategoriaDeEtiquetasSmoke> Elementos, string? SiguienteCursor);
+
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
     // Formato "N": hexadecimal en minusculas -- sobrevive intacto a la normalizacion del VO Etiqueta
@@ -150,14 +152,20 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que RetirarEtiqueta funcione");
     }
 
-    private async Task<List<CategoriaDeEtiquetasSmoke>> ObtenerCatalogoAsync(CancellationToken ct)
+    private async Task<ListaSmoke> ListarAsync(string query, CancellationToken ct)
     {
-        var response = await _client.GetAsync(RutaCatalogo, ct);
+        var response = await _client.GetAsync(RutaCatalogo + query, ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var catalogo = await response.Content.ReadFromJsonAsync<List<CategoriaDeEtiquetasSmoke>>(
-            JsonOptions, cancellationToken: ct);
-        return catalogo ?? [];
+        var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
+        return lista!;
+    }
+
+    private async Task<List<CategoriaDeEtiquetasSmoke>> ObtenerCatalogoAsync(CancellationToken ct)
+    {
+        var lista = await ListarAsync("", ct);
+        lista.SiguienteCursor.Should().BeNull("sin take el catalogo llega completo");
+        return lista.Elementos;
     }
 
     // Reintenta el GET hasta que la proyeccion asincrona satisfaga la condicion -- unica excepcion
@@ -386,5 +394,45 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         var vista = catalogo.Should().ContainSingle(c => c.Id == categoria,
             "EtiquetaRetirada no deberia alterar el catalogo (acumulativo, CA-5)").Subject;
         vista.Valores.Should().ContainSingle(v => v.ValorNormalizado == valor);
+    }
+
+    // #1000 CA-1/CA-6: recorrido de dos paginas con el siguienteCursor opaco que emite el servidor.
+    // Dos categorias propias garantizan que existe una segunda pagina; el catalogo es global, asi que
+    // se afirma sobre la continuidad del recorrido (sin repetir ni saltar) contra una pagina de 2.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarCategoriasDeEtiquetas_PaginaConElSiguienteCursorSinRepetirNiSaltar_CuandoSeUsaTake()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
+        var categoriaA = $"pagina1000-a-{NuevoSufijoUnico()}";
+        var categoriaB = $"pagina1000-b-{NuevoSufijoUnico()}";
+
+        await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
+        await AsignarEtiquetaAsync(numeroIdentificacion, categoriaA, "uno", ct);
+        await AsignarEtiquetaAsync(numeroIdentificacion, categoriaB, "dos", ct);
+        await EsperarCatalogoAsync(
+            catalogo => catalogo.Any(c => c.Id == categoriaA) && catalogo.Any(c => c.Id == categoriaB), ct);
+
+        var referencia = await ListarAsync("?take=2", ct);
+        var pagina1 = await ListarAsync("?take=1", ct);
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty("hay mas de una categoria en el catalogo");
+        var pagina2 = await ListarAsync($"?take=1&cursor={Uri.EscapeDataString(pagina1.SiguienteCursor!)}", ct);
+
+        pagina1.Elementos.Concat(pagina2.Elementos).Select(c => c.Id).Should().Equal(
+            referencia.Elementos.Select(c => c.Id),
+            "el siguienteCursor de la pagina 1 continua exactamente en la categoria siguiente del orden por Id");
+    }
+
+    // #1000 CA-4: un cursor que no salio del servidor -> 400 en el GET.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarCategoriasDeEtiquetas_Retorna400_CuandoElCursorNoEsValido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.GetAsync($"{RutaCatalogo}?cursor=no-es-un-cursor", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

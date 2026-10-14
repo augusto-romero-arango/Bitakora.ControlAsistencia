@@ -32,7 +32,8 @@ public class QuitarFranjaToolTests
         handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosConFranjaJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaQuitarFranja, statusQuitar, cuerpoQuitar);
 
-        var tool = new QuitarFranjaTool(new ProgramacionApi(clienteProgramacion));
+        var programacionApi = new ProgramacionApi(clienteProgramacion);
+        var tool = new QuitarFranjaTool(programacionApi, new ResolutorTurnoPorNombre(programacionApi));
 
         return new Fakes(tool, handlerProgramacion);
     }

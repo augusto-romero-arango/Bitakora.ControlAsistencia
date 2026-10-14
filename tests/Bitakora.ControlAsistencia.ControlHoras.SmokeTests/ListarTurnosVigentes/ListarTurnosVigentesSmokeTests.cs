@@ -79,16 +79,26 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         IReadOnlyList<BloqueSmoke> Bloques);
 
     private sealed record ListaTurnosVigentesSmoke(
-        DateOnly DesdeAplicado,
-        DateOnly HastaAplicado,
+        DateOnly Desde,
+        DateOnly Hasta,
         bool RangoRecortado,
-        IReadOnlyList<TurnoVigenteRespuestaSmoke> Turnos);
+        IReadOnlyList<TurnoVigenteRespuestaSmoke> Elementos,
+        string? SiguienteCursor);
 
     // camelCase explicito: sobre un tipo anonimo no aplica ninguna naming policy, asi que estos
     // nombres son literalmente el contrato de FiltroListarTurnosVigentes.
     private static object Filtro(
         DateOnly desde, DateOnly hasta, string? codigoColaborador = null, string? sedeId = null) =>
-        new { desdeFecha = desde, hastaFecha = hasta, codigoColaborador, sedeId };
+        new
+        {
+            desdeFecha = desde,
+            hastaFecha = hasta,
+            codigosColaborador = codigoColaborador is null ? null : new[] { codigoColaborador },
+            sedeId
+        };
+
+    private static object FiltroConLista(DateOnly desde, DateOnly hasta, params string[] codigosColaborador) =>
+        new { desdeFecha = desde, hastaFecha = hasta, codigosColaborador };
 
     private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
     {
@@ -109,6 +119,17 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             Content = new StringContent(body, Encoding.UTF8, contentType)
         };
         return await _client.SendAsync(request, ct);
+    }
+
+    private async Task<ListaTurnosVigentesSmoke> ConsultarOkAsync(object filtro, CancellationToken ct)
+    {
+        using var response = await ConsultarAsync(filtro, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        body.Should().NotBeNull();
+        return body!;
     }
 
     private Task<ListaTurnosVigentesSmoke> ConsultarHastaQueAsync(
@@ -214,7 +235,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
             var body = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
                 JsonOptions, cancellationToken: ct);
-            return body?.Turnos.Any(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha) ?? false;
+            return body?.Elementos.Any(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha) ?? false;
         }, Timeout);
     }
 
@@ -315,6 +336,19 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_Retorna422_CuandoElCursorEsUnCodigoCrudo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // La forma vieja del cursor (el codigo del colaborador en claro) ya no se acepta.
+        var filtro = new { desdeFecha = new DateOnly(2026, 5, 1), hastaFecha = new DateOnly(2026, 5, 5), cursor = "EMP-001" };
+        var response = await ConsultarAsync(filtro, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ListarTurnosVigentes_Retorna200ConListaVacia_CuandoNoHayTurnoVigenteParaEseColaborador()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -326,15 +360,15 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
         var response = await ConsultarAsync(Filtro(desde, hasta, codigoColaborador), ct);
 
-        // Assert: CA-4 -- 200 con Turnos: [], nunca 404. Rango dentro de la cota, sin recorte.
+        // Assert: CA-4 -- 200 con Elementos: [], nunca 404. Rango dentro de la cota, sin recorte.
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
 
         respuesta.Should().NotBeNull();
-        respuesta!.Turnos.Should().BeEmpty();
-        respuesta.DesdeAplicado.Should().Be(desde);
-        respuesta.HastaAplicado.Should().Be(hasta);
+        respuesta!.Elementos.Should().BeEmpty();
+        respuesta.Desde.Should().Be(desde);
+        respuesta.Hasta.Should().Be(hasta);
         respuesta.RangoRecortado.Should().BeFalse();
     }
 
@@ -357,18 +391,18 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         await PublicarTurnoAsync(solicitudId, codigoColaborador, fechaTurno, "[TEST] Turno Vigente Trabajador");
 
         var filtro = Filtro(desde, hasta, codigoColaborador);
-        var respuesta = await ConsultarHastaQueAsync(filtro, body => body.Turnos.Count > 0, ct);
+        var respuesta = await ConsultarHastaQueAsync(filtro, body => body.Elementos.Count > 0, ct);
 
         // Assert: CA-4 -- rango dentro de la cota, sin recorte. Filtrado por codigoColaborador (GUID unico
         // de esta ejecucion), asi que la lista contiene exactamente el turno sembrado.
-        respuesta.DesdeAplicado.Should().Be(desde);
-        respuesta.HastaAplicado.Should().Be(hasta);
+        respuesta.Desde.Should().Be(desde);
+        respuesta.Hasta.Should().Be(hasta);
         respuesta.RangoRecortado.Should().BeFalse();
-        respuesta.Turnos.Should().ContainSingle();
+        respuesta.Elementos.Should().ContainSingle();
 
         // Assert: cada elemento lleva la forma COMPLETA de la vista, Id y Bloques incluidos -- una
         // sola proyeccion sirve tanto la grilla como el calendario.
-        var turno = respuesta.Turnos[0];
+        var turno = respuesta.Elementos[0];
         turno.Id.Should().Be($"cd:{codigoColaborador}:{fechaTurno:yyyyMMdd}");
         turno.CodigoColaborador.Should().Be(codigoColaborador);
         turno.NombreCompleto.Should().Be(NombreCompletoSembrado);
@@ -411,12 +445,12 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         // filtrando siempre por CodigoColaborador, nunca por posicion/indice.
         var filtro = new { desdeFecha = fecha, hastaFecha = fecha };
         var respuesta = await ConsultarHastaQueAsync(filtro, body =>
-            body.Turnos.Any(t => t.CodigoColaborador == codigoColaboradorA)
-            && body.Turnos.Any(t => t.CodigoColaborador == codigoColaboradorB), ct);
+            body.Elementos.Any(t => t.CodigoColaborador == codigoColaboradorA)
+            && body.Elementos.Any(t => t.CodigoColaborador == codigoColaboradorB), ct);
 
         // Assert: CA-1 -- el panorama trae ambos colaboradores, cada uno con su propio turno.
-        var turnoA = respuesta.Turnos.Single(t => t.CodigoColaborador == codigoColaboradorA);
-        var turnoB = respuesta.Turnos.Single(t => t.CodigoColaborador == codigoColaboradorB);
+        var turnoA = respuesta.Elementos.Single(t => t.CodigoColaborador == codigoColaboradorA);
+        var turnoB = respuesta.Elementos.Single(t => t.CodigoColaborador == codigoColaboradorB);
         turnoA.NombreTurno.Should().Be("[TEST] Turno Panorama A");
         turnoB.NombreTurno.Should().Be("[TEST] Turno Panorama B");
         respuesta.RangoRecortado.Should().BeFalse();
@@ -456,14 +490,14 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         responseManana.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaManana = await responseManana.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
-        respuestaManana!.Turnos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
+        respuestaManana!.Elementos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
 
         // Assert (CA-1 de punta a punta): la sede no solo filtra, tambien VIAJA al cliente en cada
         // bloque -- cada uno con la sede de SU PROPIA franja, no la del dia. Filtrar por la sede de
         // la manana devuelve el dia COMPLETO (incluido el bloque de la tarde en otra sede): es la
         // evidencia de que el predicado es "al menos un bloque rige en esa sede", no un recorte de
         // los bloques devueltos.
-        var turnoMultiSede = respuestaManana.Turnos.Single(
+        var turnoMultiSede = respuestaManana.Elementos.Single(
             t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
         turnoMultiSede.Bloques.Should().BeEquivalentTo(new[]
         {
@@ -482,7 +516,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         responseTarde.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaTarde = await responseTarde.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
-        respuestaTarde!.Turnos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
+        respuestaTarde!.Elementos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
 
         // Assert: NO aparece bajo una sede que ningun bloque de este turno tiene.
         var responseOtraSede = await ConsultarAsync(
@@ -490,7 +524,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         responseOtraSede.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaOtraSede = await responseOtraSede.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
-        respuestaOtraSede!.Turnos.Should().NotContain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
+        respuestaOtraSede!.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
     }
 
     [Fact]
@@ -524,18 +558,18 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         responseFiltrada.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaFiltrada = await responseFiltrada.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
-        respuestaFiltrada!.Turnos.Should().NotContain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
+        respuestaFiltrada!.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
 
         // Assert: sin filtro de sede, el dia SI aparece -- regresion de #329 intacta.
         var responseSinFiltro = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador), ct);
         responseSinFiltro.StatusCode.Should().Be(HttpStatusCode.OK);
         var respuestaSinFiltro = await responseSinFiltro.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
-        respuestaSinFiltro!.Turnos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
+        respuestaSinFiltro!.Elementos.Should().Contain(t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
 
         // Assert (CA-5): el dia se consulta SIN ERROR y sus bloques llegan con ambos campos de sede
         // en null -- el mismo contrato que devuelve un documento proyectado antes de #336/#337.
-        var turnoSinSede = respuestaSinFiltro.Turnos.Single(
+        var turnoSinSede = respuestaSinFiltro.Elementos.Single(
             t => t.CodigoColaborador == codigoColaborador && t.Fecha == fecha);
         turnoSinSede.Bloques.Should().OnlyContain(b => b.SedeId == null && b.NombreSede == null);
     }
@@ -580,8 +614,61 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         respuesta.Should().NotBeNull();
 
         // Assert: solo el turno de A -- el filtro compuesto excluye a B aunque comparta la sede.
-        respuesta!.Turnos.Should().ContainSingle(t => t.CodigoColaborador == codigoColaboradorA && t.Fecha == fecha);
-        respuesta.Turnos.Should().NotContain(t => t.CodigoColaborador == codigoColaboradorB);
+        respuesta!.Elementos.Should().ContainSingle(t => t.CodigoColaborador == codigoColaboradorA && t.Fecha == fecha);
+        respuesta.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoColaboradorB);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_IncluyeSoloALosColaboradoresDeLaLista_CuandoSeFiltraPorCodigosColaborador()
+    {
+        // Lista OR dentro del campo, AND con la sede, keyset intacto al paginar y lista vacia = sin
+        // filtro. Un solo sembrado de tres colaboradores para todas las consultas; A es el unico con sede.
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var fecha = new DateOnly(2026, 6, 8);
+        var sedeIdA = Guid.CreateVersion7().ToString();
+        var codigoA = Guid.CreateVersion7().ToString();
+        var codigoB = Guid.CreateVersion7().ToString();
+        var codigoC = Guid.CreateVersion7().ToString();
+
+        await PublicarTurnoConSedeAsync(
+            Guid.CreateVersion7(), codigoA, fecha, "[TEST] Turno Lista A", sedeIdA, "[TEST] Sede Lista A");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoB, fecha, "[TEST] Turno Lista B");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoC, fecha, "[TEST] Turno Lista C");
+
+        (await EsperarTurnoEnLaListaAsync(codigoA, fecha, ct)).Should().BeTrue("A deberia materializarse");
+        (await EsperarTurnoEnLaListaAsync(codigoB, fecha, ct)).Should().BeTrue("B deberia materializarse");
+        (await EsperarTurnoEnLaListaAsync(codigoC, fecha, ct)).Should().BeTrue("C deberia materializarse");
+
+        var conLista = await ConsultarOkAsync(FiltroConLista(fecha, fecha, codigoA, codigoB), ct);
+        conLista.Elementos.Should().Contain(t => t.CodigoColaborador == codigoA && t.Fecha == fecha);
+        conLista.Elementos.Should().Contain(t => t.CodigoColaborador == codigoB && t.Fecha == fecha);
+        conLista.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoC);
+
+        var conListaYSede = await ConsultarOkAsync(
+            new { desdeFecha = fecha, hastaFecha = fecha, codigosColaborador = new[] { codigoA, codigoB }, sedeId = sedeIdA },
+            ct);
+        conListaYSede.Elementos.Select(t => t.CodigoColaborador).Should().Equal(codigoA);
+
+        // El orden entre A y B depende del collation de Postgres: se afirma que las dos paginas
+        // reparten a A y B sin repetir ni perder a ninguno, no cual va primero.
+        var pagina1 = await ConsultarOkAsync(
+            new { desdeFecha = fecha, hastaFecha = fecha, codigosColaborador = new[] { codigoA, codigoB }, take = 1 }, ct);
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var pagina2 = await ConsultarOkAsync(
+            new { desdeFecha = fecha, hastaFecha = fecha, codigosColaborador = new[] { codigoA, codigoB }, take = 1, cursor = pagina1.SiguienteCursor },
+            ct);
+        pagina2.SiguienteCursor.Should().BeNull();
+        pagina1.Elementos.Concat(pagina2.Elementos).Select(t => t.CodigoColaborador)
+            .Should().BeEquivalentTo([codigoA, codigoB]);
+
+        var conListaVacia = await ConsultarOkAsync(FiltroConLista(fecha, fecha), ct);
+        conListaVacia.Elementos.Should().Contain(t => t.CodigoColaborador == codigoC && t.Fecha == fecha);
     }
 
     private const string TopicCancelacionEntrada = "cancelacion-turno-diario-solicitada";
@@ -594,7 +681,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         string? MotivoAusencia,
         IReadOnlyList<BloqueSmoke> Bloques);
 
-    private sealed record ListaAusenciasSmoke(IReadOnlyList<AusenciaListadaSmoke> Turnos);
+    private sealed record ListaAusenciasSmoke(IReadOnlyList<AusenciaListadaSmoke> Elementos);
 
     private async Task PublicarAusenciaAsync(
         string codigoColaborador, DateOnly fecha)
@@ -640,9 +727,9 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             solicitudCancelacionId.ToString());
 
         var respuesta = await ConsultarHastaQueAsync(
-            Filtro(fecha, fecha, codigoColaborador), body => body.Turnos.Count == 0, ct);
+            Filtro(fecha, fecha, codigoColaborador), body => body.Elementos.Count == 0, ct);
 
-        respuesta.Turnos.Should().BeEmpty("un dia con turno cancelado y sin ausencia no aparece");
+        respuesta.Elementos.Should().BeEmpty("un dia con turno cancelado y sin ausencia no aparece");
     }
 
     [Fact]
@@ -669,23 +756,57 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         var filtroColaborador = Filtro(fecha, fecha, codigoColaborador);
         var respuesta = await ConsultarHastaQueAsync(
             filtroColaborador,
-            body => body.Turnos.Any(t => t.CodigoColaborador == codigoColaborador && t.Bloques.Count == 0),
+            body => body.Elementos.Any(t => t.CodigoColaborador == codigoColaborador && t.Bloques.Count == 0),
             ct);
 
-        respuesta.Turnos.Should().ContainSingle();
+        respuesta.Elementos.Should().ContainSingle();
 
         using var response = await ConsultarAsync(filtroColaborador, ct);
         var json = await response.Content.ReadAsStringAsync(ct);
         json.Should().NotContain("[TEST] Turno Cubierto Listado",
             "la respuesta no expone el turno que la ausencia cubre");
         var ausencias = JsonSerializer.Deserialize<ListaAusenciasSmoke>(json, JsonOptions)!;
-        ausencias.Turnos.Single().MotivoAusencia.Should().Be(MotivoAusencia);
-        ausencias.Turnos.Single().Bloques.Should().BeEmpty();
+        ausencias.Elementos.Single().MotivoAusencia.Should().Be(MotivoAusencia);
+        ausencias.Elementos.Single().Bloques.Should().BeEmpty();
 
         using var porSede = await ConsultarAsync(Filtro(fecha, fecha, codigoColaborador, sedeId), ct);
         porSede.StatusCode.Should().Be(HttpStatusCode.OK);
         var listaPorSede = await porSede.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
             JsonOptions, cancellationToken: ct);
-        listaPorSede!.Turnos.Should().BeEmpty("un dia de ausencia no tiene bloques y no aparece al filtrar por sede");
+        listaPorSede!.Elementos.Should().BeEmpty("un dia de ausencia no tiene bloques y no aparece al filtrar por sede");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_RecorreDosPaginasConSiguienteCursor_CuandoSeEnviaTake()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var primerDia = new DateOnly(2026, 6, 10);
+        var segundoDia = primerDia.AddDays(1);
+
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoColaborador, primerDia, "[TEST] Turno Pagina Uno");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoColaborador, segundoDia, "[TEST] Turno Pagina Dos");
+        (await EsperarTurnoEnLaListaAsync(codigoColaborador, primerDia, ct)).Should().BeTrue(
+            "el primer turno deberia materializarse dentro del timeout");
+        (await EsperarTurnoEnLaListaAsync(codigoColaborador, segundoDia, ct)).Should().BeTrue(
+            "el segundo turno deberia materializarse dentro del timeout");
+
+        var pagina1 = await ConsultarOkAsync(
+            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigosColaborador = new[] { codigoColaborador }, take = 1 }, ct);
+
+        pagina1.Elementos.Select(t => t.Fecha).Should().Equal(primerDia);
+        pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var pagina2 = await ConsultarOkAsync(
+            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigosColaborador = new[] { codigoColaborador }, take = 1, cursor = pagina1.SiguienteCursor },
+            ct);
+
+        pagina2.Elementos.Select(t => t.Fecha).Should().Equal(segundoDia);
+        pagina2.SiguienteCursor.Should().BeNull();
     }
 }

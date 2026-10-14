@@ -6,8 +6,8 @@
 // DESPUES de persistir sus eventos, por eso los casos de exito van envueltos en
 // Polling.WaitUntilAsync -- unica excepcion documentada al "no usar Polling directo en tests".
 //
-// Aislamiento SIN cleanup, contra un entorno sin paginacion que ACUMULA plantillas de corridas
-// anteriores: cada test filtra sus propias filas por Id unico, nunca por conteo ni posicion.
+// Aislamiento SIN cleanup: cada test corre en un tenant propio (CA-ADR-0040) y filtra sus propias
+// filas por Id unico, nunca por conteo ni posicion.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -16,13 +16,13 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ListarCuadrosSemanalesTurnos;
 
-public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixture postgres) : IAsyncDisposable
+public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api) : IDisposable
 {
-    private readonly LimpiezaDeJornadas _limpieza = new(postgres);
+    private readonly TenantDeTest _tenant = new(api);
 
-    public ValueTask DisposeAsync() => _limpieza.DisposeAsync();
+    public void Dispose() => _tenant.Dispose();
 
-    private readonly HttpClient _client = api.Client;
+    private HttpClient _client => _tenant.Client;
 
     private const string RutaPlantillas = "/api/programacion/plantillas-semanales";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -53,6 +53,9 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixt
         JornadaDelCuadroRespuestaSmoke? Jornada = null,
         IReadOnlyList<AdvertenciaDelCuadroRespuestaSmoke>? Advertencias = null);
 
+    private sealed record ListaSmoke(
+        IReadOnlyList<CuadroSemanalTurnosRespuestaSmoke> Elementos, string? SiguienteCursor);
+
     private sealed record HorasYMinutosRespuestaSmoke(int Horas, int Minutos);
 
     private sealed record JornadaDelCuadroRespuestaSmoke(
@@ -70,10 +73,13 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixt
         semanas = 1
     };
 
-    private async Task<(Guid PlantillaId, string Nombre)> CrearPlantillaAsync(CancellationToken ct)
+    private Task<(Guid PlantillaId, string Nombre)> CrearPlantillaAsync(CancellationToken ct) =>
+        CrearPlantillaAsync("[TEST] Plantilla Listado Cuadro", ct);
+
+    private async Task<(Guid PlantillaId, string Nombre)> CrearPlantillaAsync(string prefijo, CancellationToken ct)
     {
         var plantillaId = Guid.CreateVersion7();
-        var nombre = $"[TEST] Plantilla Listado Cuadro {plantillaId}";
+        var nombre = $"{prefijo} {plantillaId}";
 
         var response = await _client.PostAsJsonAsync(
             RutaPlantillas, PayloadPlantillaValida(plantillaId, nombre), ct);
@@ -85,12 +91,18 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixt
 
     private async Task<List<CuadroSemanalTurnosRespuestaSmoke>> ListarAsync(CancellationToken ct)
     {
-        var response = await _client.GetAsync(RutaPlantillas, ct);
+        var lista = await ListarPaginaAsync("", ct);
+        lista.SiguienteCursor.Should().BeNull("sin take el endpoint devuelve todo el catalogo");
+        return [.. lista.Elementos];
+    }
+
+    private async Task<ListaSmoke> ListarPaginaAsync(string query, CancellationToken ct)
+    {
+        var response = await _client.GetAsync($"{RutaPlantillas}{query}", ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var lista = await response.Content.ReadFromJsonAsync<List<CuadroSemanalTurnosRespuestaSmoke>>(
-            JsonOptions, cancellationToken: ct);
-        return lista ?? [];
+        var lista = await response.Content.ReadFromJsonAsync<ListaSmoke>(JsonOptions, cancellationToken: ct);
+        return lista!;
     }
 
     // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion.
@@ -152,8 +164,6 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixt
         var plantillaId = Guid.CreateVersion7();
         var jornadaId = Guid.CreateVersion7();
         var firma = LimitesDePrueba.ListarCuadros;
-        await _limpieza.PrepararAsync(firma);
-        _limpieza.Registrar(jornadaId);
 
         (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created,
@@ -176,5 +186,34 @@ public class ListarCuadrosSemanalesTurnosSmokeTests(ApiFixture api, PostgresFixt
         cuadro.Jornada.HorasSemanales.Should().Be(
             new HorasYMinutosRespuestaSmoke(firma.SemanalesHoras, firma.SemanalesMinutos));
         cuadro.Advertencias!.Should().Contain(a => a.Tipo == "DiaSinTurno");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarCuadrosSemanalesTurnos_RecorreDosPaginasSinRepetir_CuandoSeUsaTakeYCursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (primeraId, _) = await CrearPlantillaAsync("[TEST] AAA Pagina Cuadro", ct);
+        var (segundaId, _) = await CrearPlantillaAsync("[TEST] ZZZ Pagina Cuadro", ct);
+        await ListarHastaQueAsync(
+            l => l.Any(c => c.Id == primeraId.ToString()) && l.Any(c => c.Id == segundaId.ToString()), ct);
+
+        var primera = await ListarPaginaAsync("?take=1", ct);
+        primera.Elementos.Select(c => c.Id).Should().Equal(primeraId.ToString());
+        primera.SiguienteCursor.Should().NotBeNullOrEmpty();
+
+        var segunda = await ListarPaginaAsync(
+            $"?take=1&cursor={Uri.EscapeDataString(primera.SiguienteCursor!)}", ct);
+        segunda.Elementos.Select(c => c.Id).Should().Equal(segundaId.ToString());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarCuadrosSemanalesTurnos_Retorna400_CuandoElCursorEsInvalido()
+    {
+        var response = await _client.GetAsync($"{RutaPlantillas}?cursor=no-es-un-cursor",
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }
