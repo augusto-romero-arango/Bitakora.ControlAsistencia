@@ -23,7 +23,6 @@ public class BuscarColaboradoresToolTests
 
         var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
         body["nombre"]!.GetValue<string>().Should().Be("juan bermúdez");
-        body["take"]!.GetValue<int>().Should().Be(BuscarColaboradoresTool.MaximoColaboradores + 1);
         body["take"]!.GetValue<int>().Should().Be(21);
         body.ContainsKey("identificaciones").Should().BeFalse("sin identificaciones no viaja el campo");
     }
@@ -151,8 +150,8 @@ public class BuscarColaboradoresToolTests
         var resultado = await Tool(cliente).Run(
             null!, null, "79879078, 10047766882", TestContext.Current.CancellationToken);
 
-        resultado.Should().Contain("79879078").And.Contain("10047766882");
-        resultado.Should().NotStartWith("{");
+        resultado.Should().Be(
+            string.Format(BuscarColaboradoresTool.Mensajes.SinCoincidencias, "79879078, 10047766882"));
     }
 
     [Fact]

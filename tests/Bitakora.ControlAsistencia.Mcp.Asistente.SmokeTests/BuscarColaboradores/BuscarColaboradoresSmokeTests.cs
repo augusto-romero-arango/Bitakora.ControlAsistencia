@@ -9,9 +9,8 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
 {
     // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> dominio Colaboradores
     // -> Marten. "test" es un token real: las suites de Colaboradores registran colaboradores
-    // [TEST] ... en dev y TokenizarNombre (#587) separa por todo caracter no alfanumerico. Se
-    // afirma la forma del remodelado (issue #588), no valores puntuales -- los datos de dev
-    // cambian entre corridas.
+    // [TEST] ... en dev y TokenizarNombre separa por todo caracter no alfanumerico. Se afirma la
+    // forma del remodelado, no valores puntuales -- los datos de dev cambian entre corridas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task BuscarColaboradores_DevuelveLasCoincidenciasConDatosReales_CuandoSeBuscaPorNombre()
