@@ -194,6 +194,17 @@ public class ConsultarProgramacionToolTests
     }
 
     [Fact]
+    public async Task ConsultarProgramacion_RespondeElRechazoSinSeguir_CuandoLaLecturaDeLaSedeTrabajoFalla()
+    {
+        var fakes = Armar(jsonSede: "sedes no disponibles", statusSede: HttpStatusCode.ServiceUnavailable);
+
+        var resultado = await Ejecutar(fakes.Tool, sedeTrabajo: "NORTE");
+
+        resultado.Should().StartWith("El dominio rechazo la consulta:").And.Contain("sedes no disponibles");
+        fakes.Turnos.UltimaRequest.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ConsultarProgramacion_ConsultaTurnosConElSedeId_CuandoLaSedeTrabajoEstaInactiva()
     {
         var fakes = Armar(jsonSede: Leer("ficha-sede-inactiva.json"));

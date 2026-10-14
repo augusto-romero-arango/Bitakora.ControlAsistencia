@@ -26,7 +26,10 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
         if (!texto.StartsWith('{'))
+        {
+            DebeSerLaFraseDeVacio(texto);
             return;
+        }
 
         using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
@@ -63,7 +66,10 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
         if (!texto.StartsWith('{'))
+        {
+            DebeSerLaFraseDeVacio(texto);
             return;
+        }
 
         using var json = JsonDocument.Parse(texto);
         json.RootElement.GetProperty("dias").EnumerateArray()
@@ -101,9 +107,14 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         }
         else
         {
-            texto.Should().Contain("2026-09-01");
+            DebeSerLaFraseDeVacio(texto);
         }
     }
+
+    // Sin dias (o sin colaboradores en el grupo) la tool responde una frase con el periodo; un
+    // rechazo del dominio tambien es texto, asi que se distingue por la forma de la frase.
+    private static void DebeSerLaFraseDeVacio(string texto) =>
+        texto.Should().StartWith("No hay ").And.Contain("2026-09-01");
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -119,6 +130,27 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
     {
         var ct = TestContext.Current.CancellationToken;
         await AfirmaSobreOFrase("sede_trabajo", await CodigoDeUnaSedeExistente(ct), ct);
+    }
+
+    // Validacion de entrada barata (CA-ADR-0041 decision 3): el cursor viaja tal cual hasta
+    // turnos-vigentes, que rechaza uno que no decodifica.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_RespondeElRechazoDelDominio_CuandoElCursorEsInvalido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "consultar_programacion",
+            new Dictionary<string, object?>
+            {
+                ["desde"] = "2026-09-01",
+                ["hasta"] = "2026-09-07",
+                ["cursor"] = "no-es-un-cursor"
+            },
+            cancellationToken: ct);
+
+        resultado.Content.OfType<TextContentBlock>().Single().Text
+            .Should().StartWith("El dominio rechazo la consulta:").And.Contain("cursor");
     }
 
     // Error path que NO toca los dominios: la validacion de fecha corta en el worker y responde

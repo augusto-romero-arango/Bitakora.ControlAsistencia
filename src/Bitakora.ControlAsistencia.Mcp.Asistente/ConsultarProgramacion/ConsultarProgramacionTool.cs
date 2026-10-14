@@ -1,7 +1,7 @@
 using System.Globalization;
-using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -10,7 +10,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarProgramacion;
 
 // UNA sola tool de rango sobre QUERY control-horas/turnos-vigentes (tools consolidadas):
-// el caso puntual "que le toca a Juan el 3" es desde = hasta + codigo_colaborador, sin tool aparte sobre ObtenerTurnoVigente.
+// el caso puntual "que le toca a Juan el 3" es desde = hasta + codigos_colaborador, sin tool aparte sobre ObtenerTurnoVigente.
 //
 // Remodelado: se podan el Id (stream key "cd:...") y el HorarioResumido (los bloques compactos son
 // la forma canonica y traen la sede); las fechas invalidas y el rango invertido se responden como
@@ -21,8 +21,7 @@ public partial class ConsultarProgramacionTool(
 {
     internal const string NombreTool = "consultar_programacion";
     internal const int MaximoDias = 50;
-    private static readonly System.Text.Json.JsonSerializerOptions OpcionesLectura =
-        new(System.Text.Json.JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     [Function("ConsultarProgramacion")]
     public async Task<string> Run(
@@ -118,7 +117,7 @@ public partial class ConsultarProgramacionTool(
                 t.CodigoColaborador,
                 t.NombreCompleto,
                 t.Fecha,
-                t.NombreTurno,
+                t.NombreTurno.Trim(),
                 [.. t.Bloques.Select(Compactar)]))
             .ToList();
 

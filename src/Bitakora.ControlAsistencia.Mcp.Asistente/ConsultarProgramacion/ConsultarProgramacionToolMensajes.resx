@@ -33,7 +33,7 @@
     <value>El rango pedido excedia la cota del servidor y fue recortado al rango aplicado.</value>
   </data>
   <data name="NotaMasDias" xml:space="preserve">
-    <value>Hay mas dias programados; pasa el siguienteCursor como cursor para ver la pagina siguiente. Los dias de un colaborador pueden quedar partidos entre paginas.</value>
+    <value>Hay mas dias programados. Para acotar usa codigos_colaborador, sede, etiquetas, sede_trabajo o un rango menor; para ver los siguientes, repite con el siguienteCursor como cursor. Los dias de un colaborador pueden quedar partidos entre paginas.</value>
   </data>
   <data name="SedeTrabajoNoExiste" xml:space="preserve">
     <value>No existe una sede con codigo '{0}'; consulta el catalogo con listar_sedes.</value>
