@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ObtenerPlantillaSemanal;
 
-// CA-4 de #892: la respuesta gana jornada y advertencias.
 public class ObtenerPlantillaSemanalJornadaToolTests
 {
     private const string RutaListado = "/api/programacion/plantillas-semanales";

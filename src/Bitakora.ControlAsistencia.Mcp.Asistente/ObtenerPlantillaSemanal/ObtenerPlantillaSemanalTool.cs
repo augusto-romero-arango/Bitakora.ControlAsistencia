@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Bitakora.ControlAsistencia.Mcp.Asistente.AsignarJornadaAPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -23,7 +22,8 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorP
             "Devuelve el cuadro de una plantilla semanal por su nombre exacto (mirala con "
             + "listar_plantillas_semanales): por cada semana, el turno de cada dia de lunes a "
             + "domingo con su nombre y horario, los dias sin turno y los turnos retirados o "
-            + "incompletos, la Jornada asociada y las advertencias de la plantilla contra sus limites. Para las franjas de un turno usa obtener_turno.")]
+            + "incompletos, la Jornada asociada y las advertencias de la plantilla contra sus "
+            + "limites. Para las franjas de un turno usa obtener_turno.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -60,7 +60,7 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorP
 
         return RespuestaJson.Serializar(new PlantillaSemanalDetallada(
             detalle.Id, detalle.Nombre.Trim(), detalle.Semanas, detalle.Completa, cuadro,
-            detalle.Jornada is { } j ? new JornadaDescritaResumen(j.JornadaId, j.Descripcion) : null,
+            detalle.Jornada?.Resumir(),
             (detalle.Advertencias ?? []).Select(a => a.Descripcion).ToList()));
     }
 

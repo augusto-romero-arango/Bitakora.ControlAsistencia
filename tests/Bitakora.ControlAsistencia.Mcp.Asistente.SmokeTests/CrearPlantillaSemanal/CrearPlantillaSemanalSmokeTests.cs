@@ -146,8 +146,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         retirada.IsError.Should().NotBeTrue();
     }
 
-    // Recorrido unico de las tools de Jornada de la plantilla (issue #892): la Jornada
-    // predeterminada actual solo se lee, nunca se cambia (CA-ADR-0040).
+    // La Jornada predeterminada actual solo se lee, nunca se cambia (CA-ADR-0040).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task PlantillaSemanal_CreaConJornadaLaQuitaYLaAsigna_CuandoSeUsaLaPredeterminada()
@@ -173,7 +172,9 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             "crear_plantilla_semanal",
             new Dictionary<string, object?>
             {
-                ["nombre"] = nombrePlantilla, ["dias"] = dias, ["jornada_id"] = jornadaId
+                ["nombre"] = nombrePlantilla,
+                ["dias"] = dias,
+                ["jornada_id"] = jornadaId
             },
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();

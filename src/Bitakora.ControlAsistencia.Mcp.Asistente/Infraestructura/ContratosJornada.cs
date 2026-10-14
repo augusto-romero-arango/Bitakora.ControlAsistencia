@@ -27,7 +27,13 @@ public sealed record JornadaDelCatalogo(string JornadaId, string Descripcion, bo
 public sealed record JornadaDescrita(
     [property: JsonPropertyName("jornada_id")] string JornadaId,
     string Descripcion,
-    [property: JsonPropertyName("es_predeterminada")] bool EsPredeterminada);
+    [property: JsonPropertyName("es_predeterminada")] bool EsPredeterminada)
+{
+    public JornadaDescritaResumen Resumir() => new(JornadaId, Descripcion);
+}
+
+public sealed record JornadaDescritaResumen(
+    [property: JsonPropertyName("jornada_id")] string JornadaId, string Descripcion);
 
 public static class ValidadorDuracion
 {

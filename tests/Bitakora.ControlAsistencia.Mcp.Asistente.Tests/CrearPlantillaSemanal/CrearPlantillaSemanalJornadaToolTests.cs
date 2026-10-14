@@ -7,7 +7,6 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.CrearPlantillaSemanal;
 
-// CA-1 de #892: crear_plantilla_semanal con jornada_id opcional.
 public class CrearPlantillaSemanalJornadaToolTests
 {
     private const string RutaTurnos = "/api/programacion/turnos";

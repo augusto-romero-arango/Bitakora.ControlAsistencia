@@ -17,7 +17,7 @@
   }
  ],
  "jornada": {
-  "jornadaId": "01a08700-0000-7000-9000-000000000001",
+  "id": "01a08700-0000-7000-9000-000000000001",
   "horasSemanales": { "horas": 42, "minutos": 0 },
   "topeDiario": { "horas": 8, "minutos": 0 },
   "minimoDiario": { "horas": 0, "minutos": 0 },

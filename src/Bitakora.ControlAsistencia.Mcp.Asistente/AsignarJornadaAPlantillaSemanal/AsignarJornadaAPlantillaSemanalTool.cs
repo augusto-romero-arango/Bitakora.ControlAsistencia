@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -56,13 +55,10 @@ public partial class AsignarJornadaAPlantillaSemanalTool(
         return RespuestaJson.Serializar(new JornadaAsignadaResumen(
             Mensajes.ResultadoJornadaAsignada,
             resolucion.Ficha.Nombre,
-            new JornadaDescritaResumen(jornada.JornadaId, jornada.Descripcion),
+            jornada.Resumir(),
             Mensajes.NotaAdvertenciasEventuales));
     }
 }
 
 public sealed record JornadaAsignadaResumen(
     string Resultado, string Plantilla, JornadaDescritaResumen Jornada, string Nota);
-
-public sealed record JornadaDescritaResumen(
-    [property: JsonPropertyName("jornada_id")] string JornadaId, string Descripcion);

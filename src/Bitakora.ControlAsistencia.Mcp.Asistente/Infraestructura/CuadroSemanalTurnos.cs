@@ -9,7 +9,10 @@ public sealed record CuadroSemanalTurnos(
     JornadaDelCuadro? Jornada = null,
     IReadOnlyList<AdvertenciaDelCuadro>? Advertencias = null);
 
-public sealed record JornadaDelCuadro(string JornadaId, string Descripcion);
+public sealed record JornadaDelCuadro(string Id, string Descripcion)
+{
+    public JornadaDescritaResumen Resumir() => new(Id, Descripcion);
+}
 
 public sealed record AdvertenciaDelCuadro(string Descripcion);
 

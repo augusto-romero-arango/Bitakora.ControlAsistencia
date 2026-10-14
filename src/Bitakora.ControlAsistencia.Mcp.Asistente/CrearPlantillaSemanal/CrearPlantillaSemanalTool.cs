@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using Bitakora.ControlAsistencia.Mcp.Asistente.AsignarJornadaAPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -140,9 +139,8 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
                 return string.Format(Mensajes.RechazoDelDominio, falloJornada);
 
-            var jornada = await respuestaJornada.LeerDescritaAsync(ct);
             jornadaGuid = parseado;
-            jornadaResumen = new JornadaDescritaResumen(jornada.JornadaId, jornada.Descripcion);
+            jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
         }
 
         var resolucion = await resolutor.ResolverVariosAsync(validadas.Select(v => v.NombreTurno), ct);
@@ -212,7 +210,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
         }
 
         var plantillaId = Guid.CreateVersion7();
-        var respuestaPost = await programacion.CrearPlantillaSemanal(plantillaId, nombre, semanasValor, ct, jornadaGuid);
+        var respuestaPost = await programacion.CrearPlantillaSemanal(plantillaId, nombre, semanasValor, jornadaGuid, ct);
         if (await respuestaPost.LeerFalloAsync(ct) is { } falloPost)
             return string.Format(Mensajes.RechazoDelDominio, falloPost);
 

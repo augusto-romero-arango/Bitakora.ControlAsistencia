@@ -68,7 +68,7 @@ public sealed class ProgramacionApi(HttpClient http)
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 
     public Task<HttpResponseMessage> CrearPlantillaSemanal(
-        Guid plantillaId, string nombre, int semanas, CancellationToken ct, Guid? jornadaId = null) =>
+        Guid plantillaId, string nombre, int semanas, Guid? jornadaId, CancellationToken ct) =>
         http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas, jornadaId }, ct);
 
     public Task<HttpResponseMessage> AsignarTurnoADia(
