@@ -32,16 +32,16 @@ public partial class AsignarJornadaPorGrupoTool(
         string? etiquetas,
         CancellationToken ct)
     {
-        var (jornada, rechazo) = await AsignadorDeJornada.ValidarJornadaAsync(programacion, jornadaId, ct);
-        if (rechazo is not null)
-            return rechazo;
-
         var mensajesSelector = new MensajesDeSelector(
             Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
             Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio);
         var (selectorInterpretado, rechazoInterpretacion) = SelectorDeGrupo.Interpretar(sede, etiquetas, mensajesSelector);
         if (rechazoInterpretacion is not null)
             return rechazoInterpretacion;
+
+        var (jornada, rechazo) = await AsignadorDeJornada.ValidarJornadaAsync(programacion, jornadaId, ct);
+        if (rechazo is not null)
+            return rechazo;
 
         var (selector, rechazoSelector) = await selectorInterpretado!.ValidarSedeAsync(resolutorSedes, mensajesSelector, ct);
         if (rechazoSelector is not null)

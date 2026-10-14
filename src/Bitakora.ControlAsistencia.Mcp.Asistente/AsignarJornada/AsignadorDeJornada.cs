@@ -35,7 +35,7 @@ internal static class AsignadorDeJornada
     {
         var jornadaId = Guid.Parse(jornada.JornadaId);
         var pendientes = candidatos.Where(c => c.JornadaId != jornadaId).ToList();
-        var asignados = new ConcurrentQueue<string>();
+        var asignados = 0;
         var fallidos = new ConcurrentQueue<JornadaFallida>();
 
         await Parallel.ForEachAsync(
@@ -47,11 +47,11 @@ internal static class AsignadorDeJornada
                 if (await respuesta.LeerFalloAsync(token) is { } motivo)
                     fallidos.Enqueue(new JornadaFallida(candidato.Identificacion, motivo));
                 else
-                    asignados.Enqueue(candidato.Identificacion);
+                    Interlocked.Increment(ref asignados);
             });
 
         return new ResultadoAsignacion(
-            asignados.Count,
+            asignados,
             candidatos.Count - pendientes.Count,
             [.. fallidos.OrderBy(f => f.Identificacion, StringComparer.Ordinal)]);
     }

@@ -26,7 +26,7 @@ public class AsignarJornadaSmokeTests(McpFixture mcp)
             async () =>
             {
                 var respuesta = await mcp.Cliente.CallToolAsync("asignar_jornada", argumentos, cancellationToken: ct);
-                return TryParsear(SembradoDeJornadas.Texto(respuesta), "asignados");
+                return ParsearSi(SembradoDeJornadas.Texto(respuesta), r => !r.TryGetProperty("no_encontrados", out _));
             },
             TimeoutPolling);
 
@@ -38,12 +38,7 @@ public class AsignarJornadaSmokeTests(McpFixture mcp)
             async () =>
             {
                 var respuesta = await mcp.Cliente.CallToolAsync("asignar_jornada", argumentos, cancellationToken: ct);
-                var candidato = TryParsear(SembradoDeJornadas.Texto(respuesta), "ya_la_tenian");
-                if (candidato?.RootElement.GetProperty("ya_la_tenian").GetInt32() == 1)
-                    return candidato;
-
-                candidato?.Dispose();
-                return null;
+                return ParsearSi(SembradoDeJornadas.Texto(respuesta), r => r.GetProperty("ya_la_tenian").GetInt32() == 1);
             },
             TimeoutPolling);
 
@@ -65,13 +60,12 @@ public class AsignarJornadaSmokeTests(McpFixture mcp)
         SembradoDeJornadas.Texto(resultado).Should().Be($"La Jornada '{inexistente}' no existe; revisa listar_jornadas.");
     }
 
-    private static JsonDocument? TryParsear(string texto, string campoEsperado)
+    private static JsonDocument? ParsearSi(string texto, Func<JsonElement, bool> condicion)
     {
         try
         {
             var documento = JsonDocument.Parse(texto);
-            if (documento.RootElement.ValueKind == JsonValueKind.Object
-                && documento.RootElement.TryGetProperty(campoEsperado, out _))
+            if (documento.RootElement.ValueKind == JsonValueKind.Object && condicion(documento.RootElement))
                 return documento;
 
             documento.Dispose();

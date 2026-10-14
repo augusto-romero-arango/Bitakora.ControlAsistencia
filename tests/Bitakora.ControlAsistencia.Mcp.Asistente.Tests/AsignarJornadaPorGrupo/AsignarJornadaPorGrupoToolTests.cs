@@ -95,6 +95,7 @@ public class AsignarJornadaPorGrupoToolTests
         var resultado = await Ejecutar(tool, sede: null, etiquetas: null);
 
         resultado.Should().Be(AsignarJornadaPorGrupoTool.Mensajes.SelectorObligatorio);
+        programacion.Requests.Should().BeEmpty();
         colaboradores.Consultas.Should().BeEmpty();
         colaboradores.Puts.Should().BeEmpty();
     }
