@@ -40,7 +40,8 @@ public class ComposicionDelServidorTests
                 "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
                 "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
-                "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
+                "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
+                "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
                 "solicitar_programacion_turno",
@@ -150,6 +151,9 @@ public class ComposicionDelServidorTests
         ("registrar_colaborador", "Pone a una persona bajo control de asistencia",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("buscar_turnos", "Busca turnos del catalogo para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
+        ("buscar_plantillas_semanales",
+            "Busca plantillas semanales del catalogo para saber a cual se refiere el usuario",
             "\"readOnlyHint\": true"),
         ("listar_turnos", "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno.",
             "\"readOnlyHint\": true"),
@@ -269,6 +273,15 @@ public class ComposicionDelServidorTests
     [Fact]
     public void BuscarTurnos_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
         ParametrosDeTool("buscar_turnos").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void BuscarPlantillasSemanales_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("buscar_plantillas_semanales").Should().BeEquivalentTo(
+            [("nombre", false), ("turno", false), ("semanas", false), ("estado", false)]);
+
+    [Fact]
+    public void BuscarPlantillasSemanales_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("buscar_plantillas_semanales").Should().OnlyContain(p => p.ParameterType == typeof(string));
 
     [Fact]
     public void ListarTurnos_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>

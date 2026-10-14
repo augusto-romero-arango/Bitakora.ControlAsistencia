@@ -1,0 +1,34 @@
+{ "elementos": [
+ {
+  "id": "id-p1", "nombre": "Vigilancia Norte", "semanas": 4, "completa": true,
+  "jornada": { "id": "j-1", "descripcion": "44 h semanales" },
+  "advertencias": [],
+  "dias": [
+   { "semana": 1, "dia": 1, "turno": { "id": "t-1", "nombre": "Vigilancia Diurno", "descripcion": "(06:00-14:00)", "completo": true, "retirado": false } },
+   { "semana": 3, "dia": 5, "turno": { "id": "t-1", "nombre": "Vigilancia Diurno", "descripcion": "(06:00-14:00)", "completo": true, "retirado": false } }
+  ]
+ },
+ {
+  "id": "id-p2", "nombre": "Vigilancia Nocturna", "semanas": 4, "completa": false,
+  "jornada": { "id": "j-1", "descripcion": "44 h semanales" },
+  "advertencias": [ { "descripcion": "Excede el tope diario" }, { "descripcion": "Dias de descanso insuficientes" } ],
+  "dias": [
+   { "semana": 1, "dia": 1, "turno": { "id": "t-2", "nombre": "Cocina Mañana", "descripcion": "(07:00-17:00)", "completo": true, "retirado": false } },
+   { "semana": 2, "dia": 3, "turno": { "id": "t-1", "nombre": "Vigilancia Diurno", "descripcion": "(06:00-14:00)", "completo": true, "retirado": false } }
+  ]
+ },
+ {
+  "id": "id-p3", "nombre": "Cocina Semanal", "semanas": 1, "completa": true,
+  "advertencias": [ { "descripcion": "La plantilla no tiene Jornada" } ],
+  "dias": [
+   { "semana": 1, "dia": 1, "turno": { "id": "t-2", "nombre": "Cocina Mañana", "descripcion": "(07:00-17:00)", "completo": true, "retirado": false } }
+  ]
+ },
+ {
+  "id": "id-p4", "nombre": "Aseo General", "semanas": 2, "completa": true,
+  "jornada": { "id": "j-1", "descripcion": "44 h semanales" },
+  "dias": [
+   { "semana": 1, "dia": 2, "turno": { "id": "t-3", "nombre": "Aseo Tarde", "descripcion": "(14:00-22:00)", "completo": true, "retirado": false } }
+  ]
+ }
+] }
