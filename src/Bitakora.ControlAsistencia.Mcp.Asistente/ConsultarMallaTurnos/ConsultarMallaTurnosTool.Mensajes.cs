@@ -21,5 +21,27 @@ public partial class ConsultarMallaTurnosTool
 
         /// <summary>{0}: cursor a reenviar.</summary>
         public static string NotaMasColaboradores => ResourceManager.GetString(nameof(NotaMasColaboradores))!;
+
+        public static string SemanaMismoMes => ResourceManager.GetString(nameof(SemanaMismoMes))!;
+
+        public static string SemanaEntreMeses => ResourceManager.GetString(nameof(SemanaEntreMeses))!;
+
+        public static string CriterioSede => ResourceManager.GetString(nameof(CriterioSede))!;
+
+        public static string CriterioEtiquetas => ResourceManager.GetString(nameof(CriterioEtiquetas))!;
+
+        public static string CriterioCodigos => ResourceManager.GetString(nameof(CriterioCodigos))!;
+
+        public static string CriterioTodos => ResourceManager.GetString(nameof(CriterioTodos))!;
+
+        public static string DiaTrabajo => ResourceManager.GetString(nameof(DiaTrabajo))!;
+
+        public static string DiaDescanso => ResourceManager.GetString(nameof(DiaDescanso))!;
+
+        public static string DiaAusencia => ResourceManager.GetString(nameof(DiaAusencia))!;
+
+        public static string DiaSinProgramar => ResourceManager.GetString(nameof(DiaSinProgramar))!;
+
+        public static string DiaFueraDeVinculacion => ResourceManager.GetString(nameof(DiaFueraDeVinculacion))!;
     }
 }

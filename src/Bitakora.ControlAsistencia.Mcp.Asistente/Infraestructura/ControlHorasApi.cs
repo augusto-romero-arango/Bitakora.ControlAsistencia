@@ -65,6 +65,11 @@ public sealed class ControlHorasApi(HttpClient http)
         string? cursor,
         CancellationToken ct)
     {
-        throw new NotImplementedException();
+        var request = new HttpRequestMessage(Query, "api/control-horas/malla-semanal-turnos")
+        {
+            Content = JsonContent.Create(new { fecha, colaboradores, take, cursor })
+        };
+
+        return http.SendAsync(request, ct);
     }
 }

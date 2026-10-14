@@ -32,4 +32,37 @@
   <data name="NotaMasColaboradores" xml:space="preserve">
     <value>Hay mas colaboradores en la malla. Para ver los siguientes, repite con cursor = {0}</value>
   </data>
+  <data name="SemanaMismoMes" xml:space="preserve">
+    <value>{0} al {1} de {2} de {3}</value>
+  </data>
+  <data name="SemanaEntreMeses" xml:space="preserve">
+    <value>{0} de {1} al {2} de {3} de {4}</value>
+  </data>
+  <data name="CriterioSede" xml:space="preserve">
+    <value>sede {0}</value>
+  </data>
+  <data name="CriterioEtiquetas" xml:space="preserve">
+    <value>etiquetas {0}</value>
+  </data>
+  <data name="CriterioCodigos" xml:space="preserve">
+    <value>codigos {0}</value>
+  </data>
+  <data name="CriterioTodos" xml:space="preserve">
+    <value>todos los colaboradores</value>
+  </data>
+  <data name="DiaTrabajo" xml:space="preserve">
+    <value>{0} {1} ({2})</value>
+  </data>
+  <data name="DiaDescanso" xml:space="preserve">
+    <value>descanso</value>
+  </data>
+  <data name="DiaAusencia" xml:space="preserve">
+    <value>ausencia ({0})</value>
+  </data>
+  <data name="DiaSinProgramar" xml:space="preserve">
+    <value>sin programar</value>
+  </data>
+  <data name="DiaFueraDeVinculacion" xml:space="preserve">
+    <value>fuera de vinculación</value>
+  </data>
 </root>
