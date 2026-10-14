@@ -315,7 +315,7 @@ public class CrearPlantillaSemanalToolTests
             programacionApi, new ResolutorTurnoPorNombre(programacionApi));
 
         var resultado = await tool.Run(
-            null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, TestContext.Current.CancellationToken);
+            null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, null, TestContext.Current.CancellationToken);
 
         var json = JsonNode.Parse(resultado)!;
         json["diasAsignados"]!.GetValue<int>().Should().Be(6);
