@@ -6,4 +6,5 @@ public sealed record FiltroListarTurnosVigentes(
     string? CodigoColaborador,
     string? SedeId,
     int? Take = null,
-    string? Cursor = null);
+    string? Cursor = null,
+    IReadOnlyList<string>? CodigosColaborador = null);

@@ -111,11 +111,11 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task ListarTurnosVigentes_Retorna422_CuandoCodigoColaboradorYSedeIdSonValidosPeroElRangoNoLoEs()
+    public async Task ListarTurnosVigentes_Retorna422_CuandoCodigosColaboradorYSedeIdSonValidosPeroElRangoNoLoEs()
     {
         var resultado = await EjecutarAsync(RequestJson(
             """
-            {"desdeFecha":"2026-05-10","hastaFecha":"2026-05-05","codigoColaborador":"EMP-001","sedeId":"SD-SUBA"}
+            {"desdeFecha":"2026-05-10","hastaFecha":"2026-05-05","codigosColaborador":["EMP-001","EMP-002"],"sedeId":"SD-SUBA"}
             """));
 
         resultado.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);

@@ -89,7 +89,16 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
     // nombres son literalmente el contrato de FiltroListarTurnosVigentes.
     private static object Filtro(
         DateOnly desde, DateOnly hasta, string? codigoColaborador = null, string? sedeId = null) =>
-        new { desdeFecha = desde, hastaFecha = hasta, codigoColaborador, sedeId };
+        new
+        {
+            desdeFecha = desde,
+            hastaFecha = hasta,
+            codigosColaborador = codigoColaborador is null ? null : new[] { codigoColaborador },
+            sedeId
+        };
+
+    private static object FiltroConLista(DateOnly desde, DateOnly hasta, params string[] codigosColaborador) =>
+        new { desdeFecha = desde, hastaFecha = hasta, codigosColaborador };
 
     private async Task<HttpResponseMessage> ConsultarAsync(object filtro, CancellationToken ct)
     {
@@ -609,6 +618,41 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         respuesta.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoColaboradorB);
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarTurnosVigentes_IncluyeSoloALosColaboradoresDeLaLista_CuandoSeFiltraPorCodigosColaborador()
+    {
+        // CA-6 (#1045): lista de dos colaboradores incluye a ambos y excluye a un tercero de la misma ventana.
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+
+        var fecha = new DateOnly(2026, 6, 8);
+        var codigoA = Guid.CreateVersion7().ToString();
+        var codigoB = Guid.CreateVersion7().ToString();
+        var codigoC = Guid.CreateVersion7().ToString();
+
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoA, fecha, "[TEST] Turno Lista A");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoB, fecha, "[TEST] Turno Lista B");
+        await PublicarTurnoAsync(Guid.CreateVersion7(), codigoC, fecha, "[TEST] Turno Lista C");
+
+        (await EsperarTurnoEnLaListaAsync(codigoA, fecha, ct)).Should().BeTrue("A deberia materializarse");
+        (await EsperarTurnoEnLaListaAsync(codigoB, fecha, ct)).Should().BeTrue("B deberia materializarse");
+        (await EsperarTurnoEnLaListaAsync(codigoC, fecha, ct)).Should().BeTrue("C deberia materializarse");
+
+        var response = await ConsultarAsync(FiltroConLista(fecha, fecha, codigoA, codigoB), ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var respuesta = await response.Content.ReadFromJsonAsync<ListaTurnosVigentesSmoke>(
+            JsonOptions, cancellationToken: ct);
+        respuesta.Should().NotBeNull();
+
+        respuesta!.Elementos.Should().Contain(t => t.CodigoColaborador == codigoA && t.Fecha == fecha);
+        respuesta.Elementos.Should().Contain(t => t.CodigoColaborador == codigoB && t.Fecha == fecha);
+        respuesta.Elementos.Should().NotContain(t => t.CodigoColaborador == codigoC);
+    }
+
     private const string TopicCancelacionEntrada = "cancelacion-turno-diario-solicitada";
     private const string TopicAusenciaEntrada = "ausencia-diaria-programada";
     private const string MotivoAusencia = "Vacaciones";
@@ -735,13 +779,13 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             "el segundo turno deberia materializarse dentro del timeout");
 
         var pagina1 = await ConsultarOkAsync(
-            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigoColaborador, take = 1 }, ct);
+            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigosColaborador = new[] { codigoColaborador }, take = 1 }, ct);
 
         pagina1.Elementos.Select(t => t.Fecha).Should().Equal(primerDia);
         pagina1.SiguienteCursor.Should().NotBeNullOrEmpty();
 
         var pagina2 = await ConsultarOkAsync(
-            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigoColaborador, take = 1, cursor = pagina1.SiguienteCursor },
+            new { desdeFecha = primerDia, hastaFecha = segundoDia, codigosColaborador = new[] { codigoColaborador }, take = 1, cursor = pagina1.SiguienteCursor },
             ct);
 
         pagina2.Elementos.Select(t => t.Fecha).Should().Equal(segundoDia);
