@@ -91,6 +91,11 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         if (filtro.CodigoSede is { } codigoSedeEnBlanco && string.IsNullOrWhiteSpace(codigoSedeEnBlanco))
             return NoProcesable("CodigoSede, si viene, no puede estar en blanco");
 
+        // Issue #942: JornadaId = Guid.Empty es 422 por simetria con CodigoSede en blanco; ninguna
+        // ficha puede llevarlo (AsignarJornadaBodyValidator exige NotEmpty).
+        if (filtro.JornadaId == Guid.Empty)
+            return NoProcesable("JornadaId, si viene, no puede ser Guid vacio");
+
         // CA-2: normalizacion simetrica -- Tell-don't-Ask (MEF-ADR-0012), ver NormalizarEtiquetas.
         var etiquetasNormalizadas = NormalizarEtiquetas(filtro.Etiquetas);
         if (etiquetasNormalizadas is null)
@@ -147,6 +152,10 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         // la vigencia, el containment de etiquetas y el cursor keyset sin tocar el orden ni el Take.
         if (filtro.CodigoSede is { } codigoSede)
             query = query.Where(f => f.CodigoSede == codigoSede);
+
+        // Issue #942: igualdad plana opcional por Jornada asignada, en AND con el resto.
+        if (filtro.JornadaId is { } jornadaId)
+            query = query.Where(f => f.JornadaId == jornadaId);
 
         // CA-3: paginacion keyset -- orden OrderBy(NombreCompleto).ThenBy(Id), predicado compuesto
         // "nombre > cursor.NombreCompleto OR (nombre == cursor.NombreCompleto AND id >
