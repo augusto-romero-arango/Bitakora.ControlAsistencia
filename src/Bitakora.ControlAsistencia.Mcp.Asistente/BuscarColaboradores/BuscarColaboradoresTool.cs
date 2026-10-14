@@ -6,15 +6,13 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.BuscarColaboradores;
 
-// Tool de solo lectura sobre QUERY colaboradores/directorio (issue #588): resuelve PERSONAS
-// concretas por nombre o identificacion, distinto de listar_colaboradores que resuelve GRUPOS
-// (sede, etiquetas). Grupos e individuos son lentes distintas (decision del experto,
-// 2026-09-03): esta tool no reemplaza a listar_colaboradores.
+// Resuelve PERSONAS concretas por nombre o identificacion; listar_colaboradores resuelve GRUPOS
+// (sede, etiquetas). Son lentes distintas: esta tool no reemplaza a listar_colaboradores.
 public partial class BuscarColaboradoresTool(ColaboradoresApi api)
 {
     internal const string NombreTool = "buscar_colaboradores";
     internal const int MaximoColaboradores = 20;
-    internal const int TakeUpstream = 200;
+    private const int TakeUpstream = MaximoColaboradores + 1;
 
     [Function("BuscarColaboradores")]
     public async Task<string> Run(
@@ -62,20 +60,25 @@ public partial class BuscarColaboradoresTool(ColaboradoresApi api)
         var entradas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(ct))?.Elementos
             ?? [];
 
+        if (entradas.Count == 0)
+            return string.Format(
+                Mensajes.SinCoincidencias, DescribirCriterio(nombreNormalizado, identificacionesNormalizadas));
+
         var visibles = entradas.Take(MaximoColaboradores).Select(Remodelar).ToList();
 
-        var notaTruncado = entradas.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, entradas.Count)
-            : null;
+        var notaTruncado = entradas.Count > MaximoColaboradores ? Mensajes.NotaTruncado : null;
 
         return RespuestaJson.Serializar(
-            new CoincidenciasDeColaboradores(entradas.Count, visibles.Count, notaTruncado, visibles));
+            new CoincidenciasDeColaboradores(visibles.Count, notaTruncado, visibles));
     }
 
     private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
         respuesta.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity
             ? string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct))
             : null;
+
+    private static string DescribirCriterio(string? nombre, IReadOnlyList<string> identificaciones) =>
+        string.Join(", ", identificaciones.Prepend(nombre).OfType<string>());
 
     private static IReadOnlyList<string> ParsearIdentificaciones(string? identificaciones) =>
         string.IsNullOrWhiteSpace(identificaciones)
@@ -96,9 +99,8 @@ public partial class BuscarColaboradoresTool(ColaboradoresApi api)
         string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
 }
 
-/// <summary>Contrato de respuesta de buscar_colaboradores hacia el asistente (issue #588).</summary>
+/// <summary>Sobre de desambiguacion: sin total ni cursor (CA-ADR-0039 decisiones 2 y 5).</summary>
 public sealed record CoincidenciasDeColaboradores(
-    int Total,
     int Mostrando,
     string? Nota,
     IReadOnlyList<ColaboradorEncontrado> Colaboradores);

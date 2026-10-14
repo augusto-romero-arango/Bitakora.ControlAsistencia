@@ -77,4 +77,21 @@ public class AsignarJornadaPredeterminadaSmokeTests(ApiFixture api, PostgresFixt
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarJornadaPredeterminada_DebeRetornar409_CuandoLaJornadaEstaDesactivada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync(RutaJornadas,
+            LimitesDePrueba.AsignarPredeterminadaDesactivada.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created, "el arrange depende de que CrearJornada funcione");
+        (await _client.PostAsync($"{RutaJornadas}/{jornadaId}:desactivar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesactivarJornada funcione");
+
+        var response = await _client.PutAsJsonAsync(RutaPredeterminada, new { jornadaId }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

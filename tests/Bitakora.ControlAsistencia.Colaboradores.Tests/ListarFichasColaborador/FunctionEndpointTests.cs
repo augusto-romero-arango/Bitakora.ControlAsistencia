@@ -178,6 +178,57 @@ public class FunctionEndpointTests
         unprocessable.Value.Should().BeOfType<string>();
     }
 
+    // Ninguna ficha puede tener Guid.Empty (AsignarJornadaBodyValidator exige NotEmpty).
+    [Fact]
+    public async Task ListarFichasColaborador_Retorna422_CuandoElJornadaIdDelFiltroEsGuidVacio()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","jornadaId":"00000000-0000-0000-0000-000000000000"}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        var unprocessable = resultado.Should().BeOfType<ObjectResult>().Subject;
+        unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+        unprocessable.Value.Should().BeOfType<string>();
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_Retorna400_CuandoElJornadaIdDelFiltroNoEsGuid()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","jornadaId":"no-es-un-guid"}""");
+
+        var resultado = await Endpoint().Run(request, CancellationToken.None);
+
+        resultado.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_NoRechazaElFiltro_CuandoElJornadaIdEsValido()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","jornadaId":"3f2c8a52-5b0e-4a6e-9f1d-7a1c2b3d4e5f"}""");
+
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
+    }
+
+    [Fact]
+    public async Task ListarFichasColaborador_NoRechazaElFiltro_CuandoElJornadaIdEsNulo()
+    {
+        var request = FakeHttpRequest(
+            contentType: "application/json",
+            body: """{"fechaReferencia":"2026-08-14","jornadaId":null}""");
+
+        var act = async () => await Endpoint().Run(request, CancellationToken.None);
+
+        await act.Should().ThrowExactlyAsync<NullReferenceException>();
+    }
+
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoElCursorTraeUnSoloCampo()
     {

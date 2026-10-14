@@ -41,6 +41,29 @@ public sealed class ProgramacionApi(HttpClient http)
         http.PostAsJsonAsync(
             $"api/programacion/turnos/{Uri.EscapeDataString(id)}:asignar-sede-franja", sedeDeFranja, ct);
 
+    public Task<HttpResponseMessage> ListarJornadas(int take, string? cursor, CancellationToken ct) =>
+        http.GetAsync(
+            cursor is null
+                ? $"api/programacion/jornadas?take={take}"
+                : $"api/programacion/jornadas?take={take}&cursor={Uri.EscapeDataString(cursor)}",
+            ct);
+
+    public Task<HttpResponseMessage> ObtenerJornada(Guid id, CancellationToken ct) =>
+        http.GetAsync($"api/programacion/jornadas/{id}", ct);
+
+    public Task<HttpResponseMessage> CrearJornada(JornadaACrear jornada, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/jornadas", jornada, ct);
+
+    public Task<HttpResponseMessage> ModificarLimitesJornada(
+        Guid id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
+        http.PutAsJsonAsync($"api/programacion/jornadas/{id}/limites", limites, ct);
+
+    public Task<HttpResponseMessage> DesactivarJornada(Guid id, CancellationToken ct) =>
+        http.PostAsync($"api/programacion/jornadas/{id}:desactivar", null, ct);
+
+    public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
+        http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);
+
     public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
         http.GetAsync("api/programacion/plantillas-semanales", ct);
 
@@ -48,8 +71,8 @@ public sealed class ProgramacionApi(HttpClient http)
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 
     public Task<HttpResponseMessage> CrearPlantillaSemanal(
-        Guid plantillaId, string nombre, int semanas, CancellationToken ct) =>
-        http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas }, ct);
+        Guid plantillaId, string nombre, int semanas, Guid? jornadaId, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas, jornadaId }, ct);
 
     public Task<HttpResponseMessage> AsignarTurnoADia(
         string plantillaId, int semana, int dia, string turnoId, CancellationToken ct) =>
@@ -57,6 +80,16 @@ public sealed class ProgramacionApi(HttpClient http)
             $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/dias/{semana}/{dia}",
             new { turnoId },
             ct);
+
+    public Task<HttpResponseMessage> AsignarJornadaAPlantillaSemanal(
+        string plantillaId, Guid jornadaId, CancellationToken ct) =>
+        http.PutAsJsonAsync(
+            $"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/jornada",
+            new { jornadaId },
+            ct);
+
+    public Task<HttpResponseMessage> QuitarJornadaDePlantillaSemanal(string plantillaId, CancellationToken ct) =>
+        http.DeleteAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(plantillaId)}/jornada", ct);
 
     public Task<HttpResponseMessage> RetirarPlantillaSemanal(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
@@ -100,6 +133,8 @@ public sealed class ProgramacionApi(HttpClient http)
         DateOnly desde,
         DateOnly hasta,
         IReadOnlyList<string>? codigosColaborador,
+        int? take,
+        string? cursor,
         CancellationToken ct)
     {
         var request = new HttpRequestMessage(Query, "api/programacion/ausencias")
@@ -108,7 +143,9 @@ public sealed class ProgramacionApi(HttpClient http)
             {
                 desde,
                 hasta,
-                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                take,
+                cursor
             })
         };
 
