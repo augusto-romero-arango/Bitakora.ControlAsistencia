@@ -1,0 +1,955 @@
+{
+  "elementos": [
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000001",
+      "horasSemanales": {
+        "horas": 2,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "2:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": true,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000002",
+      "horasSemanales": {
+        "horas": 3,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "3:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000003",
+      "horasSemanales": {
+        "horas": 4,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "4:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000004",
+      "horasSemanales": {
+        "horas": 5,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "5:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000005",
+      "horasSemanales": {
+        "horas": 6,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "6:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000006",
+      "horasSemanales": {
+        "horas": 7,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "7:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000007",
+      "horasSemanales": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "8:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000008",
+      "horasSemanales": {
+        "horas": 9,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "9:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000009",
+      "horasSemanales": {
+        "horas": 10,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "10:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000010",
+      "horasSemanales": {
+        "horas": 11,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "11:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000011",
+      "horasSemanales": {
+        "horas": 12,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "12:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000012",
+      "horasSemanales": {
+        "horas": 13,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "13:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000013",
+      "horasSemanales": {
+        "horas": 14,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "14:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000014",
+      "horasSemanales": {
+        "horas": 15,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "15:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000015",
+      "horasSemanales": {
+        "horas": 16,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "16:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000016",
+      "horasSemanales": {
+        "horas": 17,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "17:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000017",
+      "horasSemanales": {
+        "horas": 18,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "18:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000018",
+      "horasSemanales": {
+        "horas": 19,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "19:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000019",
+      "horasSemanales": {
+        "horas": 20,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "20:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000020",
+      "horasSemanales": {
+        "horas": 21,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "21:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000021",
+      "horasSemanales": {
+        "horas": 22,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "22:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000022",
+      "horasSemanales": {
+        "horas": 23,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "23:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000023",
+      "horasSemanales": {
+        "horas": 24,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "24:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000024",
+      "horasSemanales": {
+        "horas": 25,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "25:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000025",
+      "horasSemanales": {
+        "horas": 26,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "26:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000026",
+      "horasSemanales": {
+        "horas": 27,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "27:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000027",
+      "horasSemanales": {
+        "horas": 28,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "28:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000028",
+      "horasSemanales": {
+        "horas": 29,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "29:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000029",
+      "horasSemanales": {
+        "horas": 30,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "30:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000030",
+      "horasSemanales": {
+        "horas": 31,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "31:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000031",
+      "horasSemanales": {
+        "horas": 32,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "32:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000032",
+      "horasSemanales": {
+        "horas": 33,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "33:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000033",
+      "horasSemanales": {
+        "horas": 34,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "34:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000034",
+      "horasSemanales": {
+        "horas": 35,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "35:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000035",
+      "horasSemanales": {
+        "horas": 36,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "36:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000036",
+      "horasSemanales": {
+        "horas": 37,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "37:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000037",
+      "horasSemanales": {
+        "horas": 38,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "38:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000038",
+      "horasSemanales": {
+        "horas": 39,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "39:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000039",
+      "horasSemanales": {
+        "horas": 40,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "40:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000040",
+      "horasSemanales": {
+        "horas": 41,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "41:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000041",
+      "horasSemanales": {
+        "horas": 42,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "42:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000042",
+      "horasSemanales": {
+        "horas": 43,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "43:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000043",
+      "horasSemanales": {
+        "horas": 44,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "44:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000044",
+      "horasSemanales": {
+        "horas": 45,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "45:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000045",
+      "horasSemanales": {
+        "horas": 46,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "46:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000046",
+      "horasSemanales": {
+        "horas": 47,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "47:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000047",
+      "horasSemanales": {
+        "horas": 48,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "48:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000048",
+      "horasSemanales": {
+        "horas": 49,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "49:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000049",
+      "horasSemanales": {
+        "horas": 50,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "50:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000050",
+      "horasSemanales": {
+        "horas": 51,
+        "minutos": 0
+      },
+      "topeDiario": {
+        "horas": 8,
+        "minutos": 0
+      },
+      "minimoDiario": {
+        "horas": 0,
+        "minutos": 0
+      },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "51:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true
+    }
+  ],
+  "siguienteCursor": "eyJIb3JhcyI6MjQwMCwiVG9wZSI6NDgwLCJJZCI6IngifQ"
+}

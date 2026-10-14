@@ -13,9 +13,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // y su Route son los mismos que tenia sobre GET -- cruzar la frontera de verbo no los cambia
 // (MEF-ADR-0042 seccion 5).
 //
-// A diferencia del filtro homonimo de ListarAsistenciasDiarias, CodigoColaborador y SedeId son
-// OPCIONALES: su ausencia es el panorama de todos los colaboradores y la ausencia de filtro por
-// sede, nunca un 422.
+// A diferencia del filtro homonimo de ListarAsistenciasDiarias, CodigosColaborador (lista, OR
+// dentro del campo) y SedeId son OPCIONALES: su ausencia, null o lista vacia es el panorama de
+// todos los colaboradores y la ausencia de filtro por sede, nunca un 422.
 //
 // SedeId filtra "dias donde AL MENOS un bloque rige en esa sede": la sede va por bloque, nunca por
 // dia, por eso el predicado es Bloques.Any(...) y no un campo de TurnoVigente. Marten traduce esa
@@ -66,7 +66,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             return NoProcesable("El cursor no es valido");
 
         var desde = filtro.DesdeFecha.Value;
-        var codigoColaborador = filtro.CodigoColaborador;
+        var codigos = filtro.CodigosColaborador is { Count: > 0 } c ? c.ToList() : null;
         var sedeId = filtro.SedeId;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
 
@@ -77,8 +77,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         IQueryable<TurnoVigente> query = session.Query<TurnoVigente>()
             .Where(v => v.Fecha >= desde && v.Fecha <= rangoAplicado.HastaAplicado);
 
-        if (!string.IsNullOrEmpty(codigoColaborador))
-            query = query.Where(v => v.CodigoColaborador == codigoColaborador);
+        if (codigos is not null)
+            query = query.Where(v => codigos.Contains(v.CodigoColaborador));
 
         if (!string.IsNullOrEmpty(sedeId))
             query = query.Where(v => v.Bloques.Any(b => b.SedeId == sedeId));

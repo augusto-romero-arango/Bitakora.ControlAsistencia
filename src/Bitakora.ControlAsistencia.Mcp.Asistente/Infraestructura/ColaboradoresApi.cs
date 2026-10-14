@@ -26,7 +26,8 @@ public sealed class ColaboradoresApi(HttpClient http)
         IReadOnlyList<FiltroEtiqueta> etiquetas,
         int? take,
         CancellationToken ct,
-        string? cursor = null)
+        string? cursor = null,
+        Guid? jornadaId = null)
     {
         var request = new HttpRequestMessage(Query, "api/colaboradores/fichas")
         {
@@ -36,7 +37,8 @@ public sealed class ColaboradoresApi(HttpClient http)
                 codigoSede,
                 etiquetas = etiquetas.Count > 0 ? etiquetas : null,
                 take,
-                cursor
+                cursor,
+                jornadaId
             }, options: OpcionesSinNulls)
         };
 
@@ -69,12 +71,27 @@ public sealed class ColaboradoresApi(HttpClient http)
         return http.SendAsync(request, ct);
     }
 
+    public Task<HttpResponseMessage> AsignarJornada(string identificacion, Guid jornadaId, CancellationToken ct) =>
+        http.PutAsJsonAsync($"api/colaboradores/{Uri.EscapeDataString(identificacion)}/jornada", new { jornadaId }, ct);
+
     public Task<HttpResponseMessage> Registrar(RegistroColaboradorSolicitado datos, CancellationToken ct) =>
         http.PostAsJsonAsync("api/colaboradores", datos, ct);
 }
 
 /// <summary>Par categoria:valor SIN normalizar, tal como lo espera el body del QUERY upstream.</summary>
-public sealed record FiltroEtiqueta(string Categoria, string Valor);
+public sealed record FiltroEtiqueta(string Categoria, string Valor)
+{
+    // Un par mal escrito por el asistente (sin ':', o con categoria/valor vacios) se descarta en vez
+    // de viajar al dominio, que lo responderia con 422 y perderia los pares que si eran validos.
+    internal static IReadOnlyList<FiltroEtiqueta> ParsearPares(string? pares) =>
+        string.IsNullOrWhiteSpace(pares)
+            ? []
+            : [.. pares
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
+                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
+                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
+}
 
 /// <summary>
 /// Payload propio de la tool hacia POST /api/colaboradores (MEF-ADR-0039 decision 6). Serializa a

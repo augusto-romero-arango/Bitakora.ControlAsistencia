@@ -38,7 +38,8 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             + "inicio igual a fin es 24 horas). Si algun turno no existe, no crea "
             + "nada y te dice cuales faltan. Los dias que el dominio rechace quedan sin turno y la "
             + "plantilla incompleta; corrigelos con asignar_turno_a_dia. El nombre es unico en el "
-            + "catalogo. Aparece en listar_plantillas_semanales en unos segundos.")]
+            + "catalogo. Con jornada_id (miralo con listar_jornadas) la plantilla nace asociada a esa "
+            + "Jornada y se audita contra sus limites. Aparece en listar_plantillas_semanales en unos segundos.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico de la plantilla semanal en el catalogo.", isRequired: true)]
@@ -52,6 +53,8 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             + """[{"semana":1,"dia":"lunes","turno":"Cocina Manana"},{"semana":1,"dia":"martes","franja":"07:00-17:00"}].""",
             isRequired: true)]
         string dias,
+        [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.")]
+        string? jornadaId,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(nombre))
@@ -123,6 +126,23 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             validadas.Add(new EntradaValidada(semana, diaIso, inline.Nombre, inline));
         }
 
+        Guid? jornadaGuid = null;
+        JornadaDescritaResumen? jornadaResumen = null;
+        if (!string.IsNullOrWhiteSpace(jornadaId))
+        {
+            if (!Guid.TryParse(jornadaId, out var parseado))
+                return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
+
+            var respuestaJornada = await programacion.ObtenerJornada(parseado, ct);
+            if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
+                return Mensajes.JornadaNoExiste;
+            if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
+                return string.Format(Mensajes.RechazoDelDominio, falloJornada);
+
+            jornadaGuid = parseado;
+            jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
+        }
+
         var resolucion = await resolutor.ResolverVariosAsync(validadas.Select(v => v.NombreTurno), ct);
         if (resolucion.FalloDeLectura is { } falloLectura)
             return string.Format(Mensajes.RechazoDelDominio, falloLectura);
@@ -190,7 +210,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
         }
 
         var plantillaId = Guid.CreateVersion7();
-        var respuestaPost = await programacion.CrearPlantillaSemanal(plantillaId, nombre, semanasValor, ct);
+        var respuestaPost = await programacion.CrearPlantillaSemanal(plantillaId, nombre, semanasValor, jornadaGuid, ct);
         if (await respuestaPost.LeerFalloAsync(ct) is { } falloPost)
             return string.Format(Mensajes.RechazoDelDominio, falloPost);
 
@@ -217,7 +237,8 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             diasRechazados.Count > 0 ? diasRechazados : null,
             diasAsignados == DiasPorSemana * semanasValor,
             Mensajes.NotaVisibilidadEventual,
-            turnosInline.Count > 0 ? turnosInline : null));
+            turnosInline.Count > 0 ? turnosInline : null,
+            jornadaResumen));
     }
 
     private static readonly Dictionary<ClaseInline, string> AccionPorClase = new()
@@ -284,7 +305,8 @@ public sealed record PlantillaCreadaResumen(
     IReadOnlyList<DiaRechazado>? DiasRechazados,
     bool Completa,
     string Nota,
-    IReadOnlyList<TurnoInlineResumen>? TurnosInline = null);
+    IReadOnlyList<TurnoInlineResumen>? TurnosInline = null,
+    JornadaDescritaResumen? Jornada = null);
 
 /// <summary>Turno creado/reutilizado/completado por una entrada franja; accion: creo, reutilizo o completo.</summary>
 public sealed record TurnoInlineResumen(string Nombre, string Accion);

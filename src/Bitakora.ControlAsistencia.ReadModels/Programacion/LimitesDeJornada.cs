@@ -11,4 +11,5 @@ public sealed record LimitesDeJornada(
     int TopeDiarioEnMinutos,
     int MinimoDiarioEnMinutos,
     int DiasDescansoPorSemana,
-    string Descripcion);
+    string Descripcion,
+    bool Activa = true);

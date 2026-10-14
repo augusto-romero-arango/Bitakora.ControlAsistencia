@@ -23,6 +23,9 @@ public partial class AsignarJornadaAPlantillaSemanalCommandHandler
         if (jornada is null)
             throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
 
+        if (plantilla.JornadaId != command.JornadaId && !jornada.Activa)
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaDesactivada);
+
         var resultado = plantilla.AsignarJornada(command.JornadaId, jornada.Limites, jornada.Version);
         if (resultado == ResultadoAsignarJornada.PlantillaRetirada)
             throw new ReglaDeNegocioDeclinadaException(Mensajes.PlantillaRetirada);

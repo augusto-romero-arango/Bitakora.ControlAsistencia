@@ -29,7 +29,10 @@
   <data name="RechazoDelDominio" xml:space="preserve">
     <value>El dominio rechazo la consulta: {0}</value>
   </data>
-  <data name="NotaTruncado" xml:space="preserve">
-    <value>Mostrando {0} de {1} colaboradores; refina el filtro.</value>
+  <data name="NotaHayMasColaboradores" xml:space="preserve">
+    <value>Hay mas colaboradores: acota por sede o etiquetas; si no, usa el siguienteCursor.</value>
+  </data>
+  <data name="SinColaboradores" xml:space="preserve">
+    <value>No hay colaboradores vinculados con fecha de referencia {0}{1}.</value>
   </data>
 </root>

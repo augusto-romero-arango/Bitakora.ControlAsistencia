@@ -14,12 +14,15 @@ public partial class AsignarJornadaPredeterminadaCommandHandler(
     {
         await asegurador.AsegurarAsync(ct);
 
-        var existe = await eventStore.ExistsAsync<Jornada>(command.JornadaId.ToString(), ct);
-        if (!existe)
+        var jornada = await eventStore.GetAggregateRootAsync<Jornada>(command.JornadaId.ToString(), ct);
+        if (jornada is null)
             throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
 
         var streamId = PreferenciasProgramacion.ComputarStreamId(tenantContext.TenantId);
         var preferencias = await eventStore.GetAggregateRootAsync<PreferenciasProgramacion>(streamId, ct);
-        preferencias!.AsignarJornadaPredeterminada(command.JornadaId, tenantContext.TenantId);
+        if (preferencias!.JornadaPredeterminada() != command.JornadaId && !jornada.Activa)
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaDesactivada);
+
+        preferencias.AsignarJornadaPredeterminada(command.JornadaId, tenantContext.TenantId);
     }
 }

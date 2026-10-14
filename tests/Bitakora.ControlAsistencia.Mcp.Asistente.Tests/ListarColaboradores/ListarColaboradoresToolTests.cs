@@ -20,7 +20,7 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores.json"));
 
-        await Tool(cliente).Run(null!, null, null, null, null, TestContext.Current.CancellationToken);
+        await Tool(cliente).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
 
         handler.UltimaRequest!.Method.Method.Should().Be("QUERY");
         handler.UltimaRequest.RequestUri!.AbsolutePath.Should().Be("/api/colaboradores/fichas");
@@ -34,13 +34,12 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores.json"));
 
-        await Tool(cliente).Run(null!, null, "SEDE-9", "area:tecnologia,turno:diurno", "2026-07-01",
-            TestContext.Current.CancellationToken);
+        await Tool(cliente).Run(null!, null, "SEDE-9", "area:tecnologia,turno:diurno", "2026-07-01", null, TestContext.Current.CancellationToken);
 
         var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
         body["fechaReferencia"]!.GetValue<string>().Should().Be("2026-07-01");
         body["codigoSede"]!.GetValue<string>().Should().Be("SEDE-9");
-        body["take"]!.GetValue<int>().Should().Be(ListarColaboradoresTool.TakeUpstream);
+        body["take"]!.GetValue<int>().Should().Be(50);
 
         var etiquetas = body["etiquetas"]!.AsArray();
         etiquetas.Should().HaveCount(2);
@@ -55,13 +54,13 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores.json"));
 
-        var resultado = await Tool(cliente).Run(null!, null, null, null, null,
-            TestContext.Current.CancellationToken);
+        var resultado = await Tool(cliente).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
 
         var json = JsonNode.Parse(resultado)!.AsObject();
-        json["total"]!.GetValue<int>().Should().Be(3);
+        json.ContainsKey("total").Should().BeFalse("CA-ADR-0039: sobre sin total");
         json["mostrando"]!.GetValue<int>().Should().Be(3);
-        json.ContainsKey("nota").Should().BeFalse("sin truncado no hay senal");
+        json.ContainsKey("nota").Should().BeFalse("sin cursor no hay senal");
+        json.ContainsKey("siguienteCursor").Should().BeFalse();
 
         var primero = json["colaboradores"]![0]!.AsObject();
         primero["identificacion"]!.GetValue<string>().Should().Be("CC-1098765432");
@@ -82,17 +81,84 @@ public class ListarColaboradoresToolTests
     }
 
     [Fact]
-    public async Task ListarColaboradores_TruncaConSenal_CuandoLaRespuestaTraeMasFilasQueElMaximo()
+    public async Task ListarColaboradores_PideTakeIgualAlTope_CuandoListaElCatalogo()
     {
-        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores-grande.json"));
+        var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores.json"));
 
-        var resultado = await Tool(cliente).Run(null!, null, null, null, null,
+        await Tool(cliente).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
+        body["take"]!.GetValue<int>().Should().Be(50, "tope fijo del catalogo, no tope + 1 (#1057)");
+        body.ContainsKey("cursor").Should().BeFalse("sin cursor recibido se pide la primera pagina");
+        ListarColaboradoresTool.MaximoColaboradores.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_ReenviaElCursorYLaNota_CuandoElBackendTraeSiguienteCursor()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores-con-cursor.json"));
+
+        var resultado = await Tool(cliente).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["mostrando"]!.GetValue<int>().Should().Be(3);
+        json["colaboradores"]!.AsArray().Should().HaveCount(3);
+        json["siguienteCursor"]!.GetValue<string>().Should().Be("eyJJZCI6IkNDLTEwOTg3NjU0MzIifQ");
+        json["nota"]!.GetValue<string>().Should().Be(ListarColaboradoresTool.Mensajes.NotaHayMasColaboradores);
+        json.ContainsKey("total").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_EnviaElCursorTalCualEnElBody_CuandoRecibeCursor()
+    {
+        var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores.json"));
+
+        await Tool(cliente).Run(null!, null, "SEDE-9", "area:tecnologia", "2026-07-01", "abc_-DEF123",
             TestContext.Current.CancellationToken);
 
-        var json = JsonNode.Parse(resultado)!;
-        json["mostrando"]!.GetValue<int>().Should().Be(ListarColaboradoresTool.MaximoColaboradores);
-        json["colaboradores"]!.AsArray().Should().HaveCount(ListarColaboradoresTool.MaximoColaboradores);
-        json["nota"]!.GetValue<string>().Should().Contain("20 de 25");
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
+        body["cursor"]!.GetValue<string>().Should().Be("abc_-DEF123");
+        body["codigoSede"]!.GetValue<string>().Should().Be("SEDE-9");
+        body["fechaReferencia"]!.GetValue<string>().Should().Be("2026-07-01");
+        body["etiquetas"]!.AsArray().Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_IgnoraElCursor_CuandoIdentificacionEstaPresente()
+    {
+        var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "obtener-colaborador.json"));
+
+        var resultado = await Tool(cliente).Run(null!, "CC-1098765432", null, null, null, "abc_-DEF123",
+            TestContext.Current.CancellationToken);
+
+        handler.UltimaRequest!.Method.Should().Be(HttpMethod.Get);
+        handler.UltimaRequest.RequestUri!.AbsolutePath.Should().Be("/api/colaboradores/fichas/CC-1098765432");
+        handler.UltimaRequest.RequestUri.Query.Should().NotContain("cursor");
+        JsonNode.Parse(resultado)!["identificacion"]!.GetValue<string>().Should().Be("CC-1098765432");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_RespondeFraseConElCriterio_CuandoNoHayColaboradores()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores-vacio.json"));
+
+        var resultado = await Tool(cliente).Run(null!, null, "SEDE-9", "area:tecnologia", null, null,
+            TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(
+            "No hay colaboradores vinculados con fecha de referencia 2026-08-30, sede SEDE-9, etiquetas area:tecnologia.",
+            "es una frase con el criterio usado, nunca un sobre vacio");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_RespondeFraseConLaFecha_CuandoNoHayColaboradoresSinFiltros()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores-vacio.json"));
+
+        var resultado = await Tool(cliente).Run(null!, null, null, null, "2026-07-01", null,
+            TestContext.Current.CancellationToken);
+
+        resultado.Should().Be("No hay colaboradores vinculados con fecha de referencia 2026-07-01.");
     }
 
     [Fact]
@@ -100,9 +166,7 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "obtener-colaborador.json"));
 
-        var resultado = await Tool(cliente).Run(
-            null!, "CC-1098765432", "SEDE-9", "area:tecnologia", "2026-07-01",
-            TestContext.Current.CancellationToken);
+        var resultado = await Tool(cliente).Run(null!, "CC-1098765432", "SEDE-9", "area:tecnologia", "2026-07-01", null, TestContext.Current.CancellationToken);
 
         handler.UltimaRequest!.Method.Should().Be(HttpMethod.Get, "los demas filtros no aplican en la ruta puntual");
         handler.UltimaRequest.RequestUri!.AbsolutePath.Should()
@@ -120,8 +184,7 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, _) = ClienteFalso.Con("", HttpStatusCode.NotFound);
 
-        var resultado = await Tool(cliente).Run(
-            null!, "CC-999999", null, null, null, TestContext.Current.CancellationToken);
+        var resultado = await Tool(cliente).Run(null!, "CC-999999", null, null, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be("No existe un colaborador con identificacion 'CC-999999'.");
     }
@@ -133,8 +196,7 @@ public class ListarColaboradoresToolTests
             "El id de la ruta es invalido -- debe tener la forma {Tipo}-{Numero}",
             HttpStatusCode.BadRequest);
 
-        var resultado = await Tool(cliente).Run(
-            null!, "1098765432", null, null, null, TestContext.Current.CancellationToken);
+        var resultado = await Tool(cliente).Run(null!, "1098765432", null, null, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().StartWith("El dominio rechazo la consulta:")
             .And.Contain("{Tipo}-{Numero}", "el asistente necesita saber que forma corregir");
@@ -145,8 +207,7 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ListarColaboradores", "listar-colaboradores.json"));
 
-        await Tool(cliente).Run(null!, "  ", "  ", "area:,  ,sin-separador", null,
-            TestContext.Current.CancellationToken);
+        await Tool(cliente).Run(null!, "  ", "  ", "area:,  ,sin-separador", null, null, TestContext.Current.CancellationToken);
 
         handler.UltimaRequest!.Method.Method.Should().Be("QUERY", "identificacion en blanco no es una ficha puntual");
 
@@ -160,8 +221,7 @@ public class ListarColaboradoresToolTests
     {
         var (cliente, handler) = ClienteFalso.Con("{}");
 
-        var resultado = await Tool(cliente).Run(
-            null!, null, null, null, "31/07/2026", TestContext.Current.CancellationToken);
+        var resultado = await Tool(cliente).Run(null!, null, null, null, "31/07/2026", null, TestContext.Current.CancellationToken);
 
         resultado.Should().Contain("yyyy-MM-dd").And.Contain("31/07/2026");
         handler.UltimaRequest.Should().BeNull("la validacion de formato es previa a la llamada HTTP");
