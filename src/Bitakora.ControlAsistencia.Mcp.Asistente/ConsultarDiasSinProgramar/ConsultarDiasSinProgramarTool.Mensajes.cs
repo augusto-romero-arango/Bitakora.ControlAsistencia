@@ -39,5 +39,7 @@ public partial class ConsultarDiasSinProgramarTool
         public static string CriterioEtiquetas => ResourceManager.GetString(nameof(CriterioEtiquetas))!;
 
         public static string CriterioCodigos => ResourceManager.GetString(nameof(CriterioCodigos))!;
+
+        public static string CriterioTodos => ResourceManager.GetString(nameof(CriterioTodos))!;
     }
 }

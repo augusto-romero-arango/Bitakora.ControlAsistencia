@@ -172,6 +172,30 @@ public class ConsultarDiasSinProgramarToolTests
     }
 
     [Fact]
+    public async Task ConsultarDiasSinProgramar_NombraATodosLosColaboradoresComoCriterio_CuandoNoHayFiltrosNiFichasVigentes()
+    {
+        var (tool, dias, _) = Armar(Leer("dias-sin-programar.json"), """{"elementos":[]}""");
+
+        var resultado = await Ejecutar(tool, fecha: "2026-10-19");
+
+        resultado.Should().Be(string.Format(
+            ConsultarDiasSinProgramarTool.Mensajes.GrupoSinColaboradores,
+            ConsultarDiasSinProgramarTool.Mensajes.CriterioTodos,
+            "19 al 25 de octubre de 2026"));
+        dias.UltimaRequest.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ConsultarDiasSinProgramar_DescribeElPeriodoConAmbosAnios_CuandoLaVentanaCruzaDeAnio()
+    {
+        var (tool, _, _) = Armar(Leer("dias-sin-programar-vacia.json"), Leer("fichas-grupo.json"));
+
+        var resultado = await Ejecutar(tool, fecha: "2026-12-30", semanas: 2);
+
+        resultado.Should().Contain("28 de diciembre de 2026 al 10 de enero de 2027");
+    }
+
+    [Fact]
     public async Task ConsultarDiasSinProgramar_RespondeFraseSinLlamarAControlHoras_CuandoLaInterseccionEsVacia()
     {
         var (tool, dias, _) = Armar(Leer("dias-sin-programar.json"), Leer("fichas-grupo.json"));

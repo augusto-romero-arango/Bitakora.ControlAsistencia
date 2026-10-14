@@ -70,7 +70,8 @@ public partial class ConsultarDiasSinProgramarTool(
 
         var criterio = DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos);
         if (candidatos.Count == 0)
-            return string.Format(Mensajes.GrupoSinColaboradores, criterio, periodo);
+            return string.Format(
+                Mensajes.GrupoSinColaboradores, criterio.Length == 0 ? Mensajes.CriterioTodos : criterio, periodo);
 
         var respuesta = await controlHoras.ListarDiasSinProgramar(
             lunes,

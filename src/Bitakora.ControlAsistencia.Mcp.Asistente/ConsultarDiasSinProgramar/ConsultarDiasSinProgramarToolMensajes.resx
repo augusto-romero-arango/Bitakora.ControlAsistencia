@@ -56,4 +56,7 @@
   <data name="CriterioCodigos" xml:space="preserve">
     <value>codigos {0}</value>
   </data>
+  <data name="CriterioTodos" xml:space="preserve">
+    <value>todos los colaboradores</value>
+  </data>
 </root>
