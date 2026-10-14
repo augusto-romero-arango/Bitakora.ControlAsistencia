@@ -26,8 +26,22 @@ public class ConsultarProgramacionToolTests
         var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
         body["desdeFecha"]!.GetValue<string>().Should().Be("2026-07-01");
         body["hastaFecha"]!.GetValue<string>().Should().Be("2026-07-31");
-        body["codigoColaborador"]!.GetValue<string>().Should().Be("COL-1");
+        body["codigosColaborador"]!.AsArray().Select(c => c!.GetValue<string>()).Should().Equal("COL-1");
+        body.ContainsKey("codigoColaborador").Should().BeFalse("el campo singular ya no existe en el contrato");
         body["sedeId"]!.GetValue<string>().Should().Be("SEDE-9");
+    }
+
+    [Fact]
+    public async Task ConsultarProgramacion_OmiteCodigosColaborador_CuandoNoSeRecibeCodigo()
+    {
+        var (cliente, handler) = ClienteFalso.Con(Fixtures.Leer("ConsultarProgramacion", "turnos-vigentes.json"));
+
+        await Tool(cliente).Run(null!, "2026-07-01", "2026-07-31", null, null,
+            TestContext.Current.CancellationToken);
+
+        var body = JsonNode.Parse(handler.UltimoCuerpoEnviado!)!.AsObject();
+        body["codigosColaborador"].Should().BeNull("sin codigo no se filtra por colaborador");
+        body.ContainsKey("codigoColaborador").Should().BeFalse();
     }
 
     [Fact]
