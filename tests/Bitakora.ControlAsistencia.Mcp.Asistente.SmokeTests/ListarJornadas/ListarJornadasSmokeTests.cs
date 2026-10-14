@@ -8,7 +8,7 @@ public class ListarJornadasSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarJornadas_DevuelveAlMenosUnaJornadaPredeterminada_CuandoSeInvocaSinParametros()
+    public async Task ListarJornadas_DevuelvePaginaConForma_CuandoSeInvocaSinParametros()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -24,6 +24,16 @@ public class ListarJornadasSmokeTests(McpFixture mcp)
         jornadas.Should().OnlyContain(j =>
             !string.IsNullOrWhiteSpace(j.GetProperty("jornada_id").GetString())
             && !string.IsNullOrWhiteSpace(j.GetProperty("descripcion").GetString()));
-        jornadas.Should().Contain(j => j.GetProperty("es_predeterminada").GetBoolean());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarJornadas_ContieneUnaJornadaPredeterminada_CuandoSeRecorreTodoElCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var predeterminada = await SembradoDeJornadas.PredeterminadaActualAsync(mcp, ct);
+
+        predeterminada.GetProperty("es_predeterminada").GetBoolean().Should().BeTrue();
     }
 }
