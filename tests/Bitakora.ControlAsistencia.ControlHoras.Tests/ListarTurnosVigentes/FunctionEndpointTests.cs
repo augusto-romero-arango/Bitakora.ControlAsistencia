@@ -1,8 +1,7 @@
-// Guards del borde HTTP (415/400/422) de la Function QUERY, la unica capa de CA-3 que corre en CI:
-// el smoke test que lo cubre end-to-end depende del deploy y el test de composicion solo verifica
-// wiring.
+// Guards del borde HTTP (415/400/422) de la Function QUERY, la unica capa que corre en CI: el smoke
+// test que los cubre end-to-end depende del deploy y el test de composicion solo verifica wiring.
 //
-// A diferencia del precedente ListarAsistenciasDiarias, CodigoColaborador y SedeId son opcionales:
+// A diferencia del precedente ListarAsistenciasDiarias, CodigosColaborador y SedeId son opcionales:
 // su ausencia no produce ningun 422 propio.
 //
 // El IDocumentStore se pasa null! a proposito: los tres guards deben retornar ANTES de abrir la
