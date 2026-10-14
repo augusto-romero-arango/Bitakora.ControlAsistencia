@@ -11,6 +11,7 @@ public class DesactivarJornadaToolTests
 {
     private const string JornadaTexto = "01a08700-0000-7000-9000-000000000001";
     private static readonly string RutaDesactivar = $"/api/programacion/jornadas/{JornadaTexto}:desactivar";
+    private static readonly string RutaObtener = $"/api/programacion/jornadas/{JornadaTexto}";
     private const string RutaFichas = "/api/colaboradores/fichas";
     private static readonly HttpMethod Query = new("QUERY");
 
@@ -23,9 +24,14 @@ public class DesactivarJornadaToolTests
         string fichasJson,
         HttpStatusCode statusFichas = HttpStatusCode.OK,
         HttpStatusCode statusDesactivar = HttpStatusCode.NoContent,
-        string cuerpoDesactivar = "")
+        string cuerpoDesactivar = "",
+        string jornadaJson = "jornada-no-predeterminada.json",
+        HttpStatusCode statusObtener = HttpStatusCode.OK)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
+        programacion.Responde(
+            HttpMethod.Get, RutaObtener, statusObtener,
+            statusObtener == HttpStatusCode.OK ? Fichas(jornadaJson) : "");
         programacion.Responde(HttpMethod.Post, RutaDesactivar, statusDesactivar, cuerpoDesactivar);
 
         var (clienteColaboradores, colaboradores) = ClienteFalso.ConRutas();
@@ -62,7 +68,7 @@ public class DesactivarJornadaToolTests
 
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 3));
         resultado.Should().Contain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
@@ -75,7 +81,7 @@ public class DesactivarJornadaToolTests
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 3));
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.VariasTerminacionesRegistradas, 2));
         resultado.Should().NotContain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
@@ -88,7 +94,7 @@ public class DesactivarJornadaToolTests
         resultado.Should().Contain(string.Format(DesactivarJornadaTool.Mensajes.JornadaEnUsoVariosColaboradores, 2));
         resultado.Should().NotContain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
         resultado.Should().NotContain(string.Format(DesactivarJornadaTool.Mensajes.VariasTerminacionesRegistradas, 1));
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
@@ -100,7 +106,7 @@ public class DesactivarJornadaToolTests
 
         resultado.Should().Contain(DesactivarJornadaTool.Mensajes.JornadaEnUsoUnColaborador);
         resultado.Should().Contain(DesactivarJornadaTool.Mensajes.UnaTerminacionRegistrada);
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
     [Fact]
@@ -162,6 +168,42 @@ public class DesactivarJornadaToolTests
         var resultado = await Ejecutar(entorno.Tool);
 
         resultado.Should().Be(string.Format(DesactivarJornadaTool.Mensajes.RechazoDelDominio, "503"));
-        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task DesactivarJornada_RespondeJornadaPredeterminadaSinFichasNiPost_CuandoLaJornadaEsLaPredeterminada()
+    {
+        var entorno = CrearEntorno(Fichas("fichas-tres-una-con-terminacion.json"), jornadaJson: "jornada-predeterminada.json");
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Be(DesactivarJornadaTool.Mensajes.JornadaPredeterminada);
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task DesactivarJornada_RespondeJornadaNoExisteSinFichasNiPost_Cuando404DelGet()
+    {
+        var entorno = CrearEntorno(Fichas("fichas-vacias.json"), statusObtener: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Be(string.Format(DesactivarJornadaTool.Mensajes.JornadaNoExiste, JornadaTexto));
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task DesactivarJornada_RespondeElRechazoDelDominioSinFichasNiPost_CuandoLaLecturaDeLaJornadaFalla()
+    {
+        var entorno = CrearEntorno(Fichas("fichas-vacias.json"), statusObtener: HttpStatusCode.InternalServerError);
+
+        var resultado = await Ejecutar(entorno.Tool);
+
+        resultado.Should().Be(string.Format(DesactivarJornadaTool.Mensajes.RechazoDelDominio, "500"));
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+        entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 }

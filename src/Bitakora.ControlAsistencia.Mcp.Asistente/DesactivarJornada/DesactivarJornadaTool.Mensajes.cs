@@ -32,6 +32,13 @@ public partial class DesactivarJornadaTool
         public static string RechazoDelDominio =>
             ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
+        public static string JornadaPredeterminada =>
+            ResourceManager.GetString(nameof(JornadaPredeterminada))!;
+
+        /// <summary>{0}: jornada_id pedido.</summary>
+        public static string JornadaNoExiste =>
+            ResourceManager.GetString(nameof(JornadaNoExiste))!;
+
         public static string ResultadoJornadaDesactivada =>
             ResourceManager.GetString(nameof(ResultadoJornadaDesactivada))!;
     }
