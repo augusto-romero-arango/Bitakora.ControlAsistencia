@@ -18,8 +18,23 @@ public sealed class ControlHorasApi(HttpClient http)
         string? sedeId,
         int? take,
         string? cursor,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/control-horas/turnos-vigentes")
+        {
+            Content = JsonContent.Create(new
+            {
+                desdeFecha = desde,
+                hastaFecha = hasta,
+                codigosColaborador = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                sedeId,
+                take,
+                cursor
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 
     public Task<HttpResponseMessage> ListarAdvertenciasProgramacionSemanal(
         DateOnly fecha,

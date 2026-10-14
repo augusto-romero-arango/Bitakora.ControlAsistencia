@@ -21,13 +21,19 @@ public partial class ConsultarProgramacionTool(
 {
     internal const string NombreTool = "consultar_programacion";
     internal const int MaximoDias = 50;
+    private static readonly System.Text.Json.JsonSerializerOptions OpcionesLectura =
+        new(System.Text.Json.JsonSerializerDefaults.Web);
 
     [Function("ConsultarProgramacion")]
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Consulta que turno rige a cada colaborador en un rango de fechas (la programacion "
-            + "vigente). Filtra opcionalmente por colaborador o por sede. Para un dia puntual usa "
+            + "vigente). Filtra por codigos_colaborador, por etiquetas (pares categoria:valor), por sede "
+            + "(codigo; los colaboradores vinculados a esa sede: que les toca a los de la sede X) o por "
+            + "sede_trabajo (codigo; solo dias con algun bloque en esa sede: que se trabaja en la sede X); "
+            + "los filtros se combinan en AND. Pagina de a 50 dias de un colaborador: si trae "
+            + "siguienteCursor, pasalo como cursor para la pagina siguiente. Para un dia puntual usa "
             + "desde = hasta.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
@@ -47,9 +53,107 @@ public partial class ConsultarProgramacionTool(
         string? cursor,
         CancellationToken ct)
     {
-        _ = (api, grupo, sedes);
-        throw new NotImplementedException();
+        if (!TryParseFecha(desde, out var fechaDesde))
+            return string.Format(Mensajes.FechaInvalida, "desde", desde);
+        if (!TryParseFecha(hasta, out var fechaHasta))
+            return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
+        if (fechaDesde > fechaHasta)
+            return Mensajes.DesdePosteriorAHasta;
+
+        var periodo = $"{Formatear(fechaDesde)} a {Formatear(fechaHasta)}";
+        var codigosPedidos = Separar(codigosColaborador);
+        var sedeNormalizada = Normalizar(sede);
+        var sedeTrabajoNormalizada = Normalizar(sedeTrabajo);
+        var filtrosEtiqueta = FiltroEtiqueta.ParsearPares(etiquetas);
+
+        IReadOnlyList<string>? sujetos = codigosPedidos;
+        if (sedeNormalizada is not null || filtrosEtiqueta.Count > 0)
+        {
+            var resuelto = await grupo.ResolverAsync(fechaDesde, sedeNormalizada, filtrosEtiqueta, ct);
+            if (resuelto.FalloDeLectura is { } falloGrupo)
+                return string.Format(Mensajes.RechazoDelDominio, falloGrupo);
+
+            var codigosGrupo = resuelto.Candidatos.Select(c => c.CodigoColaborador).ToList();
+            sujetos = codigosPedidos is null
+                ? codigosGrupo
+                : [.. codigosGrupo.Where(c => codigosPedidos.Contains(c, StringComparer.OrdinalIgnoreCase))];
+
+            if (sujetos.Count == 0)
+                return string.Format(
+                    Mensajes.GrupoSinColaboradores,
+                    DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos, null),
+                    periodo);
+        }
+
+        string? sedeId = null;
+        if (sedeTrabajoNormalizada is not null)
+        {
+            var resolucion = await sedes.ResolverIdAsync(sedeTrabajoNormalizada, ct);
+            if (resolucion.FalloDeLectura is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucion.NoExiste)
+                return string.Format(Mensajes.SedeTrabajoNoExiste, sedeTrabajoNormalizada);
+            sedeId = resolucion.SedeId;
+        }
+
+        var respuesta = await api.ConsultarTurnosVigentes(
+            fechaDesde, fechaHasta, sujetos, sedeId, MaximoDias, Normalizar(cursor), ct);
+
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var lista = (await respuesta.Content.ReadFromJsonAsync<ListaTurnosVigentes>(OpcionesLectura, ct))!;
+
+        if (lista.Elementos.Count == 0)
+        {
+            var criterio = DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos, sedeTrabajoNormalizada);
+            return string.Format(
+                Mensajes.SinProgramacion,
+                $"{Formatear(lista.Desde)} a {Formatear(lista.Hasta)}",
+                criterio.Length == 0 ? "" : $" ({criterio})");
+        }
+
+        var dias = lista.Elementos
+            .Select(t => new DiaProgramado(
+                t.CodigoColaborador,
+                t.NombreCompleto,
+                t.Fecha,
+                t.NombreTurno,
+                [.. t.Bloques.Select(Compactar)]))
+            .ToList();
+
+        var notas = new[]
+        {
+            lista.RangoRecortado ? Mensajes.NotaRecorte : null,
+            lista.SiguienteCursor is null ? null : Mensajes.NotaMasDias
+        }.Where(n => n is not null).ToList();
+
+        return RespuestaJson.Serializar(new ProgramacionVigente(
+            lista.Desde,
+            lista.Hasta,
+            dias.Count,
+            dias,
+            lista.SiguienteCursor,
+            notas.Count == 0 ? null : string.Join(" ", notas)));
     }
+
+    private static string DescribirCriterio(
+        string? sede, IReadOnlyList<FiltroEtiqueta> etiquetas, IReadOnlyList<string>? codigos, string? sedeTrabajo) =>
+        string.Join("; ", new[]
+        {
+            sede is null ? null : string.Format(Mensajes.CriterioSede, sede),
+            etiquetas.Count == 0 ? null : string.Format(
+                Mensajes.CriterioEtiquetas, string.Join(", ", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))),
+            codigos is null ? null : string.Format(Mensajes.CriterioCodigos, string.Join(", ", codigos)),
+            sedeTrabajo is null ? null : string.Format(Mensajes.CriterioSedeTrabajo, sedeTrabajo)
+        }.Where(p => p is not null));
+
+    private static string Formatear(DateOnly fecha) => fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static IReadOnlyList<string>? Separar(string? valor) =>
+        string.IsNullOrWhiteSpace(valor)
+            ? null
+            : [.. valor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 
     private static string Compactar(BloqueVigente bloque)
     {

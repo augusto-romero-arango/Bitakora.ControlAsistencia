@@ -13,8 +13,17 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
 {
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
-    public Task<ResultadoResolucionSedeId> ResolverIdAsync(string codigo, CancellationToken ct) =>
-        throw new NotImplementedException();
+    public async Task<ResultadoResolucionSedeId> ResolverIdAsync(string codigo, CancellationToken ct)
+    {
+        var respuesta = await sedes.ObtenerFicha(codigo, ct);
+        if (respuesta.StatusCode == HttpStatusCode.NotFound)
+            return new ResultadoResolucionSedeId(null, null, true);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return new ResultadoResolucionSedeId(null, fallo, false);
+
+        var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
+        return new ResultadoResolucionSedeId(ficha.Id, null, false);
+    }
 
     // El boundary del sistema (5xx o cuerpo no JSON) se traduce como fallo de lectura crudo: la
     // tool consumidora decide como formatearlo con su propia .resx RechazoDelDominio (CA-ADR-0030).
