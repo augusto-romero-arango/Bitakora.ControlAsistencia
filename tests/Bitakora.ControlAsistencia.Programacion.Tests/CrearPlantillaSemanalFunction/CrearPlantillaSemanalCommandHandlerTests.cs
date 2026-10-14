@@ -14,9 +14,8 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
 {
     private const string NombrePlantilla = "Semana Cocina";
 
-    // Catalogo vigente que el handler ve (vista CuadroSemanalTurnos). Vacio por defecto: el
-    // camino feliz de #620 no necesita conocer el puerto nuevo. Reasignarlo SIEMPRE antes de
-    // WhenAsync: Handler se construye recien al ejecutar el comando.
+    // Catalogo vigente que el handler ve (vista CuadroSemanalTurnos), vacio por defecto.
+    // Reasignarlo SIEMPRE antes de WhenAsync: Handler se construye recien al ejecutar el comando.
     private FakeLectorNombresPlantillaSemanal _lector = new();
 
     protected override ICommandHandlerAsync<CrearPlantillaSemanal> Handler =>
@@ -75,8 +74,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-4: PlantillaId ya existente Y nombre tambien duplicado -> gana PlantillaYaExiste (el
-    // chequeo de existencia va antes que el de nombre en el orden de declines del handler).
+    // El chequeo de existencia va antes que el de nombre en el orden de declines del handler.
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaPlantillaYaExiste_CuandoPlantillaIdYaExisteYNombreTambienEstaDuplicado()
     {
@@ -93,7 +91,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-3: catalogo vacio (ninguna plantilla vigente) -> el camino feliz de #620 sigue igual.
     [Fact]
     public async Task CrearPlantillaSemanal_EmitePlantillaSemanalCreada_CuandoElCatalogoEstaVacio()
     {
@@ -108,8 +105,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-3: catalogo con otros nombres (ninguno coincide, exacto ni normalizado) -> se crea
-    // normalmente.
     [Fact]
     public async Task CrearPlantillaSemanal_EmitePlantillaSemanalCreada_CuandoNingunNombreDelCatalogoCoincide()
     {
@@ -124,7 +119,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-1: nombre coincide EXACTAMENTE con uno vigente del catalogo -> 409, sin escribir nada.
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
     {
@@ -140,8 +134,6 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
             plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
     }
 
-    // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
-    // vigente -> 409.
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
     {
@@ -158,8 +150,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
             plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
     }
 
-    // CA-2, lado espejo: la normalizacion se aplica tambien al nombre QUE VIENE DEL CATALOGO, no
-    // solo al del comando -- un cuadro guardado con espacios/mayusculas de sobra igual colisiona.
+    // La normalizacion se aplica tambien al nombre QUE VIENE DEL CATALOGO, no solo al del comando.
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoElNombreDelCatalogoDifiereSoloEnMayusculasYEspacios()
     {
@@ -175,8 +166,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
             plantillaExistenteId.ToString(), p => p.Id, plantillaExistenteId.ToString());
     }
 
-    // CA-2: nombre difiere solo en acentos de uno vigente -> se crea normalmente (decision del
-    // experto en #497: normalizar acentos abre falsos positivos, los acentos SON significativos).
+    // Decision del experto: normalizar acentos abre falsos positivos, los acentos SON significativos.
     [Fact]
     public async Task CrearPlantillaSemanal_EmitePlantillaSemanalCreada_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
     {
@@ -192,8 +182,7 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         And<PlantillaSemanalTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
-    // CA-4: nombre duplicado Y Semanas invalido (0, fuera de rango) -> gana NombreDuplicado: el
-    // chequeo de nombre corre antes que el factory de PlantillaSemanalCreada.
+    // El chequeo de nombre corre antes que el factory de PlantillaSemanalCreada.
     [Fact]
     public async Task CrearPlantillaSemanal_LanzaNombreDuplicado_CuandoNombreEstaDuplicadoYSemanasEsInvalido()
     {
@@ -274,5 +263,25 @@ public class CrearPlantillaSemanalCommandHandlerTests : CommandHandlerAsyncTest<
         Then(PlantillaSemanalCreada.Crear(GuidAggregateId, NombrePlantilla, 2),
             AdvertenciasEsperadasPlantilla.SinJornada(GuidAggregateId));
         And<PlantillaSemanalTurnos, Guid?>(p => p.JornadaId, null);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_LanzaReglaDeNegocioDeclinadaException_CuandoLaJornadaEstaDesactivada()
+    {
+        var comando = new CrearPlantillaSemanal(GuidAggregateId, NombrePlantilla, 2, JornadaId);
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)), new JornadaDesactivada(JornadaId));
+
+        var act = async () => await WhenAsync(comando);
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada}*");
+        Then(GuidAggregateId.ToString());
+        And<Jornada, bool>(JornadaId.ToString(), j => j.Activa, false);
+    }
+
+    [Fact]
+    public void Mensajes_JornadaDesactivadaTieneTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        CrearPlantillaSemanalCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
     }
 }
