@@ -18,7 +18,6 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
 {
     internal const string NombreTool = "listar_colaboradores";
     internal const int MaximoColaboradores = 50;
-    internal const int TakeUpstream = 200;
     private const string FormatoFecha = "yyyy-MM-dd";
     private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
 
@@ -65,21 +64,41 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         if (error is not null)
             return error;
 
+        var sedeFiltro = Normalizar(sede);
+        var filtros = ParsearEtiquetas(etiquetas);
+
         var respuesta = await api.ListarFichas(
-            fecha, Normalizar(sede), ParsearEtiquetas(etiquetas), TakeUpstream, ct);
+            fecha, sedeFiltro, filtros, MaximoColaboradores, ct, Normalizar(cursor));
 
         if (await TraducirRechazo(respuesta, ct) is { } rechazo)
             return rechazo;
 
         respuesta.EnsureSuccessStatusCode();
 
-        var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaColaborador>>(ct))?.Elementos
-            ?? [];
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaColaborador>>(ct);
+        var fichas = sobre?.Elementos ?? [];
 
-        var visibles = fichas.Take(MaximoColaboradores).Select(Remodelar).ToList();
+        if (fichas.Count == 0)
+            return string.Format(
+                Mensajes.SinColaboradores,
+                fecha.ToString(FormatoFecha, CultureInfo.InvariantCulture),
+                DescribirCriterio(sedeFiltro, filtros));
 
-        return RespuestaJson.Serializar(new CatalogoDeColaboradores(visibles.Count, visibles, null, null));
+        var visibles = fichas.Select(Remodelar).ToList();
+        var siguienteCursor = sobre?.SiguienteCursor;
+
+        return RespuestaJson.Serializar(new CatalogoDeColaboradores(
+            visibles.Count,
+            visibles,
+            siguienteCursor,
+            siguienteCursor is null ? null : Mensajes.NotaHayMasColaboradores));
     }
+
+    private static string DescribirCriterio(string? sede, IReadOnlyList<FiltroEtiqueta> etiquetas) =>
+        (sede is null ? "" : $", sede {sede}")
+        + (etiquetas.Count == 0
+            ? ""
+            : $", etiquetas {string.Join(",", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))}");
 
     private async Task<string> ConsultarPuntual(string identificacion, CancellationToken ct)
     {
