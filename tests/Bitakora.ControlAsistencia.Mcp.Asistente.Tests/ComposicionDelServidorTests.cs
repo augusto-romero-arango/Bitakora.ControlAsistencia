@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasTreintaYCincoTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasTreintaYSieteTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -46,7 +46,8 @@ public class ComposicionDelServidorTests
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
-                "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada"
+                "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
+                "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal"
             ]);
     }
 
@@ -177,6 +178,10 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("quitar_turno_de_dia", "Deja sin turno un dia de una plantilla semanal",
             "\"readOnlyHint\": false, \"destructiveHint\": true"),
+        ("asignar_jornada_a_plantilla_semanal", "Asocia una Jornada a una plantilla semanal",
+            "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
+        ("quitar_jornada_de_plantilla_semanal", "Quita la Jornada de una plantilla semanal",
+            "\"readOnlyHint\": false, \"destructiveHint\": true, \"idempotentHint\": true"),
         ("consultar_programacion", "Consulta que turno rige a cada colaborador en un rango de fechas",
             "\"readOnlyHint\": true"),
         ("consultar_ausencias", "Consulta quien falta en un periodo: por colaborador, sus ausencias",
@@ -304,7 +309,27 @@ public class ComposicionDelServidorTests
     [Fact]
     public void CrearPlantillaSemanal_DeclaraNombreYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("crear_plantilla_semanal").Should().BeEquivalentTo(
-            [("nombre", true), ("semanas", false), ("dias", true)]);
+            [("nombre", true), ("semanas", false), ("dias", true), ("jornada_id", false)]);
+
+    [Fact]
+    public void CrearPlantillaSemanal_DeclaraJornadaIdOpcionalDeTipoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("crear_plantilla_semanal")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "jornada_id")
+            .ParameterType.Should().Be(typeof(string));
+
+    [Fact]
+    public void AsignarJornadaAPlantillaSemanal_DeclaraPlantillaYJornadaIdObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("asignar_jornada_a_plantilla_semanal").Should().BeEquivalentTo(
+            [("plantilla", true), ("jornada_id", true)]);
+        ParametrosDeTool("asignar_jornada_a_plantilla_semanal")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "jornada_id")
+            .ParameterType.Should().Be(typeof(string));
+    }
+
+    [Fact]
+    public void QuitarJornadaDePlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_jornada_de_plantilla_semanal").Should().BeEquivalentTo([("plantilla", true)]);
 
     [Fact]
     public void RetirarPlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>

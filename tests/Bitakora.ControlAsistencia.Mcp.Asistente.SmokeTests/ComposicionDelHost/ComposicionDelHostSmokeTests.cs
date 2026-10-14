@@ -17,7 +17,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "solicitar_programacion_turno",
         "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo",
         "programar_ausencia", "cancelar_ausencia",
-        "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada"
+        "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
+        "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -61,12 +62,14 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["crear_jornada"] = ["horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
         ["modificar_limites_jornada"] =
             ["jornada_id", "horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
-        ["asignar_jornada_predeterminada"] = ["jornada_id"]
+        ["asignar_jornada_predeterminada"] = ["jornada_id"],
+        ["asignar_jornada_a_plantilla_semanal"] = ["plantilla", "jornada_id"],
+        ["quitar_jornada_de_plantilla_semanal"] = ["plantilla"]
     };
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasTreintaYCincoTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasTreintaYSieteTools_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
@@ -113,7 +116,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
                 or "aplicar_plantilla_semanal_por_grupo"
                 or "programar_ausencia" or "cancelar_ausencia"
-                or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada";
+                or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
+                or "asignar_jornada_a_plantilla_semanal" or "quitar_jornada_de_plantilla_semanal";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }
