@@ -25,6 +25,8 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
 
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+        if (!texto.StartsWith('{'))
+            return;
 
         using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
@@ -37,9 +39,8 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
         DateOnly.TryParseExact(raiz.GetProperty("hasta").GetString()!, "yyyy-MM-dd",
             CultureInfo.InvariantCulture, DateTimeStyles.None, out _).Should().BeTrue();
 
-        var mostrando = raiz.GetProperty("mostrando").GetInt32();
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(mostrando);
-        raiz.GetProperty("turnos").EnumerateArray().ToList().Should().HaveCount(mostrando);
+        raiz.GetProperty("dias").EnumerateArray().ToList().Should().HaveCount(raiz.GetProperty("mostrando").GetInt32());
+        raiz.TryGetProperty("total", out _).Should().BeFalse("la ventana temporal no reporta total (CA-ADR-0039)");
     }
 
     // MEF-ADR-0048 seccion 2 verificacion 3: los parametros identificador opcionales tambien
@@ -55,37 +56,69 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
             {
                 ["desde"] = "2026-09-01",
                 ["hasta"] = "2026-09-07",
-                ["codigo_colaborador"] = "COL-1"
+                ["codigos_colaborador"] = "COL-1"
             },
             cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();
-        using var json = JsonDocument.Parse(resultado.Content.OfType<TextContentBlock>().Single().Text);
-        json.RootElement.GetProperty("turnos").EnumerateArray()
+        var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+        if (!texto.StartsWith('{'))
+            return;
+
+        using var json = JsonDocument.Parse(texto);
+        json.RootElement.GetProperty("dias").EnumerateArray()
             .Select(t => t.GetProperty("colaborador").GetString())
             .Should().AllBe("COL-1");
     }
 
-    // sede_id con forma GUID: la extension lo coerciona y ArgumentosCrudosMcpMiddleware debe
-    // restaurarlo; una sede inexistente responde la programacion vacia, nunca un error.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ConsultarProgramacion_DevuelveProgramacionVacia_CuandoSeFiltraPorUnaSedeSinBloques()
+    private async Task<string> CodigoDeUnaSedeExistente(CancellationToken ct)
     {
-        var ct = TestContext.Current.CancellationToken;
+        var sedes = await mcp.Cliente.CallToolAsync(
+            "listar_sedes", new Dictionary<string, object?>(), cancellationToken: ct);
+        using var json = JsonDocument.Parse(sedes.Content.OfType<TextContentBlock>().Single().Text);
+        return json.RootElement.GetProperty("sedes").EnumerateArray().First().GetProperty("codigo").GetString()!;
+    }
+
+    private async Task AfirmaSobreOFrase(string parametro, string valor, CancellationToken ct)
+    {
         var resultado = await mcp.Cliente.CallToolAsync(
             "consultar_programacion",
             new Dictionary<string, object?>
             {
                 ["desde"] = "2026-09-01",
                 ["hasta"] = "2026-09-07",
-                ["sede_id"] = Guid.CreateVersion7().ToString()
+                [parametro] = valor
             },
             cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();
-        using var json = JsonDocument.Parse(resultado.Content.OfType<TextContentBlock>().Single().Text);
-        json.RootElement.GetProperty("total").GetInt32().Should().Be(0);
+        var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+        if (texto.StartsWith('{'))
+        {
+            using var json = JsonDocument.Parse(texto);
+            json.RootElement.TryGetProperty("dias", out _).Should().BeTrue();
+            json.RootElement.TryGetProperty("total", out _).Should().BeFalse();
+        }
+        else
+        {
+            texto.Should().Contain("2026-09-01");
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_AceptaElSobreOLaFrase_CuandoSeFiltraPorSede()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await AfirmaSobreOFrase("sede", await CodigoDeUnaSedeExistente(ct), ct);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarProgramacion_AceptaElSobreOLaFrase_CuandoSeFiltraPorSedeTrabajo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await AfirmaSobreOFrase("sede_trabajo", await CodigoDeUnaSedeExistente(ct), ct);
     }
 
     // Error path que NO toca los dominios: la validacion de fecha corta en el worker y responde

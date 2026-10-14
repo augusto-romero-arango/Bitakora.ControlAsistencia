@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
@@ -15,7 +16,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarProgramacion;
 // la forma canonica y traen la sede); las fechas invalidas y el rango invertido se responden como
 // mensaje sin llamar al dominio; el 422 upstream (rango que el propio dominio rechaza) se traduce
 // pasando su mensaje.
-public partial class ConsultarProgramacionTool(ControlHorasApi api)
+public partial class ConsultarProgramacionTool(
+    ControlHorasApi api, ResolutorCandidatosPorGrupo grupo, ResolutorSedePorCodigo sedes)
 {
     internal const string NombreTool = "consultar_programacion";
     internal const int MaximoDias = 50;
@@ -33,64 +35,20 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
         string desde,
         [McpToolProperty("hasta", "Fecha final del rango (inclusive), formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty(
-            "codigo_colaborador",
-            "Codigo del colaborador para ver solo su programacion; omitelo para el panorama de todos.")]
-        string? codigoColaborador,
-        [McpToolProperty(
-            "sede_id",
-            "Id de la sede para ver solo los dias con al menos un bloque en esa sede.")]
-        string? sedeId,
+        [McpToolProperty("codigos_colaborador", "Codigos de colaborador separados por coma.")]
+        string? codigosColaborador,
+        [McpToolProperty("sede", "Codigo de la sede para ver a sus colaboradores.")]
+        string? sede,
+        [McpToolProperty("etiquetas", "Pares categoria:valor separados por coma.")]
+        string? etiquetas,
+        [McpToolProperty("sede_trabajo", "Codigo de la sede donde se trabaja.")]
+        string? sedeTrabajo,
+        [McpToolProperty("cursor", "El siguienteCursor de la respuesta anterior.")]
+        string? cursor,
         CancellationToken ct)
     {
-        if (!TryParseFecha(desde, out var desdeFecha))
-            return string.Format(Mensajes.FechaInvalida, "desde", desde);
-
-        if (!TryParseFecha(hasta, out var hastaFecha))
-            return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
-
-        if (desdeFecha > hastaFecha)
-            return Mensajes.DesdePosteriorAHasta;
-
-        var respuesta = await api.ConsultarTurnosVigentes(
-            desdeFecha, hastaFecha, Normalizar(codigoColaborador), Normalizar(sedeId), ct);
-
-        if (respuesta.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest)
-            return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
-
-        respuesta.EnsureSuccessStatusCode();
-
-        var lista = (await respuesta.Content.ReadFromJsonAsync<ListaTurnosVigentes>(ct))!;
-
-        var visibles = lista.Elementos.Take(MaximoDias)
-            .Select(t => new DiaProgramado(
-                t.CodigoColaborador,
-                t.NombreCompleto,
-                t.Fecha,
-                t.NombreTurno.Trim(),
-                [.. t.Bloques.Select(Compactar)]))
-            .ToList();
-
-        return RespuestaJson.Serializar(new ProgramacionVigente(
-            lista.Desde,
-            lista.Hasta,
-            ComponerNota(lista, visibles.Count),
-            lista.Elementos.Count,
-            visibles.Count,
-            visibles));
-    }
-
-    private static string? ComponerNota(ListaTurnosVigentes lista, int visibles)
-    {
-        var partes = new List<string>();
-
-        if (lista.RangoRecortado)
-            partes.Add(Mensajes.NotaRecorte);
-
-        if (lista.Elementos.Count > visibles)
-            partes.Add(string.Format(Mensajes.NotaTruncado, visibles, lista.Elementos.Count));
-
-        return partes.Count > 0 ? string.Join(" ", partes) : null;
+        _ = (api, grupo, sedes);
+        throw new NotImplementedException();
     }
 
     private static string Compactar(BloqueVigente bloque)
@@ -124,17 +82,16 @@ public partial class ConsultarProgramacionTool(ControlHorasApi api)
 }
 
 /// <summary>
-/// Contrato de respuesta de consultar_programacion hacia el asistente (remodelado).
-/// Desde/Hasta son los aplicados por el dominio, que pueden diferir de los pedidos si hubo recorte
-/// (la Nota lo senala).
+/// Contrato de respuesta de consultar_programacion hacia el asistente (ventana temporal, CA-ADR-0039).
+/// Desde/Hasta son los aplicados por el dominio. Sin total.
 /// </summary>
 public sealed record ProgramacionVigente(
     DateOnly Desde,
     DateOnly Hasta,
-    string? Nota,
-    int Total,
     int Mostrando,
-    IReadOnlyList<DiaProgramado> Turnos);
+    IReadOnlyList<DiaProgramado> Dias,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>Un dia de la programacion de un colaborador, con sus bloques ya compactados.</summary>
 public sealed record DiaProgramado(

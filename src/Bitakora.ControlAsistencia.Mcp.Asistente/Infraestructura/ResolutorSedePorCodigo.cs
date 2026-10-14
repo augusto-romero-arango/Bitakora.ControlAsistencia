@@ -13,6 +13,9 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
 {
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
+    public Task<ResultadoResolucionSedeId> ResolverIdAsync(string codigo, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     // El boundary del sistema (5xx o cuerpo no JSON) se traduce como fallo de lectura crudo: la
     // tool consumidora decide como formatearlo con su propia .resx RechazoDelDominio (CA-ADR-0030).
     public async Task<ResultadoResolucionSede> ResolverAsync(string codigo, CancellationToken ct)
@@ -31,6 +34,12 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
             : new ResultadoResolucionSede(null, null, MotivoSedeNoResuelta.Inactiva);
     }
 }
+
+/// <summary>
+/// Resultado de resolver el SedeId (stream key) de una sede por codigo, sin exigir que este activa:
+/// NoExiste o FalloDeLectura o SedeId.
+/// </summary>
+public sealed record ResultadoResolucionSedeId(string? SedeId, string? FalloDeLectura, bool NoExiste);
 
 /// <summary>
 /// Resultado de resolver una sede por codigo: exactamente uno de Sede/FalloDeLectura/Motivo viene
