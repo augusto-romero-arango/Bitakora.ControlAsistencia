@@ -52,7 +52,7 @@ public partial class ConsultarAdvertenciasProgramacionTool(
 
         var codigosPedidos = Separar(codigosColaborador);
         var sedeNormalizada = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
-        var filtrosEtiqueta = ParsearEtiquetas(etiquetas);
+        var filtrosEtiqueta = FiltroEtiqueta.ParsearPares(etiquetas);
 
         IReadOnlyList<string>? sujetos = codigosPedidos;
         if (sedeNormalizada is not null || filtrosEtiqueta.Count > 0)
@@ -140,15 +140,6 @@ public partial class ConsultarAdvertenciasProgramacionTool(
         string.IsNullOrWhiteSpace(valor)
             ? null
             : [.. valor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
-
-    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
-        string.IsNullOrWhiteSpace(etiquetas)
-            ? []
-            : [.. etiquetas
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
-                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
-                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 }
 
 public sealed record AdvertenciasDeLaSemana(

@@ -52,7 +52,7 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
 
         var codigosPedidos = SepararCodigos(codigosColaborador);
         var sedeNormalizada = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
-        var filtrosEtiqueta = ParsearEtiquetas(etiquetas);
+        var filtrosEtiqueta = FiltroEtiqueta.ParsearPares(etiquetas);
         var criterio = DescribirCriterio(sedeNormalizada, filtrosEtiqueta, codigosPedidos);
 
         IReadOnlyList<string>? sujetos = codigosPedidos;
@@ -69,7 +69,7 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
 
             if (sujetos.Count == 0)
                 return string.Format(
-                    Mensajes.GrupoSinColaboradores, criterio, $"{Formatear(desdeFecha)} y {Formatear(hastaFecha)}");
+                    Mensajes.GrupoSinColaboradores, criterio, Formatear(desdeFecha), Formatear(hastaFecha));
         }
 
         var respuesta = await api.ListarAusenciasDelEquipo(
@@ -125,15 +125,6 @@ public partial class ConsultarAusenciasTool(ProgramacionApi api, ResolutorCandid
                 Mensajes.CriterioEtiquetas, string.Join(", ", etiquetas.Select(e => $"{e.Categoria}:{e.Valor}"))),
             codigos is null ? null : string.Format(Mensajes.CriterioCodigos, string.Join(", ", codigos))
         }.Where(p => p is not null));
-
-    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
-        string.IsNullOrWhiteSpace(etiquetas)
-            ? []
-            : [.. etiquetas
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
-                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
-                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 
     private static string Compactar(TramoAplicado tramo) =>
         tramo.Desde == tramo.Hasta

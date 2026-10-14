@@ -33,7 +33,7 @@ public partial class ConsultarAusenciasTool
         public static string NotaMasColaboradores =>
             ResourceManager.GetString(nameof(NotaMasColaboradores))!;
 
-        /// <summary>{0}: criterio, {1}: periodo.</summary>
+        /// <summary>{0}: criterio, {1}: desde pedido, {2}: hasta pedido.</summary>
         public static string GrupoSinColaboradores =>
             ResourceManager.GetString(nameof(GrupoSinColaboradores))!;
 

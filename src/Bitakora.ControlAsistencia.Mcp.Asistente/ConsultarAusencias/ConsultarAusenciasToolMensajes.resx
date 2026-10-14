@@ -39,7 +39,7 @@
     <value>Puede haber mas colaboradores con ausencias. Para acotar usa sede, etiquetas o codigos_colaborador; para ver los siguientes, repite con cursor = {0}</value>
   </data>
   <data name="GrupoSinColaboradores" xml:space="preserve">
-    <value>No hay colaboradores vinculados vigentes que cumplan el criterio ({0}) entre {1}.</value>
+    <value>No hay colaboradores vinculados vigentes que cumplan el criterio ({0}) entre {1} y {2}.</value>
   </data>
   <data name="CriterioSede" xml:space="preserve">
     <value>sede {0}</value>

@@ -124,8 +124,8 @@ public class ConsultarAusenciasToolTests
         var resultado = await Tool(cliente).Run(null!, "2026-10-12", "2026-10-18", null, null, null, null,
             TestContext.Current.CancellationToken);
 
-        resultado.Should().NotStartWith("{");
-        resultado.Should().Contain("2026-10-12").And.Contain("2026-10-18");
+        resultado.Should().Be(string.Format(
+            ConsultarAusenciasTool.Mensajes.NadieFalta, "2026-10-12", "2026-10-18", ""));
     }
 
     [Fact]
