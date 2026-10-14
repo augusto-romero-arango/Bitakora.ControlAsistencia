@@ -71,7 +71,7 @@ public partial class ConsultarAdvertenciasProgramacionTool(
         }
 
         var respuesta = await controlHoras.ListarAdvertenciasProgramacionSemanal(
-            lunes, sujetos, MaximoColaboradores + 1, string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
+            lunes, sujetos, MaximoColaboradores, string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
 
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
@@ -84,17 +84,15 @@ public partial class ConsultarAdvertenciasProgramacionTool(
             return string.Format(Mensajes.NadieTieneAdvertencias, semana, criterio.Length == 0 ? "" : $" ({criterio})");
         }
 
-        var hayMas = lista.Elementos.Count > MaximoColaboradores;
-        var visibles = lista.Elementos.Take(MaximoColaboradores).Select(Remodelar).ToList();
-        var cursorSiguiente = hayMas ? lista.SiguienteCursor : null;
+        var visibles = lista.Elementos.Select(Remodelar).ToList();
 
         return RespuestaJson.Serializar(new AdvertenciasDeLaSemana(
             Formatear(lista.Desde),
             Formatear(lista.Hasta),
             visibles.Count,
             visibles,
-            cursorSiguiente,
-            cursorSiguiente is null ? null : string.Format(Mensajes.NotaMasColaboradores, cursorSiguiente)));
+            lista.SiguienteCursor,
+            lista.SiguienteCursor is null ? null : string.Format(Mensajes.NotaMasColaboradores, lista.SiguienteCursor)));
     }
 
     private static ColaboradorConAdvertencias Remodelar(ElementoAdvertenciasSemana e) =>
