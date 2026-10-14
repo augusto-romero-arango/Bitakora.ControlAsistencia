@@ -26,13 +26,13 @@ public partial class ListarJornadasTool(ProgramacionApi api)
         string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarJornadas(MaximoJornadas + 1, cursor, ct);
+        var respuesta = await api.ListarJornadas(MaximoJornadas, cursor, ct);
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
         var sobre = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<JornadaDelCatalogo>>(ct))!;
-        var visibles = sobre.Elementos.Take(MaximoJornadas).Select(j => j.Describir()).ToList();
-        var hayMas = sobre.Elementos.Count > MaximoJornadas || sobre.SiguienteCursor is not null;
+        var visibles = sobre.Elementos.Select(j => j.Describir()).ToList();
+        var hayMas = sobre.SiguienteCursor is not null;
 
         return RespuestaJson.Serializar(new CatalogoDeJornadas(
             visibles.Count,
