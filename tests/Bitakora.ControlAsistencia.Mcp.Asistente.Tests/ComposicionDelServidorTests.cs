@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasCuarentaTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasCuarentaYUnaTools_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -38,7 +38,7 @@ public class ComposicionDelServidorTests
             [
                 "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
                 "buscar_colaboradores", "registrar_sede", "registrar_colaborador",
-                "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
+                "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
                 "listar_plantillas_semanales", "obtener_plantilla_semanal", "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
@@ -149,6 +149,8 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("registrar_colaborador", "Pone a una persona bajo control de asistencia",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("buscar_turnos", "Busca turnos del catalogo para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
         ("listar_turnos", "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno.",
             "\"readOnlyHint\": true"),
         ("obtener_turno", "Obtiene el detalle de un turno del catalogo: sus franjas con horario, descansos, ",
@@ -258,6 +260,11 @@ public class ComposicionDelServidorTests
                 ("segundo_nombre", false), ("primer_apellido", true), ("segundo_apellido", false),
                 ("codigo_colaborador", true), ("fecha_inicio", true), ("codigo_sede", false)
             ]);
+
+    [Fact]
+    public void BuscarTurnos_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("buscar_turnos").Should().BeEquivalentTo(
+            [("nombre", false), ("horario", false), ("sede", false)]);
 
     [Fact]
     public void ListarTurnos_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>

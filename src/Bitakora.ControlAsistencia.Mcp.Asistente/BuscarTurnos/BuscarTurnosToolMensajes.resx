@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="FaltaCriterio" xml:space="preserve">
+    <value>Indica al menos un criterio para buscar: nombre, horario (HH:mm o HH:mm-HH:mm) o sede.</value>
+  </data>
+  <data name="HorarioMalFormado" xml:space="preserve">
+    <value>El horario '{0}' no tiene un formato valido; usa HH:mm (ej. 06:00) o HH:mm-HH:mm (ej. 06:00-14:00).</value>
+  </data>
+  <data name="SinCoincidencias" xml:space="preserve">
+    <value>No hay turnos que coincidan con: {0}.</value>
+  </data>
+  <data name="NotaTruncado" xml:space="preserve">
+    <value>Hay mas coincidencias; acota el criterio o pregunta al usuario.</value>
+  </data>
+  <data name="CoincidePorNombre" xml:space="preserve">
+    <value>nombre: {0}</value>
+  </data>
+  <data name="CoincidePorHorarioExacto" xml:space="preserve">
+    <value>horario exacto {0}</value>
+  </data>
+  <data name="CoincidePorHorarioCercano" xml:space="preserve">
+    <value>horario cercano {0}</value>
+  </data>
+  <data name="CoincidePorHorarioSeCruza" xml:space="preserve">
+    <value>horario se cruza {0}</value>
+  </data>
+  <data name="CoincidePorSede" xml:space="preserve">
+    <value>sede: {0}</value>
+  </data>
+</root>
