@@ -24,11 +24,20 @@ public partial class Jornada : AggregateRoot
 
     public void Apply(JornadaDesactivada evento) => _activa = false;
 
-    public void Apply(JornadaActivada evento) => throw new NotImplementedException();
+    public void Apply(JornadaActivada evento) => _activa = true;
 
     internal bool Activa => _activa;
 
-    internal ResultadoActivarJornada Activar() => throw new NotImplementedException();
+    internal ResultadoActivarJornada Activar()
+    {
+        if (_activa)
+            return ResultadoActivarJornada.YaActiva;
+
+        var evento = new JornadaActivada(_jornadaId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoActivarJornada.Activada;
+    }
 
     internal ResultadoDesactivarJornada Desactivar()
     {
