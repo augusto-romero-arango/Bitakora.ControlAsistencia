@@ -9,6 +9,8 @@ public partial class BuscarPlantillasSemanalesTool(ProgramacionApi api)
 {
     internal const string NombreTool = "buscar_plantillas_semanales";
     internal const int MaximoPlantillas = 20;
+    private const int MinimoSemanas = 1;
+    private const int MaximoSemanas = 6;
     private const string EstadoIncompleta = "incompleta";
     private const string EstadoConAdvertencias = "con_advertencias";
 
@@ -44,13 +46,17 @@ public partial class BuscarPlantillasSemanalesTool(ProgramacionApi api)
         if (nombrePedido is null && turnoPedido is null && semanasPedidas is null && estadoPedido is null)
             return Mensajes.FaltaCriterio;
 
-        var numeroSemanas = 0;
-        if (semanasPedidas is not null
-            && !(int.TryParse(semanasPedidas, out numeroSemanas) && numeroSemanas is >= 1 and <= 6))
-            return string.Format(Mensajes.SemanasInvalidas, semanasPedidas);
+        int? numeroSemanas = null;
+        if (semanasPedidas is not null)
+        {
+            if (!int.TryParse(semanasPedidas, out var valor) || valor is < MinimoSemanas or > MaximoSemanas)
+                return string.Format(Mensajes.SemanasInvalidas, semanasPedidas);
+
+            numeroSemanas = valor;
+        }
 
         var estadoNormalizado = estadoPedido?.ToLowerInvariant();
-        if (estadoNormalizado is not null && estadoNormalizado is not (EstadoIncompleta or EstadoConAdvertencias))
+        if (estadoNormalizado is not (null or EstadoIncompleta or EstadoConAdvertencias))
             return string.Format(Mensajes.EstadoDesconocido, estadoPedido);
 
         var respuesta = await api.ListarPlantillasSemanales(ct);
@@ -59,7 +65,7 @@ public partial class BuscarPlantillasSemanalesTool(ProgramacionApi api)
         var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(ct))?.Elementos ?? [];
 
         var candidatas = catalogo
-            .Select(p => Evaluar(p, nombrePedido, turnoPedido, semanasPedidas is null ? null : numeroSemanas, estadoNormalizado))
+            .Select(p => Evaluar(p, nombrePedido, turnoPedido, numeroSemanas, estadoNormalizado))
             .OfType<Candidata>()
             .OrderByDescending(c => c.PalabrasNombre)
             .ThenBy(c => c.CalidadNombre)

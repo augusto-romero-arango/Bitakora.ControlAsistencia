@@ -60,6 +60,18 @@ public class BuscarPlantillasSemanalesToolTests
     }
 
     [Fact]
+    public async Task BuscarPlantillasSemanales_OrdenaPorPalabrasYCalidadDelTurno_CuandoElNombreNoSePide()
+    {
+        static string ConTurno(string nombre, string turno) =>
+            $$$"""{"id":"id-{{{nombre}}}","nombre":"{{{nombre}}}","semanas":1,"completa":true,"dias":[{"semana":1,"dia":1,"turno":{"id":"t","nombre":"{{{turno}}}","completo":true,"retirado":false}}]}""";
+        var json = $$"""{"elementos":[{{ConTurno("Alfa", "Aseo Manana")}},{{ConTurno("Beta", "Aseos Tarde")}},{{ConTurno("Zeta", "Aseo Tarde")}}]}""";
+
+        var (texto, _) = await EjecutarTexto(json, turno: "aseo tarde");
+
+        Nombres(Parsear(texto)).Should().Equal("Zeta", "Beta", "Alfa");
+    }
+
+    [Fact]
     public async Task BuscarPlantillasSemanales_ReportaLaPrimeraAparicionDelTurno_CuandoElTurnoSeRepite()
     {
         var (texto, _) = await EjecutarTexto(Catalogo, turno: "vigilancia diurno");

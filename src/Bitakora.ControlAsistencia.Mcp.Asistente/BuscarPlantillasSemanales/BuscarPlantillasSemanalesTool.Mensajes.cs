@@ -39,19 +39,5 @@ public partial class BuscarPlantillasSemanalesTool
         public static string CriterioSemanas => ResourceManager.GetString(nameof(CriterioSemanas))!;
 
         public static string CriterioEstado => ResourceManager.GetString(nameof(CriterioEstado))!;
-
-        public static string DiaLunes => ResourceManager.GetString(nameof(DiaLunes))!;
-
-        public static string DiaMartes => ResourceManager.GetString(nameof(DiaMartes))!;
-
-        public static string DiaMiercoles => ResourceManager.GetString(nameof(DiaMiercoles))!;
-
-        public static string DiaJueves => ResourceManager.GetString(nameof(DiaJueves))!;
-
-        public static string DiaViernes => ResourceManager.GetString(nameof(DiaViernes))!;
-
-        public static string DiaSabado => ResourceManager.GetString(nameof(DiaSabado))!;
-
-        public static string DiaDomingo => ResourceManager.GetString(nameof(DiaDomingo))!;
     }
 }

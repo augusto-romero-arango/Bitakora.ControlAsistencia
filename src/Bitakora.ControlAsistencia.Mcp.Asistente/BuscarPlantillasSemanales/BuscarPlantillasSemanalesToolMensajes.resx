@@ -65,25 +65,4 @@
   <data name="CriterioEstado" xml:space="preserve">
     <value>estado {0}</value>
   </data>
-  <data name="DiaLunes" xml:space="preserve">
-    <value>lunes</value>
-  </data>
-  <data name="DiaMartes" xml:space="preserve">
-    <value>martes</value>
-  </data>
-  <data name="DiaMiercoles" xml:space="preserve">
-    <value>miercoles</value>
-  </data>
-  <data name="DiaJueves" xml:space="preserve">
-    <value>jueves</value>
-  </data>
-  <data name="DiaViernes" xml:space="preserve">
-    <value>viernes</value>
-  </data>
-  <data name="DiaSabado" xml:space="preserve">
-    <value>sabado</value>
-  </data>
-  <data name="DiaDomingo" xml:space="preserve">
-    <value>domingo</value>
-  </data>
 </root>
