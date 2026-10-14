@@ -28,7 +28,7 @@ public partial class DesactivarJornadaTool
         public static string VariasTerminacionesRegistradas =>
             ResourceManager.GetString(nameof(VariasTerminacionesRegistradas))!;
 
-        /// <summary>{0}: cuerpo de la respuesta 404/409/5xx del dominio o fallo de lectura de fichas.</summary>
+        /// <summary>{0}: cuerpo de la respuesta 404/409/5xx del dominio o fallo de lectura de la Jornada o de fichas.</summary>
         public static string RechazoDelDominio =>
             ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
