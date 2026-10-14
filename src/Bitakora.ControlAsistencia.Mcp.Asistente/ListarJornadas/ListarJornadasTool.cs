@@ -32,13 +32,12 @@ public partial class ListarJornadasTool(ProgramacionApi api)
 
         var sobre = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<JornadaDelCatalogo>>(ct))!;
         var visibles = sobre.Elementos.Select(j => j.Describir()).ToList();
-        var hayMas = sobre.SiguienteCursor is not null;
 
         return RespuestaJson.Serializar(new CatalogoDeJornadas(
             visibles.Count,
             visibles,
-            hayMas ? sobre.SiguienteCursor : null,
-            hayMas ? Mensajes.NotaMasJornadas : null));
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null ? null : Mensajes.NotaMasJornadas));
     }
 }
 

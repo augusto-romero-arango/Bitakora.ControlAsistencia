@@ -85,15 +85,14 @@ public partial class ConsultarAdvertenciasProgramacionTool(
         }
 
         var visibles = lista.Elementos.Select(Remodelar).ToList();
-        var cursorSiguiente = lista.SiguienteCursor;
 
         return RespuestaJson.Serializar(new AdvertenciasDeLaSemana(
             Formatear(lista.Desde),
             Formatear(lista.Hasta),
             visibles.Count,
             visibles,
-            cursorSiguiente,
-            cursorSiguiente is null ? null : string.Format(Mensajes.NotaMasColaboradores, cursorSiguiente)));
+            lista.SiguienteCursor,
+            lista.SiguienteCursor is null ? null : string.Format(Mensajes.NotaMasColaboradores, lista.SiguienteCursor)));
     }
 
     private static ColaboradorConAdvertencias Remodelar(ElementoAdvertenciasSemana e) =>
