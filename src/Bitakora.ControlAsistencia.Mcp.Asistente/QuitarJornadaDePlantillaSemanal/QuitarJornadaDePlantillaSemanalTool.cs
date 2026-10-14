@@ -10,7 +10,7 @@ public partial class QuitarJornadaDePlantillaSemanalTool(
     internal const string NombreTool = "quitar_jornada_de_plantilla_semanal";
 
     [Function("QuitarJornadaDePlantillaSemanal")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Quita la Jornada de una plantilla semanal (nombre exacto): la plantilla deja de auditarse "
@@ -22,8 +22,25 @@ public partial class QuitarJornadaDePlantillaSemanalTool(
             "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(plantilla))
+            return string.Format(Mensajes.CampoObligatorio, "plantilla");
+
+        var resolucion = await resolutorPlantilla.ResolverAsync(plantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
+
+        var respuesta = await programacion.QuitarJornadaDePlantillaSemanal(resolucion.Ficha.Id, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new JornadaQuitadaResumen(
+            Mensajes.ResultadoJornadaQuitada, resolucion.Ficha.Nombre, Mensajes.NotaVisibilidadEventual));
+    }
 }
 
 public sealed record JornadaQuitadaResumen(string Resultado, string Plantilla, string Nota);

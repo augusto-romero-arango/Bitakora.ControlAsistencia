@@ -5,7 +5,13 @@ public sealed record CuadroSemanalTurnos(
     string Nombre,
     int Semanas,
     bool Completa,
-    IReadOnlyList<DiaDelCuadro> Dias);
+    IReadOnlyList<DiaDelCuadro> Dias,
+    JornadaDelCuadro? Jornada = null,
+    IReadOnlyList<AdvertenciaDelCuadro>? Advertencias = null);
+
+public sealed record JornadaDelCuadro(string JornadaId, string Descripcion);
+
+public sealed record AdvertenciaDelCuadro(string Descripcion);
 
 public sealed record DiaDelCuadro(int Semana, int Dia, TurnoDelCuadro Turno);
 

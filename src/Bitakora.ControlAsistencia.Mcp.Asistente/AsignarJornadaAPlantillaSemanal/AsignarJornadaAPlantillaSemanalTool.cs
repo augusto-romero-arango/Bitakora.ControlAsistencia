@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -10,7 +12,7 @@ public partial class AsignarJornadaAPlantillaSemanalTool(
     internal const string NombreTool = "asignar_jornada_a_plantilla_semanal";
 
     [Function("AsignarJornadaAPlantillaSemanal")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Asocia una Jornada a una plantilla semanal (nombre exacto) o la reemplaza si ya tenia otra. "
@@ -25,11 +27,42 @@ public partial class AsignarJornadaAPlantillaSemanalTool(
         string plantilla,
         [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.", isRequired: true)]
         string jornadaId,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(plantilla))
+            return string.Format(Mensajes.CampoObligatorio, "plantilla");
+
+        if (!Guid.TryParse(jornadaId, out var jornadaGuid))
+            return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
+
+        var resolucion = await resolutorPlantilla.ResolverAsync(plantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
+
+        var respuestaJornada = await programacion.ObtenerJornada(jornadaGuid, ct);
+        if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
+            return Mensajes.JornadaNoExiste;
+        if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
+            return string.Format(Mensajes.RechazoDelDominio, falloJornada);
+        var jornada = await respuestaJornada.LeerDescritaAsync(ct);
+
+        var respuesta = await programacion.AsignarJornadaAPlantillaSemanal(resolucion.Ficha.Id, jornadaGuid, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new JornadaAsignadaResumen(
+            Mensajes.ResultadoJornadaAsignada,
+            resolucion.Ficha.Nombre,
+            new JornadaDescritaResumen(jornada.JornadaId, jornada.Descripcion),
+            Mensajes.NotaAdvertenciasEventuales));
+    }
 }
 
 public sealed record JornadaAsignadaResumen(
     string Resultado, string Plantilla, JornadaDescritaResumen Jornada, string Nota);
 
-public sealed record JornadaDescritaResumen(string JornadaId, string Descripcion);
+public sealed record JornadaDescritaResumen(
+    [property: JsonPropertyName("jornada_id")] string JornadaId, string Descripcion);
