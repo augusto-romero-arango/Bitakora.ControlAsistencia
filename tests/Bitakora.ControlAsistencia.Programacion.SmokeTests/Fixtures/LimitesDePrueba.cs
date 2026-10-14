@@ -83,6 +83,7 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites AsignarPredeterminadaDesactivada = Firma(30, 24);
     public static readonly FirmaDeLimites AsignarAPlantillaDesactivada = Firma(30, 25);
     public static readonly FirmaDeLimites CrearPlantillaJornadaDesactivada = Firma(30, 26);
+    public static readonly FirmaDeLimites ActivarJornadaPersiste = Firma(30, 27);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
 
