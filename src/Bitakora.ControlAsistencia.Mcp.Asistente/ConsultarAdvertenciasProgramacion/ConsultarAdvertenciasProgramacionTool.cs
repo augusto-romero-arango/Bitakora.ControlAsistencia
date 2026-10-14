@@ -52,7 +52,7 @@ public partial class ConsultarAdvertenciasProgramacionTool(
 
         var codigosPedidos = Separar(codigosColaborador);
         var sedeNormalizada = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
-        var filtrosEtiqueta = ParsearEtiquetas(etiquetas);
+        var filtrosEtiqueta = FiltroEtiqueta.ParsearPares(etiquetas);
 
         IReadOnlyList<string>? sujetos = codigosPedidos;
         if (sedeNormalizada is not null || filtrosEtiqueta.Count > 0)
@@ -71,7 +71,7 @@ public partial class ConsultarAdvertenciasProgramacionTool(
         }
 
         var respuesta = await controlHoras.ListarAdvertenciasProgramacionSemanal(
-            lunes, sujetos, MaximoColaboradores + 1, string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
+            lunes, sujetos, MaximoColaboradores, string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
 
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
@@ -84,17 +84,15 @@ public partial class ConsultarAdvertenciasProgramacionTool(
             return string.Format(Mensajes.NadieTieneAdvertencias, semana, criterio.Length == 0 ? "" : $" ({criterio})");
         }
 
-        var hayMas = lista.Elementos.Count > MaximoColaboradores;
-        var visibles = lista.Elementos.Take(MaximoColaboradores).Select(Remodelar).ToList();
-        var cursorSiguiente = hayMas ? lista.SiguienteCursor : null;
+        var visibles = lista.Elementos.Select(Remodelar).ToList();
 
         return RespuestaJson.Serializar(new AdvertenciasDeLaSemana(
             Formatear(lista.Desde),
             Formatear(lista.Hasta),
             visibles.Count,
             visibles,
-            cursorSiguiente,
-            cursorSiguiente is null ? null : string.Format(Mensajes.NotaMasColaboradores, cursorSiguiente)));
+            lista.SiguienteCursor,
+            lista.SiguienteCursor is null ? null : string.Format(Mensajes.NotaMasColaboradores, lista.SiguienteCursor)));
     }
 
     private static ColaboradorConAdvertencias Remodelar(ElementoAdvertenciasSemana e) =>
@@ -142,15 +140,6 @@ public partial class ConsultarAdvertenciasProgramacionTool(
         string.IsNullOrWhiteSpace(valor)
             ? null
             : [.. valor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
-
-    private static IReadOnlyList<FiltroEtiqueta> ParsearEtiquetas(string? etiquetas) =>
-        string.IsNullOrWhiteSpace(etiquetas)
-            ? []
-            : [.. etiquetas
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(par => par.Split(':', 2, StringSplitOptions.TrimEntries))
-                .Where(partes => partes is [{ Length: > 0 }, { Length: > 0 }])
-                .Select(partes => new FiltroEtiqueta(partes[0], partes[1]))];
 }
 
 public sealed record AdvertenciasDeLaSemana(

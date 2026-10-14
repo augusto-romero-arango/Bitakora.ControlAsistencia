@@ -10,5 +10,6 @@ public partial class AsignarJornadaPredeterminadaCommandHandler
     public static class Mensajes
     {
         public static string JornadaNoEncontrada => ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
+        public static string JornadaDesactivada => ResourceManager.GetString(nameof(JornadaDesactivada))!;
     }
 }

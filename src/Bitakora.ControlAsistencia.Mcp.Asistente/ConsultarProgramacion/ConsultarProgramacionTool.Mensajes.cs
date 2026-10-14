@@ -26,8 +26,35 @@ public partial class ConsultarProgramacionTool
         public static string NotaRecorte =>
             ResourceManager.GetString(nameof(NotaRecorte))!;
 
-        /// <summary>{0}: dias mostrados, {1}: total de la respuesta.</summary>
-        public static string NotaTruncado =>
-            ResourceManager.GetString(nameof(NotaTruncado))!;
+        public static string NotaMasDias =>
+            ResourceManager.GetString(nameof(NotaMasDias))!;
+
+        /// <summary>{0}: codigo de la sede de trabajo.</summary>
+        public static string SedeTrabajoNoExiste =>
+            ResourceManager.GetString(nameof(SedeTrabajoNoExiste))!;
+
+        /// <summary>{0}: criterio, {1}: periodo.</summary>
+        public static string GrupoSinColaboradores =>
+            ResourceManager.GetString(nameof(GrupoSinColaboradores))!;
+
+        /// <summary>{0}: periodo, {1}: criterio (puede ir vacio).</summary>
+        public static string SinProgramacion =>
+            ResourceManager.GetString(nameof(SinProgramacion))!;
+
+        /// <summary>{0}: codigo de sede.</summary>
+        public static string CriterioSede =>
+            ResourceManager.GetString(nameof(CriterioSede))!;
+
+        /// <summary>{0}: pares categoria:valor.</summary>
+        public static string CriterioEtiquetas =>
+            ResourceManager.GetString(nameof(CriterioEtiquetas))!;
+
+        /// <summary>{0}: codigos de colaborador.</summary>
+        public static string CriterioCodigos =>
+            ResourceManager.GetString(nameof(CriterioCodigos))!;
+
+        /// <summary>{0}: codigo de la sede de trabajo.</summary>
+        public static string CriterioSedeTrabajo =>
+            ResourceManager.GetString(nameof(CriterioSedeTrabajo))!;
     }
 }

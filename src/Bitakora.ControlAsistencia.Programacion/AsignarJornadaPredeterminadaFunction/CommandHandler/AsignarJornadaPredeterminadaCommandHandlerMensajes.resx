@@ -5,4 +5,5 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
   <data name="JornadaNoEncontrada" xml:space="preserve"><value>La Jornada no existe</value></data>
+  <data name="JornadaDesactivada" xml:space="preserve"><value>La Jornada esta desactivada</value></data>
 </root>

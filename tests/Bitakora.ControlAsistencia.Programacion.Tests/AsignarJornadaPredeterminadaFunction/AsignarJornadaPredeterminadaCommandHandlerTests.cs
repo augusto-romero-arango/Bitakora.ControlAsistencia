@@ -26,12 +26,15 @@ public class AsignarJornadaPredeterminadaCommandHandlerTests : CommandHandlerAsy
         LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 0),
             HorasYMinutos.Crear(0, 0), 1));
 
-    private void DadasDosJornadasYPredeterminadaX()
+    private void DadasDosJornadasYPredeterminadaX(Guid? desactivada = null)
     {
-        Given(JornadaX.ToString(), Creada(JornadaX));
-        Given(JornadaY.ToString(), Creada(JornadaY));
+        Given(JornadaX.ToString(), EventosDe(JornadaX, desactivada));
+        Given(JornadaY.ToString(), EventosDe(JornadaY, desactivada));
         Given(StreamPreferencias, new JornadaPredeterminadaAsignada(JornadaX));
     }
+
+    private static object[] EventosDe(Guid jornada, Guid? desactivada) =>
+        jornada == desactivada ? [Creada(jornada), new JornadaDesactivada(jornada)] : [Creada(jornada)];
 
     [Fact]
     public async Task AsignarJornadaPredeterminada_EmiteJornadaPredeterminadaAsignada_CuandoLaJornadaEsOtra()
@@ -62,6 +65,36 @@ public class AsignarJornadaPredeterminadaCommandHandlerTests : CommandHandlerAsy
         Then(StreamPreferencias);
         And<PreferenciasProgramacion, Guid>(StreamPreferencias, p => p.JornadaPredeterminada(), JornadaX);
         _asegurador.Invocaciones.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AsignarJornadaPredeterminada_LanzaReglaDeNegocioDeclinadaException_CuandoLaJornadaEstaDesactivada()
+    {
+        DadasDosJornadasYPredeterminadaX(desactivada: JornadaY);
+
+        var act = async () => await WhenAsync(new AsignarJornadaPredeterminada(JornadaY));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AsignarJornadaPredeterminadaCommandHandler.Mensajes.JornadaDesactivada}*");
+        Then(StreamPreferencias);
+        And<PreferenciasProgramacion, Guid>(StreamPreferencias, p => p.JornadaPredeterminada(), JornadaX);
+    }
+
+    [Fact]
+    public async Task AsignarJornadaPredeterminada_NoEmiteEventos_CuandoYaEsLaPredeterminadaAunqueEsteDesactivada()
+    {
+        DadasDosJornadasYPredeterminadaX(desactivada: JornadaX);
+
+        await WhenAsync(new AsignarJornadaPredeterminada(JornadaX));
+
+        Then(StreamPreferencias);
+        And<PreferenciasProgramacion, Guid>(StreamPreferencias, p => p.JornadaPredeterminada(), JornadaX);
+    }
+
+    [Fact]
+    public void Mensajes_JornadaDesactivadaTieneTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        AsignarJornadaPredeterminadaCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
     }
 
     private sealed class FakeAsegurador(Guid jornadaId) : IAseguradorJornadaPredeterminada

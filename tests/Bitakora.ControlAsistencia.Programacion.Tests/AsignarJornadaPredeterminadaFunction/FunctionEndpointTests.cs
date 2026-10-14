@@ -70,4 +70,16 @@ public class FunctionEndpointTests
         resultado.Should().BeOfType<NoContentResult>();
         router.Invocado.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task AsignarJornadaPredeterminada_Retorna409_CuandoRouterLanzaReglaDeNegocioDeclinadaException()
+    {
+        var router = new FakeCommandRouter(new ReglaDeNegocioDeclinadaException(
+            AsignarJornadaPredeterminadaCommandHandler.Mensajes.JornadaDesactivada));
+
+        var resultado = await Endpoint(router).Run(Request(), CancellationToken.None);
+
+        resultado.Should().BeOfType<ConflictObjectResult>()
+            .Which.Value.Should().Be(AsignarJornadaPredeterminadaCommandHandler.Mensajes.JornadaDesactivada);
+    }
 }
