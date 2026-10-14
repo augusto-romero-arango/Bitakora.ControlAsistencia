@@ -20,7 +20,7 @@ public class ActivarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) 
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task HealthCheck_DebeResponder200()
+    public async Task HealthCheck_Responde200()
     {
         var response = await _client.GetAsync("/api/health", TestContext.Current.CancellationToken);
 
@@ -29,7 +29,7 @@ public class ActivarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) 
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ActivarJornada_DebeRetornar204YMarcarActiva_CuandoEstabaDesactivada()
+    public async Task ActivarJornada_Retorna204YDejaActiva_CuandoEstabaDesactivada()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
@@ -57,7 +57,7 @@ public class ActivarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) 
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ActivarJornada_DebeRetornar404_CuandoLaJornadaNoExiste()
+    public async Task ActivarJornada_Retorna404_CuandoLaJornadaNoExiste()
     {
         var response = await _client.PostAsync(
             RutaActivar(Guid.CreateVersion7()), null, TestContext.Current.CancellationToken);
@@ -67,7 +67,7 @@ public class ActivarJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) 
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ActivarJornada_DebeRetornar400_CuandoElIdNoEsGuid()
+    public async Task ActivarJornada_Retorna400_CuandoElIdNoEsGuid()
     {
         var response = await _client.PostAsync(
             $"{RutaJornadas}/no-es-un-guid:activar", null, TestContext.Current.CancellationToken);
