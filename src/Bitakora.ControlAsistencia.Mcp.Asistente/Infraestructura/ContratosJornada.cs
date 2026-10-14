@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -20,7 +19,10 @@ public sealed record JornadaACrear(
     HorasYMinutosJornada MinimoDiario,
     int DiasDescansoPorSemana);
 
-public sealed record FichaJornada(string JornadaId, string Descripcion, bool EsPredeterminada);
+public sealed record JornadaDelCatalogo(string JornadaId, string Descripcion, bool EsPredeterminada)
+{
+    public JornadaDescrita Describir() => new(JornadaId, Descripcion, EsPredeterminada);
+}
 
 public sealed record JornadaDescrita(
     [property: JsonPropertyName("jornada_id")] string JornadaId,
@@ -53,11 +55,6 @@ public static class ValidadorDuracion
 
 internal static class LecturaDeJornada
 {
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
-
-    public static async Task<JornadaDescrita> LeerDescritaAsync(this HttpResponseMessage respuesta, CancellationToken ct)
-    {
-        var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaJornada>(OpcionesLectura, ct))!;
-        return new JornadaDescrita(ficha.JornadaId, ficha.Descripcion, ficha.EsPredeterminada);
-    }
+    public static async Task<JornadaDescrita> LeerDescritaAsync(this HttpResponseMessage respuesta, CancellationToken ct) =>
+        (await respuesta.Content.ReadFromJsonAsync<JornadaDelCatalogo>(ct))!.Describir();
 }

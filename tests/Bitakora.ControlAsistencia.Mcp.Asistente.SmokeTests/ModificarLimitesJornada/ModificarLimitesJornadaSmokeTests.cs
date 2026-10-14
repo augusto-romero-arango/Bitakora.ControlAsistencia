@@ -11,19 +11,14 @@ public class ModificarLimitesJornadaSmokeTests(McpFixture mcp)
     public async Task ModificarLimitesJornada_CambiaLaDescripcion_CuandoSeReemplazanLasHorasSemanales()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (creada, n) = await SembradoDeJornadas.CrearAsync(mcp, ct);
+        var (creada, limites) = await SembradoDeJornadas.CrearAsync(mcp, ct);
         var id = creada.GetProperty("jornada_id").GetString()!;
+        var argumentos = limites.ConOtrasHorasSemanales().ComoArgumentos();
+        argumentos["jornada_id"] = id;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "modificar_limites_jornada",
-            new Dictionary<string, object?>
-            {
-                ["jornada_id"] = id,
-                ["horas_semanales"] = $"{n}:30",
-                ["tope_diario"] = "1:00",
-                ["minimo_diario"] = "0:00",
-                ["dias_descanso_por_semana"] = 0
-            },
+            argumentos,
             cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();

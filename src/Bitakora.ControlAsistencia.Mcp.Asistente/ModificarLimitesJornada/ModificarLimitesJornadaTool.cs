@@ -43,13 +43,12 @@ public partial class ModificarLimitesJornadaTool(ProgramacionApi api)
         if (diasDescansoPorSemana is < 0 or > MaximoDiasDescanso)
             return string.Format(Mensajes.DiasDescansoInvalido, diasDescansoPorSemana);
 
-        var texto = id.ToString();
         var modificada = await api.ModificarLimitesJornada(
-            texto, new LimitesJornadaAEnviar(semanales, tope, minimo, diasDescansoPorSemana), ct);
+            id, new LimitesJornadaAEnviar(semanales, tope, minimo, diasDescansoPorSemana), ct);
         if (await modificada.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        var obtenida = await api.ObtenerJornada(texto, ct);
+        var obtenida = await api.ObtenerJornada(id, ct);
         if (await obtenida.LeerFalloAsync(ct) is { } falloLectura)
             return string.Format(Mensajes.RechazoDelDominio, falloLectura);
 

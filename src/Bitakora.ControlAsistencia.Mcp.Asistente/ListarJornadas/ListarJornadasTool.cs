@@ -1,6 +1,4 @@
 using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -11,8 +9,6 @@ public partial class ListarJornadasTool(ProgramacionApi api)
 {
     internal const string NombreTool = "listar_jornadas";
     internal const int MaximoJornadas = 50;
-
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     [Function("ListarJornadas")]
     public async Task<string> Run(
@@ -34,10 +30,8 @@ public partial class ListarJornadasTool(ProgramacionApi api)
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        var sobre = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaJornada>>(OpcionesLectura, ct))!;
-        var visibles = sobre.Elementos.Take(MaximoJornadas)
-            .Select(f => new JornadaDescrita(f.JornadaId, f.Descripcion, f.EsPredeterminada))
-            .ToList();
+        var sobre = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<JornadaDelCatalogo>>(ct))!;
+        var visibles = sobre.Elementos.Take(MaximoJornadas).Select(j => j.Describir()).ToList();
         var hayMas = sobre.Elementos.Count > MaximoJornadas || sobre.SiguienteCursor is not null;
 
         return RespuestaJson.Serializar(new CatalogoDeJornadas(

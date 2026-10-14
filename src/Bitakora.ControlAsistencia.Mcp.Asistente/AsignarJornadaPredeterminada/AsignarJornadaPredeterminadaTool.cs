@@ -27,7 +27,7 @@ public partial class AsignarJornadaPredeterminadaTool(ProgramacionApi api)
         if (await asignada.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        var obtenida = await api.ObtenerJornada(id.ToString(), ct);
+        var obtenida = await api.ObtenerJornada(id, ct);
         if (await obtenida.LeerFalloAsync(ct) is { } falloLectura)
             return string.Format(Mensajes.RechazoDelDominio, falloLectura);
 

@@ -48,15 +48,15 @@ public sealed class ProgramacionApi(HttpClient http)
                 : $"api/programacion/jornadas?take={take}&cursor={Uri.EscapeDataString(cursor)}",
             ct);
 
-    public Task<HttpResponseMessage> ObtenerJornada(string id, CancellationToken ct) =>
-        http.GetAsync($"api/programacion/jornadas/{Uri.EscapeDataString(id)}", ct);
+    public Task<HttpResponseMessage> ObtenerJornada(Guid id, CancellationToken ct) =>
+        http.GetAsync($"api/programacion/jornadas/{id}", ct);
 
     public Task<HttpResponseMessage> CrearJornada(JornadaACrear jornada, CancellationToken ct) =>
         http.PostAsJsonAsync("api/programacion/jornadas", jornada, ct);
 
     public Task<HttpResponseMessage> ModificarLimitesJornada(
-        string id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
-        http.PutAsJsonAsync($"api/programacion/jornadas/{Uri.EscapeDataString(id)}/limites", limites, ct);
+        Guid id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
+        http.PutAsJsonAsync($"api/programacion/jornadas/{id}/limites", limites, ct);
 
     public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
         http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);

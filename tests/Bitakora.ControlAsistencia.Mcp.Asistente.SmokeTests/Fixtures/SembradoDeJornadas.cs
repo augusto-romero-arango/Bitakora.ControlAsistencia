@@ -4,33 +4,47 @@ using ModelContextProtocol.Protocol;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
 
 // Las Jornadas no tienen nombre ni marca [TEST]: las del smoke se distinguen por su tope diario de
-// 1 h y 0 descansos, y quedan en dev como residuo aceptado (issue #870).
+// 1 h y 0 descansos, y quedan en dev como residuo aceptado (issue #870). Como el dominio rechaza
+// limites repetidos y el residuo nunca se borra, las horas semanales y el minimo diario se sortean
+// al minuto: con solo seis valores posibles la suite quedaria roja tras pocas corridas.
+public sealed record LimitesDeSmoke(int Horas, int Minutos, int MinutosMinimo)
+{
+    public static LimitesDeSmoke Sortear() =>
+        new(Random.Shared.Next(1, 7), Random.Shared.Next(60), Random.Shared.Next(60));
+
+    public LimitesDeSmoke ConOtrasHorasSemanales() => this with { Minutos = (Minutos + 30) % 60 };
+
+    public Dictionary<string, object?> ComoArgumentos() => new()
+    {
+        ["horas_semanales"] = $"{Horas}:{Minutos:00}",
+        ["tope_diario"] = "1:00",
+        ["minimo_diario"] = $"0:{MinutosMinimo:00}",
+        ["dias_descanso_por_semana"] = 0
+    };
+}
+
 public static class SembradoDeJornadas
 {
+    private const int MaximoIntentos = 10;
+
     public static string Texto(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-    // Un 409 por limites repetidos responde una frase, no JSON: se reintenta con otra N.
-    public static async Task<(JsonElement Jornada, int N)> CrearAsync(McpFixture mcp, CancellationToken ct)
+    // Un 409 por limites repetidos responde una frase, no JSON: se reintenta con otro sorteo.
+    public static async Task<(JsonElement Jornada, LimitesDeSmoke Limites)> CrearAsync(McpFixture mcp, CancellationToken ct)
     {
-        foreach (var n in Enumerable.Range(1, 6).OrderBy(_ => Random.Shared.Next()))
+        for (var intento = 0; intento < MaximoIntentos; intento++)
         {
+            var limites = LimitesDeSmoke.Sortear();
             var resultado = await mcp.Cliente.CallToolAsync(
-                "crear_jornada",
-                new Dictionary<string, object?>
-                {
-                    ["horas_semanales"] = $"{n}:00",
-                    ["tope_diario"] = "1:00",
-                    ["minimo_diario"] = "0:00",
-                    ["dias_descanso_por_semana"] = 0
-                },
-                cancellationToken: ct);
+                "crear_jornada", limites.ComoArgumentos(), cancellationToken: ct);
 
             if (TryParsear(Texto(resultado), out var jornada))
-                return (jornada, n);
+                return (jornada, limites);
         }
 
-        throw new InvalidOperationException("No se pudo crear una Jornada de smoke: las seis N ya existen.");
+        throw new InvalidOperationException(
+            $"No se pudo crear una Jornada de smoke en {MaximoIntentos} intentos: todos los sorteos repitieron limites.");
     }
 
     public static async Task<JsonElement> PredeterminadaActualAsync(McpFixture mcp, CancellationToken ct)

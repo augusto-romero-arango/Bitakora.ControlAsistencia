@@ -45,7 +45,7 @@ public partial class CrearJornadaTool(ProgramacionApi api)
         if (await creada.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        var obtenida = await api.ObtenerJornada(jornadaId.ToString(), ct);
+        var obtenida = await api.ObtenerJornada(jornadaId, ct);
         if (await obtenida.LeerFalloAsync(ct) is { } falloLectura)
             return string.Format(Mensajes.RechazoDelDominio, falloLectura);
 
