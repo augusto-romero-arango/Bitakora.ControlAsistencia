@@ -44,7 +44,7 @@ public class ComposicionDelServidorTests
                 "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
-                "consultar_malla_turnos",
+                "consultar_malla_turnos", "consultar_dias_sin_programar",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
@@ -199,6 +199,8 @@ public class ComposicionDelServidorTests
         ("consultar_advertencias_programacion", "Consulta las advertencias de la programacion semanal",
             "\"readOnlyHint\": true"),
         ("consultar_malla_turnos", "Consulta la malla semanal de turnos",
+            "\"readOnlyHint\": true"),
+        ("consultar_dias_sin_programar", "Consulta a quien le faltan dias por programar",
             "\"readOnlyHint\": true"),
         ("solicitar_programacion_turno", "Programa un turno a una lista de colaboradores en una sede",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -414,6 +416,21 @@ public class ComposicionDelServidorTests
     public void ConsultarMallaTurnos_DeclaraSusCincoParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_malla_turnos").Should().BeEquivalentTo(
             [("fecha", false), ("sede", false), ("etiquetas", false), ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarDiasSinProgramar_DeclaraSusSeisParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_dias_sin_programar").Should().BeEquivalentTo(
+            [("fecha", false), ("semanas", false), ("sede", false), ("etiquetas", false),
+             ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarDiasSinProgramar_TodosSusParametrosSonStringSalvoSemanas_CuandoSeInspeccionaLaTool() =>
+        MetodoDe("consultar_dias_sin_programar").GetParameters()
+            .Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null)
+            .Select(p => (p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName, p.ParameterType))
+            .Should().BeEquivalentTo(
+            [("fecha", typeof(string)), ("semanas", typeof(int?)), ("sede", typeof(string)),
+             ("etiquetas", typeof(string)), ("codigos_colaborador", typeof(string)), ("cursor", typeof(string))]);
 
     [Fact]
     public void ConsultarMallaTurnos_TodosSusParametrosSonString_CuandoSeInspeccionaLaTool() =>

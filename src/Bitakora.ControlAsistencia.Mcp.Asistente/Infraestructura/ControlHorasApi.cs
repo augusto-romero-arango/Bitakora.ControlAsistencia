@@ -72,4 +72,13 @@ public sealed class ControlHorasApi(HttpClient http)
 
         return http.SendAsync(request, ct);
     }
+
+    public Task<HttpResponseMessage> ListarDiasSinProgramar(
+        DateOnly desde,
+        DateOnly hasta,
+        IReadOnlyList<ColaboradorVigenteMalla> colaboradores,
+        int take,
+        string? cursor,
+        CancellationToken ct) =>
+        throw new NotImplementedException();
 }

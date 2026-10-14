@@ -1,0 +1,12 @@
+{
+  "desde": "2026-10-19",
+  "hasta": "2026-11-08",
+  "rangoRecortado": false,
+  "elementos": [
+    {
+      "codigoColaborador": "C-102",
+      "diasSinProgramar": ["2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-11-02"]
+    }
+  ],
+  "siguienteCursor": null
+}
