@@ -24,7 +24,11 @@ public partial class Jornada : AggregateRoot
 
     public void Apply(JornadaDesactivada evento) => _activa = false;
 
+    public void Apply(JornadaActivada evento) => throw new NotImplementedException();
+
     internal bool Activa => _activa;
+
+    internal ResultadoActivarJornada Activar() => throw new NotImplementedException();
 
     internal ResultadoDesactivarJornada Desactivar()
     {
