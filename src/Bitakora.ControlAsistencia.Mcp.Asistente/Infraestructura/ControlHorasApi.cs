@@ -14,19 +14,22 @@ public sealed class ControlHorasApi(HttpClient http)
     public Task<HttpResponseMessage> ConsultarTurnosVigentes(
         DateOnly desde,
         DateOnly hasta,
-        string? codigoColaborador,
+        IReadOnlyList<string>? codigosColaborador,
         string? sedeId,
+        int? take,
+        string? cursor,
         CancellationToken ct)
     {
-        string[]? codigosColaborador = string.IsNullOrEmpty(codigoColaborador) ? null : [codigoColaborador];
         var request = new HttpRequestMessage(Query, "api/control-horas/turnos-vigentes")
         {
             Content = JsonContent.Create(new
             {
                 desdeFecha = desde,
                 hastaFecha = hasta,
-                codigosColaborador,
-                sedeId
+                codigosColaborador = codigosColaborador is { Count: > 0 } ? codigosColaborador : null,
+                sedeId,
+                take,
+                cursor
             })
         };
 

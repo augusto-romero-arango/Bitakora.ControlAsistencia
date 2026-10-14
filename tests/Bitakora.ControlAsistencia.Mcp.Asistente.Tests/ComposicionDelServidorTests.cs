@@ -384,7 +384,18 @@ public class ComposicionDelServidorTests
     [Fact]
     public void ConsultarProgramacion_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_programacion").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("codigo_colaborador", false), ("sede_id", false)]);
+            [("desde", true), ("hasta", true), ("codigos_colaborador", false), ("sede", false), ("etiquetas", false),
+                ("sede_trabajo", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarProgramacion_DescribeLosDosFiltrosDeSedeYLaPaginacion_CuandoSeInspeccionaSuDescripcion()
+    {
+        var descripcion = ParametroTrigger(MetodoDe("consultar_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+
+        descripcion.Should().Contain("sede_trabajo").And.Contain("sede").And.Contain("etiquetas")
+            .And.Contain("codigos_colaborador").And.Contain("cursor");
+    }
 
     [Fact]
     public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
