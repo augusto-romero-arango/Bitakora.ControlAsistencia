@@ -136,12 +136,18 @@ public class PaginaFichasTurnoTests
         respuesta.SiguienteCursor.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    public void Componer_IgnoraElFiltro_CuandoSedeIdEsNuloOVacio(string? sedeId)
+    [Fact]
+    public void Componer_IgnoraElFiltro_CuandoSedeIdEsNulo()
     {
-        var respuesta = PaginaFichasTurno.Componer([T4, T3, T2, T1], null, null, sedeId);
+        var respuesta = PaginaFichasTurno.Componer([T4, T3, T2, T1], null, null, null);
+
+        respuesta.Elementos.Should().Equal(T1, T2, T3, T4);
+    }
+
+    [Fact]
+    public void Componer_IgnoraElFiltro_CuandoSedeIdEsVacio()
+    {
+        var respuesta = PaginaFichasTurno.Componer([T4, T3, T2, T1], null, null, "");
 
         respuesta.Elementos.Should().Equal(T1, T2, T3, T4);
     }
