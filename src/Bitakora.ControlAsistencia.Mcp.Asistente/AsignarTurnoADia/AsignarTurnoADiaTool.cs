@@ -19,18 +19,18 @@ public partial class AsignarTurnoADiaTool(
         [McpToolTrigger(
             NombreTool,
             "Pone o reemplaza el turno de un dia de una plantilla semanal: nombre exacto de la "
-            + "plantilla (miralo con listar_plantillas_semanales), semana (1..N, 1 por defecto), "
+            + "plantilla (miralo con buscar_plantillas_semanales), semana (1..N, 1 por defecto), "
             + "dia (lunes..domingo o 1..7) y nombre exacto del turno del catalogo (miralo con "
-            + "listar_turnos). Solo admite turnos completos; el descanso es un turno mas. Si el "
+            + "buscar_turnos). Solo admite turnos completos; el descanso es un turno mas. Si el "
             + "dia ya tenia ese mismo turno, no cambia nada.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
             "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
+            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
-        [McpToolProperty("turno", "Nombre exacto del turno del catalogo (miralo con listar_turnos).", isRequired: true)]
+        [McpToolProperty("turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
         string turno,
         [McpToolProperty("dia", "Dia de la semana: lunes..domingo o 1..7.", isRequired: true)]
         string dia,

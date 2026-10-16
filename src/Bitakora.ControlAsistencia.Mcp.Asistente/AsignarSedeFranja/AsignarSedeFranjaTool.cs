@@ -20,18 +20,18 @@ public partial class AsignarSedeFranjaTool(
             NombreTool,
             "Asigna o cambia la sede prearmada de una franja ordinaria de un turno, indicando el "
             + "turno por su nombre exacto, la franja por su hora de inicio (HH:mm) y la sede por "
-            + "su codigo (obtenlo con listar_sedes). Sin codigo_sede, retira la sede prearmada de "
+            + "su codigo (obtenlo con buscar_sedes). Sin codigo_sede, retira la sede prearmada de "
             + "esa franja. No cambia el horario ni los descansos de la franja.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con listar_turnos).", isRequired: true)]
+            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
         string turno,
         [McpToolProperty("franja", "Hora de inicio de la franja, formato HH:mm.", isRequired: true)]
         string franja,
         [McpToolProperty(
             "codigo_sede",
-            "Codigo de la sede a prearmar en esta franja (miralo con listar_sedes). Ausente o "
+            "Codigo de la sede a prearmar en esta franja (miralo con buscar_sedes). Ausente o "
             + "vacio retira la sede prearmada de la franja.")]
         string? codigoSede,
         CancellationToken ct)

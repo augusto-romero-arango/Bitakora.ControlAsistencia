@@ -17,13 +17,13 @@ public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion, R
         [McpToolTrigger(
             NombreTool,
             "Retira una plantilla semanal del catalogo por su nombre exacto (mirala con "
-            + "listar_plantillas_semanales): deja de poder usarse y su nombre queda libre. Los "
+            + "buscar_plantillas_semanales): deja de poder usarse y su nombre queda libre. Los "
             + "turnos del catalogo no cambian.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
             "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
+            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
         CancellationToken ct)

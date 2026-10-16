@@ -34,7 +34,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con listar_plantillas_semanales.", isRequired: true)]
+        [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con buscar_plantillas_semanales.", isRequired: true)]
         string plantilla,
         [McpToolProperty(
             "sede_de_programacion",

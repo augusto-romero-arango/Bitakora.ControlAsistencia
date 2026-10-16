@@ -22,7 +22,7 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con listar_turnos).", isRequired: true)]
+            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
         string turno,
         [McpToolProperty(
             "franja", "Hora de inicio de la franja ordinaria que contiene la sub-franja, formato HH:mm.",
