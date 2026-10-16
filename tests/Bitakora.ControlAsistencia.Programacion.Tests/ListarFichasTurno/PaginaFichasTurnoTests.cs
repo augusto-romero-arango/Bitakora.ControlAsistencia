@@ -90,4 +90,59 @@ public class PaginaFichasTurnoTests
 
         respuesta.Elementos.Should().Equal(empate, C);
     }
+
+    private static FranjaFicha Franja(string? sedeId) =>
+        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], sedeId, null, "");
+
+    private static FichaTurno FichaConSedes(string id, string nombre, params string?[] sedes) =>
+        new(id, nombre, false, "", sedes.Select(Franja).ToList(), "", true);
+
+    private static readonly FichaTurno T1 = FichaConSedes("id-1", "Turno 1", "sede-a");
+    private static readonly FichaTurno T2 = FichaConSedes("id-2", "Turno 2", "sede-b", "sede-a");
+    private static readonly FichaTurno T3 = FichaConSedes("id-3", "Turno 3", "sede-b");
+    private static readonly FichaTurno T4 = FichaConSedes("id-4", "Turno 4", (string?)null);
+
+    [Fact]
+    public void Componer_DevuelveSoloTurnosConAlgunaFranjaEnLaSede_CuandoSeFiltraPorSedeId()
+    {
+        var respuesta = PaginaFichasTurno.Componer([T4, T3, T2, T1], null, null, "sede-a");
+
+        respuesta.Elementos.Should().Equal(T1, T2);
+        respuesta.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_PaginaSinPerderNiRepetir_CuandoSedeIdSeCombinaConTakeYCursor()
+    {
+        var t5 = FichaConSedes("id-5", "Turno 5", "sede-a");
+        var catalogo = new[] { t5, T4, T3, T2, T1 };
+
+        var primera = PaginaFichasTurno.Componer(catalogo, 2, null, "sede-a");
+        primera.Elementos.Should().Equal(T1, T2);
+        primera.SiguienteCursor.Should().NotBeNull();
+
+        var segunda = PaginaFichasTurno.Componer(
+            catalogo, 2, CursorFichaTurno.Decodificar(primera.SiguienteCursor!), "sede-a");
+        segunda.Elementos.Should().Equal(t5);
+        segunda.SiguienteCursor.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_DevuelveListaVacia_CuandoNingunTurnoCoincideConLaSede()
+    {
+        var respuesta = PaginaFichasTurno.Componer([T1, T2, T3, T4], null, null, "sede-z");
+
+        respuesta.Elementos.Should().BeEmpty();
+        respuesta.SiguienteCursor.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void Componer_IgnoraElFiltro_CuandoSedeIdEsNuloOVacio(string? sedeId)
+    {
+        var respuesta = PaginaFichasTurno.Componer([T4, T3, T2, T1], null, null, sedeId);
+
+        respuesta.Elementos.Should().Equal(T1, T2, T3, T4);
+    }
 }
