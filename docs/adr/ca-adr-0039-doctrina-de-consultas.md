@@ -31,7 +31,7 @@ Referencias:
    |---|---|---|---|---|---|---|
    | **Detalle** | "Muestrame esto" | El humano, o el modelo antes de modificar | "Muestrame esto a fondo" | `obtener_turno`, `obtener_plantilla_semanal`, `listar_colaboradores` con `identificacion` | No aplica (una entidad; sus listas internas se muestran completas) | -- |
    | **Desambiguacion** | "**Cual**?" (una identidad a partir de una mencion aproximada) | El modelo, como paso intermedio para llamar a otra tool | "A quien se refiere el usuario?" | `buscar_colaboradores` | **No pagina**: acotar o preguntar al usuario. Se buscan unos pocos; hay que ser certero | 20 |
-   | **Catalogo** | "**Cuales**?" (el conjunto completo de un maestro) | El humano | "Ubicame un elemento / muestrame el catalogo" | `listar_turnos`, `listar_plantillas_semanales`, `listar_sedes`, `listar_colaboradores` por sede o etiquetas | **Pagina** con `cursor`; la nota sugiere primero refinar | 50 |
+   | **Catalogo** | "**Cuales**?" (el conjunto completo de un maestro) | El humano | "Muestrame el catalogo" (todos, o todos los que cumplen un criterio exacto) | `listar_turnos`, `listar_plantillas_semanales`, `listar_sedes`, `listar_colaboradores` por sede o etiquetas | **Pagina** con `cursor`; la nota sugiere primero refinar | 50 |
    | **Ventana temporal** | "Que pasa en este periodo?" | El humano | "Que pasa en este periodo?" | `consultar_programacion`, `consultar_ausencias`, #876 | **Pagina** con `cursor`; la nota sugiere primero acotar sujetos o ventana | 50 |
 
    "Excepciones" (solo lo anomalo) no es modalidad: es el filtro de relevancia de MEF-ADR-0047 que ya cumple la ventana temporal (solo aparece quien tiene algo que reportar).
@@ -48,12 +48,6 @@ Referencias:
 6. **Vacio**: una frase con el criterio usado ("Nadie falta entre ... y ... en la sede Norte"), nunca un sobre vacio mudo.
 7. **Detalle** sin sobre: la entidad; si no existe, una frase con el criterio (el mensaje del dominio).
 
-### Tools MCP: la pregunta define la modalidad (enmienda 2026-10-14)
-
-15. **Un criterio no es de por si de desambiguacion o de catalogo; lo define la pregunta.** `buscar_*` (desambiguacion, "cual?") conserva sus criterios (sede, ciudad, estado...) como pistas de identidad y remite a `listar_*` para "todos los que cumplen un criterio" ("cuales?"). Dos tools no responden la misma pregunta.
-16. **Filtros de catalogo por recurrencia.** El catalogo solo gana **filtros exactos** (aplicados en el backend, para que el cursor sea veraz) cuando la pregunta "cuales?" sobre ese campo es recurrente. Mientras no haya evidencia de uso, decide el criterio del experto. Lo demas se expone como **senales**: marcadores booleanos en cada elemento que solo viajan cuando son verdad (`enConstruccion`, `incompleta`, `conAdvertencias`). La busqueda aproximada por texto (`filtro_nombre`) nunca es filtro de catalogo: es desambiguacion.
-17. **El backend no conoce la desambiguacion.** El codigo (front, composicion interna) solo necesita detalle por identidad y listas por criterios exactos con keyset. El puntaje aproximado vive en el MCP mientras no haya un segundo consumidor (MEF-ADR-0018).
-
 ### Backend: endpoints de lista
 
 8. **Toda lista pagina por keyset**, incluidos los catalogos chicos. `GET` lleva `take` y `cursor` como parametros planos de query (MEF-ADR-0042 seccion 1); QUERY, en el body.
@@ -66,6 +60,12 @@ Referencias:
 ### Conexion entre capas
 
 14. Las modalidades que paginan con el cursor del backend (catalogo y ventana temporal) piden `Take = tope`; saben que hay mas solo porque llega `siguienteCursor`, que reenvian tal cual, y nunca descartan un elemento recibido (el backend ya pide `Take + 1` por dentro y arma el cursor con el ultimo devuelto). La desambiguacion, que no pagina, pide `tope + 1` para detectar el sobrante. No arma cursores propios. La composicion interna llama sin `Take`. La tool traduce `elementos` al nombre del recurso al remodelar. Enmendada por #1057: el texto anterior (`tope + 1` con cursor) perdia un elemento por pagina; se desvia de MEF-ADR-0047 decision 4 hasta que se resuelva mefisto#2435.
+
+### La pregunta define la modalidad (enmienda 2026-10-14)
+
+15. **Un criterio no es de por si de desambiguacion o de catalogo; lo define la pregunta.** `buscar_*` (desambiguacion, "cual?") conserva sus criterios (sede, ciudad, estado...) como pistas de identidad y remite a `listar_*` para "todos los que cumplen un criterio" ("cuales?"). Dos tools no responden la misma pregunta.
+16. **Filtros de catalogo por recurrencia.** El catalogo solo gana **filtros exactos** (aplicados en el backend, para que el cursor sea veraz) cuando la pregunta "cuales?" sobre ese campo es recurrente. Mientras no haya evidencia de uso, decide el criterio del experto. Lo demas se expone como **senales**: marcadores booleanos en cada elemento que solo viajan cuando son verdad (`enConstruccion`, `incompleta`, `conAdvertencias`). La busqueda aproximada por texto (`filtro_nombre`) nunca es filtro de catalogo: es desambiguacion.
+17. **El backend no conoce la desambiguacion.** El codigo (front, composicion interna) solo necesita detalle por identidad y listas por criterios exactos con keyset. El puntaje aproximado vive en el MCP mientras no haya un segundo consumidor (MEF-ADR-0018).
 
 ## Consecuencias
 
