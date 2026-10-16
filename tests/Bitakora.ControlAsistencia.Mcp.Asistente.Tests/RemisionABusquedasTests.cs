@@ -30,16 +30,27 @@ public class RemisionABusquedasTests
             var trigger = metodo.GetParameters()
                 .Select(p => p.GetCustomAttribute<McpToolTriggerAttribute>())
                 .First(a => a is not null)!;
-            yield return (trigger.ToolName, trigger.Description);
+            yield return (trigger.ToolName, trigger.Description ?? string.Empty);
             foreach (var propiedad in metodo.GetParameters()
                 .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
                 .Where(a => a is not null))
-                yield return (trigger.ToolName, propiedad!.Description);
+                yield return (trigger.ToolName, propiedad!.Description ?? string.Empty);
         }
     }
 
     private static string Descripcion(string nombreTool) =>
         TextosDeTools().First(t => t.Tool == nombreTool).Texto;
+
+    private static IEnumerable<(string Recurso, string Clave, string Texto)> MensajesResx()
+    {
+        foreach (var recurso in Servidor.GetManifestResourceNames().Where(n => n.EndsWith("ToolMensajes.resources")))
+        {
+            using var lector = new ResourceReader(Servidor.GetManifestResourceStream(recurso)!);
+            foreach (System.Collections.DictionaryEntry entrada in lector)
+                if (entrada.Value is string texto)
+                    yield return (recurso, (string)entrada.Key, Regex.Replace(texto, @"\s+", " "));
+        }
+    }
 
     [Fact]
     public void DescripcionesDeTools_NoRemitenAListarParaUbicar_CuandoSeInspeccionaElServidor()
@@ -71,14 +82,10 @@ public class RemisionABusquedasTests
     [Fact]
     public void MensajesResx_NoRemitenAListarParaUbicar_CuandoSeInspeccionanLosRecursos()
     {
-        var infractores = new List<string>();
-        foreach (var recurso in Servidor.GetManifestResourceNames().Where(n => n.EndsWith("ToolMensajes.resources")))
-        {
-            using var lector = new ResourceReader(Servidor.GetManifestResourceStream(recurso)!);
-            foreach (System.Collections.DictionaryEntry entrada in lector)
-                if (entrada.Value is string texto && Catalogos.IsMatch(SinConsistenciaEventual(texto)))
-                    infractores.Add($"{recurso}/{entrada.Key}: {texto}");
-        }
+        var infractores = MensajesResx()
+            .Where(m => Catalogos.IsMatch(SinConsistenciaEventual(m.Texto)))
+            .Select(m => $"{m.Recurso}/{m.Clave}: {m.Texto}")
+            .ToList();
 
         infractores.Should().BeEmpty();
     }
@@ -86,13 +93,7 @@ public class RemisionABusquedasTests
     [Fact]
     public void MensajesResx_ConservanLaConsistenciaEventual_CuandoSeCreaOSeRetiraUnRecurso()
     {
-        var mensajes = new List<string>();
-        foreach (var recurso in Servidor.GetManifestResourceNames().Where(n => n.EndsWith("ToolMensajes.resources")))
-        {
-            using var lector = new ResourceReader(Servidor.GetManifestResourceStream(recurso)!);
-            foreach (System.Collections.DictionaryEntry entrada in lector)
-                if (entrada.Value is string texto) mensajes.Add(Regex.Replace(texto, @"\s+", " "));
-        }
+        var mensajes = MensajesResx().Select(m => m.Texto).ToList();
 
         mensajes.Should().Contain(m => m.Contains("aparece en listar_turnos unos segundos"));
         mensajes.Should().Contain(m => m.Contains("aparece en listar_plantillas_semanales unos segundos"));
@@ -101,16 +102,18 @@ public class RemisionABusquedasTests
     }
 
     [Fact]
+    public void DescripcionesDeTools_ConservanLaConsistenciaEventual_CuandoLaToolCreaUnRecurso()
+    {
+        Descripcion("crear_turno").Should().Contain("Aparece en listar_turnos en unos segundos");
+        Regex.Replace(Descripcion("crear_plantilla_semanal"), @"\s+", " ")
+            .Should().Contain("Aparece en listar_plantillas_semanales en unos segundos");
+        Descripcion("registrar_sede").Should().Contain("aparece en listar_sedes en unos segundos");
+    }
+
+    [Fact]
     public void MensajesResx_RemitenABuscarSedes_CuandoLaSedeNoExiste()
     {
-        var mensajes = new List<string>();
-        foreach (var recurso in Servidor.GetManifestResourceNames().Where(n => n.EndsWith("ToolMensajes.resources")))
-        {
-            using var lector = new ResourceReader(Servidor.GetManifestResourceStream(recurso)!);
-            foreach (System.Collections.DictionaryEntry entrada in lector)
-                if (entrada.Value is string texto && texto.Contains("No existe una sede"))
-                    mensajes.Add(Regex.Replace(texto, @"\s+", " "));
-        }
+        var mensajes = MensajesResx().Select(m => m.Texto).Where(t => t.Contains("No existe una sede")).ToList();
 
         mensajes.Should().HaveCountGreaterThanOrEqualTo(7);
         mensajes.Should().OnlyContain(m => m.Contains("buscar_sedes"));

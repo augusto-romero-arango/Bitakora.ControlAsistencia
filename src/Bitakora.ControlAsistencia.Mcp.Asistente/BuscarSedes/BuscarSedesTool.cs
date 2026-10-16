@@ -19,7 +19,8 @@ public partial class BuscarSedesTool(SedesApi api)
             + "orden, sin importar acentos ni mayusculas, tambien incompletas ('chapi') o con una "
             + "letra de diferencia. Combina los criterios. Devuelve hasta 20 candidatas con su "
             + "codigo y el motivo de la coincidencia; si hay mas de una plausible, pregunta al "
-            + "usuario antes de actuar. Para ver todos los que cumplen un criterio, usa listar_sedes: esta busqueda devuelve hasta 20 candidatos para ubicar uno.")]
+            + "usuario antes de actuar. Para ver todos los que cumplen un criterio, usa "
+            + "listar_sedes: esta busqueda devuelve hasta 20 candidatos para ubicar uno.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre o codigo de la sede, o parte de ellos, en cualquier orden.")]

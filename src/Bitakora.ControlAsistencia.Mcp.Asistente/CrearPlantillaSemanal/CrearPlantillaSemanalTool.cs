@@ -39,7 +39,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             + "nada y te dice cuales faltan. Los dias que el dominio rechace quedan sin turno y la "
             + "plantilla incompleta; corrigelos con asignar_turno_a_dia. El nombre es unico en el "
             + "catalogo. Con jornada_id (miralo con listar_jornadas) la plantilla nace asociada a esa "
-            + "Jornada y se audita contra sus limites. Aparece en buscar_plantillas_semanales en unos segundos.")]
+            + "Jornada y se audita contra sus limites. Aparece en listar_plantillas_semanales en unos segundos.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico de la plantilla semanal en el catalogo.", isRequired: true)]

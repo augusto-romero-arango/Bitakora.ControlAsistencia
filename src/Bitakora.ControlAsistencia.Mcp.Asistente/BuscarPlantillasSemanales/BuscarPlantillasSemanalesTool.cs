@@ -24,7 +24,10 @@ public partial class BuscarPlantillasSemanalesTool(ProgramacionApi api)
             + "que usan en algun dia un turno con ese nombre aproximado. Por semanas: numero exacto (1 a "
             + "6). Por estado: incompleta (algun dia sin turno) o con_advertencias (no cumple su Jornada "
             + "o no tiene Jornada). Combina los criterios. Devuelve hasta 20 candidatas con el motivo de "
-            + "la coincidencia; si hay mas de una plausible, pregunta al usuario antes de actuar. Para ver todos los que cumplen un criterio, usa listar_plantillas_semanales: esta busqueda devuelve hasta 20 candidatos para ubicar uno; para el cuadro, obtener_plantilla_semanal.")]
+            + "la coincidencia; si hay mas de una plausible, pregunta al usuario antes de actuar. Para "
+            + "ver todos los que cumplen un criterio (p. ej. todas las plantillas incompletas), usa "
+            + "listar_plantillas_semanales: esta busqueda devuelve hasta 20 candidatos para ubicar uno; "
+            + "para el cuadro, obtener_plantilla_semanal.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre o parte del nombre de la plantilla, en cualquier orden.")]

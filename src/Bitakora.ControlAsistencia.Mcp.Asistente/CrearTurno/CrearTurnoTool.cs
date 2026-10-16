@@ -21,7 +21,7 @@ public partial class CrearTurnoTool(ProgramacionApi programacion)
             + "tener al menos una franja ordinaria. Con es_descanso en true crea un turno de "
             + "descanso (dia libre programable, no admite franjas). El nombre es unico en el "
             + "catalogo, sin distinguir mayusculas ni espacios repetidos; si ya existe, responde "
-            + "el rechazo del dominio. Aparece en buscar_turnos en unos segundos.")]
+            + "el rechazo del dominio. Aparece en listar_turnos en unos segundos.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico del turno en el catalogo.", isRequired: true)]
