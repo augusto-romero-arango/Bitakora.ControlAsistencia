@@ -41,6 +41,8 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var catalogo = await session.Query<FichaTurno>().ToListAsync(ct);
 
-        return new OkObjectResult(PaginaFichasTurno.Componer(catalogo, take, cursor));
+        string? sedeId = req.Query.TryGetValue("sedeId", out var sedeCruda) ? sedeCruda[0] : null;
+
+        return new OkObjectResult(PaginaFichasTurno.Componer(catalogo, take, cursor, sedeId));
     }
 }
