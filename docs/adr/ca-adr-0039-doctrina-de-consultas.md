@@ -27,12 +27,12 @@ Referencias:
 
 2. Cada tool de consulta pertenece a una modalidad, definida por la intencion del usuario:
 
-   | Modalidad | Intencion | Tools hoy | Cuando hay mas | Tope |
-   |---|---|---|---|---|
-   | **Detalle** | "Muestrame esto a fondo" | `obtener_turno`, `obtener_plantilla_semanal`, `listar_colaboradores` con `identificacion` | No aplica (una entidad; sus listas internas se muestran completas) | -- |
-   | **Desambiguacion** | "A quien se refiere el usuario?" | `buscar_colaboradores` | **No pagina**: acotar o preguntar al usuario. Se buscan unos pocos; hay que ser certero | 20 |
-   | **Catalogo** | "Ubicame un elemento / muestrame el catalogo" | `listar_turnos`, `listar_plantillas_semanales`, `listar_sedes`, `listar_colaboradores` por sede o etiquetas | **Pagina** con `cursor`; la nota sugiere primero refinar | 50 |
-   | **Ventana temporal** | "Que pasa en este periodo?" | `consultar_programacion`, `consultar_ausencias`, #876 | **Pagina** con `cursor`; la nota sugiere primero acotar sujetos o ventana | 50 |
+   | Modalidad | Pregunta | Quien consume | Intencion | Tools hoy | Cuando hay mas | Tope |
+   |---|---|---|---|---|---|---|
+   | **Detalle** | "Muestrame esto" | El humano, o el modelo antes de modificar | "Muestrame esto a fondo" | `obtener_turno`, `obtener_plantilla_semanal`, `listar_colaboradores` con `identificacion` | No aplica (una entidad; sus listas internas se muestran completas) | -- |
+   | **Desambiguacion** | "**Cual**?" (una identidad a partir de una mencion aproximada) | El modelo, como paso intermedio para llamar a otra tool | "A quien se refiere el usuario?" | `buscar_colaboradores` | **No pagina**: acotar o preguntar al usuario. Se buscan unos pocos; hay que ser certero | 20 |
+   | **Catalogo** | "**Cuales**?" (el conjunto completo de un maestro) | El humano | "Ubicame un elemento / muestrame el catalogo" | `listar_turnos`, `listar_plantillas_semanales`, `listar_sedes`, `listar_colaboradores` por sede o etiquetas | **Pagina** con `cursor`; la nota sugiere primero refinar | 50 |
+   | **Ventana temporal** | "Que pasa en este periodo?" | El humano | "Que pasa en este periodo?" | `consultar_programacion`, `consultar_ausencias`, #876 | **Pagina** con `cursor`; la nota sugiere primero acotar sujetos o ventana | 50 |
 
    "Excepciones" (solo lo anomalo) no es modalidad: es el filtro de relevancia de MEF-ADR-0047 que ya cumple la ventana temporal (solo aparece quien tiene algo que reportar).
 
@@ -47,6 +47,12 @@ Referencias:
    - **Sin `total`.** Nunca un total, ni exacto ni estimado.
 6. **Vacio**: una frase con el criterio usado ("Nadie falta entre ... y ... en la sede Norte"), nunca un sobre vacio mudo.
 7. **Detalle** sin sobre: la entidad; si no existe, una frase con el criterio (el mensaje del dominio).
+
+### Tools MCP: la pregunta define la modalidad (enmienda 2026-10-14)
+
+15. **Un criterio no es de por si de desambiguacion o de catalogo; lo define la pregunta.** `buscar_*` (desambiguacion, "cual?") conserva sus criterios (sede, ciudad, estado...) como pistas de identidad y remite a `listar_*` para "todos los que cumplen un criterio" ("cuales?"). Dos tools no responden la misma pregunta.
+16. **Filtros de catalogo por recurrencia.** El catalogo solo gana **filtros exactos** (aplicados en el backend, para que el cursor sea veraz) cuando la pregunta "cuales?" sobre ese campo es recurrente. Mientras no haya evidencia de uso, decide el criterio del experto. Lo demas se expone como **senales**: marcadores booleanos en cada elemento que solo viajan cuando son verdad (`enConstruccion`, `incompleta`, `conAdvertencias`). La busqueda aproximada por texto (`filtro_nombre`) nunca es filtro de catalogo: es desambiguacion.
+17. **El backend no conoce la desambiguacion.** El codigo (front, composicion interna) solo necesita detalle por identidad y listas por criterios exactos con keyset. El puntaje aproximado vive en el MCP mientras no haya un segundo consumidor (MEF-ADR-0018).
 
 ### Backend: endpoints de lista
 
@@ -84,3 +90,4 @@ Referencias:
 ## Historial
 
 - 2026-10-13: decision 14 enmendada (#1057, mefisto#2435): las modalidades que paginan piden `Take = tope` y deducen "hay mas" del `siguienteCursor`; la desambiguacion pide `tope + 1`.
+- 2026-10-14: enmienda de las modalidades (#1093): la tabla de la decision 2 gana las columnas "Pregunta" y "Quien consume"; decisiones 15 a 17 (cual = buscar, cuales = listar; filtros de catalogo por recurrencia y senales; el backend no conoce la desambiguacion). Origen: refinamiento de #879; ver tambien #1091 y #1092.
