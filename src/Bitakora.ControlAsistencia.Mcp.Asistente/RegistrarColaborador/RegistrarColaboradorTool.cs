@@ -25,7 +25,7 @@ public partial class RegistrarColaboradorTool(ColaboradoresApi api)
             + "vinculacion desde fecha_inicio. Obligatorios: tipo y numero de identificacion, "
             + "primer nombre, primer apellido, codigo_colaborador (solo letras, numeros y - . _ ~) "
             + "y fecha_inicio (yyyy-MM-dd, pidesela al usuario: nunca la asumas). Opcionales: "
-            + "segundo nombre, segundo apellido y codigo_sede (obtenlo con listar_sedes). Si la "
+            + "segundo nombre, segundo apellido y codigo_sede (obtenlo con buscar_sedes). Si la "
             + "identificacion ya esta registrada responde el rechazo del dominio: reingresar a "
             + "alguien ya registrado es otra operacion. Aparece en listar_colaboradores en unos "
             + "segundos.")]
@@ -60,7 +60,7 @@ public partial class RegistrarColaboradorTool(ColaboradoresApi api)
         string fechaInicio,
         [McpToolProperty(
             "codigo_sede",
-            "Codigo de la sede donde queda vinculado (opcional, obtenlo con listar_sedes).")]
+            "Codigo de la sede donde queda vinculado (opcional, obtenlo con buscar_sedes).")]
         string? codigoSede,
         CancellationToken ct)
     {

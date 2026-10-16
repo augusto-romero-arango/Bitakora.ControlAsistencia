@@ -20,13 +20,13 @@ public partial class AgregarFranjaTool(
             "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo, "
             + "indicado por su nombre exacto. Horas en formato HH:mm; si fin es menor que inicio la "
             + "franja cruza la medianoche; inicio igual a fin significa una franja de 24 horas. "
-            + "Opcional codigo_sede (obtenlo con listar_sedes) para prearmar la sede de esa franja. "
+            + "Opcional codigo_sede (obtenlo con buscar_sedes) para prearmar la sede de esa franja. "
             + "Una franja no puede solaparse con otra del mismo turno ni agregarse a un turno de "
             + "descanso. Con la primera franja el turno queda completo y se puede programar.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con listar_turnos).", isRequired: true)]
+            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
         string turno,
         [McpToolProperty("inicio", "Hora de inicio de la franja, formato HH:mm.", isRequired: true)]
         string inicio,
@@ -34,7 +34,7 @@ public partial class AgregarFranjaTool(
         string fin,
         [McpToolProperty(
             "codigo_sede",
-            "Codigo de la sede a prearmar en esta franja (opcional, miralo con listar_sedes).")]
+            "Codigo de la sede a prearmar en esta franja (opcional, miralo con buscar_sedes).")]
         string? codigoSede,
         CancellationToken ct)
     {

@@ -20,7 +20,7 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorP
         [McpToolTrigger(
             NombreTool,
             "Devuelve el cuadro de una plantilla semanal por su nombre exacto (mirala con "
-            + "listar_plantillas_semanales): por cada semana, el turno de cada dia de lunes a "
+            + "buscar_plantillas_semanales): por cada semana, el turno de cada dia de lunes a "
             + "domingo con su nombre y horario, los dias sin turno y los turnos retirados o "
             + "incompletos, la Jornada asociada y las advertencias de la plantilla contra sus "
             + "limites. Para las franjas de un turno usa obtener_turno.")]
@@ -28,7 +28,7 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorP
         ToolInvocationContext context,
         [McpToolProperty(
             "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
+            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
         CancellationToken ct)

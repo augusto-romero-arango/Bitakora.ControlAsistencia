@@ -22,7 +22,7 @@ public partial class BuscarTurnosTool(ProgramacionApi api)
             + "exacto, luego los mas cercanos y al final los que solo se cruzan. Por sede: codigo "
             + "o nombre de la sede de alguna franja. Combina los criterios. Devuelve hasta 20 "
             + "candidatos con el motivo de la coincidencia; si hay mas de uno plausible, pregunta "
-            + "al usuario antes de actuar. Para ver el catalogo completo usa listar_turnos; para "
+            + "al usuario antes de actuar. Para ver todos los que cumplen un criterio, usa listar_turnos: esta busqueda devuelve hasta 20 candidatos para ubicar uno; para "
             + "el detalle, obtener_turno.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,

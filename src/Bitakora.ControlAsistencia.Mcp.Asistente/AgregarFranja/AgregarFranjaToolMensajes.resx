@@ -30,7 +30,7 @@
     <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
   </data>
   <data name="SedeNoExiste" xml:space="preserve">
-    <value>No existe una sede con el codigo '{0}'.</value>
+    <value>No existe una sede con el codigo '{0}'; usa buscar_sedes para ubicarla.</value>
   </data>
   <data name="SedeInactiva" xml:space="preserve">
     <value>La sede '{0}' esta inactiva.</value>

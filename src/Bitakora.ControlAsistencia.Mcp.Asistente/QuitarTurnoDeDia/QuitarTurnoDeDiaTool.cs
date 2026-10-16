@@ -25,7 +25,7 @@ public partial class QuitarTurnoDeDiaTool(ProgramacionApi programacion, Resoluto
         ToolInvocationContext context,
         [McpToolProperty(
             "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
+            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
         [McpToolProperty("dia", "Dia de la semana: lunes..domingo o 1..7.", isRequired: true)]
