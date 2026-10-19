@@ -5,11 +5,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarTurnos;
 
-// Tool de solo lectura sobre GET programacion/turnos. La respuesta se remodela para
-// token-eficiencia (issue #502): id + nombre + horario por turno, sin franjas ni descripciones
-// (ese detalle es de obtener_turno), y la lista se trunca con senal. filtro_nombre es una
-// desviacion documentada del alcance original ("sin parametros"): con un catalogo de miles el
-// truncado sin filtro dejaria turnos inalcanzables para el asistente.
+// Tool de catalogo (CA-ADR-0039) sobre GET programacion/turnos: remodela a id + nombre + horario
+// por turno, sin franjas (ese detalle es de obtener_turno), y pagina con el cursor del backend sin
+// descartar ningun elemento recibido. sede se traduce a SedeId sin exigir que este activa.
 //
 // El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado
 // (ShouldDelete), asi que no hay estado que filtrar aqui (revision del PR #512).
@@ -23,10 +21,11 @@ public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodig
         [McpToolTrigger(
             NombreTool,
             "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno. "
-            + "La lista se trunca cuando es larga; usa filtro_nombre para encontrar un turno especifico. "
-            + "Para ver la composicion completa de un turno usa obtener_turno con su id. "
-            + "Los turnos marcados con enConstruccion no tienen franjas todavia y no se pueden "
-            + "programar: sirven para retomar un diseno con agregar_franja.")]
+            + "Filtra por sede (codigo): los turnos con alguna franja en esa sede. Muestra 50 por "
+            + "pagina; si trae siguienteCursor, pasalo como cursor para la pagina siguiente. Para "
+            + "ubicar un turno que el usuario nombra de forma aproximada usa buscar_turnos; para su "
+            + "composicion, obtener_turno. Los turnos marcados con enConstruccion no tienen franjas "
+            + "todavia y no se pueden programar: sirven para retomar un diseno con agregar_franja.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("sede", "Codigo de la sede para ver solo los turnos con alguna franja en ella.")]

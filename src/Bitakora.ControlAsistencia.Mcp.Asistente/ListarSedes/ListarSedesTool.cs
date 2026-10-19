@@ -5,11 +5,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarSedes;
 
-// Tool de solo lectura sobre GET sedes/fichas?activa=true (decisiones de revision del PR #512:
-// solo sedes activas, sin tope de truncado). Remodelado (issue #502): se podan el Id tecnico
-// (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el vocabulario del consumidor), los
-// dispositivos, el centro de costos y la bandera Activa (siempre true tras el filtro upstream:
-// seria ruido de tokens). filtro_nombre se conserva como economia de tokens, no como alcance.
+// Tool de catalogo (CA-ADR-0039) sobre GET sedes/fichas?activa=true, paginada con el cursor del
+// backend. Se podan el Id tecnico (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el
+// vocabulario del consumidor), los dispositivos, el centro de costos y la bandera Activa (siempre
+// true tras el filtro upstream: seria ruido de tokens).
 public partial class ListarSedesTool(SedesApi api)
 {
     internal const string NombreTool = "listar_sedes";
@@ -20,7 +19,8 @@ public partial class ListarSedesTool(SedesApi api)
         [McpToolTrigger(
             NombreTool,
             "Lista las sedes activas de la empresa: codigo, nombre, ciudad y direccion. "
-            + "Usa filtro_nombre para encontrar una sede especifica sin traer el catalogo completo.")]
+            + "Muestra 50 por pagina; si trae siguienteCursor, pasalo como cursor. Para ubicar una "
+            + "sede que el usuario nombra de forma aproximada usa buscar_sedes.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]

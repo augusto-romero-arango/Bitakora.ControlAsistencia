@@ -43,14 +43,8 @@ public class ListarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
     public async Task ListarTurnos_DevuelveSoloLosTurnosDeLaSede_CuandoSeFiltraPorSede()
     {
         var ct = TestContext.Current.CancellationToken;
-        var sufijo = Guid.CreateVersion7();
-        var codigoSede = $"TEST-{sufijo}";
-        var nombreTurno = $"[TEST] ListarTurnos Sede MCP {sufijo}";
-
-        await mcp.Cliente.CallToolAsync(
-            "registrar_sede",
-            new Dictionary<string, object?> { ["codigo"] = codigoSede, ["nombre"] = "[TEST] Sede ListarTurnos" },
-            cancellationToken: ct);
+        var codigoSede = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
+        var nombreTurno = $"[TEST] ListarTurnos Sede MCP {Guid.CreateVersion7()}";
 
         var creado = await mcp.Cliente.CallToolAsync(
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = nombreTurno }, cancellationToken: ct);
@@ -101,17 +95,32 @@ public class ListarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             },
             CatalogoDeTurnos.TimeoutPolling);
 
+        var sedesPorTurno = new Dictionary<string, IReadOnlyList<string>>();
         foreach (var turno in listado.RootElement.GetProperty("turnos").EnumerateArray())
         {
-            var id = turno.GetProperty("id").GetString();
-            var detalle = await programacion.Client.GetStringAsync($"/api/programacion/turnos/{id}", ct);
-            using var documento = JsonDocument.Parse(detalle);
-            documento.RootElement.GetProperty("franjas").EnumerateArray()
-                .Any(f => f.TryGetProperty("sedeId", out var sede) && sede.ValueKind == JsonValueKind.String)
-                .Should().BeTrue($"el turno {id} devuelto con sede={codigoSede} debe tener una franja con sede");
+            var id = turno.GetProperty("id").GetString()!;
+            sedesPorTurno[id] = await SedesDeLasFranjasAsync(id, ct);
         }
+
+        var sedeId = sedesPorTurno[turnoId].Should().ContainSingle(
+            "el turno sembrado tiene una sola franja, asignada a la sede del arrange").Subject;
+        sedesPorTurno.Should().OnlyContain(
+            t => t.Value.Contains(sedeId),
+            $"todo turno devuelto con sede={codigoSede} tiene alguna franja en esa sede");
 
         await mcp.Cliente.CallToolAsync(
             "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+    }
+
+    private async Task<IReadOnlyList<string>> SedesDeLasFranjasAsync(string turnoId, CancellationToken ct)
+    {
+        var detalle = await programacion.Client.GetStringAsync($"/api/programacion/turnos/{turnoId}", ct);
+        using var documento = JsonDocument.Parse(detalle);
+        return
+        [
+            .. documento.RootElement.GetProperty("franjas").EnumerateArray()
+                .Where(f => f.TryGetProperty("sedeId", out var sede) && sede.ValueKind == JsonValueKind.String)
+                .Select(f => f.GetProperty("sedeId").GetString()!)
+        ];
     }
 }

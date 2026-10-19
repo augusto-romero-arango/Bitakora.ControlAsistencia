@@ -19,9 +19,10 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
         [McpToolTrigger(
             NombreTool,
             "Lista las plantillas semanales de turnos del catalogo: nombre, numero de semanas y si "
-            + "esta lista para usarse. Las incompletas aparecen marcadas. La lista se trunca cuando "
-            + "es larga; usa filtro_nombre para encontrar una especifica. Para ver el cuadro de una "
-            + "plantilla usa obtener_plantilla_semanal.")]
+            + "esta lista para usarse. Las incompletas y las que no cumplen su Jornada aparecen "
+            + "marcadas. Muestra 50 por pagina; si trae siguienteCursor, pasalo como cursor. Para "
+            + "ubicar una plantilla que el usuario nombra de forma aproximada usa "
+            + "buscar_plantillas_semanales; para su cuadro, obtener_plantilla_semanal.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
@@ -66,8 +67,8 @@ public sealed record CatalogoDePlantillasSemanales(
     string? Nota);
 
 /// <summary>
-/// Incompleta viaja solo cuando es true: null se omite en la serializacion (filtro de relevancia,
-/// MEF-ADR-0047 decision 4), igual que enConstruccion en TurnoResumido.
+/// Incompleta y ConAdvertencias viajan solo cuando son true: null se omite en la serializacion
+/// (filtro de relevancia, MEF-ADR-0047 decision 4), igual que enConstruccion en TurnoResumido.
 /// </summary>
 public sealed record PlantillaResumida(
     string Id,
