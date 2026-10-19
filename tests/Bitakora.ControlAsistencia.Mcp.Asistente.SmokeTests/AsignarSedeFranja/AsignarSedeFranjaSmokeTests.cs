@@ -177,7 +177,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
             },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be($"No existe una sede con el codigo '{codigoSede}'.");
+        TextoDe(resultado).Should().Be($"No existe una sede con el codigo '{codigoSede}'; usa buscar_sedes para ubicarla.");
 
         await RetirarTurnoAsync(nombreTurno, ct);
     }
