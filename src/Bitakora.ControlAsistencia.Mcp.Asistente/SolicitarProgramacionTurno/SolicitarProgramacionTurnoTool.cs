@@ -29,7 +29,7 @@ public partial class SolicitarProgramacionTurnoTool(
             NombreTool,
             "Programa un turno a una lista de colaboradores en una sede (la de programacion, opcional), "
             + "para todos los dias de una ventana de trabajo de maximo 35 dias. Recibe la ventana "
-            + "(desde, hasta), el nombre exacto del turno del catalogo (miralo con listar_turnos), "
+            + "(desde, hasta), el nombre exacto del turno del catalogo (miralo con buscar_turnos), "
             + "opcionalmente el codigo de la sede de programacion -- distinta de la sede de trabajo de "
             + "cada colaborador; sugiere una al usuario y, si prefiere la sede de cada colaborador, "
             + "omite el parametro -- y las identificaciones completas de los colaboradores, separadas por coma, tal como las "
@@ -56,7 +56,7 @@ public partial class SolicitarProgramacionTurnoTool(
         string hasta,
         [McpToolProperty(
             "turno",
-            "Nombre exacto del turno del catalogo (ej. 'Cocina manana'); miralo con listar_turnos.",
+            "Nombre exacto del turno del catalogo (ej. 'Cocina manana'); miralo con buscar_turnos.",
             isRequired: true)]
         string turno,
         [McpToolProperty(

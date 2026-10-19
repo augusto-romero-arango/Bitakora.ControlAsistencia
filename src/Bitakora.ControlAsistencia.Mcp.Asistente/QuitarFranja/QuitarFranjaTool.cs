@@ -22,7 +22,7 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTur
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con listar_turnos).", isRequired: true)]
+            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
         string turno,
         [McpToolProperty("franja", "Hora de inicio de la franja a quitar, formato HH:mm.", isRequired: true)]
         string franja,

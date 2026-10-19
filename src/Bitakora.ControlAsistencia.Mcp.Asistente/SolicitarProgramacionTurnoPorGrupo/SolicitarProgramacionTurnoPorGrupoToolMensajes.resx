@@ -42,13 +42,13 @@
     <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
   </data>
   <data name="SedeNoExiste" xml:space="preserve">
-    <value>No existe una sede de programacion con el codigo '{0}'; usa listar_sedes para verla.</value>
+    <value>No existe una sede de programacion con el codigo '{0}'; usa buscar_sedes para ubicarla.</value>
   </data>
   <data name="SedeInactiva" xml:space="preserve">
     <value>La sede de programacion '{0}' esta inactiva.</value>
   </data>
   <data name="SedeDelSelectorNoExiste" xml:space="preserve">
-    <value>No existe una sede con el codigo '{0}' para definir el grupo; usa listar_sedes para verla.</value>
+    <value>No existe una sede con el codigo '{0}' para definir el grupo; usa buscar_sedes para ubicarla.</value>
   </data>
   <data name="SedeDelSelectorInactiva" xml:space="preserve">
     <value>La sede '{0}' del grupo esta inactiva.</value>

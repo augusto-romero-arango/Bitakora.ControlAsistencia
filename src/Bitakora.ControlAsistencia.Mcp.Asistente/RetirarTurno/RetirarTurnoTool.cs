@@ -16,7 +16,7 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Retira un turno del catalogo por su nombre exacto (miralo con listar_turnos): deja "
+            "Retira un turno del catalogo por su nombre exacto (miralo con buscar_turnos): deja "
             + "de poder programarse y su nombre queda libre para reutilizarse. Los dias ya "
             + "programados con ese turno no cambian. Usalo tambien para descartar un turno "
             + "incompleto o un diseno a medias.")]
@@ -24,7 +24,7 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
         ToolInvocationContext context,
         [McpToolProperty(
             "turno",
-            "Nombre exacto del turno del catalogo (miralo con listar_turnos).",
+            "Nombre exacto del turno del catalogo (miralo con buscar_turnos).",
             isRequired: true)]
         string turno,
         CancellationToken ct)

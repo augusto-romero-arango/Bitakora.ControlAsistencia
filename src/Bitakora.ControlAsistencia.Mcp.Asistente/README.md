@@ -83,10 +83,10 @@ seccion 2 verificacion 3) -- `ejemplo_listar` lo demuestra con `fecha_referencia
 | Grupo | Lectura | Escritura |
 |---|---|---|
 | Sesion | `obtener_sesion`, `cerrar_sesion` | -- |
-| Sedes | `listar_sedes` | `registrar_sede` |
+| Sedes | `buscar_sedes`, `listar_sedes` | `registrar_sede` |
 | Colaboradores | `listar_colaboradores` (por grupo), `buscar_colaboradores` (por persona) | `registrar_colaborador` |
-| Turnos | `listar_turnos`, `obtener_turno` | `crear_turno`, `retirar_turno`, `agregar_franja`, `quitar_franja`, `agregar_subfranja`, `quitar_subfranja`, `asignar_sede_franja` |
-| Plantillas semanales | `listar_plantillas_semanales`, `obtener_plantilla_semanal` | `crear_plantilla_semanal`, `retirar_plantilla_semanal`, `asignar_turno_a_dia`, `quitar_turno_de_dia` |
+| Turnos | `buscar_turnos`, `listar_turnos`, `obtener_turno` | `crear_turno`, `retirar_turno`, `agregar_franja`, `quitar_franja`, `agregar_subfranja`, `quitar_subfranja`, `asignar_sede_franja` |
+| Plantillas semanales | `buscar_plantillas_semanales`, `listar_plantillas_semanales`, `obtener_plantilla_semanal` | `crear_plantilla_semanal`, `retirar_plantilla_semanal`, `asignar_turno_a_dia`, `quitar_turno_de_dia` |
 | Programacion | `consultar_programacion` | `solicitar_programacion_turno` |
 | Ausencias | `consultar_ausencias` | `programar_ausencia`, `cancelar_ausencia` |
 

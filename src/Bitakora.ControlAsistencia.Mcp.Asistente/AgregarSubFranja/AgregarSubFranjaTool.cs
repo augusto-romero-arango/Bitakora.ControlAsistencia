@@ -26,7 +26,7 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion, Resoluto
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con listar_turnos).", isRequired: true)]
+            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
         string turno,
         [McpToolProperty(
             "franja", "Hora de inicio de la franja ordinaria donde se agrega, formato HH:mm.", isRequired: true)]

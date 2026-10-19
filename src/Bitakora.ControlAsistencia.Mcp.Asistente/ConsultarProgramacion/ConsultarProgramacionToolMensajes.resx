@@ -36,7 +36,7 @@
     <value>Hay mas dias programados. Para acotar usa codigos_colaborador, sede, etiquetas, sede_trabajo o un rango menor; para ver los siguientes, repite con el siguienteCursor como cursor. Los dias de un colaborador pueden quedar partidos entre paginas.</value>
   </data>
   <data name="SedeTrabajoNoExiste" xml:space="preserve">
-    <value>No existe una sede con codigo '{0}'; consulta el catalogo con listar_sedes.</value>
+    <value>No existe una sede con codigo '{0}'; ubicala con buscar_sedes.</value>
   </data>
   <data name="GrupoSinColaboradores" xml:space="preserve">
     <value>No hay colaboradores para el criterio {0} en el periodo {1}.</value>

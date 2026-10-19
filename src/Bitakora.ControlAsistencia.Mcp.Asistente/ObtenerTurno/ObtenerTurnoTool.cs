@@ -21,12 +21,12 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             NombreTool,
             "Obtiene el detalle de un turno del catalogo: sus franjas con horario, descansos, "
             + "extras y sede prearmada si la tiene. Usalo para confirmar la composicion exacta "
-            + "de un turno antes de programarlo.")]
+            + "de un turno antes de programarlo. Para ubicar el turno por una mencion aproximada, usa buscar_turnos.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
             "id",
-            "Id del turno en el catalogo (obtenlo con listar_turnos).",
+            "Id del turno en el catalogo (obtenlo con buscar_turnos).",
             isRequired: true)]
         string id,
         CancellationToken ct)
