@@ -27,9 +27,26 @@ public partial class ListarSedesTool(SedesApi api)
         string? cursor,
         CancellationToken ct)
     {
-        _ = api;
-        await Task.CompletedTask;
-        throw new NotImplementedException();
+        var respuesta = await api.ListarFichasActivas(
+            ct, MaximoSedes, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim());
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaSede>>(ct)
+            ?? new SobreDeLista<FichaSede>([]);
+
+        if (sobre.Elementos.Count == 0)
+            return Mensajes.SinSedes;
+
+        var sedes = sobre.Elementos
+            .Select(f => new SedeResumida(f.Codigo, f.Nombre, f.Ciudad, f.Direccion))
+            .ToList();
+
+        return RespuestaJson.Serializar(new CatalogoDeSedes(
+            sedes.Count,
+            sedes,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null ? null : string.Format(Mensajes.NotaHayMasSedes, sobre.SiguienteCursor)));
     }
 }
 

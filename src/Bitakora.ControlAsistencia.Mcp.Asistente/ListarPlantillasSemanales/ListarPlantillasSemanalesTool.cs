@@ -28,9 +28,33 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
         string? cursor,
         CancellationToken ct)
     {
-        _ = api;
-        await Task.CompletedTask;
-        throw new NotImplementedException();
+        var respuesta = await api.ListarPlantillasSemanales(
+            ct, MaximoPlantillas, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim());
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(ct)
+            ?? new SobreDeLista<CuadroSemanalTurnos>([]);
+
+        if (sobre.Elementos.Count == 0)
+            return Mensajes.SinPlantillas;
+
+        var visibles = sobre.Elementos
+            .Select(c => new PlantillaResumida(
+                c.Id,
+                c.Nombre.Trim(),
+                c.Semanas,
+                Incompleta: c.Completa ? null : true,
+                ConAdvertencias: c.Advertencias is { Count: > 0 } ? true : null))
+            .ToList();
+
+        return RespuestaJson.Serializar(new CatalogoDePlantillasSemanales(
+            visibles.Count,
+            visibles,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null
+                ? null
+                : string.Format(Mensajes.NotaHayMasPlantillas, sobre.SiguienteCursor)));
     }
 }
 

@@ -35,9 +35,45 @@ public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodig
         string? cursor,
         CancellationToken ct)
     {
-        _ = (api, resolutorSedes);
-        await Task.CompletedTask;
-        throw new NotImplementedException();
+        var sedeCodigo = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
+        string? sedeId = null;
+        if (sedeCodigo is not null)
+        {
+            var resolucion = await resolutorSedes.ResolverIdAsync(sedeCodigo, ct);
+            if (resolucion.FalloDeLectura is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucion.NoExiste)
+                return string.Format(Mensajes.SedeNoExiste, sedeCodigo);
+            sedeId = resolucion.SedeId;
+        }
+
+        var respuesta = await api.ListarTurnos(
+            ct, MaximoTurnos, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim(), sedeId);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(ct)
+            ?? new SobreDeLista<FichaTurno>([]);
+
+        if (sobre.Elementos.Count == 0)
+            return sedeCodigo is null
+                ? Mensajes.SinTurnos
+                : string.Format(Mensajes.SinTurnosEnSede, sedeCodigo);
+
+        var visibles = sobre.Elementos
+            .Select(f => new TurnoResumido(
+                f.Id,
+                f.Nombre.Trim(),
+                f.HorarioResumido,
+                EsDescanso: f.EsDescanso ? true : null,
+                EnConstruccion: f.Completo ? null : true))
+            .ToList();
+
+        return RespuestaJson.Serializar(new CatalogoDeTurnos(
+            visibles.Count,
+            visibles,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null ? null : string.Format(Mensajes.NotaHayMasTurnos, sobre.SiguienteCursor)));
     }
 }
 
