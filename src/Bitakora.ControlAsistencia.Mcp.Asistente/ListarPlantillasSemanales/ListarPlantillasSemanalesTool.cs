@@ -5,10 +5,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarPlantillasSemanales;
 
-// Tool de solo lectura sobre GET programacion/plantillas-semanales (issue #629). La respuesta de
-// #625 ya viene compuesta (cuadro + fichas de turno); esta tool solo remodela para
-// token-eficiencia -- no junta nada (CA-ADR-0034 decision 5 enmendada). El detalle con franjas de
-// cada turno sigue siendo obtener_turno; el cuadro dia por dia es obtener_plantilla_semanal.
+// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
+// Solo remodela: la respuesta del backend ya viene compuesta, no se junta con otras lecturas
+// (CA-ADR-0034 decision 5).
 public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
 {
     internal const string NombreTool = "listar_plantillas_semanales";
@@ -59,7 +58,6 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
     }
 }
 
-/// <summary>Contrato de respuesta de listar_plantillas_semanales hacia el asistente (issue #629).</summary>
 public sealed record CatalogoDePlantillasSemanales(
     int Mostrando,
     IReadOnlyList<PlantillaResumida> Plantillas,
@@ -68,7 +66,7 @@ public sealed record CatalogoDePlantillasSemanales(
 
 /// <summary>
 /// Incompleta y ConAdvertencias viajan solo cuando son true: null se omite en la serializacion
-/// (filtro de relevancia, MEF-ADR-0047 decision 4), igual que enConstruccion en TurnoResumido.
+/// (filtro de relevancia, MEF-ADR-0047 decision 4).
 /// </summary>
 public sealed record PlantillaResumida(
     string Id,

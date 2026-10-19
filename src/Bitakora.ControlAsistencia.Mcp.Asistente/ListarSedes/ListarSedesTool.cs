@@ -5,8 +5,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarSedes;
 
-// Tool de catalogo (CA-ADR-0039) sobre GET sedes/fichas?activa=true, paginada con el cursor del
-// backend. Se podan el Id tecnico (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el
+// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
+// Se podan el Id tecnico (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el
 // vocabulario del consumidor), los dispositivos, el centro de costos y la bandera Activa (siempre
 // true tras el filtro upstream: seria ruido de tokens).
 public partial class ListarSedesTool(SedesApi api)
@@ -50,7 +50,6 @@ public partial class ListarSedesTool(SedesApi api)
     }
 }
 
-/// <summary>Contrato de respuesta de listar_sedes hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeSedes(
     int Mostrando,
     IReadOnlyList<SedeResumida> Sedes,

@@ -11,18 +11,6 @@ public sealed class ProgramacionApi(HttpClient http)
         CancellationToken ct, int? take = null, string? cursor = null, string? sedeId = null) =>
         http.GetAsync(ConsultaDeLista("api/programacion/turnos", take, cursor, sedeId), ct);
 
-    private static string ConsultaDeLista(string ruta, int? take, string? cursor, string? sedeId = null)
-    {
-        var parametros = new List<string>();
-        if (take is { } tope)
-            parametros.Add($"take={tope}");
-        if (cursor is not null)
-            parametros.Add($"cursor={Uri.EscapeDataString(cursor)}");
-        if (sedeId is not null)
-            parametros.Add($"sedeId={Uri.EscapeDataString(sedeId)}");
-        return parametros.Count == 0 ? ruta : $"{ruta}?{string.Join("&", parametros)}";
-    }
-
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
@@ -164,6 +152,18 @@ public sealed class ProgramacionApi(HttpClient http)
         };
 
         return http.SendAsync(request, ct);
+    }
+
+    private static string ConsultaDeLista(string ruta, int? take, string? cursor, string? sedeId = null)
+    {
+        var parametros = new List<string>();
+        if (take is { } tope)
+            parametros.Add($"take={tope}");
+        if (cursor is not null)
+            parametros.Add($"cursor={Uri.EscapeDataString(cursor)}");
+        if (sedeId is not null)
+            parametros.Add($"sedeId={Uri.EscapeDataString(sedeId)}");
+        return parametros.Count == 0 ? ruta : $"{ruta}?{string.Join("&", parametros)}";
     }
 }
 

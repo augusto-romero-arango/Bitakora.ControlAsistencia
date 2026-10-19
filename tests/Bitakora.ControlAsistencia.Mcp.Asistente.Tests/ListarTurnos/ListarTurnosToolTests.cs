@@ -134,6 +134,18 @@ public class ListarTurnosToolTests
     }
 
     [Fact]
+    public async Task ListarTurnos_RespondeTextoDeRechazoSinLlamarAlCatalogo_CuandoFallaLaLecturaDeLaSede()
+    {
+        var (cliente, handler) = ClienteFalso.ConRutas();
+        handler.Responde(HttpMethod.Get, "/api/sedes/fichas/NORTE", HttpStatusCode.ServiceUnavailable);
+
+        var resultado = await Tool(cliente).Run(null!, "NORTE", null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(ListarTurnosTool.Mensajes.RechazoDelDominio, "503"));
+        handler.Requests.Should().NotContain(r => r.Ruta == "/api/programacion/turnos");
+    }
+
+    [Fact]
     public async Task ListarTurnos_RespondeFraseDelCatalogo_CuandoNoHayTurnos()
     {
         var (cliente, _) = ClienteFalso.Con("""{"elementos":[]}""");

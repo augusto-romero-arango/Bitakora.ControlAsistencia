@@ -5,12 +5,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarTurnos;
 
-// Tool de catalogo (CA-ADR-0039) sobre GET programacion/turnos: remodela a id + nombre + horario
-// por turno, sin franjas (ese detalle es de obtener_turno), y pagina con el cursor del backend sin
-// descartar ningun elemento recibido. sede se traduce a SedeId sin exigir que este activa.
-//
-// El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado
-// (ShouldDelete), asi que no hay estado que filtrar aqui (revision del PR #512).
+// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
+// sede se traduce a SedeId sin exigir que la sede este activa.
+// El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado,
+// asi que aqui no hay estado que filtrar.
 public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "listar_turnos";
@@ -76,7 +74,6 @@ public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodig
     }
 }
 
-/// <summary>Contrato de respuesta de listar_turnos hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeTurnos(
     int Mostrando,
     IReadOnlyList<TurnoResumido> Turnos,
