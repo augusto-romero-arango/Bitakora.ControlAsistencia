@@ -24,44 +24,22 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
             + "plantilla usa obtener_plantilla_semanal.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty(
-            "filtro_nombre",
-            "Texto a buscar dentro del nombre de la plantilla (sin distinguir mayusculas ni acentos).")]
-        string? filtroNombre,
+        [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
+        string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarPlantillasSemanales(ct);
-        respuesta.EnsureSuccessStatusCode();
-
-        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(ct))?.Elementos
-            ?? [];
-
-        if (!string.IsNullOrWhiteSpace(filtroNombre))
-            catalogo = [.. catalogo.Where(c => FiltroDeNombre.Contiene(c.Nombre, filtroNombre))];
-
-        var visibles = catalogo.Take(MaximoPlantillas)
-            .Select(c => new PlantillaResumida(
-                c.Id,
-                c.Nombre.Trim(),
-                c.Semanas,
-                Incompleta: c.Completa ? null : true))
-            .ToList();
-
-        var nota = catalogo.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, catalogo.Count)
-            : null;
-
-        return RespuestaJson.Serializar(
-            new CatalogoDePlantillasSemanales(catalogo.Count, visibles.Count, nota, visibles));
+        _ = api;
+        await Task.CompletedTask;
+        throw new NotImplementedException();
     }
 }
 
 /// <summary>Contrato de respuesta de listar_plantillas_semanales hacia el asistente (issue #629).</summary>
 public sealed record CatalogoDePlantillasSemanales(
-    int Total,
     int Mostrando,
-    string? Nota,
-    IReadOnlyList<PlantillaResumida> Plantillas);
+    IReadOnlyList<PlantillaResumida> Plantillas,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>
 /// Incompleta viaja solo cuando es true: null se omite en la serializacion (filtro de relevancia,
@@ -71,4 +49,5 @@ public sealed record PlantillaResumida(
     string Id,
     string Nombre,
     int Semanas,
-    bool? Incompleta);
+    bool? Incompleta,
+    bool? ConAdvertencias);

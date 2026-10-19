@@ -7,7 +7,8 @@ public sealed class ProgramacionApi(HttpClient http)
 {
     private static readonly HttpMethod Query = new("QUERY");
 
-    public Task<HttpResponseMessage> ListarTurnos(CancellationToken ct) =>
+    public Task<HttpResponseMessage> ListarTurnos(
+        CancellationToken ct, int? take = null, string? cursor = null, string? sedeId = null) =>
         http.GetAsync("api/programacion/turnos", ct);
 
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
@@ -64,7 +65,8 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
         http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);
 
-    public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
+    public Task<HttpResponseMessage> ListarPlantillasSemanales(
+        CancellationToken ct, int? take = null, string? cursor = null) =>
         http.GetAsync("api/programacion/plantillas-semanales", ct);
 
     public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>

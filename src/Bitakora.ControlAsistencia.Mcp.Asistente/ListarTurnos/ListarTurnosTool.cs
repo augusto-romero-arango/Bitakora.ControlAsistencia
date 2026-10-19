@@ -13,7 +13,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarTurnos;
 //
 // El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado
 // (ShouldDelete), asi que no hay estado que filtrar aqui (revision del PR #512).
-public partial class ListarTurnosTool(ProgramacionApi api)
+public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "listar_turnos";
     internal const int MaximoTurnos = 50;
@@ -29,44 +29,24 @@ public partial class ListarTurnosTool(ProgramacionApi api)
             + "programar: sirven para retomar un diseno con agregar_franja.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty(
-            "filtro_nombre",
-            "Texto a buscar dentro del nombre del turno (sin distinguir mayusculas ni acentos).")]
-        string? filtroNombre,
+        [McpToolProperty("sede", "Codigo de la sede para ver solo los turnos con alguna franja en ella.")]
+        string? sede,
+        [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
+        string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarTurnos(ct);
-        respuesta.EnsureSuccessStatusCode();
-
-        var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(ct))?.Elementos
-            ?? [];
-
-        if (!string.IsNullOrWhiteSpace(filtroNombre))
-            fichas = [.. fichas.Where(f => FiltroDeNombre.Contiene(f.Nombre, filtroNombre))];
-
-        var visibles = fichas.Take(MaximoTurnos)
-            .Select(f => new TurnoResumido(
-                f.Id,
-                f.Nombre.Trim(),
-                f.HorarioResumido,
-                EsDescanso: f.EsDescanso ? true : null,
-                EnConstruccion: f.Completo ? null : true))
-            .ToList();
-
-        var nota = fichas.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, fichas.Count)
-            : null;
-
-        return RespuestaJson.Serializar(new CatalogoDeTurnos(fichas.Count, visibles.Count, nota, visibles));
+        _ = (api, resolutorSedes);
+        await Task.CompletedTask;
+        throw new NotImplementedException();
     }
 }
 
 /// <summary>Contrato de respuesta de listar_turnos hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeTurnos(
-    int Total,
     int Mostrando,
-    string? Nota,
-    IReadOnlyList<TurnoResumido> Turnos);
+    IReadOnlyList<TurnoResumido> Turnos,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>
 /// EsDescanso y EnConstruccion viajan solo cuando son true: null se omite en la serializacion

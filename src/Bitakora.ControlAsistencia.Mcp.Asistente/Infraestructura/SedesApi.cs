@@ -4,7 +4,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 public sealed class SedesApi(HttpClient http)
 {
-    public Task<HttpResponseMessage> ListarFichasActivas(CancellationToken ct) =>
+    public Task<HttpResponseMessage> ListarFichasActivas(
+        CancellationToken ct, int? take = null, string? cursor = null) =>
         http.GetAsync("api/sedes/fichas?activa=true", ct);
 
     public Task<HttpResponseMessage> ListarFichas(CancellationToken ct) =>

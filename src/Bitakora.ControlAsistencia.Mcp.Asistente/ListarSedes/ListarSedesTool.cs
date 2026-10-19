@@ -10,9 +10,10 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarSedes;
 // (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el vocabulario del consumidor), los
 // dispositivos, el centro de costos y la bandera Activa (siempre true tras el filtro upstream:
 // seria ruido de tokens). filtro_nombre se conserva como economia de tokens, no como alcance.
-public class ListarSedesTool(SedesApi api)
+public partial class ListarSedesTool(SedesApi api)
 {
     internal const string NombreTool = "listar_sedes";
+    internal const int MaximoSedes = 50;
 
     [Function("ListarSedes")]
     public async Task<string> Run(
@@ -22,33 +23,22 @@ public class ListarSedesTool(SedesApi api)
             + "Usa filtro_nombre para encontrar una sede especifica sin traer el catalogo completo.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty(
-            "filtro_nombre",
-            "Texto a buscar dentro del nombre de la sede (sin distinguir mayusculas ni acentos).")]
-        string? filtroNombre,
+        [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
+        string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarFichasActivas(ct);
-        respuesta.EnsureSuccessStatusCode();
-
-        IReadOnlyList<FichaSede> fichas =
-            (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaSede>>(ct))?.Elementos ?? [];
-
-        if (!string.IsNullOrWhiteSpace(filtroNombre))
-            fichas = [.. fichas.Where(f => FiltroDeNombre.Contiene(f.Nombre, filtroNombre))];
-
-        var sedes = fichas
-            .Select(f => new SedeResumida(f.Codigo, f.Nombre, f.Ciudad, f.Direccion))
-            .ToList();
-
-        return RespuestaJson.Serializar(new CatalogoDeSedes(sedes.Count, sedes));
+        _ = api;
+        await Task.CompletedTask;
+        throw new NotImplementedException();
     }
 }
 
 /// <summary>Contrato de respuesta de listar_sedes hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeSedes(
-    int Total,
-    IReadOnlyList<SedeResumida> Sedes);
+    int Mostrando,
+    IReadOnlyList<SedeResumida> Sedes,
+    string? SiguienteCursor,
+    string? Nota);
 
 public sealed record SedeResumida(
     string Codigo,
