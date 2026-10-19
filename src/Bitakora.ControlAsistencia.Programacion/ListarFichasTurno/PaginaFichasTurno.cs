@@ -9,9 +9,13 @@ internal static class PaginaFichasTurno
     // El orden (Nombre, Id) es ordinal y se aplica en memoria: el catalogo es acotado y asi el corte
     // keyset no depende de la colacion de la base.
     public static ListaFichasTurnoRespuesta Componer(
-        IEnumerable<FichaTurno> catalogo, int? take, CursorFichaTurno? cursor)
+        IEnumerable<FichaTurno> catalogo, int? take, CursorFichaTurno? cursor, string? sedeId = null)
     {
-        var posteriores = catalogo
+        var filtrado = string.IsNullOrEmpty(sedeId)
+            ? catalogo
+            : catalogo.Where(f => f.Franjas.Any(fr => fr.SedeId == sedeId));
+
+        var posteriores = filtrado
             .OrderBy(f => f.Nombre, StringComparer.Ordinal).ThenBy(f => f.Id, StringComparer.Ordinal)
             .Where(f => cursor is not { } c
                 || string.CompareOrdinal(f.Nombre, c.Nombre) > 0

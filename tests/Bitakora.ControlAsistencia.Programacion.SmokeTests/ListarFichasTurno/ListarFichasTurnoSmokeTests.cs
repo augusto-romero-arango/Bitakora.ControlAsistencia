@@ -216,6 +216,41 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task ListarFichasTurno_DevuelveSoloLosTurnosDeLaSede_CuandoSeFiltraPorSedeId()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var otroTurnoId = Guid.CreateVersion7();
+        var sedeId = $"SEDE-TEST-{Guid.CreateVersion7()}";
+
+        await CrearTurnoAsync(turnoId, $"[TEST] Turno Con Sede {turnoId}", ct);
+        await CrearTurnoAsync(otroTurnoId, $"[TEST] Turno Sin Sede {otroTurnoId}", ct);
+
+        var asignar = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/{turnoId}:asignar-sede-franja",
+            new { franja = "06:00", sede = new { id = sedeId, nombre = "[TEST] Sede Filtro" } }, ct);
+        asignar.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que AsignarSedeAFranja funcione");
+
+        var query = $"?sedeId={Uri.EscapeDataString(sedeId)}";
+        var lista = await Polling.WaitUntilAsync(async () =>
+        {
+            var pagina = await ListarPaginaAsync(_client, query, ct);
+            return pagina.Elementos.Any(f => f.Id == turnoId.ToString()) ? pagina : null;
+        }, Timeout);
+
+        lista.Elementos.Should().NotBeEmpty();
+        foreach (var ficha in lista.Elementos)
+        {
+            ficha.Franjas.Select(fr => fr.TryGetProperty("sedeId", out var s) ? s.GetString() : null)
+                .Should().Contain(sedeId, $"la ficha {ficha.Id} debe tener una franja en la sede filtrada");
+        }
+
+        lista.Elementos.Should().NotContain(f => f.Id == otroTurnoId.ToString());
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ListarFichasTurno_Retorna400_CuandoElCursorEsInvalido()
     {
         var response = await _client.GetAsync($"{RutaTurnos}?cursor=no-es-un-cursor",
