@@ -72,4 +72,27 @@ public sealed class ControlHorasApi(HttpClient http)
 
         return http.SendAsync(request, ct);
     }
+
+    public Task<HttpResponseMessage> ListarDiasSinProgramar(
+        DateOnly desde,
+        DateOnly hasta,
+        IReadOnlyList<ColaboradorVigenteMalla> colaboradores,
+        int take,
+        string? cursor,
+        CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/control-horas/dias-sin-programar")
+        {
+            Content = JsonContent.Create(new
+            {
+                desdeFecha = desde,
+                hastaFecha = hasta,
+                colaboradores,
+                take,
+                cursor
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 }
