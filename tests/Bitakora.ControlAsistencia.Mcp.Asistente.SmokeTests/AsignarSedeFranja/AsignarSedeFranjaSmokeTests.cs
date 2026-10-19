@@ -6,10 +6,10 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.AsignarSedeFranja;
 
-// CA-5: recorre la cadena completa del diseno de turno conversacional -- registrar_sede ->
+// Recorre la cadena completa del diseno de turno conversacional -- registrar_sede ->
 // crear_turno -> agregar_franja (sin sede) -> asignar_sede_franja (asigna) -> asignar_sede_franja
 // (retira) -> retirar_turno. La invocacion real de asignar_sede_franja (MEF-ADR-0048 seccion 6,
-// pieza 3) vive aqui, mismo criterio que agregar_franja/quitar_franja (#609).
+// pieza 3) vive aqui, mismo criterio que agregar_franja/quitar_franja.
 public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
     private async Task<object?> EfectoVisibleEnFichaAsync(
@@ -126,7 +126,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         TextoDe(resultado).Should().Be("'turno' es obligatorio.");
     }
 
-    // CA-3: hora no parseable corta antes de resolver el turno.
+    // Hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeFranja_RespondeHoraInvalida_CuandoFranjaNoTieneFormatoHHmm()
@@ -141,7 +141,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '2pm'.");
     }
 
-    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
+    // Nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
@@ -157,7 +157,6 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
     }
 
-    // CA-3: codigo_sede que no esta registrado -> SedeNoExiste, sin llegar a asignar la sede.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeFranja_RespondeSedeNoExiste_CuandoElCodigoDeSedeNoEstaRegistrado()
