@@ -25,7 +25,7 @@ public partial class AplicarPlantillaSemanalTool(
             "Aplica una plantilla semanal de turnos a una lista de colaboradores durante una ventana de "
             + "trabajo de maximo 35 dias. A cada dia le programa el turno que el molde asigna a esa semana "
             + "y dia; el molde se alinea a la semana (lunes a domingo) que contiene 'desde'. Recibe el "
-            + "nombre de la plantilla (miralo con listar_plantillas_semanales), opcionalmente el codigo de "
+            + "nombre de la plantilla (miralo con buscar_plantillas_semanales), opcionalmente el codigo de "
             + "la sede de programacion -- distinta de la sede de trabajo de cada colaborador; sugierela al "
             + "usuario y, si prefiere la sede de cada colaborador, omite el parametro -- y las "
             + "identificaciones completas separadas por coma, tal como las devuelven buscar_colaboradores "
@@ -37,7 +37,7 @@ public partial class AplicarPlantillaSemanalTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con listar_plantillas_semanales.", isRequired: true)]
+        [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con buscar_plantillas_semanales.", isRequired: true)]
         string plantilla,
         [McpToolProperty("sede_de_programacion", "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. Si prefiere la de cada colaborador, omitela.", isRequired: false)]
         string? sedeDeProgramacion,

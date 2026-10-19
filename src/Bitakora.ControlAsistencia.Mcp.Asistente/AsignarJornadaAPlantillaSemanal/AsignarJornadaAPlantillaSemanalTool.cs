@@ -21,7 +21,7 @@ public partial class AsignarJornadaAPlantillaSemanalTool(
         ToolInvocationContext context,
         [McpToolProperty(
             "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
+            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
         [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.", isRequired: true)]

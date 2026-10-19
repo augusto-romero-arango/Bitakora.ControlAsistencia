@@ -30,7 +30,7 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
             NombreTool,
             "Crea una plantilla semanal de turnos: un molde de 1 a 6 semanas, lunes a domingo, "
             + "donde cada dia lleva un turno del catalogo por su nombre exacto (miralo con "
-            + "listar_turnos). Solo admite turnos completos; el descanso es un turno mas. Recibe "
+            + "buscar_turnos). Solo admite turnos completos; el descanso es un turno mas. Recibe "
             + "la composicion en dias como JSON: una entrada por dia con semana (opcional, 1 por "
             + "defecto), dia (lunes..domingo o 1..7) y turno (nombre exacto) o franja (HH:mm-HH:mm, "
             + "excluyentes; la franja crea o reutiliza un turno nombrado con la franja, ej. 07:00-17:00, "

@@ -19,7 +19,7 @@ public partial class QuitarJornadaDePlantillaSemanalTool(
         ToolInvocationContext context,
         [McpToolProperty(
             "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con listar_plantillas_semanales).",
+            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
             isRequired: true)]
         string plantilla,
         CancellationToken ct)
