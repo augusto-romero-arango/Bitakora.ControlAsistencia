@@ -6,7 +6,7 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.AgregarFranja;
 
-// El ciclo agregar -> quitar va junto (CA-6): quitar_franja deshace en el mismo turno lo que
+// El ciclo agregar -> quitar va junto: quitar_franja deshace en el mismo turno lo que
 // agregar_franja acaba de agregar, y retirar_turno es la limpieza. La invocacion real de
 // quitar_franja (MEF-ADR-0048 seccion 6, pieza 3) vive aqui, no en QuitarFranja/QuitarFranjaSmokeTests.cs
 // -- mismo criterio que CrearTurno/RetirarTurno.
@@ -43,9 +43,9 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-    // Recorre la cadena completa de CA-6: host MCP -> worker -> HttpClients tipados (Programacion +
-    // Sedes) -> event stores -> proyecciones. De paso cubre CA-2 (sede prearmada), CA-3 (409 por
-    // solape) y CA-4 (eco de quitar_franja compuesto desde la ficha vigente).
+    // Recorre la cadena completa: host MCP -> worker -> HttpClients tipados (Programacion + Sedes)
+    // -> event stores -> proyecciones. De paso cubre la sede prearmada, el 409 por solape y el eco
+    // de quitar_franja compuesto desde la ficha vigente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_QuitarFranja_RecorrenElCicloCompletoDeDisenoDeTurno()
@@ -93,7 +93,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
                 ct),
             CatalogoDeTurnos.TimeoutPolling);
 
-        // CA-3: una segunda franja que arranca a la misma hora se solapa con la primera -> 409 del
+        // Una segunda franja que arranca a la misma hora se solapa con la primera -> 409 del
         // dominio, traducido a texto (CA-ADR-0030), nunca a excepcion del protocolo.
         var repetido = await mcp.Cliente.CallToolAsync("agregar_franja", argumentosAgregar, cancellationToken: ct);
         repetido.IsError.Should().NotBeTrue("un rechazo de negocio no es un error del protocolo");
@@ -121,7 +121,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         await RetirarTurnoAsync(nombreTurno, ct);
     }
 
-    // CA-1: sin codigo_sede, el body no lleva sede y el eco trae solo el rango.
+    // Sin codigo_sede, el body no lleva sede y el eco trae solo el rango.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_AgregaLaFranjaSinSede_CuandoNoLlegaCodigoSede()
@@ -149,7 +149,6 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         await RetirarTurnoAsync(nombreTurno, ct);
     }
 
-    // CA-2: codigo_sede que no esta registrado -> SedeNoExiste, sin llegar a agregar la franja.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_RespondeSedeNoExiste_CuandoElCodigoDeSedeNoEstaRegistrado()
@@ -170,7 +169,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
             },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be($"No existe una sede con el codigo '{codigoSede}'.");
+        TextoDe(resultado).Should().Be($"No existe una sede con el codigo '{codigoSede}'; usa buscar_sedes para ubicarla.");
 
         await RetirarTurnoAsync(nombreTurno, ct);
     }
@@ -191,7 +190,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         TextoDe(resultado).Should().Be("'turno' es obligatorio.");
     }
 
-    // CA-3: hora no parseable corta antes de resolver el turno.
+    // Hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_RespondeHoraInvalida_CuandoInicioNoTieneFormatoHHmm()
@@ -206,7 +205,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         TextoDe(resultado).Should().Be("'inicio' no es una hora valida en formato HH:mm: '8pm'.");
     }
 
-    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
+    // Nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
