@@ -179,7 +179,7 @@ public class ConsultarProgramacionToolTests
         await Ejecutar(fakes.Tool, sedeTrabajo: "NORTE");
 
         fakes.Sedes.UltimaRequest!.RequestUri!.AbsolutePath.Should().Be("/api/sedes/fichas/NORTE");
-        BodyDe(fakes.Turnos)["sedeId"]!.GetValue<string>().Should().Be("01a043a0-aaaa-7000-8000-00000000a001");
+        BodyDe(fakes.Turnos)["sedeId"]!.GetValue<string>().Should().Be("NORTE");
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public class ConsultarProgramacionToolTests
 
         var resultado = await Ejecutar(fakes.Tool, sedeTrabajo: "NORTE");
 
-        BodyDe(fakes.Turnos)["sedeId"]!.GetValue<string>().Should().Be("01a043a0-aaaa-7000-8000-00000000a001");
+        BodyDe(fakes.Turnos)["sedeId"]!.GetValue<string>().Should().Be("NORTE");
         resultado.Should().StartWith("{");
     }
 
@@ -224,7 +224,7 @@ public class ConsultarProgramacionToolTests
 
         var body = BodyDe(fakes.Turnos);
         Codigos(body).Should().Equal("C-102", "C-103");
-        body["sedeId"]!.GetValue<string>().Should().Be("01a043a0-aaaa-7000-8000-00000000a001");
+        body["sedeId"]!.GetValue<string>().Should().Be("NORTE");
     }
 
     [Fact]
