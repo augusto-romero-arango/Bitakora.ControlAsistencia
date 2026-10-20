@@ -5,15 +5,11 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarTurnos;
 
-// Tool de solo lectura sobre GET programacion/turnos. La respuesta se remodela para
-// token-eficiencia (issue #502): id + nombre + horario por turno, sin franjas ni descripciones
-// (ese detalle es de obtener_turno), y la lista se trunca con senal. filtro_nombre es una
-// desviacion documentada del alcance original ("sin parametros"): con un catalogo de miles el
-// truncado sin filtro dejaria turnos inalcanzables para el asistente.
-//
-// El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado
-// (ShouldDelete), asi que no hay estado que filtrar aqui (revision del PR #512).
-public partial class ListarTurnosTool(ProgramacionApi api)
+// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
+// sede se traduce a SedeId sin exigir que la sede este activa.
+// El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado,
+// asi que aqui no hay estado que filtrar.
+public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "listar_turnos";
     internal const int MaximoTurnos = 50;
@@ -23,28 +19,45 @@ public partial class ListarTurnosTool(ProgramacionApi api)
         [McpToolTrigger(
             NombreTool,
             "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno. "
-            + "La lista se trunca cuando es larga; usa filtro_nombre para encontrar un turno especifico. "
-            + "Para ver la composicion completa de un turno usa obtener_turno con su id. "
-            + "Los turnos marcados con enConstruccion no tienen franjas todavia y no se pueden "
-            + "programar: sirven para retomar un diseno con agregar_franja.")]
+            + "Filtra por sede (codigo): los turnos con alguna franja en esa sede. Muestra 50 por "
+            + "pagina; si trae siguienteCursor, pasalo como cursor para la pagina siguiente. Para "
+            + "ubicar un turno que el usuario nombra de forma aproximada usa buscar_turnos; para su "
+            + "composicion, obtener_turno. Los turnos marcados con enConstruccion no tienen franjas "
+            + "todavia y no se pueden programar: sirven para retomar un diseno con agregar_franja.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty(
-            "filtro_nombre",
-            "Texto a buscar dentro del nombre del turno (sin distinguir mayusculas ni acentos).")]
-        string? filtroNombre,
+        [McpToolProperty("sede", "Codigo de la sede para ver solo los turnos con alguna franja en ella.")]
+        string? sede,
+        [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
+        string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarTurnos(ct);
-        respuesta.EnsureSuccessStatusCode();
+        var sedeCodigo = string.IsNullOrWhiteSpace(sede) ? null : sede.Trim();
+        string? sedeId = null;
+        if (sedeCodigo is not null)
+        {
+            var resolucion = await resolutorSedes.ResolverIdAsync(sedeCodigo, ct);
+            if (resolucion.FalloDeLectura is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucion.NoExiste)
+                return string.Format(Mensajes.SedeNoExiste, sedeCodigo);
+            sedeId = resolucion.SedeId;
+        }
 
-        var fichas = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(ct))?.Elementos
-            ?? [];
+        var respuesta = await api.ListarTurnos(
+            ct, MaximoTurnos, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim(), sedeId);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        if (!string.IsNullOrWhiteSpace(filtroNombre))
-            fichas = [.. fichas.Where(f => FiltroDeNombre.Contiene(f.Nombre, filtroNombre))];
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(ct)
+            ?? new SobreDeLista<FichaTurno>([]);
 
-        var visibles = fichas.Take(MaximoTurnos)
+        if (sobre.Elementos.Count == 0)
+            return sedeCodigo is null
+                ? Mensajes.SinTurnos
+                : string.Format(Mensajes.SinTurnosEnSede, sedeCodigo);
+
+        var visibles = sobre.Elementos
             .Select(f => new TurnoResumido(
                 f.Id,
                 f.Nombre.Trim(),
@@ -53,20 +66,19 @@ public partial class ListarTurnosTool(ProgramacionApi api)
                 EnConstruccion: f.Completo ? null : true))
             .ToList();
 
-        var nota = fichas.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, fichas.Count)
-            : null;
-
-        return RespuestaJson.Serializar(new CatalogoDeTurnos(fichas.Count, visibles.Count, nota, visibles));
+        return RespuestaJson.Serializar(new CatalogoDeTurnos(
+            visibles.Count,
+            visibles,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null ? null : string.Format(Mensajes.NotaHayMasTurnos, sobre.SiguienteCursor)));
     }
 }
 
-/// <summary>Contrato de respuesta de listar_turnos hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeTurnos(
-    int Total,
     int Mostrando,
-    string? Nota,
-    IReadOnlyList<TurnoResumido> Turnos);
+    IReadOnlyList<TurnoResumido> Turnos,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>
 /// EsDescanso y EnConstruccion viajan solo cuando son true: null se omite en la serializacion

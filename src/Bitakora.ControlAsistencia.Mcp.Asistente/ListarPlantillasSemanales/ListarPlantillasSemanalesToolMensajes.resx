@@ -20,7 +20,13 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="NotaTruncado" xml:space="preserve">
-    <value>Mostrando {0} de {1}.</value>
+  <data name="NotaHayMasPlantillas" xml:space="preserve">
+    <value>Hay más plantillas. Para ubicar una, buscar_plantillas_semanales; para ver las siguientes, repite con cursor = {0}</value>
+  </data>
+  <data name="SinPlantillas" xml:space="preserve">
+    <value>No hay plantillas semanales en el catálogo.</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la consulta: {0}</value>
   </data>
 </root>

@@ -5,10 +5,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarPlantillasSemanales;
 
-// Tool de solo lectura sobre GET programacion/plantillas-semanales (issue #629). La respuesta de
-// #625 ya viene compuesta (cuadro + fichas de turno); esta tool solo remodela para
-// token-eficiencia -- no junta nada (CA-ADR-0034 decision 5 enmendada). El detalle con franjas de
-// cada turno sigue siendo obtener_turno; el cuadro dia por dia es obtener_plantilla_semanal.
+// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
+// Solo remodela: la respuesta del backend ya viene compuesta, no se junta con otras lecturas
+// (CA-ADR-0034 decision 5).
 public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
 {
     internal const string NombreTool = "listar_plantillas_semanales";
@@ -19,56 +18,59 @@ public partial class ListarPlantillasSemanalesTool(ProgramacionApi api)
         [McpToolTrigger(
             NombreTool,
             "Lista las plantillas semanales de turnos del catalogo: nombre, numero de semanas y si "
-            + "esta lista para usarse. Las incompletas aparecen marcadas. La lista se trunca cuando "
-            + "es larga; usa filtro_nombre para encontrar una especifica. Para ver el cuadro de una "
-            + "plantilla usa obtener_plantilla_semanal.")]
+            + "esta lista para usarse. Las incompletas y las que no cumplen su Jornada aparecen "
+            + "marcadas. Muestra 50 por pagina; si trae siguienteCursor, pasalo como cursor. Para "
+            + "ubicar una plantilla que el usuario nombra de forma aproximada usa "
+            + "buscar_plantillas_semanales; para su cuadro, obtener_plantilla_semanal.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty(
-            "filtro_nombre",
-            "Texto a buscar dentro del nombre de la plantilla (sin distinguir mayusculas ni acentos).")]
-        string? filtroNombre,
+        [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
+        string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarPlantillasSemanales(ct);
-        respuesta.EnsureSuccessStatusCode();
+        var respuesta = await api.ListarPlantillasSemanales(
+            ct, MaximoPlantillas, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim());
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(ct))?.Elementos
-            ?? [];
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroSemanalTurnos>>(ct)
+            ?? new SobreDeLista<CuadroSemanalTurnos>([]);
 
-        if (!string.IsNullOrWhiteSpace(filtroNombre))
-            catalogo = [.. catalogo.Where(c => FiltroDeNombre.Contiene(c.Nombre, filtroNombre))];
+        if (sobre.Elementos.Count == 0)
+            return Mensajes.SinPlantillas;
 
-        var visibles = catalogo.Take(MaximoPlantillas)
+        var visibles = sobre.Elementos
             .Select(c => new PlantillaResumida(
                 c.Id,
                 c.Nombre.Trim(),
                 c.Semanas,
-                Incompleta: c.Completa ? null : true))
+                Incompleta: c.Completa ? null : true,
+                ConAdvertencias: c.Advertencias is { Count: > 0 } ? true : null))
             .ToList();
 
-        var nota = catalogo.Count > visibles.Count
-            ? string.Format(Mensajes.NotaTruncado, visibles.Count, catalogo.Count)
-            : null;
-
-        return RespuestaJson.Serializar(
-            new CatalogoDePlantillasSemanales(catalogo.Count, visibles.Count, nota, visibles));
+        return RespuestaJson.Serializar(new CatalogoDePlantillasSemanales(
+            visibles.Count,
+            visibles,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null
+                ? null
+                : string.Format(Mensajes.NotaHayMasPlantillas, sobre.SiguienteCursor)));
     }
 }
 
-/// <summary>Contrato de respuesta de listar_plantillas_semanales hacia el asistente (issue #629).</summary>
 public sealed record CatalogoDePlantillasSemanales(
-    int Total,
     int Mostrando,
-    string? Nota,
-    IReadOnlyList<PlantillaResumida> Plantillas);
+    IReadOnlyList<PlantillaResumida> Plantillas,
+    string? SiguienteCursor,
+    string? Nota);
 
 /// <summary>
-/// Incompleta viaja solo cuando es true: null se omite en la serializacion (filtro de relevancia,
-/// MEF-ADR-0047 decision 4), igual que enConstruccion en TurnoResumido.
+/// Incompleta y ConAdvertencias viajan solo cuando son true: null se omite en la serializacion
+/// (filtro de relevancia, MEF-ADR-0047 decision 4).
 /// </summary>
 public sealed record PlantillaResumida(
     string Id,
     string Nombre,
     int Semanas,
-    bool? Incompleta);
+    bool? Incompleta,
+    bool? ConAdvertencias);

@@ -5,50 +5,56 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarSedes;
 
-// Tool de solo lectura sobre GET sedes/fichas?activa=true (decisiones de revision del PR #512:
-// solo sedes activas, sin tope de truncado). Remodelado (issue #502): se podan el Id tecnico
-// (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el vocabulario del consumidor), los
-// dispositivos, el centro de costos y la bandera Activa (siempre true tras el filtro upstream:
-// seria ruido de tokens). filtro_nombre se conserva como economia de tokens, no como alcance.
-public class ListarSedesTool(SedesApi api)
+// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
+// Se podan el Id tecnico (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el
+// vocabulario del consumidor), los dispositivos, el centro de costos y la bandera Activa (siempre
+// true tras el filtro upstream: seria ruido de tokens).
+public partial class ListarSedesTool(SedesApi api)
 {
     internal const string NombreTool = "listar_sedes";
+    internal const int MaximoSedes = 50;
 
     [Function("ListarSedes")]
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Lista las sedes activas de la empresa: codigo, nombre, ciudad y direccion. "
-            + "Usa filtro_nombre para encontrar una sede especifica sin traer el catalogo completo.")]
+            + "Muestra 50 por pagina; si trae siguienteCursor, pasalo como cursor. Para ubicar una "
+            + "sede que el usuario nombra de forma aproximada usa buscar_sedes.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty(
-            "filtro_nombre",
-            "Texto a buscar dentro del nombre de la sede (sin distinguir mayusculas ni acentos).")]
-        string? filtroNombre,
+        [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
+        string? cursor,
         CancellationToken ct)
     {
-        var respuesta = await api.ListarFichasActivas(ct);
-        respuesta.EnsureSuccessStatusCode();
+        var respuesta = await api.ListarFichasActivas(
+            ct, MaximoSedes, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim());
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
 
-        IReadOnlyList<FichaSede> fichas =
-            (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaSede>>(ct))?.Elementos ?? [];
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaSede>>(ct)
+            ?? new SobreDeLista<FichaSede>([]);
 
-        if (!string.IsNullOrWhiteSpace(filtroNombre))
-            fichas = [.. fichas.Where(f => FiltroDeNombre.Contiene(f.Nombre, filtroNombre))];
+        if (sobre.Elementos.Count == 0)
+            return Mensajes.SinSedes;
 
-        var sedes = fichas
+        var sedes = sobre.Elementos
             .Select(f => new SedeResumida(f.Codigo, f.Nombre, f.Ciudad, f.Direccion))
             .ToList();
 
-        return RespuestaJson.Serializar(new CatalogoDeSedes(sedes.Count, sedes));
+        return RespuestaJson.Serializar(new CatalogoDeSedes(
+            sedes.Count,
+            sedes,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null ? null : string.Format(Mensajes.NotaHayMasSedes, sobre.SiguienteCursor)));
     }
 }
 
-/// <summary>Contrato de respuesta de listar_sedes hacia el asistente (remodelado, issue #502).</summary>
 public sealed record CatalogoDeSedes(
-    int Total,
-    IReadOnlyList<SedeResumida> Sedes);
+    int Mostrando,
+    IReadOnlyList<SedeResumida> Sedes,
+    string? SiguienteCursor,
+    string? Nota);
 
 public sealed record SedeResumida(
     string Codigo,

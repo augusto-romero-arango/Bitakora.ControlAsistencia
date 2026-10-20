@@ -246,7 +246,7 @@ public class ComposicionDelServidorTests
 
     [Fact]
     public void ListarSedes_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("listar_sedes").Should().BeEquivalentTo([("filtro_nombre", false)]);
+        PropiedadesDe("listar_sedes").Should().BeEquivalentTo([("cursor", false)]);
 
     [Fact]
     public void ListarColaboradores_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
@@ -300,8 +300,8 @@ public class ComposicionDelServidorTests
         ParametrosDeTool("buscar_plantillas_semanales").Should().OnlyContain(p => p.ParameterType == typeof(string));
 
     [Fact]
-    public void ListarTurnos_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("listar_turnos").Should().BeEquivalentTo([("filtro_nombre", false)]);
+    public void ListarTurnos_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("listar_turnos").Should().BeEquivalentTo([("sede", false), ("cursor", false)]);
 
     [Fact]
     public void ObtenerTurno_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
@@ -340,8 +340,18 @@ public class ComposicionDelServidorTests
             [("turno", true), ("franja", true), ("codigo_sede", false)]);
 
     [Fact]
-    public void ListarPlantillasSemanales_DeclaraElFiltroComoOpcional_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("listar_plantillas_semanales").Should().BeEquivalentTo([("filtro_nombre", false)]);
+    public void ListarPlantillasSemanales_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("listar_plantillas_semanales").Should().BeEquivalentTo([("cursor", false)]);
+
+    [Fact]
+    public void ListarCatalogos_DeclaranSusParametrosComoString_CuandoSeInspeccionanLasTools()
+    {
+        foreach (var tool in new[] { "listar_turnos", "listar_plantillas_semanales", "listar_sedes" })
+        {
+            ParametrosDeTool(tool).Should().OnlyContain(p => p.ParameterType == typeof(string));
+            PropiedadesDe(tool).Should().NotContain(p => p.Nombre == "filtro_nombre");
+        }
+    }
 
     [Fact]
     public void ObtenerPlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>

@@ -1,51 +1,39 @@
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
+using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ListarSedes;
 
 public class ListarSedesSmokeTests(McpFixture mcp)
 {
-    // Siembra su propia sede (registrar_sede) y espera a que la proyeccion async la materialice.
-    // Verificacion canonica 3 de MEF-ADR-0048 seccion 2: tool call de lectura real contra dev.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarSedes_DevuelveLaSedeSembrada_CuandoSeInvocaSinFiltro()
+    public async Task ListarSedes_DevuelveElSobreSinTotalOLaFraseDeVacio_CuandoSeInvocaSinParametros()
     {
         var ct = TestContext.Current.CancellationToken;
-        var codigo = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "listar_sedes", new Dictionary<string, object?>(), cancellationToken: ct);
 
-        var json = await Polling.WaitUntilAsync(async () =>
+        resultado.IsError.Should().NotBeTrue();
+        var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+
+        if (!texto.TrimStart().StartsWith('{'))
         {
-            var resultado = await mcp.Cliente.CallToolAsync(
-                "listar_sedes", new Dictionary<string, object?>(), cancellationToken: ct);
-            var documento = Sembrado.LeerJson(resultado);
-            var contiene = documento.RootElement.GetProperty("sedes").EnumerateArray()
-                .Any(s => s.GetProperty("codigo").GetString() == codigo);
-            return contiene ? documento : null;
-        }, TimeSpan.FromSeconds(60));
+            texto.Should().NotBeNullOrWhiteSpace("sin sedes activas la tool responde una frase");
+            return;
+        }
 
+        using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
-        raiz.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(1);
-        foreach (var sede in raiz.GetProperty("sedes").EnumerateArray())
+        raiz.TryGetProperty("total", out _).Should().BeFalse("el sobre del catalogo no trae total");
+
+        var sedes = raiz.GetProperty("sedes").EnumerateArray().ToList();
+        sedes.Should().HaveCount(raiz.GetProperty("mostrando").GetInt32());
+        foreach (var sede in sedes)
         {
             sede.GetProperty("codigo").GetString().Should().NotBeNullOrWhiteSpace();
             sede.GetProperty("nombre").GetString().Should().NotBeNullOrWhiteSpace();
         }
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task ListarSedes_AcotaElCatalogo_CuandoElFiltroNoCoincideConNingunaSede()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var resultado = await mcp.Cliente.CallToolAsync(
-            "listar_sedes",
-            new Dictionary<string, object?> { ["filtro_nombre"] = $"zzz-{Guid.CreateVersion7():N}" },
-            cancellationToken: ct);
-
-        resultado.IsError.Should().NotBeTrue();
-        using var json = Sembrado.LeerJson(resultado);
-        json.RootElement.GetProperty("total").GetInt32().Should().Be(0);
     }
 }

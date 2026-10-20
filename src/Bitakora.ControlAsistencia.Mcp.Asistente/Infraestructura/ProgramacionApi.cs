@@ -7,8 +7,9 @@ public sealed class ProgramacionApi(HttpClient http)
 {
     private static readonly HttpMethod Query = new("QUERY");
 
-    public Task<HttpResponseMessage> ListarTurnos(CancellationToken ct) =>
-        http.GetAsync("api/programacion/turnos", ct);
+    public Task<HttpResponseMessage> ListarTurnos(
+        CancellationToken ct, int? take = null, string? cursor = null, string? sedeId = null) =>
+        http.GetAsync(ConsultaDeLista("api/programacion/turnos", take, cursor, sedeId), ct);
 
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
@@ -64,8 +65,9 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> AsignarJornadaPredeterminada(Guid jornadaId, CancellationToken ct) =>
         http.PutAsJsonAsync("api/programacion/preferencias/jornada-predeterminada", new { jornadaId }, ct);
 
-    public Task<HttpResponseMessage> ListarPlantillasSemanales(CancellationToken ct) =>
-        http.GetAsync("api/programacion/plantillas-semanales", ct);
+    public Task<HttpResponseMessage> ListarPlantillasSemanales(
+        CancellationToken ct, int? take = null, string? cursor = null) =>
+        http.GetAsync(ConsultaDeLista("api/programacion/plantillas-semanales", take, cursor), ct);
 
     public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
@@ -150,6 +152,18 @@ public sealed class ProgramacionApi(HttpClient http)
         };
 
         return http.SendAsync(request, ct);
+    }
+
+    private static string ConsultaDeLista(string ruta, int? take, string? cursor, string? sedeId = null)
+    {
+        var parametros = new List<string>();
+        if (take is { } tope)
+            parametros.Add($"take={tope}");
+        if (cursor is not null)
+            parametros.Add($"cursor={Uri.EscapeDataString(cursor)}");
+        if (sedeId is not null)
+            parametros.Add($"sedeId={Uri.EscapeDataString(sedeId)}");
+        return parametros.Count == 0 ? ruta : $"{ruta}?{string.Join("&", parametros)}";
     }
 }
 

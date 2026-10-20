@@ -7,12 +7,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ListarPlantillasSe
 
 public class ListarPlantillasSemanalesSmokeTests(McpFixture mcp)
 {
-    // CA-5 (issue #629): tool call real sin arrange -- dev puede tener 0 plantillas semanales
-    // cargadas todavia, asi que se afirma la forma compacta y su consistencia interna
-    // (mostrando == plantillas.Count), no valores puntuales.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ListarPlantillasSemanales_DevuelveLaFormaCompacta_CuandoSeInvocaSinFiltro()
+    public async Task ListarPlantillasSemanales_DevuelveElSobreSinTotalOLaFraseDeVacio_CuandoSeInvocaSinParametros()
     {
         var ct = TestContext.Current.CancellationToken;
         var resultado = await mcp.Cliente.CallToolAsync(
@@ -21,13 +18,17 @@ public class ListarPlantillasSemanalesSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
 
+        if (!texto.TrimStart().StartsWith('{'))
+        {
+            texto.Should().NotBeNullOrWhiteSpace("sin plantillas la tool responde una frase");
+            return;
+        }
+
         using var json = JsonDocument.Parse(texto);
         var raiz = json.RootElement;
+        raiz.TryGetProperty("total", out _).Should().BeFalse("el sobre del catalogo no trae total");
 
-        var total = raiz.GetProperty("total").GetInt32();
         var plantillas = raiz.GetProperty("plantillas").EnumerateArray().ToList();
-
-        total.Should().BeGreaterThanOrEqualTo(0);
         plantillas.Should().HaveCount(raiz.GetProperty("mostrando").GetInt32());
 
         foreach (var plantilla in plantillas)
@@ -36,8 +37,9 @@ public class ListarPlantillasSemanalesSmokeTests(McpFixture mcp)
             plantilla.GetProperty("nombre").GetString().Should().NotBeNullOrWhiteSpace();
             plantilla.GetProperty("semanas").GetInt32().Should().BeGreaterThan(0);
 
-            if (plantilla.TryGetProperty("incompleta", out var incompleta))
-                incompleta.GetBoolean().Should().BeTrue("incompleta solo viaja cuando la plantilla no esta completa");
+            foreach (var senal in new[] { "incompleta", "conAdvertencias" })
+                if (plantilla.TryGetProperty(senal, out var valor))
+                    valor.GetBoolean().Should().BeTrue($"{senal} solo viaja cuando es true");
         }
     }
 }
