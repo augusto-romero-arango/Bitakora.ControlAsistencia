@@ -17,8 +17,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 // dentro del campo) y SedeId son OPCIONALES: su ausencia, null o lista vacia es el panorama de
 // todos los colaboradores y la ausencia de filtro por sede, nunca un 422.
 //
-// SedeId (el SedeProgramada.Id grabado en el bloque, hoy el codigo de sede; no el stream key) filtra "dias donde AL MENOS un bloque rige en esa sede": la sede va por bloque, nunca por
-// dia, por eso el predicado es Bloques.Any(...) y no un campo de TurnoVigente. Marten traduce esa
+// SedeId es el SedeProgramada.Id grabado en el bloque (hoy el codigo de sede, no el stream key) y
+// filtra "dias donde AL MENOS un bloque rige en esa sede": la sede va por bloque, nunca por dia,
+// por eso el predicado es Bloques.Any(...) y no un campo de TurnoVigente. Marten traduce esa
 // igualdad dentro de una coleccion hija a containment JSONB -- data -> 'Bloques' @> '[{"SedeId":
 // ...}]' --, la unica forma elegible para indice GIN. Esa misma semantica excluye sin rama
 // explicita los bloques que no traen la clave SedeId.

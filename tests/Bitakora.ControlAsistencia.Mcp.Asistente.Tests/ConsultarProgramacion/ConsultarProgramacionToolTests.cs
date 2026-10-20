@@ -183,6 +183,16 @@ public class ConsultarProgramacionToolTests
     }
 
     [Fact]
+    public async Task ConsultarProgramacion_EnviaElCodigoCanonicoDelMaestro_CuandoSedeTrabajoLlegaEnOtraForma()
+    {
+        var fakes = Armar();
+
+        await Ejecutar(fakes.Tool, sedeTrabajo: "norte");
+
+        BodyDe(fakes.Turnos)["sedeId"]!.GetValue<string>().Should().Be("NORTE");
+    }
+
+    [Fact]
     public async Task ConsultarProgramacion_RespondeFraseSinLlamarATurnos_CuandoLaSedeTrabajoNoExiste()
     {
         var fakes = Armar(jsonSede: "", statusSede: HttpStatusCode.NotFound);

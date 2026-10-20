@@ -45,8 +45,9 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
 }
 
 /// <summary>
-/// Resultado de resolver el SedeId (SedeProgramada.Id, hoy el codigo de sede) por codigo, sin exigir que este activa:
-/// NoExiste o FalloDeLectura o SedeId.
+/// Resultado de resolver el SedeId por codigo, sin exigir que este activa: NoExiste o
+/// FalloDeLectura o SedeId. SedeId es el codigo canonico del maestro, el mismo SedeProgramada.Id
+/// que graban los escritores via ResolverAsync; nunca el stream key "s:{codigo}" (CA-ADR-0031).
 /// </summary>
 public sealed record ResultadoResolucionSedeId(string? SedeId, string? FalloDeLectura, bool NoExiste);
 
