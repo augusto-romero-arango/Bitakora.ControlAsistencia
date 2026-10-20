@@ -115,7 +115,7 @@ public class ListarTurnosToolTests
 
         var resultado = await Tool(cliente).Run(null!, "NORTE", null, TestContext.Current.CancellationToken);
 
-        consultaTurnos.Should().Contain("sedeId=s:NORTE", "no exige que la sede este activa");
+        consultaTurnos.Should().Contain("sedeId=NORTE", "no exige que la sede este activa");
         consultaTurnos.Should().Contain("take=50");
         JsonNode.Parse(resultado)!["turnos"]!.AsArray().Should().HaveCount(4);
     }
