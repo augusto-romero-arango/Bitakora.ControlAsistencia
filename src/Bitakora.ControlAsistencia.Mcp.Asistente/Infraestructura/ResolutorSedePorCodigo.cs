@@ -22,7 +22,7 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
             return new ResultadoResolucionSedeId(null, fallo, false);
 
         var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaSede>(OpcionesLectura, ct))!;
-        return new ResultadoResolucionSedeId(ficha.Id, null, false);
+        return new ResultadoResolucionSedeId(ficha.Codigo, null, false);
     }
 
     // El boundary del sistema (5xx o cuerpo no JSON) se traduce como fallo de lectura crudo: la
@@ -45,7 +45,7 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
 }
 
 /// <summary>
-/// Resultado de resolver el SedeId (stream key) de una sede por codigo, sin exigir que este activa:
+/// Resultado de resolver el SedeId (SedeProgramada.Id, hoy el codigo de sede) por codigo, sin exigir que este activa:
 /// NoExiste o FalloDeLectura o SedeId.
 /// </summary>
 public sealed record ResultadoResolucionSedeId(string? SedeId, string? FalloDeLectura, bool NoExiste);
