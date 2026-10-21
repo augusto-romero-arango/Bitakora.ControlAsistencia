@@ -4,7 +4,13 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-14 (sesion planner, refinamiento de #1079: nace Malla semanal de
+# Ultima actualizacion: 2026-10-21 (sesion planner, knowledge crunching de la entrada variable: nace
+#   Ventana de entrada -- TODO turno tiene una, abre en el inicio de su primera franja y dura una
+#   amplitud (0 = turno fijo); al depurar, la primera marcacion desde la hora de corte (04:00),
+#   acotada a la ventana, desplaza TODO el turno. Rechazados "turno flexible" (choca con la jornada
+#   flexible del CST art. 161) y "turno por duracion" (modelo descartado). Nuevos: Ventana de
+#   entrada, Horario de referencia, Horario efectivo. Issues #1106-#1111.)
+# Actualizacion previa: 2026-10-14 (sesion planner, refinamiento de #1079: nace Malla semanal de
 #   turnos -- la grilla ASIGNADA colaboradores x dias de una semana, compuesta al leer sobre
 #   TurnoVigente; el llamador manda la lista de colaboradores y la malla pagina por codigo
 #   (patron de los reportes con sujetos). Nace la tool consultar_malla_turnos (#1084).
@@ -418,6 +424,48 @@ terms:
       :agregar-subfranja | :quitar-subfranja | :asignar-sede-franja (paso 4 MEF-ADR-0043; la
       hora HH:mm no es URL-safe, por eso no hay DELETE/PUT por sub-recurso). Issues #602-#606;
       tools MCP #608-#611; ficha #607. CA-ADR-0033.
+
+  - name: Ventana de entrada
+    definition: >
+      Rango dentro del cual la entrada de un colaborador desplaza su turno. TODO turno tiene una:
+      abre en el inicio de su primera franja ordinaria (horario de referencia) y dura una AMPLITUD;
+      amplitud 0 = turno fijo (el comportamiento de siempre). Al depurar, el ancla es la primera
+      marcacion desde la hora de corte del traslape nocturno (04:00), acotada a la ventana: antes de
+      la apertura se ancla a la apertura (los minutos previos no se pagan), despues del cierre se
+      ancla al cierre (la diferencia es Retardo). El desplazamiento (ancla - inicio de referencia)
+      corre TODAS las franjas con sus descansos y extras. Sin marcacion no hay desplazamiento.
+    context: Programacion
+    date_added: 2026-10-21
+    rejected_synonyms: [turno flexible, turno por duracion, turno de entrada libre, turno flotante, rango de entrada, margen de entrada]
+    rejection_reason: >
+      "Flexible" choca con la jornada flexible del CST art. 161 (repartir las horas semanales en dias
+      de 4 a 9 h). "Por duracion" nombraba un modelo descartado (turno sin franjas con duracion +
+      descanso: el clasificador necesita descansos con hora). "Flotante" en RR. HH. colombiano es el
+      personal que rota cubriendo puestos. "Libre" se contradice con la ventana acotada. "Rango"
+      rompe la familia "ventana" del glosario; "margen" sugiere tolerancia alrededor de una hora fija.
+      No hay un tipo de turno nuevo: es un atributo de todo turno.
+    note: >
+      Invariantes de diseno (409): amplitud > 0 exige inicio >= 04:00; inicio + amplitud <= 24:00;
+      un turno sin franjas solo admite amplitud 0. Comando ModificarVentanaDeEntrada (PUT
+      programacion/turnos/{id}/ventana-entrada, verbo por precedente de ModificarLimitesJornada:
+      la ventana existe siempre). Se estampa al programar como las franjas; los streams legados leen
+      amplitud 0. La amplitud es del turno, no de cada franja (por franja haria circular el reparto
+      de marcaciones por puntos medios del depurador). Issues #1106-#1111.
+
+  - name: Horario de referencia
+    definition: >
+      Las horas con las que se disena un turno (sus franjas). Con amplitud de ventana 0 es tambien el
+      horario efectivo de todo dia; con amplitud > 0 su inicio es la apertura de la Ventana de entrada.
+    context: Programacion
+    date_added: 2026-10-21
+
+  - name: Horario efectivo
+    definition: >
+      Las horas del turno en un dia concreto, resultado de desplazar el horario de referencia segun la
+      entrada marcada (Ventana de entrada). Es el que usan el retardo, el exceso y la discriminacion
+      de horas, y el UNICO que ve el Aprobador al investigar el dia (decision del experto 2026-10-21).
+    context: ControlHoras
+    date_added: 2026-10-21
 
   - name: Plantilla de turnos
     definition: >
