@@ -15,6 +15,14 @@ public class CatalogoTurnos : AggregateRoot
     // al emitir. No depende de AggregateRoot.Version, que el harness de tests no puebla.
     private long _eventosAplicados;
 
+    private static readonly Dictionary<EvaluacionVentanaDeEntrada, ResultadoModificarVentanaDeEntrada>
+        RechazosDeVentana = new()
+        {
+            [EvaluacionVentanaDeEntrada.TurnoSinFranjas] = ResultadoModificarVentanaDeEntrada.TurnoSinFranjas,
+            [EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte] = ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte,
+            [EvaluacionVentanaDeEntrada.CierrePasaMedianoche] = ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche
+        };
+
     internal Turno Turno => _turno;
 
     public void Apply(TurnoCreado evento)
@@ -70,6 +78,30 @@ public class CatalogoTurnos : AggregateRoot
     {
         _eventosAplicados++;
         _turno = _turno.ConFranjaReemplazada(evento.Franja);
+    }
+
+    public void Apply(VentanaDeEntradaModificada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConVentanaDeEntrada(evento.Amplitud);
+    }
+
+    // Precedencia: retirado > estado ya alcanzado > invariantes de la ventana.
+    internal ResultadoModificarVentanaDeEntrada ModificarVentanaDeEntrada(HorasYMinutos amplitud)
+    {
+        if (!_estaActivo)
+            return ResultadoModificarVentanaDeEntrada.TurnoRetirado;
+
+        if (_turno.TieneVentanaDeEntrada(amplitud))
+            return ResultadoModificarVentanaDeEntrada.SinCambios;
+
+        if (RechazosDeVentana.TryGetValue(_turno.EvaluarVentanaDeEntrada(amplitud), out var rechazo))
+            return rechazo;
+
+        var evento = VentanaDeEntradaModificada.Crear(Guid.Parse(Id!), amplitud);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoModificarVentanaDeEntrada.Modificada;
     }
 
     public void Apply(SedeDeFranjaAsignada evento)

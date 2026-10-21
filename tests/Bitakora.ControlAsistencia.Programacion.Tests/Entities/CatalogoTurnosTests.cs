@@ -691,4 +691,43 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoRetiroTurno.SinCambios);
         catalogo.UncommittedEvents.OfType<TurnoRetirado>().Should().ContainSingle();
     }
+
+    // ---------- ModificarVentanaDeEntrada: amplitud conservada y no-op ----------
+
+    [Fact]
+    public void ModificarVentanaDeEntrada_ConservaLaAmplitud_CuandoSeAgregaUnDescansoDespues()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(7, 0), new TimeOnly(16, 0)));
+        var tresHoras = HorasYMinutos.Crear(3, 0);
+        catalogo.ModificarVentanaDeEntrada(tresHoras).Should().Be(ResultadoModificarVentanaDeEntrada.Modificada);
+
+        catalogo.AgregarDescanso(new TimeOnly(7, 0), new TimeOnly(12, 0), new TimeOnly(12, 30))
+            .Should().Be(ResultadoAgregarSubFranja.Agregada);
+
+        catalogo.ModificarVentanaDeEntrada(tresHoras).Should().Be(ResultadoModificarVentanaDeEntrada.SinCambios);
+        catalogo.UncommittedEvents.OfType<VentanaDeEntradaModificada>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void ModificarVentanaDeEntrada_NoCambiaElToString_CuandoLaAmplitudEsMayorACero()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(7, 0), new TimeOnly(16, 0)));
+        var antes = catalogo.ToString();
+
+        catalogo.ModificarVentanaDeEntrada(HorasYMinutos.Crear(3, 0));
+
+        catalogo.ToString().Should().Be(antes);
+        catalogo.ObtenerDetalle().Descripcion.Should().Be(antes);
+    }
+
+    [Fact]
+    public void ModificarVentanaDeEntrada_RetornaSinCambios_CuandoPideCeroSobreUnTurnoQueNuncaLaModifico()
+    {
+        var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(7, 0), new TimeOnly(16, 0)));
+
+        var resultado = catalogo.ModificarVentanaDeEntrada(HorasYMinutos.Crear(0, 0));
+
+        resultado.Should().Be(ResultadoModificarVentanaDeEntrada.SinCambios);
+        catalogo.UncommittedEvents.OfType<VentanaDeEntradaModificada>().Should().BeEmpty();
+    }
 }
