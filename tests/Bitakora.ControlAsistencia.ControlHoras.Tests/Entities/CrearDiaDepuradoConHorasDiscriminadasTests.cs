@@ -270,6 +270,33 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 [new MarcacionDelDia(Timestamp07_00, "ENTRADA")]);
         }
 
+        // Issue #1107 (CA-9): con ventana de entrada, FranjaDepurada reporta el horario efectivo (la
+        //       franja desplazada), no el de referencia. Turno 07:00-16:00 con amplitud 180 y entrada
+        //       10:20 -> el desplazamiento se acota al cierre de la ventana: 10:00-19:00.
+        [Fact]
+        public async Task CrearDiaDepurado_ReportaElHorarioEfectivo_CuandoTurnoTieneVentanaDeEntrada()
+        {
+            var entrada = new DateTime(2026, 3, 15, 10, 20, 0);
+            var salida = new DateTime(2026, 3, 15, 19, 0, 0);
+            var turnoConVentana = new TurnoDiario(
+                "Turno Ventana",
+                [new FranjaProgramada(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "")],
+                "",
+                AmplitudVentanaEntradaEnMinutos: 180);
+            Given(StreamId,
+                CrearTurnoDiarioAsignado(turnoConVentana),
+                CrearMarcacionAdicionada(entrada));
+
+            await WhenAsync(CrearRegistroDeMarcacionCreado(salida));
+
+            Then(StreamId, CrearMarcacionAdicionada(salida));
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(new TimeOnly(10, 0), new TimeOnly(19, 0), 0, entrada, salida, false)]);
+        }
+
         // CA-4: sin turno, Colaborador queda null y CodigoColaborador solo puede salir del stream ID.
         //       El consumidor (#425) arma "dc:{codigo}:{yyyyMMdd}" con el, asi que nunca puede faltar.
         [Fact]

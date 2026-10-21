@@ -34,6 +34,21 @@ public record FranjaProgramada(
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
+    public FranjaProgramada Desplazar(int minutos)
+    {
+        var (horaInicio, _) = Tramo.DesdeMinutosAbsolutos(Tramo.MinutosAbsolutos(HoraInicio, 0) + minutos);
+        var (horaFin, offsetFin) = Tramo.DesdeMinutosAbsolutos(
+            Tramo.MinutosAbsolutos(HoraFin, DiaOffsetFin) + minutos);
+        return this with
+        {
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            DiaOffsetFin = offsetFin,
+            Descansos = Descansos.Select(d => d.Desplazar(minutos)).ToList(),
+            Extras = Extras.Select(e => e.Desplazar(minutos)).ToList()
+        };
+    }
+
     public virtual bool Equals(FranjaProgramada? other)
     {
         if (other is null) return false;

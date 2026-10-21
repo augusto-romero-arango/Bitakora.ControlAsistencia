@@ -3,20 +3,22 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// <summary>
 /// Representacion plana del turno que rige efectivamente a un colaborador en una fecha concreta,
 /// propia de este ensamblado (issue #322, payload por rol -- CA-ADR-0029 decision #5 /
-/// MEF-ADR-0039 decision #6). Duplica con paridad exacta de campos a DetalleTurno
-/// (PrivateEvents.Programacion) en vez de importarlo: los tres ensamblados de eventos son tres
-/// islas sin referencias entre si. Nombre acordado con el usuario (docs/eda/ubiquitous-language.yaml):
+/// MEF-ADR-0039 decision #6). Duplica los campos de DetalleTurno (PrivateEvents.Programacion) en
+/// vez de importarlo: los tres ensamblados de eventos son tres islas sin referencias entre si. La
+/// paridad diverge en AmplitudVentanaEntradaEnMinutos hasta que llegue a DetalleTurno (issue #1108). Nombre acordado con el usuario (docs/eda/ubiquitous-language.yaml):
 /// "TurnoDiario" es el termino exacto del glosario para este concepto.
 /// </summary>
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
-/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno
-/// (issue #288) y TurnoProgramado (Programacion.DomainEvents, issue #319).
+/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno (issue #288)
+/// y TurnoProgramado (Programacion.DomainEvents, issue #319). La amplitud de la ventana de entrada SI
+/// entra: es dato de identidad (los streams legados sin la clave leen 0).
 /// </remarks>
 public record TurnoDiario(
     string Nombre,
     IReadOnlyList<FranjaProgramada> FranjasOrdinarias,
-    string Descripcion)
+    string Descripcion,
+    int AmplitudVentanaEntradaEnMinutos = 0)
 {
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
@@ -25,11 +27,43 @@ public record TurnoDiario(
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
+    private const int UltimoMinutoDelDia = 1439;
+
+    public bool TieneVentanaDeEntrada => AmplitudVentanaEntradaEnMinutos > 0;
+
+    /// <summary>
+    /// Desplaza todas las franjas para que la apertura coincida con la primera marcacion, acotada a la
+    /// ventana de entrada. El cierre se acota tambien para que el inicio de la ultima franja no pase al
+    /// dia siguiente (FranjaProgramada fija el inicio en offset 0): el calculo es total aunque el turno
+    /// viole esa invariante del diseno (MEF-ADR-0004, Apply sin excepciones).
+    /// </summary>
+    public TurnoDiario HorarioEfectivo(DateOnly fecha, DateTime? primeraMarcacion)
+    {
+        if (!TieneVentanaDeEntrada || primeraMarcacion is null || FranjasOrdinarias.Count == 0)
+            return this;
+
+        var apertura = FranjasOrdinarias.Min(f => Tramo.MinutosAbsolutos(f.HoraInicio, 0));
+        var inicioUltimaFranja = FranjasOrdinarias.Max(f => Tramo.MinutosAbsolutos(f.HoraInicio, 0));
+        var desplazamientoMaximo = Math.Max(0, Math.Min(
+            AmplitudVentanaEntradaEnMinutos, UltimoMinutoDelDia - inicioUltimaFranja));
+
+        var ancla = (int)Math.Floor((primeraMarcacion.Value - fecha.ToDateTime(TimeOnly.MinValue)).TotalMinutes);
+        var desplazamiento = Math.Clamp(ancla - apertura, 0, desplazamientoMaximo);
+        if (desplazamiento == 0)
+            return this;
+
+        return this with
+        {
+            FranjasOrdinarias = FranjasOrdinarias.Select(f => f.Desplazar(desplazamiento)).ToList()
+        };
+    }
+
     public virtual bool Equals(TurnoDiario? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
+            && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -37,6 +71,7 @@ public record TurnoDiario(
     {
         var hash = new HashCode();
         hash.Add(Nombre);
+        hash.Add(AmplitudVentanaEntradaEnMinutos);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }

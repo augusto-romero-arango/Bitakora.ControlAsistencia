@@ -390,4 +390,30 @@ public class TurnoDiarioAsignadoSerializacionTests
         sede.Should().NotBeNull();
         sede!.CentroDeCostos.Should().BeNull();
     }
+
+    [Fact]
+    public void Deserializar_LeeAmplitudCero_CuandoJsonNoTraeLaClave()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, TurnoDiarioDePrueba, SolicitudId);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!;
+        json["DetalleTurno"]!.AsObject().Remove("AmplitudVentanaEntradaEnMinutos");
+
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json.ToJsonString(), opciones);
+
+        deserializado!.DetalleTurno.AmplitudVentanaEntradaEnMinutos.Should().Be(0);
+    }
+
+    [Fact]
+    public void Deserializar_ConservaAmplitud_CuandoTurnoTieneVentana()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var turno = TurnoDiarioDePrueba with { AmplitudVentanaEntradaEnMinutos = 180 };
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, turno, SolicitudId);
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json, opciones);
+
+        deserializado!.DetalleTurno.AmplitudVentanaEntradaEnMinutos.Should().Be(180);
+    }
 }

@@ -19,6 +19,18 @@ public static class DepuradorDeMarcaciones
         if (turno is null)
             return [];
 
+        // Con ventana de entrada la madrugada pertenece al dia anterior: ni ancla ni se captura. Los
+        // turnos fijos conservan el comportamiento previo (riesgo latente capturado en #1113).
+        var corte = fecha.ToDateTime(TraslapeNocturno.HoraCorte);
+        if (turno.TieneVentanaDeEntrada)
+            marcaciones = marcaciones.Where(m => m.TimestampNormalizado >= corte).ToList();
+
+        DateTime? primeraDelDia = marcaciones
+            .Select(m => (DateTime?)m.TimestampNormalizado)
+            .Where(t => t >= corte)
+            .Min();
+        turno = turno.HorarioEfectivo(fecha, primeraDelDia);
+
         var franjasResueltas = turno.FranjasOrdinarias
             .Select(franja => (Franja: franja, Rango: ResolverRango(franja, fecha)))
             .ToList();

@@ -27,6 +27,9 @@ internal readonly record struct Tramo(TipoBloque Tipo, int Inicio, int Fin, Sede
     internal static int MinutosAbsolutos(TimeOnly hora, int diaOffset) =>
         hora.Hour * MinutosPorHora + hora.Minute + diaOffset * MinutosPorDia;
 
+    internal static (TimeOnly Hora, int DiaOffset) DesdeMinutosAbsolutos(int minutos) =>
+        (new TimeOnly(minutos % MinutosPorDia / MinutosPorHora, minutos % MinutosPorHora), minutos / MinutosPorDia);
+
     /// <summary>
     /// Rompe el tramo en cada medianoche que cruce (CA-4): ningun tramo resultante abarca mas de un
     /// dia calendario. Un tramo que arranca exactamente a medianoche no se parte en su propio
