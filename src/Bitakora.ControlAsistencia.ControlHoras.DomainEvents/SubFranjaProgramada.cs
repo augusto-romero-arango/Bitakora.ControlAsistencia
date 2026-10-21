@@ -25,6 +25,8 @@ public record SubFranjaProgramada(
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
+    public SubFranjaProgramada Desplazar(int minutos) => throw new NotImplementedException();
+
     public virtual bool Equals(SubFranjaProgramada? other) =>
         other is not null
         && HoraInicio == other.HoraInicio

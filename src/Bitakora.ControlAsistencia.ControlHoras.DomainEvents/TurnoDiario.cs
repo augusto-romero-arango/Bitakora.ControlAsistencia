@@ -16,7 +16,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 public record TurnoDiario(
     string Nombre,
     IReadOnlyList<FranjaProgramada> FranjasOrdinarias,
-    string Descripcion)
+    string Descripcion,
+    int AmplitudVentanaEntradaEnMinutos = 0)
 {
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
@@ -24,6 +25,11 @@ public record TurnoDiario(
     /// cadena vacia -- mismo criterio que DetalleTurno (issue #288).
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
+
+    public bool TieneVentanaDeEntrada => AmplitudVentanaEntradaEnMinutos > 0;
+
+    public TurnoDiario HorarioEfectivo(DateOnly fecha, DateTime? primeraMarcacion) =>
+        throw new NotImplementedException();
 
     public virtual bool Equals(TurnoDiario? other)
     {

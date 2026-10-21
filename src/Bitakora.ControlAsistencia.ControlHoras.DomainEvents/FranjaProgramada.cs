@@ -34,6 +34,8 @@ public record FranjaProgramada(
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
+    public FranjaProgramada Desplazar(int minutos) => throw new NotImplementedException();
+
     public virtual bool Equals(FranjaProgramada? other)
     {
         if (other is null) return false;
