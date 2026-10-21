@@ -8,13 +8,11 @@ namespace Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunct
 public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventStore)
     : ICommandHandlerAsync<Comando>
 {
-    private readonly IEventStore _eventStore = eventStore;
-
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
     {
         var amplitud = command.ToAmplitud();
 
-        var catalogo = await _eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId.ToString(), ct);
+        var catalogo = await eventStore.GetAggregateRootAsync<CatalogoTurnos>(command.TurnoId.ToString(), ct);
         if (catalogo is null)
             throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 

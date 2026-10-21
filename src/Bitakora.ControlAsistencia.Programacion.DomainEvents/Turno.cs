@@ -11,8 +11,7 @@ public sealed partial class Turno : IEquatable<Turno>
     private HorasYMinutos _amplitudVentanaEntrada = HorasYMinutos.Crear(0, 0);
 
     // Espejo de TraslapeNocturno.HoraCorte de ControlHoras: Programacion no puede referenciarlo.
-    private const int MinutoDeCorte = 4 * 60;
-    private const int MinutosPorDia = 24 * 60;
+    private static readonly TimeOnly HoraCorte = new(4, 0);
 
     private Turno()
     {
@@ -39,22 +38,13 @@ public sealed partial class Turno : IEquatable<Turno>
 
     public bool SeSolapaCon(FranjaOrdinaria franja) => _franjas.Any(f => f.SeSolapaCon(franja));
 
-    public Turno ConFranja(FranjaOrdinaria franja) => ConFranjas([.. _franjas, franja]);
+    public Turno ConFranja(FranjaOrdinaria franja) => Copiar(franjas: [.. _franjas, franja]);
 
     public Turno SinFranjaQueEmpiezaA(FranjaOrdinaria franja) =>
-        ConFranjas(_franjas.Where(f => !f.EmpiezaALaMismaHoraQue(franja)));
+        Copiar(franjas: _franjas.Where(f => !f.EmpiezaALaMismaHoraQue(franja)));
 
     public Turno ConFranjaReemplazada(FranjaOrdinaria franja) =>
-        ConFranjas(_franjas.Select(f => f.EmpiezaALaMismaHoraQue(franja) ? franja : f));
-
-    private Turno ConFranjas(IEnumerable<FranjaOrdinaria> franjas) =>
-        new()
-        {
-            _nombre = _nombre,
-            _esDescanso = _esDescanso,
-            _franjas = franjas.ToList(),
-            _amplitudVentanaEntrada = _amplitudVentanaEntrada
-        };
+        Copiar(franjas: _franjas.Select(f => f.EmpiezaALaMismaHoraQue(franja) ? franja : f));
 
     public EvaluacionVentanaDeEntrada EvaluarVentanaDeEntrada(HorasYMinutos amplitud)
     {
@@ -64,23 +54,25 @@ public sealed partial class Turno : IEquatable<Turno>
         if (_esDescanso || _franjas.Count == 0)
             return EvaluacionVentanaDeEntrada.TurnoSinFranjas;
 
-        if (_franjas.Min(f => f.MinutoDeInicio()) < MinutoDeCorte)
+        if (_franjas.Any(f => f.EmpiezaAntesDe(HoraCorte)))
             return EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte;
 
-        return _franjas.Max(f => f.MinutoDeInicio()) + amplitud.TotalMinutos() >= MinutosPorDia
+        return _franjas.Any(f => f.LlegaALaMedianocheDesplazadaEn(amplitud))
             ? EvaluacionVentanaDeEntrada.CierrePasaMedianoche
             : EvaluacionVentanaDeEntrada.Valida;
     }
 
     public bool TieneVentanaDeEntrada(HorasYMinutos amplitud) => _amplitudVentanaEntrada.Equals(amplitud);
 
-    public Turno ConVentanaDeEntrada(HorasYMinutos amplitud) =>
+    public Turno ConVentanaDeEntrada(HorasYMinutos amplitud) => Copiar(amplitud: amplitud);
+
+    private Turno Copiar(IEnumerable<FranjaOrdinaria>? franjas = null, HorasYMinutos? amplitud = null) =>
         new()
         {
             _nombre = _nombre,
             _esDescanso = _esDescanso,
-            _franjas = _franjas.ToList(),
-            _amplitudVentanaEntrada = amplitud
+            _franjas = (franjas ?? _franjas).ToList(),
+            _amplitudVentanaEntrada = amplitud ?? _amplitudVentanaEntrada
         };
 
     public override string ToString() => (_esDescanso, _franjas.Count) switch

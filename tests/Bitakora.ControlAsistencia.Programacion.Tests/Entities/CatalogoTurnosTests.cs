@@ -692,7 +692,7 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<TurnoRetirado>().Should().ContainSingle();
     }
 
-    // ---------- Issue #1106: ventana de entrada ----------
+    // ---------- ModificarVentanaDeEntrada: amplitud conservada y no-op ----------
 
     [Fact]
     public void ModificarVentanaDeEntrada_ConservaLaAmplitud_CuandoSeAgregaUnDescansoDespues()

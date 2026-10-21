@@ -15,6 +15,14 @@ public class CatalogoTurnos : AggregateRoot
     // al emitir. No depende de AggregateRoot.Version, que el harness de tests no puebla.
     private long _eventosAplicados;
 
+    private static readonly Dictionary<EvaluacionVentanaDeEntrada, ResultadoModificarVentanaDeEntrada>
+        RechazosDeVentana = new()
+        {
+            [EvaluacionVentanaDeEntrada.TurnoSinFranjas] = ResultadoModificarVentanaDeEntrada.TurnoSinFranjas,
+            [EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte] = ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte,
+            [EvaluacionVentanaDeEntrada.CierrePasaMedianoche] = ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche
+        };
+
     internal Turno Turno => _turno;
 
     public void Apply(TurnoCreado evento)
@@ -87,15 +95,8 @@ public class CatalogoTurnos : AggregateRoot
         if (_turno.TieneVentanaDeEntrada(amplitud))
             return ResultadoModificarVentanaDeEntrada.SinCambios;
 
-        switch (_turno.EvaluarVentanaDeEntrada(amplitud))
-        {
-            case EvaluacionVentanaDeEntrada.TurnoSinFranjas:
-                return ResultadoModificarVentanaDeEntrada.TurnoSinFranjas;
-            case EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte:
-                return ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte;
-            case EvaluacionVentanaDeEntrada.CierrePasaMedianoche:
-                return ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche;
-        }
+        if (RechazosDeVentana.TryGetValue(_turno.EvaluarVentanaDeEntrada(amplitud), out var rechazo))
+            return rechazo;
 
         var evento = VentanaDeEntradaModificada.Crear(Guid.Parse(Id!), amplitud);
         _uncommittedEvents.Add(evento);

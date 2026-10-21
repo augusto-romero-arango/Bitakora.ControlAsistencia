@@ -21,6 +21,8 @@ public class TurnoIgualdadTests : IgualdadTestBase<Turno>
         yield return ("EsDescanso", Turno.Crear("Turno Manana", true, [Manana()]));
         yield return ("Franjas", Turno.Crear("Turno Manana", false, [Tarde()]));
         yield return ("CantidadDeFranjas", Turno.Crear("Turno Manana", false, [Manana(), Tarde()]));
+        yield return ("AmplitudVentanaEntrada",
+            Turno.Crear("Turno Manana", false, [Manana()]).ConVentanaDeEntrada(HorasYMinutos.Crear(1, 0)));
     }
 
     [Fact]
