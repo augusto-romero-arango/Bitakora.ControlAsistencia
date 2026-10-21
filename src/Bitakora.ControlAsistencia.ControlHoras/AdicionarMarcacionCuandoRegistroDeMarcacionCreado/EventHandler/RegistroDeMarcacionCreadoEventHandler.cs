@@ -22,7 +22,6 @@ public partial class RegistroDeMarcacionCreadoEventHandler
 
     // CA-9: constante del handler - no del aggregate. Cuando sea configurable por empresa
     // vendra de un servicio externo, no de aqui.
-    internal static readonly TimeOnly HoraCorteTraslapeNocturno = new(4, 0);
 
     public RegistroDeMarcacionCreadoEventHandler(
         IEventStore eventStore,
@@ -40,7 +39,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         // CA-1: fuera de la ventana nocturna la marcacion va solo al dia calendario
         // CA-2 / CA-9: dentro de la ventana [00:00, 04:00) se agrega tambien al dia anterior
         //              para cubrir turnos nocturnos que cruzan medianoche
-        var fechasDestino = horaDelDia < HoraCorteTraslapeNocturno
+        var fechasDestino = horaDelDia < TraslapeNocturno.HoraCorte
             ? new[] { fechaCalendario, fechaCalendario.AddDays(-1) }
             : new[] { fechaCalendario };
 

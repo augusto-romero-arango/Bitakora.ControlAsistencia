@@ -10,7 +10,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// </summary>
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
-/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno
+/// Descripcion (dato derivado, no identidad del turno) y SI incluyen la amplitud de la ventana de
+/// entrada (dato de identidad; los streams legados sin la clave leen 0) -- mismo criterio que DetalleTurno
 /// (issue #288) y TurnoProgramado (Programacion.DomainEvents, issue #319).
 /// </remarks>
 public record TurnoDiario(
@@ -28,14 +29,35 @@ public record TurnoDiario(
 
     public bool TieneVentanaDeEntrada => AmplitudVentanaEntradaEnMinutos > 0;
 
-    public TurnoDiario HorarioEfectivo(DateOnly fecha, DateTime? primeraMarcacion) =>
-        throw new NotImplementedException();
+    private const int UltimoMinutoDelDia = 1439;
+
+    public TurnoDiario HorarioEfectivo(DateOnly fecha, DateTime? primeraMarcacion)
+    {
+        if (!TieneVentanaDeEntrada || primeraMarcacion is null || FranjasOrdinarias.Count == 0)
+            return this;
+
+        var apertura = FranjasOrdinarias.Min(f => Tramo.MinutosAbsolutos(f.HoraInicio, 0));
+        var inicioUltimaFranja = FranjasOrdinarias.Max(f => Tramo.MinutosAbsolutos(f.HoraInicio, 0));
+        var desplazamientoMaximo = Math.Max(0, Math.Min(
+            AmplitudVentanaEntradaEnMinutos, UltimoMinutoDelDia - inicioUltimaFranja));
+
+        var ancla = (int)Math.Floor((primeraMarcacion.Value - fecha.ToDateTime(TimeOnly.MinValue)).TotalMinutes);
+        var desplazamiento = Math.Clamp(ancla - apertura, 0, desplazamientoMaximo);
+        if (desplazamiento == 0)
+            return this;
+
+        return this with
+        {
+            FranjasOrdinarias = FranjasOrdinarias.Select(f => f.Desplazar(desplazamiento)).ToList()
+        };
+    }
 
     public virtual bool Equals(TurnoDiario? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
+            && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -43,6 +65,7 @@ public record TurnoDiario(
     {
         var hash = new HashCode();
         hash.Add(Nombre);
+        hash.Add(AmplitudVentanaEntradaEnMinutos);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }

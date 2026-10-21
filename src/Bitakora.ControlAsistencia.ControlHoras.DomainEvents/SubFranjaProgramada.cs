@@ -25,7 +25,20 @@ public record SubFranjaProgramada(
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
-    public SubFranjaProgramada Desplazar(int minutos) => throw new NotImplementedException();
+    public SubFranjaProgramada Desplazar(int minutos)
+    {
+        var (horaInicio, offsetInicio) = Tramo.DesdeMinutosAbsolutos(
+            Tramo.MinutosAbsolutos(HoraInicio, DiaOffsetInicio) + minutos);
+        var (horaFin, offsetFin) = Tramo.DesdeMinutosAbsolutos(
+            Tramo.MinutosAbsolutos(HoraFin, DiaOffsetFin) + minutos);
+        return this with
+        {
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            DiaOffsetInicio = offsetInicio,
+            DiaOffsetFin = offsetFin
+        };
+    }
 
     public virtual bool Equals(SubFranjaProgramada? other) =>
         other is not null
