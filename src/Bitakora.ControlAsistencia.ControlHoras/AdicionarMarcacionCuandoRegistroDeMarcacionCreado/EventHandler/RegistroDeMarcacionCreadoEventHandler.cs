@@ -20,9 +20,6 @@ public partial class RegistroDeMarcacionCreadoEventHandler
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateEventSender;
 
-    // CA-9: constante del handler - no del aggregate. Cuando sea configurable por empresa
-    // vendra de un servicio externo, no de aqui.
-
     public RegistroDeMarcacionCreadoEventHandler(
         IEventStore eventStore,
         IPrivateEventSender privateEventSender)

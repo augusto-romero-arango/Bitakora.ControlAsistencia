@@ -3,16 +3,16 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// <summary>
 /// Representacion plana del turno que rige efectivamente a un colaborador en una fecha concreta,
 /// propia de este ensamblado (issue #322, payload por rol -- CA-ADR-0029 decision #5 /
-/// MEF-ADR-0039 decision #6). Duplica con paridad exacta de campos a DetalleTurno
-/// (PrivateEvents.Programacion) en vez de importarlo: los tres ensamblados de eventos son tres
-/// islas sin referencias entre si. Nombre acordado con el usuario (docs/eda/ubiquitous-language.yaml):
+/// MEF-ADR-0039 decision #6). Duplica los campos de DetalleTurno (PrivateEvents.Programacion) en
+/// vez de importarlo: los tres ensamblados de eventos son tres islas sin referencias entre si. La
+/// paridad diverge en AmplitudVentanaEntradaEnMinutos hasta que llegue a DetalleTurno (issue #1108). Nombre acordado con el usuario (docs/eda/ubiquitous-language.yaml):
 /// "TurnoDiario" es el termino exacto del glosario para este concepto.
 /// </summary>
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
-/// Descripcion (dato derivado, no identidad del turno) y SI incluyen la amplitud de la ventana de
-/// entrada (dato de identidad; los streams legados sin la clave leen 0) -- mismo criterio que DetalleTurno
-/// (issue #288) y TurnoProgramado (Programacion.DomainEvents, issue #319).
+/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno (issue #288)
+/// y TurnoProgramado (Programacion.DomainEvents, issue #319). La amplitud de la ventana de entrada SI
+/// entra: es dato de identidad (los streams legados sin la clave leen 0).
 /// </remarks>
 public record TurnoDiario(
     string Nombre,
@@ -27,10 +27,16 @@ public record TurnoDiario(
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
-    public bool TieneVentanaDeEntrada => AmplitudVentanaEntradaEnMinutos > 0;
-
     private const int UltimoMinutoDelDia = 1439;
 
+    public bool TieneVentanaDeEntrada => AmplitudVentanaEntradaEnMinutos > 0;
+
+    /// <summary>
+    /// Desplaza todas las franjas para que la apertura coincida con la primera marcacion, acotada a la
+    /// ventana de entrada. El cierre se acota tambien para que el inicio de la ultima franja no pase al
+    /// dia siguiente (FranjaProgramada fija el inicio en offset 0): el calculo es total aunque el turno
+    /// viole esa invariante del diseno (MEF-ADR-0004, Apply sin excepciones).
+    /// </summary>
     public TurnoDiario HorarioEfectivo(DateOnly fecha, DateTime? primeraMarcacion)
     {
         if (!TieneVentanaDeEntrada || primeraMarcacion is null || FranjasOrdinarias.Count == 0)

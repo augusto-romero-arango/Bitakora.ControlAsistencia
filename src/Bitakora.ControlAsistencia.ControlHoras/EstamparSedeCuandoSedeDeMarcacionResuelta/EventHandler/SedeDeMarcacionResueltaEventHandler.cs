@@ -30,7 +30,7 @@ public partial class SedeDeMarcacionResueltaEventHandler
         var horaDelDia = TimeOnly.FromDateTime(@event.TimestampNormalizado);
 
         // El estampado debe ir a los MISMOS dias-destino que la marcacion: de ahi que la ventana
-        // nocturna se lea de la constante del handler vecino en vez de duplicarla aqui.
+        // nocturna se lea de TraslapeNocturno, compartida con RegistroDeMarcacionCreadoEventHandler.
         var fechasDestino = horaDelDia < TraslapeNocturno.HoraCorte
             ? new[] { fechaCalendario, fechaCalendario.AddDays(-1) }
             : new[] { fechaCalendario };
