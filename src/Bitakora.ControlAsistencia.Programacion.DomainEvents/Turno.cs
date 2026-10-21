@@ -43,6 +43,13 @@ public sealed partial class Turno : IEquatable<Turno>
         Crear(_nombre, _esDescanso,
             _franjas.Select(f => f.EmpiezaALaMismaHoraQue(franja) ? franja : f));
 
+    public EvaluacionVentanaDeEntrada EvaluarVentanaDeEntrada(HorasYMinutos amplitud) =>
+        throw new NotImplementedException();
+
+    public bool TieneVentanaDeEntrada(HorasYMinutos amplitud) => throw new NotImplementedException();
+
+    public Turno ConVentanaDeEntrada(HorasYMinutos amplitud) => throw new NotImplementedException();
+
     public override string ToString() => (_esDescanso, _franjas.Count) switch
     {
         (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",

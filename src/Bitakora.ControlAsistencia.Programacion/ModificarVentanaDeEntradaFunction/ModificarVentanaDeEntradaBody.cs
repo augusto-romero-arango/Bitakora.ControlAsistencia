@@ -1,0 +1,5 @@
+using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
+
+namespace Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunction;
+
+public record ModificarVentanaDeEntradaBody(HorasYMinutosSolicitadas Amplitud);

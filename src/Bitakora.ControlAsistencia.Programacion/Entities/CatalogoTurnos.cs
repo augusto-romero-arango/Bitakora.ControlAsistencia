@@ -72,6 +72,11 @@ public class CatalogoTurnos : AggregateRoot
         _turno = _turno.ConFranjaReemplazada(evento.Franja);
     }
 
+    public void Apply(VentanaDeEntradaModificada evento) => throw new NotImplementedException();
+
+    internal ResultadoModificarVentanaDeEntrada ModificarVentanaDeEntrada(HorasYMinutos amplitud) =>
+        throw new NotImplementedException();
+
     public void Apply(SedeDeFranjaAsignada evento)
     {
         _eventosAplicados++;

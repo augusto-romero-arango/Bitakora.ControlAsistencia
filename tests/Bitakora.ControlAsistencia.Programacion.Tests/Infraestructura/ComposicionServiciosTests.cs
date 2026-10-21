@@ -160,7 +160,7 @@ public class ComposicionServiciosTests
              typeof(DescansoQuitado), typeof(ExtraQuitado), typeof(SedeDeFranjaAsignada),
              typeof(SedeDeFranjaRetirada), typeof(PlantillaSemanalCreada),
              typeof(DiaDePlantillaSemanalAsignado), typeof(DiaDePlantillaSemanalQuitado),
-             typeof(PlantillaSemanalRetirada)]);
+             typeof(PlantillaSemanalRetirada), typeof(VentanaDeEntradaModificada)]);
     }
 
     // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
@@ -306,6 +306,16 @@ public class ComposicionServiciosTests
         var alias = store.Options.Events.AllKnownEventTypes()
             .Single(e => e.EventType == typeof(LimitesJornadaModificados)).Alias;
         alias.Should().Be("limites_jornada_modificados");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeVentanaDeEntradaModificada()
+    {
+        await using var provider = ComponerServiceProvider();
+        var store = provider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(VentanaDeEntradaModificada)).Alias;
+        alias.Should().Be("ventana_de_entrada_modificada");
     }
 
     [Fact]
