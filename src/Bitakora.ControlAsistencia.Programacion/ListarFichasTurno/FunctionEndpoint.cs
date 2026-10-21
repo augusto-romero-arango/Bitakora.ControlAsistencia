@@ -8,7 +8,9 @@ using Microsoft.Azure.Functions.Worker;
 namespace Bitakora.ControlAsistencia.Programacion.ListarFichasTurno;
 
 // Catalogo paginado: keyset por (Nombre, Id), take opcional (max 200), sobre { elementos, siguienteCursor }
-// con cursor opaco, sin total (CA-ADR-0039). sedeId opcional filtra en AND con la paginacion. Comparte la ruta con el POST de creacion; cada uno declara su verbo.
+// con cursor opaco, sin total (CA-ADR-0039). sedeId opcional filtra en AND con la paginacion: es el
+// SedeProgramada.Id grabado en la franja (hoy el codigo de sede, no el stream key). Comparte la ruta
+// con el POST de creacion; cada uno declara su verbo.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const int TakeMaximo = 200;
