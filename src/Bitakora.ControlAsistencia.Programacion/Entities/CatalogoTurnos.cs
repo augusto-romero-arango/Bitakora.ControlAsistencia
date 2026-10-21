@@ -72,10 +72,36 @@ public class CatalogoTurnos : AggregateRoot
         _turno = _turno.ConFranjaReemplazada(evento.Franja);
     }
 
-    public void Apply(VentanaDeEntradaModificada evento) => throw new NotImplementedException();
+    public void Apply(VentanaDeEntradaModificada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConVentanaDeEntrada(evento.Amplitud);
+    }
 
-    internal ResultadoModificarVentanaDeEntrada ModificarVentanaDeEntrada(HorasYMinutos amplitud) =>
-        throw new NotImplementedException();
+    // Precedencia: retirado > estado ya alcanzado > invariantes de la ventana.
+    internal ResultadoModificarVentanaDeEntrada ModificarVentanaDeEntrada(HorasYMinutos amplitud)
+    {
+        if (!_estaActivo)
+            return ResultadoModificarVentanaDeEntrada.TurnoRetirado;
+
+        if (_turno.TieneVentanaDeEntrada(amplitud))
+            return ResultadoModificarVentanaDeEntrada.SinCambios;
+
+        switch (_turno.EvaluarVentanaDeEntrada(amplitud))
+        {
+            case EvaluacionVentanaDeEntrada.TurnoSinFranjas:
+                return ResultadoModificarVentanaDeEntrada.TurnoSinFranjas;
+            case EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte:
+                return ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte;
+            case EvaluacionVentanaDeEntrada.CierrePasaMedianoche:
+                return ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche;
+        }
+
+        var evento = VentanaDeEntradaModificada.Crear(Guid.Parse(Id!), amplitud);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoModificarVentanaDeEntrada.Modificada;
+    }
 
     public void Apply(SedeDeFranjaAsignada evento)
     {

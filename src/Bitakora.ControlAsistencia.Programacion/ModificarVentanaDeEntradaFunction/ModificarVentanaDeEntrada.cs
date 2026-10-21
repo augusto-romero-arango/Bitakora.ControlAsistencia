@@ -5,5 +5,5 @@ namespace Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunct
 
 public record ModificarVentanaDeEntrada(Guid TurnoId, HorasYMinutosSolicitadas Amplitud)
 {
-    public HorasYMinutos ToAmplitud() => throw new NotImplementedException();
+    public HorasYMinutos ToAmplitud() => HorasYMinutos.Crear(Amplitud.Horas, Amplitud.Minutos);
 }

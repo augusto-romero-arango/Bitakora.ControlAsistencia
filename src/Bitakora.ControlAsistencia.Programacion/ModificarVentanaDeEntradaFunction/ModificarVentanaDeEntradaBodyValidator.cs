@@ -4,4 +4,8 @@ namespace Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunct
 
 public class ModificarVentanaDeEntradaBodyValidator : AbstractValidator<ModificarVentanaDeEntradaBody>
 {
+    public ModificarVentanaDeEntradaBodyValidator()
+    {
+        RuleFor(x => x.Amplitud).NotNull();
+    }
 }

@@ -8,6 +8,11 @@ public sealed partial class Turno : IEquatable<Turno>
     private string _nombre = string.Empty;
     private bool _esDescanso;
     private List<FranjaOrdinaria> _franjas = [];
+    private HorasYMinutos _amplitudVentanaEntrada = HorasYMinutos.Crear(0, 0);
+
+    // Espejo de TraslapeNocturno.HoraCorte de ControlHoras: Programacion no puede referenciarlo.
+    private const int MinutoDeCorte = 4 * 60;
+    private const int MinutosPorDia = 24 * 60;
 
     private Turno()
     {
@@ -34,21 +39,49 @@ public sealed partial class Turno : IEquatable<Turno>
 
     public bool SeSolapaCon(FranjaOrdinaria franja) => _franjas.Any(f => f.SeSolapaCon(franja));
 
-    public Turno ConFranja(FranjaOrdinaria franja) => Crear(_nombre, _esDescanso, [.. _franjas, franja]);
+    public Turno ConFranja(FranjaOrdinaria franja) => ConFranjas([.. _franjas, franja]);
 
     public Turno SinFranjaQueEmpiezaA(FranjaOrdinaria franja) =>
-        Crear(_nombre, _esDescanso, _franjas.Where(f => !f.EmpiezaALaMismaHoraQue(franja)));
+        ConFranjas(_franjas.Where(f => !f.EmpiezaALaMismaHoraQue(franja)));
 
     public Turno ConFranjaReemplazada(FranjaOrdinaria franja) =>
-        Crear(_nombre, _esDescanso,
-            _franjas.Select(f => f.EmpiezaALaMismaHoraQue(franja) ? franja : f));
+        ConFranjas(_franjas.Select(f => f.EmpiezaALaMismaHoraQue(franja) ? franja : f));
 
-    public EvaluacionVentanaDeEntrada EvaluarVentanaDeEntrada(HorasYMinutos amplitud) =>
-        throw new NotImplementedException();
+    private Turno ConFranjas(IEnumerable<FranjaOrdinaria> franjas) =>
+        new()
+        {
+            _nombre = _nombre,
+            _esDescanso = _esDescanso,
+            _franjas = franjas.ToList(),
+            _amplitudVentanaEntrada = _amplitudVentanaEntrada
+        };
 
-    public bool TieneVentanaDeEntrada(HorasYMinutos amplitud) => throw new NotImplementedException();
+    public EvaluacionVentanaDeEntrada EvaluarVentanaDeEntrada(HorasYMinutos amplitud)
+    {
+        if (amplitud.TotalMinutos() == 0)
+            return EvaluacionVentanaDeEntrada.Valida;
 
-    public Turno ConVentanaDeEntrada(HorasYMinutos amplitud) => throw new NotImplementedException();
+        if (_esDescanso || _franjas.Count == 0)
+            return EvaluacionVentanaDeEntrada.TurnoSinFranjas;
+
+        if (_franjas.Min(f => f.MinutoDeInicio()) < MinutoDeCorte)
+            return EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte;
+
+        return _franjas.Max(f => f.MinutoDeInicio()) + amplitud.TotalMinutos() >= MinutosPorDia
+            ? EvaluacionVentanaDeEntrada.CierrePasaMedianoche
+            : EvaluacionVentanaDeEntrada.Valida;
+    }
+
+    public bool TieneVentanaDeEntrada(HorasYMinutos amplitud) => _amplitudVentanaEntrada.Equals(amplitud);
+
+    public Turno ConVentanaDeEntrada(HorasYMinutos amplitud) =>
+        new()
+        {
+            _nombre = _nombre,
+            _esDescanso = _esDescanso,
+            _franjas = _franjas.ToList(),
+            _amplitudVentanaEntrada = amplitud
+        };
 
     public override string ToString() => (_esDescanso, _franjas.Count) switch
     {
@@ -61,12 +94,13 @@ public sealed partial class Turno : IEquatable<Turno>
         other is not null
         && _nombre == other._nombre
         && _esDescanso == other._esDescanso
+        && _amplitudVentanaEntrada.Equals(other._amplitudVentanaEntrada)
         && _franjas.SequenceEqual(other._franjas);
 
     public override bool Equals(object? obj) => Equals(obj as Turno);
 
     public override int GetHashCode() =>
-        _franjas.Aggregate(HashCode.Combine(_nombre, _esDescanso), HashCode.Combine);
+        _franjas.Aggregate(HashCode.Combine(_nombre, _esDescanso, _amplitudVentanaEntrada), HashCode.Combine);
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
@@ -83,6 +117,7 @@ public sealed partial class Turno : IEquatable<Turno>
             Registrar<string>(typeInfo, "_nombre", "nombre");
             Registrar<bool>(typeInfo, "_esDescanso", "esDescanso");
             Registrar<List<FranjaOrdinaria>>(typeInfo, "_franjas", "franjas");
+            Registrar<HorasYMinutos>(typeInfo, "_amplitudVentanaEntrada", "amplitudVentanaEntrada");
         });
     }
 
