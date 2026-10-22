@@ -1556,6 +1556,29 @@ terms:
       plan+realidad, sin sede (fuera de la conversacion por ahora) ni descansos/extras
       internos (ya digeridos en HorasPorConcepto); #424 no depende de #423 (el
       contrato soporta el descanso estructuralmente: nombre + cero franjas).
+      Refinamiento #1139 (2026-10-21): la Pertenencia de marcacion SI viaja por marcacion
+      (string?, aditivo): el receptor no puede derivarla porque requiere la cobertura propia
+      y la de los vecinos. Usada se sigue derivando en el receptor.
+
+  - name: Pertenencia de marcacion
+    definition: >
+      Clasificacion de cada marcacion de un dia con jornada valida frente a la Cobertura de
+      marcacion: DelTurno (en la cobertura propia y en ninguna vecina; usada o intermedia
+      descartada), Ambigua (en la cobertura propia y en la de un turno vecino) o
+      FueraDeCobertura (fuera de la cobertura propia, sea de un vecino o de nadie). Sin
+      jornada valida (sin turno, descanso, ausencia) no hay pertenencia. La calcula el
+      depurador de ControlDiario y viaja en DiaDepurado; la muestra la Depuracion del dia.
+    context: ControlHoras
+    date_added: 2026-10-21
+    rejected_synonyms: [estado de la marcacion]
+    rejection_reason: >
+      "Estado" choca con el Estado del dia (Provisional/Aprobado) en la misma vista; la
+      definicion de Cobertura de marcacion ya dice que "decide la pertenencia".
+    note: >
+      Decision del experto 2026-10-21 (#1139): tres valores. Descartados DeLaVispera y
+      DelDiaSiguiente: la salida del nocturno de la vispera se ve FueraDeCobertura en el dia
+      siguiente. Lectura legada (foto sin la clave): DelTurno con jornada valida, sin
+      pertenencia sin ella.
 
   - name: DepuracionDiaRecibida
     definition: >
