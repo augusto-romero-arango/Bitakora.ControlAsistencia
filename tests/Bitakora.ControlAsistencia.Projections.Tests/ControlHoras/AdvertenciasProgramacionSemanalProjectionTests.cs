@@ -47,6 +47,7 @@ public class AdvertenciasProgramacionSemanalProjectionTests
                 AusenciaDiariaAsignada a => v is null ? AdvertenciasProgramacionSemanalProjection.Create(a) : AdvertenciasProgramacionSemanalProjection.Apply(a, v),
                 TurnoDiarioCancelado c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 CancelacionAusenciaDiariaRegistrada c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
+                CoberturaVecinaActualizada c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 _ => throw new InvalidOperationException()
             };
         }
@@ -389,5 +390,156 @@ public class AdvertenciasProgramacionSemanalProjectionTests
 
         Casilla(v, 0).Advertencias.Should().BeEmpty();
         v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    // ---- HU-1128: descanso entre turnos ----
+
+    private static TurnoDiario Nocturno() => new("Noche", [Franja(17, 1)], "");
+
+    private static CoberturaVecinaActualizada Vispera(int offset, DateTime? limite) =>
+        CoberturaVecinaActualizada.Crear(Stream(Dia(offset)), DiaVecino.Vispera, limite);
+
+    // Fin 01:00 + 4 h = 05:00 del dia del offset.
+    private static DateTime CincoAm(int offset) => Dia(offset).ToDateTime(new TimeOnly(5, 0));
+
+    private static readonly AdvertenciaDiaria Solape60 = new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60);
+
+    // CA-1
+    [Fact]
+    public void Apply_AgregaPorDebajoDelDescanso_CuandoLimiteDeLaVisperaSuperaElInicioDeCobertura()
+    {
+        var v = Aplica(null, Asigna(0, Nocturno()), Asigna(1, Manana()), Vispera(1, CincoAm(1)));
+
+        Casilla(v, 1).Advertencias.Should().Equal(Solape60);
+        Casilla(v, 0).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    // CA-1: el domingo de la semana anterior llega por el stream del lunes
+    [Fact]
+    public void Apply_AgregaPorDebajoDelDescansoEnElLunes_CuandoLaVisperaEsElDomingoAnterior()
+    {
+        var v = Aplica(null, Asigna(0, Manana()), Vispera(0, CincoAm(0)));
+
+        Casilla(v, 0).Advertencias.Should().Equal(Solape60);
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    // CA-2
+    [Fact]
+    public void Apply_NoAgregaAdvertencia_CuandoElDescansoEsDeSeisHorasOMas()
+    {
+        var v = Aplica(null, Asigna(1, new TurnoDiario("Tarde7", [Franja(7, 16)], "")), Vispera(1, CincoAm(1)));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaAdvertencia_CuandoLaVisperaNoTieneCobertura()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, null));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaAdvertencia_CuandoElDiaEsDeDescanso()
+    {
+        var v = Aplica(null, Asigna(1, Libre()), Vispera(1, CincoAm(1)));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaAdvertencia_CuandoElDiaTieneAusencia()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)), Ausenta(1, AusenciaA));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_IgnoraElLimiteDelDiaSiguiente_CuandoElVecinoEsDiaSiguiente()
+    {
+        var v = Aplica(null, Asigna(1, Manana()),
+            CoberturaVecinaActualizada.Crear(Stream(Dia(1)), DiaVecino.DiaSiguiente, CincoAm(1)));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    // CA-3
+    [Fact]
+    public void Apply_ConservaElLimiteDeLaVispera_CuandoSeCancelaYReasignaElTurnoDelDia()
+    {
+        var v = Aplica(null, Asigna(3, Manana()), Asigna(1, Manana()), Vispera(1, CincoAm(1)),
+            Cancela(1), Asigna(1, Manana()));
+
+        Casilla(v, 1).Advertencias.Should().Equal(Solape60);
+    }
+
+    [Fact]
+    public void Apply_ConservaElLimiteDeLaVispera_CuandoSeAsignaYCancelaUnaAusencia()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)),
+            Ausenta(1, AusenciaA), CancelaAusencia(1, AusenciaA));
+
+        Casilla(v, 1).Advertencias.Should().Equal(Solape60);
+    }
+
+    [Fact]
+    public void Apply_RecalculaLaAdvertencia_CuandoLlegaUnLimiteMayor()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)), Vispera(1, CincoAm(1).AddMinutes(30)));
+
+        Casilla(v, 1).Advertencias.Should().Equal(new AdvertenciaDiaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 90));
+    }
+
+    [Fact]
+    public void Apply_ApagaLaAdvertencia_CuandoLlegaUnLimiteMenorQueElInicioDeCobertura()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)), Vispera(1, Dia(1).ToDateTime(new TimeOnly(3, 0))));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_ApagaLaAdvertencia_CuandoLlegaUnLimiteNulo()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)), Vispera(1, null));
+
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    // CA-4
+    [Fact]
+    public void Apply_AgregaPorDebajoDelDescanso_CuandoLaSemanaNoTieneJornada()
+    {
+        var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)));
+
+        v.Jornada.Should().BeNull();
+        v.EsJuzgable.Should().BeFalse();
+        v.AdvertenciasSemanales.Should().BeEmpty();
+        Casilla(v, 1).Advertencias.Should().Equal(Solape60);
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_LlevaDosAdvertenciasDiarias_CuandoElDiaSuperaElTopeYSolapaConLaVispera()
+    {
+        var v = Aplica(null, Asigna(1, DiezHoras(), JornadaC), Vispera(1, CincoAm(1)));
+
+        Casilla(v, 1).Advertencias.Should().BeEquivalentTo(
+        [
+            new AdvertenciaDiaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120),
+            Solape60
+        ]);
+    }
+
+    [Fact]
+    public void Create_NoCreaDocumento_CuandoCoberturaVecinaEsElPrimerEvento()
+    {
+        AdvertenciasProgramacionSemanalProjection.Create(Vispera(1, CincoAm(1))).Should().BeNull();
     }
 }

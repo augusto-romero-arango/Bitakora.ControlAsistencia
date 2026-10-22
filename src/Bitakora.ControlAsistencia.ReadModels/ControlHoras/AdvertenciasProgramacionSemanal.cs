@@ -53,9 +53,11 @@ public sealed record CasillaDia(
     int MinutosOrdinarios,
     string? MotivoAusencia = null,
     Guid? AusenciaId = null,
-    TurnoCubiertoSemana? TurnoCubierto = null)
+    TurnoCubiertoSemana? TurnoCubierto = null,
+    DateTime? InicioCobertura = null,
+    DateTime? LimiteCoberturaVispera = null)
 {
     public IReadOnlyList<AdvertenciaDiaria> Advertencias { get; init; } = [];
 }
 
-public sealed record TurnoCubiertoSemana(string NombreTurno, int MinutosOrdinarios, bool EsDescanso);
+public sealed record TurnoCubiertoSemana(string NombreTurno, int MinutosOrdinarios, bool EsDescanso, DateTime? InicioCobertura = null);

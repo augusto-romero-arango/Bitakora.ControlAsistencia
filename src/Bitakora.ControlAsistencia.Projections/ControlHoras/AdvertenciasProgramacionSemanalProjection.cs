@@ -15,6 +15,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         Identity<TurnoDiarioCancelado>(e => Clave(e.Colaborador.CodigoColaborador, e.Fecha));
         Identity<AusenciaDiariaAsignada>(e => Clave(e.Colaborador.CodigoColaborador, e.Fecha));
         Identity<CancelacionAusenciaDiariaRegistrada>(e => ClaveDesdeStream(e.Id, e.Fecha));
+        Identity<CoberturaVecinaActualizada>(e => throw new NotImplementedException());
     }
 
     private const string PrefijoStream = "cd:";
@@ -135,6 +136,11 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
 
         return RecalcularOBorrar(vista, indice, casilla);
     }
+
+    public static AdvertenciasProgramacionSemanal? Create(CoberturaVecinaActualizada evento) => null;
+
+    public static AdvertenciasProgramacionSemanal Apply(CoberturaVecinaActualizada evento, AdvertenciasProgramacionSemanal vista) =>
+        throw new NotImplementedException();
 
     private static int Indice(AdvertenciasProgramacionSemanal vista, DateOnly fecha) =>
         fecha.DayNumber - vista.Lunes.DayNumber;

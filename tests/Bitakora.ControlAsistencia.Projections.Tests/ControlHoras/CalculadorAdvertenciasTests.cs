@@ -203,4 +203,77 @@ public class CalculadorAdvertenciasTests
 
         r.TieneAdvertencias.Should().BeFalse();
     }
+
+    // ---- HU-1128: solape de coberturas, independiente de la Jornada ----
+
+    private static CasillaDia ConCobertura(int i, DateTime? inicio, DateTime? limiteVispera) =>
+        new(Lunes.AddDays(i), TipoCasilla.Trabajo, "T", 480, InicioCobertura: inicio, LimiteCoberturaVispera: limiteVispera);
+
+    private static DateTime Hora(int dia, int h) => Lunes.AddDays(dia).ToDateTime(new TimeOnly(h, 0));
+
+    [Fact]
+    public void Calcular_PorDebajoDelDescansoEntreTurnos_CuandoElLimiteDeLaVisperaSuperaElInicioDeCobertura()
+    {
+        var casillas = Semana(T(480), T(480));
+        casillas[1] = ConCobertura(1, Hora(1, 4), Hora(1, 5));
+
+        var r = CalculadorAdvertencias.Calcular(casillas, Jornada, false);
+
+        r.Diarias[1].Should().Equal(Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60));
+        r.Diarias[0].Should().BeEmpty();
+        r.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Calcular_PorDebajoDelDescansoEntreTurnos_CuandoNoHayJornada()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConCobertura(0, Hora(0, 4), Hora(0, 5));
+
+        var r = CalculadorAdvertencias.Calcular(casillas, null, false);
+
+        r.Diarias[0].Should().Equal(Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60));
+        r.Semanales.Should().BeEmpty();
+        r.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertenciaDeDescanso_CuandoLimiteIgualAlInicioDeCobertura()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConCobertura(0, Hora(0, 5), Hora(0, 5));
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertenciaDeDescanso_CuandoLaVisperaNoTieneLimite()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConCobertura(0, Hora(0, 4), null);
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertenciaDeDescanso_CuandoLaCasillaNoEsTrabajo()
+    {
+        var casillas = Semana(D());
+        casillas[0] = casillas[0] with { InicioCobertura = Hora(0, 4), LimiteCoberturaVispera = Hora(0, 5) };
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_LlevaSuperaTopeYDescanso_CuandoElDiaCumpleAmbasCondiciones()
+    {
+        var casillas = Semana(T(600));
+        casillas[0] = casillas[0] with { InicioCobertura = Hora(0, 4), LimiteCoberturaVispera = Hora(0, 5) };
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEquivalentTo(
+        [
+            Diaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120),
+            Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60)
+        ]);
+    }
 }

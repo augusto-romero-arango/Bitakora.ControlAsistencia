@@ -257,4 +257,84 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
         semanales.Single(a => a.GetProperty("tipo").GetString() == "FaltanDiasDeDescanso")
             .GetProperty("dias").GetInt32().Should().Be(1);
     }
+
+    // CA-6: asignacion -> reparto -> cobertura vecina -> proyeccion, incluida la frontera de la semana.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ListarAdvertenciasProgramacionSemanal_DebeMostrarDescansoEntreTurnos_CuandoElLunesSolapaConElDomingoDeNoche()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var programacion = CrearClienteProgramacion();
+
+        var jornadaId = await CrearJornadaAsync(programacion, ct);
+
+        async Task<Guid> CrearTurnoAsync(string etiqueta, string inicio, string fin)
+        {
+            var turnoId = Guid.CreateVersion7();
+            var respuesta = await programacion.PostAsJsonAsync("/api/programacion/turnos", new
+            {
+                turnoId,
+                nombre = $"[TEST] Turno {etiqueta} Descanso {turnoId}",
+                ordinarias = new[]
+                {
+                    new { inicio, fin, descansos = Array.Empty<object>(), extras = Array.Empty<object>() }
+                }
+            }, ct);
+            respuesta.StatusCode.Should().Be(HttpStatusCode.Created);
+            return turnoId;
+        }
+
+        var turnoNoche = await CrearTurnoAsync("Noche", "17:00:00", "01:00:00");
+        var turnoManana = await CrearTurnoAsync("Manana", "06:00:00", "14:00:00");
+
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var domingo = new DateOnly(2026, 11, 8);
+        var lunes = new DateOnly(2026, 11, 9);
+
+        async Task ProgramarAsync(Guid turnoId, DateOnly fecha)
+        {
+            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes", new
+            {
+                id = Guid.CreateVersion7(),
+                turnoId,
+                colaborador = new
+                {
+                    identificacion = "CC-866866867",
+                    codigoColaborador,
+                    nombreCompleto = "[TEST] Smoke Descanso Entre Turnos"
+                },
+                fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+                jornadaId
+            }, ct);
+            solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        await ProgramarAsync(turnoNoche, domingo);
+        await ProgramarAsync(turnoManana, lunes);
+
+        var filtro = new { fecha = lunes, codigosColaborador = new[] { codigoColaborador } };
+
+        JsonElement casillaLunes = default;
+        var proyectada = await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var respuesta = await ConsultarOkAsync(filtro, ct);
+            var elementos = respuesta.GetProperty("elementos");
+            if (elementos.GetArrayLength() == 0)
+                return false;
+
+            var candidata = elementos[0].GetProperty("casillas")[0];
+            var conAdvertencia = candidata.GetProperty("advertencias").EnumerateArray()
+                .Any(a => a.GetProperty("tipo").GetString() == "PorDebajoDelDescansoEntreTurnos");
+            if (conAdvertencia)
+                casillaLunes = candidata.Clone();
+            return conAdvertencia;
+        }, Timeout);
+        proyectada.Should().BeTrue(
+            "la casilla del lunes debia mostrar PorDebajoDelDescansoEntreTurnos dentro del timeout");
+
+        var advertencia = casillaLunes.GetProperty("advertencias").EnumerateArray()
+            .Single(a => a.GetProperty("tipo").GetString() == "PorDebajoDelDescansoEntreTurnos");
+        advertencia.GetProperty("horas").GetProperty("horas").GetInt32().Should().Be(1);
+        advertencia.GetProperty("horas").GetProperty("minutos").GetInt32().Should().Be(0);
+    }
 }

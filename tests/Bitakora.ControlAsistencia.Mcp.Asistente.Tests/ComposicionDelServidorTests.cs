@@ -428,6 +428,15 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ConsultarAdvertenciasProgramacion_MencionaElDescansoEntreTurnos_CuandoSeInspeccionaSuDescripcion()
+    {
+        var descripcion = ParametroTrigger(MetodoDe("consultar_advertencias_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+
+        descripcion.Should().Contain("descanso entre turnos");
+    }
+
+    [Fact]
     public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_ausencias").Should().BeEquivalentTo(
             [("desde", true), ("hasta", true), ("codigos_colaborador", false), ("sede", false), ("etiquetas", false), ("cursor", false)]);

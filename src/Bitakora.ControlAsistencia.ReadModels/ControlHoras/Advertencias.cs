@@ -11,7 +11,8 @@ public enum TipoAdvertenciaSemanal
 public enum TipoAdvertenciaDiaria
 {
     SuperaTopeDiario,
-    PorDebajoDelMinimoDiario
+    PorDebajoDelMinimoDiario,
+    PorDebajoDelDescansoEntreTurnos
 }
 
 /// <summary>Magnitud en minutos para las horas semanales y en dias para los descansos.</summary>
