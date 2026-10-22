@@ -112,6 +112,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     {
         Id = e.Id;
         Fecha = ExtraerFechaDeStreamId(e.Id);
+        if (_marcaciones.Any(m => m.TimestampNormalizado == e.TimestampNormalizado)) return;
         _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion, e.DispositivoId));
         Depurar();
         RecalcularDesgloseHoras();
@@ -148,7 +149,39 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    internal bool RecogerDe(ControlDiarioAggregateRoot vecino) => throw new NotImplementedException();
+    // Solo las marcaciones del dia calendario del vecino son candidatas: las copias que el vecino
+    // recibio de otro dia nunca se re-reparten. true si emitio eventos.
+    internal bool RecogerDe(ControlDiarioAggregateRoot vecino)
+    {
+        var cobertura = DetalleTurno?.CoberturaPosible(Fecha);
+        if (cobertura is null) return false;
+
+        var eventosAntes = _uncommittedEvents.Count;
+        var candidatas = vecino._marcaciones
+            .Where(m => DateOnly.FromDateTime(m.TimestampNormalizado) == vecino.Fecha)
+            .Where(m => cobertura.Contiene(m.TimestampNormalizado))
+            .ToList();
+
+        foreach (var origen in candidatas)
+        {
+            var copia = _marcaciones.Find(m => m.TimestampNormalizado == origen.TimestampNormalizado);
+            if (copia is null)
+            {
+                var adicionada = new MarcacionAdicionada(
+                    Id, ExtraerCodigoColaboradorDeStreamId(Id), origen.TimestampNormalizado,
+                    origen.TipoMarcacion, origen.DispositivoId);
+                _uncommittedEvents.Add(adicionada);
+                Apply(adicionada);
+            }
+
+            if (origen.CodigoSede is not null)
+                EstamparSede(new SedeDeMarcacionIdentificada(
+                    Id, origen.TimestampNormalizado, origen.DispositivoId,
+                    origen.CodigoSede, origen.NombreSede!, origen.CentroDeCostos));
+        }
+
+        return _uncommittedEvents.Count > eventosAntes;
+    }
 
     // Proyecta el estampado sobre la marcacion correlacionada. Sin coincidencia no lanza
     // (MEF-ADR-0004): Apply solo proyecta estado.

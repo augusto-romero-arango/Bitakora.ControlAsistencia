@@ -31,19 +31,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
     public async Task HandleAsync(RegistroDeMarcacionCreado @event, CancellationToken ct = default)
     {
         var fechaCalendario = DateOnly.FromDateTime(@event.TimestampNormalizado);
-        var horaDelDia = TimeOnly.FromDateTime(@event.TimestampNormalizado);
-
-        // CA-1: fuera de la ventana nocturna la marcacion va solo al dia calendario
-        // CA-2 / CA-9: dentro de la ventana [00:00, 04:00) se agrega tambien al dia anterior
-        //              para cubrir turnos nocturnos que cruzan medianoche
-        var fechasDestino = horaDelDia < TraslapeNocturno.HoraCorte
-            ? new[] { fechaCalendario, fechaCalendario.AddDays(-1) }
-            : new[] { fechaCalendario };
-
-        foreach (var fecha in fechasDestino)
-        {
-            await AdicionarAControlDiarioAsync(@event, fecha, ct);
-        }
+        await AdicionarAControlDiarioAsync(@event, fechaCalendario, ct);
     }
 
     // Patron crear-o-actualizar con stream ID computado (CodigoColaborador + Fecha).

@@ -27,16 +27,7 @@ public partial class SedeDeMarcacionResueltaEventHandler
     public async Task HandleAsync(SedeDeMarcacionResuelta @event, CancellationToken ct = default)
     {
         var fechaCalendario = DateOnly.FromDateTime(@event.TimestampNormalizado);
-        var horaDelDia = TimeOnly.FromDateTime(@event.TimestampNormalizado);
-
-        // El estampado debe ir a los MISMOS dias-destino que la marcacion: de ahi que la ventana
-        // nocturna se lea de TraslapeNocturno, compartida con RegistroDeMarcacionCreadoEventHandler.
-        var fechasDestino = horaDelDia < TraslapeNocturno.HoraCorte
-            ? new[] { fechaCalendario, fechaCalendario.AddDays(-1) }
-            : new[] { fechaCalendario };
-
-        foreach (var fecha in fechasDestino)
-            await EstamparSedeEnControlDiarioAsync(@event, fecha, ct);
+        await EstamparSedeEnControlDiarioAsync(@event, fechaCalendario, ct);
     }
 
     // CA-3 (problema de orden, carrera A): este handler solo ACTUALIZA, nunca crea un ControlDiario

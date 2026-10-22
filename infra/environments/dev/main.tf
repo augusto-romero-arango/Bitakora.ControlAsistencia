@@ -102,6 +102,10 @@ module "service_bus" {
           correlation_filter = null
         },
         {
+          name               = "control-horas-reparte-marcaciones"
+          correlation_filter = null
+        },
+        {
           name                = "smoke-tests"
           correlation_filter  = null
           default_message_ttl = "PT5M"
