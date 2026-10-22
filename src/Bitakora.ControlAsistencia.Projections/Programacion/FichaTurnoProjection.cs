@@ -76,8 +76,19 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     public static FichaTurno Apply(SedeDeFranjaRetirada e, FichaTurno ficha) =>
         ReemplazarOAgregar(ficha, e.Franja.ToDetalle());
 
-    public static FichaTurno Apply(VentanaDeEntradaModificada e, FichaTurno ficha) =>
-        throw new NotImplementedException();
+    // Sin franjas o amplitud 0 la ventana queda null sin lanzar (MEF-ADR-0004).
+    public static FichaTurno Apply(VentanaDeEntradaModificada e, FichaTurno ficha)
+    {
+        var minutos = e.Amplitud.TotalMinutos();
+        if (minutos <= 0 || ficha.Franjas.Count == 0)
+            return ficha with { VentanaDeEntrada = null };
+
+        var apertura = ficha.Franjas.Min(f => f.HoraInicio);
+        return ficha with
+        {
+            VentanaDeEntrada = new VentanaDeEntradaFicha(apertura, apertura.AddMinutes(minutos), e.Amplitud.ToString())
+        };
+    }
 
     public static bool ShouldDelete(TurnoRetirado e) => true;
 
@@ -89,13 +100,14 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             .Append(MapearFranja(detalle)));
 
     private static FichaTurno Reconstruir(FichaTurno ficha, IEnumerable<FranjaFicha> franjas) =>
-        Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas);
+        Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas, ficha.VentanaDeEntrada);
 
     // Unico punto de recomputo de los derivados: evita que HorarioResumido, Descripcion y Completo
     // diverjan entre Create y los Apply. Las franjas se presentan ordenadas por HoraInicio (vista
     // para leer el dia, no el orden en que se diseno -- MEF-ADR-0041).
     private static FichaTurno Reconstruir(
-        string id, string nombre, bool esDescanso, IEnumerable<FranjaFicha> franjas)
+        string id, string nombre, bool esDescanso, IEnumerable<FranjaFicha> franjas,
+        VentanaDeEntradaFicha? ventana = null)
     {
         var ordenadas = franjas.OrderBy(f => f.HoraInicio).ToList();
 
@@ -106,7 +118,17 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             ordenadas.Select(f => $"{f.HoraInicio:HH\\:mm}-{f.HoraFin:HH\\:mm}"));
         var descripcion = string.Join(", ", ordenadas.Select(f => f.Descripcion));
 
-        return new FichaTurno(id, nombre, esDescanso, horarioResumido, ordenadas, descripcion, Completo: true);
+        // La amplitud se recupera como Cierre - Apertura; el texto no cambia. Al mover el primer
+        // inicio se conserva la amplitud y se desplazan apertura y cierre.
+        VentanaDeEntradaFicha? ventanaVigente = null;
+        if (ventana is not null)
+        {
+            var apertura = ordenadas[0].HoraInicio;
+            var amplitud = ventana.Cierre - ventana.Apertura;
+            ventanaVigente = new VentanaDeEntradaFicha(apertura, apertura.Add(amplitud), ventana.Amplitud);
+        }
+
+        return new FichaTurno(id, nombre, esDescanso, horarioResumido, ordenadas, descripcion, Completo: true, ventanaVigente);
     }
 
     private static FranjaFicha MapearFranja(FranjaProgramada detalle) =>
