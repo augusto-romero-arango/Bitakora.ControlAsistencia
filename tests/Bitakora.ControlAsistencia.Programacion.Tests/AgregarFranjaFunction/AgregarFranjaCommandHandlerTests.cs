@@ -174,4 +174,103 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
         And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
+
+    private static HorasYMinutos Horas(int h) => HorasYMinutos.Crear(h, 0);
+
+    private TurnoCreado TurnoConVentana(int hi, int mi, int hf, int mf) =>
+        TurnoCreado.Crear(TurnoId, "Turno Manana",
+            [new DatosFranja(new TimeOnly(hi, mi), new TimeOnly(hf, mf), [], [])]);
+
+    [Fact]
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaDejaElInicioAntesDeLaHoraDeCorte()
+    {
+        Given(TurnoId.ToString(), TurnoConVentana(7, 0, 16, 0),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+
+        var act = async () => await WhenAsync(
+            new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(5, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.InicioAntesDeHoraCorte}*");
+        Then(TurnoId.ToString());
+        ThenIsPublishedPrivately();
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaFranjaMasLaVentanaLlegaALaMedianoche()
+    {
+        Given(TurnoId.ToString(), TurnoConVentana(6, 0, 10, 0),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(4)));
+
+        var act = async () => await WhenAsync(
+            new AgregarFranja(TurnoId, new TimeOnly(20, 0), new TimeOnly(23, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.CierrePasaMedianoche}*");
+        Then(TurnoId.ToString());
+        ThenIsPublishedPrivately();
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_EmiteFranjaAgregada_CuandoLaUltimaFranjaMasLaVentanaQuedaUnMinutoAntesDeLaMedianoche()
+    {
+        Given(TurnoId.ToString(), TurnoConVentana(6, 0, 10, 0),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(4)));
+
+        await WhenAsync(new AgregarFranja(TurnoId, new TimeOnly(19, 59), new TimeOnly(23, 0)));
+
+        Then(TurnoId.ToString(), FranjaAgregada.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(19, 59), new TimeOnly(23, 0))));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 2);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_EmiteFranjaAgregada_CuandoLaAmplitudEsCeroAunqueLaFranjaEmpiecePasadaLaMedianoche()
+    {
+        Given(TurnoId.ToString(), TurnoConVentana(12, 0, 16, 0));
+
+        await WhenAsync(new AgregarFranja(TurnoId, new TimeOnly(2, 0), new TimeOnly(10, 0)));
+
+        Then(TurnoId.ToString(), FranjaAgregada.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(2, 0), new TimeOnly(10, 0))));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 2);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaSeSolapaYAdemasRompeLaVentana()
+    {
+        Given(TurnoId.ToString(), TurnoConVentana(7, 0, 16, 0),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+
+        var act = async () => await WhenAsync(
+            new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(8, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.FranjaSeSolapa}*");
+        Then(TurnoId.ToString());
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoRetiradoTieneVentanaQueLaFranjaRompe()
+    {
+        Given(TurnoId.ToString(), TurnoConVentana(7, 0, 16, 0),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)), TurnoRetirado.Crear(TurnoId));
+
+        var act = async () => await WhenAsync(
+            new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(5, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.TurnoRetirado}*");
+        Then(TurnoId.ToString());
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
 }

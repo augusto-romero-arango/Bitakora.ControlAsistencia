@@ -130,4 +130,88 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
     }
+
+    private static HorasYMinutos Horas(int h) => HorasYMinutos.Crear(h, 0);
+
+    [Fact]
+    public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoEsLaUnicaFranjaDeUnTurnoConVentana()
+    {
+        Given(TurnoId.ToString(),
+            TurnoCreado.Crear(TurnoId, "Turno Fijo",
+                [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+
+        var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(7, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.DejariaVentanaSinFranjas}*");
+        Then(TurnoId.ToString());
+        ThenIsPublishedPrivately();
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
+
+    [Fact]
+    public async Task QuitarFranja_EmiteFranjaQuitadaYConservaLaVentana_CuandoQuedanOtrasFranjas()
+    {
+        Given(TurnoId.ToString(),
+            TurnoCreado.Crear(TurnoId, "Turno Partido",
+            [
+                new DatosFranja(new TimeOnly(6, 0), new TimeOnly(10, 0), [], []),
+                new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [])
+            ]),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+
+        await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(14, 0)));
+
+        Then(TurnoId.ToString(), FranjaQuitada.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(18, 0))));
+        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.Turno.TieneVentanaDeEntrada(Horas(3)), true);
+    }
+
+    [Fact]
+    public async Task QuitarFranja_EmiteFranjaQuitada_CuandoEsLaUnicaFranjaYLaAmplitudEsCero()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoConUnaFranja());
+
+        await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(6, 0)));
+
+        Then(TurnoId.ToString(), FranjaQuitada.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))));
+        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), false);
+    }
+
+    [Fact]
+    public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaNoExisteEnUnTurnoConVentana()
+    {
+        Given(TurnoId.ToString(),
+            TurnoCreado.Crear(TurnoId, "Turno Fijo",
+                [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+
+        var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(8, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.FranjaNoExiste}*");
+        Then(TurnoId.ToString());
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
+
+    [Fact]
+    public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoRetiradoTieneVentana()
+    {
+        Given(TurnoId.ToString(),
+            TurnoCreado.Crear(TurnoId, "Turno Fijo",
+                [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
+            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)), TurnoRetirado.Crear(TurnoId));
+
+        var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(7, 0)));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{QuitarFranjaCommandHandler.Mensajes.TurnoRetirado}*");
+        Then(TurnoId.ToString());
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+    }
 }
