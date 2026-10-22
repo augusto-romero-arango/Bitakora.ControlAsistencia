@@ -67,4 +67,18 @@ public class DepuracionPosAprobacionRecibidaSerializacionTests
         deserializado.Marcaciones.Should().Equal(Marcacion);
         deserializado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty();
     }
+
+    [Fact]
+    public void Desde_CopiaLaPertenenciaDeCadaMarcacion()
+    {
+        var marcacionAmbigua = new MarcacionDelDia(new DateTime(2026, 3, 15, 4, 30, 0), "ENTRADA", Pertenencia: "Ambigua");
+        var foto = new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, "Turno Manana", [], [marcacionAmbigua], HorasConDatos());
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(DepuracionPosAprobacionRecibida.Desde(foto), opciones);
+        var deserializado = JsonSerializer.Deserialize<DepuracionPosAprobacionRecibida>(json, opciones);
+
+        deserializado!.Marcaciones.Should().Equal(marcacionAmbigua);
+    }
 }

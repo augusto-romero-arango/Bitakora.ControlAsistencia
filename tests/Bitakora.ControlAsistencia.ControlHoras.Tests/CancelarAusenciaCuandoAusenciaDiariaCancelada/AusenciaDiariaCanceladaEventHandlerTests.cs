@@ -96,7 +96,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
             ColaboradorResumen,
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, entrada, salida, false)],
-            [new MarcacionDelDia(entrada, "ENTRADA"), new MarcacionDelDia(salida, "ENTRADA")],
+            [new MarcacionDelDia(entrada, "ENTRADA", Pertenencia: "DelTurno"), new MarcacionDelDia(salida, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 8.00m },
                 [

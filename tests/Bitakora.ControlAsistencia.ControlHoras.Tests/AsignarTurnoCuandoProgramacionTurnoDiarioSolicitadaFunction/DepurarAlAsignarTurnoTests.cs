@@ -117,7 +117,7 @@ public class DepurarAlAsignarTurnoTests
             ColaboradorResumen,
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, Timestamp15_00, false)],
-            [new MarcacionDelDia(Timestamp07_00, "ENTRADA"), new MarcacionDelDia(Timestamp15_00, "ENTRADA")],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno"), new MarcacionDelDia(Timestamp15_00, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 7.00m },
                 [LineaConcepto(new TimeOnly(7, 0), new TimeOnly(14, 0), Concepto.DominicalFestivaDiurna)])));

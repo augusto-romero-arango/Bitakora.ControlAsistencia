@@ -51,6 +51,8 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
     private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
+    private static readonly FranjaProgramada Franja07_16 =
+        new(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "");
 
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp05_50 = new(2026, 3, 15, 5, 50, 0);
@@ -69,6 +71,13 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario detalleTurno) =>
         new(StreamId, ColaboradorPersistido, Fecha, detalleTurno, SolicitudId);
+
+    private static DateTime En(int hora, int minuto) => Fecha.ToDateTime(new TimeOnly(hora, minuto));
+
+    // And<>() compara con BeEquivalentTo, que ignora el orden: el string fija ademas que cada
+    // pertenencia queda junto a su marcacion.
+    private static string PertenenciasPorHora(DiaDepurado dia) =>
+        string.Join(" ", dia.Marcaciones.Select(m => $"{m.Timestamp:HH:mm}={m.Pertenencia}"));
 
     // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
     // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
@@ -108,7 +117,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             ColaboradorResumen,
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, null, true)],
-            [new MarcacionDelDia(Timestamp07_00, "ENTRADA")],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
@@ -195,9 +204,9 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
                 new FranjaDepurada(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, Timestamp14_10, null, true)
             ],
             [
-                new MarcacionDelDia(Timestamp05_50, "ENTRADA"),
-                new MarcacionDelDia(Timestamp12_05, "ENTRADA"),
-                new MarcacionDelDia(Timestamp14_10, "ENTRADA")
+                new MarcacionDelDia(Timestamp05_50, "ENTRADA", Pertenencia: "DelTurno"),
+                new MarcacionDelDia(Timestamp12_05, "ENTRADA", Pertenencia: "DelTurno"),
+                new MarcacionDelDia(Timestamp14_10, "ENTRADA", Pertenencia: "DelTurno")
             ],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal>
@@ -231,5 +240,40 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
 
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
+    }
+
+    [Fact]
+    public async Task RegistroDeMarcacionCreado_ClasificaFueraDeCobertura_CuandoLaMarcacionPasaDeFinMasCuatroHoras()
+    {
+        Given(StreamId,
+            CrearTurnoDiarioAsignado(new TurnoDiario("Turno Dia", [Franja07_16], "")),
+            CrearMarcacionAdicionada(En(7, 10)),
+            CrearMarcacionAdicionada(En(12, 0)),
+            CrearMarcacionAdicionada(En(16, 5)));
+
+        await WhenAsync(CrearRegistroDeMarcacionCreado(En(20, 15)));
+
+        Then(StreamId, CrearMarcacionAdicionada(En(20, 15)));
+        And<ControlDiarioAggregateRoot, string>(
+            StreamId,
+            c => PertenenciasPorHora(c.CrearDiaDepurado()),
+            "07:10=DelTurno 12:00=DelTurno 16:05=DelTurno 20:15=FueraDeCobertura");
+    }
+
+    [Fact]
+    public async Task RegistroDeMarcacionCreado_ClasificaAmbigua_CuandoLaMarcacionCaeTambienEnLaCoberturaDeLaVispera()
+    {
+        Given(StreamId,
+            CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")),
+            CoberturaVecinaActualizada.Crear(StreamId, DiaVecino.Vispera, En(5, 0)),
+            CrearMarcacionAdicionada(En(6, 20)));
+
+        await WhenAsync(CrearRegistroDeMarcacionCreado(En(4, 30)));
+
+        Then(StreamId, CrearMarcacionAdicionada(En(4, 30)));
+        And<ControlDiarioAggregateRoot, string>(
+            StreamId,
+            c => PertenenciasPorHora(c.CrearDiaDepurado()),
+            "04:30=Ambigua 06:20=DelTurno");
     }
 }

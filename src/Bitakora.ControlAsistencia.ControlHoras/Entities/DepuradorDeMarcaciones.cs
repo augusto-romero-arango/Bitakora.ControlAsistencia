@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -25,6 +26,28 @@ public static class DepuradorDeMarcaciones
                 rangosDeCaptura[indice],
                 marcacionesOrdenadas))
             .ToList();
+    }
+
+    public static IReadOnlyDictionary<DateTime, PertenenciaMarcacion> Clasificar(
+        TurnoDiario? turno,
+        DateOnly fecha,
+        IReadOnlyList<MarcacionNormalizada> marcaciones,
+        CoberturasVecinas? vecinas = null)
+    {
+        if (Resolver(turno, fecha, marcaciones, vecinas) is not (_, var cobertura, _))
+            return ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
+
+        return marcaciones
+            .Select(m => m.TimestampNormalizado)
+            .Distinct()
+            .ToDictionary(
+                instante => instante,
+                instante => (cobertura.Contiene(instante), vecinas?.Excluye(instante) == true) switch
+                {
+                    (false, _) => PertenenciaMarcacion.FueraDeCobertura,
+                    (true, true) => PertenenciaMarcacion.Ambigua,
+                    _ => PertenenciaMarcacion.DelTurno
+                });
     }
 
     public static CoberturaDeMarcacion? CoberturaEfectiva(
