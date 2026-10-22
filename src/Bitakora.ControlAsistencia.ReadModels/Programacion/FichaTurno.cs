@@ -29,7 +29,14 @@ public sealed record FichaTurno(
     string HorarioResumido,
     IReadOnlyList<FranjaFicha> Franjas,
     string Descripcion,
-    bool Completo);
+    bool Completo,
+    VentanaDeEntradaFicha? VentanaDeEntrada = null);
+
+/// <summary>
+/// Ventana de entrada de un turno no fijo: entre Apertura y Cierre el colaborador puede entrar.
+/// Amplitud es texto legible ("3 h", "2 h 30 min"); null en la ficha = turno fijo.
+/// </summary>
+public sealed record VentanaDeEntradaFicha(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
 
 /// <summary>
 /// Franja completa de un turno del catalogo: el consumidor responde "hay descansos o extras dentro

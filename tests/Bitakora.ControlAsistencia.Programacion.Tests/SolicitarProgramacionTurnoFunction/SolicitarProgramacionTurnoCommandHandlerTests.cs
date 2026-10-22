@@ -303,6 +303,63 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         }.AsReadOnly(),
         "Turno Manana (06:00-14:00)");
 
+    private static VentanaDeEntradaModificada VentanaDeTresHoras() =>
+        VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(3, 0));
+
+    // --- Ventana de entrada (amplitud copiada al programar) ---
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_CopiaLaAmplitudDelCatalogoEnAmbosPayloads_CuandoElTurnoTieneVentanaDeTresHoras()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno(), VentanaDeTresHoras());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1, Fecha2]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1, Fecha2],
+            TurnoProgramadoEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }, jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, ColaboradorResumen, Fecha1,
+                DetalleEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }, jornada: DetalleJornadaEsperado),
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, ColaboradorResumen, Fecha2,
+                DetalleEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }, jornada: DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_DejaAmplitudEnCero_CuandoElTurnoEsFijo()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoProgramadoEsperado, jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1, DetalleEsperado, jornada: DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 0);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ConservaLaAmplitud_CuandoLaSolicitudTraeSede()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno(), VentanaDeTresHoras());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1], SedePrincipal));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1],
+            TurnoProgramadoConSedeAplicadaEsperado with { AmplitudVentanaEntradaEnMinutos = 180 },
+            SedePrincipal, jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1,
+            DetalleConSedeAplicadaEsperado with { AmplitudVentanaEntradaEnMinutos = 180 },
+            SedePrincipalDetalle, jornada: DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
+    }
+
     // --- Tests del camino feliz ---
 
     // CA-9, CA-10, CA-11, CA-12: emite evento de ES y publica evento publico por cada fecha

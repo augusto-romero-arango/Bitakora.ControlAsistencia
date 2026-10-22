@@ -83,6 +83,20 @@ public class TurnoTests
     }
 
     [Fact]
+    public void Programar_CopiaLaAmplitudDeLaVentanaEnMinutos_CuandoElTurnoTieneVentanaDeEntrada()
+    {
+        var turno = TurnoDeTrabajo().ConVentanaDeEntrada(HorasYMinutos.Crear(3, 0));
+
+        turno.Programar().AmplitudVentanaEntradaEnMinutos.Should().Be(180);
+    }
+
+    [Fact]
+    public void Programar_DejaAmplitudEnCero_CuandoElTurnoEsFijo()
+    {
+        TurnoDeTrabajo().Programar().AmplitudVentanaEntradaEnMinutos.Should().Be(0);
+    }
+
+    [Fact]
     public void FranjaQueEmpiezaA_RetornaLaFranja_CuandoUnaFranjaEmpiezaEsaHora()
     {
         TurnoDeTrabajo().FranjaQueEmpiezaA(new TimeOnly(6, 0)).Should().Be(Manana());

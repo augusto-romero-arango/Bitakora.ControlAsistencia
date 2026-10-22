@@ -19,5 +19,8 @@ public partial class QuitarFranjaCommandHandler
 
         public static string FranjaNoExiste =>
             ResourceManager.GetString(nameof(FranjaNoExiste))!;
+
+        public static string DejariaVentanaSinFranjas =>
+            ResourceManager.GetString(nameof(DejariaVentanaSinFranjas))!;
     }
 }

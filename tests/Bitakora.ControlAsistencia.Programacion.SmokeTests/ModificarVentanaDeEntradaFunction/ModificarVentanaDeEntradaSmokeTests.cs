@@ -1,14 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ModificarVentanaDeEntradaFunction;
 
-public class ModificarVentanaDeEntradaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class ModificarVentanaDeEntradaSmokeTests(ApiFixture api, PostgresFixture postgres, ServiceBusFixture serviceBus)
 {
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string TipoEvento = "ventana_de_entrada_modificada";
+    private const string TopicDisenoDeTurno = "diseno-de-turno-actualizado";
+    private const string Suscripcion = "smoke-tests";
 
     private readonly HttpClient _client = api.Client;
 
@@ -153,5 +156,29 @@ public class ModificarVentanaDeEntradaSmokeTests(ApiFixture api, PostgresFixture
         var response = await _client.PutAsJsonAsync(Ruta(turnoId), Amplitud(1, 60), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ModificarVentanaDeEntrada_PublicaDisenoDeTurnoActualizadoConLaAmplitud_CuandoElTurnoTieneFranja()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = await CrearTurnoConFranjaAsync(ct);
+        await serviceBus.PurgeAsync(TopicDisenoDeTurno, Suscripcion);
+
+        var response = await _client.PutAsJsonAsync(Ruta(turnoId), Amplitud(3), ct);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var evento = await serviceBus.WaitForMessageAsync<DisenoDeTurnoActualizado>(
+            TopicDisenoDeTurno, Suscripcion, e => e.TurnoId == turnoId, TimeSpan.FromSeconds(30));
+
+        evento.AmplitudVentanaEntradaEnMinutos.Should().Be(180);
+        evento.Version.Should().Be(2);
+        evento.Retirado.Should().BeFalse();
+        var franja = evento.Franjas.Should().ContainSingle().Which;
+        franja.HoraInicio.Should().Be(new TimeOnly(7, 0));
+        franja.HoraFin.Should().Be(new TimeOnly(16, 0));
     }
 }

@@ -1,11 +1,12 @@
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Comando = Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunction.ModificarVentanaDeEntrada;
 
 namespace Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunction.CommandHandler;
 
-public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventStore)
+public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventStore, IPrivateEventSender privateEventSender)
     : ICommandHandlerAsync<Comando>
 {
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
@@ -27,5 +28,9 @@ public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventSt
 
         if (rechazo is not null)
             throw new ReglaDeNegocioDeclinadaException(rechazo);
+
+        var diseno = catalogo.ObtenerDisenoPublicable();
+        if (diseno is not null)
+            await privateEventSender.PublishAsync(diseno);
     }
 }

@@ -189,4 +189,29 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
     }
+
+    [Fact]
+    public async Task AgregarSubFranja_PublicaLaAmplitudVigente_CuandoElTurnoTieneVentanaDeEntrada()
+    {
+        Given(TurnoId.ToString(),
+            TurnoCreado.Crear(TurnoId, "Turno Manana", [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
+            VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(3, 0)));
+
+        await WhenAsync(new AgregarSubFranja(
+            TurnoId, new TimeOnly(7, 0), TipoSubFranja.Descanso,
+            new TimeOnly(12, 0), new TimeOnly(12, 30)));
+
+        Then(TurnoId.ToString(), DescansoAgregado.Crear(TurnoId,
+            FranjaOrdinaria.Crear(new TimeOnly(7, 0), new TimeOnly(16, 0))
+                .ConDescanso(new TimeOnly(12, 0), new TimeOnly(12, 30))));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 3, "Turno Manana", false,
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(7, 0), new TimeOnly(16, 0), 0,
+                [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(12, 30), 0, 0, "(12:00-12:30)")],
+                [], "(07:00-16:00)[Descansos:(12:00-12:30)]")],
+            false, 180));
+        And<CatalogoTurnos, int>(TurnoId.ToString(),
+            c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
+    }
 }

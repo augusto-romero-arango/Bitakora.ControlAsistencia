@@ -1,0 +1,21 @@
+{
+ "id": "01a0ec11-0000-7000-9000-000000000001",
+ "nombre": "Oficina",
+ "esDescanso": false,
+ "horarioResumido": "07:00-16:00",
+ "franjas": [
+  {
+   "horaInicio": "07:00:00",
+   "horaFin": "16:00:00",
+   "diaOffsetFin": 0,
+   "descansos": [],
+   "extras": [],
+   "sedeId": null,
+   "nombreSede": null,
+   "descripcion": "(07:00-16:00)"
+  }
+ ],
+ "descripcion": "(07:00-16:00)",
+ "completo": true,
+ "ventanaDeEntrada": null
+}
