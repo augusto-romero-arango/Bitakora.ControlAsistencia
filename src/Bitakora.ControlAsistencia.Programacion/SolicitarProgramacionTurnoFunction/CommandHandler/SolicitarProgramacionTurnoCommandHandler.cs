@@ -113,7 +113,8 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     private static DetalleTurno MapearTurno(TurnoProgramado turno) =>
         new(turno.Nombre,
             turno.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
-            turno.Descripcion);
+            turno.Descripcion,
+            turno.AmplitudVentanaEntradaEnMinutos);
 
     private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>
         new(franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin,

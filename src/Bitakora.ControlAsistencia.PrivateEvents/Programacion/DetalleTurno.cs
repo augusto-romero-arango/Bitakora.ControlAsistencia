@@ -31,6 +31,7 @@ public record DetalleTurno(
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
+            && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -38,6 +39,7 @@ public record DetalleTurno(
     {
         var hash = new HashCode();
         hash.Add(Nombre);
+        hash.Add(AmplitudVentanaEntradaEnMinutos);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }

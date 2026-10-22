@@ -31,7 +31,8 @@ public sealed partial class Turno : IEquatable<Turno>
     public TurnoProgramado Programar() => new(
         _nombre,
         _franjas.Select(f => f.ToDetalle()).ToList().AsReadOnly(),
-        ToString());
+        ToString(),
+        _amplitudVentanaEntrada.TotalMinutos());
 
     public FranjaOrdinaria? FranjaQueEmpiezaA(TimeOnly horaInicio) =>
         _franjas.FirstOrDefault(f => f.EmpiezaA(horaInicio));
