@@ -142,6 +142,13 @@ public class CatalogoTurnos : AggregateRoot
         if (_turno.SeSolapaCon(franja))
             return ResultadoAgregarFranja.SeSolapaConOtraFranja;
 
+        var ventana = _turno.ConFranja(franja).EvaluarVentanaDeEntrada();
+        if (ventana == EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte)
+            return ResultadoAgregarFranja.InicioAntesDeHoraCorte;
+
+        if (ventana == EvaluacionVentanaDeEntrada.CierrePasaMedianoche)
+            return ResultadoAgregarFranja.CierrePasaMedianoche;
+
         var evento = FranjaAgregada.Crear(Guid.Parse(Id!), franja);
         _uncommittedEvents.Add(evento);
         Apply(evento);
@@ -198,6 +205,10 @@ public class CatalogoTurnos : AggregateRoot
         var franjaActual = _turno.FranjaQueEmpiezaA(horaInicio);
         if (franjaActual is null)
             return ResultadoQuitarFranja.FranjaNoExiste;
+
+        if (_turno.SinFranjaQueEmpiezaA(franjaActual).EvaluarVentanaDeEntrada()
+            == EvaluacionVentanaDeEntrada.TurnoSinFranjas)
+            return ResultadoQuitarFranja.DejariaVentanaSinFranjas;
 
         var evento = FranjaQuitada.Crear(Guid.Parse(Id!), franjaActual);
         _uncommittedEvents.Add(evento);
