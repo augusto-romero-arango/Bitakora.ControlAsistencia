@@ -40,6 +40,8 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         string? NombreSede,
         string Descripcion);
 
+    private sealed record VentanaDeEntradaRespuestaSmoke(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
+
     private sealed record FichaTurnoRespuestaSmoke(
         string Id,
         string Nombre,
@@ -47,27 +49,32 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         string HorarioResumido,
         IReadOnlyList<FranjaFichaRespuestaSmoke> Franjas,
         string Descripcion,
-        bool Completo);
+        bool Completo,
+        VentanaDeEntradaRespuestaSmoke? VentanaDeEntrada);
 
     private static string Ruta(Guid turnoId) => $"{RutaTurnos}/{turnoId}";
 
+    private static string RutaVentanaEntrada(Guid turnoId) => $"{Ruta(turnoId)}/ventana-entrada";
+
     // El nombre es unico en el catalogo (invariante del dominio): cada caller lo sufija con el
     // turnoId para que estos smoke tests sean re-ejecutables contra el mismo entorno dev.
-    private static object PayloadTurnoConFranja(Guid turnoId, string nombre) => new
-    {
-        turnoId,
-        nombre,
-        ordinarias = new[]
+    private static object PayloadTurnoConFranja(
+        Guid turnoId, string nombre, string inicio = "06:00:00", string fin = "14:00:00") =>
+        new
         {
-            new
+            turnoId,
+            nombre,
+            ordinarias = new[]
             {
-                inicio = "06:00:00",
-                fin = "14:00:00",
-                descansos = Array.Empty<object>(),
-                extras = Array.Empty<object>()
+                new
+                {
+                    inicio,
+                    fin,
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
             }
-        }
-    };
+        };
 
     private static object PayloadDescanso(Guid turnoId, string nombre) => new
     {
@@ -88,8 +95,10 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     }
 
     // Reintenta el GET hasta que la proyeccion asincrona materialice la ficha (404 = el worker
-    // todavia no la aplico). Devuelve un valor no nulo o lanza: ningun caller afirma NotBeNull.
-    private Task<FichaTurnoRespuestaSmoke> EsperarFichaAsync(Guid turnoId, CancellationToken ct) =>
+    // todavia no la aplico) y, si el arrange deja varios eventos, hasta que la ficha refleje el
+    // ultimo (`hasta`). Devuelve un valor no nulo o lanza: ningun caller afirma NotBeNull.
+    private Task<FichaTurnoRespuestaSmoke> EsperarFichaAsync(
+        Guid turnoId, CancellationToken ct, Func<FichaTurnoRespuestaSmoke, bool>? hasta = null) =>
         Polling.WaitUntilAsync(async () =>
         {
             var response = await _client.GetAsync(Ruta(turnoId), ct);
@@ -97,8 +106,9 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
                 return null;
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            return await response.Content.ReadFromJsonAsync<FichaTurnoRespuestaSmoke>(
+            var ficha = await response.Content.ReadFromJsonAsync<FichaTurnoRespuestaSmoke>(
                 JsonOptions, cancellationToken: ct);
+            return ficha is not null && (hasta?.Invoke(ficha) ?? true) ? ficha : null;
         }, Timeout);
 
     [Fact]
@@ -137,6 +147,28 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         franja.Descansos.Should().BeEmpty();
         franja.Extras.Should().BeEmpty();
         ficha.Completo.Should().BeTrue();
+        ficha.VentanaDeEntrada.Should().BeNull("un turno sin ventana de entrada es fijo");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaTurno_MuestraAperturaCierreYAmplitud_CuandoElTurnoTieneVentanaDeEntrada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoAsync(
+            PayloadTurnoConFranja(turnoId, $"[TEST] Turno Ventana Ficha {turnoId}", "07:00:00", "16:00:00"), ct);
+        var put = await _client.PutAsJsonAsync(
+            RutaVentanaEntrada(turnoId), new { amplitud = new { horas = 3, minutos = 0 } }, ct);
+        put.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que ModificarVentanaDeEntrada funcione");
+
+        // TurnoCreado y VentanaDeEntradaModificada llegan al daemon por separado: la ficha puede
+        // aparecer primero sin ventana.
+        var ficha = await EsperarFichaAsync(turnoId, ct, f => f.VentanaDeEntrada is not null);
+
+        ficha.VentanaDeEntrada.Should().Be(
+            new VentanaDeEntradaRespuestaSmoke(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h"));
     }
 
     // CA-2

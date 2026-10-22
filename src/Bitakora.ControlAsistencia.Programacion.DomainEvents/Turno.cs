@@ -47,6 +47,8 @@ public sealed partial class Turno : IEquatable<Turno>
     public Turno ConFranjaReemplazada(FranjaOrdinaria franja) =>
         Copiar(franjas: _franjas.Select(f => f.EmpiezaALaMismaHoraQue(franja) ? franja : f));
 
+    public EvaluacionVentanaDeEntrada EvaluarVentanaDeEntrada() => EvaluarVentanaDeEntrada(_amplitudVentanaEntrada);
+
     public EvaluacionVentanaDeEntrada EvaluarVentanaDeEntrada(HorasYMinutos amplitud)
     {
         if (amplitud.TotalMinutos() == 0)
