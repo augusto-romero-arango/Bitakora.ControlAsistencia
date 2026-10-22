@@ -570,6 +570,16 @@ public class AsistenciaDiariaProjectionTests
     }
 
     [Fact]
+    public void Create_DejaMarcacionAmbiguaPendienteEnFalse_CuandoElDiaNoTieneJornada()
+    {
+        var evento = CrearEvento(null, [], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
     public void Apply_ApagaMarcacionAmbiguaPendiente_CuandoLaFotoNuevaYaNoTraeAmbiguas()
     {
         var primero = CrearEvento("Turno Manana", [FranjaValida()],

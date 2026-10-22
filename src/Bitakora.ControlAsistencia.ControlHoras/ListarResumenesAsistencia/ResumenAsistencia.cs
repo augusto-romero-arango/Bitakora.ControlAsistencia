@@ -34,4 +34,4 @@ public sealed record ResumenAsistencia(
     IReadOnlyDictionary<string, decimal> TotalHorasPorConcepto,
     IReadOnlyDictionary<string, int> DiasConAusencia,
     int VinoEnAusencia,
-    int MarcacionAmbiguaPendiente = 0);
+    int MarcacionAmbiguaPendiente);

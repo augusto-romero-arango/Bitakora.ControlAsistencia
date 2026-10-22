@@ -86,10 +86,10 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             HorasPorConcepto: new Dictionary<string, decimal>(),
             MarcacionAmbiguaPendiente: false);
 
-    // ConflictoDeSedePendiente se apaga porque las decisiones de sede se tomaron dentro del acto de
-    // aprobar (viajan en DiaAprobado.SedesDecididas). Plan, banderas de anomalia, NombreTurno y
-    // HorasPorConcepto NO se re-derivan a proposito: la aprobacion no reescribe la historia, la
-    // pone en firme.
+    // Se apagan las dos banderas de lo pendiente de decidir: las decisiones de sede viajan en
+    // DiaAprobado.SedesDecididas, y en un dia en firme no queda marcacion ambigua por asignar. Plan,
+    // el resto de banderas de anomalia, NombreTurno y HorasPorConcepto NO se re-derivan a proposito:
+    // la aprobacion no reescribe la historia, la pone en firme.
     public static AsistenciaDiaria Apply(DiaAprobado evento, AsistenciaDiaria vista) =>
         vista with
         {
