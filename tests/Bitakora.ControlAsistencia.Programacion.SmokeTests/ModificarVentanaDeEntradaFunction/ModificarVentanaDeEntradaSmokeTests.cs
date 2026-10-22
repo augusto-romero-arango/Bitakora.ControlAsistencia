@@ -1,11 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.ModificarVentanaDeEntradaFunction;
 
-public class ModificarVentanaDeEntradaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class ModificarVentanaDeEntradaSmokeTests(ApiFixture api, PostgresFixture postgres, ServiceBusFixture serviceBus)
 {
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string TipoEvento = "ventana_de_entrada_modificada";
@@ -153,5 +154,25 @@ public class ModificarVentanaDeEntradaSmokeTests(ApiFixture api, PostgresFixture
         var response = await _client.PutAsJsonAsync(Ruta(turnoId), Amplitud(1, 60), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ModificarVentanaDeEntrada_PublicaDisenoDeTurnoActualizadoConLaAmplitud_CuandoElTurnoTieneFranja()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = await CrearTurnoConFranjaAsync(ct);
+        await serviceBus.PurgeAsync("diseno-de-turno-actualizado", "smoke-tests");
+
+        var response = await _client.PutAsJsonAsync(Ruta(turnoId), Amplitud(3), ct);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var evento = await serviceBus.WaitForMessageAsync<DisenoDeTurnoActualizado>(
+            "diseno-de-turno-actualizado", "smoke-tests",
+            e => e.TurnoId == turnoId && e.AmplitudVentanaEntradaEnMinutos == 180, TimeSpan.FromSeconds(30));
+
+        evento.AmplitudVentanaEntradaEnMinutos.Should().Be(180);
     }
 }

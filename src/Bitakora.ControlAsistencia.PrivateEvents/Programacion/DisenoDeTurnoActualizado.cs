@@ -8,7 +8,8 @@ public record DisenoDeTurnoActualizado(
     string Nombre,
     bool EsDescanso,
     IReadOnlyList<DetalleFranjaOrdinaria> Franjas,
-    bool Retirado) : IPrivateEvent
+    bool Retirado,
+    int AmplitudVentanaEntradaEnMinutos = 0) : IPrivateEvent
 {
     public virtual bool Equals(DisenoDeTurnoActualizado? other)
     {
