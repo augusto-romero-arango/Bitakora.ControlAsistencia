@@ -21,7 +21,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "programar_ausencia", "cancelar_ausencia",
         "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
         "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
-        "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada"
+        "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
+        "modificar_ventana_de_entrada"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -75,7 +76,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["quitar_jornada_de_plantilla_semanal"] = ["plantilla"],
         ["asignar_jornada"] = ["jornada_id", "identificaciones"],
         ["asignar_jornada_por_grupo"] = ["jornada_id"],
-        ["desactivar_jornada"] = ["jornada_id"]
+        ["desactivar_jornada"] = ["jornada_id"],
+        ["modificar_ventana_de_entrada"] = ["turno", "amplitud"]
     };
 
     [Fact]
@@ -129,7 +131,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "programar_ausencia" or "cancelar_ausencia"
                 or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
                 or "asignar_jornada_a_plantilla_semanal" or "quitar_jornada_de_plantilla_semanal"
-                or "asignar_jornada" or "asignar_jornada_por_grupo" or "desactivar_jornada";
+                or "asignar_jornada" or "asignar_jornada_por_grupo" or "desactivar_jornada"
+                or "modificar_ventana_de_entrada";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }

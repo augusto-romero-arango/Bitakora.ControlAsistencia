@@ -15,6 +15,21 @@ public class CatalogoTurnos : AggregateRoot
     // al emitir. No depende de AggregateRoot.Version, que el harness de tests no puebla.
     private long _eventosAplicados;
 
+    private static readonly Dictionary<EvaluacionVentanaDeEntrada, ResultadoModificarVentanaDeEntrada>
+        RechazosDeVentanaAlModificar = new()
+        {
+            [EvaluacionVentanaDeEntrada.TurnoSinFranjas] = ResultadoModificarVentanaDeEntrada.TurnoSinFranjas,
+            [EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte] = ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte,
+            [EvaluacionVentanaDeEntrada.CierrePasaMedianoche] = ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche
+        };
+
+    private static readonly Dictionary<EvaluacionVentanaDeEntrada, ResultadoAgregarFranja>
+        RechazosDeVentanaAlAgregarFranja = new()
+        {
+            [EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte] = ResultadoAgregarFranja.InicioAntesDeHoraCorte,
+            [EvaluacionVentanaDeEntrada.CierrePasaMedianoche] = ResultadoAgregarFranja.CierrePasaMedianoche
+        };
+
     internal Turno Turno => _turno;
 
     public void Apply(TurnoCreado evento)
@@ -72,6 +87,30 @@ public class CatalogoTurnos : AggregateRoot
         _turno = _turno.ConFranjaReemplazada(evento.Franja);
     }
 
+    public void Apply(VentanaDeEntradaModificada evento)
+    {
+        _eventosAplicados++;
+        _turno = _turno.ConVentanaDeEntrada(evento.Amplitud);
+    }
+
+    // Precedencia: retirado > estado ya alcanzado > invariantes de la ventana.
+    internal ResultadoModificarVentanaDeEntrada ModificarVentanaDeEntrada(HorasYMinutos amplitud)
+    {
+        if (!_estaActivo)
+            return ResultadoModificarVentanaDeEntrada.TurnoRetirado;
+
+        if (_turno.TieneVentanaDeEntrada(amplitud))
+            return ResultadoModificarVentanaDeEntrada.SinCambios;
+
+        if (RechazosDeVentanaAlModificar.TryGetValue(_turno.EvaluarVentanaDeEntrada(amplitud), out var rechazo))
+            return rechazo;
+
+        var evento = VentanaDeEntradaModificada.Crear(Guid.Parse(Id!), amplitud);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoModificarVentanaDeEntrada.Modificada;
+    }
+
     public void Apply(SedeDeFranjaAsignada evento)
     {
         _eventosAplicados++;
@@ -109,6 +148,10 @@ public class CatalogoTurnos : AggregateRoot
 
         if (_turno.SeSolapaCon(franja))
             return ResultadoAgregarFranja.SeSolapaConOtraFranja;
+
+        var ventanaResultante = _turno.ConFranja(franja).EvaluarVentanaDeEntrada();
+        if (RechazosDeVentanaAlAgregarFranja.TryGetValue(ventanaResultante, out var rechazo))
+            return rechazo;
 
         var evento = FranjaAgregada.Crear(Guid.Parse(Id!), franja);
         _uncommittedEvents.Add(evento);
@@ -156,8 +199,10 @@ public class CatalogoTurnos : AggregateRoot
         return ResultadoAgregarSubFranja.Agregada;
     }
 
-    // Precedencia: retirado > franja no existe. Un descanso no necesita resultado propio: no
-    // tiene franjas ordinarias, asi que ya cae en FranjaNoExiste.
+    // Precedencia: retirado > franja no existe > ventana sin franjas. Un descanso no necesita
+    // resultado propio: no tiene franjas ordinarias, asi que ya cae en FranjaNoExiste. De la ventana
+    // solo se declina TurnoSinFranjas: las franjas restantes no pueden romper una ventana valida, y
+    // si ya estaba rota, quitar la franja culpable es justo como se repara.
     internal ResultadoQuitarFranja QuitarFranja(TimeOnly horaInicio)
     {
         if (!_estaActivo)
@@ -166,6 +211,10 @@ public class CatalogoTurnos : AggregateRoot
         var franjaActual = _turno.FranjaQueEmpiezaA(horaInicio);
         if (franjaActual is null)
             return ResultadoQuitarFranja.FranjaNoExiste;
+
+        var ventanaResultante = _turno.SinFranjaQueEmpiezaA(franjaActual).EvaluarVentanaDeEntrada();
+        if (ventanaResultante is EvaluacionVentanaDeEntrada.TurnoSinFranjas)
+            return ResultadoQuitarFranja.DejariaVentanaSinFranjas;
 
         var evento = FranjaQuitada.Crear(Guid.Parse(Id!), franjaActual);
         _uncommittedEvents.Add(evento);
@@ -285,7 +334,8 @@ public class CatalogoTurnos : AggregateRoot
             _turno.Nombre,
             _turno.EsDescanso(),
             detalle.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
-            !_estaActivo);
+            !_estaActivo,
+            detalle.AmplitudVentanaEntradaEnMinutos);
     }
 
     private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>

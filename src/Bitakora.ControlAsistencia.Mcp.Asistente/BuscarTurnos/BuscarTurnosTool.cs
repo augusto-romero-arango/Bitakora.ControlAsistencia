@@ -153,7 +153,8 @@ public partial class BuscarTurnosTool(ProgramacionApi api)
             string.Join(", ", Turno.Franjas.Select(Rango)),
             Motivos,
             Turno.EsDescanso ? true : null,
-            Turno.Completo || Turno.EsDescanso ? null : true);
+            Turno.Completo || Turno.EsDescanso ? null : true,
+            Turno.VentanaDeEntrada is not null ? true : null);
     }
 }
 
@@ -168,4 +169,5 @@ public sealed record TurnoEncontrado(
     string Horario,
     IReadOnlyList<string> CoincidePor,
     bool? EsDescanso,
-    bool? EnConstruccion);
+    bool? EnConstruccion,
+    bool? ConVentanaDeEntrada);
