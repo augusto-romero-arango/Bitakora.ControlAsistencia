@@ -8,6 +8,11 @@ public class DisenoDeTurnoActualizadoPortabilidadTests
 {
     private static JsonSerializerOptions CrearOpcionesBus() => new(JsonSerializerDefaults.Web);
 
+    private static DisenoDeTurnoActualizado Evento(int amplitud) => new(
+        Guid.Parse("019600a0-0000-7000-8000-000000001109"), 2, "Oficina", false,
+        [new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "(07:00-16:00)")],
+        false, amplitud);
+
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelBus()
     {
@@ -32,11 +37,6 @@ public class DisenoDeTurnoActualizadoPortabilidadTests
         restaurado.Should().Be(evento);
         restaurado!.Franjas[0].Descripcion.Should().Be(evento.Franjas[0].Descripcion);
     }
-
-    private static DisenoDeTurnoActualizado Evento(int amplitud) => new(
-        Guid.Parse("019600a0-0000-7000-8000-000000001109"), 2, "Oficina", false,
-        [new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "(07:00-16:00)")],
-        false, amplitud);
 
     [Fact]
     public void RoundTrip_ConservaLaAmplitudDeLaVentana_ConSerializadorPorDefectoDelBus()
