@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.Programacion;
 
-// Issue #861 CA-2: el evento cruza el bus; el destino deserializa SIN el resolver del productor.
+// El evento cruza el bus: el destino deserializa SIN el resolver del productor.
 public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
 {
     private static readonly Guid SolicitudId = Guid.Parse("019600f0-0000-7000-8000-000000000861");
@@ -38,6 +38,34 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
         restaurado!.Jornada.Should().Be(new DetalleJornada(JornadaId, 2520, 510, 240, 1));
         restaurado.SolicitudId.Should().Be(SolicitudId);
         restaurado.Fecha.Should().Be(Fecha);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservaLaAmplitudDeLaVentana_ConSerializadorPorDefectoDelBus()
+    {
+        var evento = new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, Colaborador, Fecha, Turno with { AmplitudVentanaEntradaEnMinutos = 180 });
+        var opciones = CrearOpcionesBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoDiarioSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.AmplitudVentanaEntradaEnMinutos.Should().Be(180);
+    }
+
+    [Fact]
+    public void Deserializar_DejaAmplitudEnCero_CuandoElMensajeViejoNoLlevaLaClave()
+    {
+        var opciones = CrearOpcionesBus();
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, Turno);
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!.AsObject();
+        nodo["detalleTurno"]!.AsObject().Remove("amplitudVentanaEntradaEnMinutos");
+
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoDiarioSolicitada>(nodo.ToJsonString(), opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.AmplitudVentanaEntradaEnMinutos.Should().Be(0);
     }
 
     [Fact]

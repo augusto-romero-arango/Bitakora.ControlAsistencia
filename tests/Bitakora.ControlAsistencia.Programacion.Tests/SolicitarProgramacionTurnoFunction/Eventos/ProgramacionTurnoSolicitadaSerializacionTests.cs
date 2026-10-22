@@ -260,6 +260,28 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         evento.Sede.Should().BeNull();
     }
 
+    [Fact]
+    public void Deserializar_DejaAmplitudEnCero_CuandoElJsonPersistidoNoLlevaLaClave()
+    {
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
+
+        evento.DetalleTurno.AmplitudVentanaEntradaEnMinutos.Should().Be(0);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservaLaAmplitudDeLaVentana_CuandoElTurnoLaTrae()
+    {
+        var evento = new ProgramacionTurnoSolicitada(
+            Id, ColaboradorEsperado, [Fecha1], TurnoEsperado with { AmplitudVentanaEntradaEnMinutos = 180 });
+        var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.AmplitudVentanaEntradaEnMinutos.Should().Be(180);
+    }
+
     // Issue #331 CA-5: round-trip de serializacion con Marten (CrearOpcionesMarten()) cuando la
     // sede esta poblada -- el evento persistido debe reconstruir SedeProgramada identica.
     [Fact]

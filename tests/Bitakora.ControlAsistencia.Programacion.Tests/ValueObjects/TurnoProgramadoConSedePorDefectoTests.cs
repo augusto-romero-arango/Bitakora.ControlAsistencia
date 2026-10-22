@@ -23,6 +23,18 @@ public class TurnoProgramadoConSedePorDefectoTests
     private static TurnoProgramado CrearTurno(params FranjaProgramada[] franjas) =>
         new("Turno Manana", franjas.ToList().AsReadOnly(), "Turno Manana (06:00-14:00)");
 
+    [Fact]
+    public void ConSedePorDefecto_ConservaLaAmplitudDeLaVentana_CuandoAplicaLaSedeSolicitada()
+    {
+        var turno = new TurnoProgramado(
+            "Turno Manana", [CrearFranja(null)], "Turno Manana (06:00-14:00)", 180);
+
+        var resultado = turno.ConSedePorDefecto(SedeSolicitud);
+
+        resultado.AmplitudVentanaEntradaEnMinutos.Should().Be(180);
+        resultado.FranjasOrdinarias[0].Sede.Should().Be(SedeSolicitud);
+    }
+
     // Tabla de verdad, fila 1: franja con sede + solicitud con sede -> gana la franja.
     [Fact]
     public void ConSedePorDefecto_ConservaLaSedeDeLaFranja_CuandoLaFranjaYaTraeSedeDelCatalogo()
