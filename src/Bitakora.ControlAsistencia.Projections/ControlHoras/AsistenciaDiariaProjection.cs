@@ -40,7 +40,8 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             ConflictoDeSedePendiente: EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             evento.HorasDiscriminadas.HorasPorConcepto,
             evento.MotivoAusencia,
-            EsVinoEnAusencia(plan, evento.Marcaciones));
+            EsVinoEnAusencia(plan, evento.Marcaciones),
+            EsMarcacionAmbiguaPendiente(evento.Marcaciones));
     }
 
     // "El ultimo gana": cada foto reemplaza plan, banderas y horas. Id/CodigoColaborador/Fecha se
@@ -61,7 +62,8 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             ConflictoDeSedePendiente = EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             HorasPorConcepto = evento.HorasDiscriminadas.HorasPorConcepto,
             MotivoAusencia = evento.MotivoAusencia,
-            VinoEnAusencia = EsVinoEnAusencia(plan, evento.Marcaciones)
+            VinoEnAusencia = EsVinoEnAusencia(plan, evento.Marcaciones),
+            MarcacionAmbiguaPendiente = EsMarcacionAmbiguaPendiente(evento.Marcaciones)
         };
     }
 
@@ -81,17 +83,19 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             VinoEnDescanso: false,
             TrabajoSinProgramacion: false,
             ConflictoDeSedePendiente: false,
-            HorasPorConcepto: new Dictionary<string, decimal>());
+            HorasPorConcepto: new Dictionary<string, decimal>(),
+            MarcacionAmbiguaPendiente: false);
 
-    // ConflictoDeSedePendiente se apaga porque las decisiones de sede se tomaron dentro del acto de
-    // aprobar (viajan en DiaAprobado.SedesDecididas). Plan, banderas de anomalia, NombreTurno y
-    // HorasPorConcepto NO se re-derivan a proposito: la aprobacion no reescribe la historia, la
-    // pone en firme.
+    // Se apagan las dos banderas de lo pendiente de decidir: las decisiones de sede viajan en
+    // DiaAprobado.SedesDecididas, y en un dia en firme no queda marcacion ambigua por asignar. Plan,
+    // el resto de banderas de anomalia, NombreTurno y HorasPorConcepto NO se re-derivan a proposito:
+    // la aprobacion no reescribe la historia, la pone en firme.
     public static AsistenciaDiaria Apply(DiaAprobado evento, AsistenciaDiaria vista) =>
         vista with
         {
             Estado = EstadoAsistencia.Aprobado,
-            ConflictoDeSedePendiente = false
+            ConflictoDeSedePendiente = false,
+            MarcacionAmbiguaPendiente = false
         };
 
     // DepuracionPosAprobacionRecibida se omite a proposito: sin un metodo Create/Apply que lo tipe,
@@ -109,6 +113,10 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             _ when franjas.Count == 0 => PlanDelDia.Descanso,
             _ => PlanDelDia.ConJornada
         };
+
+    // Foto anterior a la pertenencia por marcacion trae null, que no es Ambigua -> false.
+    private static bool EsMarcacionAmbiguaPendiente(IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
+        marcaciones.Any(marcacion => marcacion.Pertenencia == nameof(PertenenciaMarcacion.Ambigua));
 
     private static bool EsVinoEnAusencia(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         plan == PlanDelDia.Ausencia && marcaciones.Count > 0;

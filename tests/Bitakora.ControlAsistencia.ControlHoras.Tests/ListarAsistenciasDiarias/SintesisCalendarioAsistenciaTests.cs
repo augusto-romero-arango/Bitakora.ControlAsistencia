@@ -200,4 +200,25 @@ public class SintesisCalendarioAsistenciaTests
         fila.MotivoAusencia.Should().BeNull();
         fila.VinoEnAusencia.Should().BeFalse();
     }
+
+    [Fact]
+    public void Completar_ExponeMarcacionAmbiguaPendiente_CuandoElDocumentoLaTraeEnTrue()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+        var documento = DocumentoDePrueba(fecha) with { MarcacionAmbiguaPendiente = true };
+
+        var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, [documento]);
+
+        filas.Should().ContainSingle().Which.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Completar_FilaSinteticaConMarcacionAmbiguaPendienteEnFalse_CuandoElDiaNoTieneDocumento()
+    {
+        var fecha = new DateOnly(2026, 8, 3);
+
+        var filas = SintesisCalendarioAsistencia.Completar(fecha, fecha, []);
+
+        filas.Should().ContainSingle().Which.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
 }

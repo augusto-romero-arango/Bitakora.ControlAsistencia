@@ -348,4 +348,33 @@ public class AgregadorResumenAsistenciaTests
         fila.DiasConAusencia.Should().BeEmpty();
         fila.VinoEnAusencia.Should().Be(0);
     }
+
+    [Fact]
+    public void Agregar_CuentaMarcacionAmbiguaPendiente_CuandoVariosDiasDelRangoTienenLaBandera()
+    {
+        const string codigo = "EMP-001";
+        var desde = new DateOnly(2026, 8, 1);
+        var hasta = new DateOnly(2026, 8, 5);
+        var documentos = new List<AsistenciaDiaria>
+        {
+            DocumentoDePrueba(codigo, desde) with { MarcacionAmbiguaPendiente = true },
+            DocumentoDePrueba(codigo, desde.AddDays(1)) with { MarcacionAmbiguaPendiente = true },
+            DocumentoDePrueba(codigo, desde.AddDays(2))
+        };
+
+        var filas = AgregadorResumenAsistencia.Agregar(desde, hasta, null, documentos);
+
+        filas.Should().ContainSingle().Which.MarcacionAmbiguaPendiente.Should().Be(2);
+    }
+
+    [Fact]
+    public void Agregar_ReportaMarcacionAmbiguaPendienteEnCero_CuandoNingunDiaTieneLaBandera()
+    {
+        var desde = new DateOnly(2026, 8, 1);
+        var documentos = new[] { DocumentoDePrueba("EMP-001", desde) };
+
+        var filas = AgregadorResumenAsistencia.Agregar(desde, desde, null, documentos);
+
+        filas.Should().ContainSingle().Which.MarcacionAmbiguaPendiente.Should().Be(0);
+    }
 }
