@@ -11,6 +11,7 @@
 // BeEquivalentTo, no Be: FichaTurno es un record plano sin igualdad por valor sobre sus colecciones
 // (MEF-ADR-0035) -- Be compararia Franjas por referencia y fallaria con valores identicos.
 
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Programacion;
@@ -592,17 +593,20 @@ public class FichaTurnoProjectionTests
         vista.Completo.Should().BeTrue();
     }
 
+    // Forma de una ficha materializada antes de la ventana de entrada: el worker serializa con
+    // Casing.Default (claves PascalCase), asi que el oraculo usa opciones por defecto, sensibles a
+    // mayusculas.
     [Fact]
     public void Deserializar_DejaVentanaNula_CuandoElJsonNoTieneLaClaveVentanaDeEntrada()
     {
         const string json = """
-            {"id":"t-1","nombre":"Turno","esDescanso":false,"horarioResumido":"Sin franjas",
-             "franjas":[],"descripcion":"Sin franjas","completo":false}
+            {"Id":"t-1","Nombre":"Turno","EsDescanso":false,"HorarioResumido":"Sin franjas",
+             "Franjas":[],"Descripcion":"Sin franjas","Completo":false}
             """;
 
-        var ficha = System.Text.Json.JsonSerializer.Deserialize<FichaTurno>(
-            json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        var ficha = JsonSerializer.Deserialize<FichaTurno>(json);
 
-        ficha!.VentanaDeEntrada.Should().BeNull();
+        ficha!.Nombre.Should().Be("Turno");
+        ficha.VentanaDeEntrada.Should().BeNull();
     }
 }

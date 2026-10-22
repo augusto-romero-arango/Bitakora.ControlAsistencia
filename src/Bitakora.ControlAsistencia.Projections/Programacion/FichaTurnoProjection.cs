@@ -76,19 +76,12 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     public static FichaTurno Apply(SedeDeFranjaRetirada e, FichaTurno ficha) =>
         ReemplazarOAgregar(ficha, e.Franja.ToDetalle());
 
-    // Sin franjas o amplitud 0 la ventana queda null sin lanzar (MEF-ADR-0004).
-    public static FichaTurno Apply(VentanaDeEntradaModificada e, FichaTurno ficha)
-    {
-        var minutos = e.Amplitud.TotalMinutos();
-        if (minutos <= 0 || ficha.Franjas.Count == 0)
-            return ficha with { VentanaDeEntrada = null };
-
-        var apertura = ficha.Franjas.Min(f => f.HoraInicio);
-        return ficha with
+    public static FichaTurno Apply(VentanaDeEntradaModificada e, FichaTurno ficha) =>
+        ficha with
         {
-            VentanaDeEntrada = new VentanaDeEntradaFicha(apertura, apertura.AddMinutes(minutos), e.Amplitud.ToString())
+            VentanaDeEntrada = AbrirVentana(
+                ficha.Franjas, TimeSpan.FromMinutes(e.Amplitud.TotalMinutos()), e.Amplitud.ToString())
         };
-    }
 
     public static bool ShouldDelete(TurnoRetirado e) => true;
 
@@ -118,17 +111,25 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             ordenadas.Select(f => $"{f.HoraInicio:HH\\:mm}-{f.HoraFin:HH\\:mm}"));
         var descripcion = string.Join(", ", ordenadas.Select(f => f.Descripcion));
 
-        // La amplitud se recupera como Cierre - Apertura; el texto no cambia. Al mover el primer
-        // inicio se conserva la amplitud y se desplazan apertura y cierre.
-        VentanaDeEntradaFicha? ventanaVigente = null;
-        if (ventana is not null)
-        {
-            var apertura = ordenadas[0].HoraInicio;
-            var amplitud = ventana.Cierre - ventana.Apertura;
-            ventanaVigente = new VentanaDeEntradaFicha(apertura, apertura.Add(amplitud), ventana.Amplitud);
-        }
+        // La vista no guarda la amplitud en minutos: se recupera como Cierre - Apertura, asi que al
+        // mover el primer inicio la ventana se desplaza conservando amplitud y texto.
+        var ventanaVigente = ventana is null
+            ? null
+            : AbrirVentana(ordenadas, ventana.Cierre - ventana.Apertura, ventana.Amplitud);
 
         return new FichaTurno(id, nombre, esDescanso, horarioResumido, ordenadas, descripcion, Completo: true, ventanaVigente);
+    }
+
+    // Unico punto de calculo de la ventana. Amplitud 0 = turno fijo; sin franjas no hay apertura y
+    // la ventana queda null sin lanzar (MEF-ADR-0004).
+    private static VentanaDeEntradaFicha? AbrirVentana(
+        IReadOnlyList<FranjaFicha> franjas, TimeSpan amplitud, string textoAmplitud)
+    {
+        if (amplitud <= TimeSpan.Zero || franjas.Count == 0)
+            return null;
+
+        var apertura = franjas.Min(f => f.HoraInicio);
+        return new VentanaDeEntradaFicha(apertura, apertura.Add(amplitud), textoAmplitud);
     }
 
     private static FranjaFicha MapearFranja(FranjaProgramada detalle) =>
