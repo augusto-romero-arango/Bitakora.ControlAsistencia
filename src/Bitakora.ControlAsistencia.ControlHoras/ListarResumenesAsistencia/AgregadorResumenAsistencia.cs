@@ -78,6 +78,7 @@ public static class AgregadorResumenAsistencia
             diasSinFila,
             totalHorasPorConcepto,
             diasConAusencia,
-            documentos.Count(d => d.VinoEnAusencia));
+            documentos.Count(d => d.VinoEnAusencia),
+            documentos.Count(d => d.MarcacionAmbiguaPendiente));
     }
 }
