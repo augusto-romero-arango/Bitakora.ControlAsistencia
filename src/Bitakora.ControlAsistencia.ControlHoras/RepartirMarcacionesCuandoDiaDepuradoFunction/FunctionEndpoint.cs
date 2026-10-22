@@ -7,7 +7,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
 
+// Comando espejo deliberado (excepcion a MEF-ADR-0024 decision #8): DiaDepurado ya tiene un
+// IPrivateEventHandlerAsync (RecibirDepuracionCuandoDiaDepurado), y Wolverine ejecutaria juntos dos
+// handlers del mismo tipo en cada invocacion.
+// El nombre de la suscripcion debe coincidir con el declarado en infra/environments/dev/main.tf.
 public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndpoint> logger)
+    : ServiceBusEndpointBase<DiaDepurado>(commandRouter, logger)
 {
     [Function("RepartirMarcacionesCuandoDiaDepurado")]
     public async Task Run(
@@ -18,23 +23,6 @@ public class FunctionEndpoint(ICommandRouter commandRouter, ILogger<FunctionEndp
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
         CancellationToken ct)
-    {
-        try
-        {
-            var dia = ServiceBusDeserializador.Deserializar<DiaDepurado>(message.Body);
-            await commandRouter.InvokeAsync(new RepartirMarcaciones(dia.CodigoColaborador, dia.Fecha), ct);
-            await messageActions.CompleteMessageAsync(message, ct);
-        }
-        catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessageLockLost)
-        {
-            logger.LogWarning(ex,
-                "Lock perdido para mensaje {MessageId} - Service Bus lo re-entregara automaticamente",
-                message.MessageId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error procesando mensaje {MessageId}", message.MessageId);
-            await messageActions.DeadLetterMessageAsync(message, cancellationToken: ct);
-        }
-    }
+        => await ProcesarMensaje(message, messageActions,
+            dia => new RepartirMarcaciones(dia.CodigoColaborador, dia.Fecha), ct);
 }

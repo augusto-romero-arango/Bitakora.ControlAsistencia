@@ -74,8 +74,6 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
             }
         };
 
-        await serviceBus.PurgeAsync(TopicDiaDepurado, "smoke-tests");
-
         await serviceBus.PublishAsync(TopicProgramacionEntrada, turno, Guid.CreateVersion7().ToString());
 
         foreach (var momento in new[] { entrada, salida })
@@ -90,6 +88,9 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
             response.StatusCode.Should().Be(HttpStatusCode.Created);
         }
 
+        // ObtenerDepuracionDelDia lee el dc: que RecibirDepuracionCuandoDiaDepurado construye desde el
+        // DiaDepurado publicado: la salida en la vispera cubre por transitividad la copia persistida
+        // por el reparto y su publicacion.
         var ruta = $"/api/control-horas/depuraciones/{codigoColaborador}/{vispera:yyyy-MM-dd}";
         DepuracionDelDiaSmoke? vista = null;
         var completo = await Polling.WaitUntilTrueAsync(async () =>

@@ -30,7 +30,7 @@ public partial class SedeDeMarcacionResueltaEventHandler
         await EstamparSedeEnControlDiarioAsync(@event, fechaCalendario, ct);
     }
 
-    // CA-3 (problema de orden, carrera A): este handler solo ACTUALIZA, nunca crea un ControlDiario
+    // Problema de orden: este handler solo ACTUALIZA, nunca crea un ControlDiario
     // (a diferencia de RegistroDeMarcacionCreadoEventHandler). Si el stream o la marcacion aun no
     // existen, lanza para que el retry del Service Bus lo resuelva segundos despues -- sin crear
     // stream vacio ni evento. La segunda precondicion la declina el aggregate (CA-ADR-0030): el

@@ -6,12 +6,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 
-// Issue #270: reemplaza a MarcacionRegistradaEventHandler (folder
-// AdicionarMarcacionCuandoMarcacionRegistrada, retirado por este issue). El contrato que cruza el
-// ASB interno del BC ahora es RegistroDeMarcacionCreado (PrivateEvents.ControlHoras), no
-// MarcacionRegistrada (que dejo de implementar IPrivateEvent - CA-3). Paridad de campos identica,
-// asi que el comportamiento (patron crear-o-actualizar sobre ControlDiario, ventana de traslape
-// nocturno, publicacion de DiaDepurado) se preserva sobre el tipo nuevo (CA-5).
+// La marcacion se guarda solo en su dia calendario; RepartirMarcacionesCuandoDiaDepurado la entrega a
+// los vecinos cuya cobertura la contiene (CA-ADR-0042).
 // MEF-ADR-0024 (decision #8): se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
 // MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
 public partial class RegistroDeMarcacionCreadoEventHandler
@@ -34,13 +30,8 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         await AdicionarAControlDiarioAsync(@event, fechaCalendario, ct);
     }
 
-    // Patron crear-o-actualizar con stream ID computado (CodigoColaborador + Fecha).
-    // CA-5: si el ControlDiario no existe se crea con Iniciar(MarcacionAdicionada).
-    // CA-4: si existe, el aggregate se encarga de ignorar duplicados por minuto.
-    // HU-108: tras procesar la marcacion publica DiaDepurado al topic dia-depurado
-    //         via IPrivateEventSender, una vez por cada fecha-destino procesada (CA-5).
-    //         Idempotencia (#106): si AdicionarMarcacion ignora el duplicado, no se
-    //         agrega evento al stream y por tanto no se publica DiaDepurado redundante.
+    // Crear-o-actualizar: si AdicionarMarcacion ignora el duplicado por minuto no se publica
+    // DiaDepurado (evita un reparto redundante).
     private async Task AdicionarAControlDiarioAsync(
         RegistroDeMarcacionCreado @event, DateOnly fecha, CancellationToken ct)
     {

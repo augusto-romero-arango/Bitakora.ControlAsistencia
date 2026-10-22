@@ -249,4 +249,61 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string?>(
             Stream20, c => c.Marcaciones.Single().CodigoSede, "001");
     }
+
+    // CA-6: la copia que ya tenia otra sede se re-estampa con la de la marcacion de origen.
+    [Fact]
+    public async Task RepartirMarcaciones_ReestampaLaSedeDeLaCopia_CuandoLaCopiaTieneOtraSede()
+    {
+        var salida = new DateTime(2026, 4, 21, 6, 5, 0);
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), 1))),
+            Marcacion(Stream20, salida, "SALIDA"),
+            new SedeDeMarcacionIdentificada(Stream20, salida, Dispositivo, "002", "Sede Norte", "CC-200"));
+        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"), Sede(Stream21, salida));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20, Sede(Stream20, salida));
+        And<ControlDiarioAggregateRoot, string?>(
+            Stream20, c => c.Marcaciones.Single().CodigoSede, "001");
+    }
+
+    // CA-2 (ambos repartos): dos repartos concurrentes persistieron la misma copia; el replay conserva
+    // una sola y un reparto adicional no emite eventos.
+    [Fact]
+    public async Task RepartirMarcaciones_ConservaUnaSolaCopia_CuandoDosRepartosConcurrentesLaEntregaron()
+    {
+        var salida = new DateTime(2026, 4, 21, 6, 5, 0);
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), 1))),
+            Marcacion(Stream20, salida, "SALIDA"),
+            Marcacion(Stream20, salida, "SALIDA"));
+        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia20));
+
+        Then(Stream20);
+        Then(Stream21);
+        ThenIsPublishedPrivately();
+        And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
+    }
+
+    // Una marcacion que el dia recibio de otro (la 01:00 del 21, copiada al 20) no se re-reparte,
+    // aunque caiga en la cobertura del vecino (turno de 24 h del 19 que cubre hasta el 21 a las 03:00).
+    [Fact]
+    public async Task RepartirMarcaciones_NoReparteLasCopiasRecibidasDeOtroDia()
+    {
+        var copiaDel21 = new DateTime(2026, 4, 21, 1, 0, 0);
+        Given(Stream19, TurnoAsignado(Stream19, Dia20.AddDays(-1), Turno(Franja(new TimeOnly(23, 0), new TimeOnly(23, 0), 1))));
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), 1))),
+            Marcacion(Stream20, copiaDel21));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia20));
+
+        Then(Stream19);
+        Then(Stream20);
+        ThenIsPublishedPrivately();
+        And<ControlDiarioAggregateRoot, int>(Stream19, c => c.Marcaciones.Count, 0);
+    }
 }

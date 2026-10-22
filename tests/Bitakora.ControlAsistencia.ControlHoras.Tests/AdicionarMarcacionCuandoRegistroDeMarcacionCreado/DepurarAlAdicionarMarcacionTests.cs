@@ -52,7 +52,6 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
-    // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp05_50 = new(2026, 3, 15, 5, 50, 0);
     private static readonly DateTime Timestamp12_05 = new(2026, 3, 15, 12, 5, 0);
@@ -212,10 +211,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
                 ])));
     }
 
-    // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
-    // El handler procesa dos fechas-destino: dia calendario (2026-03-15) y dia anterior (2026-03-14).
-    // Publica dos DiaDepurado - uno por cada fecha, en el orden de procesamiento del handler.
-    // Verifica con ThenIsPublishedPrivately(evento1, evento2): count exacto + orden exacto.
+    // La marcacion de madrugada se guarda solo en su dia calendario; el reparto la lleva a la vispera.
     [Fact]
     public async Task RegistroDeMarcacionCreado_PublicaUnSoloDiaDepurado_CuandoMarcacionEstaEnMadrugada()
     {
