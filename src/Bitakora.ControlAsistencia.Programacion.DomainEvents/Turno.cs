@@ -10,9 +10,6 @@ public sealed partial class Turno : IEquatable<Turno>
     private List<FranjaOrdinaria> _franjas = [];
     private HorasYMinutos _amplitudVentanaEntrada = HorasYMinutos.Crear(0, 0);
 
-    // Espejo de TraslapeNocturno.HoraCorte de ControlHoras: Programacion no puede referenciarlo.
-    private static readonly TimeOnly HoraCorte = new(4, 0);
-
     private Turno()
     {
     }
@@ -56,9 +53,6 @@ public sealed partial class Turno : IEquatable<Turno>
 
         if (_esDescanso || _franjas.Count == 0)
             return EvaluacionVentanaDeEntrada.TurnoSinFranjas;
-
-        if (_franjas.Any(f => f.EmpiezaAntesDe(HoraCorte)))
-            return EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte;
 
         return _franjas.Any(f => f.LlegaALaMedianocheDesplazadaEn(amplitud))
             ? EvaluacionVentanaDeEntrada.CierrePasaMedianoche
