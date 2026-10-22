@@ -61,6 +61,17 @@ public class ModificarVentanaDeEntradaToolTests
     }
 
     [Fact]
+    public async Task ModificarVentanaDeEntrada_DiceSoloMinutosEnElEco_CuandoLaAmplitudNoTieneHoras()
+    {
+        var (tool, _) = CrearTool();
+
+        var resultado = await Ejecutar(tool, "Oficina", "0:45");
+
+        JsonNode.Parse(resultado)!["ventanaDeEntrada"]!.GetValue<string>()
+            .Should().Be("entra entre 07:00 y 07:45 (45 min)");
+    }
+
+    [Fact]
     public async Task ModificarVentanaDeEntrada_DiceTurnoFijo_CuandoLaAmplitudEsCero()
     {
         var (tool, handler) = CrearTool();
