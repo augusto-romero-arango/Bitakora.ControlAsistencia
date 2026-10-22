@@ -108,7 +108,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             ColaboradorResumen,
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, null, true)],
-            [new MarcacionDelDia(Timestamp07_00, "ENTRADA")],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
@@ -195,9 +195,9 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
                 new FranjaDepurada(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, Timestamp14_10, null, true)
             ],
             [
-                new MarcacionDelDia(Timestamp05_50, "ENTRADA"),
-                new MarcacionDelDia(Timestamp12_05, "ENTRADA"),
-                new MarcacionDelDia(Timestamp14_10, "ENTRADA")
+                new MarcacionDelDia(Timestamp05_50, "ENTRADA", Pertenencia: "DelTurno"),
+                new MarcacionDelDia(Timestamp12_05, "ENTRADA", Pertenencia: "DelTurno"),
+                new MarcacionDelDia(Timestamp14_10, "ENTRADA", Pertenencia: "DelTurno")
             ],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal>

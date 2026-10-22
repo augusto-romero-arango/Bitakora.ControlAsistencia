@@ -151,7 +151,7 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
             And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
                 StreamId,
                 c => c.CrearDiaDepurado().Marcaciones,
-                [new MarcacionDelDia(Timestamp07_00, "ENTRADA"), new MarcacionDelDia(Timestamp15_00, "ENTRADA")]);
+                [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno"), new MarcacionDelDia(Timestamp15_00, "ENTRADA", Pertenencia: "DelTurno")]);
         }
 
         // CA-4: el orden cronologico ascendente de Marcaciones es contrato del evento, no reflejo del
