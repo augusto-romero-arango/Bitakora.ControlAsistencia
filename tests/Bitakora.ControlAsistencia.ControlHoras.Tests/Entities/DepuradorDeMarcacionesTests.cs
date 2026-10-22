@@ -20,6 +20,9 @@ public class DepuradorDeMarcacionesTests
     private static readonly FranjaProgramada Franja06_12 = new(
         new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
 
+    private static readonly FranjaProgramada Franja07_16 = new(
+        new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "");
+
     private static readonly FranjaProgramada Franja14_18 = new(
         new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
@@ -145,17 +148,118 @@ public class DepuradorDeMarcacionesTests
     }
 
     [Fact]
-    public void Depurar_AsignaTodasLasMarcacionesAFranjaUnica_CuandoHayUnaSolaFranja()
+    public void Depurar_IgnoraMarcacionesFueraDeCobertura_CuandoHayUnaSolaFranja()
     {
-        // CA-8: Con una sola franja, el rango es (-inf, +inf) -> todas las marcaciones le pertenecen.
-        // Timestamps fuera del horario nominal de la franja para verificar que no se filtra por hora.
         var turno = new TurnoDiario("Diurno", [Franja06_14], "");
 
         var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(3, 0), M(20, 0)]);
 
         resultado.Should().BeEquivalentTo(
-            new[] { new ControlFranja(Franja06_14, En(3, 0), En(20, 0)) },
+            new[] { new ControlFranja(Franja06_14, null, null) },
             options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_IgnoraMadrugadaYTomaEntradaTardia_CuandoTurnoFijo()
+    {
+        var franja = new FranjaProgramada(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "");
+        var turno = new TurnoDiario("Fijo", [franja], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(1, 0), M(7, 20), M(16, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(franja, En(7, 20), En(16, 0)) },
+            options => options.WithStrictOrdering());
+        resultado[0].CalcularDesglose(FechaBase, _ => false)!.Retardo.RetardoNeto.Should().Be(20);
+    }
+
+    [Fact]
+    public void Depurar_TomaSalidaDeMadrugadaDelDiaSiguiente_CuandoNocturnosConsecutivos()
+    {
+        var franja = new FranjaProgramada(new TimeOnly(17, 0), new TimeOnly(1, 0), 1, [], [], "");
+        var turno = new TurnoDiario("Nocturno", [franja], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(1, 0), M(17, 5), MSig(1, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(franja, En(17, 5), EnDiaSiguiente(1, 0)) },
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_TomaEntradaDosHorasAntesDeApertura_CuandoTurnoDeMadrugada()
+    {
+        var franja = new FranjaProgramada(new TimeOnly(2, 0), new TimeOnly(10, 0), 0, [], [], "");
+        var turno = new TurnoDiario("Madrugada", [franja], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(1, 58), M(10, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(franja, En(1, 58), En(10, 0)) },
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_IgnoraEntradaUnMinutoAntesDeLaCobertura_CuandoTurnoFijo()
+    {
+        var turno = new TurnoDiario("Fijo", [Franja07_16], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(4, 59), M(16, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja07_16, En(16, 0), null) },
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_TomaEntradaALasCincoEnPunto_CuandoTurnoFijo()
+    {
+        var turno = new TurnoDiario("Fijo", [Franja07_16], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(5, 0), M(16, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja07_16, En(5, 0), En(16, 0)) },
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_TomaSalidaUnMinutoAntesDelFinDeCobertura_CuandoTurnoFijo()
+    {
+        var turno = new TurnoDiario("Fijo", [Franja07_16], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(7, 0), M(19, 59)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja07_16, En(7, 0), En(19, 59)) },
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_IgnoraSalidaAlFinDeCobertura_CuandoTurnoFijo()
+    {
+        var turno = new TurnoDiario("Fijo", [Franja07_16], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase, [M(7, 0), M(20, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja07_16, En(7, 0), null) },
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_ConservaPuntoMedioInterno_CuandoTurnoPartidoConMarcacionesFueraDeCobertura()
+    {
+        var turno = new TurnoDiario("Partido", [Franja06_12, Franja14_18], "");
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, FechaBase,
+            [M(3, 30), Marcacion05_50, Marcacion12_05, M(14, 10), M(18, 15), M(22, 30)]);
+
+        resultado.Should().BeEquivalentTo(new[]
+        {
+            new ControlFranja(Franja06_12, En(5, 50), En(12, 5)),
+            new ControlFranja(Franja14_18, En(14, 10), En(18, 15))
+        }, options => options.WithStrictOrdering());
     }
 
     [Fact]

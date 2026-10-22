@@ -21,16 +21,17 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
         new("Ventana", [Franja(7, 0, 16, 0)], "", amplitud);
 
     [Fact]
-    public void Depurar_ConservaReferencia_CuandoAmplitudEsCeroConMarcacionDeMadrugada()
+    public void Depurar_IgnoraMarcacionDeMadrugada_CuandoAmplitudEsCero()
     {
         var franja = Franja(7, 0, 16, 0);
         var turno = new TurnoDiario("Fijo", [franja], "", 0);
 
-        var resultado = DepuradorDeMarcaciones.Depurar(turno, Fecha, [M(1, 0), M(7, 0), M(16, 0)]);
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, Fecha, [M(1, 0), M(7, 20), M(16, 0)]);
 
         resultado.Should().BeEquivalentTo(
-            new[] { new ControlFranja(franja, En(1, 0), En(16, 0)) },
+            new[] { new ControlFranja(franja, En(7, 20), En(16, 0)) },
             o => o.WithStrictOrdering());
+        resultado[0].CalcularDesglose(Fecha, _ => false)!.Retardo.RetardoNeto.Should().Be(20);
     }
 
     [Fact]
@@ -79,7 +80,7 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
     }
 
     [Fact]
-    public void Depurar_MantieneHorarioDeReferencia_CuandoNoHayMarcacionDesdeLaHoraDeCorte()
+    public void Depurar_MantieneHorarioDeReferencia_CuandoNoHayMarcacionEnLaCobertura()
     {
         var resultado = DepuradorDeMarcaciones.Depurar(Turno07_16(180), Fecha, [M(1, 0)]);
 
@@ -117,6 +118,17 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
 
         resultado.Select(c => c.Programada).Should().BeEquivalentTo(
             new[] { Franja(7, 59, 11, 59), Franja(23, 59, 0, 59) with { DiaOffsetFin = 1 } },
+            o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Depurar_AnclaEnLaPrimeraMarcacionDeLaCobertura_CuandoHayMarcacionPrevia()
+    {
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno07_16(180), Fecha,
+            [M(4, 30), M(9, 10), M(18, 10)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja(9, 10, 18, 10), En(9, 10), En(18, 10)) },
             o => o.WithStrictOrdering());
     }
 }

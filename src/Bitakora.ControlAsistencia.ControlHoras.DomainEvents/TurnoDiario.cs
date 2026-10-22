@@ -58,6 +58,8 @@ public record TurnoDiario(
         };
     }
 
+    public CoberturaDeMarcacion? Cobertura(DateOnly fecha) => throw new NotImplementedException();
+
     public virtual bool Equals(TurnoDiario? other)
     {
         if (other is null) return false;
