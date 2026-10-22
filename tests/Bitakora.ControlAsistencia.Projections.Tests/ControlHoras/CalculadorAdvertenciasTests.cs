@@ -26,7 +26,6 @@ public class CalculadorAdvertenciasTests
     private static AdvertenciaDiaria Diaria(TipoAdvertenciaDiaria t, int m) => new(t, m);
     private static AdvertenciaSemanal Semanal(TipoAdvertenciaSemanal t, int m) => new(t, m);
 
-    // CA-1
     [Fact]
     public void Calcular_SuperaTopeDiario_CuandoTrabajoSuperaElTopeEnSemanaJuzgable()
     {
@@ -63,7 +62,6 @@ public class CalculadorAdvertenciasTests
         r.Diarias.Should().OnlyContain(d => d.Count == 0);
     }
 
-    // CA-2
     [Fact]
     public void Calcular_PorDebajoDelMinimoDiario_CuandoTrabajoMenorAlMinimo()
     {
@@ -83,7 +81,6 @@ public class CalculadorAdvertenciasTests
         r.Diarias[0].Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     public void Calcular_SuperaHorasSemanales_CuandoJuzgableYTotalMayor()
     {
@@ -108,7 +105,6 @@ public class CalculadorAdvertenciasTests
         r.Semanales.Should().BeEmpty();
     }
 
-    // CA-4
     [Fact]
     public void Calcular_SuperaHorasSemanales_CuandoNoJuzgableYTotalMayor()
     {
@@ -133,7 +129,6 @@ public class CalculadorAdvertenciasTests
         r.Semanales.Should().Equal(Semanal(TipoAdvertenciaSemanal.SuperaHorasSemanales, 360));
     }
 
-    // CA-5
     [Fact]
     public void Calcular_FaltanDiasDeDescanso_CuandoJuzgableSinDescansos()
     {
@@ -168,7 +163,6 @@ public class CalculadorAdvertenciasTests
         r.Semanales.Should().BeEmpty();
     }
 
-    // CA-6
     [Fact]
     public void Calcular_SinAdvertencias_CuandoSemanaSinJornada()
     {
@@ -203,8 +197,6 @@ public class CalculadorAdvertenciasTests
 
         r.TieneAdvertencias.Should().BeFalse();
     }
-
-    // ---- HU-1128: solape de coberturas, independiente de la Jornada ----
 
     private static CasillaDia ConCobertura(int i, DateTime? inicio, DateTime? limiteVispera) =>
         new(Lunes.AddDays(i), TipoCasilla.Trabajo, "T", 480, InicioCobertura: inicio, LimiteCoberturaVispera: limiteVispera);

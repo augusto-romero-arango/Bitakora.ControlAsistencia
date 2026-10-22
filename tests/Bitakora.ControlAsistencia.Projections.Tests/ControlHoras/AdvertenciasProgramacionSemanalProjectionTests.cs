@@ -56,7 +56,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
 
     private static CasillaDia Casilla(AdvertenciasProgramacionSemanal v, int offset) => v.Casillas[offset];
 
-    // CA-2
     [Fact]
     public void Clave_AgrupaLunesYDomingoEnLaMismaSemana()
     {
@@ -84,7 +83,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
             .Should().Be("EMP-001:2026-W41");
     }
 
-    // CA-3
     [Fact]
     public void Create_ProyectaEncabezadoYSieteCasillas_DesdeTurnoDiarioAsignado()
     {
@@ -183,7 +181,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         AdvertenciasProgramacionSemanalProjection.Create(CancelaAusencia(0, AusenciaA)).Should().BeNull();
     }
 
-    // CA-4
     [Fact]
     public void Apply_CubreElTurnoConAusenciaSinMinutos_CuandoAusenciaDiariaAsignada()
     {
@@ -286,7 +283,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         Casilla(v, 0).TurnoCubierto.Should().BeNull();
     }
 
-    // CA-5
     [Fact]
     public void Apply_EsJuzgable_CuandoLosSieteDiasEstanProgramadosSinAusencias()
     {
@@ -300,7 +296,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.MinutosOrdinariosProgramados.Should().Be(4 * 480 + 360);
     }
 
-    // CA-6
     [Fact]
     public void Apply_ConservaLaUltimaJornada_CuandoLlegaUnaNueva()
     {
@@ -392,8 +387,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.TieneAdvertencias.Should().BeFalse();
     }
 
-    // ---- HU-1128: descanso entre turnos ----
-
     private static TurnoDiario Nocturno() => new("Noche", [Franja(17, 1)], "");
 
     private static CoberturaVecinaActualizada Vispera(int offset, DateTime? limite) =>
@@ -404,7 +397,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
 
     private static readonly AdvertenciaDiaria Solape60 = new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60);
 
-    // CA-1
     [Fact]
     public void Apply_AgregaPorDebajoDelDescanso_CuandoLimiteDeLaVisperaSuperaElInicioDeCobertura()
     {
@@ -415,7 +407,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.TieneAdvertencias.Should().BeTrue();
     }
 
-    // CA-1: el domingo de la semana anterior llega por el stream del lunes
     [Fact]
     public void Apply_AgregaPorDebajoDelDescansoEnElLunes_CuandoLaVisperaEsElDomingoAnterior()
     {
@@ -425,7 +416,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.TieneAdvertencias.Should().BeTrue();
     }
 
-    // CA-2
     [Fact]
     public void Apply_NoAgregaAdvertencia_CuandoElDescansoEsDeSeisHorasOMas()
     {
@@ -468,7 +458,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         Casilla(v, 1).Advertencias.Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     public void Apply_ConservaElLimiteDeLaVispera_CuandoSeCancelaYReasignaElTurnoDelDia()
     {
@@ -484,6 +473,16 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         var v = Aplica(null, Asigna(1, Manana()), Vispera(1, CincoAm(1)),
             Ausenta(1, AusenciaA), CancelaAusencia(1, AusenciaA));
 
+        Casilla(v, 1).Advertencias.Should().Equal(Solape60);
+    }
+
+    [Fact]
+    public void Apply_AgregaPorDebajoDelDescanso_CuandoElTurnoSeAsignaDuranteLaAusenciaYLuegoSeCancelaLaAusencia()
+    {
+        var v = Aplica(null, Ausenta(1, AusenciaA), Asigna(1, Manana()), Vispera(1, CincoAm(1)),
+            CancelaAusencia(1, AusenciaA));
+
+        Casilla(v, 1).Tipo.Should().Be(TipoCasilla.Trabajo);
         Casilla(v, 1).Advertencias.Should().Equal(Solape60);
     }
 
@@ -512,7 +511,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         v.TieneAdvertencias.Should().BeFalse();
     }
 
-    // CA-4
     [Fact]
     public void Apply_AgregaPorDebajoDelDescanso_CuandoLaSemanaNoTieneJornada()
     {

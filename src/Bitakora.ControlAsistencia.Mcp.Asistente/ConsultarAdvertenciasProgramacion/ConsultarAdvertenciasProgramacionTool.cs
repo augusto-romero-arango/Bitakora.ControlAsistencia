@@ -24,8 +24,9 @@ public partial class ConsultarAdvertenciasProgramacionTool(
             "Consulta las advertencias de la programacion semanal: que colaboradores tienen la "
             + "programacion de una semana (lunes a domingo) fuera de su Jornada y por cuanto -- superan "
             + "el tope diario o las horas semanales, quedan por debajo del minimo diario o de las horas "
-            + "semanales, o tienen dias de descanso de mas o de menos, o un descanso entre turnos consecutivos menor al minimo. Sin fecha revisa la PROXIMA "
-            + "semana. Filtra por sede, etiquetas (pares categoria:valor) o codigos de colaborador. "
+            + "semanales, o tienen dias de descanso de mas o de menos, o un descanso entre turnos "
+            + "consecutivos menor al minimo. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
+            + "etiquetas (pares categoria:valor) o codigos de colaborador. "
             + "Solo aparecen quienes tienen advertencias. Para ver los turnos de alguien, usa "
             + "consultar_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]

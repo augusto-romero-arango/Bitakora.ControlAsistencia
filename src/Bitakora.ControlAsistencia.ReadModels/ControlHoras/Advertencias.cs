@@ -33,14 +33,9 @@ public static class CalculadorAdvertencias
     public static ResultadoAdvertencias Calcular(
         IReadOnlyList<CasillaDia> casillas, JornadaAplicada? jornada, bool esJuzgable)
     {
+        var diarias = casillas.Select(c => AdvertenciasDelDia(c, jornada)).ToList();
         if (jornada is null)
-            return new ResultadoAdvertencias(
-                [],
-                casillas.Select(c => Con(AdvertenciaDescansoEntreTurnos(c), [])).ToList());
-
-        var diarias = casillas
-            .Select(c => Con(AdvertenciaDescansoEntreTurnos(c), AdvertenciasDelDia(c, jornada)))
-            .ToList();
+            return new ResultadoAdvertencias([], diarias);
 
         var semanales = new List<AdvertenciaSemanal>();
         var excesoHoras = casillas.Sum(c => c.MinutosOrdinarios) - jornada.HorasSemanalesEnMinutos;
@@ -61,23 +56,19 @@ public static class CalculadorAdvertencias
         return new ResultadoAdvertencias(semanales, diarias);
     }
 
-    private static IReadOnlyList<AdvertenciaDiaria> Con(
-        AdvertenciaDiaria? descanso, IReadOnlyList<AdvertenciaDiaria> propias) =>
-        descanso is null ? propias : [.. propias, descanso];
+    private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada? jornada) =>
+        [.. ContraLaJornada(casilla, jornada), .. DescansoEntreTurnos(casilla)];
 
-    private static AdvertenciaDiaria? AdvertenciaDescansoEntreTurnos(CasillaDia casilla)
+    private static IEnumerable<AdvertenciaDiaria> DescansoEntreTurnos(CasillaDia casilla)
     {
-        if (casilla.Tipo != TipoCasilla.Trabajo
-            || casilla.InicioCobertura is not { } inicio
-            || casilla.LimiteCoberturaVispera is not { } limite
-            || limite <= inicio)
-            return null;
-        return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(limite - inicio).TotalMinutes);
+        if (casilla is { Tipo: TipoCasilla.Trabajo, InicioCobertura: { } inicio, LimiteCoberturaVispera: { } limite }
+            && limite > inicio)
+            yield return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(limite - inicio).TotalMinutes);
     }
 
-    private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada jornada)
+    private static IReadOnlyList<AdvertenciaDiaria> ContraLaJornada(CasillaDia casilla, JornadaAplicada? jornada)
     {
-        if (casilla.Tipo != TipoCasilla.Trabajo)
+        if (jornada is null || casilla.Tipo != TipoCasilla.Trabajo)
             return [];
         if (casilla.MinutosOrdinarios > jornada.TopeDiarioEnMinutos)
             return [new(TipoAdvertenciaDiaria.SuperaTopeDiario, casilla.MinutosOrdinarios - jornada.TopeDiarioEnMinutos)];

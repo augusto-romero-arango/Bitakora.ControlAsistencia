@@ -19,6 +19,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
     }
 
     private const string PrefijoStream = "cd:";
+    private const string FormatoFechaStream = "yyyyMMdd";
 
     public static string Clave(string codigoColaborador, DateOnly fecha)
     {
@@ -36,7 +37,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
     }
 
     private static DateOnly FechaDesdeStream(string streamId) =>
-        DateOnly.ParseExact(streamId[(streamId.LastIndexOf(':') + 1)..], "yyyyMMdd", CultureInfo.InvariantCulture);
+        DateOnly.ParseExact(streamId[(streamId.LastIndexOf(':') + 1)..], FormatoFechaStream, CultureInfo.InvariantCulture);
 
     public static AdvertenciasProgramacionSemanal Create(TurnoDiarioAsignado evento) =>
         Apply(evento, Nueva(
@@ -54,7 +55,11 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var inicioCobertura = turno.Cobertura(evento.Fecha)?.Inicio;
 
         var casilla = actual.AusenciaId is not null
-            ? actual with { TurnoCubierto = new TurnoCubiertoSemana(turno.Nombre, minutos, esDescanso), InicioCobertura = inicioCobertura }
+            ? actual with
+            {
+                TurnoCubierto = new TurnoCubiertoSemana(turno.Nombre, minutos, esDescanso),
+                InicioCobertura = inicioCobertura
+            }
             : actual with
             {
                 Tipo = esDescanso ? TipoCasilla.Descanso : TipoCasilla.Trabajo,
