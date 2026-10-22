@@ -286,6 +286,13 @@ jobs:
       # input llega vacio. El diagnostico completo, la evidencia y el porque la guarda vive en el
       # reusable estan en el comentario de ese paso. Si este job vuelve a salir intermitente, revisa
       # esa guarda antes que los 30s de Polling.
+      #
+      # Corregido el 2026-10-22 (issue #1154): la guarda sola NO bastaba con "solo 200". Esperar el
+      # job 'deploy' ajeno y luego un 200 en /api/health dejaba correr la suite contra el binario
+      # VIEJO (el job termina al subir el zip, el host reinicia 33-104 s despues). Ahora, cuando la
+      # guarda encuentra un Deploy ControlHoras exitoso del mismo commit, promueve expected_sha y
+      # el warmup aplica el gate por SHA (/api/version + /api/ready); el 200 en /api/health queda
+      # solo para los commits que no despliegan ControlHoras.
       expected_sha: ''
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}

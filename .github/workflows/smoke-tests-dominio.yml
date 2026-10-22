@@ -241,7 +241,7 @@ jobs:
                   echo "::error::No se pudieron leer los jobs del run ${id} (${nombre})."
                   exit 1
                 fi
-                if [ "$exitoso" -gt 0 ] && [ -f "$ruta" ] && grep -Eq "app-name:[[:space:]]*${app}[[:space:]]*$" "$ruta"; then
+                if [ "$exitoso" -gt 0 ] && [ -f "$ruta" ] && grep -Eq "^[[:space:]]*app-name:[[:space:]]*${app}[[:space:]]*$" "$ruta"; then
                   echo "El run ${id} (${nombre}) desplego ${app} en ${SHA}. Se esperara /api/version == ${SHA}."
                   echo "expected_sha=${SHA}" >> "$GITHUB_OUTPUT"
                   exit 0
