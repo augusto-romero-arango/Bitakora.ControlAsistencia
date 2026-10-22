@@ -492,8 +492,10 @@ terms:
       rompe la familia "ventana" del glosario; "margen" sugiere tolerancia alrededor de una hora fija.
       No hay un tipo de turno nuevo: es un atributo de todo turno.
     note: >
-      Invariantes de diseno (409): amplitud > 0 exige inicio >= 04:00; inicio + amplitud <= 24:00;
-      un turno sin franjas solo admite amplitud 0. Comando ModificarVentanaDeEntrada (PUT
+      Invariantes de diseno (409): inicio de la ultima franja + amplitud < 24:00; un turno sin
+      franjas solo admite amplitud 0. La de "amplitud > 0 exige inicio >= 04:00" (#1106, #1116)
+      se retira en #1129 (decision 2026-10-21): existia porque el ancla buscaba desde la hora de
+      corte, y con la Cobertura de marcacion un turno de madrugada admite ventana. Comando ModificarVentanaDeEntrada (PUT
       programacion/turnos/{id}/ventana-entrada, verbo por precedente de ModificarLimitesJornada:
       la ventana existe siempre). Se estampa al programar como las franjas; los streams legados leen
       amplitud 0. La amplitud es del turno, no de cada franja (por franja haria circular el reparto
