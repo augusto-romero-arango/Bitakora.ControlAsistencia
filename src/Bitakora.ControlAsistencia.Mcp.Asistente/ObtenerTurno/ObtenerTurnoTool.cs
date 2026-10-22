@@ -89,4 +89,4 @@ public sealed record TurnoDetallado(
     bool Completo,
     string Horario,
     IReadOnlyList<string> Franjas,
-    string? VentanaDeEntrada = null);
+    string? VentanaDeEntrada);

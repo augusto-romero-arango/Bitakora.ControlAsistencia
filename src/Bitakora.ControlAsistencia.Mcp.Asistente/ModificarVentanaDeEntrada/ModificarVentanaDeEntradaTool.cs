@@ -6,9 +6,6 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ModificarVentanaDeEntrada;
 
 public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
-    private readonly ProgramacionApi _programacion = programacion;
-    private readonly ResolutorTurnoPorNombre _resolutor = resolutor;
-
     internal const string NombreTool = "modificar_ventana_de_entrada";
 
     [Function("ModificarVentanaDeEntrada")]
@@ -34,7 +31,7 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         if (!ValidadorDuracion.TryParsear(amplitud, out var duracion))
             return string.Format(Mensajes.AmplitudInvalida, amplitud);
 
-        var resolucion = await _resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(turno, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
         if (resolucion.Ficha is null)
@@ -42,7 +39,7 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
                 Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
         var ficha = resolucion.Ficha;
 
-        var respuesta = await _programacion.ModificarVentanaDeEntrada(ficha.Id, duracion, ct);
+        var respuesta = await programacion.ModificarVentanaDeEntrada(ficha.Id, duracion, ct);
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
@@ -55,7 +52,7 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
 
     private static string Describir(FichaTurno ficha, HorasYMinutosJornada amplitud)
     {
-        if (amplitud.Horas == 0 && amplitud.Minutos == 0)
+        if (amplitud is { Horas: 0, Minutos: 0 })
             return Mensajes.TurnoFijo;
 
         var texto = TextoDeAmplitud(amplitud);
@@ -67,15 +64,14 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         return string.Format(Mensajes.EntraEntre, $"{apertura:HH\\:mm}", $"{cierre:HH\\:mm}", texto);
     }
 
-    private static string TextoDeAmplitud(HorasYMinutosJornada amplitud) =>
-        string.Join(
-            " ",
-            new[]
-            {
-                amplitud.Horas > 0 ? $"{amplitud.Horas} h" : null,
-                amplitud.Minutos > 0 ? $"{amplitud.Minutos} min" : null,
-            }.OfType<string>());
+    // Mismo formato que HorasYMinutos.ToString() del dominio, replicado como texto (MEF-ADR-0047 decision 3).
+    private static string TextoDeAmplitud(HorasYMinutosJornada amplitud) => amplitud switch
+    {
+        { Minutos: 0 } => $"{amplitud.Horas} {Mensajes.Horas}",
+        { Horas: 0 } => $"{amplitud.Minutos} {Mensajes.Minutos}",
+        _ => $"{amplitud.Horas} {Mensajes.Horas} {amplitud.Minutos} {Mensajes.Minutos}",
+    };
 }
 
-/// <summary>Eco de modificar_ventana_de_entrada: el 204 no trae body, se reconstruye con lo enviado.</summary>
+/// <summary>Eco de modificar_ventana_de_entrada: el 204 no trae body, se reconstruye con la amplitud enviada y las franjas de la ficha leida.</summary>
 public sealed record VentanaDeEntradaModificadaResumen(string Resultado, string Turno, string VentanaDeEntrada, string Nota);

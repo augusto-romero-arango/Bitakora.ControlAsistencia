@@ -170,4 +170,4 @@ public sealed record TurnoEncontrado(
     IReadOnlyList<string> CoincidePor,
     bool? EsDescanso,
     bool? EnConstruccion,
-    bool? ConVentanaDeEntrada = null);
+    bool? ConVentanaDeEntrada);

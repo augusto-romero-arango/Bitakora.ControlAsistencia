@@ -30,7 +30,7 @@ public class ModificarVentanaDeEntradaToolTests
         tool.Run(null!, turno, amplitud, TestContext.Current.CancellationToken);
 
     [Fact]
-    public async Task ModificarVentanaDeEntrada_EnviaElPutYResponderConElEco_CuandoLaAmplitudEsTresHoras()
+    public async Task ModificarVentanaDeEntrada_EnviaElPutYRespondeConElEco_CuandoLaAmplitudEsTresHoras()
     {
         var (tool, handler) = CrearTool();
 
