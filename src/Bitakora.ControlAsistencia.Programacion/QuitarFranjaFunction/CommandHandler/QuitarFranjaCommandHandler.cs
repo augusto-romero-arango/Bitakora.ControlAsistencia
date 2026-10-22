@@ -29,6 +29,7 @@ public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFra
             ResultadoQuitarFranja.Quitada => null,
             ResultadoQuitarFranja.TurnoRetirado => Mensajes.TurnoRetirado,
             ResultadoQuitarFranja.FranjaNoExiste => Mensajes.FranjaNoExiste,
+            ResultadoQuitarFranja.DejariaVentanaSinFranjas => Mensajes.DejariaVentanaSinFranjas,
             var otro => throw new NotSupportedException($"Resultado de QuitarFranja no mapeado: {otro}")
         };
 

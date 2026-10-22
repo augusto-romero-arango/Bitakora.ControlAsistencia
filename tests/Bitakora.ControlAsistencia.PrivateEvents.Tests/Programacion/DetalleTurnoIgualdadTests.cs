@@ -27,6 +27,8 @@ public class DetalleTurnoIgualdadTests : IgualdadTestBase<DetalleTurno>
             new DetalleTurno("Turno Tarde", [FranjaOrdinaria()], "Turno Tarde (06:00-14:00)"));
         yield return ("FranjasOrdinarias",
             new DetalleTurno("Turno Manana", [], "Turno Manana"));
+        yield return ("AmplitudVentanaEntradaEnMinutos",
+            new DetalleTurno("Turno Manana", [FranjaOrdinaria()], "Turno Manana (06:00-14:00)", 180));
     }
 
     // CA-4: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
