@@ -36,9 +36,11 @@ public static class CalculadorAdvertencias
         if (jornada is null)
             return new ResultadoAdvertencias(
                 [],
-                casillas.Select(_ => (IReadOnlyList<AdvertenciaDiaria>)[]).ToList());
+                casillas.Select(c => Con(AdvertenciaDescansoEntreTurnos(c), [])).ToList());
 
-        var diarias = casillas.Select(c => AdvertenciasDelDia(c, jornada)).ToList();
+        var diarias = casillas
+            .Select(c => Con(AdvertenciaDescansoEntreTurnos(c), AdvertenciasDelDia(c, jornada)))
+            .ToList();
 
         var semanales = new List<AdvertenciaSemanal>();
         var excesoHoras = casillas.Sum(c => c.MinutosOrdinarios) - jornada.HorasSemanalesEnMinutos;
@@ -57,6 +59,20 @@ public static class CalculadorAdvertencias
         }
 
         return new ResultadoAdvertencias(semanales, diarias);
+    }
+
+    private static IReadOnlyList<AdvertenciaDiaria> Con(
+        AdvertenciaDiaria? descanso, IReadOnlyList<AdvertenciaDiaria> propias) =>
+        descanso is null ? propias : [.. propias, descanso];
+
+    private static AdvertenciaDiaria? AdvertenciaDescansoEntreTurnos(CasillaDia casilla)
+    {
+        if (casilla.Tipo != TipoCasilla.Trabajo
+            || casilla.InicioCobertura is not { } inicio
+            || casilla.LimiteCoberturaVispera is not { } limite
+            || limite <= inicio)
+            return null;
+        return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(limite - inicio).TotalMinutes);
     }
 
     private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada jornada)
