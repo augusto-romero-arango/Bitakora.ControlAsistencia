@@ -306,4 +306,154 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         ThenIsPublishedPrivately();
         And<ControlDiarioAggregateRoot, int>(Stream19, c => c.Marcaciones.Count, 0);
     }
+
+    private static CoberturaVecinaActualizada Cobertura(string streamId, DiaVecino vecino, DateTime? limite) =>
+        CoberturaVecinaActualizada.Crear(streamId, vecino, limite);
+
+    private static readonly ColaboradorProgramado Colaborador = new("1098765432", CodigoColaborador, "Ana Perez");
+
+    // CA-5: al asignar, cada dia recibe la cobertura de su vecino.
+    [Fact]
+    public async Task RepartirMarcaciones_InformaLaCoberturaALosVecinos_CuandoAmbosTienenTurno()
+    {
+        Given(Stream20, TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(17, 0), new TimeOnly(1, 0), 1))));
+        Given(Stream21, TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(6, 0), new TimeOnly(14, 0), 0))));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20, Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 4, 0, 0)));
+        Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 5, 0, 0)));
+        And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
+    }
+
+    // CA-5: cancelar el turno del dia deja al vecino con limite null.
+    [Fact]
+    public async Task RepartirMarcaciones_InformaLimiteNull_CuandoElVecinoCancelaSuTurno()
+    {
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(17, 0), new TimeOnly(1, 0), 1))),
+            Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 4, 0, 0)));
+        Given(Stream21,
+            TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(6, 0), new TimeOnly(14, 0), 0))),
+            Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 5, 0, 0)),
+            TurnoDiarioCancelado.Crear(Stream21, Colaborador, Dia21, Guid.NewGuid()));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20, Cobertura(Stream20, DiaVecino.DiaSiguiente, null));
+        Then(Stream21);
+        And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
+    }
+
+    // CA-5: una ausencia en el dia cancela su cobertura; el vecino recibe null.
+    [Fact]
+    public async Task RepartirMarcaciones_InformaLimiteNull_CuandoElVecinoTieneAusencia()
+    {
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(17, 0), new TimeOnly(1, 0), 1))),
+            Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 4, 0, 0)));
+        Given(Stream21,
+            TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(6, 0), new TimeOnly(14, 0), 0))),
+            Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 5, 0, 0)),
+            AusenciaDiariaAsignada.Crear(Stream21, Colaborador, Dia21, Guid.NewGuid(), "VACACIONES"));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20, Cobertura(Stream20, DiaVecino.DiaSiguiente, null));
+        Then(Stream21);
+        And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
+    }
+
+    // CA-5: un reparto sin cambios no emite eventos.
+    [Fact]
+    public async Task RepartirMarcaciones_NoEmiteEventos_CuandoLasCoberturasYaEstanInformadas()
+    {
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(17, 0), new TimeOnly(1, 0), 1))),
+            Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 4, 0, 0)));
+        Given(Stream21,
+            TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(6, 0), new TimeOnly(14, 0), 0))),
+            Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 5, 0, 0)));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20);
+        Then(Stream21);
+        ThenIsPublishedPrivately();
+        And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
+    }
+
+    // CA-2: el turno del dia pasa a 08:00-16:00 (cobertura desde 06:00): la vispera recibe el limite
+    // nuevo y la 04:30 que ya tenia copiada deja de ser ambigua.
+    [Fact]
+    public async Task RepartirMarcaciones_LaVisperaTomaLaSalida_CuandoElDiaSiguienteCambiaASuTurnoDeLas0800()
+    {
+        var salida = new DateTime(2026, 4, 21, 4, 30, 0);
+        var entradaVispera = new DateTime(2026, 4, 20, 16, 55, 0);
+        var entradaDia = new DateTime(2026, 4, 21, 8, 5, 0);
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(17, 0), new TimeOnly(1, 0), 1))),
+            Marcacion(Stream20, entradaVispera),
+            Marcacion(Stream20, salida, "SALIDA"),
+            Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 4, 0, 0)));
+        Given(Stream21,
+            TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(8, 0), new TimeOnly(16, 0), 0))),
+            Marcacion(Stream21, salida, "SALIDA"),
+            Marcacion(Stream21, entradaDia),
+            Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 5, 0, 0)));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20, Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 6, 0, 0)));
+        Then(Stream21);
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Entrada, entradaVispera);
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Salida, salida);
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream21, c => c.ControlesDeFranja.Single().Entrada, entradaDia);
+    }
+
+    // CA-4: la vispera con ventana entro a las 23:00 (fin efectivo 07:00): informa su cobertura hasta
+    // las 11:00 y la 08:55 queda ambigua en ambos dias.
+    [Fact]
+    public async Task RepartirMarcaciones_InformaLaCoberturaHastaLas1100_CuandoLaVisperaConVentanaEntroALas2300()
+    {
+        var marcacionDelDia = new DateTime(2026, 4, 21, 8, 55, 0);
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(20, 0), new TimeOnly(4, 0), 1), 180)),
+            Marcacion(Stream20, new DateTime(2026, 4, 20, 23, 0, 0)));
+        Given(Stream21,
+            TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(9, 0), new TimeOnly(17, 0), 0))),
+            Marcacion(Stream21, marcacionDelDia));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20,
+            Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 7, 0, 0)),
+            Marcacion(Stream20, marcacionDelDia));
+        Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 11, 0, 0)));
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Salida, null);
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream21, c => c.ControlesDeFranja.Single().Entrada, null);
+    }
+
+    // CA-4: la misma vispera entro a las 20:00 (sin desplazamiento): su cobertura llega hasta las 08:00
+    // y la 08:55 es la entrada del dia.
+    [Fact]
+    public async Task RepartirMarcaciones_ElDiaTomaLa0855ComoEntrada_CuandoLaVisperaConVentanaEntroALas2000()
+    {
+        var marcacionDelDia = new DateTime(2026, 4, 21, 8, 55, 0);
+        Given(Stream20,
+            TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(20, 0), new TimeOnly(4, 0), 1), 180)),
+            Marcacion(Stream20, new DateTime(2026, 4, 20, 20, 0, 0)));
+        Given(Stream21,
+            TurnoAsignado(Stream21, Dia21, Turno(Franja(new TimeOnly(9, 0), new TimeOnly(17, 0), 0))),
+            Marcacion(Stream21, marcacionDelDia));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
+
+        Then(Stream20,
+            Cobertura(Stream20, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 7, 0, 0)),
+            Marcacion(Stream20, marcacionDelDia));
+        Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 8, 0, 0)));
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Salida, null);
+        And<ControlDiarioAggregateRoot, DateTime?>(Stream21, c => c.ControlesDeFranja.Single().Entrada, marcacionDelDia);
+    }
 }

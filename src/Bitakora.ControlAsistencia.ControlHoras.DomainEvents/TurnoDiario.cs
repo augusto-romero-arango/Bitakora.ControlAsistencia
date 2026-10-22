@@ -62,13 +62,23 @@ public record TurnoDiario(
 
     public CoberturaDeMarcacion? Cobertura(DateOnly fecha)
     {
-        if (FranjasOrdinarias.Count == 0)
+        if (Apertura(fecha) is not { } apertura || Cierre(fecha) is not { } fin)
             return null;
 
-        var apertura = FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
-        var fin = FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));
         return new CoberturaDeMarcacion(apertura - MargenAntesDeApertura, fin + MargenDespuesDeFin);
     }
+
+    // Fin exclusivo: dos turnos contiguos no se solapan.
+    public bool SeSolapaCon(DateOnly fecha, TurnoDiario otro, DateOnly fechaOtro) =>
+        Apertura(fecha) < otro.Cierre(fechaOtro) && otro.Apertura(fechaOtro) < Cierre(fecha);
+
+    private DateTime? Apertura(DateOnly fecha) =>
+        FranjasOrdinarias.Count == 0 ? null : FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
+
+    private DateTime? Cierre(DateOnly fecha) =>
+        FranjasOrdinarias.Count == 0
+            ? null
+            : FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));
 
     // Incluye el desplazamiento maximo de la ventana de entrada para que un turno con ventana no
     // pierda su salida; entregar de mas no afecta porque el depurador usa la cobertura efectiva.

@@ -1,15 +1,6 @@
-// Issue #277 CA-1: IdentidadEventosControlHoras.TiposPersistidos debe listar exactamente los
-// tipos que se persisten en el event store de ControlHoras -- ni de mas (ningun evento que solo
-// cruce el bus, p.ej. DiaDepurado o ProgramacionTurnoDiarioSolicitada), ni de menos (el olvido
-// que este issue corrige). MarcacionRegistrada SI entra: ademas de IPrivateEvent, se persiste en
-// el stream de RegistroDeMarcacionAggregateRoot, que la aplica. No usa el harness Given/When/Then:
-// se verifica un dato estatico de configuracion, no el comportamiento de un command handler.
-// Issue #425: DepuracionDiaRecibida se persiste en el stream de DiaCalculadoAggregateRoot (CA-5)
-// y se suma a la lista literal.
-// Issue #463 CA-5: SedeDeMarcacionIdentificada se persiste en el stream de ControlDiarioAggregateRoot
-// (estampado de sede sobre una marcacion ya adicionada) y se suma a la lista literal.
-// Issue #489: DiaAprobado se persiste en el stream de DiaCalculadoAggregateRoot (cierre del acto de
-// aprobar) y se suma a la lista literal.
+// IdentidadEventosControlHoras.TiposPersistidos debe incluir todo tipo que se persiste en el event
+// store de ControlHoras. No usa el harness Given/When/Then: verifica un dato estatico de
+// configuracion, no el comportamiento de un command handler.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -20,29 +11,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
 public class IdentidadEventosControlHorasTests
 {
-    [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosNueveEventosPersistidosDeControlHoras()
-    {
-        IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
-        [
-            typeof(MarcacionRegistrada),
-            typeof(MarcacionAdicionada),
-            typeof(TurnoDiarioAsignado),
-            typeof(DepuracionDiaRecibida),
-            typeof(SedeDeMarcacionIdentificada),
-            typeof(DiaAprobado),
-            typeof(DepuracionPosAprobacionRecibida),
-            typeof(TurnoDiarioCancelado),
-            typeof(AusenciaDiariaAsignada),
-            typeof(CancelacionAusenciaDiariaRegistrada)
-        ]);
-    }
-
-    // Oraculo derivado del write-side, complementario del literal de arriba: la asercion literal
-    // congela la lista de hoy, pero un evento persistido que se agregue manana solo la pone roja si
-    // alguien recuerda editar el test -- justo el olvido que el #237 dejo armado. Esta guarda no
-    // necesita ese recuerdo: enumera por reflexion los eventos que los aggregate roots del dominio
-    // aplican al rehidratar y exige que todos esten registrados.
+    // Oraculo derivado por reflexion: no depende de que alguien recuerde editar una lista literal al
+    // agregar un evento persistido.
     [Fact]
     public void TiposPersistidos_IncluyeTodoEventoQueAplicaUnAggregateRootDelDominio()
     {

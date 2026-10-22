@@ -38,13 +38,63 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // ignora al llegar. Por eso el dia recuerda toda AusenciaId cancelada, este o no vigente.
     private readonly HashSet<Guid> _ausenciasCanceladas = [];
 
+    // Limites de cobertura informados por los vecinos; null = el vecino no tiene cobertura.
+    private DateTime? _finCoberturaVispera;
+    private DateTime? _inicioCoberturaDiaSiguiente;
+    private DateTime? _finCoberturaEfectiva;
+
     // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
         if (_ausenciaId is not null) return;
-        var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones);
+        var vecinas = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
+        var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones, vecinas);
         _controlesDeFranja.AddRange(resultado);
+        _finCoberturaEfectiva = DepuradorDeMarcaciones
+            .CoberturaEfectiva(DetalleTurno, Fecha, _marcaciones, vecinas)?.Fin;
+    }
+
+    // true si emitio el evento.
+    internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
+    {
+        // Sin turno el dia no depura nada, asi que no necesita (ni registra) limites.
+        if (DetalleTurno is null) return false;
+
+        var lado = vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
+        var (limite, actual) = lado == DiaVecino.Vispera
+            ? (vecino.FinDeSuCobertura(), _finCoberturaVispera)
+            : (vecino.InicioDeSuCobertura(), _inicioCoberturaDiaSiguiente);
+        if (actual == limite) return false;
+        // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia
+        // (turnos que no se solapan entre si); un limite ya informado siempre se actualiza.
+        if (actual is null && !Invade(DetalleTurno, lado, limite, vecino)) return false;
+
+        var evento = CoberturaVecinaActualizada.Crear(Id, lado, limite);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return true;
+    }
+
+    private bool Invade(TurnoDiario turno, DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino)
+    {
+        if (limite is not { } instante || turno.CoberturaPosible(Fecha) is not { } propia) return false;
+        if (vecino.DetalleTurno?.SeSolapaCon(vecino.Fecha, turno, Fecha) != false) return false;
+
+        return lado == DiaVecino.Vispera ? instante > propia.Inicio : instante < propia.Fin;
+    }
+
+    private DateTime? InicioDeSuCobertura() =>
+        _ausenciaId is null ? DetalleTurno?.Cobertura(Fecha)?.Inicio : null;
+
+    private DateTime? FinDeSuCobertura() => _ausenciaId is null ? _finCoberturaEfectiva : null;
+
+    public void Apply(CoberturaVecinaActualizada e)
+    {
+        if (e.Vecino == DiaVecino.Vispera) _finCoberturaVispera = e.Limite;
+        else _inicioCoberturaDiaSiguiente = e.Limite;
+        Depurar();
+        RecalcularDesgloseHoras();
     }
 
     // Orden obligatorio: va despues de Depurar(), que puebla _controlesDeFranja.
