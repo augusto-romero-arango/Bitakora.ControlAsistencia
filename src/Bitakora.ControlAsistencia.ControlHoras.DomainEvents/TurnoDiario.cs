@@ -2,11 +2,11 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
 /// Representacion plana del turno que rige efectivamente a un colaborador en una fecha concreta,
-/// propia de este ensamblado (issue #322, payload por rol -- CA-ADR-0029 decision #5 /
-/// MEF-ADR-0039 decision #6). Duplica los campos de DetalleTurno (PrivateEvents.Programacion) en
-/// vez de importarlo: los tres ensamblados de eventos son tres islas sin referencias entre si. La
-/// paridad diverge en AmplitudVentanaEntradaEnMinutos hasta que llegue a DetalleTurno (issue #1108). Nombre acordado con el usuario (docs/eda/ubiquitous-language.yaml):
-/// "TurnoDiario" es el termino exacto del glosario para este concepto.
+/// propia de este ensamblado (payload por rol -- CA-ADR-0029 decision #5 / MEF-ADR-0039
+/// decision #6). Duplica los campos de DetalleTurno (PrivateEvents.Programacion) con los mismos
+/// nombres en vez de importarlo: los tres ensamblados de eventos son tres islas sin referencias
+/// entre si, y ningun test fija esta paridad. "TurnoDiario" es el termino exacto del glosario
+/// (docs/eda/ubiquitous-language.yaml).
 /// </summary>
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN

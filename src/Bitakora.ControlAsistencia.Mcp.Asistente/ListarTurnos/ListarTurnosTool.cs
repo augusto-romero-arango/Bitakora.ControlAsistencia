@@ -63,7 +63,8 @@ public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodig
                 f.Nombre.Trim(),
                 f.HorarioResumido,
                 EsDescanso: f.EsDescanso ? true : null,
-                EnConstruccion: f.Completo ? null : true))
+                EnConstruccion: f.Completo ? null : true,
+                ConVentanaDeEntrada: f.VentanaDeEntrada is not null ? true : null))
             .ToList();
 
         return RespuestaJson.Serializar(new CatalogoDeTurnos(
@@ -81,7 +82,7 @@ public sealed record CatalogoDeTurnos(
     string? Nota);
 
 /// <summary>
-/// EsDescanso y EnConstruccion viajan solo cuando son true: null se omite en la serializacion
+/// EsDescanso, EnConstruccion y ConVentanaDeEntrada viajan solo cuando son true: null se omite en la serializacion
 /// (filtro de relevancia, MEF-ADR-0047 decision 4).
 /// </summary>
 public sealed record TurnoResumido(
@@ -89,4 +90,5 @@ public sealed record TurnoResumido(
     string Nombre,
     string Horario,
     bool? EsDescanso,
-    bool? EnConstruccion);
+    bool? EnConstruccion,
+    bool? ConVentanaDeEntrada);
