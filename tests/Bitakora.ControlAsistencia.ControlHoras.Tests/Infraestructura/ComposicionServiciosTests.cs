@@ -267,6 +267,19 @@ public class ComposicionServiciosTests
         });
     }
 
+    [Fact]
+    public async Task AgregarServiciosControlHoras_CongelaElAliasDeCoberturaVecinaActualizada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(CoberturaVecinaActualizada)).Alias;
+
+        alias.Should().Be("cobertura_vecina_actualizada");
+    }
+
     // Issue #328 CA-4: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma
     // idea que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
     // FunctionEndpoint en vez de un router de Wolverine.

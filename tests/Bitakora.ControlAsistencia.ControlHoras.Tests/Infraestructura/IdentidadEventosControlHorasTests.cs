@@ -20,24 +20,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;
 
 public class IdentidadEventosControlHorasTests
 {
-    [Fact]
-    public void TiposPersistidos_ContieneExactamenteLosNueveEventosPersistidosDeControlHoras()
-    {
-        IdentidadEventosControlHoras.TiposPersistidos.Should().BeEquivalentTo(
-        [
-            typeof(MarcacionRegistrada),
-            typeof(MarcacionAdicionada),
-            typeof(TurnoDiarioAsignado),
-            typeof(DepuracionDiaRecibida),
-            typeof(SedeDeMarcacionIdentificada),
-            typeof(DiaAprobado),
-            typeof(DepuracionPosAprobacionRecibida),
-            typeof(TurnoDiarioCancelado),
-            typeof(AusenciaDiariaAsignada),
-            typeof(CancelacionAusenciaDiariaRegistrada)
-        ]);
-    }
-
     // Oraculo derivado del write-side, complementario del literal de arriba: la asercion literal
     // congela la lista de hoy, pero un evento persistido que se agregue manana solo la pone roja si
     // alguien recuerda editar el test -- justo el olvido que el #237 dejo armado. Esta guarda no

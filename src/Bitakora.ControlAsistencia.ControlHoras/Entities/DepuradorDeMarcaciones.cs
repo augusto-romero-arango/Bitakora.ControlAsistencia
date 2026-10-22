@@ -7,7 +7,8 @@ public static class DepuradorDeMarcaciones
     public static IReadOnlyList<ControlFranja> Depurar(
         TurnoDiario? turno,
         DateOnly fecha,
-        IReadOnlyList<MarcacionNormalizada> marcaciones)
+        IReadOnlyList<MarcacionNormalizada> marcaciones,
+        CoberturasVecinas? vecinas = null)
     {
         if (turno?.Cobertura(fecha) is not { } coberturaReferencia)
             return [];

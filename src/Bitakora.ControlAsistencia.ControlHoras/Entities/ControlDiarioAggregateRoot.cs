@@ -47,6 +47,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _controlesDeFranja.AddRange(resultado);
     }
 
+    internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino) =>
+        throw new NotImplementedException();
+
+    public void Apply(CoberturaVecinaActualizada e) => throw new NotImplementedException();
+
     // Orden obligatorio: va despues de Depurar(), que puebla _controlesDeFranja.
     private void RecalcularDesgloseHoras()
     {
