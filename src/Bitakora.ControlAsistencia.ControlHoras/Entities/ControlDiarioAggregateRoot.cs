@@ -112,6 +112,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     {
         Id = e.Id;
         Fecha = ExtraerFechaDeStreamId(e.Id);
+        // Dos repartos concurrentes pueden persistir la misma copia: el replay conserva una sola.
+        if (TieneMarcacionEn(e.TimestampNormalizado)) return;
         _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion, e.DispositivoId));
         Depurar();
         RecalcularDesgloseHoras();
@@ -141,12 +143,42 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Duplicado por minuto normalizado: no-op silencioso, sin evento ni excepcion.
     internal void AdicionarMarcacion(MarcacionAdicionada evento)
     {
-        var yaExiste = _marcaciones.Any(m => m.TimestampNormalizado == evento.TimestampNormalizado);
-        if (yaExiste) return;
+        if (TieneMarcacionEn(evento.TimestampNormalizado)) return;
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    private bool TieneMarcacionEn(DateTime timestampNormalizado) =>
+        _marcaciones.Any(m => m.TimestampNormalizado == timestampNormalizado);
+
+    // Copia (con su sede) las marcaciones del vecino que caen en la cobertura posible del turno de
+    // este dia. true si emitio eventos.
+    internal bool RecogerDe(ControlDiarioAggregateRoot vecino)
+    {
+        var cobertura = DetalleTurno?.CoberturaPosible(Fecha);
+        if (cobertura is null) return false;
+
+        var eventosAntes = _uncommittedEvents.Count;
+        foreach (var origen in vecino.MarcacionesDeSuDiaCalendario()
+                     .Where(m => cobertura.Contiene(m.TimestampNormalizado)))
+        {
+            AdicionarMarcacion(new MarcacionAdicionada(
+                Id, ExtraerCodigoColaboradorDeStreamId(Id), origen.TimestampNormalizado,
+                origen.TipoMarcacion, origen.DispositivoId));
+
+            if (origen is { CodigoSede: { } codigoSede, NombreSede: { } nombreSede })
+                EstamparSede(new SedeDeMarcacionIdentificada(
+                    Id, origen.TimestampNormalizado, origen.DispositivoId,
+                    codigoSede, nombreSede, origen.CentroDeCostos));
+        }
+
+        return _uncommittedEvents.Count > eventosAntes;
+    }
+
+    // Las copias recibidas de otro dia quedan fuera: nunca se re-reparten.
+    private IEnumerable<MarcacionNormalizada> MarcacionesDeSuDiaCalendario() =>
+        _marcaciones.Where(m => DateOnly.FromDateTime(m.TimestampNormalizado) == Fecha);
 
     // Proyecta el estampado sobre la marcacion correlacionada. Sin coincidencia no lanza
     // (MEF-ADR-0004): Apply solo proyecta estado.

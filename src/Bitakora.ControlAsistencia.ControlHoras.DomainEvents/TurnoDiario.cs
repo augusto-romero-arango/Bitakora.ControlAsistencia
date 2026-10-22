@@ -70,6 +70,16 @@ public record TurnoDiario(
         return new CoberturaDeMarcacion(apertura - MargenAntesDeApertura, fin + MargenDespuesDeFin);
     }
 
+    // Incluye el desplazamiento maximo de la ventana de entrada para que un turno con ventana no
+    // pierda su salida; entregar de mas no afecta porque el depurador usa la cobertura efectiva.
+    public CoberturaDeMarcacion? CoberturaPosible(DateOnly fecha)
+    {
+        var cobertura = Cobertura(fecha);
+        return cobertura is null
+            ? null
+            : cobertura with { Fin = cobertura.Fin.AddMinutes(AmplitudVentanaEntradaEnMinutos) };
+    }
+
     public virtual bool Equals(TurnoDiario? other)
     {
         if (other is null) return false;
