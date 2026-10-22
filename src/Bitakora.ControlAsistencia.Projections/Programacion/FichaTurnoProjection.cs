@@ -76,6 +76,9 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     public static FichaTurno Apply(SedeDeFranjaRetirada e, FichaTurno ficha) =>
         ReemplazarOAgregar(ficha, e.Franja.ToDetalle());
 
+    public static FichaTurno Apply(VentanaDeEntradaModificada e, FichaTurno ficha) =>
+        throw new NotImplementedException();
+
     public static bool ShouldDelete(TurnoRetirado e) => true;
 
     // Si ninguna franja coincide por HoraInicio, la agrega en vez de fallar: Apply no lanza
