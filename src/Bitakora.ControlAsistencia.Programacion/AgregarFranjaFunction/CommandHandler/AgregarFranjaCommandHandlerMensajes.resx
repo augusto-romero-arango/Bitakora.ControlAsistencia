@@ -32,4 +32,10 @@
   <data name="FranjaSeSolapa" xml:space="preserve">
     <value>La franja se solapa con otra franja ya existente en el turno</value>
   </data>
+  <data name="InicioAntesDeHoraCorte" xml:space="preserve">
+    <value>La franja dejaria el inicio del turno antes de las 04:00 (hora de corte) y la ventana de entrada del turno no lo admite</value>
+  </data>
+  <data name="CierrePasaMedianoche" xml:space="preserve">
+    <value>Con esta franja, la ventana de entrada haria que la ultima franja empezara a las 24:00 o despues; reduce la ventana o adelanta la franja</value>
+  </data>
 </root>

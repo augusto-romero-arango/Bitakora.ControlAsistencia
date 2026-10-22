@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunction;
 using Bitakora.ControlAsistencia.Programacion.ModificarVentanaDeEntradaFunction.CommandHandler;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -12,7 +13,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.ModificarVentanaDeEntrad
 public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncTest<ModificarVentanaDeEntrada>
 {
     protected override ICommandHandlerAsync<ModificarVentanaDeEntrada> Handler =>
-        new ModificarVentanaDeEntradaCommandHandler(EventStore);
+        new ModificarVentanaDeEntradaCommandHandler(EventStore, PrivateEventSender);
 
     private static HorasYMinutos Horas(int h, int m = 0) => HorasYMinutos.Crear(h, m);
 
@@ -33,6 +34,10 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         Given(Fijo());
         await WhenAsync(Comando(GuidAggregateId, 3));
         Then(VentanaDeEntradaModificada.Crear(GuidAggregateId, Horas(3)));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            GuidAggregateId, 2, "Turno", false,
+            [new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "(07:00-16:00)")],
+            false, 180));
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(3)), true);
     }
 
@@ -42,6 +47,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         Given(Fijo(), VentanaDeEntradaModificada.Crear(GuidAggregateId, Horas(3)));
         await WhenAsync(Comando(GuidAggregateId, 3));
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(3)), true);
     }
 
@@ -51,6 +57,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         Given(Fijo());
         await WhenAsync(Comando(GuidAggregateId, 0));
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -60,6 +67,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         Given(ConFranjas());
         await WhenAsync(Comando(GuidAggregateId, 0));
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -69,6 +77,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         Given(TurnoCreado.CrearDescanso(GuidAggregateId, "Libre"));
         await WhenAsync(Comando(GuidAggregateId, 0));
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -80,6 +89,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.TurnoRetirado}*");
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -91,6 +101,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.TurnoRetirado}*");
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -102,6 +113,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.TurnoSinFranjas}*");
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -113,6 +125,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.TurnoSinFranjas}*");
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -124,6 +137,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.InicioAntesDeHoraCorte}*");
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -135,6 +149,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.CierrePasaMedianoche}*");
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -154,6 +169,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
             .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(GuidAggregateId.ToString());
+        ThenIsPublishedPrivately();
     }
 
     [Fact]
@@ -164,6 +180,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         var errores = (await act.Should().ThrowExactlyAsync<AggregateException>()).Which.InnerExceptions;
         errores.Select(e => e.Message).Should().Contain(HorasYMinutos.Mensajes.MinutosFueraDeRango);
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
     }
 
@@ -176,6 +193,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
                     .ConDescanso(new TimeOnly(12, 0), new TimeOnly(12, 30))));
         await WhenAsync(Comando(GuidAggregateId, 3));
         Then();
+        ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(3)), true);
     }
 }

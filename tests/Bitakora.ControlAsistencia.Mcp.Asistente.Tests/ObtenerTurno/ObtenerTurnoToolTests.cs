@@ -95,4 +95,41 @@ public class ObtenerTurnoToolTests
 
         resultado.Should().Be("No existe un turno con id 'id-inexistente' en el catalogo.");
     }
+
+    [Fact]
+    public async Task ObtenerTurno_MuestraLaVentanaDeEntrada_CuandoLaFichaLaTrae()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ObtenerTurno", "obtener-turno-con-ventana.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a0ec11-0000-7000-9000-000000000001", TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["ventanaDeEntrada"]!.GetValue<string>()
+            .Should().Be("entra entre 07:00 y 10:00 (3 h)");
+    }
+
+    [Fact]
+    public async Task ObtenerTurno_OmiteLaVentanaDeEntrada_CuandoElTurnoEsFijo()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ObtenerTurno", "obtener-turno-fijo.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a0ec11-0000-7000-9000-000000000001", TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!.AsObject().ContainsKey("ventanaDeEntrada").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ObtenerTurno_OmiteLaVentanaDeEntrada_CuandoLaFichaNoTraeLaClave()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ObtenerTurno", "obtener-turno.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "019fdaab-92b6-7b57-8408-cef0e48e1a46", TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!.AsObject().ContainsKey("ventanaDeEntrada").Should().BeFalse();
+    }
 }

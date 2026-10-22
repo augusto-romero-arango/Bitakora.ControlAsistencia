@@ -64,7 +64,8 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
         new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 
     private static TurnoDiario MapearTurnoDiario(DetalleTurno turno) =>
-        new(turno.Nombre, turno.FranjasOrdinarias.Select(MapearFranja).ToList(), turno.Descripcion);
+        new(turno.Nombre, turno.FranjasOrdinarias.Select(MapearFranja).ToList(), turno.Descripcion,
+            turno.AmplitudVentanaEntradaEnMinutos);
 
     // La sede que llega ya es la EFECTIVA (la cascada la resolvio en Programacion), y es tolerante
     // a null: no toda franja de un turno multi-sede trae sede resuelta.

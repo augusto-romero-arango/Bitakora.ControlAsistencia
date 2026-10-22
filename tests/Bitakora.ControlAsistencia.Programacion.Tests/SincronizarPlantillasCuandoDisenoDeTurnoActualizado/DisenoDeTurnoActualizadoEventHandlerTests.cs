@@ -63,6 +63,31 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
     }
 
     [Fact]
+    public async Task DisenoDeTurnoActualizado_EnviaLaCopiaConLaVentanaDeEntrada_CuandoElEventoTraeAmplitud()
+    {
+        _lector.PlantillaIds = [PlantillaA.ToString(), PlantillaB.ToString()];
+        var evento = DisenoMixto() with { AmplitudVentanaEntradaEnMinutos = 180 };
+
+        await WhenAsync(evento);
+
+        var esperado = TurnoMixtoEsperado().ConVentanaDeEntrada(HorasYMinutos.Crear(3, 0));
+        _router.Comandos.Should().Equal(
+            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, esperado, 4, false),
+            new SincronizarTurnoDePlantillaSemanal(PlantillaB, TurnoId, esperado, 4, false));
+    }
+
+    [Fact]
+    public async Task DisenoDeTurnoActualizado_EnviaLaCopiaSinVentana_CuandoLaAmplitudEsCero()
+    {
+        _lector.PlantillaIds = [PlantillaA.ToString()];
+
+        await WhenAsync(DisenoMixto() with { AmplitudVentanaEntradaEnMinutos = 0 });
+
+        _router.Comandos.Should().Equal(new SincronizarTurnoDePlantillaSemanal(
+            PlantillaA, TurnoId, TurnoMixtoEsperado().ConVentanaDeEntrada(HorasYMinutos.Crear(0, 0)), 4, false));
+    }
+
+    [Fact]
     public async Task DisenoDeTurnoActualizado_NoEnviaComandos_CuandoNingunaPlantillaUsaElTurno()
     {
         _lector.PlantillaIds = [];
