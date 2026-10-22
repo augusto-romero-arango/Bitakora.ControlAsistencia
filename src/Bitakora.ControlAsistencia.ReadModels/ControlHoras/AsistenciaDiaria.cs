@@ -54,4 +54,5 @@ public sealed record AsistenciaDiaria(
     bool ConflictoDeSedePendiente,
     IReadOnlyDictionary<string, decimal> HorasPorConcepto,
     string? MotivoAusencia = null,
-    bool VinoEnAusencia = false);
+    bool VinoEnAusencia = false,
+    bool MarcacionAmbiguaPendiente = false);

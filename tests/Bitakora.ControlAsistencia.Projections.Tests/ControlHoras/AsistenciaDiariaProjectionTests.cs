@@ -531,4 +531,93 @@ public class AsistenciaDiariaProjectionTests
         vista.MotivoAusencia.Should().BeNull();
         vista.VinoEnAusencia.Should().BeFalse();
     }
+
+    private static EventoMarcacionDelDia MarcacionConPertenencia(DateTime timestamp, string? pertenencia) =>
+        new(timestamp, "ENTRADA", Pertenencia: pertenencia);
+
+    [Fact]
+    public void Create_MarcaMarcacionAmbiguaPendiente_CuandoAlgunaMarcacionEsAmbigua()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno"),
+             MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DejaMarcacionAmbiguaPendienteEnFalse_CuandoNingunaMarcacionEsAmbigua()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno"),
+             MarcacionConPertenencia(new DateTime(2026, 8, 24, 20, 0, 0), "FueraDeCobertura")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaMarcacionAmbiguaPendienteEnFalse_CuandoLasMarcacionesNoTraenPertenencia()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ApagaMarcacionAmbiguaPendiente_CuandoLaFotoNuevaYaNoTraeAmbiguas()
+    {
+        var primero = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+        var vistaPrevia = AsistenciaDiariaProjection.Create(primero) with { MarcacionAmbiguaPendiente = true };
+        var segundo = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(segundo, vistaPrevia);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_EnciendeMarcacionAmbiguaPendiente_CuandoLaFotoNuevaTraeUnaAmbigua()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", false, false, false, false, false, new Dictionary<string, decimal>());
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_ApagaMarcacionAmbiguaPendiente_CuandoLlegaDiaAprobado()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", false, false, false, false, false, new Dictionary<string, decimal>(),
+            MarcacionAmbiguaPendiente: true);
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_NaceConMarcacionAmbiguaPendienteEnFalse_CuandoElStreamNaceConDiaAprobado()
+    {
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
 }
