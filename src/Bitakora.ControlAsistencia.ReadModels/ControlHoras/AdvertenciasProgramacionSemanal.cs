@@ -43,8 +43,10 @@ public enum TipoCasilla
 }
 
 /// <summary>
-/// Casilla de un dia. AusenciaId y TurnoCubierto son estado interno para restaurar al cancelar
-/// la ausencia vigente.
+/// Casilla de un dia. AusenciaId, TurnoCubierto, InicioCobertura y LimiteCoberturaVispera son estado
+/// interno, no se presentan. AusenciaId y TurnoCubierto restauran la casilla al cancelar la ausencia
+/// vigente. LimiteCoberturaVispera es del dia, no del turno: sobrevive a toda asignacion, cancelacion
+/// o ausencia, porque el write-side solo lo vuelve a emitir cuando cambia.
 /// </summary>
 public sealed record CasillaDia(
     DateOnly Fecha,
@@ -53,7 +55,9 @@ public sealed record CasillaDia(
     int MinutosOrdinarios,
     string? MotivoAusencia = null,
     Guid? AusenciaId = null,
-    TurnoCubiertoSemana? TurnoCubierto = null)
+    TurnoCubiertoSemana? TurnoCubierto = null,
+    DateTime? InicioCobertura = null,
+    DateTime? LimiteCoberturaVispera = null)
 {
     public IReadOnlyList<AdvertenciaDiaria> Advertencias { get; init; } = [];
 }

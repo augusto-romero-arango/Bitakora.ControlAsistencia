@@ -38,6 +38,9 @@
   <data name="PorDebajoDelMinimoDiario" xml:space="preserve">
     <value>{0} por debajo del mínimo diario</value>
   </data>
+  <data name="PorDebajoDelDescansoEntreTurnos" xml:space="preserve">
+    <value>{0} por debajo del descanso mínimo entre turnos</value>
+  </data>
   <data name="DiaUno" xml:space="preserve">
     <value>día</value>
   </data>
