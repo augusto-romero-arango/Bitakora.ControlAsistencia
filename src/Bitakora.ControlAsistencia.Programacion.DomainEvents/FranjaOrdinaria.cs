@@ -123,8 +123,6 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     public bool TieneSedePrearmada() => _sede is not null;
 
     // Preguntas de la ventana de entrada del Turno: la ordinaria empieza siempre en offset 0.
-    internal bool EmpiezaAntesDe(TimeOnly hora) => _horaInicio < hora;
-
     internal bool LlegaALaMedianocheDesplazadaEn(HorasYMinutos amplitud) =>
         _horaInicio.ToTimeSpan().TotalMinutes + amplitud.TotalMinutos() >= MinutosPorDia;
 

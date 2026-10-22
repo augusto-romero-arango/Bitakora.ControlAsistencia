@@ -6,6 +6,5 @@ internal enum ResultadoModificarVentanaDeEntrada
     SinCambios,
     TurnoRetirado,
     TurnoSinFranjas,
-    InicioAntesDeHoraCorte,
     CierrePasaMedianoche
 }

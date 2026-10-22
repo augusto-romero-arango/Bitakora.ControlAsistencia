@@ -7,6 +7,5 @@
   <data name="TurnoNoEncontrado" xml:space="preserve"><value>El turno no existe</value></data>
   <data name="TurnoRetirado" xml:space="preserve"><value>El turno fue retirado y no admite cambios en su ventana de entrada</value></data>
   <data name="TurnoSinFranjas" xml:space="preserve"><value>Un turno sin franjas solo admite una ventana de entrada de amplitud cero</value></data>
-  <data name="InicioAntesDeHoraCorte" xml:space="preserve"><value>El turno empieza antes de las 04:00 y no admite una ventana de entrada</value></data>
   <data name="CierrePasaMedianoche" xml:space="preserve"><value>La ventana de entrada haria que la ultima franja empezara a las 24:00 o despues; debe quedar antes de las 24:00</value></data>
 </root>
