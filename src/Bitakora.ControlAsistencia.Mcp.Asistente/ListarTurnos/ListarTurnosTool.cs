@@ -89,4 +89,5 @@ public sealed record TurnoResumido(
     string Nombre,
     string Horario,
     bool? EsDescanso,
-    bool? EnConstruccion);
+    bool? EnConstruccion,
+    bool? ConVentanaDeEntrada = null);

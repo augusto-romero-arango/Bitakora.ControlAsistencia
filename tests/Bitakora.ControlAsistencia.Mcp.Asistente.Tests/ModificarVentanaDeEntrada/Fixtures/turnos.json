@@ -1,0 +1,32 @@
+{ "elementos": [
+  {
+    "id": "8f14e45f-ceea-4b3c-8f0a-000000000020",
+    "nombre": "Oficina",
+    "esDescanso": false,
+    "horarioResumido": "07:00-16:00",
+    "franjas": [
+      {
+        "horaInicio": "07:00:00",
+        "horaFin": "16:00:00",
+        "diaOffsetFin": 0,
+        "descansos": [],
+        "extras": [],
+        "sedeId": null,
+        "nombreSede": null,
+        "descripcion": "(07:00-16:00)"
+      }
+    ],
+    "descripcion": "(07:00-16:00)",
+    "completo": true
+  },
+  {
+    "id": "8f14e45f-ceea-4b3c-8f0a-000000000021",
+    "nombre": "Vacio",
+    "esDescanso": false,
+    "horarioResumido": "Sin franjas",
+    "franjas": [],
+    "descripcion": "",
+    "completo": false
+  }
+]
+}

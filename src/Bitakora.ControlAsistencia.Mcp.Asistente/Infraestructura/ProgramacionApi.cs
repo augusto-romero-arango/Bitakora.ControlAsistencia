@@ -59,6 +59,10 @@ public sealed class ProgramacionApi(HttpClient http)
         Guid id, LimitesJornadaAEnviar limites, CancellationToken ct) =>
         http.PutAsJsonAsync($"api/programacion/jornadas/{id}/limites", limites, ct);
 
+    public Task<HttpResponseMessage> ModificarVentanaDeEntrada(
+        string id, HorasYMinutosJornada amplitud, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> DesactivarJornada(Guid id, CancellationToken ct) =>
         http.PostAsync($"api/programacion/jornadas/{id}:desactivar", null, ct);
 
@@ -201,7 +205,10 @@ public sealed record FichaTurno(
     string HorarioResumido,
     IReadOnlyList<FranjaFicha> Franjas,
     string Descripcion,
-    bool Completo);
+    bool Completo,
+    VentanaDeEntradaFicha? VentanaDeEntrada = null);
+
+public sealed record VentanaDeEntradaFicha(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
 
 public sealed record FranjaFicha(
     TimeOnly HoraInicio,
