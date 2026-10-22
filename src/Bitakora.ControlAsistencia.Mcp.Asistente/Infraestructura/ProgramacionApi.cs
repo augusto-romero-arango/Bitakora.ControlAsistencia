@@ -61,7 +61,7 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> ModificarVentanaDeEntrada(
         string id, HorasYMinutosJornada amplitud, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PutAsJsonAsync($"api/programacion/turnos/{id}/ventana-entrada", new { amplitud }, ct);
 
     public Task<HttpResponseMessage> DesactivarJornada(Guid id, CancellationToken ct) =>
         http.PostAsync($"api/programacion/jornadas/{id}:desactivar", null, ct);

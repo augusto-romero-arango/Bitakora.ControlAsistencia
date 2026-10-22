@@ -12,7 +12,7 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
     internal const string NombreTool = "modificar_ventana_de_entrada";
 
     [Function("ModificarVentanaDeEntrada")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Modifica la ventana de entrada de un turno del catalogo, indicado por su nombre exacto: el rango, "
@@ -27,6 +27,55 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         string turno,
         [McpToolProperty("amplitud", "Amplitud de la ventana en formato H:mm, por ejemplo 3:00.", isRequired: true)]
         string amplitud,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(turno))
+            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!ValidadorDuracion.TryParsear(amplitud, out var duracion))
+            return string.Format(Mensajes.AmplitudInvalida, amplitud);
+
+        var resolucion = await _resolutor.ResolverAsync(turno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurnos)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
+        if (resolucion.Ficha is null)
+            return string.Format(
+                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+        var ficha = resolucion.Ficha;
+
+        var respuesta = await _programacion.ModificarVentanaDeEntrada(ficha.Id, duracion, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        return RespuestaJson.Serializar(new VentanaDeEntradaModificadaResumen(
+            Mensajes.ResultadoVentanaModificada,
+            ficha.Nombre,
+            Describir(ficha, duracion),
+            Mensajes.NotaVisibilidadEventual));
+    }
+
+    private static string Describir(FichaTurno ficha, HorasYMinutosJornada amplitud)
+    {
+        if (amplitud.Horas == 0 && amplitud.Minutos == 0)
+            return Mensajes.TurnoFijo;
+
+        var texto = TextoDeAmplitud(amplitud);
+        if (ficha.Franjas.Count == 0)
+            return string.Format(Mensajes.VentanaDeAmplitud, texto);
+
+        var apertura = ficha.Franjas.Min(f => f.HoraInicio);
+        var cierre = apertura.Add(new TimeSpan(amplitud.Horas, amplitud.Minutos, 0));
+        return string.Format(Mensajes.EntraEntre, $"{apertura:HH\\:mm}", $"{cierre:HH\\:mm}", texto);
+    }
+
+    private static string TextoDeAmplitud(HorasYMinutosJornada amplitud) =>
+        string.Join(
+            " ",
+            new[]
+            {
+                amplitud.Horas > 0 ? $"{amplitud.Horas} h" : null,
+                amplitud.Minutos > 0 ? $"{amplitud.Minutos} min" : null,
+            }.OfType<string>());
 }
+
+/// <summary>Eco de modificar_ventana_de_entrada: el 204 no trae body, se reconstruye con lo enviado.</summary>
+public sealed record VentanaDeEntradaModificadaResumen(string Resultado, string Turno, string VentanaDeEntrada, string Nota);

@@ -63,7 +63,8 @@ public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodig
                 f.Nombre.Trim(),
                 f.HorarioResumido,
                 EsDescanso: f.EsDescanso ? true : null,
-                EnConstruccion: f.Completo ? null : true))
+                EnConstruccion: f.Completo ? null : true,
+                ConVentanaDeEntrada: f.VentanaDeEntrada is not null ? true : null))
             .ToList();
 
         return RespuestaJson.Serializar(new CatalogoDeTurnos(

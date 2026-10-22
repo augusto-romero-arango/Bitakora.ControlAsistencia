@@ -46,7 +46,10 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             ficha.EsDescanso,
             ficha.Completo,
             ficha.HorarioResumido,
-            [.. ficha.Franjas.Select(Compactar)]);
+            [.. ficha.Franjas.Select(Compactar)],
+            ficha.VentanaDeEntrada is { } v
+                ? string.Format(Mensajes.EntraEntre, $"{v.Apertura:HH\\:mm}", $"{v.Cierre:HH\\:mm}", v.Amplitud)
+                : null);
 
         return RespuestaJson.Serializar(detalle);
     }
