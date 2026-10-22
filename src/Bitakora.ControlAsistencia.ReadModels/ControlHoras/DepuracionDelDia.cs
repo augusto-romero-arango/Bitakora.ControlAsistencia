@@ -68,4 +68,12 @@ public sealed record MarcacionDelDia(
     bool Usada,
     string? CodigoSede,
     string? NombreSede,
-    string? CentroDeCostos);
+    string? CentroDeCostos,
+    PertenenciaMarcacion? Pertenencia = null);
+
+public enum PertenenciaMarcacion
+{
+    DelTurno,
+    FueraDeCobertura,
+    Ambigua
+}

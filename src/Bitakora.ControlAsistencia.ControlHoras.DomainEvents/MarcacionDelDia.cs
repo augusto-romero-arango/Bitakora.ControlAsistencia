@@ -12,4 +12,5 @@ public record MarcacionDelDia(
     string? Tipo,
     string? CodigoSede = null,
     string? NombreSede = null,
-    string? CentroDeCostos = null);
+    string? CentroDeCostos = null,
+    string? Pertenencia = null);

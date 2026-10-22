@@ -27,6 +27,13 @@ public static class DepuradorDeMarcaciones
             .ToList();
     }
 
+    public static IReadOnlyDictionary<DateTime, PertenenciaMarcacion> Clasificar(
+        TurnoDiario? turno,
+        DateOnly fecha,
+        IReadOnlyList<MarcacionNormalizada> marcaciones,
+        CoberturasVecinas? vecinas = null)
+        => throw new NotImplementedException();
+
     public static CoberturaDeMarcacion? CoberturaEfectiva(
         TurnoDiario? turno,
         DateOnly fecha,
