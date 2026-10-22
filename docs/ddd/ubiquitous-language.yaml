@@ -1656,12 +1656,13 @@ terms:
       Vista (read model) del Aprobador: una fila liviana por colaborador+dia con la
       superficie de DECISION en dos ejes -- Plan (ConJornada/Descanso/SinProgramar +
       NombreTurno) y anomalias ya juzgadas (NoSePresento, FranjasIncompletas,
-      VinoEnDescanso, TrabajoSinProgramacion, ConflictoDeSedePendiente) -- mas Estado y
-      HorasPorConcepto sparse.
+      VinoEnDescanso, TrabajoSinProgramacion, ConflictoDeSedePendiente,
+      MarcacionAmbiguaPendiente) -- mas Estado y HorasPorConcepto sparse.
       La superficie de INVESTIGACION (franjas, marcaciones) NO se materializa: se lee
       en vivo hidratando el aggregate DiaCalculado. Proyeccion N1 sobre el stream dc:.
     context: ControlHoras
     date_added: 2026-08-17
+    date_updated: 2026-10-21
     note: >
       Criterio de diseno (2026-08-17): se materializa la superficie de decision; la de
       investigacion se lee en vivo. El resumen del periodo se agrega en query-time sobre
@@ -1674,6 +1675,13 @@ terms:
       re-deriva SOLO el booleano desde la foto (segunda aparicion de la politica de conflicto,
       MEF-ADR-0018); el detalle por franja (candidatas, sede efectiva) sigue siendo superficie
       de investigacion en vivo (#482).
+      Refinamiento 2026-10-21 (#1141): bandera MarcacionAmbiguaPendiente -- el dia tiene al
+      menos una marcacion con Pertenencia Ambigua (#1139) que el Aprobador debe asignar a uno
+      de los dos turnos (#1130); se senalan los dos dias que la disputan. DiaAprobado la
+      apaga, como a ConflictoDeSedePendiente. El resumen gana su contador; sin filtro.
+      Hallazgo (#1143): NoSePresento, VinoEnDescanso, TrabajoSinProgramacion y VinoEnAusencia
+      cuentan tambien las marcaciones de los turnos vecinos (salida de madrugada de la
+      vispera).
 
   - name: Dia sin programar
     definition: >
