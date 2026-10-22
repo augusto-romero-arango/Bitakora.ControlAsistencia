@@ -14,6 +14,7 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
 {
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000604");
     private static readonly SedeProgramada Sede = new("SEDE-SUBA", "Suba");
+    private static readonly HorasYMinutos AmplitudDeTresHoras = HorasYMinutos.Crear(3, 0);
 
     protected override ICommandHandlerAsync<QuitarFranja> Handler =>
         new QuitarFranjaCommandHandler(EventStore, PrivateEventSender);
@@ -32,6 +33,13 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
 
     private static TurnoCreado CrearEventoTurnoDeDescanso() =>
         TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+    private static TurnoCreado CrearEventoTurnoFijo() =>
+        TurnoCreado.Crear(TurnoId, "Turno Fijo",
+            [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]);
+
+    private static VentanaDeEntradaModificada CrearEventoVentanaDeTresHoras() =>
+        VentanaDeEntradaModificada.Crear(TurnoId, AmplitudDeTresHoras);
 
     private static FranjaOrdinaria FranjaEsperadaConDescansoYSede() =>
         FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0),
@@ -131,15 +139,10 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
     }
 
-    private static HorasYMinutos Horas(int h) => HorasYMinutos.Crear(h, 0);
-
     [Fact]
     public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoEsLaUnicaFranjaDeUnTurnoConVentana()
     {
-        Given(TurnoId.ToString(),
-            TurnoCreado.Crear(TurnoId, "Turno Fijo",
-                [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+        Given(TurnoId.ToString(), CrearEventoTurnoFijo(), CrearEventoVentanaDeTresHoras());
 
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(7, 0)));
 
@@ -160,13 +163,14 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
                 new DatosFranja(new TimeOnly(6, 0), new TimeOnly(10, 0), [], []),
                 new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [])
             ]),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+            CrearEventoVentanaDeTresHoras());
 
         await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(14, 0)));
 
         Then(TurnoId.ToString(), FranjaQuitada.Crear(
             TurnoId, FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(18, 0))));
-        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.Turno.TieneVentanaDeEntrada(Horas(3)), true);
+        And<CatalogoTurnos, ResultadoModificarVentanaDeEntrada>(TurnoId.ToString(),
+            c => c.ModificarVentanaDeEntrada(AmplitudDeTresHoras), ResultadoModificarVentanaDeEntrada.SinCambios);
     }
 
     [Fact]
@@ -184,10 +188,7 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
     [Fact]
     public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaNoExisteEnUnTurnoConVentana()
     {
-        Given(TurnoId.ToString(),
-            TurnoCreado.Crear(TurnoId, "Turno Fijo",
-                [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+        Given(TurnoId.ToString(), CrearEventoTurnoFijo(), CrearEventoVentanaDeTresHoras());
 
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(8, 0)));
 
@@ -201,10 +202,8 @@ public class QuitarFranjaCommandHandlerTests : CommandHandlerAsyncTest<QuitarFra
     [Fact]
     public async Task QuitarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoRetiradoTieneVentana()
     {
-        Given(TurnoId.ToString(),
-            TurnoCreado.Crear(TurnoId, "Turno Fijo",
-                [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [])]),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)), TurnoRetirado.Crear(TurnoId));
+        Given(TurnoId.ToString(), CrearEventoTurnoFijo(), CrearEventoVentanaDeTresHoras(),
+            TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(new QuitarFranja(TurnoId, new TimeOnly(7, 0)));
 

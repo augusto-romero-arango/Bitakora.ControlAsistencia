@@ -1,6 +1,3 @@
-// Issue #602: agregar una franja ordinaria a un turno existente -- primer paso del diseno de
-// turno por pasos (CA-ADR-0033).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction;
@@ -29,6 +26,13 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
 
     private static TurnoCreado CrearEventoTurnoDeDescanso() =>
         TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+    private static TurnoCreado CrearEventoTurnoConFranja(int horaInicio, int horaFin) =>
+        TurnoCreado.Crear(TurnoId, "Turno Manana",
+            [new DatosFranja(new TimeOnly(horaInicio, 0), new TimeOnly(horaFin, 0), [], [])]);
+
+    private static VentanaDeEntradaModificada CrearEventoVentanaDeEntrada(int horas) =>
+        VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(horas, 0));
 
     // CA-6: camino feliz -- la sede prearmada viaja en el comando y queda en la franja persistida;
     // el turno pasa de incompleto a completo con la primera franja.
@@ -175,17 +179,11 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
-    private static HorasYMinutos Horas(int h) => HorasYMinutos.Crear(h, 0);
-
-    private TurnoCreado TurnoConVentana(int hi, int mi, int hf, int mf) =>
-        TurnoCreado.Crear(TurnoId, "Turno Manana",
-            [new DatosFranja(new TimeOnly(hi, mi), new TimeOnly(hf, mf), [], [])]);
-
     [Fact]
     public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaDejaElInicioAntesDeLaHoraDeCorte()
     {
-        Given(TurnoId.ToString(), TurnoConVentana(7, 0, 16, 0),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(7, 16),
+            CrearEventoVentanaDeEntrada(3));
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(5, 0)));
@@ -201,8 +199,8 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     [Fact]
     public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaFranjaMasLaVentanaLlegaALaMedianoche()
     {
-        Given(TurnoId.ToString(), TurnoConVentana(6, 0, 10, 0),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(4)));
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(6, 10),
+            CrearEventoVentanaDeEntrada(4));
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(20, 0), new TimeOnly(23, 0)));
@@ -218,8 +216,8 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     [Fact]
     public async Task AgregarFranja_EmiteFranjaAgregada_CuandoLaUltimaFranjaMasLaVentanaQuedaUnMinutoAntesDeLaMedianoche()
     {
-        Given(TurnoId.ToString(), TurnoConVentana(6, 0, 10, 0),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(4)));
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(6, 10),
+            CrearEventoVentanaDeEntrada(4));
 
         await WhenAsync(new AgregarFranja(TurnoId, new TimeOnly(19, 59), new TimeOnly(23, 0)));
 
@@ -232,7 +230,7 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     [Fact]
     public async Task AgregarFranja_EmiteFranjaAgregada_CuandoLaAmplitudEsCeroAunqueLaFranjaEmpiecePasadaLaMedianoche()
     {
-        Given(TurnoId.ToString(), TurnoConVentana(12, 0, 16, 0));
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(12, 16));
 
         await WhenAsync(new AgregarFranja(TurnoId, new TimeOnly(2, 0), new TimeOnly(10, 0)));
 
@@ -245,8 +243,8 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     [Fact]
     public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaSeSolapaYAdemasRompeLaVentana()
     {
-        Given(TurnoId.ToString(), TurnoConVentana(7, 0, 16, 0),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)));
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(7, 16),
+            CrearEventoVentanaDeEntrada(3));
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(8, 0)));
@@ -261,8 +259,8 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     [Fact]
     public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoRetiradoTieneVentanaQueLaFranjaRompe()
     {
-        Given(TurnoId.ToString(), TurnoConVentana(7, 0, 16, 0),
-            VentanaDeEntradaModificada.Crear(TurnoId, Horas(3)), TurnoRetirado.Crear(TurnoId));
+        Given(TurnoId.ToString(), CrearEventoTurnoConFranja(7, 16),
+            CrearEventoVentanaDeEntrada(3), TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(
             new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(5, 0)));
