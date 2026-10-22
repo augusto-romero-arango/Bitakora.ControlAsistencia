@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -34,7 +35,7 @@ public static class DepuradorDeMarcaciones
         CoberturasVecinas? vecinas = null)
     {
         if (Resolver(turno, fecha, marcaciones, vecinas) is not (_, var cobertura, _))
-            return new Dictionary<DateTime, PertenenciaMarcacion>();
+            return ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
         return marcaciones
             .Select(m => m.TimestampNormalizado)

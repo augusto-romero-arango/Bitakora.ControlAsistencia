@@ -101,4 +101,14 @@ public class DepuradorDeMarcacionesPertenenciaTests
 
         resultado.Should().BeEmpty();
     }
+
+    [Fact]
+    public void Clasificar_NoClasifica_CuandoElTurnoEsDescanso()
+    {
+        var descanso = new TurnoDiario("Descanso", [], "");
+
+        var resultado = DepuradorDeMarcaciones.Clasificar(descanso, Dia, [M(Dia, 7, 10)]);
+
+        resultado.Should().BeEmpty();
+    }
 }

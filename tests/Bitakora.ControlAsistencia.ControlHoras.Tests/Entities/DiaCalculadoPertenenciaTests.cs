@@ -89,4 +89,12 @@ public class DiaCalculadoPertenenciaTests
 
         dia.GenerarDepuracionDelDia().Marcaciones.Should().ContainSingle().Which.Pertenencia.Should().BeNull();
     }
+
+    // La vista lee por nombre el string del evento: un valor del dominio que falte aqui se leeria
+    // como DelTurno sin error.
+    [Fact]
+    public void PertenenciaMarcacion_TieneLosMismosNombresEnLaVistaQueEnElDominio()
+    {
+        Enum.GetNames<VistaPertenencia>().Should().Equal(Enum.GetNames<PertenenciaMarcacion>());
+    }
 }

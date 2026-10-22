@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -43,13 +44,13 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private DateTime? _inicioCoberturaDiaSiguiente;
     private DateTime? _finCoberturaEfectiva;
     private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
-        new Dictionary<DateTime, PertenenciaMarcacion>();
+        ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
     // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
-        _pertenencias = new Dictionary<DateTime, PertenenciaMarcacion>();
+        _pertenencias = ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
         if (_ausenciaId is not null) return;
         var vecinas = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
         var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones, vecinas);
