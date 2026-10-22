@@ -10,17 +10,10 @@ public static class DepuradorDeMarcaciones
         IReadOnlyList<MarcacionNormalizada> marcaciones,
         CoberturasVecinas? vecinas = null)
     {
-        if (turno?.Cobertura(fecha) is not { } coberturaReferencia)
+        if (Resolver(turno, fecha, marcaciones, vecinas) is not var (horarioEfectivo, cobertura, usables))
             return [];
 
-        var ancla = marcaciones
-            .Where(m => coberturaReferencia.Contiene(m.TimestampNormalizado))
-            .Min(m => (DateTime?)m.TimestampNormalizado);
-        var horarioEfectivo = turno.HorarioEfectivo(fecha, ancla);
-
-        // HorarioEfectivo conserva las franjas, asi que la cobertura efectiva existe.
-        var cobertura = horarioEfectivo.Cobertura(fecha)!;
-        var marcacionesOrdenadas = marcaciones
+        var marcacionesOrdenadas = usables
             .Where(m => cobertura.Contiene(m.TimestampNormalizado))
             .OrderBy(m => m.TimestampNormalizado)
             .ToList();
@@ -37,6 +30,36 @@ public static class DepuradorDeMarcaciones
                 rangosDeCaptura[indice],
                 marcacionesOrdenadas))
             .ToList();
+    }
+
+    public static CoberturaDeMarcacion? CoberturaEfectiva(
+        TurnoDiario? turno,
+        DateOnly fecha,
+        IReadOnlyList<MarcacionNormalizada> marcaciones,
+        CoberturasVecinas? vecinas = null) =>
+        Resolver(turno, fecha, marcaciones, vecinas)?.Cobertura;
+
+    // Las marcaciones en la cobertura de un vecino no se usan ni como ancla ni como entrada o salida.
+    private static (TurnoDiario Horario, CoberturaDeMarcacion Cobertura, List<MarcacionNormalizada> Usables)? Resolver(
+        TurnoDiario? turno,
+        DateOnly fecha,
+        IReadOnlyList<MarcacionNormalizada> marcaciones,
+        CoberturasVecinas? vecinas)
+    {
+        if (turno?.Cobertura(fecha) is not { } coberturaReferencia)
+            return null;
+
+        var usables = marcaciones
+            .Where(m => vecinas?.Excluye(m.TimestampNormalizado) != true)
+            .ToList();
+        var ancla = usables
+            .Where(m => coberturaReferencia.Contiene(m.TimestampNormalizado))
+            .Min(m => (DateTime?)m.TimestampNormalizado);
+        var horarioEfectivo = turno.HorarioEfectivo(fecha, ancla);
+
+        // HorarioEfectivo conserva las franjas, asi que la cobertura efectiva existe.
+        var cobertura = horarioEfectivo.Cobertura(fecha)!;
+        return (horarioEfectivo, cobertura, usables.Where(m => cobertura.Contiene(m.TimestampNormalizado)).ToList());
     }
 
     private static (DateTime Inicio, DateTime Fin) ResolverRango(FranjaProgramada franja, DateOnly fecha)

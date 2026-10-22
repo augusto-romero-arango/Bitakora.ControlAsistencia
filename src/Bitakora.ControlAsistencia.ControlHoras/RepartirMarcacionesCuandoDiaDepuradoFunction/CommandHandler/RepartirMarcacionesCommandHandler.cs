@@ -26,6 +26,8 @@ public partial class RepartirMarcacionesCommandHandler : ICommandHandlerAsync<Re
             var vecino = await CargarAsync(command.CodigoColaborador, fechaVecino, ct);
             if (vecino is null) continue;
 
+            if (vecino.ActualizarCoberturaVecina(dia)) cambiados.Add(vecino);
+            if (dia.ActualizarCoberturaVecina(vecino)) cambiados.Add(dia);
             if (vecino.RecogerDe(dia)) cambiados.Add(vecino);
             if (dia.RecogerDe(vecino)) cambiados.Add(dia);
         }
