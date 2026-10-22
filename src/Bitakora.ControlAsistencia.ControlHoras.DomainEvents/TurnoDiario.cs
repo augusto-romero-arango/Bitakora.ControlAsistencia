@@ -10,8 +10,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// </summary>
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
-/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno (issue #288)
-/// y TurnoProgramado (Programacion.DomainEvents, issue #319). La amplitud de la ventana de entrada SI
+/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno y
+/// TurnoProgramado (Programacion.DomainEvents). La amplitud de la ventana de entrada SI
 /// entra: es dato de identidad (los streams legados sin la clave leen 0).
 /// </remarks>
 public record TurnoDiario(
@@ -23,11 +23,13 @@ public record TurnoDiario(
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
     /// posicional y la propiedad declarada como string no anulable mentiria. Se normaliza a
-    /// cadena vacia -- mismo criterio que DetalleTurno (issue #288).
+    /// cadena vacia -- mismo criterio que DetalleTurno.
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
     private const int UltimoMinutoDelDia = 1439;
+    private static readonly TimeSpan MargenAntesDeApertura = TimeSpan.FromHours(2);
+    private static readonly TimeSpan MargenDespuesDeFin = TimeSpan.FromHours(4);
 
     public bool TieneVentanaDeEntrada => AmplitudVentanaEntradaEnMinutos > 0;
 
@@ -58,6 +60,16 @@ public record TurnoDiario(
         };
     }
 
+    public CoberturaDeMarcacion? Cobertura(DateOnly fecha)
+    {
+        if (FranjasOrdinarias.Count == 0)
+            return null;
+
+        var apertura = FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
+        var fin = FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));
+        return new CoberturaDeMarcacion(apertura - MargenAntesDeApertura, fin + MargenDespuesDeFin);
+    }
+
     public virtual bool Equals(TurnoDiario? other)
     {
         if (other is null) return false;
@@ -77,7 +89,7 @@ public record TurnoDiario(
     }
 
     /// <summary>
-    /// Segmenta el turno en bloques absolutos de tiempo (issue #327): cada franja se recorta por sus
+    /// Segmenta el turno en bloques absolutos de tiempo: cada franja se recorta por sus
     /// descansos y extras, cada tramo resultante se rompe en la medianoche que cruce y se resuelve
     /// contra <paramref name="fecha"/> (el dia de asignacion del turno). Lectura pura -- no muta el
     /// turno ni persiste el resultado (MEF-ADR-0012, Tell-don't-Ask: cada paso lo ejecuta el objeto
