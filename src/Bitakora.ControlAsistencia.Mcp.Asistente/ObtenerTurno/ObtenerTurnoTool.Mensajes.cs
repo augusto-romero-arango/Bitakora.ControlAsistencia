@@ -15,5 +15,9 @@ public partial class ObtenerTurnoTool
         /// <summary>{0}: id pedido.</summary>
         public static string TurnoNoExiste =>
             ResourceManager.GetString(nameof(TurnoNoExiste))!;
+
+        /// <summary>{0}: apertura, {1}: cierre, {2}: amplitud.</summary>
+        public static string EntraEntre =>
+            ResourceManager.GetString(nameof(EntraEntre))!;
     }
 }
