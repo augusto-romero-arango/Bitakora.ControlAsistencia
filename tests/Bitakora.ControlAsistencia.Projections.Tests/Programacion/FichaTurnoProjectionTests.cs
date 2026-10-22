@@ -11,6 +11,7 @@
 // BeEquivalentTo, no Be: FichaTurno es un record plano sin igualdad por valor sobre sus colecciones
 // (MEF-ADR-0035) -- Be compararia Franjas por referencia y fallaria con valores identicos.
 
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Programacion;
@@ -413,5 +414,199 @@ public class FichaTurnoProjectionTests
         var franjaEsperada = franjaConSede with { SedeId = null, NombreSede = null, Descripcion = "(06:00-14:00)" };
         vista.Franjas.Should().BeEquivalentTo([franjaEsperada]);
         vista.Descripcion.Should().Be("(06:00-14:00)");
+    }
+
+    private static Event<TurnoCreado> Evento(TurnoCreado turnoCreado) =>
+        new(turnoCreado)
+        {
+            StreamKey = turnoCreado.TurnoId.ToString(),
+            Version = 1,
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+
+    private static FichaTurno FichaCon(string[] rangos, VentanaDeEntradaFicha? ventana)
+    {
+        var franjas = rangos
+            .Select(r => r.Split('-'))
+            .Select(p => (Ini: TimeOnly.Parse(p[0]), Fin: TimeOnly.Parse(p[1])))
+            .Select(r => new FranjaFicha(
+                r.Ini, r.Fin, 0, [], [], null, null, $"({r.Ini:HH\\:mm}-{r.Fin:HH\\:mm})"))
+            .ToList();
+        return new FichaTurno(
+            Guid.NewGuid().ToString(), "Turno", false,
+            string.Join(", ", rangos), franjas,
+            string.Join(", ", franjas.Select(f => f.Descripcion)), Completo: true, VentanaDeEntrada: ventana);
+    }
+
+    [Fact]
+    public void Create_DejaVentanaDeEntradaNula_CuandoTurnoDeDescanso()
+    {
+        var vista = FichaTurnoProjection.Create(Evento(TurnoCreado.CrearDescanso(Guid.NewGuid(), "Descanso")));
+
+        vista.VentanaDeEntrada.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_DejaVentanaDeEntradaNula_CuandoTurnoSinFranjas()
+    {
+        var vista = FichaTurnoProjection.Create(Evento(TurnoCreado.Crear(Guid.NewGuid(), "Vacio", [])));
+
+        vista.VentanaDeEntrada.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_DejaVentanaDeEntradaNula_CuandoTurnoConFranjas()
+    {
+        var vista = FichaTurnoProjection.Create(Evento(TurnoCreado.Crear(
+            Guid.NewGuid(), "Manana", [new DatosFranja(new TimeOnly(7, 0), new TimeOnly(16, 0), [], [], null)])));
+
+        vista.VentanaDeEntrada.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_ProyectaVentanaDeTresHoras_CuandoVentanaDeEntradaModificadaConTresHoras()
+    {
+        var ficha = FichaCon(["07:00-16:00"], null);
+        var evento = VentanaDeEntradaModificada.Crear(Guid.NewGuid(), HorasYMinutos.Crear(3, 0));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(
+            new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h"));
+    }
+
+    [Fact]
+    public void Apply_ProyectaVentanaConMinutos_CuandoVentanaDeEntradaModificadaConDosHorasTreintaMinutos()
+    {
+        var ficha = FichaCon(["07:00-16:00"], null);
+        var evento = VentanaDeEntradaModificada.Crear(Guid.NewGuid(), HorasYMinutos.Crear(2, 30));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(
+            new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(9, 30), "2 h 30 min"));
+    }
+
+    [Fact]
+    public void Apply_DejaVentanaNula_CuandoVentanaDeEntradaModificadaConAmplitudCero()
+    {
+        var ficha = FichaCon(["07:00-16:00"],
+            new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h"));
+        var evento = VentanaDeEntradaModificada.Crear(Guid.NewGuid(), HorasYMinutos.Crear(0, 0));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_DejaVentanaNulaSinLanzar_CuandoVentanaDeEntradaModificadaSobreFichaSinFranjas()
+    {
+        var ficha = new FichaTurno(
+            Guid.NewGuid().ToString(), "Vacio", false, "Sin franjas", [], "Sin franjas", Completo: false);
+        var evento = VentanaDeEntradaModificada.Crear(Guid.NewGuid(), HorasYMinutos.Crear(3, 0));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_MueveLaAperturaConservandoLaAmplitud_CuandoFranjaAgregadaAntesDeLaPrimera()
+    {
+        var ficha = FichaCon(["07:00-16:00"],
+            new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h"));
+        var evento = FranjaAgregada.Crear(
+            Guid.NewGuid(), FranjaOrdinaria.Crear(new TimeOnly(5, 0), new TimeOnly(6, 30)));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(
+            new VentanaDeEntradaFicha(new TimeOnly(5, 0), new TimeOnly(8, 0), "3 h"));
+    }
+
+    [Fact]
+    public void Apply_MueveLaAperturaALaSiguienteFranja_CuandoFranjaQuitadaEraLaPrimera()
+    {
+        var ficha = FichaCon(["06:00-10:00", "14:00-18:00"],
+            new VentanaDeEntradaFicha(new TimeOnly(6, 0), new TimeOnly(8, 0), "2 h"));
+        var evento = FranjaQuitada.Crear(
+            Guid.NewGuid(), FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(10, 0)));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(
+            new VentanaDeEntradaFicha(new TimeOnly(14, 0), new TimeOnly(16, 0), "2 h"));
+    }
+
+    [Fact]
+    public void Apply_ConservaLaVentana_CuandoDescansoAgregado()
+    {
+        var ventana = new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h");
+        var ficha = FichaCon(["07:00-16:00"], ventana);
+        var evento = DescansoAgregado.Crear(Guid.NewGuid(), FranjaOrdinaria.Crear(
+            new TimeOnly(7, 0), new TimeOnly(16, 0),
+            descansos: [SubFranja.Crear(new TimeOnly(12, 0), new TimeOnly(12, 30))]));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(ventana);
+    }
+
+    [Fact]
+    public void Apply_ConservaLaVentana_CuandoExtraAgregado()
+    {
+        var ventana = new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h");
+        var ficha = FichaCon(["07:00-16:00"], ventana);
+        var evento = ExtraAgregado.Crear(Guid.NewGuid(), FranjaOrdinaria.Crear(
+            new TimeOnly(7, 0), new TimeOnly(16, 0),
+            extras: [SubFranja.Crear(new TimeOnly(15, 0), new TimeOnly(15, 30))]));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(ventana);
+    }
+
+    [Fact]
+    public void Apply_ConservaLaVentana_CuandoSedeDeFranjaAsignada()
+    {
+        var ventana = new VentanaDeEntradaFicha(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h");
+        var ficha = FichaCon(["07:00-16:00"], ventana);
+        var evento = SedeDeFranjaAsignada.Crear(Guid.NewGuid(), FranjaOrdinaria.Crear(
+            new TimeOnly(7, 0), new TimeOnly(16, 0), sede: new SedeProgramada("sede-01", "Sede Centro")));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.VentanaDeEntrada.Should().Be(ventana);
+    }
+
+    [Fact]
+    public void Apply_NoCambiaHorarioResumidoDescripcionNiCompleto_CuandoVentanaDeEntradaModificada()
+    {
+        var ficha = FichaCon(["07:00-16:00"], null);
+        var evento = VentanaDeEntradaModificada.Crear(Guid.NewGuid(), HorasYMinutos.Crear(3, 0));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.HorarioResumido.Should().Be("07:00-16:00");
+        vista.Descripcion.Should().Be("(07:00-16:00)");
+        vista.Completo.Should().BeTrue();
+    }
+
+    // Forma de una ficha materializada antes de la ventana de entrada: el worker serializa con
+    // Casing.Default (claves PascalCase), asi que el oraculo usa opciones por defecto, sensibles a
+    // mayusculas.
+    [Fact]
+    public void Deserializar_DejaVentanaNula_CuandoElJsonNoTieneLaClaveVentanaDeEntrada()
+    {
+        const string json = """
+            {"Id":"t-1","Nombre":"Turno","EsDescanso":false,"HorarioResumido":"Sin franjas",
+             "Franjas":[],"Descripcion":"Sin franjas","Completo":false}
+            """;
+
+        var ficha = JsonSerializer.Deserialize<FichaTurno>(json);
+
+        ficha!.Nombre.Should().Be("Turno");
+        ficha.VentanaDeEntrada.Should().BeNull();
     }
 }
