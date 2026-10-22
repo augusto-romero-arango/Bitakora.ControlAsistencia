@@ -70,24 +70,18 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     //   - dia calendario (2026-03-15) y dia anterior (2026-03-14)
     // CA-9: la ventana de traslape tiene corte a las 04:00 AM (constante del handler)
     [Fact]
-    public async Task RegistroDeMarcacionCreado_CreaDosControlDiarios_CuandoHoraEstaEnVentanaNocturna()
+    public async Task RegistroDeMarcacionCreado_CreaSoloElControlDiarioDelDiaCalendario_CuandoHoraEsDeMadrugada()
     {
-        // Sin Given - ninguno de los dos streams existe
+        // Sin Given - la marcacion de madrugada se guarda solo en su dia; el reparto la lleva a la vispera
         await WhenAsync(CrearRegistroDeMarcacionCreado(TimestampDentroDeVentana));
 
-        // Dia calendario: 2026-03-15
         Then(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampDentroDeVentana));
         And<ControlDiarioAggregateRoot, int>(
             StreamIdDia15, c => c.Marcaciones.Count, 1);
         And<ControlDiarioAggregateRoot, DateOnly>(
             StreamIdDia15, c => c.Fecha, new DateOnly(2026, 3, 15));
 
-        // Dia anterior: 2026-03-14 (traslape nocturno)
-        Then(StreamIdDia14, CrearMarcacionAdicionada(StreamIdDia14, TimestampDentroDeVentana));
-        And<ControlDiarioAggregateRoot, int>(
-            StreamIdDia14, c => c.Marcaciones.Count, 1);
-        And<ControlDiarioAggregateRoot, DateOnly>(
-            StreamIdDia14, c => c.Fecha, new DateOnly(2026, 3, 14));
+        Then(StreamIdDia14);
     }
 
     // CA-3: lista de marcaciones crece al adicionar una marcacion nueva

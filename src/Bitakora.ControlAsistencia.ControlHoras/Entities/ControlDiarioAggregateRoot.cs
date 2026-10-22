@@ -148,6 +148,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
+    internal bool RecogerDe(ControlDiarioAggregateRoot vecino) => throw new NotImplementedException();
+
     // Proyecta el estampado sobre la marcacion correlacionada. Sin coincidencia no lanza
     // (MEF-ADR-0004): Apply solo proyecta estado.
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().

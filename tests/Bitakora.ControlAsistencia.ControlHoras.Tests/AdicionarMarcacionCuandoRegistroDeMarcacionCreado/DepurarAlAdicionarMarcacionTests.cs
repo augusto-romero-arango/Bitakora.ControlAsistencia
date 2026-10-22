@@ -217,37 +217,23 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
     // Publica dos DiaDepurado - uno por cada fecha, en el orden de procesamiento del handler.
     // Verifica con ThenIsPublishedPrivately(evento1, evento2): count exacto + orden exacto.
     [Fact]
-    public async Task RegistroDeMarcacionCreado_PublicaDosDiaDepurado_CuandoMarcacionEstaEnVentanaNocturna()
+    public async Task RegistroDeMarcacionCreado_PublicaUnSoloDiaDepurado_CuandoMarcacionEstaEnMadrugada()
     {
-        // Sin Given - ninguno de los dos streams existe
         var timestampNocturno = new DateTime(2026, 3, 15, 2, 0, 0);
-        var fechaDiaCal = Fecha;                        // 2026-03-15 (dia calendario)
-        var fechaDiaAnt = Fecha.AddDays(-1);            // 2026-03-14 (dia anterior)
 
         await WhenAsync(CrearRegistroDeMarcacionCreado(timestampNocturno));
 
-        // Verificar que cada stream tiene exactamente un MarcacionAdicionada
         Then(StreamId,
             new MarcacionAdicionada(StreamId, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
-        Then(StreamIdDiaAnterior,
-            new MarcacionAdicionada(StreamIdDiaAnterior, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
+        Then(StreamIdDiaAnterior);
 
-        // CA-5: dos DiaDepurado publicados, en orden: dia calendario primero, dia anterior segundo.
-        // Ambos sin turno previo (Colaborador=null, NombreTurno=null, Franjas vacia), pero con
-        // CodigoColaborador top-level y la marcacion cruda en Marcaciones.
-        // Issue #183 CA-6: sin turno en ninguno de los dos streams, HorasPorConcepto viaja vacio en ambos.
         var marcacionNocturna = new MarcacionDelDia(timestampNocturno, "ENTRADA");
         ThenIsPublishedPrivately(
             new DiaDepurado(
-                CodigoColaborador, fechaDiaCal, null, null, [], [marcacionNocturna],
-                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])),
-            new DiaDepurado(
-                CodigoColaborador, fechaDiaAnt, null, null, [], [marcacionNocturna],
+                CodigoColaborador, Fecha, null, null, [], [marcacionNocturna],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
 
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
-        And<ControlDiarioAggregateRoot, int>(
-            StreamIdDiaAnterior, c => c.ControlesDeFranja.Count, 0);
     }
 }

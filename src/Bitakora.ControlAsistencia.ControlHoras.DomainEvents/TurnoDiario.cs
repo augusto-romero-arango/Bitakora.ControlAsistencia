@@ -70,6 +70,8 @@ public record TurnoDiario(
         return new CoberturaDeMarcacion(apertura - MargenAntesDeApertura, fin + MargenDespuesDeFin);
     }
 
+    public CoberturaDeMarcacion? CoberturaPosible(DateOnly fecha) => throw new NotImplementedException();
+
     public virtual bool Equals(TurnoDiario? other)
     {
         if (other is null) return false;

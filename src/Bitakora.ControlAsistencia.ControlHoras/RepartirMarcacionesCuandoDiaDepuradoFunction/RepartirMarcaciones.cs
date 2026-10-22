@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
+
+public record RepartirMarcaciones(string CodigoColaborador, DateOnly Fecha);

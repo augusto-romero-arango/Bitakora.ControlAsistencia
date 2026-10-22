@@ -91,10 +91,10 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             null);
     }
 
-    // CA-2: traslape nocturno -- mismos dias-destino que la marcacion; en [00:00, 04:00) el
-    // estampado va al cd: del dia calendario Y al del dia anterior.
+    // CA-6 (#1125): el estampado solo toca el dia calendario; la copia en el vecino recibe la sede
+    // por el reparto, no por este handler.
     [Fact]
-    public async Task SedeDeMarcacionResuelta_EstampaEnAmbosControlDiariosYRepublicaAmbosDiaDepurado_CuandoLaMarcacionEstaEnVentanaNocturna()
+    public async Task SedeDeMarcacionResuelta_EstampaSoloElDiaCalendario_CuandoLaMarcacionEstaEnMadrugada()
     {
         Given(StreamIdDia15, CrearMarcacionAdicionada(StreamIdDia15, TimestampDentroDeVentana));
         Given(StreamIdDia14, CrearMarcacionAdicionada(StreamIdDia14, TimestampDentroDeVentana));
@@ -102,7 +102,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         await WhenAsync(CrearSedeDeMarcacionResuelta(TimestampDentroDeVentana));
 
         Then(StreamIdDia15, CrearSedeDeMarcacionIdentificada(StreamIdDia15, TimestampDentroDeVentana));
-        Then(StreamIdDia14, CrearSedeDeMarcacionIdentificada(StreamIdDia14, TimestampDentroDeVentana));
+        Then(StreamIdDia14);
 
         And<ControlDiarioAggregateRoot, string?>(
             StreamIdDia15,
@@ -111,16 +111,13 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         And<ControlDiarioAggregateRoot, string?>(
             StreamIdDia14,
             c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampDentroDeVentana).CodigoSede,
-            CodigoSede);
+            null);
 
         var marcacionNocturna =
             new MarcacionDelDia(TimestampDentroDeVentana, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos);
         ThenIsPublishedPrivately(
             new DiaDepurado(
                 CodigoColaborador, new DateOnly(2026, 3, 15), null, null, [], [marcacionNocturna],
-                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])),
-            new DiaDepurado(
-                CodigoColaborador, new DateOnly(2026, 3, 14), null, null, [], [marcacionNocturna],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
