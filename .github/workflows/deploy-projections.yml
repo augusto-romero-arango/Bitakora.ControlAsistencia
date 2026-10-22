@@ -264,8 +264,10 @@ jobs:
       test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
       # expected_sha vacio a proposito (CA-2): /api/version lo expone el Function App de
       # ControlHoras, no el worker de proyecciones -- un deploy de este worker no cambia ese
-      # valor, asi que esperar un SHA aca solo agotaria el timeout de 420s sin motivo. El
-      # reusable ya degrada a esperar HTTP 200 en /api/health cuando expected_sha llega vacio.
+      # valor, asi que un SHA fijo agotaria el timeout de 420s en un commit sin deploy de
+      # ControlHoras. Cuando el MISMO commit si despliega ControlHoras, la guarda del reusable
+      # detecta ese deploy ajeno y promueve el gate por SHA (/api/version + /api/ready,
+      # MEF-ADR-0031; issue #1154); sin ese deploy degrada a esperar HTTP 200 en /api/health.
       #
       # Consecuencia a vigilar (la carrera worker/consulta que anticipa el issue): ese health check
       # pega contra el Function App, que este run NO redespliega, asi que responde 200 casi de

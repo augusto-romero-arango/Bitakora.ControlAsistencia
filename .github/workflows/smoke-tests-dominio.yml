@@ -136,9 +136,27 @@ jobs:
       # ajeno incluye su propio job de smoke, que pide el mismo grupo 'smoke-tests-dev' que este
       # job ya tiene tomado. Esperar el run entero seria un deadlock -- el ajeno no puede terminar
       # hasta que este libere el grupo, y este no continua hasta que el ajeno termine.
+      #
+      # PREMISA CORREGIDA (issue #1154): terminar el job 'deploy' ajeno NO implica que el FA ya
+      # sirva el binario nuevo. Ese job termina cuando Azure/functions-action sube el zip
+      # ("Successfully deployed web package"); el host reinicia despues, y mientras tanto
+      # /api/health lo contesta 200 el binario VIEJO. Evidencia (log del job vs traza
+      # 'Application started' de func-asist-dev-control-horas): la guarda liberaba entre 33 y 104 s
+      # antes de que arrancara la instancia nueva (39731983655: 76 s, 39738130960: 33 s,
+      # 39741202905: 104 s), y la suite corria contra la instancia vieja. Correlacion: 7 de 7
+      # fallos de smoke de Deploy Projections desde 2026-10-10 tienen un Deploy ControlHoras del
+      # mismo commit con 'deploy' en success; los commits sin ese deploy, 0 fallos.
+      #
+      # Por eso, al terminar la espera, si algun run ajeno de este commit desplego el FA bajo
+      # prueba (job 'deploy' en success y su workflow declara 'app-name: <app>' del base_url), la
+      # guarda emite expected_sha=<github.sha> y 'Warmup Function App' aplica el gate por SHA de
+      # MEF-ADR-0031 (/api/version + /api/ready). Si el ajeno quedo skipped/failure/cancelled, o
+      # desplego otro FA, se conserva el fallback a /api/health.
       - name: Esperar deploys ajenos del mismo commit
+        id: guarda
         if: inputs.expected_sha == ''
         env:
+          BASE_URL: ${{ inputs.base_url }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
@@ -199,6 +217,38 @@ jobs:
 
             if [ -z "$bloqueantes" ]; then
               echo "Ningun deploy ajeno de ${SHA} tiene su job 'deploy' en vuelo. Se continua."
+
+              # Que FA se prueba: sin https://, sin path, sin .azurewebsites.net (como el warmup).
+              app="${BASE_URL#https://}"
+              app="${app%%/*}"
+              app="${app%.azurewebsites.net}"
+
+              # Runs ajenos Deploy * del mismo commit; se relee la lista tras la espera.
+              candidatos=$(jq -r --arg propio "$RUN_ID" '
+                .workflow_runs[]
+                | select((.id | tostring) != $propio)
+                | select(.name | startswith("Deploy "))
+                | "\(.id)|\(.name)|\(.path)"' "${tmp}/runs.json")
+
+              while IFS='|' read -r id nombre ruta; do
+                if [ -z "$id" ]; then
+                  continue
+                fi
+                ruta="${ruta%%@*}"
+                exitoso=$(gh api "repos/${REPO}/actions/runs/${id}/jobs" \
+                  --jq '[.jobs[] | select(.name == "deploy") | select(.conclusion == "success")] | length') || exitoso=""
+                if ! [[ "$exitoso" =~ ^[0-9]+$ ]]; then
+                  echo "::error::No se pudieron leer los jobs del run ${id} (${nombre})."
+                  exit 1
+                fi
+                if [ "$exitoso" -gt 0 ] && [ -f "$ruta" ] && grep -Eq "app-name:[[:space:]]*${app}[[:space:]]*$" "$ruta"; then
+                  echo "El run ${id} (${nombre}) desplego ${app} en ${SHA}. Se esperara /api/version == ${SHA}."
+                  echo "expected_sha=${SHA}" >> "$GITHUB_OUTPUT"
+                  exit 0
+                fi
+              done <<< "$candidatos"
+
+              echo "Ningun deploy ajeno exitoso de ${app} en ${SHA}. Se mantiene el fallback a /api/health."
               exit 0
             fi
 
@@ -214,7 +264,7 @@ jobs:
 
       - name: Warmup Function App
         run: |
-          expected_sha="${{ inputs.expected_sha }}"
+          expected_sha="${{ inputs.expected_sha || steps.guarda.outputs.expected_sha }}"
           if [ -n "$expected_sha" ]; then
             # MEF-ADR-0031 seccion 3 (enmienda 2026-09-12, run 34722573915): 230s del
             # WEBSITES_CONTAINER_START_TIME_LIMIT + ~95s de teardown/reinicio + 92s del peor
