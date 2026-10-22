@@ -32,7 +32,22 @@ public static class DepuradorDeMarcaciones
         DateOnly fecha,
         IReadOnlyList<MarcacionNormalizada> marcaciones,
         CoberturasVecinas? vecinas = null)
-        => throw new NotImplementedException();
+    {
+        if (Resolver(turno, fecha, marcaciones, vecinas) is not (_, var cobertura, _))
+            return new Dictionary<DateTime, PertenenciaMarcacion>();
+
+        return marcaciones
+            .Select(m => m.TimestampNormalizado)
+            .Distinct()
+            .ToDictionary(
+                instante => instante,
+                instante => (cobertura.Contiene(instante), vecinas?.Excluye(instante) == true) switch
+                {
+                    (false, _) => PertenenciaMarcacion.FueraDeCobertura,
+                    (true, true) => PertenenciaMarcacion.Ambigua,
+                    _ => PertenenciaMarcacion.DelTurno
+                });
+    }
 
     public static CoberturaDeMarcacion? CoberturaEfectiva(
         TurnoDiario? turno,

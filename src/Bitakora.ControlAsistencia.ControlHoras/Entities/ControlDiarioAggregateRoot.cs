@@ -42,15 +42,19 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private DateTime? _finCoberturaVispera;
     private DateTime? _inicioCoberturaDiaSiguiente;
     private DateTime? _finCoberturaEfectiva;
+    private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
+        new Dictionary<DateTime, PertenenciaMarcacion>();
 
     // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
+        _pertenencias = new Dictionary<DateTime, PertenenciaMarcacion>();
         if (_ausenciaId is not null) return;
         var vecinas = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
         var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones, vecinas);
         _controlesDeFranja.AddRange(resultado);
+        _pertenencias = DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, vecinas);
         _finCoberturaEfectiva = DepuradorDeMarcaciones
             .CoberturaEfectiva(DetalleTurno, Fecha, _marcaciones, vecinas)?.Fin;
     }
@@ -382,7 +386,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
                 m.TipoMarcacion,
                 m.CodigoSede,
                 m.NombreSede,
-                m.CentroDeCostos))
+                m.CentroDeCostos,
+                _pertenencias.TryGetValue(m.TimestampNormalizado, out var pertenencia)
+                    ? pertenencia.ToString()
+                    : null))
             .ToList();
 
     private static FranjaDepurada CrearFranjaDepurada(ControlFranja controlFranja) =>

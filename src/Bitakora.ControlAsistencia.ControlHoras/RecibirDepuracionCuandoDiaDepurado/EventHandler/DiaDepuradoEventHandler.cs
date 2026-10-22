@@ -65,7 +65,7 @@ public partial class DiaDepuradoEventHandler : IPrivateEventHandlerAsync<DiaDepu
 
     private static DomainEvents.MarcacionDelDia MapearMarcacion(MarcacionDelDia marcacion) =>
         new(marcacion.Timestamp, marcacion.Tipo,
-            marcacion.CodigoSede, marcacion.NombreSede, marcacion.CentroDeCostos);
+            marcacion.CodigoSede, marcacion.NombreSede, marcacion.CentroDeCostos, marcacion.Pertenencia);
 
     private static DomainEvents.HorasDiscriminadas MapearHoras(HorasDiscriminadas horas) =>
         new(horas.HorasPorConcepto, horas.Trazabilidad);

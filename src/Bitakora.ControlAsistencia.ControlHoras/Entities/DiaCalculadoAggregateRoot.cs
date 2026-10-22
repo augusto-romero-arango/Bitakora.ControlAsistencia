@@ -8,6 +8,7 @@ using DepuracionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.Depu
 using VistaFranjaDepurada = Bitakora.ControlAsistencia.ReadModels.ControlHoras.FranjaDepurada;
 using VistaMarcacionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.MarcacionDelDia;
 using EstadoAsistencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.EstadoAsistencia;
+using VistaPertenencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PertenenciaMarcacion;
 using PlanDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PlanDelDia;
 using SedeDeFranja = Bitakora.ControlAsistencia.ReadModels.ControlHoras.SedeDeFranja;
 
@@ -214,12 +215,17 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                     EsUsada(marcacion, _franjas),
                     marcacion.CodigoSede,
                     marcacion.NombreSede,
-                    marcacion.CentroDeCostos))
+                    marcacion.CentroDeCostos,
+                    plan == PlanDelDia.ConJornada ? LeerPertenencia(marcacion.Pertenencia) : null))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? [],
             _motivoAusencia);
     }
+
+    // Lectura legada: sin la clave, toda marcacion de un dia con jornada era del turno.
+    private static VistaPertenencia LeerPertenencia(string? pertenencia) =>
+        Enum.TryParse<VistaPertenencia>(pertenencia, out var valor) ? valor : VistaPertenencia.DelTurno;
 
     private static PlanDelDia ClasificarPlan(
         string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas, string? motivoAusencia) =>
