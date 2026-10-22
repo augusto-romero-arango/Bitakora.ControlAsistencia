@@ -2,12 +2,6 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
-// HU-122: Clase estatica pura que ejecuta el algoritmo secuencial por rango para asignar
-// marcaciones normalizadas a franjas ordinarias del turno.
-// Sin estado propio - no necesita inyeccion ni ser instanciada.
-// Funciones auxiliares (resolver franjas a DateTime, calcular cortes) son internal/private.
-// Issue #322: DetalleTurno/DetalleFranjaOrdinaria (PrivateEvents) -> TurnoDiario/FranjaProgramada
-// (ControlHoras.DomainEvents, payload por rol).
 public static class DepuradorDeMarcaciones
 {
     public static IReadOnlyList<ControlFranja> Depurar(
@@ -15,32 +9,26 @@ public static class DepuradorDeMarcaciones
         DateOnly fecha,
         IReadOnlyList<MarcacionNormalizada> marcaciones)
     {
-        // CA-6: sin turno no hay franjas que depurar
-        if (turno is null)
+        if (turno?.Cobertura(fecha) is not { } coberturaReferencia)
             return [];
 
-        var coberturaReferencia = turno.Cobertura(fecha);
-        if (coberturaReferencia is null)
-            return [];
+        var ancla = marcaciones
+            .Where(m => coberturaReferencia.Contiene(m.TimestampNormalizado))
+            .Min(m => (DateTime?)m.TimestampNormalizado);
+        var horarioEfectivo = turno.HorarioEfectivo(fecha, ancla);
 
-        DateTime? ancla = marcaciones
-            .Select(m => (DateTime?)m.TimestampNormalizado)
-            .Where(t => coberturaReferencia.Contiene(t!.Value))
-            .Min();
-        turno = turno.HorarioEfectivo(fecha, ancla);
+        // HorarioEfectivo conserva las franjas, asi que la cobertura efectiva existe.
+        var cobertura = horarioEfectivo.Cobertura(fecha)!;
+        var marcacionesOrdenadas = marcaciones
+            .Where(m => cobertura.Contiene(m.TimestampNormalizado))
+            .OrderBy(m => m.TimestampNormalizado)
+            .ToList();
 
-        var cobertura = turno.Cobertura(fecha)!;
-        marcaciones = marcaciones.Where(m => cobertura.Contiene(m.TimestampNormalizado)).ToList();
-
-        var franjasResueltas = turno.FranjasOrdinarias
+        var franjasResueltas = horarioEfectivo.FranjasOrdinarias
             .Select(franja => (Franja: franja, Rango: ResolverRango(franja, fecha)))
             .ToList();
 
-        var rangosDeCaptura = CalcularRangosDeCaptura(franjasResueltas.Select(f => f.Rango).ToList(), cobertura);
-
-        var marcacionesOrdenadas = marcaciones
-            .OrderBy(m => m.TimestampNormalizado)
-            .ToList();
+        var rangosDeCaptura = CalcularRangosDeCaptura(franjasResueltas.Select(f => f.Rango).ToList());
 
         return franjasResueltas
             .Select((item, indice) => ConstruirControlFranja(
@@ -50,8 +38,6 @@ public static class DepuradorDeMarcaciones
             .ToList();
     }
 
-    // Convierte una franja (TimeOnly + DiaOffsetFin) a un rango DateTime relativo a la fecha ancla.
-    // Para franjas nocturnas con DiaOffsetFin=1 el fin cae en el dia siguiente.
     private static (DateTime Inicio, DateTime Fin) ResolverRango(FranjaProgramada franja, DateOnly fecha)
     {
         var inicio = fecha.ToDateTime(franja.HoraInicio);
@@ -59,27 +45,23 @@ public static class DepuradorDeMarcaciones
         return (inicio, fin);
     }
 
-    // Calcula el rango de captura de cada franja usando puntos medios entre franjas adyacentes.
-    // Primera franja empieza en el inicio de la cobertura; ultima termina en el fin de la cobertura.
+    // Entre franjas adyacentes el corte es el punto medio. Los extremos quedan abiertos porque las
+    // marcaciones ya llegan acotadas a la cobertura del horario efectivo.
     private static List<(DateTime Inicio, DateTime Fin)> CalcularRangosDeCaptura(
-        IReadOnlyList<(DateTime Inicio, DateTime Fin)> rangosFranja,
-        CoberturaDeMarcacion cobertura) =>
+        IReadOnlyList<(DateTime Inicio, DateTime Fin)> rangosFranja) =>
         rangosFranja
             .Select((_, indice) => (
                 Inicio: indice == 0
-                    ? cobertura.Inicio
+                    ? DateTime.MinValue
                     : PuntoMedio(rangosFranja[indice - 1].Fin, rangosFranja[indice].Inicio),
                 Fin: indice == rangosFranja.Count - 1
-                    ? cobertura.Fin
+                    ? DateTime.MaxValue
                     : PuntoMedio(rangosFranja[indice].Fin, rangosFranja[indice + 1].Inicio)))
             .ToList();
 
-    // Punto medio entre dos DateTime usando ticks para evitar perdida de precision.
     private static DateTime PuntoMedio(DateTime a, DateTime b) =>
         a.AddTicks((b - a).Ticks / 2);
 
-    // Construye el ControlFranja asignando primera=Entrada y ultima=Salida dentro del rango.
-    // Con cero marcaciones: ambas null. Con una: Entrada poblada, Salida null. Intermedias se descartan.
     private static ControlFranja ConstruirControlFranja(
         FranjaProgramada franja,
         (DateTime Inicio, DateTime Fin) rango,

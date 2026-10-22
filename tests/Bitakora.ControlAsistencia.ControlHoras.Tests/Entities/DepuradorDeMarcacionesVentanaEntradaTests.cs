@@ -131,4 +131,14 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
             new[] { new ControlFranja(Franja(9, 10, 18, 10), En(9, 10), En(18, 10)) },
             o => o.WithStrictOrdering());
     }
+
+    [Fact]
+    public void Depurar_TomaSalidaPosteriorALaCoberturaDeReferencia_CuandoElHorarioSeDesplaza()
+    {
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno07_16(180), Fecha, [M(10, 0), M(21, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja(10, 0, 19, 0), En(10, 0), En(21, 0)) },
+            o => o.WithStrictOrdering());
+    }
 }
