@@ -65,27 +65,20 @@ public class TurnoVentanaDeEntradaTests
     }
 
     [Fact]
-    public void EvaluarVentanaDeEntrada_RetornaInicioAntesDeHoraCorte_CuandoLaPrimeraFranjaEmpiezaAntesDeLas0400()
+    public void EvaluarVentanaDeEntrada_EsValida_CuandoLaPrimeraFranjaEmpiezaDeMadrugada()
     {
         var turno = Turno.Crear("Madrugada", false, [Franja(3, 30, 12, 0)]);
-
-        turno.EvaluarVentanaDeEntrada(Horas(1)).Should().Be(EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte);
-    }
-
-    [Fact]
-    public void EvaluarVentanaDeEntrada_EsValida_CuandoLaPrimeraFranjaEmpiezaExactoALas0400()
-    {
-        var turno = Turno.Crear("Madrugada", false, [Franja(4, 0, 12, 0)]);
 
         turno.EvaluarVentanaDeEntrada(Horas(1)).Should().Be(EvaluacionVentanaDeEntrada.Valida);
     }
 
     [Fact]
-    public void EvaluarVentanaDeEntrada_EvaluaLaPrimeraFranjaPorHoraDeInicio_CuandoLaListaVieneDesordenada()
+    public void EvaluarVentanaDeEntrada_RetornaCierrePasaMedianoche_CuandoElTurnoEmpiezaDeMadrugadaYLaUltimaFranjaLlegaALas2400()
     {
-        var turno = Turno.Crear("Partido", false, [Franja(20, 0, 23, 0), Franja(3, 30, 6, 0)]);
+        var turno = Turno.Crear("Madrugada partido", false, [Franja(3, 0, 11, 0), Franja(21, 0, 23, 0)]);
 
-        turno.EvaluarVentanaDeEntrada(Horas(1)).Should().Be(EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte);
+        turno.EvaluarVentanaDeEntrada(Horas(3)).Should().Be(EvaluacionVentanaDeEntrada.CierrePasaMedianoche);
+        turno.EvaluarVentanaDeEntrada(Horas(2, 59)).Should().Be(EvaluacionVentanaDeEntrada.Valida);
     }
 
     [Fact]

@@ -180,20 +180,17 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     }
 
     [Fact]
-    public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaDejaElInicioAntesDeLaHoraDeCorte()
+    public async Task AgregarFranja_EmiteFranjaAgregada_CuandoLaFranjaEmpiezaDeMadrugadaConVentana()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoConFranja(7, 16),
             CrearEventoVentanaDeEntrada(3));
 
-        var act = async () => await WhenAsync(
-            new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(5, 0)));
+        await WhenAsync(new AgregarFranja(TurnoId, new TimeOnly(3, 0), new TimeOnly(5, 0)));
 
-        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
-            .WithMessage($"*{AgregarFranjaCommandHandler.Mensajes.InicioAntesDeHoraCorte}*");
-        Then(TurnoId.ToString());
-        ThenIsPublishedPrivately();
+        Then(TurnoId.ToString(), FranjaAgregada.Crear(
+            TurnoId, FranjaOrdinaria.Crear(new TimeOnly(3, 0), new TimeOnly(5, 0))));
         And<CatalogoTurnos, int>(TurnoId.ToString(),
-            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 1);
+            c => c.ObtenerDetalle().FranjasOrdinarias.Count, 2);
     }
 
     [Fact]
