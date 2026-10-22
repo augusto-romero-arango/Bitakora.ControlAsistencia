@@ -4,16 +4,14 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// Representacion plana del turno programado, propia del dominio Programacion.
 /// </summary>
 /// <remarks>
-/// Issue #319 (tres islas, MEF-ADR-0039 decision 2 y 6): payload propio de este ensamblado con
-/// paridad exacta de campos con DetalleTurno (PrivateEvents), incluyendo que FranjasOrdinarias
-/// tipa con FranjaProgramada, no con DetalleFranjaOrdinaria. CatalogoTurnos.ObtenerDetalle()
-/// retorna este tipo -- lo usa ProgramacionTurnoSolicitada (el evento que SE PERSISTE); el FA
-/// mapea a DetalleTurno solo para los eventos que cruzan el bus (CA-5).
+/// Payload por rol (tres islas, MEF-ADR-0039 decisiones 2 y 6): mismos nombres de campo que
+/// DetalleTurno (PrivateEvents) y TurnoDiario (ControlHoras.DomainEvents), pero FranjasOrdinarias
+/// tipa con FranjaProgramada, no con DetalleFranjaOrdinaria. Lo persiste
+/// ProgramacionTurnoSolicitada; el FA lo mapea campo a campo a DetalleTurno para el bus.
 ///
-/// El calificador "Programado" es de dominio ("el turno programado", ver ControlFranja en el
-/// glosario), no de infraestructura -- distinto de "Detalle*" (el DTO de bus). Equals/GetHashCode
-/// propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN Descripcion (dato
-/// derivado, no identidad del turno) -- mismo criterio que DetalleTurno (issue #288).
+/// Equals/GetHashCode comparan FranjasOrdinarias POR VALOR (SequenceEqual), incluyen
+/// AmplitudVentanaEntradaEnMinutos (identidad del turno) y EXCLUYEN Descripcion (dato derivado) --
+/// mismo criterio que DetalleTurno y TurnoDiario.
 /// </remarks>
 public record TurnoProgramado(
     string Nombre,
@@ -47,7 +45,7 @@ public record TurnoProgramado(
     }
 
     /// <summary>
-    /// Issue #341: cascada de sede al copiar el turno del catalogo en la solicitud de
+    /// Cascada de sede al copiar el turno del catalogo en la solicitud de
     /// programacion. Cada franja resuelve su sede efectiva con
     /// <c>franja.Sede ?? sedePorDefecto</c> -- el catalogo (intencion explicita de diseno) le gana
     /// al default de la solicitud. Funcion pura sobre records (<c>with</c>): no muta esta

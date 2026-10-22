@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
 namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.Programacion;
 
-// Issue #861 CA-2: el evento cruza el bus; el destino deserializa SIN el resolver del productor.
+// El evento cruza el bus: el destino deserializa SIN el resolver del productor.
 public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
 {
     private static readonly Guid SolicitudId = Guid.Parse("019600f0-0000-7000-8000-000000000861");

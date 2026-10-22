@@ -98,10 +98,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList());
     }
 
-    // Issue #436 (fase B): la terna llega ya resuelta desde el body y fluye TAL CUAL a los dos
-    // payloads -- aqui solo cambia el tipo, uno por isla. Murio la composicion transitoria que
-    // armaba "{Tipo}-{Numero}" y concatenaba los nombres: eso lo hace el cliente contra el maestro
-    // Colaboradores (#330), no el servidor.
+    // La terna llega ya resuelta desde el body y fluye TAL CUAL a los dos payloads -- aqui solo
+    // cambia el tipo, uno por isla. Componer "{Tipo}-{Numero}" o concatenar nombres lo hace el
+    // cliente contra el maestro Colaboradores, no el servidor.
     private static ResumenColaborador MapearResumenColaborador(ColaboradorSolicitado colaborador) =>
         new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 

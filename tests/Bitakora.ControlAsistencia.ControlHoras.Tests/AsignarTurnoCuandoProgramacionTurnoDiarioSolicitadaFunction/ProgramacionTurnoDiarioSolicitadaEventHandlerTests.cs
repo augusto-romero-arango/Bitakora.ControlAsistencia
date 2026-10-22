@@ -78,16 +78,8 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
     [Fact]
     public async Task ProgramacionTurnoDiarioSolicitada_EstampaLaAmplitudDeLaVentana_CuandoElEventoLaTrae()
     {
-        var detalleConVentana = new DetalleTurno(
-            "Turno Manana",
-            [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")],
-            "",
-            AmplitudVentanaEntradaEnMinutos: 180);
-        var turnoDiarioEsperado = new TurnoDiario(
-            "Turno Manana",
-            [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")],
-            "",
-            AmplitudVentanaEntradaEnMinutos: 180);
+        var detalleConVentana = DetalleTurnoTest with { AmplitudVentanaEntradaEnMinutos = 180 };
+        var turnoDiarioEsperado = TurnoDiarioTest with { AmplitudVentanaEntradaEnMinutos = 180 };
 
         await WhenAsync(new ProgramacionTurnoDiarioSolicitada(SolicitudId, ColaboradorResumen, Fecha, detalleConVentana));
 

@@ -1,4 +1,4 @@
-// Issue #319 CA-1: guardrail de la duplicacion deliberada de payload por rol (tres islas,
+// Guardrail de la duplicacion deliberada de payload por rol (tres islas,
 // MEF-ADR-0039 decision 2 y 6): TurnoProgramado (Programacion.DomainEvents) y DetalleTurno
 // (PrivateEvents) declaran el mismo dato en dos ensamblados que no se referencian entre si. Su
 // hija (FranjasOrdinarias) tipa DELIBERADAMENTE distinto (FranjaProgramada vs
@@ -26,10 +26,10 @@ public class TurnoProgramadoParidadConDetalleTurnoTests
     [Fact]
     public void TurnoProgramado_TipaLaAmplitudDeLaVentanaDeEntradaComoInt_IgualQueDetalleTurno()
     {
-        typeof(TurnoProgramado).GetProperty("AmplitudVentanaEntradaEnMinutos")!.PropertyType
-            .Should().Be(typeof(int));
-        typeof(DetalleTurno).GetProperty("AmplitudVentanaEntradaEnMinutos")!.PropertyType
-            .Should().Be(typeof(int));
+        typeof(TurnoProgramado).GetProperty(nameof(TurnoProgramado.AmplitudVentanaEntradaEnMinutos))!
+            .PropertyType.Should().Be(typeof(int));
+        typeof(DetalleTurno).GetProperty(nameof(DetalleTurno.AmplitudVentanaEntradaEnMinutos))!
+            .PropertyType.Should().Be(typeof(int));
     }
 
     [Fact]
