@@ -122,7 +122,7 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     // pregunta esto para decidir el rechazo "nada que retirar" (FranjaSinSede) sin leer el VO.
     public bool TieneSedePrearmada() => _sede is not null;
 
-    // Preguntas de la ventana de entrada del Turno: la ordinaria empieza siempre en offset 0.
+    // Pregunta de la ventana de entrada del Turno: la ordinaria empieza siempre en offset 0.
     internal bool LlegaALaMedianocheDesplazadaEn(HorasYMinutos amplitud) =>
         _horaInicio.ToTimeSpan().TotalMinutes + amplitud.TotalMinutos() >= MinutosPorDia;
 

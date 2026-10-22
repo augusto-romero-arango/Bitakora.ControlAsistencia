@@ -139,7 +139,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
     }
 
     [Fact]
-    public async Task ModificarVentanaDeEntrada_LanzaReglaDeNegocioDeclinada_CuandoElTurnoDeMadrugadaTerminaLlegandoALas2400()
+    public async Task ModificarVentanaDeEntrada_LanzaReglaDeNegocioDeclinada_CuandoLaUltimaFranjaDeUnTurnoDeMadrugadaLlegariaALas2400()
     {
         Given(ConFranjas(Franja(3, 0, 11, 0), Franja(21, 0, 23, 0)));
         var act = async () => await WhenAsync(Comando(GuidAggregateId, 3));
