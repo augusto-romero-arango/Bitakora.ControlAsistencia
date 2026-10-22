@@ -18,7 +18,8 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 public record TurnoProgramado(
     string Nombre,
     IReadOnlyList<FranjaProgramada> FranjasOrdinarias,
-    string Descripcion)
+    string Descripcion,
+    int AmplitudVentanaEntradaEnMinutos = 0)
 {
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro

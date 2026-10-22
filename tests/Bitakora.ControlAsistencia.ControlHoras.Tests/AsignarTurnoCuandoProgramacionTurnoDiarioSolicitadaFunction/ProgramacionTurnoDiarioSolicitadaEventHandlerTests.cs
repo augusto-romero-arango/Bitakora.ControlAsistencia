@@ -75,6 +75,27 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, TurnoDiarioTest.Nombre);
     }
 
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_EstampaLaAmplitudDeLaVentana_CuandoElEventoLaTrae()
+    {
+        var detalleConVentana = new DetalleTurno(
+            "Turno Manana",
+            [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")],
+            "",
+            AmplitudVentanaEntradaEnMinutos: 180);
+        var turnoDiarioEsperado = new TurnoDiario(
+            "Turno Manana",
+            [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")],
+            "",
+            AmplitudVentanaEntradaEnMinutos: 180);
+
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(SolicitudId, ColaboradorResumen, Fecha, detalleConVentana));
+
+        Then(StreamId, new TurnoDiarioAsignado(StreamId, Colaborador, Fecha, turnoDiarioEsperado, SolicitudId));
+        And<ControlDiarioAggregateRoot, int>(
+            StreamId, c => c.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
+    }
+
     // CA-4: YA existe ControlDiario para CodigoColaborador+Fecha - el handler agrega al stream existente
     // CA-5: el nuevo evento contiene todos los campos actualizados
     // CA-8: el segundo mensaje opera sobre el mismo stream (mismo CodigoColaborador+Fecha = mismo StreamId)

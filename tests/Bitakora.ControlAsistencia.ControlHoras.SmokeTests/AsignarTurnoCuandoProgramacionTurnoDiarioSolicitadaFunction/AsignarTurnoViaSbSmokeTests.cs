@@ -554,4 +554,56 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             && valor.ValueKind != JsonValueKind.Null;
         hayJornada.Should().BeFalse("sin DetalleJornada en el mensaje la Jornada persiste null");
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ProgramacionTurnoDiarioSolicitada_PersisteLaAmplitudDeLaVentanaDeEntrada_CuandoElEventoLaTrae()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        var solicitudId = Guid.CreateVersion7();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 13);
+        var evento = new
+        {
+            SolicitudId = solicitudId,
+            Colaborador = new
+            {
+                Identificacion = "CC-555666778",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Ventana [TEST] Entrada"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = "[TEST] Turno Ventana",
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = "08:00:00", HoraFin = "16:00:00", DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(), Extras = Array.Empty<object>()
+                    }
+                },
+                AmplitudVentanaEntradaEnMinutos = 180
+            }
+        };
+
+        await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
+
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, "turno_diario_asignado", Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+        existe.Should().BeTrue($"turno_diario_asignado deberia existir en {streamId}");
+
+        var persistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaControlHoras, streamId, "turno_diario_asignado",
+            "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
+        persistido.GetProperty("DetalleTurno").GetProperty("AmplitudVentanaEntradaEnMinutos")
+            .GetInt32().Should().Be(180);
+    }
 }

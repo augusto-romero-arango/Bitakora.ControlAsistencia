@@ -16,7 +16,8 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 public record DetalleTurno(
     string Nombre,
     IReadOnlyList<DetalleFranjaOrdinaria> FranjasOrdinarias,
-    string Descripcion)
+    string Descripcion,
+    int AmplitudVentanaEntradaEnMinutos = 0)
 {
     /// <summary>
     /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro

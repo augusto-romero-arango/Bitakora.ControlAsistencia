@@ -24,6 +24,15 @@ public class TurnoProgramadoParidadConDetalleTurnoTests
     }
 
     [Fact]
+    public void TurnoProgramado_TipaLaAmplitudDeLaVentanaDeEntradaComoInt_IgualQueDetalleTurno()
+    {
+        typeof(TurnoProgramado).GetProperty("AmplitudVentanaEntradaEnMinutos")!.PropertyType
+            .Should().Be(typeof(int));
+        typeof(DetalleTurno).GetProperty("AmplitudVentanaEntradaEnMinutos")!.PropertyType
+            .Should().Be(typeof(int));
+    }
+
+    [Fact]
     public void TurnoProgramado_TipaFranjasOrdinariasComoListaDeFranjaProgramada()
     {
         typeof(TurnoProgramado).GetProperty(nameof(TurnoProgramado.FranjasOrdinarias))!.PropertyType
