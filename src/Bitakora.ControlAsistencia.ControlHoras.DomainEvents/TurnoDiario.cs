@@ -58,7 +58,20 @@ public record TurnoDiario(
         };
     }
 
-    public CoberturaDeMarcacion? Cobertura(DateOnly fecha) => throw new NotImplementedException();
+    private const int MargenAntesDeApertura = 120;
+    private const int MargenDespuesDeFin = 240;
+
+    public CoberturaDeMarcacion? Cobertura(DateOnly fecha)
+    {
+        if (FranjasOrdinarias.Count == 0)
+            return null;
+
+        var apertura = FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
+        var fin = FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));
+        return new CoberturaDeMarcacion(
+            apertura.AddMinutes(-MargenAntesDeApertura),
+            fin.AddMinutes(MargenDespuesDeFin));
+    }
 
     public virtual bool Equals(TurnoDiario? other)
     {

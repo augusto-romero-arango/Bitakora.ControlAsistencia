@@ -19,23 +19,24 @@ public static class DepuradorDeMarcaciones
         if (turno is null)
             return [];
 
-        // Con ventana de entrada la madrugada pertenece al dia anterior: ni ancla ni se captura. Los
-        // turnos fijos conservan el comportamiento previo (riesgo latente capturado en #1113).
-        var corte = fecha.ToDateTime(TraslapeNocturno.HoraCorte);
-        if (turno.TieneVentanaDeEntrada)
-            marcaciones = marcaciones.Where(m => m.TimestampNormalizado >= corte).ToList();
+        var coberturaReferencia = turno.Cobertura(fecha);
+        if (coberturaReferencia is null)
+            return [];
 
-        DateTime? primeraDelDia = marcaciones
+        DateTime? ancla = marcaciones
             .Select(m => (DateTime?)m.TimestampNormalizado)
-            .Where(t => t >= corte)
+            .Where(t => coberturaReferencia.Contiene(t!.Value))
             .Min();
-        turno = turno.HorarioEfectivo(fecha, primeraDelDia);
+        turno = turno.HorarioEfectivo(fecha, ancla);
+
+        var cobertura = turno.Cobertura(fecha)!;
+        marcaciones = marcaciones.Where(m => cobertura.Contiene(m.TimestampNormalizado)).ToList();
 
         var franjasResueltas = turno.FranjasOrdinarias
             .Select(franja => (Franja: franja, Rango: ResolverRango(franja, fecha)))
             .ToList();
 
-        var rangosDeCaptura = CalcularRangosDeCaptura(franjasResueltas.Select(f => f.Rango).ToList());
+        var rangosDeCaptura = CalcularRangosDeCaptura(franjasResueltas.Select(f => f.Rango).ToList(), cobertura);
 
         var marcacionesOrdenadas = marcaciones
             .OrderBy(m => m.TimestampNormalizado)
@@ -59,16 +60,17 @@ public static class DepuradorDeMarcaciones
     }
 
     // Calcula el rango de captura de cada franja usando puntos medios entre franjas adyacentes.
-    // Primera franja empieza en DateTime.MinValue; ultima termina en DateTime.MaxValue.
+    // Primera franja empieza en el inicio de la cobertura; ultima termina en el fin de la cobertura.
     private static List<(DateTime Inicio, DateTime Fin)> CalcularRangosDeCaptura(
-        IReadOnlyList<(DateTime Inicio, DateTime Fin)> rangosFranja) =>
+        IReadOnlyList<(DateTime Inicio, DateTime Fin)> rangosFranja,
+        CoberturaDeMarcacion cobertura) =>
         rangosFranja
             .Select((_, indice) => (
                 Inicio: indice == 0
-                    ? DateTime.MinValue
+                    ? cobertura.Inicio
                     : PuntoMedio(rangosFranja[indice - 1].Fin, rangosFranja[indice].Inicio),
                 Fin: indice == rangosFranja.Count - 1
-                    ? DateTime.MaxValue
+                    ? cobertura.Fin
                     : PuntoMedio(rangosFranja[indice].Fin, rangosFranja[indice + 1].Inicio)))
             .ToList();
 
