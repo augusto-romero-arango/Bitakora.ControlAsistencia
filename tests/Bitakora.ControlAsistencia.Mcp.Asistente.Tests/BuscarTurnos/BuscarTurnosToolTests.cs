@@ -183,4 +183,17 @@ public class BuscarTurnosToolTests
         raiz.ContainsKey("siguienteCursor").Should().BeFalse();
         raiz.ContainsKey("total").Should().BeFalse();
     }
+
+    [Fact]
+    public async Task BuscarTurnos_SenalaConVentanaDeEntrada_SoloEnElTurnoConVentana()
+    {
+        var (texto, _) = await EjecutarTexto(
+            Fixtures.Leer("BuscarTurnos", "buscar-turnos-con-ventana.json"), "oficina");
+
+        var turnos = Parsear(texto)["turnos"]!.AsArray();
+        var conVentana = turnos.Single(t => t!["nombre"]!.GetValue<string>() == "Oficina")!.AsObject();
+        var fijo = turnos.Single(t => t!["nombre"]!.GetValue<string>() == "Oficina Fija")!.AsObject();
+        conVentana["conVentanaDeEntrada"]!.GetValue<bool>().Should().BeTrue();
+        fijo.ContainsKey("conVentanaDeEntrada").Should().BeFalse();
+    }
 }

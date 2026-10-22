@@ -51,6 +51,7 @@ public static class ConfiguracionSerializacionProgramacion
         LimitesJornada.ConfigurarSerializacion(resolver);
         JornadaCreada.ConfigurarSerializacion(resolver);
         LimitesJornadaModificados.ConfigurarSerializacion(resolver);
+        VentanaDeEntradaModificada.ConfigurarSerializacion(resolver);
         AdvertenciaPlantillaSemanal.ConfigurarSerializacion(resolver);
         AdvertenciasDePlantillaSemanalCalculadas.ConfigurarSerializacion(resolver);
         TurnoDePlantillaSemanalSincronizado.ConfigurarSerializacion(resolver);

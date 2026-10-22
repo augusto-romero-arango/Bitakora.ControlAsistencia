@@ -187,4 +187,13 @@ public class ListarTurnosToolTests
 
         resultado.Should().Be(string.Format(ListarTurnosTool.Mensajes.RechazoDelDominio, "503"));
     }
+
+    [Fact]
+    public async Task ListarTurnos_SenalaConVentanaDeEntrada_SoloEnElTurnoConVentana()
+    {
+        var (json, _) = await Ejecutar(Fixtures.Leer("ListarTurnos", "listar-turnos-con-ventana.json"));
+
+        json["turnos"]![0]!["conVentanaDeEntrada"]!.GetValue<bool>().Should().BeTrue();
+        json["turnos"]![1]!.AsObject().ContainsKey("conVentanaDeEntrada").Should().BeFalse();
+    }
 }

@@ -25,6 +25,8 @@ public class TurnoProgramadoIgualdadTests : IgualdadTestBase<TurnoProgramado>
             new TurnoProgramado("Turno Tarde", [FranjaOrdinaria()], "Turno Tarde (06:00-14:00)"));
         yield return ("FranjasOrdinarias",
             new TurnoProgramado("Turno Manana", [], "Turno Manana"));
+        yield return ("AmplitudVentanaEntradaEnMinutos",
+            new TurnoProgramado("Turno Manana", [FranjaOrdinaria()], "Turno Manana (06:00-14:00)", 180));
     }
 
     // CA-1: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).

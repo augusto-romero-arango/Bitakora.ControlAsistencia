@@ -29,7 +29,7 @@ public class ComposicionDelServidorTests
             .Select(a => (a!.PropertyName, a.IsRequired));
 
     [Fact]
-    public void ServidorMcp_ExponeLasCuarentaYDosTools_CuandoSeInspeccionaElEnsamblado()
+    public void ServidorMcp_ExponeLasToolsDelCatalogo_CuandoSeInspeccionaElEnsamblado()
     {
         var nombres = MetodosDeTool
             .Select(m => ParametroTrigger(m)!.GetCustomAttribute<McpToolTriggerAttribute>()!.ToolName);
@@ -50,7 +50,8 @@ public class ComposicionDelServidorTests
                 "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
-                "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada"
+                "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
+                "modificar_ventana_de_entrada"
             ]);
     }
 
@@ -72,6 +73,20 @@ public class ComposicionDelServidorTests
         PropiedadesDe("modificar_limites_jornada").Should().BeEquivalentTo(
             [("jornada_id", true), ("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
              ("dias_descanso_por_semana", true)]);
+
+    [Fact]
+    public void ModificarVentanaDeEntrada_DeclaraTurnoYAmplitudComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("modificar_ventana_de_entrada").Should().BeEquivalentTo([("turno", true), ("amplitud", true)]);
+
+    [Fact]
+    public void ModificarVentanaDeEntrada_PublicaHintsIdempotentes_CuandoSeInspeccionaLaTool()
+    {
+        var hints = ParametroTrigger(MetodoDe("modificar_ventana_de_entrada"))!
+            .GetCustomAttribute<McpMetadataAttribute>()!.Json;
+
+        hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+        hints.Should().Contain("\"idempotentHint\": true");
+    }
 
     [Fact]
     public void AsignarJornadaPredeterminada_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
