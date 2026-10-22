@@ -4,7 +4,13 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-21 (sesion planner, knowledge crunching de la entrada variable: nace
+# Ultima actualizacion: 2026-10-21 (sesion planner, marcaciones de madrugada: nace Cobertura de
+#   marcacion -- cada turno es dueno de las marcaciones entre 2 h antes de su apertura y 4 h despues de
+#   su fin efectivo; reemplaza a la Ventana de traslape nocturno (hora fija de empresa) como regla de
+#   ruteo y de pertenencia. Nace Marcacion ambigua (en la cobertura de dos turnos: ninguno la usa, la
+#   decide el Aprobador). Rechazados "tolerancia de marcacion" y "ventana de captura". CA-ADR-0042,
+#   issues #1124-#1130; #1113 cerrado.)
+# Actualizacion previa: 2026-10-21 (sesion planner, knowledge crunching de la entrada variable: nace
 #   Ventana de entrada -- TODO turno tiene una, abre en el inicio de su primera franja y dura una
 #   amplitud (0 = turno fijo); al depurar, la primera marcacion desde la hora de corte (04:00),
 #   acotada a la ventana, desplaza TODO el turno. Rechazados "turno flexible" (choca con la jornada
@@ -351,10 +357,51 @@ terms:
       Default: 4AM. Configurable por empresa.
     context: ControlHoras
     date_added: 2026-04-15
+    date_updated: 2026-10-21
     note: >
       Solo las marcaciones dentro de esta ventana generan doble envio.
       El depurador de cada ControlDiario decide si la marcacion le es relevante
       segun sus franjas. Si no le sirve, la ignora y no recalcula.
+      REEMPLAZADA (2026-10-21, CA-ADR-0042): la hora fija de empresa falla con nocturnos que terminan
+      despues del corte (22:00-06:00), 12x12 y turnos de 24 h, y el depurador nunca aplico la regla de
+      relevancia (la primera franja capturaba desde DateTime.MinValue, #1113). La sustituye la
+      Cobertura de marcacion (#1124 depurador, #1125 ruteo); la hora de corte se retira en #1129.
+
+  - name: Cobertura de marcacion
+    definition: >
+      Rango alrededor de un turno dentro del cual las marcaciones le pertenecen: desde 2 h antes de su
+      apertura hasta 4 h despues de su fin efectivo (constantes; configurables por empresa en el
+      futuro). Decide la pertenencia (el depurador solo usa marcaciones dentro de la cobertura: la
+      primera franja captura desde su inicio y la ultima hasta su fin) y el ruteo (una marcacion llega
+      siempre a su dia calendario y ademas a la vispera o al dia siguiente si la cobertura de su turno
+      la contiene). Con Ventana de entrada, el ancla es la primera marcacion desde apertura - 2 h.
+    context: ControlHoras
+    date_added: 2026-10-21
+    rejected_synonyms: [tolerancia de marcacion, ventana de captura, alcance del turno]
+    rejection_reason: >
+      "Tolerancia" en control de asistencia suele nombrar los minutos de gracia antes de contar
+      retardo, y "tolerancia de entrada" se confunde con la Ventana de entrada. "Ventana de captura"
+      rompe la familia "ventana" sobre el mismo turno. "Alcance" fue la alternativa no elegida.
+    note: >
+      La suma de los margenes (6 h) es el descanso minimo entre turnos consecutivos sin solape; por
+      debajo, las marcaciones del solape son Marcaciones ambiguas y la programacion lo advierte
+      (#1128). "Guardar y luego mirar": el ruteo guarda la marcacion y luego lee el turno de los
+      vecinos; al asignar un turno se guarda y luego se recogen las marcaciones de los vecinos
+      (#1126), asi ninguna se pierde aunque lleguen a la vez. Si el turno cambia, las marcaciones que
+      quedan fuera se conservan en el stream y no se usan.
+
+  - name: Marcacion ambigua
+    definition: >
+      Marcacion que cae en la Cobertura de marcacion de dos turnos consecutivos (descanso entre ellos
+      menor a 6 h). Ninguno de los dos dias la usa como entrada ni salida; ambos la muestran como
+      anomalia y el Aprobador decide a cual pertenece (#1130).
+    context: ControlHoras
+    date_added: 2026-10-21
+    note: >
+      Decision del experto 2026-10-21: no se reparte por punto medio ni la toman ambos dias -- una
+      sola marcacion no puede ser salida de la vispera y entrada del dia (esconderia un retardo o
+      inventaria horas extra). Para detectarla, cada ControlDiario conoce la cobertura de sus vecinos
+      (#1127).
 
   - name: Turno
     definition: >
@@ -430,7 +477,7 @@ terms:
       Rango dentro del cual la entrada de un colaborador desplaza su turno. TODO turno tiene una:
       abre en el inicio de su primera franja ordinaria (horario de referencia) y dura una AMPLITUD;
       amplitud 0 = turno fijo (el comportamiento de siempre). Al depurar, el ancla es la primera
-      marcacion desde la hora de corte del traslape nocturno (04:00), acotada a la ventana: antes de
+      marcacion desde el inicio de la Cobertura de marcacion (apertura - 2 h, #1124; antes la hora de corte 04:00), acotada a la ventana: antes de
       la apertura se ancla a la apertura (los minutos previos no se pagan), despues del cierre se
       ancla al cierre (la diferencia es Retardo). El desplazamiento (ancla - inicio de referencia)
       corre TODAS las franjas con sus descansos y extras. Sin marcacion no hay desplazamiento.
@@ -1969,7 +2016,7 @@ open_questions:
     date: 2026-08-17
     priority: medium
 
-  - question: "Donde vive la configuracion de la Ventana de traslape nocturno por empresa?"
+  - question: "Donde vive la configuracion por empresa de los margenes de la Cobertura de marcacion (2 h antes, 4 h despues)? Antes: de la Ventana de traslape nocturno, reemplazada el 2026-10-21."
     context: Arquitectura
     date: 2026-04-15
     priority: medium
