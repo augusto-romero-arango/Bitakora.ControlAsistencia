@@ -605,5 +605,12 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
         persistido.GetProperty("DetalleTurno").GetProperty("AmplitudVentanaEntradaEnMinutos")
             .GetInt32().Should().Be(180);
+
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
+            TopicEntrada, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
+
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar la amplitud",
+            solicitudId, SuscripcionConsumidor);
     }
 }
