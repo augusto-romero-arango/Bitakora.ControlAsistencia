@@ -5,18 +5,20 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// No tiene comportamiento de dominio, solo datos.
 /// </summary>
 /// <remarks>
-/// Issue #288: dos intervenciones sobre el record por defecto.
-/// 1) Descripcion: representacion textual normalizada (formato del tipo rico
-///    CatalogoTurnos.ToString()), dato derivado persistido -- ver decision del issue.
-/// 2) Bug latente corregido: FranjasOrdinarias es IReadOnlyList y el record por defecto la compara
-///    por referencia (ADR-0015; mismo bug que #129 ya corrigio en DetalleFranjaOrdinaria).
-///    Equals/GetHashCode propios comparan Nombre y FranjasOrdinarias POR VALOR (SequenceEqual) y
-///    EXCLUYEN Descripcion (dato derivado, no identidad del turno).
+/// Mismos nombres de campo que TurnoProgramado (Programacion.DomainEvents) y TurnoDiario
+/// (ControlHoras.DomainEvents): los Function Apps mapean campo a campo entre islas. Plano y
+/// portable (CA-ADR-0025): la amplitud viaja como int en minutos, nunca como HorasYMinutos.
+///
+/// Descripcion es la representacion textual normalizada del turno (CatalogoTurnos.ToString()),
+/// dato derivado. El record por defecto compararia FranjasOrdinarias (IReadOnlyList) por
+/// referencia: Equals/GetHashCode propios comparan Nombre, AmplitudVentanaEntradaEnMinutos y
+/// FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN Descripcion.
 /// </remarks>
 public record DetalleTurno(
     string Nombre,
     IReadOnlyList<DetalleFranjaOrdinaria> FranjasOrdinarias,
-    string Descripcion)
+    string Descripcion,
+    int AmplitudVentanaEntradaEnMinutos = 0)
 {
     /// <summary>
     /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro
@@ -30,6 +32,7 @@ public record DetalleTurno(
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
+            && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -37,6 +40,7 @@ public record DetalleTurno(
     {
         var hash = new HashCode();
         hash.Add(Nombre);
+        hash.Add(AmplitudVentanaEntradaEnMinutos);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }
