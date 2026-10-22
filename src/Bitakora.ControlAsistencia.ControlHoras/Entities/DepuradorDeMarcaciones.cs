@@ -10,13 +10,8 @@ public static class DepuradorDeMarcaciones
         IReadOnlyList<MarcacionNormalizada> marcaciones,
         CoberturasVecinas? vecinas = null)
     {
-        if (Resolver(turno, fecha, marcaciones, vecinas) is not var (horarioEfectivo, cobertura, usables))
+        if (Resolver(turno, fecha, marcaciones, vecinas) is not (var horarioEfectivo, _, var marcacionesOrdenadas))
             return [];
-
-        var marcacionesOrdenadas = usables
-            .Where(m => cobertura.Contiene(m.TimestampNormalizado))
-            .OrderBy(m => m.TimestampNormalizado)
-            .ToList();
 
         var franjasResueltas = horarioEfectivo.FranjasOrdinarias
             .Select(franja => (Franja: franja, Rango: ResolverRango(franja, fecha)))
@@ -40,7 +35,7 @@ public static class DepuradorDeMarcaciones
         Resolver(turno, fecha, marcaciones, vecinas)?.Cobertura;
 
     // Las marcaciones en la cobertura de un vecino no se usan ni como ancla ni como entrada o salida.
-    private static (TurnoDiario Horario, CoberturaDeMarcacion Cobertura, List<MarcacionNormalizada> Usables)? Resolver(
+    private static (TurnoDiario Horario, CoberturaDeMarcacion Cobertura, List<MarcacionNormalizada> MarcacionesOrdenadas)? Resolver(
         TurnoDiario? turno,
         DateOnly fecha,
         IReadOnlyList<MarcacionNormalizada> marcaciones,
@@ -59,7 +54,11 @@ public static class DepuradorDeMarcaciones
 
         // HorarioEfectivo conserva las franjas, asi que la cobertura efectiva existe.
         var cobertura = horarioEfectivo.Cobertura(fecha)!;
-        return (horarioEfectivo, cobertura, usables.Where(m => cobertura.Contiene(m.TimestampNormalizado)).ToList());
+        var marcacionesOrdenadas = usables
+            .Where(m => cobertura.Contiene(m.TimestampNormalizado))
+            .OrderBy(m => m.TimestampNormalizado)
+            .ToList();
+        return (horarioEfectivo, cobertura, marcacionesOrdenadas);
     }
 
     private static (DateTime Inicio, DateTime Fin) ResolverRango(FranjaProgramada franja, DateOnly fecha)

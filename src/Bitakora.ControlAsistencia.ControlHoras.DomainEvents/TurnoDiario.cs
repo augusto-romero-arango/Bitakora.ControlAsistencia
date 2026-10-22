@@ -68,10 +68,14 @@ public record TurnoDiario(
         return new CoberturaDeMarcacion(apertura - MargenAntesDeApertura, fin + MargenDespuesDeFin);
     }
 
-    public DateTime? Apertura(DateOnly fecha) =>
+    // Fin exclusivo: dos turnos contiguos no se solapan.
+    public bool SeSolapaCon(DateOnly fecha, TurnoDiario otro, DateOnly fechaOtro) =>
+        Apertura(fecha) < otro.Cierre(fechaOtro) && otro.Apertura(fechaOtro) < Cierre(fecha);
+
+    private DateTime? Apertura(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0 ? null : FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
 
-    public DateTime? Cierre(DateOnly fecha) =>
+    private DateTime? Cierre(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0
             ? null
             : FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));

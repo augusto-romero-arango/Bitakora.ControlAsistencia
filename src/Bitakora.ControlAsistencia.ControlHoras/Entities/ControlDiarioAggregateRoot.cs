@@ -38,6 +38,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // ignora al llegar. Por eso el dia recuerda toda AusenciaId cancelada, este o no vigente.
     private readonly HashSet<Guid> _ausenciasCanceladas = [];
 
+    // Limites de cobertura informados por los vecinos; null = el vecino no tiene cobertura.
+    private DateTime? _finCoberturaVispera;
+    private DateTime? _inicioCoberturaDiaSiguiente;
+    private DateTime? _finCoberturaEfectiva;
+
     // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
     private void Depurar()
     {
@@ -50,24 +55,20 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             .CoberturaEfectiva(DetalleTurno, Fecha, _marcaciones, vecinas)?.Fin;
     }
 
-    // Limites de cobertura informados por los vecinos; null = el vecino no tiene cobertura.
-    private DateTime? _finCoberturaVispera;
-    private DateTime? _inicioCoberturaDiaSiguiente;
-    private DateTime? _finCoberturaEfectiva;
-
-    // Toma la cobertura del vecino (su lado lo decide la fecha). true si emitio el evento.
+    // true si emitio el evento.
     internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
     {
         // Sin turno el dia no depura nada, asi que no necesita (ni registra) limites.
         if (DetalleTurno is null) return false;
 
         var lado = vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
-        var limite = lado == DiaVecino.Vispera ? vecino.FinDeSuCobertura() : vecino.InicioDeSuCobertura();
-        var actual = lado == DiaVecino.Vispera ? _finCoberturaVispera : _inicioCoberturaDiaSiguiente;
+        var (limite, actual) = lado == DiaVecino.Vispera
+            ? (vecino.FinDeSuCobertura(), _finCoberturaVispera)
+            : (vecino.InicioDeSuCobertura(), _inicioCoberturaDiaSiguiente);
         if (actual == limite) return false;
         // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia
         // (turnos que no se solapan entre si); un limite ya informado siempre se actualiza.
-        if (actual is null && !Invade(lado, limite, vecino)) return false;
+        if (actual is null && !Invade(DetalleTurno, lado, limite, vecino)) return false;
 
         var evento = CoberturaVecinaActualizada.Crear(Id, lado, limite);
         _uncommittedEvents.Add(evento);
@@ -75,15 +76,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return true;
     }
 
-    private bool Invade(DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino)
+    private bool Invade(TurnoDiario turno, DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino)
     {
-        if (limite is not { } instante || DetalleTurno is null) return false;
-        var propia = DetalleTurno.CoberturaPosible(Fecha);
-        if (propia is null) return false;
+        if (limite is not { } instante || turno.CoberturaPosible(Fecha) is not { } propia) return false;
+        if (vecino.DetalleTurno?.SeSolapaCon(vecino.Fecha, turno, Fecha) != false) return false;
 
-        return lado == DiaVecino.Vispera
-            ? instante > propia.Inicio && vecino.DetalleTurno?.Cierre(vecino.Fecha) <= DetalleTurno.Apertura(Fecha)
-            : instante < propia.Fin && vecino.DetalleTurno?.Apertura(vecino.Fecha) >= DetalleTurno.Cierre(Fecha);
+        return lado == DiaVecino.Vispera ? instante > propia.Inicio : instante < propia.Fin;
     }
 
     private DateTime? InicioDeSuCobertura() =>
