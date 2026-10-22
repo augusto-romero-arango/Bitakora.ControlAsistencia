@@ -317,7 +317,8 @@ public class CatalogoTurnos : AggregateRoot
             _turno.Nombre,
             _turno.EsDescanso(),
             detalle.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
-            !_estaActivo);
+            !_estaActivo,
+            detalle.AmplitudVentanaEntradaEnMinutos);
     }
 
     private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>

@@ -19,6 +19,7 @@ public record DisenoDeTurnoActualizado(
             && Nombre == other.Nombre
             && EsDescanso == other.EsDescanso
             && Retirado == other.Retirado
+            && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
             && Franjas.SequenceEqual(other.Franjas);
     }
 
@@ -30,6 +31,7 @@ public record DisenoDeTurnoActualizado(
         hash.Add(Nombre);
         hash.Add(EsDescanso);
         hash.Add(Retirado);
+        hash.Add(AmplitudVentanaEntradaEnMinutos);
         foreach (var f in Franjas) hash.Add(f);
         return hash.ToHashCode();
     }

@@ -28,5 +28,9 @@ public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventSt
 
         if (rechazo is not null)
             throw new ReglaDeNegocioDeclinadaException(rechazo);
+
+        var diseno = catalogo.ObtenerDisenoPublicable();
+        if (diseno is not null)
+            await privateEventSender.PublishAsync(diseno);
     }
 }
