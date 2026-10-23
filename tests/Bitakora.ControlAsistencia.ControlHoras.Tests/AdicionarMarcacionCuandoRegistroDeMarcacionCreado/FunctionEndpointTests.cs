@@ -73,7 +73,7 @@ public class FunctionEndpointTests
 
     // CA-5: error generico durante el procesamiento -> dead-letter el mensaje para inspeccion
     [Fact]
-    public async Task AdicionarMarcacionCuandoRegistroDeMarcacionCreado_EnviaADeadLetter_CuandoOcurreErrorGenerico()
+    public async Task AdicionarMarcacionCuandoRegistroDeMarcacionCreado_AbandonaMensaje_CuandoOcurreErrorGenerico()
     {
         var router = new FakePrivateEventRouter(
             excepcion: new InvalidOperationException("Error inesperado en el handler"));
@@ -83,7 +83,8 @@ public class FunctionEndpointTests
 
         await endpoint.Run(CrearMensaje(), messageActions, CancellationToken.None);
 
-        messageActions.MensajeEnDeadLetter.Should().BeTrue();
+        messageActions.MensajeAbandonado.Should().BeTrue();
+        messageActions.MensajeEnDeadLetter.Should().BeFalse();
         messageActions.MensajeCompletado.Should().BeFalse();
     }
 }
@@ -122,6 +123,7 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
 
     public bool MensajeCompletado { get; private set; }
     public bool MensajeEnDeadLetter { get; private set; }
+    public bool MensajeAbandonado { get; private set; }
 
     public FakeServiceBusMessageActions(Exception? excepcionAlCompletar = null)
     {
@@ -153,7 +155,10 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
         ServiceBusReceivedMessage message,
         IDictionary<string, object>? propertiesToModify = null,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    {
+        MensajeAbandonado = true;
+        return Task.CompletedTask;
+    }
 
     public override Task DeferMessageAsync(
         ServiceBusReceivedMessage message,

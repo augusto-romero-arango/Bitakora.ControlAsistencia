@@ -53,7 +53,7 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task RepartirMarcacionesCuandoDiaDepurado_EnviaADeadLetter_CuandoElHandlerFalla()
+    public async Task RepartirMarcacionesCuandoDiaDepurado_AbandonaMensaje_CuandoElHandlerFalla()
     {
         var router = new FakeRouterRepartir(new InvalidOperationException("fallo"));
         var acciones = new FakeAccionesRepartir();
@@ -61,7 +61,8 @@ public class FunctionEndpointTests
 
         await endpoint.Run(CrearMensaje(), acciones, CancellationToken.None);
 
-        acciones.MensajeEnDeadLetter.Should().BeTrue();
+        acciones.MensajeAbandonado.Should().BeTrue();
+        acciones.MensajeEnDeadLetter.Should().BeFalse();
         acciones.MensajeCompletado.Should().BeFalse();
     }
 
@@ -100,6 +101,7 @@ internal class FakeAccionesRepartir(Exception? excepcionAlCompletar = null) : Se
 {
     public bool MensajeCompletado { get; private set; }
     public bool MensajeEnDeadLetter { get; private set; }
+    public bool MensajeAbandonado { get; private set; }
 
     public override Task CompleteMessageAsync(
         ServiceBusReceivedMessage message, CancellationToken cancellationToken = default)
@@ -117,6 +119,15 @@ internal class FakeAccionesRepartir(Exception? excepcionAlCompletar = null) : Se
         CancellationToken cancellationToken = default)
     {
         MensajeEnDeadLetter = true;
+        return Task.CompletedTask;
+    }
+
+    public override Task AbandonMessageAsync(
+        ServiceBusReceivedMessage message,
+        IDictionary<string, object>? propertiesToModify = null,
+        CancellationToken cancellationToken = default)
+    {
+        MensajeAbandonado = true;
         return Task.CompletedTask;
     }
 }
