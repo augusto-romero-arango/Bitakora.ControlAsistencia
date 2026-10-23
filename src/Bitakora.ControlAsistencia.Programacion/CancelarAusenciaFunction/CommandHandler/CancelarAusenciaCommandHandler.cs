@@ -36,7 +36,7 @@ public partial class CancelarAusenciaCommandHandler : ICommandHandlerAsync<Cance
                     canceladas.Colaborador.NombreCompleto);
                 IPrivateEvent[] eventos = [.. canceladas.Fechas
                     .Select(f => new AusenciaDiariaCancelada(command.AusenciaId, resumen, f))];
-                await _privateEventSender.PublishAsync(eventos);
+                await _privateEventSender.PublishAsync(new PublishOptions { GroupId = resumen.CodigoColaborador }, eventos);
                 break;
         }
     }

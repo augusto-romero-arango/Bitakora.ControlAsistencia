@@ -56,6 +56,6 @@ public partial class ProgramarAusenciaCommandHandler : ICommandHandlerAsync<Prog
                 command.Id, resumen, command.FechaInicio.AddDays(offset), motivo.Nombre))
             .ToArray();
 
-        await _privateEventSender.PublishAsync(eventosPrivados);
+        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = resumen.CodigoColaborador }, eventosPrivados);
     }
 }

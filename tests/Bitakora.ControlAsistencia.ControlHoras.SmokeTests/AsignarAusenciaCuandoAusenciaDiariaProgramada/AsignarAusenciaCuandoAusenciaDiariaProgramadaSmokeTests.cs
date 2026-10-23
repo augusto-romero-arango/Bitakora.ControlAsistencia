@@ -46,7 +46,7 @@ public class AsignarAusenciaCuandoAusenciaDiariaProgramadaSmokeTests(
 
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
-        await serviceBus.PublishAsync(TopicAusenciaEntrada, new
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicAusenciaEntrada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = colaborador,
@@ -78,5 +78,12 @@ public class AsignarAusenciaCuandoAusenciaDiariaProgramadaSmokeTests(
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (AusenciaId {0}) en '{1}'",
             ausenciaId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 }
