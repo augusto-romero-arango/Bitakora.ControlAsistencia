@@ -42,5 +42,6 @@ public partial class AprobarDiaCommandHandler : ICommandHandlerAsync<AprobarDia>
             [ResultadoAprobacion.CodigoSedeNoCandidata] = Mensajes.CodigoSedeNoCandidata,
             [ResultadoAprobacion.DecisionParaFranjaInvalida] = Mensajes.DecisionParaFranjaInvalida,
             [ResultadoAprobacion.DiaYaAprobado] = Mensajes.DiaYaAprobado,
+            [ResultadoAprobacion.MarcacionesAmbiguasSinResolver] = Mensajes.MarcacionesAmbiguasSinResolver,
         });
 }

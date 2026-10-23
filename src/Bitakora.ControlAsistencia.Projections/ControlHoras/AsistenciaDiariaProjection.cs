@@ -115,6 +115,7 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
         };
 
     // Foto anterior a la pertenencia por marcacion trae null, que no es Ambigua -> false.
+    // Misma regla en DiaCalculadoAggregateRoot.Aprobar (duplicada a proposito, MEF-ADR-0018).
     private static bool EsMarcacionAmbiguaPendiente(IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         marcaciones.Any(marcacion => marcacion.Pertenencia == nameof(PertenenciaMarcacion.Ambigua));
 
