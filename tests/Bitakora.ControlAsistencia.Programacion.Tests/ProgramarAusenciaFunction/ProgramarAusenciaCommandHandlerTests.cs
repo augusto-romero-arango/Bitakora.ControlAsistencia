@@ -47,7 +47,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         Then(StreamId, new AusenciaProgramada(
             AusenciaId, ColaboradorEsperado, new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 7),
             MotivoAusencia.Vacaciones));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new AusenciaDiariaProgramada(AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 5), "Vacaciones"),
             new AusenciaDiariaProgramada(AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 6), "Vacaciones"),
             new AusenciaDiariaProgramada(AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 7), "Vacaciones"));
@@ -62,7 +62,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         Then(StreamId, new AusenciaProgramada(
             AusenciaId, ColaboradorEsperado, new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 5),
             MotivoAusencia.IncapacidadMedica));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new AusenciaDiariaProgramada(
                 AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 5), "IncapacidadMedica"));
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
@@ -76,7 +76,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         Then(StreamId, new AusenciaProgramada(
             AusenciaId, ColaboradorEsperado, new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 5),
             MotivoAusencia.LicenciaRemunerada));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new AusenciaDiariaProgramada(
                 AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 5), "LicenciaRemunerada"));
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
@@ -93,7 +93,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         Then(StreamId, new AusenciaProgramada(
             AusenciaId, ColaboradorEsperado, new DateOnly(2026, 10, 20), new DateOnly(2026, 10, 21),
             MotivoAusencia.Vacaciones));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new AusenciaDiariaProgramada(AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 20), "Vacaciones"),
             new AusenciaDiariaProgramada(AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, 21), "Vacaciones"));
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 2);
@@ -110,7 +110,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         Then(StreamId, new AusenciaProgramada(
             AusenciaId, ColaboradorEsperado, new DateOnly(2026, 10, 15), new DateOnly(2026, 10, 19),
             MotivoAusencia.Vacaciones));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             Enumerable.Range(15, 5)
                 .Select(dia => new AusenciaDiariaProgramada(
                     AusenciaId, ColaboradorResumen, new DateOnly(2026, 10, dia), "Vacaciones"))
@@ -136,6 +136,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         excepcion.Message.Should().NotContain("2026-10-20");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
@@ -150,6 +151,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
             .WithMessage($"*{ProgramarAusenciaCommandHandler.Mensajes.ChoqueConAusencia([new DateOnly(2026, 10, 19)], MotivoAusencia.Vacaciones)}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
@@ -164,6 +166,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
             .WithMessage($"*{ProgramarAusenciaCommandHandler.Mensajes.ChoqueConAusencia([new DateOnly(2026, 10, 14), new DateOnly(2026, 10, 15)], MotivoAusencia.Vacaciones)}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
@@ -180,6 +183,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
             .WithMessage($"*{ProgramarAusenciaCommandHandler.Mensajes.AusenciaYaExiste}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
@@ -194,7 +198,7 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
 
         Then(StreamId, new AusenciaProgramada(
             AusenciaId, ColaboradorEsperado, inicio, fin, MotivoAusencia.AusenciaNoRemunerada));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             Enumerable.Range(0, 126)
                 .Select(i => new AusenciaDiariaProgramada(
                     AusenciaId, ColaboradorResumen, inicio.AddDays(i), "AusenciaNoRemunerada"))

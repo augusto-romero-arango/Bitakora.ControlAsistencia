@@ -112,6 +112,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
 
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-19,22-26");
     }
 
@@ -124,6 +125,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
 
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-26");
     }
 
@@ -138,6 +140,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
             .WithMessage($"*{CancelarAusenciaCommandHandler.Mensajes.AusenciaNoEncontrada}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-26");
     }
 
@@ -150,5 +153,6 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
             .WithMessage($"*{CancelarAusenciaCommandHandler.Mensajes.AusenciaNoEncontrada}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 }

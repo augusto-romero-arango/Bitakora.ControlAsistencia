@@ -37,7 +37,7 @@ public class ProgramarAusenciaTrasCancelarTests : CommandHandlerAsyncTest<Progra
             NuevaId, "E001", "CC-12345678", "Ana Maria Gomez", Oct(20), Oct(22), "Vacaciones"));
 
         Then(StreamId, new AusenciaProgramada(NuevaId, Colaborador, Oct(20), Oct(22), MotivoAusencia.Vacaciones));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new AusenciaDiariaProgramada(NuevaId, Resumen, Oct(20), "Vacaciones"),
             new AusenciaDiariaProgramada(NuevaId, Resumen, Oct(21), "Vacaciones"),
             new AusenciaDiariaProgramada(NuevaId, Resumen, Oct(22), "Vacaciones"));

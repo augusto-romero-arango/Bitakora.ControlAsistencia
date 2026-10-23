@@ -59,7 +59,7 @@ public class CancelarProgramacionCommandHandlerTests
 
         Then(new CancelacionProgramacionSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1, Fecha2]));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new CancelacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Fecha1),
             new CancelacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Fecha2));
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 2);
@@ -91,6 +91,8 @@ public class CancelarProgramacionCommandHandlerTests
 
         await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
             .WithMessage($"*{CancelarProgramacionCommandHandler.Mensajes.SolicitudYaExiste}*");
+        ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 }
