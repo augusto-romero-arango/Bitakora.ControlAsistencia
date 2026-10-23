@@ -655,12 +655,13 @@ public class AsistenciaDiariaProjectionTests
     }
 
     [Fact]
-    public void Apply_ApagaNoSePresento_CuandoLaMarcacionAmbiguaPasaAserDelTurno()
+    public void Apply_ApagaNoSePresento_CuandoLaMarcacionAmbiguaPasaASerDelTurno()
     {
         var vistaPrevia = new AsistenciaDiaria(
             StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
-            "Turno Manana", true, false, false, false, false, new Dictionary<string, decimal>(),
-            MarcacionAmbiguaPendiente: true);
+            "Turno Manana", NoSePresento: true, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>(), MarcacionAmbiguaPendiente: true);
         var evento = CrearEvento("Turno Manana", [FranjaValida()],
             [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "DelTurno")], SinHoras());
 
