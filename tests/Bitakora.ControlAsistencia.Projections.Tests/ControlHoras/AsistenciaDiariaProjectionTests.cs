@@ -693,4 +693,90 @@ public class AsistenciaDiariaProjectionTests
 
         vista.MarcacionAmbiguaPendiente.Should().BeFalse();
     }
+
+    private static EventoMarcacionDelDia MadrugadaDeTurnoVecino() =>
+        MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), "DeTurnoVecino");
+
+    private static EventoMarcacionDelDia MarcacionPropiaDeLas10() =>
+        MarcacionConPertenencia(new DateTime(2026, 8, 24, 10, 0, 0), null);
+
+    [Fact]
+    public void Create_DejaVinoEnDescansoEnFalse_CuandoLaUnicaMarcacionEsDeTurnoVecino()
+    {
+        var evento = CrearEvento("Descanso", [], [MadrugadaDeTurnoVecino()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Descanso);
+        vista.VinoEnDescanso.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaTrabajoSinProgramacionEnFalse_CuandoLaUnicaMarcacionEsDeTurnoVecino()
+    {
+        var evento = CrearEvento(null, [], [MadrugadaDeTurnoVecino()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.SinProgramar);
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaVinoEnAusenciaEnFalse_CuandoLaUnicaMarcacionEsDeTurnoVecino()
+    {
+        var evento = CrearEventoDeAusencia("IncapacidadMedica", null, [], [MadrugadaDeTurnoVecino()]);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.VinoEnAusencia.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_MarcaVinoEnDescanso_CuandoHayMarcacionPropiaJuntoALaDeTurnoVecino()
+    {
+        var evento = CrearEvento("Descanso", [], [MadrugadaDeTurnoVecino(), MarcacionPropiaDeLas10()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.VinoEnDescanso.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaTrabajoSinProgramacion_CuandoHayMarcacionPropiaJuntoALaDeTurnoVecino()
+    {
+        var evento = CrearEvento(null, [], [MadrugadaDeTurnoVecino(), MarcacionPropiaDeLas10()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.TrabajoSinProgramacion.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaVinoEnAusencia_CuandoHayMarcacionPropiaJuntoALaDeTurnoVecino()
+    {
+        var evento = CrearEventoDeAusencia(
+            "IncapacidadMedica", null, [], [MadrugadaDeTurnoVecino(), MarcacionPropiaDeLas10()]);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.VinoEnAusencia.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_ReDerivaVinoEnDescansoEnTrue_CuandoLaMadrugadaDejaDeSerDeTurnoVecino()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.Descanso,
+            "Descanso", NoSePresento: false, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>());
+        var evento = CrearEvento("Descanso", [],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), null)], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.VinoEnDescanso.Should().BeTrue();
+    }
 }
