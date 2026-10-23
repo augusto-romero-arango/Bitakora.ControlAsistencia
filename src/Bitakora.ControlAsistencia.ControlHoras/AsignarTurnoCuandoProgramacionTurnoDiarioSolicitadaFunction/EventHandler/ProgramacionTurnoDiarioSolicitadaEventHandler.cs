@@ -55,7 +55,8 @@ public partial class ProgramacionTurnoDiarioSolicitadaEventHandler
 
         // CrearDiaDepurado() debe invocarse DESPUES del Apply: lee el desglose que el Apply
         // recalcula. Se emite siempre, incluso con ControlesDeFranja vacio o todo anomalo.
-        await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+        var diaDepurado = control.CrearDiaDepurado();
+        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
     }
 
     // Mapeo campo a campo entre las dos ternas: Identificacion y NombreCompleto ya llegan

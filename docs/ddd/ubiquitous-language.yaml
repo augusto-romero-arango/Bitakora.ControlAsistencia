@@ -4,7 +4,13 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-21 (sesion planner, marcaciones de madrugada: nace Cobertura de
+# Ultima actualizacion: 2026-10-22 (sesion planner, refinamiento de #1130: el Aprobador RESUELVE LA
+#   AMBIGUEDAD de marcaciones entre dos dias con un comando propio, antes de aprobar y del lado del
+#   calculo (ResolverAmbiguedadDeMarcaciones -> AmbiguedadDeMarcacionesResuelta); el principio de
+#   "Aprobado" queda acotado a las decisiones que no alteran el calculo. Rechazado "asignar la
+#   marcacion ambigua". Refinamiento de #1159: solo un cambio real de plan descarta la resolucion,
+#   y por par de dias. Tocados: Marcacion ambigua, Aprobado. Issues #1130, #1158, #1159.)
+# Actualizacion previa: 2026-10-21 (sesion planner, marcaciones de madrugada: nace Cobertura de
 #   marcacion -- cada turno es dueno de las marcaciones entre 2 h antes de su apertura y 4 h despues de
 #   su fin efectivo; reemplaza a la Ventana de traslape nocturno (hora fija de empresa) como regla de
 #   ruteo y de pertenencia. Nace Marcacion ambigua (en la cobertura de dos turnos: ninguno la usa, la
@@ -402,6 +408,19 @@ terms:
       sola marcacion no puede ser salida de la vispera y entrada del dia (esconderia un retardo o
       inventaria horas extra). Para detectarla, cada ControlDiario conoce la cobertura de sus vecinos
       (#1127).
+      Refinamiento #1130 (2026-10-22, decisiones del experto): el Aprobador resuelve la ambiguedad
+      con ResolverAmbiguedadDeMarcaciones, un comando propio previo a aprobar que opera sobre los
+      ControlDiario de los dos dias en una transaccion (no en el payload de AprobarDia: la decision
+      cambia el calculo y afecta a dos dias). Un acto reparte todas las ambiguas del dia abierto.
+      El dia que se queda la marcacion la ve DelTurno y el depurador la usa por su posicion; el otro
+      la ve FueraDeCobertura (se conserva, no se usa); ambos siguen Provisionales. Manda el dia
+      aprobado: la resolucion no puede cambiar el uso de la marcacion en un dia en firme. Un cambio
+      real de plan en cualquiera de los dos dias descarta la resolucion de ese par
+      (ResolucionDeAmbiguedadDescartada, #1159): turno distinto del vigente, turno cancelado,
+      ausencia nueva o liberacion de la ausencia vigente. Un turno identico reenviado (reentrega
+      del bus, plantilla reaplicada) la conserva. AprobarDia declina
+      mientras queden ambiguas (#1158). Rechazado "asignar la marcacion ambigua": sonaba a mover
+      una marcacion que sigue siendo ambigua.
 
   - name: Turno
     definition: >
@@ -492,8 +511,10 @@ terms:
       rompe la familia "ventana" del glosario; "margen" sugiere tolerancia alrededor de una hora fija.
       No hay un tipo de turno nuevo: es un atributo de todo turno.
     note: >
-      Invariantes de diseno (409): amplitud > 0 exige inicio >= 04:00; inicio + amplitud <= 24:00;
-      un turno sin franjas solo admite amplitud 0. Comando ModificarVentanaDeEntrada (PUT
+      Invariantes de diseno (409): inicio de la ultima franja + amplitud < 24:00; un turno sin
+      franjas solo admite amplitud 0. La de "amplitud > 0 exige inicio >= 04:00" (#1106, #1116)
+      se retira en #1129 (decision 2026-10-21): existia porque el ancla buscaba desde la hora de
+      corte, y con la Cobertura de marcacion un turno de madrugada admite ventana. Comando ModificarVentanaDeEntrada (PUT
       programacion/turnos/{id}/ventana-entrada, verbo por precedente de ModificarLimitesJornada:
       la ventana existe siempre). Se estampa al programar como las franjas; los streams legados leen
       amplitud 0. La amplitud es del turno, no de cada franja (por franja haria circular el reparto
@@ -1300,6 +1321,25 @@ terms:
     note: >
       Distinta de la cobertura de la programacion (quien falta por programar), que es otra vista,
       todavia sin issue. Esa seria la version anticipada de "Dia sin programar".
+      Refinamiento 2026-10-21 (#1128): advertencia diaria PorDebajoDelDescansoEntreTurnos (ver
+      "Descanso entre turnos"). Es la primera que NO se mide contra la Jornada: sale tambien en
+      una semana sin Jornada y no cambia si la semana es juzgable.
+
+  - name: Descanso entre turnos
+    definition: >
+      Tiempo entre el fin de un turno y el inicio del turno del dia siguiente del mismo
+      colaborador. Por debajo del minimo (la suma de los margenes de la Cobertura de marcacion,
+      hoy 6 h) las coberturas de los dos turnos se solapan y las marcaciones de ese lapso quedan
+      ambiguas. Advertencia de la programacion semanal: PorDebajoDelDescansoEntreTurnos, en el dia
+      posterior, con magnitud = lo que falta para el minimo (= solape de las coberturas).
+    context: ControlHoras
+    date_added: 2026-10-21
+    rejected_synonyms: [Descanso corto, SeCruzaConElTurnoAnterior]
+    rejection_reason: >
+      "Descanso" a secas ya nombra el dia de descanso (FaltanDiasDeDescanso) y la Franja de
+      Descanso (pausa dentro de una franja); "entre turnos" los separa. SeCruzaConElTurnoAnterior
+      nombra el solape de coberturas, no lo que el Programador decide. Decision del experto
+      (#1128).
 
   - name: DiaCalculado
     definition: >
@@ -1541,6 +1581,11 @@ terms:
       anonimos: un campo autoafirmado seria evidencia debil; se versionara el evento con
       autenticacion real, MEF-ADR-0005). Fotos tardias: no mueven el dia -- #489 las
       ignora (guarda minima) y #491 las archiva como DepuracionPosAprobacionRecibida.
+      Precision 2026-10-22 (#1130, decision del experto): "decidir EN el acto" aplica a las
+      decisiones que no alteran el calculo (p. ej. la sede, que solo fija el CC). Las que lo
+      alteran -- la resolucion de una Marcacion ambigua -- se toman ANTES de aprobar, del lado
+      del calculo, para que el acto apruebe horas ya recalculadas; mientras queden pendientes,
+      el dia no es aprobable (#1158).
 
   - name: Conflicto de sede
     definition: >

@@ -65,7 +65,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic de Service Bus
-        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
@@ -143,6 +143,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetterProgramacion.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar el evento",
             solicitudId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
 
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests
         // del topic dia-depurado (issue #223: acotado por CodigoColaborador).
@@ -225,7 +232,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic de Service Bus
-        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
@@ -284,6 +291,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetterProgramacion.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el mapeo de sede fallo al procesar el evento",
             solicitudId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     [Fact]
@@ -336,7 +350,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         };
 
         // Act: publicar al topic de Service Bus
-        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, correlationId);
 
         // Assert: el evento TurnoDiarioAsignado fue persistido con el CC dentro de su sede
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
@@ -367,6 +381,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el mapeo del centro de costos fallo al procesar el evento",
             solicitudId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     /// <summary>
@@ -426,7 +447,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic en formato camelCase
-        await serviceBus.PublishAsync(TopicEntrada, eventoEnFormatoWolverine, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, eventoEnFormatoWolverine, correlationId);
 
         // Assert: verificar persistencia en Postgres.
         // Si la deserializacion falla (propiedades null), el handler lanza
@@ -525,7 +546,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             };
             if (jornada is not null) evento["Jornada"] = jornada;
 
-            await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
+            await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, Guid.CreateVersion7().ToString());
 
             var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
             var existe = await postgres.ExisteEventoAsync(
@@ -592,7 +613,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
-        await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, Guid.CreateVersion7().ToString());
 
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
         var existe = await postgres.ExisteEventoAsync(
@@ -612,5 +633,12 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar la amplitud",
             solicitudId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 }

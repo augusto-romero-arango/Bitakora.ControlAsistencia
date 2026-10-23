@@ -93,7 +93,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
                 command.Id, colaborador, fecha, detalleTurno, sede, detalleJornada))
             .ToArray();
 
-        await _privateEventSender.PublishAsync(eventosPrivados);
+        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventosPrivados);
         return new ResultadoSolicitudProgramacion(
             clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList());
     }
