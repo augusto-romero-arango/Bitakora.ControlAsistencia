@@ -268,8 +268,8 @@ public class RegistrarMarcacionSmokeTests(
 
     // Cierra el circuito completo del contrato de bus RegistroDeMarcacionCreado: el POST solo puede
     // llegar a persistir marcacion_adicionada si RegistrarMarcacionCommandHandler lo publico al topic
-    // "registro-de-marcacion-creado" y AdicionarMarcacionCuandoRegistroDeMarcacionCreado lo consumio
-    // desde "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
+    // "registro-de-marcacion-creado" y el fan-in ActualizarControlDiario lo consumio por el forward de
+    // "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
     // consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de PRODUCCION
     // (no un consumidor competidor) proceso el mensaje.
     //
@@ -320,7 +320,7 @@ public class RegistrarMarcacionSmokeTests(
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
 
         var turnoAsignado = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, Timeout,
@@ -389,6 +389,13 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaDepurado publicado
@@ -442,7 +449,7 @@ public class RegistrarMarcacionSmokeTests(
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
 
         var turnoAsignado = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, Timeout,
@@ -517,6 +524,13 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     // Sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo desde la
@@ -588,5 +602,12 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 }

@@ -62,7 +62,10 @@ public partial class ResolverAmbiguedadDeMarcacionesCommandHandler : ICommandHan
         }
 
         foreach (var control in cambiados)
-            await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+        {
+            var diaDepurado = control.CrearDiaDepurado();
+            await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
+        }
     }
 
     // Manda el dia aprobado: la decision no puede cambiar el uso de la marcacion en su foto aprobada,

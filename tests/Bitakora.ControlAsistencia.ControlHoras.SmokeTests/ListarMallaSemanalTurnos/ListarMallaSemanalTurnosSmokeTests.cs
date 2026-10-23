@@ -72,7 +72,7 @@ public class ListarMallaSemanalTurnosSmokeTests(ApiFixture api, ServiceBusFixtur
             }
         };
 
-        await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, solicitudId.ToString());
     }
 
     [Fact]

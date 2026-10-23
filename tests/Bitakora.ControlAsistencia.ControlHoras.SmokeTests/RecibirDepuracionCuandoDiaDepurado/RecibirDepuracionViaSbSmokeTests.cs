@@ -80,6 +80,7 @@ public class RecibirDepuracionViaSbSmokeTests(ServiceBusFixture serviceBus, Post
         var streamId = ComputarStreamId(codigoColaborador, fecha);
 
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicDiaDepurado,
             CrearDiaDepurado(codigoColaborador, fecha, "[TEST] Turno Primera Foto", conJornada: true),
             Guid.CreateVersion7().ToString());
@@ -92,6 +93,7 @@ public class RecibirDepuracionViaSbSmokeTests(ServiceBusFixture serviceBus, Post
             $"el evento {TipoEvento} de la primera foto deberia existir en el stream {streamId}");
 
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicDiaDepurado,
             CrearDiaDepurado(codigoColaborador, fecha, "[TEST] Turno Segunda Foto", conJornada: true),
             Guid.CreateVersion7().ToString());
@@ -127,6 +129,7 @@ public class RecibirDepuracionViaSbSmokeTests(ServiceBusFixture serviceBus, Post
         var streamId = ComputarStreamId(codigoColaborador, fecha);
 
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicDiaDepurado,
             CrearDiaDepurado(codigoColaborador, fecha, nombreTurno: null, conJornada: false),
             Guid.CreateVersion7().ToString());

@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarAusenciaCuandoAusenciaDiariaProgramada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -62,7 +63,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         Then(StreamId, CrearAusenciaAsignada(AusenciaId, Motivo));
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, "Turno Manana");
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
-        ThenIsPublishedPrivately(DiaConAusencia(Motivo));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo));
     }
 
     // CA-2
@@ -74,7 +75,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         Then(StreamId, CrearAusenciaAsignada(AusenciaId, Motivo));
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
-        ThenIsPublishedPrivately(DiaConAusencia(Motivo));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo));
     }
 
     // CA-3 (marcaciones previas a la ausencia, guardadas fuera de orden)
@@ -89,7 +90,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
         Then(StreamId, CrearAusenciaAsignada(AusenciaId, Motivo));
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.Marcaciones.Count, 2);
-        ThenIsPublishedPrivately(DiaConAusencia(Motivo,
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo,
             new MarcacionDelDia(entrada, "ENTRADA"),
             new MarcacionDelDia(salida, "SALIDA")));
     }
@@ -105,7 +106,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
         Then(StreamId, CrearAusenciaAsignada(OtraAusenciaId, OtroMotivo));
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
-        ThenIsPublishedPrivately(DiaConAusencia(OtroMotivo, new MarcacionDelDia(entrada, "ENTRADA")));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo, new MarcacionDelDia(entrada, "ENTRADA")));
     }
 
     // CA-5 (reentrega)
@@ -119,6 +120,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         Then(StreamId);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     // CA-5 (reemplazo)
@@ -131,6 +133,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
         Then(StreamId, CrearAusenciaAsignada(OtraAusenciaId, OtroMotivo));
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
-        ThenIsPublishedPrivately(DiaConAusencia(OtroMotivo));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo));
     }
 }
