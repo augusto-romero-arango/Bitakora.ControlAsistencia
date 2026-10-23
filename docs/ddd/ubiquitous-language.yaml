@@ -1658,10 +1658,13 @@ terms:
       marcacion: DelTurno (en la cobertura propia y en ninguna vecina; usada o intermedia
       descartada), Ambigua (en la cobertura propia y en la de un turno vecino) o
       FueraDeCobertura (fuera de la cobertura propia, sea de un vecino o de nadie). Sin
-      jornada valida (sin turno, descanso, ausencia) no hay pertenencia. La calcula el
-      depurador de ControlDiario y viaja en DiaDepurado; la muestra la Depuracion del dia.
+      jornada valida (sin turno, descanso, ausencia) la marcacion en la cobertura de un turno
+      vecino es DeTurnoVecino y las demas no tienen pertenencia: son las propias del dia, las
+      que producen la anomalia de presencia. La calcula ControlDiario y viaja en DiaDepurado;
+      la muestra la Depuracion del dia.
     context: ControlHoras
     date_added: 2026-10-21
+    date_updated: 2026-10-22
     rejected_synonyms: [estado de la marcacion]
     rejection_reason: >
       "Estado" choca con el Estado del dia (Provisional/Aprobado) en la misma vista; la
@@ -1671,6 +1674,10 @@ terms:
       DelDiaSiguiente: la salida del nocturno de la vispera se ve FueraDeCobertura en el dia
       siguiente. Lectura legada (foto sin la clave): DelTurno con jornada valida, sin
       pertenencia sin ella.
+      Refinamiento 2026-10-22 (#1160): nace DeTurnoVecino, solo en dias sin jornada valida
+      (decision del experto); los dias con jornada siguen viendo FueraDeCobertura. Descartados
+      un segundo valor para "de nadie" y reutilizar FueraDeCobertura (cambiaba su significado
+      entre dias con y sin jornada).
 
   - name: DepuracionDiaRecibida
     definition: >
