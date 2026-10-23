@@ -24,6 +24,16 @@ public class ServiceBusFixture : IAsyncLifetime
     private const string UserIdApplicationProperty = "user_id";
     private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";
 
+    // Wolverine publica con Subject = Type.FullName del evento y el fan-in de #1175 despacha por ese valor.
+    private static readonly IReadOnlyDictionary<string, string> SubjectPorTopic = new Dictionary<string, string>
+    {
+        ["programacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoDiarioSolicitada).FullName!,
+        ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
+        ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
+        ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
+        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!
+    };
+
     private ServiceBusClient? _client;
     private JsonSerializerOptions _jsonOptions = null!;
     private IdentidadDePrueba _identidad = null!;
@@ -80,14 +90,22 @@ public class ServiceBusFixture : IAsyncLifetime
         }
     }
 
-    public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
+    public async Task PublishAsync<T>(string codigoColaborador, string topicName, T message, string? correlationId = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(codigoColaborador);
+        if (!SubjectPorTopic.TryGetValue(topicName, out var subject))
+            throw new ArgumentException(
+                $"El topic '{topicName}' no esta en el mapa de Subject del fan-in; agregalo a SubjectPorTopic.",
+                nameof(topicName));
+
         await using var sender = _client!.CreateSender(topicName);
 
         var json = JsonSerializer.Serialize(message);
         var sbMessage = new ServiceBusMessage(json)
         {
-            ContentType = "application/json"
+            ContentType = "application/json",
+            SessionId = codigoColaborador,
+            Subject = subject
         };
         sbMessage.ApplicationProperties[TenantIdApplicationProperty] = _identidad.TenantId;
         sbMessage.ApplicationProperties[UserIdApplicationProperty] = _identidad.UserId;
@@ -145,6 +163,8 @@ public class ServiceBusFixture : IAsyncLifetime
             $"del topic {topicName} en {timeout.TotalSeconds}s ({descartados} mensajes ajenos descartados)");
     }
 
+    public const string QueueFanIn = "actualizar-control-diario";
+
     private const int TamanoPaginaDeadLetter = 100;
 
     // Issue #223 CA-1: recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
@@ -154,9 +174,14 @@ public class ServiceBusFixture : IAsyncLifetime
         string topicName,
         string subscriptionName)
     {
-        var options = new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter };
-        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName, options);
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName, OpcionesDeadLetter);
+        return await PeekTodosAsync(receiver);
+    }
 
+    private static readonly ServiceBusReceiverOptions OpcionesDeadLetter = new() { SubQueue = SubQueue.DeadLetter };
+
+    private static async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekTodosAsync(ServiceBusReceiver receiver)
+    {
         var mensajes = new List<ServiceBusReceivedMessage>();
         long? desdeSecuencia = null;
 
@@ -165,13 +190,11 @@ public class ServiceBusFixture : IAsyncLifetime
             var pagina = await receiver.PeekMessagesAsync(
                 maxMessages: TamanoPaginaDeadLetter, fromSequenceNumber: desdeSecuencia);
             if (pagina.Count == 0)
-                break;
+                return mensajes;
 
             mensajes.AddRange(pagina);
             desdeSecuencia = pagina[^1].SequenceNumber + 1;
         }
-
-        return mensajes;
     }
 
     // Issue #223 CA-2/CA-3: acota el assert a "hay un dead letter de ESTA corrida" en vez de
@@ -200,6 +223,19 @@ public class ServiceBusFixture : IAsyncLifetime
         }
 
         return false;
+    }
+
+    // El DLQ de una entidad con sesion se lee con un receptor normal, sin aceptar sesion. Filtrar por
+    // SessionId detecta cualquier mensaje del colaborador sin depender de la forma del payload.
+    public async Task<bool> ExisteDeadLetterEnQueueDeColaboradorAsync(string queueName, string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(queueName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        await using var receiver = _client!.CreateReceiver(queueName, OpcionesDeadLetter);
+        var mensajes = await PeekTodosAsync(receiver);
+
+        return mensajes.Any(m => m.SessionId == sessionId);
     }
 
     public async ValueTask DisposeAsync()
