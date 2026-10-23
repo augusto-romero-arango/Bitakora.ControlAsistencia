@@ -168,3 +168,8 @@ output "topic_ids" {
   description = "IDs de los topics creados"
   value       = { for k, v in azurerm_servicebus_topic.topics : k => v.id }
 }
+
+output "queue_ids" {
+  description = "IDs de las queues creadas (MEF-ADR-0026)"
+  value       = { for k, v in azurerm_servicebus_queue.queues : k => v.id }
+}
