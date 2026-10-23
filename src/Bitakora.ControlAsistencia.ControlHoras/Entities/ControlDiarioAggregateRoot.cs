@@ -153,6 +153,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return true;
     }
 
+    public void Apply(ResolucionDeAmbiguedadDescartada e) => throw new NotImplementedException();
+
     public void Apply(CoberturaVecinaActualizada e)
     {
         if (e.Vecino == DiaVecino.Vispera) _finCoberturaVispera = e.Limite;
