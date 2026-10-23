@@ -24,6 +24,16 @@ public class ServiceBusFixture : IAsyncLifetime
     private const string UserIdApplicationProperty = "user_id";
     private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";
 
+    // Wolverine publica con Subject = Type.FullName del evento y el fan-in de #1175 despacha por ese valor.
+    private static readonly IReadOnlyDictionary<string, string> SubjectPorTopic = new Dictionary<string, string>
+    {
+        ["programacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoDiarioSolicitada).FullName!,
+        ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
+        ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
+        ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
+        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!
+    };
+
     private ServiceBusClient? _client;
     private JsonSerializerOptions _jsonOptions = null!;
     private IdentidadDePrueba _identidad = null!;
@@ -79,15 +89,6 @@ public class ServiceBusFixture : IAsyncLifetime
             await receiver.CompleteMessageAsync(message);
         }
     }
-
-    private static readonly IReadOnlyDictionary<string, string> SubjectPorTopic = new Dictionary<string, string>
-    {
-        ["programacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoDiarioSolicitada).FullName!,
-        ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
-        ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
-        ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
-        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!
-    };
 
     public async Task PublishAsync<T>(string codigoColaborador, string topicName, T message, string? correlationId = null)
     {
