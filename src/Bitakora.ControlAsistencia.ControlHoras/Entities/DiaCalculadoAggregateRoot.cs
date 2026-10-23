@@ -132,7 +132,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
 
         // Misma regla (Pertenencia == Ambigua) que AsistenciaDiariaProjection.EsMarcacionAmbiguaPendiente;
         // se duplica a proposito (MEF-ADR-0018). Va antes de las sedes: la foto cambia al resolver.
-        if (_marcaciones.Any(m => m.Pertenencia == nameof(VistaPertenencia.Ambigua)))
+        if (_marcaciones.Any(m => m.Pertenencia == nameof(PertenenciaMarcacion.Ambigua)))
             return ResultadoAprobacion.MarcacionesAmbiguasSinResolver;
 
         var sedesDecididas = new List<SedeDecidida>();
