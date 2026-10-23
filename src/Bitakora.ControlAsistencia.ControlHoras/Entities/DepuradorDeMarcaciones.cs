@@ -42,7 +42,8 @@ public static class DepuradorDeMarcaciones
             .Distinct()
             .ToDictionary(
                 instante => instante,
-                instante => (cobertura.Contiene(instante), vecinas?.Excluye(instante) == true) switch
+                instante => (cobertura.Contiene(instante) && vecinas?.Cede(instante) != true,
+                    vecinas?.Excluye(instante) == true) switch
                 {
                     (false, _) => PertenenciaMarcacion.FueraDeCobertura,
                     (true, true) => PertenenciaMarcacion.Ambigua,

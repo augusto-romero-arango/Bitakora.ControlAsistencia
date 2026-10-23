@@ -18,5 +18,6 @@ public class AprobarDiaCommandHandlerMensajesTests
         AprobarDiaCommandHandler.Mensajes.CodigoSedeNoCandidata.Should().NotBeNullOrWhiteSpace();
         AprobarDiaCommandHandler.Mensajes.DecisionParaFranjaInvalida.Should().NotBeNullOrWhiteSpace();
         AprobarDiaCommandHandler.Mensajes.DiaYaAprobado.Should().NotBeNullOrWhiteSpace();
+        AprobarDiaCommandHandler.Mensajes.MarcacionesAmbiguasSinResolver.Should().NotBeNullOrWhiteSpace();
     }
 }

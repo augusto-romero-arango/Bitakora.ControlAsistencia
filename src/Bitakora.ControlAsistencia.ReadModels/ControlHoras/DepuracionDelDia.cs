@@ -61,7 +61,8 @@ public sealed record SedeDeFranja(string Codigo, string? Nombre, string? CentroD
 /// candidata de FranjaDepurada.CandidatasDeSede. TODAS las marcaciones del dia viajan
 /// aqui, en orden cronologico -- las descartadas se muestran igual, para que el Aprobador vea que la
 /// maquina las dejo afuera, y Pertenencia dice por que: ruido del turno, fuera de su cobertura o en
-/// disputa con un turno vecino. Null en un dia sin jornada valida.
+/// disputa con un turno vecino. En un dia sin jornada valida solo DeTurnoVecino (la marcacion es de
+/// la cobertura de un turno vecino); las demas, null.
 /// </summary>
 public sealed record MarcacionDelDia(
     DateTime Timestamp,
@@ -80,5 +81,6 @@ public enum PertenenciaMarcacion
 {
     DelTurno,
     FueraDeCobertura,
-    Ambigua
+    Ambigua,
+    DeTurnoVecino
 }

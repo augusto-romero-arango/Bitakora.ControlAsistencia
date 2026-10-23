@@ -115,23 +115,33 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
         };
 
     // Foto anterior a la pertenencia por marcacion trae null, que no es Ambigua -> false.
+    // Misma regla en DiaCalculadoAggregateRoot.Aprobar (duplicada a proposito, MEF-ADR-0018).
     private static bool EsMarcacionAmbiguaPendiente(IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
         marcaciones.Any(marcacion => marcacion.Pertenencia == nameof(PertenenciaMarcacion.Ambigua));
 
+    // Una marcacion de turno vecino no es presencia del dia; null (foto legada) cuenta como propia.
+    private static bool EsPropiaDelDia(EventoMarcacionDelDia marcacion) =>
+        marcacion.Pertenencia != nameof(PertenenciaMarcacion.DeTurnoVecino);
+
     private static bool EsVinoEnAusencia(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.Ausencia && marcaciones.Count > 0;
+        plan == PlanDelDia.Ausencia && marcaciones.Any(EsPropiaDelDia);
 
     private static bool EsNoSePresento(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.ConJornada && marcaciones.Count == 0;
+        plan == PlanDelDia.ConJornada && !marcaciones.Any(EsDelTurno);
+
+    // Replica de DiaCalculadoAggregateRoot.LeerPertenencia: sin clave o valor desconocido cuenta como DelTurno.
+    private static bool EsDelTurno(EventoMarcacionDelDia marcacion) =>
+        marcacion.Pertenencia != nameof(PertenenciaMarcacion.Ambigua)
+        && marcacion.Pertenencia != nameof(PertenenciaMarcacion.FueraDeCobertura);
 
     private static bool EsFranjasIncompletas(PlanDelDia plan, IReadOnlyList<EventoFranjaDepurada> franjas) =>
         plan == PlanDelDia.ConJornada && franjas.Any(franja => franja.EsAnomala);
 
     private static bool EsVinoEnDescanso(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.Descanso && marcaciones.Count > 0;
+        plan == PlanDelDia.Descanso && marcaciones.Any(EsPropiaDelDia);
 
     private static bool EsTrabajoSinProgramacion(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.SinProgramar && marcaciones.Count > 0;
+        plan == PlanDelDia.SinProgramar && marcaciones.Any(EsPropiaDelDia);
 
     // Re-derivacion de la politica de DiaCalculadoAggregateRoot.DerivarSedeDeFranja, duplicada a
     // proposito (MEF-ADR-0018): si cambia alla, cambia aqui. Solo el booleano -- sede efectiva, CC y

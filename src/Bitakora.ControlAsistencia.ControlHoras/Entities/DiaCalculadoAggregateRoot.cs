@@ -130,6 +130,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         if (Estado == EstadoDiaCalculado.Aprobado)
             return ResultadoAprobacion.DiaYaAprobado;
 
+        // Misma regla (Pertenencia == Ambigua) que AsistenciaDiariaProjection.EsMarcacionAmbiguaPendiente;
+        // se duplica a proposito (MEF-ADR-0018). Va antes de las sedes: la foto cambia al resolver.
+        if (_marcaciones.Any(m => m.Pertenencia == nameof(PertenenciaMarcacion.Ambigua)))
+            return ResultadoAprobacion.MarcacionesAmbiguasSinResolver;
+
         var sedesDecididas = new List<SedeDecidida>();
         var horasDecididas = new HashSet<TimeOnly>();
 
@@ -216,12 +221,17 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                     marcacion.CodigoSede,
                     marcacion.NombreSede,
                     marcacion.CentroDeCostos,
-                    plan == PlanDelDia.ConJornada ? LeerPertenencia(marcacion.Pertenencia) : null))
+                    LeerPertenenciaDelPlan(plan, marcacion.Pertenencia)))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? [],
             _motivoAusencia);
     }
+
+    private static VistaPertenencia? LeerPertenenciaDelPlan(PlanDelDia plan, string? pertenencia) =>
+        plan == PlanDelDia.ConJornada ? LeerPertenencia(pertenencia)
+        : pertenencia == nameof(VistaPertenencia.DeTurnoVecino) ? VistaPertenencia.DeTurnoVecino
+        : null;
 
     // Lectura legada: sin la clave, toda marcacion de un dia con jornada era del turno.
     private static VistaPertenencia LeerPertenencia(string? pertenencia) =>
@@ -250,6 +260,12 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // vista y las candidatas de sede.
     private static bool PerteneceA(MarcacionDelDia marcacion, FranjaDepurada franja) =>
         marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida;
+
+    // null = el dia no esta aprobado; si lo esta, si su foto aprobada uso la marcacion.
+    internal bool? UsoAprobadoDe(DateTime timestamp) =>
+        Estado == EstadoDiaCalculado.Aprobado
+            ? _marcaciones.Where(m => m.Timestamp == timestamp).Any(m => EsUsada(m, _franjas))
+            : null;
 
     // Derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>

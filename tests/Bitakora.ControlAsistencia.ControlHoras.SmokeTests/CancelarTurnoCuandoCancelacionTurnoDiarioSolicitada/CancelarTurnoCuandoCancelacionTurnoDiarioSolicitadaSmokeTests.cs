@@ -92,7 +92,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
 
         var turnoAsignado = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, Timeout,
@@ -139,6 +139,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 
         var solicitudCancelacionId = Guid.CreateVersion7();
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -179,6 +180,13 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar el evento",
             solicitudCancelacionId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     // CA-2: dia con turno asignado y SIN marcaciones -> cancelado efectivo, DiaDepurado sin
@@ -204,6 +212,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 
         var solicitudCancelacionId = Guid.CreateVersion7();
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -246,6 +255,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         var solicitudCancelacionId = Guid.CreateVersion7();
 
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -262,6 +272,13 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 
         existeDeadLetter.Should().BeFalse(
             "el no-op deberia resolverse sin error -- un dead letter aqui indicaria que el handler lanzo en vez de declinar");
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     // CA-4: no-op identico a CA-3, pero el stream SI existe (nacio solo por marcaciones, sin turno
@@ -296,6 +313,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         var solicitudCancelacionId = Guid.CreateVersion7();
 
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -319,5 +337,12 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 
         existeDeadLetter.Should().BeFalse(
             "el no-op deberia resolverse sin error -- un dead letter aqui indicaria que el handler lanzo en vez de declinar");
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 }
