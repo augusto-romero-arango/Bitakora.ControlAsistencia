@@ -94,6 +94,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     private DateTime? FinDeSuCobertura() => _ausenciaId is null ? _finCoberturaEfectiva : null;
 
+    public void Apply(AmbiguedadDeMarcacionesResuelta e) => throw new NotImplementedException();
+
     public void Apply(CoberturaVecinaActualizada e)
     {
         if (e.Vecino == DiaVecino.Vispera) _finCoberturaVispera = e.Limite;
