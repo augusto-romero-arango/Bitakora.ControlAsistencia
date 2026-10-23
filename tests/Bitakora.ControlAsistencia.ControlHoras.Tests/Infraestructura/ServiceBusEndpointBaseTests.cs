@@ -69,7 +69,7 @@ public class ServiceBusEndpointBaseTests
     public async Task DebeAbandonarMensaje_CuandoHayConflictoDeConcurrencia()
     {
         var router = new FakeCommandRouter(
-            excepcion: new InvalidOperationException("23505 pk_mt_events_stream_and_version: conflicto de concurrencia");
+            excepcion: new InvalidOperationException("23505 pk_mt_events_stream_and_version: conflicto de concurrencia"));
         var actions = new FakeServiceBusMessageActions();
         var endpoint = new StubEndpoint(router, new FakeLogger());
 
