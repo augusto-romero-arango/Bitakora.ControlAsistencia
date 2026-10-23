@@ -266,4 +266,103 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, string>(
             StreamId, d => d.GenerarDepuracionDelDia().MotivoAusencia!, "Vacaciones");
     }
+
+    // ---- Precondicion: dia con una marcacion de pertenencia dada (null = foto anterior a #1139) ----
+    private static DepuracionDiaRecibida DepuracionConPertenencia(
+        string? pertenencia, bool conConflictoDeSede = false)
+    {
+        var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
+        var salida = new DateTime(2026, 8, 24, 14, 0, 0);
+        var franja = conConflictoDeSede
+            ? new FranjaDepurada(
+                HoraInicioFranjaEnConflicto, new TimeOnly(14, 0), 0, entrada, salida, false,
+                "SEDE-01", "Sede Principal", "CC-100")
+            : new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false);
+        IReadOnlyList<MarcacionDelDia> marcaciones =
+        [
+            conConflictoDeSede
+                ? new MarcacionDelDia(entrada, "Entrada", "SEDE-02", "Sede Norte", "CC-200", pertenencia)
+                : new MarcacionDelDia(entrada, "Entrada", Pertenencia: pertenencia),
+            new MarcacionDelDia(salida, "Salida", Pertenencia: pertenencia)
+        ];
+        return new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, "Manana", [franja], marcaciones,
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+    }
+
+    // CA-1
+    [Fact]
+    public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoHayMarcacionesAmbiguas()
+    {
+        Given(StreamId, DepuracionConPertenencia("Ambigua"));
+
+        var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.MarcacionesAmbiguasSinResolver}*");
+        Then(StreamId);
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
+    }
+
+    // CA-2
+    [Fact]
+    public async Task AprobarDia_DeclinaConMarcacionesAmbiguas_CuandoTambienHayConflictosDeSedeSinDecidir()
+    {
+        Given(StreamId, DepuracionConPertenencia("Ambigua", conConflictoDeSede: true));
+
+        var act = async () => await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AprobarDiaCommandHandler.Mensajes.MarcacionesAmbiguasSinResolver}*");
+        Then(StreamId);
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
+    }
+
+    // CA-3
+    [Fact]
+    public async Task AprobarDia_EmiteDiaAprobado_CuandoLasMarcacionesSonDelTurno()
+    {
+        Given(StreamId, DepuracionConPertenencia("DelTurno"));
+
+        await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
+
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
+    }
+
+    // CA-3
+    [Fact]
+    public async Task AprobarDia_EmiteDiaAprobado_CuandoLasMarcacionesSonFueraDeCobertura()
+    {
+        Given(StreamId, DepuracionConPertenencia("FueraDeCobertura"));
+
+        await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
+
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
+    }
+
+    // CA-3: lectura legada, foto anterior a #1139.
+    [Fact]
+    public async Task AprobarDia_EmiteDiaAprobado_CuandoLasMarcacionesNoTraenPertenencia()
+    {
+        Given(StreamId, DepuracionConPertenencia(null));
+
+        await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
+
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
+    }
+
+    // CA-4
+    [Fact]
+    public async Task AprobarDia_EmiteDiaAprobado_CuandoUnaFotoNuevaYaNoTraeAmbiguas()
+    {
+        Given(StreamId, DepuracionConPertenencia("Ambigua"), DepuracionConPertenencia("DelTurno"));
+
+        await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
+
+        Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
+    }
 }
