@@ -20,6 +20,9 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
     private static TurnoDiario Turno07_16(int amplitud) =>
         new("Ventana", [Franja(7, 0, 16, 0)], "", amplitud);
 
+    private static TurnoDiario Turno04_10(int amplitud) =>
+        new("Ventana larga", [Franja(4, 0, 10, 0)], "", amplitud);
+
     [Fact]
     public void Depurar_IgnoraMarcacionDeMadrugada_CuandoAmplitudEsCero()
     {
@@ -131,9 +134,6 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
             new[] { new ControlFranja(Franja(9, 10, 18, 10), En(9, 10), En(18, 10)) },
             o => o.WithStrictOrdering());
     }
-
-    private static TurnoDiario Turno04_10(int amplitud) =>
-        new("Ventana larga", [Franja(4, 0, 10, 0)], "", amplitud);
 
     [Fact]
     public void Depurar_AnclaEntradaTardia_CuandoLaVentanaCierraDespuesDeLaCoberturaDeReferencia()
