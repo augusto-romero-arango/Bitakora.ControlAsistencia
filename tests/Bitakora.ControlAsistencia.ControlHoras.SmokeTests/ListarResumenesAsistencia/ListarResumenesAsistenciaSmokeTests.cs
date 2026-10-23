@@ -117,7 +117,7 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
             }
         };
 
-        await serviceBus.PublishAsync(TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
     }
 
     // ClasificarPlan produce ConJornada con nombreTurno Y al menos una franja.

@@ -127,7 +127,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
     // consumidor persista depuracion_dia_recibida antes de que el test invoque el POST bajo prueba.
     private async Task ArrangeDiaProvisionalAsync(string streamId, string codigoColaborador, object diaDepurado)
     {
-        await serviceBus.PublishAsync(TopicDiaDepurado, diaDepurado, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, diaDepurado, Guid.CreateVersion7().ToString());
 
         var persistido = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoDepuracionDiaRecibida, Timeout,
@@ -250,6 +250,73 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
 
         await ArrangeDiaProvisionalAsync(streamId, codigoColaborador,
             CrearDiaDepuradoConConflicto(codigoColaborador, fecha, horaInicio, horaFin));
+
+        var payload = new { decisiones = Array.Empty<object>() };
+        var response = await _client.PostAsJsonAsync(RutaAprobar(codigoColaborador, fecha), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, TipoEventoDiaAprobado, TimeSpan.FromSeconds(5),
+            campoJson: "CodigoColaborador", valorJson: codigoColaborador);
+
+        existe.Should().BeFalse(
+            $"un 409 no deberia persistir {TipoEventoDiaAprobado} en el stream {streamId}");
+    }
+
+    // #1158 CA-5: foto con una marcacion de Pertenencia "Ambigua" -> 409, sin dia_aprobado.
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AprobarDia_Retorna409_CuandoLaFotoTraeMarcacionesAmbiguasSinResolver()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 9, 10);
+        var streamId = ComputarStreamId(codigoColaborador, fecha);
+        var horaInicio = new TimeOnly(8, 0);
+        var horaFin = new TimeOnly(16, 0);
+
+        var diaDepurado = new
+        {
+            CodigoColaborador = codigoColaborador,
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Colaborador = new
+            {
+                Identificacion = "CC-100200302",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Aprobar Ambigua"
+            },
+            NombreTurno = "[TEST] Turno Aprobar Ambigua",
+            Franjas = new object[]
+            {
+                new
+                {
+                    HoraInicioProgramada = horaInicio.ToString("HH:mm:ss"),
+                    HoraFinProgramada = horaFin.ToString("HH:mm:ss"),
+                    DiaOffsetFin = 0,
+                    Entrada = $"{fecha:yyyy-MM-dd}T{horaInicio:HH:mm:ss}",
+                    Salida = $"{fecha:yyyy-MM-dd}T{horaFin:HH:mm:ss}",
+                    EsAnomala = false
+                }
+            },
+            Marcaciones = new object[]
+            {
+                new { Timestamp = $"{fecha:yyyy-MM-dd}T{horaInicio:HH:mm:ss}", Tipo = "ENTRADA", Pertenencia = "DelTurno" },
+                new { Timestamp = $"{fecha:yyyy-MM-dd}T{horaFin:HH:mm:ss}", Tipo = "SALIDA", Pertenencia = "Ambigua" }
+            },
+            HorasDiscriminadas = new
+            {
+                HorasPorConcepto = new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m },
+                Trazabilidad = Array.Empty<string>()
+            }
+        };
+
+        await ArrangeDiaProvisionalAsync(streamId, codigoColaborador, diaDepurado);
 
         var payload = new { decisiones = Array.Empty<object>() };
         var response = await _client.PostAsJsonAsync(RutaAprobar(codigoColaborador, fecha), payload, ct);
@@ -426,6 +493,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             $"el arrange depende de que {TipoEventoDiaAprobado} exista antes de enviar la foto tardia");
 
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicDiaDepurado,
             CrearDiaDepuradoSinConflicto(codigoColaborador, fecha, new TimeOnly(8, 0), new TimeOnly(16, 0)),
             Guid.CreateVersion7().ToString());

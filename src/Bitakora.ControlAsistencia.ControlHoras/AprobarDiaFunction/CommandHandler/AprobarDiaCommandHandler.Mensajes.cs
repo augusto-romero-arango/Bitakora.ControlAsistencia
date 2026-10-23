@@ -28,5 +28,8 @@ public partial class AprobarDiaCommandHandler
         // CA-6.
         public static string DiaYaAprobado =>
             ResourceManager.GetString(nameof(DiaYaAprobado))!;
+
+        public static string MarcacionesAmbiguasSinResolver =>
+            ResourceManager.GetString(nameof(MarcacionesAmbiguasSinResolver))!;
     }
 }

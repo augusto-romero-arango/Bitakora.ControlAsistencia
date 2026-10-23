@@ -71,6 +71,16 @@ public class ClasificadorTrabajoTests
     }
 
     [Fact]
+    public void Clasificar_NoDevuelveIntervalos_CuandoTodoElTrabajoCaeAntesDelInicioProgramado()
+    {
+        // Marcaciones de cobertura anticipada (CA-ADR-0042): franja 6-14, trabajado [04:00,04:50].
+        var resultado = ClasificadorTrabajo.Clasificar(
+            Franja(6, 14), Intervalo(M(4), M(4, 50)), Lunes, NingunFestivo);
+
+        resultado.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Clasificar_CubreTrabajoMenosMinutosPrevios_CuandoHayEntradaTemprana()
     {
         // CA-2: invariante de cobertura. Entrada 07:00 con franja desde 08:00 => minutosPrevios = 60.

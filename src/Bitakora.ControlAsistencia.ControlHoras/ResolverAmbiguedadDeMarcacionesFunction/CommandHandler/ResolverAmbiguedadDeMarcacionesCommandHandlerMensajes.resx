@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="DiaSinDepuracion" xml:space="preserve">
+    <value>El dia no tiene depuracion</value>
+  </data>
+  <data name="RepartoIncompleto" xml:space="preserve">
+    <value>El reparto debe incluir todas las marcaciones ambiguas del dia</value>
+  </data>
+  <data name="MarcacionNoAmbigua" xml:space="preserve">
+    <value>Una de las marcaciones del reparto no es ambigua en este dia</value>
+  </data>
+  <data name="FechaNoValida" xml:space="preserve">
+    <value>Una marcacion solo se puede asignar al dia abierto o al dia vecino con el que esta en disputa</value>
+  </data>
+  <data name="CambiaUsoEnDiaAprobado" xml:space="preserve">
+    <value>El reparto cambia el uso de una marcacion en un dia ya aprobado</value>
+  </data>
+</root>

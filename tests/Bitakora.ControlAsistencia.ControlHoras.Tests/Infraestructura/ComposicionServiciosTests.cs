@@ -280,13 +280,38 @@ public class ComposicionServiciosTests
         alias.Should().Be("cobertura_vecina_actualizada");
     }
 
+    [Fact]
+    public async Task AgregarServiciosControlHoras_CongelaElAliasDeResolucionDeAmbiguedadDescartada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(ResolucionDeAmbiguedadDescartada)).Alias;
+
+        alias.Should().Be("resolucion_de_ambiguedad_descartada");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosControlHoras_CongelaElAliasDeAmbiguedadDeMarcacionesResuelta()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(AmbiguedadDeMarcacionesResuelta)).Alias;
+
+        alias.Should().Be("ambiguedad_de_marcaciones_resuelta");
+    }
+
     // Issue #328 CA-4: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma
     // idea que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
     // FunctionEndpoint en vez de un router de Wolverine.
     //
     // Ninguna Function de este ensamblado se registra explicitamente en el contenedor
-    // (RegistrarMarcacionFunction, AdicionarMarcacionCuandoRegistroDeMarcacionCreado,
-    // AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction: ninguna lleva un
+    // (RegistrarMarcacionFunction, ActualizarControlDiario: ninguna lleva un
     // services.AddScoped<FunctionEndpoint>() explicito) -- el host de Azure Functions isolated
     // worker las activa por tipo, resolviendo su constructor contra el mismo ServiceProvider que
     // arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa misma activacion sin

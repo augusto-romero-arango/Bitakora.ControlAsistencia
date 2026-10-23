@@ -90,6 +90,45 @@ public class DiaCalculadoPertenenciaTests
         dia.GenerarDepuracionDelDia().Marcaciones.Should().ContainSingle().Which.Pertenencia.Should().BeNull();
     }
 
+    [Fact]
+    public void GenerarDepuracionDelDia_ExponeDeTurnoVecinoYDejaNulaLaDemas_CuandoElDiaEsDescanso()
+    {
+        var dia = Hidratar("Descanso", [],
+        [
+            new EventoMarcacionDelDia(Madrugada, "Salida", Pertenencia: "DeTurnoVecino"),
+            new EventoMarcacionDelDia(Entrada, "Entrada")
+        ]);
+
+        dia.GenerarDepuracionDelDia().Marcaciones.Select(m => m.Pertenencia).Should().Equal(
+            VistaPertenencia.DeTurnoVecino, null);
+    }
+
+    [Fact]
+    public void GenerarDepuracionDelDia_ExponeDeTurnoVecinoYDejaNulaLaDemas_CuandoNoHayTurno()
+    {
+        var dia = Hidratar(null, [],
+        [
+            new EventoMarcacionDelDia(Madrugada, "Salida", Pertenencia: "DeTurnoVecino"),
+            new EventoMarcacionDelDia(Entrada, "Entrada")
+        ]);
+
+        dia.GenerarDepuracionDelDia().Marcaciones.Select(m => m.Pertenencia).Should().Equal(
+            VistaPertenencia.DeTurnoVecino, null);
+    }
+
+    [Fact]
+    public void GenerarDepuracionDelDia_ExponeDeTurnoVecinoYDejaNulaLaDemas_CuandoHayAusencia()
+    {
+        var dia = Hidratar(null, [],
+        [
+            new EventoMarcacionDelDia(Madrugada, "Salida", Pertenencia: "DeTurnoVecino"),
+            new EventoMarcacionDelDia(Entrada, "Entrada")
+        ], "Vacaciones");
+
+        dia.GenerarDepuracionDelDia().Marcaciones.Select(m => m.Pertenencia).Should().Equal(
+            VistaPertenencia.DeTurnoVecino, null);
+    }
+
     // La vista lee por nombre el string del evento: un valor del dominio que falte aqui se leeria
     // como DelTurno sin error.
     [Fact]
