@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.CancelarAusenciaFunction.CommandHa
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -13,6 +14,8 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CancelarAusenciaFunction
 
 public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<CancelarAusencia>
 {
+    private static readonly PublishOptions OpcionesGrupoColaborador = new() { GroupId = "E001" };
+
     private const string Codigo = "E001";
     private const string StreamId = "ac:E001";
 
@@ -47,7 +50,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         await WhenAsync(Comando(null, 20, 21, 22));
 
         Then(StreamId, new AusenciaCancelada(AusenciaId, Colaborador, [Oct(20), Oct(21), Oct(22)]));
-        ThenIsPublishedPrivately(Diaria(20), Diaria(21), Diaria(22));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Diaria(20), Diaria(21), Diaria(22));
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-19,23-26");
     }
 
@@ -59,7 +62,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         await WhenAsync(Comando(null, 25, 26, 27, 28));
 
         Then(StreamId, new AusenciaCancelada(AusenciaId, Colaborador, [Oct(25)]));
-        ThenIsPublishedPrivately(Diaria(25));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Diaria(25));
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-24");
     }
 
@@ -71,7 +74,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         await WhenAsync(Comando(null, 20, 20, 21, 20));
 
         Then(StreamId, new AusenciaCancelada(AusenciaId, Colaborador, [Oct(20), Oct(21)]));
-        ThenIsPublishedPrivately(Diaria(20), Diaria(21));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Diaria(20), Diaria(21));
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-19,22-26");
     }
 
@@ -83,7 +86,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         await WhenAsync(Comando(null, 21));
 
         Then(StreamId, new AusenciaCancelada(AusenciaId, Colaborador, [Oct(21)]));
-        ThenIsPublishedPrivately(Diaria(21));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Diaria(21));
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-19,22-26");
     }
 
@@ -96,7 +99,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
         await WhenAsync(Comando(null, 3, 14));
 
         Then(StreamId, new AusenciaCancelada(AusenciaId, Colaborador, [Oct(14)]));
-        ThenIsPublishedPrivately(Diaria(14));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Diaria(14));
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 2);
     }
 
@@ -109,6 +112,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
 
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-19,22-26");
     }
 
@@ -121,6 +125,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
 
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-26");
     }
 
@@ -135,6 +140,7 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
             .WithMessage($"*{CancelarAusenciaCommandHandler.Mensajes.AusenciaNoEncontrada}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<AusenciasColaborador, string>(StreamId, Tramos, "13-26");
     }
 
@@ -147,5 +153,6 @@ public class CancelarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Cance
             .WithMessage($"*{CancelarAusenciaCommandHandler.Mensajes.AusenciaNoEncontrada}*");
         Then(StreamId, Array.Empty<object>());
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 }

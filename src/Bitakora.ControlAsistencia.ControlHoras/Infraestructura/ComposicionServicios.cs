@@ -62,7 +62,7 @@ public static class ComposicionServicios
                 // issue #270 (ADR-0024 marco decision #3): RegistroDeMarcacionCreado (contrato de
                 // bus, PrivateEvents.ControlHoras) es el IPrivateEvent que debe cruzar fisicamente el
                 // ASB interno del BC, aun siendo consumido dentro del mismo Function App
-                // (AdicionarMarcacionCuandoRegistroDeMarcacionCreado). MarcacionRegistrada (evento de
+                // (fan-in ActualizarControlDiario). MarcacionRegistrada (evento de
                 // dominio persistido) ya no cruza el bus - dejo de implementar IPrivateEvent (CA-3).
                 // Topic + subscription provisionados en #274 (infra/environments/dev/main.tf).
                 options.PublicarEventoServerless<RegistroDeMarcacionCreado>("registro-de-marcacion-creado");

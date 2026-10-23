@@ -14,6 +14,7 @@ using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction.CommandHandler;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -68,7 +69,7 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
         await WhenAsync(new RegistrarMarcacion(CodigoColaborador, Timestamp, "ENTRADA", "DEV-001"));
 
         Then(StreamId, CrearMarcacionRegistrada());
-        ThenIsPublishedPrivately(CrearRegistroDeMarcacionCreado());
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, CrearRegistroDeMarcacionCreado());
         And<RegistroDeMarcacionAggregateRoot, string>(StreamId, r => r.CodigoColaborador, CodigoColaborador);
         And<RegistroDeMarcacionAggregateRoot, DateTime>(
             StreamId, r => r.TimestampNormalizado, TimestampNormalizado);
@@ -81,7 +82,7 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
         await WhenAsync(new RegistrarMarcacion(CodigoColaborador, Timestamp, null, null));
 
         Then(StreamId, CrearMarcacionRegistrada(tipoMarcacion: null, dispositivoId: null));
-        ThenIsPublishedPrivately(CrearRegistroDeMarcacionCreado(tipoMarcacion: null, dispositivoId: null));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, CrearRegistroDeMarcacionCreado(tipoMarcacion: null, dispositivoId: null));
         And<RegistroDeMarcacionAggregateRoot, string?>(StreamId, r => r.TipoMarcacion, null);
         And<RegistroDeMarcacionAggregateRoot, string?>(StreamId, r => r.DispositivoId, null);
     }
@@ -98,6 +99,7 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
 
         Then(StreamId);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<RegistroDeMarcacionAggregateRoot, string>(StreamId, r => r.CodigoColaborador, CodigoColaborador);
     }
 
@@ -116,5 +118,6 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
             .WithMessage($"*{MarcacionRegistrada.Mensajes.CodigoColaboradorVacio}*");
         Then(StreamIdSinColaborador);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 }
