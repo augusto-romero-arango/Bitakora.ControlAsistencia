@@ -1707,7 +1707,7 @@ terms:
       en vivo hidratando el aggregate DiaCalculado. Proyeccion N1 sobre el stream dc:.
     context: ControlHoras
     date_added: 2026-08-17
-    date_updated: 2026-10-21
+    date_updated: 2026-10-22
     note: >
       Criterio de diseno (2026-08-17): se materializa la superficie de decision; la de
       investigacion se lee en vivo. El resumen del periodo se agrega en query-time sobre
@@ -1727,6 +1727,10 @@ terms:
       Hallazgo (#1143): NoSePresento, VinoEnDescanso, TrabajoSinProgramacion y VinoEnAusencia
       cuentan tambien las marcaciones de los turnos vecinos (salida de madrugada de la
       vispera).
+      Refinamiento 2026-10-22 (#1143): NoSePresento cuenta solo las marcaciones DelTurno; una
+      Ambigua no es presencia (ningun dia la usa, CA-ADR-0042 decision 5) y una foto sin
+      Pertenencia se lee DelTurno. Las otras tres banderas esperan que ControlDiario clasifique
+      las marcaciones de los dias sin jornada frente a los vecinos (#1160 -> #1161).
 
   - name: Dia sin programar
     definition: >
