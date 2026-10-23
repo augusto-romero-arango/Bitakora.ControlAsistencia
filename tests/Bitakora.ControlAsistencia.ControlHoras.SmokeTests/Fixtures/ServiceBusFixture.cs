@@ -163,6 +163,8 @@ public class ServiceBusFixture : IAsyncLifetime
             $"del topic {topicName} en {timeout.TotalSeconds}s ({descartados} mensajes ajenos descartados)");
     }
 
+    public const string QueueFanIn = "actualizar-control-diario";
+
     private const int TamanoPaginaDeadLetter = 100;
 
     // Issue #223 CA-1: recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
@@ -172,9 +174,14 @@ public class ServiceBusFixture : IAsyncLifetime
         string topicName,
         string subscriptionName)
     {
-        var options = new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter };
-        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName, options);
+        await using var receiver = _client!.CreateReceiver(topicName, subscriptionName, OpcionesDeadLetter);
+        return await PeekTodosAsync(receiver);
+    }
 
+    private static readonly ServiceBusReceiverOptions OpcionesDeadLetter = new() { SubQueue = SubQueue.DeadLetter };
+
+    private static async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekTodosAsync(ServiceBusReceiver receiver)
+    {
         var mensajes = new List<ServiceBusReceivedMessage>();
         long? desdeSecuencia = null;
 
@@ -183,13 +190,11 @@ public class ServiceBusFixture : IAsyncLifetime
             var pagina = await receiver.PeekMessagesAsync(
                 maxMessages: TamanoPaginaDeadLetter, fromSequenceNumber: desdeSecuencia);
             if (pagina.Count == 0)
-                break;
+                return mensajes;
 
             mensajes.AddRange(pagina);
             desdeSecuencia = pagina[^1].SequenceNumber + 1;
         }
-
-        return mensajes;
     }
 
     // Issue #223 CA-2/CA-3: acota el assert a "hay un dead letter de ESTA corrida" en vez de
@@ -218,6 +223,19 @@ public class ServiceBusFixture : IAsyncLifetime
         }
 
         return false;
+    }
+
+    // El DLQ de una entidad con sesion se lee con un receptor normal, sin aceptar sesion. Filtrar por
+    // SessionId detecta cualquier mensaje del colaborador sin depender de la forma del payload.
+    public async Task<bool> ExisteDeadLetterEnQueueDeColaboradorAsync(string queueName, string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(queueName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        await using var receiver = _client!.CreateReceiver(queueName, OpcionesDeadLetter);
+        var mensajes = await PeekTodosAsync(receiver);
+
+        return mensajes.Any(m => m.SessionId == sessionId);
     }
 
     public async ValueTask DisposeAsync()
