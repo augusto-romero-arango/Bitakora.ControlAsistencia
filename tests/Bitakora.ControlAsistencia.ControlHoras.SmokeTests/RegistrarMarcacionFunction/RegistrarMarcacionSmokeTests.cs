@@ -396,6 +396,13 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 
     // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaDepurado publicado
@@ -531,6 +538,13 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 
     // Sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo desde la
@@ -609,5 +623,12 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 }
