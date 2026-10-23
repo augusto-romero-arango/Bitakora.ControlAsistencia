@@ -46,14 +46,23 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
         ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
-    // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
+    // Recalculo reactivo al final de cada Apply.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
         _pertenencias = ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
-        if (_ausenciaId is not null) return;
         var vecinas = new CoberturasVecinas(
             _finCoberturaVispera, _inicioCoberturaDiaSiguiente, Fecha, ResolucionesVigentes());
+        if (SinJornada)
+        {
+            _finCoberturaEfectiva = null;
+            _pertenencias = _marcaciones
+                .Select(m => m.TimestampNormalizado)
+                .Distinct()
+                .Where(vecinas.Excluye)
+                .ToDictionary(i => i, _ => PertenenciaMarcacion.DeTurnoVecino);
+            return;
+        }
         var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones, vecinas);
         _controlesDeFranja.AddRange(resultado);
         _pertenencias = DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, vecinas);
@@ -61,25 +70,37 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             .CoberturaEfectiva(DetalleTurno, Fecha, _marcaciones, vecinas)?.Fin;
     }
 
+    // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
+    private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
+
     // true si emitio el evento.
     internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
     {
-        // Sin turno el dia no depura nada, asi que no necesita (ni registra) limites.
-        if (DetalleTurno is null) return false;
-
         var lado = LadoDe(vecino);
         var (limite, actual) = lado == DiaVecino.Vispera
             ? (vecino.FinDeSuCobertura(), _finCoberturaVispera)
             : (vecino.InicioDeSuCobertura(), _inicioCoberturaDiaSiguiente);
         if (actual == limite) return false;
-        // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia
-        // (turnos que no se solapan entre si); un limite ya informado siempre se actualiza.
-        if (actual is null && !Invade(DetalleTurno, lado, limite, vecino)) return false;
+        // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia (o, sin
+        // jornada, su dia calendario); un limite ya informado siempre se actualiza.
+        if (actual is null && !RegistraPrimerLimite(lado, limite, vecino)) return false;
 
         var evento = CoberturaVecinaActualizada.Crear(Id, lado, limite);
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return true;
+    }
+
+    private bool RegistraPrimerLimite(DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino) =>
+        SinJornada ? AlcanzaSuDiaCalendario(lado, limite) : Invade(DetalleTurno!, lado, limite, vecino);
+
+    // Sin jornada, el dia solo clasifica sus propias marcaciones: un limite fuera de su dia calendario no excluye ninguna.
+    private bool AlcanzaSuDiaCalendario(DiaVecino lado, DateTime? limite)
+    {
+        if (limite is not { } instante) return false;
+
+        var inicioDelDia = Fecha.ToDateTime(TimeOnly.MinValue);
+        return lado == DiaVecino.Vispera ? instante > inicioDelDia : instante < inicioDelDia.AddDays(1);
     }
 
     private bool Invade(TurnoDiario turno, DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino)
@@ -114,7 +135,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Sin resoluciones: repetir un reparto debe seguir viendo el solape.
     internal IReadOnlyDictionary<DateTime, DiaVecino> MarcacionesEnDisputa()
     {
-        if (_ausenciaId is not null) return new Dictionary<DateTime, DiaVecino>();
+        if (SinJornada) return new Dictionary<DateTime, DiaVecino>();
         var naturales = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
         return DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, naturales)
             .Where(p => p.Value == PertenenciaMarcacion.Ambigua)

@@ -221,12 +221,17 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                     marcacion.CodigoSede,
                     marcacion.NombreSede,
                     marcacion.CentroDeCostos,
-                    plan == PlanDelDia.ConJornada ? LeerPertenencia(marcacion.Pertenencia) : null))
+                    LeerPertenenciaDelPlan(plan, marcacion.Pertenencia)))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? [],
             _motivoAusencia);
     }
+
+    private static VistaPertenencia? LeerPertenenciaDelPlan(PlanDelDia plan, string? pertenencia) =>
+        plan == PlanDelDia.ConJornada ? LeerPertenencia(pertenencia)
+        : pertenencia == nameof(VistaPertenencia.DeTurnoVecino) ? VistaPertenencia.DeTurnoVecino
+        : null;
 
     // Lectura legada: sin la clave, toda marcacion de un dia con jornada era del turno.
     private static VistaPertenencia LeerPertenencia(string? pertenencia) =>
