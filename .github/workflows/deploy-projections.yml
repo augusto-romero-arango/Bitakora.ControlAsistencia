@@ -264,8 +264,10 @@ jobs:
       test_project: tests/Bitakora.ControlAsistencia.ControlHoras.SmokeTests/
       # expected_sha vacio a proposito (CA-2): /api/version lo expone el Function App de
       # ControlHoras, no el worker de proyecciones -- un deploy de este worker no cambia ese
-      # valor, asi que esperar un SHA aca solo agotaria el timeout de 420s sin motivo. El
-      # reusable ya degrada a esperar HTTP 200 en /api/health cuando expected_sha llega vacio.
+      # valor, asi que un SHA fijo agotaria el timeout de 420s en un commit sin deploy de
+      # ControlHoras. Cuando el MISMO commit si despliega ControlHoras, la guarda del reusable
+      # detecta ese deploy ajeno y promueve el gate por SHA (/api/version + /api/ready,
+      # MEF-ADR-0031; issue #1154); sin ese deploy degrada a esperar HTTP 200 en /api/health.
       #
       # Consecuencia a vigilar (la carrera worker/consulta que anticipa el issue): ese health check
       # pega contra el Function App, que este run NO redespliega, asi que responde 200 casi de
@@ -284,6 +286,13 @@ jobs:
       # input llega vacio. El diagnostico completo, la evidencia y el porque la guarda vive en el
       # reusable estan en el comentario de ese paso. Si este job vuelve a salir intermitente, revisa
       # esa guarda antes que los 30s de Polling.
+      #
+      # Corregido el 2026-10-22 (issue #1154): la guarda sola NO bastaba con "solo 200". Esperar el
+      # job 'deploy' ajeno y luego un 200 en /api/health dejaba correr la suite contra el binario
+      # VIEJO (el job termina al subir el zip, el host reinicia 33-104 s despues). Ahora, cuando la
+      # guarda encuentra un Deploy ControlHoras exitoso del mismo commit, promueve expected_sha y
+      # el warmup aplica el gate por SHA (/api/version + /api/ready); el 200 en /api/health queda
+      # solo para los commits que no despliegan ControlHoras.
       expected_sha: ''
     secrets:
       SERVICEBUS_CONNECTION_STRING: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}

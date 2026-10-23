@@ -33,5 +33,8 @@ public static class ConfiguracionSerializacionControlHoras
         TurnoDiarioCancelado.ConfigurarSerializacion(resolver);
         AusenciaDiariaAsignada.ConfigurarSerializacion(resolver);
         CancelacionAusenciaDiariaRegistrada.ConfigurarSerializacion(resolver);
+        CoberturaVecinaActualizada.ConfigurarSerializacion(resolver);
+        AmbiguedadDeMarcacionesResuelta.ConfigurarSerializacion(resolver);
+        ResolucionDeAmbiguedadDescartada.ConfigurarSerializacion(resolver);
     }
 }

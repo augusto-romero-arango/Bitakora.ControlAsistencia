@@ -277,4 +277,27 @@ public class DiaDepuradoEventHandlerTests : PrivateEventHandlerAsyncTest<EventoB
         And<DiaCalculadoAggregateRoot, ReadModels.ControlHoras.PlanDelDia>(
             StreamId, d => d.GenerarDepuracionDelDia().Plan, ReadModels.ControlHoras.PlanDelDia.ConJornada);
     }
+
+    [Fact]
+    public async Task DiaDepurado_ConservaLaPertenenciaDeCadaMarcacion_CuandoElBusLaTrae()
+    {
+        var recibido = CrearDiaDepurado(null, "Turno Manana", [],
+            [
+                new EventoBus.MarcacionDelDia(new DateTime(2026, 3, 15, 4, 30, 0), "ENTRADA", Pertenencia: "Ambigua"),
+                new EventoBus.MarcacionDelDia(new DateTime(2026, 3, 15, 6, 0, 0), "ENTRADA", Pertenencia: "DelTurno")
+            ],
+            new EventoBus.HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+
+        await WhenAsync(recibido);
+
+        Then(StreamId, new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, "Turno Manana", [],
+            [
+                new MarcacionDelDia(new DateTime(2026, 3, 15, 4, 30, 0), "ENTRADA", Pertenencia: "Ambigua"),
+                new MarcacionDelDia(new DateTime(2026, 3, 15, 6, 0, 0), "ENTRADA", Pertenencia: "DelTurno")
+            ],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+        And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
+            StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
+    }
 }

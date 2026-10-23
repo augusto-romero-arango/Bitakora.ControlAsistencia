@@ -21,7 +21,6 @@ public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventSt
         {
             ResultadoModificarVentanaDeEntrada.TurnoRetirado => Mensajes.TurnoRetirado,
             ResultadoModificarVentanaDeEntrada.TurnoSinFranjas => Mensajes.TurnoSinFranjas,
-            ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte => Mensajes.InicioAntesDeHoraCorte,
             ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche => Mensajes.CierrePasaMedianoche,
             _ => null
         };

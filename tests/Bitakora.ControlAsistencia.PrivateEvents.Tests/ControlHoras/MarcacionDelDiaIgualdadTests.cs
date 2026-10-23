@@ -36,6 +36,8 @@ public class MarcacionDelDiaIgualdadTests : IgualdadTestBase<MarcacionDelDia>
             new MarcacionDelDia(Timestamp, "ENTRADA", CodigoSede, "Otra Sede", CentroDeCostos));
         yield return ("CentroDeCostos",
             new MarcacionDelDia(Timestamp, "ENTRADA", CodigoSede, NombreSede, "CC-200"));
+        yield return ("Pertenencia",
+            new MarcacionDelDia(Timestamp, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos, "Ambigua"));
         yield return ("CentroDeCostos (nulo)",
             new MarcacionDelDia(Timestamp, "ENTRADA", CodigoSede, NombreSede, null));
     }

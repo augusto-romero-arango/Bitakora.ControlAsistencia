@@ -20,6 +20,7 @@ using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEven
 using HorasDiscriminadas = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.HorasDiscriminadas;
 using ResumenColaborador = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.ResumenColaborador;
 using SedeDecidida = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.SedeDecidida;
+using VistaPertenencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PertenenciaMarcacion;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
@@ -81,8 +82,10 @@ public class DiaCalculadoAggregateRootTests
                 new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
                 SedeEfectiva: null, EnConflictoDeSede: false, CandidatasDeSede: [])],
             [
-                new MarcacionDelDia(entrada, "Entrada", true, CodigoSede: null, NombreSede: null, CentroDeCostos: null),
-                new MarcacionDelDia(salida, "Salida", true, CodigoSede: null, NombreSede: null, CentroDeCostos: null)
+                new MarcacionDelDia(entrada, "Entrada", true, CodigoSede: null, NombreSede: null, CentroDeCostos: null,
+                    Pertenencia: VistaPertenencia.DelTurno),
+                new MarcacionDelDia(salida, "Salida", true, CodigoSede: null, NombreSede: null, CentroDeCostos: null,
+                    Pertenencia: VistaPertenencia.DelTurno)
             ],
             new Dictionary<string, decimal> { ["Ordinaria"] = 8m },
             ["Se tomo la franja unica del turno Manana"]);

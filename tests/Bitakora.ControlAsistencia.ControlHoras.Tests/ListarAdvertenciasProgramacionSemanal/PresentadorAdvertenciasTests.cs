@@ -133,4 +133,19 @@ public class PresentadorAdvertenciasTests
 
         PresentadorAdvertencias.Presentar(doc).Jornada.Should().BeNull();
     }
+
+    [Fact]
+    public void Presentar_ArmaDescripcionDelDescansoEntreTurnos_CuandoLaCasillaSolapaConLaVispera()
+    {
+        var doc = Doc(Jornada, 2160, 0, false, true,
+            Enumerable.Range(0, 7).Select(i => i == 1
+                ? Casilla(i, 480, new AdvertenciaDiaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60))
+                : Casilla(i, 480)).ToList());
+
+        var adv = PresentadorAdvertencias.Presentar(doc).Casillas[1].Advertencias.Single();
+
+        adv.Tipo.Should().Be("PorDebajoDelDescansoEntreTurnos");
+        adv.Horas.Should().Be(new TiempoHM(1, 0));
+        adv.Descripcion.Should().Be("1 h por debajo del descanso mínimo entre turnos");
+    }
 }

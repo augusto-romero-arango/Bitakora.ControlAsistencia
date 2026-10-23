@@ -130,15 +130,33 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
     }
 
     [Fact]
-    public async Task ModificarVentanaDeEntrada_LanzaReglaDeNegocioDeclinada_CuandoElInicioEsAnteriorALas0400()
+    public async Task ModificarVentanaDeEntrada_EmiteVentanaDeEntradaModificada_CuandoElTurnoEmpiezaDeMadrugada()
     {
-        Given(ConFranjas(Franja(3, 30, 12, 0)));
-        var act = async () => await WhenAsync(Comando(GuidAggregateId, 1));
+        Given(ConFranjas(Franja(3, 0, 11, 0)));
+        await WhenAsync(Comando(GuidAggregateId, 1));
+        Then(VentanaDeEntradaModificada.Crear(GuidAggregateId, Horas(1)));
+        And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(1)), true);
+    }
+
+    [Fact]
+    public async Task ModificarVentanaDeEntrada_LanzaReglaDeNegocioDeclinada_CuandoLaUltimaFranjaDeUnTurnoDeMadrugadaLlegariaALas2400()
+    {
+        Given(ConFranjas(Franja(3, 0, 11, 0), Franja(21, 0, 23, 0)));
+        var act = async () => await WhenAsync(Comando(GuidAggregateId, 3));
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
-            .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.InicioAntesDeHoraCorte}*");
+            .WithMessage($"*{ModificarVentanaDeEntradaCommandHandler.Mensajes.CierrePasaMedianoche}*");
         Then();
         ThenIsPublishedPrivately();
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(0)), true);
+    }
+
+    [Fact]
+    public async Task ModificarVentanaDeEntrada_EmiteVentanaDeEntradaModificada_CuandoElTurnoDeMadrugadaQuedaUnMinutoAntesDeLas2400()
+    {
+        Given(ConFranjas(Franja(3, 0, 11, 0), Franja(21, 0, 23, 0)));
+        await WhenAsync(Comando(GuidAggregateId, 2, 59));
+        Then(VentanaDeEntradaModificada.Crear(GuidAggregateId, Horas(2, 59)));
+        And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(2, 59)), true);
     }
 
     [Fact]

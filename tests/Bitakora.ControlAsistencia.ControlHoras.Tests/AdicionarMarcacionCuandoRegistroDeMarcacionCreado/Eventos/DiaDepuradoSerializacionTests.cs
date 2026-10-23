@@ -115,4 +115,22 @@ public class DiaDepuradoSerializacionTests
         act.Should().NotThrow();
         act()!.HorasDiscriminadas.HorasPorConcepto["DominicalFestivaDiurna"].Should().Be(7.00m);
     }
+
+    [Fact]
+    public void RoundTrip_PreservaLaPertenencia_ConSerializadorPorDefectoDelPublisher()
+    {
+        var original = new DiaDepurado(
+            "EMP-001", Fecha, null, "Turno Manana", [],
+            [
+                new MarcacionDelDia(new DateTime(2026, 3, 15, 4, 30, 0), "ENTRADA", Pertenencia: "Ambigua"),
+                new MarcacionDelDia(new DateTime(2026, 3, 15, 6, 0, 0), "ENTRADA", Pertenencia: "DelTurno")
+            ],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+        var opciones = OpcionesPorDefectoDelPublisher();
+
+        var json = JsonSerializer.Serialize(original, opciones);
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        restaurado!.Marcaciones.Select(m => m.Pertenencia).Should().Equal("Ambigua", "DelTurno");
+    }
 }

@@ -19,14 +19,12 @@ public class CatalogoTurnos : AggregateRoot
         RechazosDeVentanaAlModificar = new()
         {
             [EvaluacionVentanaDeEntrada.TurnoSinFranjas] = ResultadoModificarVentanaDeEntrada.TurnoSinFranjas,
-            [EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte] = ResultadoModificarVentanaDeEntrada.InicioAntesDeHoraCorte,
             [EvaluacionVentanaDeEntrada.CierrePasaMedianoche] = ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche
         };
 
     private static readonly Dictionary<EvaluacionVentanaDeEntrada, ResultadoAgregarFranja>
         RechazosDeVentanaAlAgregarFranja = new()
         {
-            [EvaluacionVentanaDeEntrada.InicioAntesDeHoraCorte] = ResultadoAgregarFranja.InicioAntesDeHoraCorte,
             [EvaluacionVentanaDeEntrada.CierrePasaMedianoche] = ResultadoAgregarFranja.CierrePasaMedianoche
         };
 

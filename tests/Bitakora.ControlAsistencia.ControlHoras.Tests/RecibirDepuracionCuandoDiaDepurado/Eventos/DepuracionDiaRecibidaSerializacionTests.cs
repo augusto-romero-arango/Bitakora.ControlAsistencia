@@ -174,4 +174,35 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado!.MotivoAusencia.Should().BeNull();
         deserializado.NombreTurno.Should().Be("Turno Manana");
     }
+
+    [Fact]
+    public void Deserializar_ConservaLaPertenencia_CuandoLaMarcacionLaTrae()
+    {
+        var marcacionAmbigua = new MarcacionDelDia(new DateTime(2026, 3, 15, 4, 30, 0), "ENTRADA", Pertenencia: "Ambigua");
+        var evento = new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, null, "Turno Manana", [], [marcacionAmbigua], HorasConDatos());
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<DepuracionDiaRecibida>(json, opciones);
+
+        deserializado!.Marcaciones.Should().Equal(marcacionAmbigua);
+    }
+
+    // JSON de un stream escrito antes de que existiera la Pertenencia.
+    [Fact]
+    public void Deserializar_DejaPertenenciaNula_CuandoElJsonNoTraeElCampo()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var json = """
+            {"Id":"dc:EMP-001:20260315","CodigoColaborador":"EMP-001","Fecha":"2026-03-15",
+             "Colaborador":null,"NombreTurno":"Turno Manana","Franjas":[],
+             "Marcaciones":[{"Timestamp":"2026-03-15T06:00:00","Tipo":"ENTRADA"}],
+             "HorasDiscriminadas":{"HorasPorConcepto":{},"Trazabilidad":[]}}
+            """;
+
+        var deserializado = JsonSerializer.Deserialize<DepuracionDiaRecibida>(json, opciones);
+
+        deserializado!.Marcaciones.Should().ContainSingle().Which.Pertenencia.Should().BeNull();
+    }
 }
