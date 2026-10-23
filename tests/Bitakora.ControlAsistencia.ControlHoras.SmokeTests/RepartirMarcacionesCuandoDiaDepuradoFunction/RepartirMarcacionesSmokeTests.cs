@@ -78,7 +78,7 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, turno, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada, turno, Guid.CreateVersion7().ToString());
 
         var streamTurno = $"cd:{codigoColaborador}:{vispera:yyyyMMdd}";
         var turnoAsignado = await postgres.ExisteEventoAsync(

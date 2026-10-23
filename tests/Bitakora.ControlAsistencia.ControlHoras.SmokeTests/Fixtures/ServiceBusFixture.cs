@@ -80,14 +80,31 @@ public class ServiceBusFixture : IAsyncLifetime
         }
     }
 
-    public async Task PublishAsync<T>(string topicName, T message, string? correlationId = null)
+    private static readonly IReadOnlyDictionary<string, string> SubjectPorTopic = new Dictionary<string, string>
     {
+        ["programacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoDiarioSolicitada).FullName!,
+        ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
+        ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
+        ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
+        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!
+    };
+
+    public async Task PublishAsync<T>(string codigoColaborador, string topicName, T message, string? correlationId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(codigoColaborador);
+        if (!SubjectPorTopic.TryGetValue(topicName, out var subject))
+            throw new ArgumentException(
+                $"El topic '{topicName}' no esta en el mapa de Subject del fan-in; agregalo a SubjectPorTopic.",
+                nameof(topicName));
+
         await using var sender = _client!.CreateSender(topicName);
 
         var json = JsonSerializer.Serialize(message);
         var sbMessage = new ServiceBusMessage(json)
         {
-            ContentType = "application/json"
+            ContentType = "application/json",
+            SessionId = codigoColaborador,
+            Subject = subject
         };
         sbMessage.ApplicationProperties[TenantIdApplicationProperty] = _identidad.TenantId;
         sbMessage.ApplicationProperties[UserIdApplicationProperty] = _identidad.UserId;

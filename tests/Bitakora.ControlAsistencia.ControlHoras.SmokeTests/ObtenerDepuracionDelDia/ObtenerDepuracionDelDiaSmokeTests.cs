@@ -157,7 +157,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
 
         // Act: publicar al bus interno -- el consumidor de ControlHoras persiste
         // depuracion_dia_recibida en el stream dc:{codigo}:{yyyyMMdd} de forma asincrona.
-        await serviceBus.PublishAsync(TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
 
         // Act + Assert: reintentar el GET hasta que el consumidor persista la depuracion.
         var ruta = Ruta(codigoColaborador, fecha);
@@ -221,7 +221,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
         var ausenciaId = Guid.CreateVersion7();
         const string motivo = "Vacaciones";
 
-        await serviceBus.PublishAsync(TopicAusenciaDiariaProgramada, new
+        await serviceBus.PublishAsync(codigoColaborador, TopicAusenciaDiariaProgramada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = new

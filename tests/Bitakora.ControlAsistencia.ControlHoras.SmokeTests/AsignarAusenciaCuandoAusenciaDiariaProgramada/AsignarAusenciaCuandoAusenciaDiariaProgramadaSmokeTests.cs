@@ -46,7 +46,7 @@ public class AsignarAusenciaCuandoAusenciaDiariaProgramadaSmokeTests(
 
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
-        await serviceBus.PublishAsync(TopicAusenciaEntrada, new
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicAusenciaEntrada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = colaborador,

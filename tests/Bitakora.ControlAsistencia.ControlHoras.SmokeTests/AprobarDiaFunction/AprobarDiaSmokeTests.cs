@@ -127,7 +127,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
     // consumidor persista depuracion_dia_recibida antes de que el test invoque el POST bajo prueba.
     private async Task ArrangeDiaProvisionalAsync(string streamId, string codigoColaborador, object diaDepurado)
     {
-        await serviceBus.PublishAsync(TopicDiaDepurado, diaDepurado, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, diaDepurado, Guid.CreateVersion7().ToString());
 
         var persistido = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoDepuracionDiaRecibida, Timeout,
@@ -493,6 +493,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             $"el arrange depende de que {TipoEventoDiaAprobado} exista antes de enviar la foto tardia");
 
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicDiaDepurado,
             CrearDiaDepuradoSinConflicto(codigoColaborador, fecha, new TimeOnly(8, 0), new TimeOnly(16, 0)),
             Guid.CreateVersion7().ToString());

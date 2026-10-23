@@ -65,7 +65,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic de Service Bus
-        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
@@ -225,7 +225,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic de Service Bus
-        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, correlationId);
 
         // Assert: verificar que el evento TurnoDiarioAsignado fue persistido en PostgreSQL
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
@@ -336,7 +336,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         };
 
         // Act: publicar al topic de Service Bus
-        await serviceBus.PublishAsync(TopicEntrada, evento, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, correlationId);
 
         // Assert: el evento TurnoDiarioAsignado fue persistido con el CC dentro de su sede
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
@@ -426,7 +426,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         // Act: publicar al topic en formato camelCase
-        await serviceBus.PublishAsync(TopicEntrada, eventoEnFormatoWolverine, correlationId);
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, eventoEnFormatoWolverine, correlationId);
 
         // Assert: verificar persistencia en Postgres.
         // Si la deserializacion falla (propiedades null), el handler lanza
@@ -525,7 +525,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             };
             if (jornada is not null) evento["Jornada"] = jornada;
 
-            await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
+            await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, Guid.CreateVersion7().ToString());
 
             var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
             var existe = await postgres.ExisteEventoAsync(
@@ -592,7 +592,7 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             }
         };
 
-        await serviceBus.PublishAsync(TopicEntrada, evento, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, Guid.CreateVersion7().ToString());
 
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
         var existe = await postgres.ExisteEventoAsync(
