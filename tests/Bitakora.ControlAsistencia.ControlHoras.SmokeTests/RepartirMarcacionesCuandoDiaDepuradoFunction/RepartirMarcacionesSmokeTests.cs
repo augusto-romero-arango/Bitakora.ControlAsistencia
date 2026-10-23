@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RepartirMarcacionesCuandoDiaDepuradoFunction;
 
-public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 
@@ -14,6 +14,8 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
     private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
     private const string TopicDiaDepurado = "dia-depurado";
     private const string SuscripcionReparto = "control-horas-reparte-marcaciones";
+    private const string SchemaControlHoras = "control_horas";
+    private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -37,6 +39,8 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -74,7 +78,14 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, turno, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada, turno, Guid.CreateVersion7().ToString());
+
+        var streamTurno = $"cd:{codigoColaborador}:{vispera:yyyyMMdd}";
+        var turnoAsignado = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamTurno, TipoEventoTurnoDiarioAsignado, Timeout);
+        turnoAsignado.Should().BeTrue(
+            "el arrange debe esperar {0} en el stream {1} antes de registrar marcaciones (arrange incompleto)",
+            TipoEventoTurnoDiarioAsignado, streamTurno);
 
         foreach (var momento in new[] { entrada, salida })
         {
@@ -115,5 +126,12 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' - si lo hay, el reparto fallo",
             codigoColaborador, SuscripcionReparto);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 }

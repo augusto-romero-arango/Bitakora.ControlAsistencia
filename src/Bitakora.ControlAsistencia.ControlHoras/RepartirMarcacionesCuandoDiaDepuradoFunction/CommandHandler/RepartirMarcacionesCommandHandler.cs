@@ -39,7 +39,10 @@ public partial class RepartirMarcacionesCommandHandler : ICommandHandlerAsync<Re
         }
 
         foreach (var control in cambiados)
-            await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+        {
+            var diaDepurado = control.CrearDiaDepurado();
+            await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
+        }
     }
 
     // Un vecino sin stream no recibe nada y no se crea.
