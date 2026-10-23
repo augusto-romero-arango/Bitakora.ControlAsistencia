@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarAusenciaCuandoAusenciaDiariaProgramada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -31,5 +32,6 @@ public class AusenciaDiariaProgramadaSobreCancelacionPreviaTests
         Then(StreamId);
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 }
