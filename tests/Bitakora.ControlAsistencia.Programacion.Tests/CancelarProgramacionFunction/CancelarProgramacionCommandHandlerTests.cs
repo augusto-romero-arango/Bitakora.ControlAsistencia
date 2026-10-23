@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.CancelarProgramacionFunction.Comma
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -14,6 +15,8 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CancelarProgramacionFunc
 public class CancelarProgramacionCommandHandlerTests
     : CommandHandlerAsyncTest<CancelarProgramacion>
 {
+    private static readonly PublishOptions OpcionesGrupoColaborador = new() { GroupId = "E001" };
+
     private static readonly DateOnly Fecha1 = new(2026, 4, 7);
     private static readonly DateOnly Fecha2 = new(2026, 4, 8);
 
@@ -42,7 +45,7 @@ public class CancelarProgramacionCommandHandlerTests
 
         Then(new CancelacionProgramacionSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1]));
-        ThenIsPublishedPrivately(new CancelacionTurnoDiarioSolicitada(
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, new CancelacionTurnoDiarioSolicitada(
             GuidAggregateId, ColaboradorResumen, Fecha1));
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
@@ -56,7 +59,7 @@ public class CancelarProgramacionCommandHandlerTests
 
         Then(new CancelacionProgramacionSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1, Fecha2]));
-        ThenIsPublishedPrivately(
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
             new CancelacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Fecha1),
             new CancelacionTurnoDiarioSolicitada(GuidAggregateId, ColaboradorResumen, Fecha2));
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 2);
@@ -71,7 +74,7 @@ public class CancelarProgramacionCommandHandlerTests
 
         Then(new CancelacionProgramacionSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1]));
-        ThenIsPublishedPrivately(new CancelacionTurnoDiarioSolicitada(
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, new CancelacionTurnoDiarioSolicitada(
             GuidAggregateId, ColaboradorResumen, Fecha1));
         And<SolicitudCancelacionAggregateRoot, ColaboradorProgramado?>(
             s => s.Colaborador, ColaboradorProgramadoEsperado);

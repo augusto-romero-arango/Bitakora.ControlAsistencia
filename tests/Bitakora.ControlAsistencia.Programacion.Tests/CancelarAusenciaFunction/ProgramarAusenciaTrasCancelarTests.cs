@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.ProgramarAusenciaFunction;
 using Bitakora.ControlAsistencia.Programacion.ProgramarAusenciaFunction.CommandHandler;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -11,6 +12,8 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CancelarAusenciaFunction
 
 public class ProgramarAusenciaTrasCancelarTests : CommandHandlerAsyncTest<ProgramarAusencia>
 {
+    private static readonly PublishOptions OpcionesGrupoColaborador = new() { GroupId = "E001" };
+
     private const string StreamId = "ac:E001";
 
     private static readonly Guid PrevioId = Guid.Parse("019600a0-0000-7000-8000-000000000744");
@@ -34,7 +37,7 @@ public class ProgramarAusenciaTrasCancelarTests : CommandHandlerAsyncTest<Progra
             NuevaId, "E001", "CC-12345678", "Ana Maria Gomez", Oct(20), Oct(22), "Vacaciones"));
 
         Then(StreamId, new AusenciaProgramada(NuevaId, Colaborador, Oct(20), Oct(22), MotivoAusencia.Vacaciones));
-        ThenIsPublishedPrivately(
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, 
             new AusenciaDiariaProgramada(NuevaId, Resumen, Oct(20), "Vacaciones"),
             new AusenciaDiariaProgramada(NuevaId, Resumen, Oct(21), "Vacaciones"),
             new AusenciaDiariaProgramada(NuevaId, Resumen, Oct(22), "Vacaciones"));
