@@ -156,8 +156,8 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var existeDeadLetterDiaDepurado = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
             TopicDiaDepurado, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador);
 
-            "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
         existeDeadLetterDiaDepurado.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
     }
 
