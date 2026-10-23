@@ -122,7 +122,12 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
         plan == PlanDelDia.Ausencia && marcaciones.Count > 0;
 
     private static bool EsNoSePresento(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.ConJornada && marcaciones.Count == 0;
+        plan == PlanDelDia.ConJornada && !marcaciones.Any(EsDelTurno);
+
+    // Replica de DiaCalculadoAggregateRoot.LeerPertenencia: sin clave o valor desconocido cuenta como DelTurno.
+    private static bool EsDelTurno(EventoMarcacionDelDia marcacion) =>
+        marcacion.Pertenencia != nameof(PertenenciaMarcacion.Ambigua)
+        && marcacion.Pertenencia != nameof(PertenenciaMarcacion.FueraDeCobertura);
 
     private static bool EsFranjasIncompletas(PlanDelDia plan, IReadOnlyList<EventoFranjaDepurada> franjas) =>
         plan == PlanDelDia.ConJornada && franjas.Any(franja => franja.EsAnomala);
