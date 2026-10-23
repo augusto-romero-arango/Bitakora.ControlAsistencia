@@ -42,7 +42,7 @@ public partial class CancelarProgramacionCommandHandler
             .Select(fecha => new CancelacionTurnoDiarioSolicitada(command.Id, colaborador, fecha))
             .ToArray();
 
-        await _privateEventSender.PublishAsync(eventosPrivados);
+        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventosPrivados);
     }
 
     private static ResumenColaborador MapearResumenColaborador(ColaboradorSolicitado colaborador) =>

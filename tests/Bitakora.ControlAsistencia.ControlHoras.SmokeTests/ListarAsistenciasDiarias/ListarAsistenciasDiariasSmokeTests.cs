@@ -134,7 +134,7 @@ public class ListarAsistenciasDiariasSmokeTests(ApiFixture api, ServiceBusFixtur
             }
         };
 
-        await serviceBus.PublishAsync(TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
     }
 
     // ClasificarPlan produce ConJornada solo con nombreTurno Y al menos una franja.

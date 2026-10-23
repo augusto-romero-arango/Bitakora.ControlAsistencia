@@ -28,7 +28,7 @@ public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsyn
                 Guid.Parse(plantillaId), @event.JornadaId, limites, @event.Version), ct);
     }
 
-    // Los factories del VO validan: datos no reinstanciables lanzan y el mensaje va a la DLQ.
+    // Los factories del VO validan: datos no reinstanciables lanzan y el mensaje llega a la DLQ tras agotar las entregas.
     private static LimitesJornada Reinstanciar(LimitesDeJornadaActualizados evento) =>
         LimitesJornada.Crear(
             DesdeMinutos(evento.HorasSemanalesEnMinutos),
