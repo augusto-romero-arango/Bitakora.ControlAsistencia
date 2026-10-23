@@ -1,3 +1,4 @@
+using Cosmos.EventDriven.Abstractions;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -47,8 +48,13 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
     private static string PertenenciasPorHora(DiaDepurado dia) =>
         string.Join(" ", dia.Marcaciones.Select(m => $"{m.Timestamp:HH:mm}={m.Pertenencia}"));
 
-    private IEnumerable<DateOnly> FechasPublicadas() =>
-        PrivateEventSender.Events.OfType<DiaDepurado>().Select(d => d.Fecha).Order();
+    private IEnumerable<DateOnly> FechasPublicadas()
+    {
+        PrivateEventSender.Events.Should().BeEmpty();
+        PrivateEventSender.PublishedWithOptions.Should().OnlyContain(p => p.Options.GroupId == CodigoColaborador);
+        return PrivateEventSender.PublishedWithOptions
+            .SelectMany(p => p.Events).OfType<DiaDepurado>().Select(d => d.Fecha).Order();
+    }
 
     // Vispera 17:00-01:00 (cobertura hasta 05:00, entrada 16:55) y dia 06:00-14:00 (cobertura desde
     // 04:00, marcaciones 06:20 y 14:05); la 04:30 cae en ambas coberturas.
@@ -190,6 +196,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, string>(StreamD,
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:00=Ambigua 04:50=Ambigua");
     }
@@ -208,6 +215,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, string>(StreamD,
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=Ambigua 06:20=DelTurno 14:05=DelTurno");
     }
@@ -226,6 +234,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, string>(StreamD,
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=Ambigua 06:20=DelTurno 14:05=DelTurno");
     }
@@ -251,6 +260,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, string>(StreamV,
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "16:55=DelTurno 04:30=DelTurno");
         And<ControlDiarioAggregateRoot, string>(StreamD,
@@ -305,6 +315,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcV, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
@@ -338,6 +349,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcV, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
@@ -356,6 +368,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD);
         Then(StreamV);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcD, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 }

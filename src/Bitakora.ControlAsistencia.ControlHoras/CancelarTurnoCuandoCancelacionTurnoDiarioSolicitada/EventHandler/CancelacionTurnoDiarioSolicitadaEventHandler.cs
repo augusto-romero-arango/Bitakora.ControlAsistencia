@@ -48,7 +48,8 @@ public class CancelacionTurnoDiarioSolicitadaEventHandler
 
         // CrearDiaDepurado() debe invocarse DESPUES del Apply: lee el desglose que el Apply
         // recalcula.
-        await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+        var diaDepurado = control.CrearDiaDepurado();
+        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
     }
 
     private static ColaboradorProgramado MapearColaboradorProgramado(ResumenColaborador colaborador) =>
