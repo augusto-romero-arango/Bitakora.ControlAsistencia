@@ -9,13 +9,16 @@ public record CoberturasVecinas(
     IReadOnlyDictionary<DateTime, DateOnly>? Resoluciones = null)
 {
     public bool Excluye(DateTime instante) =>
-        EnSolape(instante) && !(Resolucion(instante) == Dia && Dia is not null);
+        EnSolape(instante) && !ResueltaAFavorDelDia(instante);
 
     public bool Cede(DateTime instante) =>
         EnSolape(instante) && Resolucion(instante) is { } fecha && fecha != Dia;
 
     private bool EnSolape(DateTime instante) =>
         instante < FinDeLaVispera || instante >= InicioDelDiaSiguiente;
+
+    private bool ResueltaAFavorDelDia(DateTime instante) =>
+        Dia is not null && Resolucion(instante) == Dia;
 
     private DateOnly? Resolucion(DateTime instante) =>
         Resoluciones is not null && Resoluciones.TryGetValue(instante, out var fecha) ? fecha : null;

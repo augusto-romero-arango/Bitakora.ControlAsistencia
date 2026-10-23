@@ -28,6 +28,7 @@ public partial class ResolverAmbiguedadDeMarcacionesCommandHandler : ICommandHan
 
         var disputas = dia.MarcacionesEnDisputa();
         var porVecino = command.Marcaciones
+            .DistinctBy(d => d.Marcacion)
             .GroupBy(d => disputas[d.Marcacion])
             .ToDictionary(
                 g => g.Key,
@@ -41,15 +42,15 @@ public partial class ResolverAmbiguedadDeMarcacionesCommandHandler : ICommandHan
             vecinos[lado] = await CargarControlAsync(command.CodigoColaborador, dia.FechaDe(lado), ct)
                 ?? throw new RecursoNoEncontradoException(Mensajes.DiaSinDepuracion);
 
-        var aprobados = new Dictionary<DateOnly, DiaCalculadoAggregateRoot>();
+        var calculados = new Dictionary<DateOnly, DiaCalculadoAggregateRoot>();
         foreach (var fecha in vecinos.Values.Select(v => v.Fecha).Append(dia.Fecha))
         {
             var streamDc = DiaCalculadoAggregateRoot.ComputarStreamId(command.CodigoColaborador, fecha);
             if (await _eventStore.ExistsAsync<DiaCalculadoAggregateRoot>(streamDc, ct))
-                aprobados[fecha] = (await _eventStore.GetAggregateRootAsync<DiaCalculadoAggregateRoot>(streamDc, ct))!;
+                calculados[fecha] = (await _eventStore.GetAggregateRootAsync<DiaCalculadoAggregateRoot>(streamDc, ct))!;
         }
 
-        if (command.Marcaciones.Any(d => CambiaUsoEnDiaAprobado(d, dia, disputas[d.Marcacion], aprobados)))
+        if (command.Marcaciones.Any(d => CambiaUsoEnDiaAprobado(d, dia, disputas[d.Marcacion], calculados)))
             throw new ReglaDeNegocioDeclinadaException(Mensajes.CambiaUsoEnDiaAprobado);
 
         var cambiados = new HashSet<ControlDiarioAggregateRoot>();
@@ -70,10 +71,10 @@ public partial class ResolverAmbiguedadDeMarcacionesCommandHandler : ICommandHan
         DecisionDeMarcacion decision,
         ControlDiarioAggregateRoot dia,
         DiaVecino lado,
-        IReadOnlyDictionary<DateOnly, DiaCalculadoAggregateRoot> aprobados)
+        IReadOnlyDictionary<DateOnly, DiaCalculadoAggregateRoot> calculados)
     {
         var usos = new[] { dia.Fecha, dia.FechaDe(lado) }
-            .Select(fecha => (Fecha: fecha, Uso: aprobados.TryGetValue(fecha, out var dc)
+            .Select(fecha => (Fecha: fecha, Uso: calculados.TryGetValue(fecha, out var dc)
                 ? dc.UsoAprobadoDe(decision.Marcacion)
                 : null))
             .Where(u => u.Uso is not null)

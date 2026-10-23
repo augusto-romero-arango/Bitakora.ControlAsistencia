@@ -95,7 +95,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     private DateTime? FinDeSuCobertura() => _ausenciaId is null ? _finCoberturaEfectiva : null;
 
-    // Resoluciones vigentes por vecino; una nueva con el mismo vecino reemplaza a la anterior.
     private readonly Dictionary<DiaVecino, IReadOnlyList<MarcacionDecidida>> _resoluciones = [];
 
     private IReadOnlyDictionary<DateTime, DateOnly> ResolucionesVigentes() =>
@@ -112,8 +111,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // Marcaciones que caen en la cobertura de este dia y en la de un vecino, con ese vecino; se
-    // calcula sin resoluciones para que repetir un reparto siga viendo el solape.
+    // Sin resoluciones: repetir un reparto debe seguir viendo el solape.
     internal IReadOnlyDictionary<DateTime, DiaVecino> MarcacionesEnDisputa()
     {
         if (_ausenciaId is not null) return new Dictionary<DateTime, DiaVecino>();

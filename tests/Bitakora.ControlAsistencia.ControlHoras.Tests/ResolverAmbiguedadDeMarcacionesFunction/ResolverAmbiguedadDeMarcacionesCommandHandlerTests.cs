@@ -52,19 +52,34 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
 
     // Vispera 17:00-01:00 (cobertura hasta 05:00, entrada 16:55) y dia 06:00-14:00 (cobertura desde
     // 04:00, marcaciones 06:20 y 14:05); la 04:30 cae en ambas coberturas.
-    private void GivenSolapeDeLas0430()
+    // El harness admite un solo Given por stream: una resolucion previa viaja en el mismo Given.
+    private void GivenSolapeDeLas0430(MarcacionDecidida? resueltaAntes = null)
     {
-        Given(StreamV,
+        object[] vispera =
+        [
             TurnoAsignado(StreamV, Dia20, Turno(new TimeOnly(17, 0), new TimeOnly(1, 0), 1)),
             Marcacion(StreamV, V(16, 55)),
             Marcacion(StreamV, D(4, 30)),
-            CoberturaVecinaActualizada.Crear(StreamV, DiaVecino.DiaSiguiente, D(4, 0)));
-        Given(StreamD,
+            CoberturaVecinaActualizada.Crear(StreamV, DiaVecino.DiaSiguiente, D(4, 0))
+        ];
+        object[] dia =
+        [
             TurnoAsignado(StreamD, Dia21, Turno(new TimeOnly(6, 0), new TimeOnly(14, 0), 0)),
             Marcacion(StreamD, D(4, 30)),
             Marcacion(StreamD, D(6, 20)),
             Marcacion(StreamD, D(14, 5)),
-            CoberturaVecinaActualizada.Crear(StreamD, DiaVecino.Vispera, D(5, 0)));
+            CoberturaVecinaActualizada.Crear(StreamD, DiaVecino.Vispera, D(5, 0))
+        ];
+        if (resueltaAntes is null)
+        {
+            Given(StreamV, vispera);
+            Given(StreamD, dia);
+        }
+        else
+        {
+            Given(StreamV, [.. vispera, ResolucionDeV(resueltaAntes)]);
+            Given(StreamD, [.. dia, ResolucionDeD(resueltaAntes)]);
+        }
     }
 
     // Vispera 17:00-01:00 y dia 05:30-13:30 (cobertura desde 03:30): 04:00 y 04:50 caen en ambas.
@@ -125,7 +140,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamD, ResolucionDeD(decidida));
         Then(StreamV, ResolucionDeV(decidida));
         And<ControlDiarioAggregateRoot, string>(StreamV,
-            c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=DelTurno 16:55=DelTurno");
+            c => PertenenciasPorHora(c.CrearDiaDepurado()), "16:55=DelTurno 04:30=DelTurno");
         And<ControlDiarioAggregateRoot, DateTime?>(StreamV,
             c => c.ControlesDeFranja.Single().Entrada, V(16, 55));
         And<ControlDiarioAggregateRoot, DateTime?>(StreamV,
@@ -155,7 +170,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         And<ControlDiarioAggregateRoot, DateTime?>(StreamV,
             c => c.ControlesDeFranja.Single().Salida, D(4, 0));
         And<ControlDiarioAggregateRoot, string>(StreamV,
-            c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:00=DelTurno 04:50=FueraDeCobertura 16:55=DelTurno");
+            c => PertenenciasPorHora(c.CrearDiaDepurado()), "16:55=DelTurno 04:00=DelTurno 04:50=FueraDeCobertura");
         And<ControlDiarioAggregateRoot, DateTime?>(StreamD,
             c => c.ControlesDeFranja.Single().Entrada, D(4, 50));
         And<ControlDiarioAggregateRoot, string>(StreamD,
@@ -229,10 +244,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_NoEmiteEventosNiPublica_CuandoSeRepiteElMismoReparto()
     {
-        GivenSolapeDeLas0430();
-        var decidida = new MarcacionDecidida(D(4, 30), Dia20);
-        Given(StreamD, ResolucionDeD(decidida));
-        Given(StreamV, ResolucionDeV(decidida));
+        GivenSolapeDeLas0430(resueltaAntes: new MarcacionDecidida(D(4, 30), Dia20));
 
         await WhenAsync(Comando(Decision(D(4, 30), Dia20)));
 
@@ -240,7 +252,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Then(StreamV);
         ThenIsPublishedPrivately();
         And<ControlDiarioAggregateRoot, string>(StreamV,
-            c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=DelTurno 16:55=DelTurno");
+            c => PertenenciasPorHora(c.CrearDiaDepurado()), "16:55=DelTurno 04:30=DelTurno");
         And<ControlDiarioAggregateRoot, string>(StreamD,
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=FueraDeCobertura 06:20=DelTurno 14:05=DelTurno");
     }
@@ -249,10 +261,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_AceptaLaDecisionNueva_CuandoElRepartoCambiaYLosDiasSonProvisionales()
     {
-        GivenSolapeDeLas0430();
-        var anterior = new MarcacionDecidida(D(4, 30), Dia20);
-        Given(StreamD, ResolucionDeD(anterior));
-        Given(StreamV, ResolucionDeV(anterior));
+        GivenSolapeDeLas0430(resueltaAntes: new MarcacionDecidida(D(4, 30), Dia20));
 
         await WhenAsync(Comando(Decision(D(4, 30), Dia21)));
 
@@ -262,7 +271,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         And<ControlDiarioAggregateRoot, string>(StreamD,
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=DelTurno 06:20=DelTurno 14:05=DelTurno");
         And<ControlDiarioAggregateRoot, string>(StreamV,
-            c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=FueraDeCobertura 16:55=DelTurno");
+            c => PertenenciasPorHora(c.CrearDiaDepurado()), "16:55=DelTurno 04:30=FueraDeCobertura");
         FechasPublicadas().Should().Equal(Dia20, Dia21);
     }
 

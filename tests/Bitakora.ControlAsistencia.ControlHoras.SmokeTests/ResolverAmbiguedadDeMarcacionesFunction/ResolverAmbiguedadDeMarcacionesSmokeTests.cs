@@ -43,32 +43,30 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
         $"{RutaDepuracion(codigoColaborador, fecha)}:resolver-ambiguedad";
 
     private static object Turno(
-        string codigoColaborador, DateOnly fecha, string horaInicio, string horaFin, int diaOffsetFin) => new
+        string codigoColaborador, DateOnly fecha, string horaInicio, string horaFin, int diaOffsetFin)
     {
-        SolicitudId = Guid.CreateVersion7(),
-        Colaborador = new
+        var franja = new
         {
-            Identificacion = "CC-777666444",
-            CodigoColaborador = codigoColaborador,
-            NombreCompleto = "[TEST] Smoke Resolver Ambiguedad"
-        },
-        Fecha = fecha.ToString("yyyy-MM-dd"),
-        DetalleTurno = new
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            DiaOffsetFin = diaOffsetFin,
+            Descansos = Array.Empty<object>(),
+            Extras = Array.Empty<object>()
+        };
+
+        return new
         {
-            Nombre = "[TEST] Turno Resolver Ambiguedad",
-            FranjasOrdinarias = new[]
+            SolicitudId = Guid.CreateVersion7(),
+            Colaborador = new
             {
-                new
-                {
-                    HoraInicio = horaInicio,
-                    HoraFin = horaFin,
-                    DiaOffsetFin = diaOffsetFin,
-                    Descansos = Array.Empty<object>(),
-                    Extras = Array.Empty<object>()
-                }
-            }
-        }
-    };
+                Identificacion = "CC-777666444",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Resolver Ambiguedad"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new { Nombre = "[TEST] Turno Resolver Ambiguedad", FranjasOrdinarias = new[] { franja } }
+        };
+    }
 
     private async Task<DepuracionDelDiaSmoke?> ObtenerDepuracionAsync(
         string codigoColaborador, DateOnly fecha, CancellationToken ct)
