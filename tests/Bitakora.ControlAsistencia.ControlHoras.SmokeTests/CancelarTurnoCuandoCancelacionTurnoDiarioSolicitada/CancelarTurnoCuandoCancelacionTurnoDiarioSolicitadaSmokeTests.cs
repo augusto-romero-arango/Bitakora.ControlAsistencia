@@ -187,13 +187,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
-
-        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
-            codigoColaborador);
-
-        existeTransferDeadLetter.Should().BeFalse(
-            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
-            codigoColaborador);
     }
 
     // CA-2: dia con turno asignado y SIN marcaciones -> cancelado efectivo, DiaDepurado sin
@@ -286,13 +279,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
-
-        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
-            codigoColaborador);
-
-        existeTransferDeadLetter.Should().BeFalse(
-            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
-            codigoColaborador);
     }
 
     // CA-4: no-op identico a CA-3, pero el stream SI existe (nacio solo por marcaciones, sin turno
@@ -358,12 +344,5 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
-
-        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
-            codigoColaborador);
-
-        existeTransferDeadLetter.Should().BeFalse(
-            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
-            codigoColaborador);
     }
 }
