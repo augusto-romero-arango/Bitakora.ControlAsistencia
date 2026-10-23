@@ -6,5 +6,6 @@ public enum PertenenciaMarcacion
 {
     DelTurno,
     FueraDeCobertura,
-    Ambigua
+    Ambigua,
+    DeTurnoVecino
 }
