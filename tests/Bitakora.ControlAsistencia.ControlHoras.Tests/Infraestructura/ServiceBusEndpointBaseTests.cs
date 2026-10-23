@@ -5,6 +5,7 @@ using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using JasperFx.Events;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -45,12 +46,12 @@ public class ServiceBusEndpointBaseTests
         await endpoint.Procesar(CrearMensaje(), actions, CancellationToken.None);
 
         actions.MensajeEnDeadLetter.Should().BeFalse("el lock ya no es valido, no se puede dead-letter");
+        actions.MensajeAbandonado.Should().BeFalse("el lock ya no es valido, no se puede abandonar");
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // Error generico -> dead-letter el mensaje
     [Fact]
-    public async Task DebeEnviarADeadLetter_CuandoOcurreErrorGenerico()
+    public async Task ProcesarMensaje_AbandonaElMensaje_CuandoElHandlerFalla()
     {
         var router = new FakeCommandRouter(
             excepcion: new InvalidOperationException("Error inesperado"));
@@ -59,8 +60,53 @@ public class ServiceBusEndpointBaseTests
 
         await endpoint.Procesar(CrearMensaje(), actions, CancellationToken.None);
 
-        actions.MensajeEnDeadLetter.Should().BeTrue();
+        actions.MensajeAbandonado.Should().BeTrue();
+        actions.MensajeEnDeadLetter.Should().BeFalse();
         actions.MensajeCompletado.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ProcesarMensaje_AbandonaElMensaje_CuandoHayConflictoDeConcurrencia()
+    {
+        var router = new FakeCommandRouter(
+            excepcion: new EventStreamUnexpectedMaxEventIdException("cd:stream", typeof(object), 2, 3));
+        var actions = new FakeServiceBusMessageActions();
+        var endpoint = new StubEndpoint(router, new FakeLogger());
+
+        await endpoint.Procesar(CrearMensaje(), actions, CancellationToken.None);
+
+        actions.MensajeAbandonado.Should().BeTrue();
+        actions.MensajeEnDeadLetter.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ProcesarMensaje_RegistraMessageIdYDeliveryCount_CuandoAbandonaElMensaje()
+    {
+        var router = new FakeCommandRouter(excepcion: new InvalidOperationException("Error"));
+        var actions = new FakeServiceBusMessageActions();
+        var logger = new FakeLogger();
+        var endpoint = new StubEndpoint(router, logger);
+        var mensaje = ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: BinaryData.FromString(JsonValido), messageId: "msg-1172", deliveryCount: 3);
+
+        await endpoint.Procesar(mensaje, actions, CancellationToken.None);
+
+        logger.MensajesError.Should().ContainSingle()
+            .Which.Should().Contain("msg-1172").And.Contain("3");
+    }
+
+    [Fact]
+    public async Task ProcesarMensaje_EnviaADeadLetterSinInvocarElHandler_CuandoElCuerpoDeserializaANull()
+    {
+        var router = new FakeCommandRouter();
+        var actions = new FakeServiceBusMessageActions();
+        var endpoint = new StubEndpoint(router, new FakeLogger());
+
+        await endpoint.Procesar(CrearMensaje("null"), actions, CancellationToken.None);
+
+        actions.MensajeEnDeadLetter.Should().BeTrue();
+        actions.MensajeAbandonado.Should().BeFalse();
+        router.Invocaciones.Should().Be(0);
     }
 
     // JSON invalido -> dead-letter (error de deserializacion)
@@ -99,10 +145,12 @@ internal class FakeCommandRouter : ICommandRouter
     private readonly Exception? _excepcion;
 
     public FakeCommandRouter(Exception? excepcion = null) => _excepcion = excepcion;
+    public int Invocaciones { get; private set; }
 
     public Task InvokeAsync<TCommand>(TCommand command, CancellationToken ct = default)
         where TCommand : class
     {
+        Invocaciones++;
         if (_excepcion is not null) throw _excepcion;
         return Task.CompletedTask;
     }
@@ -118,6 +166,7 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
 
     public bool MensajeCompletado { get; private set; }
     public bool MensajeEnDeadLetter { get; private set; }
+    public bool MensajeAbandonado { get; private set; }
 
     public FakeServiceBusMessageActions(Exception? excepcionAlCompletar = null)
         => _excepcionAlCompletar = excepcionAlCompletar;
@@ -145,7 +194,10 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
         ServiceBusReceivedMessage message,
         IDictionary<string, object>? propertiesToModify = null,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    {
+        MensajeAbandonado = true;
+        return Task.CompletedTask;
+    }
 
     public override Task DeferMessageAsync(
         ServiceBusReceivedMessage message,
@@ -162,14 +214,17 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
 internal class FakeLogger : ILogger
 {
     public bool WarningLogueado { get; private set; }
+    public List<string> MensajesError { get; } = [];
 
     public void Log<TState>(
         LogLevel logLevel, EventId eventId, TState state,
         Exception? exception, Func<TState, Exception?, string> formatter)
     {
         if (logLevel == LogLevel.Warning) WarningLogueado = true;
+        if (logLevel == LogLevel.Error) MensajesError.Add(formatter(state, exception));
     }
 
     public bool IsEnabled(LogLevel logLevel) => true;
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 }
+

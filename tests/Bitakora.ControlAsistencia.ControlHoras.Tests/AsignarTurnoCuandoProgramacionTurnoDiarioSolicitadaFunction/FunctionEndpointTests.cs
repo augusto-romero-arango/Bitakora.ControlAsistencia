@@ -83,9 +83,9 @@ public class FunctionEndpointTests
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // CA-3: error generico durante el procesamiento -> dead-letter el mensaje para inspeccion
+    // CA-3: error generico durante el procesamiento -> abandona el mensaje para que el bus lo reintente
     [Fact]
-    public async Task DebeEnviarADeadLetter_CuandoOcurreErrorGenerico()
+    public async Task DebeAbandonarMensaje_CuandoOcurreErrorGenerico()
     {
         var router = new FakePrivateEventRouter(
             excepcion: new InvalidOperationException("Error inesperado en el handler"));
@@ -95,7 +95,8 @@ public class FunctionEndpointTests
 
         await endpoint.Run(CrearMensaje(), messageActions, CancellationToken.None);
 
-        messageActions.MensajeEnDeadLetter.Should().BeTrue();
+        messageActions.MensajeAbandonado.Should().BeTrue();
+        messageActions.MensajeEnDeadLetter.Should().BeFalse();
         messageActions.MensajeCompletado.Should().BeFalse();
     }
 }
@@ -125,7 +126,7 @@ internal class FakePrivateEventRouter : IPrivateEventRouter
 }
 
 /// <summary>
-/// Fake de ServiceBusMessageActions. Registra si el mensaje fue completado o enviado a dead-letter.
+/// Fake de ServiceBusMessageActions. Registra si el mensaje fue completado, abandonado o enviado a dead-letter.
 /// Puede configurarse para lanzar una excepcion al completar (simulando lock perdido, CA-2).
 /// </summary>
 internal class FakeServiceBusMessageActions : ServiceBusMessageActions
@@ -134,6 +135,7 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
 
     public bool MensajeCompletado { get; private set; }
     public bool MensajeEnDeadLetter { get; private set; }
+    public bool MensajeAbandonado { get; private set; }
 
     public FakeServiceBusMessageActions(Exception? excepcionAlCompletar = null)
     {
@@ -165,7 +167,10 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
         ServiceBusReceivedMessage message,
         IDictionary<string, object>? propertiesToModify = null,
         CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    {
+        MensajeAbandonado = true;
+        return Task.CompletedTask;
+    }
 
     public override Task DeferMessageAsync(
         ServiceBusReceivedMessage message,
