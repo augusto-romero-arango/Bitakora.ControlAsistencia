@@ -34,6 +34,7 @@ public static class IdentidadEventosControlHoras
         typeof(AusenciaDiariaAsignada),
         typeof(CancelacionAusenciaDiariaRegistrada),
         typeof(CoberturaVecinaActualizada),
-        typeof(AmbiguedadDeMarcacionesResuelta)
+        typeof(AmbiguedadDeMarcacionesResuelta),
+        typeof(ResolucionDeAmbiguedadDescartada)
     ];
 }

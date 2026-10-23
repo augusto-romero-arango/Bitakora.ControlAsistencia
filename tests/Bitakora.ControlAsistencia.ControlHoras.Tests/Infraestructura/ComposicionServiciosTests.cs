@@ -281,6 +281,19 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosControlHoras_CongelaElAliasDeResolucionDeAmbiguedadDescartada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(ResolucionDeAmbiguedadDescartada)).Alias;
+
+        alias.Should().Be("resolucion_de_ambiguedad_descartada");
+    }
+
+    [Fact]
     public async Task AgregarServiciosControlHoras_CongelaElAliasDeAmbiguedadDeMarcacionesResuelta()
     {
         await using var provider = ComponerServiceProvider();
