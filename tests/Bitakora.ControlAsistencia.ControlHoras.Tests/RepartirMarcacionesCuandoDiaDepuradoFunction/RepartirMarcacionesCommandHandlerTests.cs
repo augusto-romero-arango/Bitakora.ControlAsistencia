@@ -55,7 +55,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
 
         Then(Stream20, Marcacion(Stream20, salida, "SALIDA"));
-        Then(Stream21);
+        Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 10, 0, 0)));
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 2);
         And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Entrada, entrada);
         And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Salida, salida);
@@ -72,7 +72,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia20));
 
         Then(Stream20, Marcacion(Stream20, salida, "SALIDA"));
-        Then(Stream21);
+        Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 10, 0, 0)));
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
@@ -84,7 +84,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Given(Stream20,
             TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), 1))),
             Marcacion(Stream20, salida, "SALIDA"));
-        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"));
+        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"), Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 10, 0, 0)));
 
         await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
 
@@ -151,7 +151,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));
 
         Then(Stream22, Marcacion(Stream22, entrada));
-        Then(Stream21);
+        Then(Stream21, Cobertura(Stream21, DiaVecino.DiaSiguiente, new DateTime(2026, 4, 21, 22, 30, 0)));
         And<ControlDiarioAggregateRoot, int>(Stream22, c => c.Marcaciones.Count, 1);
     }
 
@@ -278,7 +278,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
             TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), 1))),
             Marcacion(Stream20, salida, "SALIDA"),
             Marcacion(Stream20, salida, "SALIDA"));
-        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"));
+        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"), Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 10, 0, 0)));
 
         await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia20));
 

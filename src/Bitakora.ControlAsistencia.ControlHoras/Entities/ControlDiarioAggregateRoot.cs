@@ -46,7 +46,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
         ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
-    // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
+    // Recalculo reactivo al final de cada Apply.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
@@ -81,8 +81,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             ? (vecino.FinDeSuCobertura(), _finCoberturaVispera)
             : (vecino.InicioDeSuCobertura(), _inicioCoberturaDiaSiguiente);
         if (actual == limite) return false;
-        // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia
-        // (turnos que no se solapan entre si); un limite ya informado siempre se actualiza.
+        // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia (o, sin
+        // jornada, su dia calendario); un limite ya informado siempre se actualiza.
         if (actual is null && !RegistraPrimerLimite(lado, limite, vecino)) return false;
 
         var evento = CoberturaVecinaActualizada.Crear(Id, lado, limite);
@@ -91,9 +91,12 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return true;
     }
 
-    private bool RegistraPrimerLimite(DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino)
+    private bool RegistraPrimerLimite(DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino) =>
+        SinJornada ? AlcanzaSuDiaCalendario(lado, limite) : Invade(DetalleTurno!, lado, limite, vecino);
+
+    // Sin jornada, el dia solo clasifica sus propias marcaciones: un limite fuera de su dia calendario no excluye ninguna.
+    private bool AlcanzaSuDiaCalendario(DiaVecino lado, DateTime? limite)
     {
-        if (!SinJornada) return Invade(DetalleTurno!, lado, limite, vecino);
         if (limite is not { } instante) return false;
 
         var inicioDelDia = Fecha.ToDateTime(TimeOnly.MinValue);
