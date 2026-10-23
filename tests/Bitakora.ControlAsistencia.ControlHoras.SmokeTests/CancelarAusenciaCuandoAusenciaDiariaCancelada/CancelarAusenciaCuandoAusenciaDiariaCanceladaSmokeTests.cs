@@ -96,5 +96,12 @@ public class CancelarAusenciaCuandoAusenciaDiariaCanceladaSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 }

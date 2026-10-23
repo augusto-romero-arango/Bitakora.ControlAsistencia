@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
 
 /// <summary>
 /// Clase base para FunctionEndpoints de ServiceBus que consumen un evento privado del BC.
-/// Contraparte de <see cref="ServiceBusEndpointBase{TEvento}"/> (ADR-0024 decision #8): en vez de
+/// Alternativa al comando espejo (ADR-0024 decision #8): en vez de
 /// traducir el evento a un comando espejo y rutearlo via ICommandRouter, lo despacha directamente
 /// al IPrivateEventHandlerAsync via IPrivateEventRouter.
 /// Encapsula la orquestacion: deserializar (ilegible -> dead-letter) -> despachar al private event router -> complete/lock-lost/abandon.

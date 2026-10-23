@@ -151,6 +151,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
 
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
+
         // Assert: verificar ausencia de dead letter de ESTA corrida en la suscripcion smoke-tests
         // del topic dia-depurado (issue #223: acotado por CodigoColaborador).
         var existeDeadLetterDiaDepurado = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
@@ -298,6 +305,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 
     [Fact]
@@ -388,6 +402,13 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 
     /// <summary>
@@ -640,5 +661,12 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 }

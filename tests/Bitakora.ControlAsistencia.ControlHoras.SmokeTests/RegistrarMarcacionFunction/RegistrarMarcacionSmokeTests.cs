@@ -268,8 +268,8 @@ public class RegistrarMarcacionSmokeTests(
 
     // Cierra el circuito completo del contrato de bus RegistroDeMarcacionCreado: el POST solo puede
     // llegar a persistir marcacion_adicionada si RegistrarMarcacionCommandHandler lo publico al topic
-    // "registro-de-marcacion-creado" y AdicionarMarcacionCuandoRegistroDeMarcacionCreado lo consumio
-    // desde "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
+    // "registro-de-marcacion-creado" y el fan-in ActualizarControlDiario lo consumio por el forward de
+    // "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
     // consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de PRODUCCION
     // (no un consumidor competidor) proceso el mensaje.
     //
@@ -396,6 +396,13 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 
     // HU-181 CA-5: camino feliz completo (turno + entrada + salida) -> el DiaDepurado publicado
@@ -531,6 +538,13 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 
     // Sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo desde la
@@ -609,5 +623,12 @@ public class RegistrarMarcacionSmokeTests(
         existeDeadLetterEnQueue.Should().BeFalse(
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
+
+        var existeTransferDeadLetter = await serviceBus.ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(
+            codigoColaborador);
+
+        existeTransferDeadLetter.Should().BeFalse(
+            "no deberia haber un transfer dead letter del colaborador {0} en las suscripciones con forward al fan-in",
+            codigoColaborador);
     }
 }
