@@ -311,7 +311,7 @@ public class ComposicionServiciosTests
     // FunctionEndpoint en vez de un router de Wolverine.
     //
     // Ninguna Function de este ensamblado se registra explicitamente en el contenedor
-    // (RegistrarMarcacionFunction, AdicionarMarcacionCuandoRegistroDeMarcacionCreado,
+    // (RegistrarMarcacionFunction, ActualizarControlDiario,
     // AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction: ninguna lleva un
     // services.AddScoped<FunctionEndpoint>() explicito) -- el host de Azure Functions isolated
     // worker las activa por tipo, resolviendo su constructor contra el mismo ServiceProvider que
