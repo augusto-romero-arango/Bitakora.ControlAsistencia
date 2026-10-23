@@ -62,13 +62,9 @@ public partial class ResolverAmbiguedadDeMarcacionesCommandHandler : ICommandHan
         }
 
         foreach (var control in cambiados)
-
         {
-
             var diaDepurado = control.CrearDiaDepurado();
-
             await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
-
         }
     }
 

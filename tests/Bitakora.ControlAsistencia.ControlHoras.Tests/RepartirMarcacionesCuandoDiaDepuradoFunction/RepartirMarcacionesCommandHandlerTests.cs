@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction.CommandHandler;
+using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
@@ -91,9 +92,9 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Then(Stream20, Marcacion(Stream20, salida, "SALIDA"));
         Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 10, 0, 0)));
         PrivateEventSender.Events.Should().BeEmpty();
-        PrivateEventSender.PublishedWithOptions.Should().NotBeEmpty();
         PrivateEventSender.PublishedWithOptions.Should().OnlyContain(p => p.Options.GroupId == CodigoColaborador);
-        PrivateEventSender.PublishedWithOptions.SelectMany(p => p.Events).Should().AllBeOfType<Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.DiaDepurado>();
+        PrivateEventSender.PublishedWithOptions.SelectMany(p => p.Events).OfType<DiaDepurado>()
+            .Select(d => d.Fecha).Should().BeEquivalentTo([Dia20, Dia21]);
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 

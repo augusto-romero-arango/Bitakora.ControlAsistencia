@@ -63,7 +63,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampDiurno).CodigoSede,
             CodigoSede);
 
-        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador },new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             new DateOnly(2026, 3, 15),
             null,

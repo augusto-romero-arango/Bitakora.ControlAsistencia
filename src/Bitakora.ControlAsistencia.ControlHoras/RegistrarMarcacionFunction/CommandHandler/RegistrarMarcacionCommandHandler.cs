@@ -48,8 +48,7 @@ public partial class RegistrarMarcacionCommandHandler : ICommandHandlerAsync<Reg
         var registro = RegistroDeMarcacionAggregateRoot.Iniciar(streamId, command.Timestamp, evento);
         _eventStore.StartStream(registro);
 
-        // Issue #270 CA-4: publicar el contrato de bus (no el evento de dominio) para que
-        // handlers downstream reaccionen
+        // Se publica el contrato de bus, no el evento de dominio.
         var registroCreado = registro.CrearRegistroDeMarcacionCreado();
         await _privateEventSender.PublishAsync(new PublishOptions { GroupId = registroCreado.CodigoColaborador }, registroCreado);
     }

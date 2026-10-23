@@ -63,13 +63,9 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         }
 
         if (huboCambios)
-
         {
-
             var diaDepurado = control.CrearDiaDepurado();
-
             await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
-
         }
     }
 }
