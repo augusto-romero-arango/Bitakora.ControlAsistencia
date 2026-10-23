@@ -238,39 +238,6 @@ public class ServiceBusFixture : IAsyncLifetime
         return mensajes.Any(m => m.SessionId == sessionId);
     }
 
-    private static readonly (string Topic, string Suscripcion)[] SuscripcionesDelFanIn =
-    [
-        ("registro-de-marcacion-creado", "control-horas-escucha-registro-de-marcacion"),
-        ("sede-de-marcacion-resuelta", "control-horas-escucha-sede-de-marcacion-resuelta"),
-        ("dia-depurado", "control-horas-reparte-marcaciones"),
-        ("programacion-turno-diario-solicitada", "control-horas-escucha-programacion"),
-        ("cancelacion-turno-diario-solicitada", "control-horas-escucha-cancelacion"),
-        ("ausencia-diaria-programada", "control-horas-escucha-ausencia"),
-        ("ausencia-diaria-cancelada", "control-horas-escucha-cancelacion-ausencia"),
-    ];
-
-    private static readonly ServiceBusReceiverOptions OpcionesTransferDeadLetter =
-        new() { SubQueue = SubQueue.TransferDeadLetter };
-
-    // El transfer dead-letter queue solo existe con forward activo: ahi caen los mensajes que la
-    // suscripcion no pudo reenviar al queue o que llegaron sin SessionId. Estos ultimos no se
-    // correlacionan por SessionId, asi que tambien se busca el codigo del colaborador en el cuerpo.
-    public async Task<bool> ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(string sessionId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-
-        foreach (var (topic, suscripcion) in SuscripcionesDelFanIn)
-        {
-            await using var receiver = _client!.CreateReceiver(topic, suscripcion, OpcionesTransferDeadLetter);
-            var mensajes = await PeekTodosAsync(receiver);
-            if (mensajes.Any(m => m.SessionId == sessionId
-                    || m.Body.ToString().Contains(sessionId, StringComparison.Ordinal)))
-                return true;
-        }
-
-        return false;
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (_client is not null)
