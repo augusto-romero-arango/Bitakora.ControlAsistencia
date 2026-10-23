@@ -6,12 +6,15 @@ using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ResolverAmbiguedadDeMarcacionesFunction;
 
-public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
+public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
 
     private const string RutaMarcaciones = "/api/control-horas/marcaciones";
     private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string SchemaControlHoras = "control_horas";
+    private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
+    private const string TipoEventoCoberturaVecinaActualizada = "cobertura_vecina_actualizada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -93,6 +96,8 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
             "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -108,6 +113,18 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
             Turno(codigoColaborador, vispera, "17:00:00", "01:00:00", 1), Guid.CreateVersion7().ToString());
         await serviceBus.PublishAsync(TopicProgramacionEntrada,
             Turno(codigoColaborador, dia, "06:00:00", "14:00:00", 0), Guid.CreateVersion7().ToString());
+
+        foreach (var tipoEvento in new[] { TipoEventoTurnoDiarioAsignado, TipoEventoCoberturaVecinaActualizada })
+        {
+            foreach (var fecha in new[] { vispera, dia })
+            {
+                var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
+                var existe = await postgres.ExisteEventoAsync(SchemaControlHoras, streamId, tipoEvento, Timeout);
+                existe.Should().BeTrue(
+                    "el arrange debe esperar {0} en el stream {1} antes de registrar marcaciones (arrange incompleto)",
+                    tipoEvento, streamId);
+            }
+        }
 
         foreach (var momento in new[] { entradaVispera, enDisputa, entradaDia, salidaDia })
         {
