@@ -132,6 +132,69 @@ public class DepuradorDeMarcacionesVentanaEntradaTests
             o => o.WithStrictOrdering());
     }
 
+    private static TurnoDiario Turno04_10(int amplitud) =>
+        new("Ventana larga", [Franja(4, 0, 10, 0)], "", amplitud);
+
+    [Fact]
+    public void Depurar_AnclaEntradaTardia_CuandoLaVentanaCierraDespuesDeLaCoberturaDeReferencia()
+    {
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno04_10(840), Fecha, [M(15, 0), M(21, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja(15, 0, 21, 0), En(15, 0), En(21, 0)) },
+            o => o.WithStrictOrdering());
+        resultado[0].CalcularDesglose(Fecha, _ => false)!.Retardo.RetardoNeto.Should().Be(0);
+    }
+
+    [Fact]
+    public void Depurar_AnclaAlCierreDeLaVentana_CuandoEntradaPosteriorAlCierre()
+    {
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno04_10(840), Fecha, [M(19, 0), MSig(0, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[]
+            {
+                new ControlFranja(Franja(18, 0, 0, 0) with { DiaOffsetFin = 1 },
+                    En(19, 0), new DateTime(2026, 3, 16, 0, 0, 0))
+            },
+            o => o.WithStrictOrdering());
+        resultado[0].CalcularDesglose(Fecha, _ => false)!.Retardo.RetardoNeto.Should().Be(60);
+    }
+
+    [Fact]
+    public void Depurar_AnclaALaApertura_CuandoEntradaPreviaConVentanaLarga()
+    {
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno04_10(840), Fecha, [M(3, 30), M(10, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja(4, 0, 10, 0), En(3, 30), En(10, 0)) },
+            o => o.WithStrictOrdering());
+        resultado[0].CalcularDesglose(Fecha, _ => false)!.Retardo.RetardoNeto.Should().Be(0);
+    }
+
+    [Fact]
+    public void Depurar_DejaMarcacionTardiaFueraDelDia_CuandoAmplitudEsCero()
+    {
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno07_16(0), Fecha, [M(7, 0), M(16, 0), M(21, 0)]);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja(7, 0, 16, 0), En(7, 0), En(16, 0)) },
+            o => o.WithStrictOrdering());
+        resultado[0].CalcularDesglose(Fecha, _ => false)!.Retardo.RetardoNeto.Should().Be(0);
+    }
+
+    [Fact]
+    public void Depurar_NoAncla_CuandoLaUnicaMarcacionEstaEnElSolapeConElDiaSiguiente()
+    {
+        var vecinas = new CoberturasVecinas(null, new DateTime(2026, 3, 16, 2, 0, 0));
+
+        var resultado = DepuradorDeMarcaciones.Depurar(Turno04_10(840), Fecha, [MSig(2, 30)], vecinas);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja(4, 0, 10, 0), null, null) },
+            o => o.WithStrictOrdering());
+    }
+
     [Fact]
     public void Depurar_TomaSalidaPosteriorALaCoberturaDeReferencia_CuandoElHorarioSeDesplaza()
     {
