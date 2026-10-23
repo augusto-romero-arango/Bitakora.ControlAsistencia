@@ -153,7 +153,39 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return true;
     }
 
-    public void Apply(ResolucionDeAmbiguedadDescartada e) => throw new NotImplementedException();
+    public void Apply(ResolucionDeAmbiguedadDescartada e)
+    {
+        Id = e.Id;
+        _resoluciones.Remove(e.Vecino);
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
+
+    // Un cambio real de plan propio descarta las resoluciones con todos los vecinos.
+    private void DescartarResoluciones()
+    {
+        foreach (var vecino in _resoluciones.Keys.ToList())
+            Descartar(vecino);
+    }
+
+    private void Descartar(DiaVecino vecino)
+    {
+        var evento = ResolucionDeAmbiguedadDescartada.Crear(Id, vecino);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    // Si este dia conserva una resolucion con el vecino y el vecino ya la descarto, la descarta.
+    // true si emitio el evento.
+    internal bool AlinearResolucionCon(ControlDiarioAggregateRoot vecino)
+    {
+        var lado = vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
+        var ladoInverso = lado == DiaVecino.Vispera ? DiaVecino.DiaSiguiente : DiaVecino.Vispera;
+        if (!_resoluciones.ContainsKey(lado) || vecino._resoluciones.ContainsKey(ladoInverso)) return false;
+
+        Descartar(lado);
+        return true;
+    }
 
     public void Apply(CoberturaVecinaActualizada e)
     {
@@ -218,8 +250,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
+        var cambiaElPlan = !Equals(DetalleTurno, evento.DetalleTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        if (cambiaElPlan) DescartarResoluciones();
     }
 
     // Fecha sale del stream ID: el ControlDiario puede nacer solo por marcacion, sin turno que la traiga.
@@ -357,6 +391,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        DescartarResoluciones();
         return ResultadoCancelacionTurno.Cancelado;
     }
 
@@ -388,6 +423,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        DescartarResoluciones();
         return ResultadoAsignarAusencia.Asignada;
     }
 
@@ -421,6 +457,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         var libera = _ausenciaId == evento.AusenciaId;
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        if (libera) DescartarResoluciones();
         return libera ? ResultadoCancelarAusencia.Liberado : ResultadoCancelarAusencia.CancelacionRecordada;
     }
 
