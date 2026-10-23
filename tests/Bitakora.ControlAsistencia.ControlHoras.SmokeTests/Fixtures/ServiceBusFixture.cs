@@ -253,7 +253,8 @@ public class ServiceBusFixture : IAsyncLifetime
         new() { SubQueue = SubQueue.TransferDeadLetter };
 
     // El transfer dead-letter queue solo existe con forward activo: ahi caen los mensajes que la
-    // suscripcion no pudo reenviar al queue o que llegaron sin SessionId.
+    // suscripcion no pudo reenviar al queue o que llegaron sin SessionId. Estos ultimos no se
+    // correlacionan por SessionId, asi que tambien se busca el codigo del colaborador en el cuerpo.
     public async Task<bool> ExisteTransferDeadLetterDeColaboradorEnSuscripcionesDelFanInAsync(string sessionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -262,7 +263,8 @@ public class ServiceBusFixture : IAsyncLifetime
         {
             await using var receiver = _client!.CreateReceiver(topic, suscripcion, OpcionesTransferDeadLetter);
             var mensajes = await PeekTodosAsync(receiver);
-            if (mensajes.Any(m => m.SessionId == sessionId))
+            if (mensajes.Any(m => m.SessionId == sessionId
+                    || m.Body.ToString().Contains(sessionId, StringComparison.Ordinal)))
                 return true;
         }
 

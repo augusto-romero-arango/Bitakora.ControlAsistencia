@@ -268,8 +268,8 @@ public class RegistrarMarcacionSmokeTests(
 
     // Cierra el circuito completo del contrato de bus RegistroDeMarcacionCreado: el POST solo puede
     // llegar a persistir marcacion_adicionada si RegistrarMarcacionCommandHandler lo publico al topic
-    // "registro-de-marcacion-creado" y AdicionarMarcacionCuandoRegistroDeMarcacionCreado lo consumio
-    // desde "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
+    // "registro-de-marcacion-creado" y el fan-in ActualizarControlDiario lo consumio por el forward de
+    // "control-horas-escucha-registro-de-marcacion". Es un assert black-box mas fuerte que
     // consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de PRODUCCION
     // (no un consumidor competidor) proceso el mensaje.
     //
