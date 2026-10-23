@@ -27,9 +27,20 @@ public abstract class ServiceBusEndpointBase<TEvento>(ICommandRouter commandRout
         CancellationToken ct)
         where TComando : class
     {
+        TEvento evento;
         try
         {
-            var evento = ServiceBusDeserializador.Deserializar<TEvento>(message.Body);
+            evento = ServiceBusDeserializador.Deserializar<TEvento>(message.Body);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Mensaje ilegible {MessageId} - se envia a dead letter", message.MessageId);
+            await messageActions.DeadLetterMessageAsync(message, cancellationToken: ct);
+            return;
+        }
+
+        try
+        {
             await commandRouter.InvokeAsync(crearComando(evento), ct);
             await messageActions.CompleteMessageAsync(message, ct);
         }
@@ -41,8 +52,10 @@ public abstract class ServiceBusEndpointBase<TEvento>(ICommandRouter commandRout
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error procesando mensaje {MessageId}", message.MessageId);
-            await messageActions.DeadLetterMessageAsync(message, cancellationToken: ct);
+            logger.LogError(ex,
+                "Error procesando mensaje {MessageId} (DeliveryCount {DeliveryCount}) - se abandona para reintento",
+                message.MessageId, message.DeliveryCount);
+            await messageActions.AbandonMessageAsync(message, cancellationToken: ct);
         }
     }
 }
