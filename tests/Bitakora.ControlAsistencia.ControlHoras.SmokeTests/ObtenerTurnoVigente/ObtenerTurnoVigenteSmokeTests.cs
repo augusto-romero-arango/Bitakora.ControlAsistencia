@@ -121,7 +121,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         // Act: publicar al bus interno -- ControlHoras persiste TurnoDiarioAsignado y el worker de
         // proyecciones materializa TurnoVigente de forma asincrona.
-        await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, solicitudId.ToString());
 
         // Act + Assert: reintentar el GET hasta que la proyeccion asincrona materialice la vista.
         var ruta = Ruta(codigoColaborador, fecha);
@@ -228,7 +228,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
             }
         };
 
-        await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicEntrada, evento, solicitudId.ToString());
     }
 
     private async Task<bool> EsperarVistaAsync(
@@ -262,6 +262,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         var solicitudCancelacionId = Guid.CreateVersion7();
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicCancelacionEntrada,
             new
             {
@@ -302,7 +303,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
             "la vista del turno deberia materializarse antes de registrar la ausencia");
 
         var ausenciaId = Guid.CreateVersion7();
-        await serviceBus.PublishAsync(TopicAusenciaEntrada, new
+        await serviceBus.PublishAsync(codigoColaborador, TopicAusenciaEntrada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = colaborador,

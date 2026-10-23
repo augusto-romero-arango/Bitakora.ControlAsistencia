@@ -111,7 +111,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // La franja quedo anomala (Salida null): no aporta horas calculables y no hay retardo, asi
         // que HorasPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano no
         // distingue "franja anomala" de "dia sin horas"; ambos publican el mismo diccionario vacio.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -142,7 +142,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // HU-108 CA-4: se publica DiaDepurado aunque no haya turno. Colaborador es null porque el
         // ControlDiario nacio solo por marcacion; CodigoColaborador top-level sigue presente.
         // Issue #183 CA-6: sin turno no hay nada que consolidar -> HorasPorConcepto viaja vacio.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             Fecha,
             null,
@@ -194,7 +194,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // conceptos -> dos lineas, en orden cronologico (ordinaria antes que excedente), cada una armada
         // con LineaConcepto desde su intervalo y la etiqueta traducida. F2 es anomala (Salida null): no
         // aporta intervalos ni lineas.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -234,6 +234,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
 
         var marcacionNocturna = new MarcacionDelDia(timestampNocturno, "ENTRADA");
         ThenIsPublishedPrivately(
+            new PublishOptions { GroupId = CodigoColaborador },
             new DiaDepurado(
                 CodigoColaborador, Fecha, null, null, [], [marcacionNocturna],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
