@@ -34,6 +34,12 @@ module "service_bus" {
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   sku                 = "Standard"
+
+  # Issue #1174 (MEF-ADR-0026): queue de fan-in por colaborador, vacio hasta #1175.
+  queues_config = {
+    "actualizar-control-diario" = { requires_session = true }
+  }
+
   topics_config = {
     "programacion-turno-diario-solicitada" = {
       subscriptions = [

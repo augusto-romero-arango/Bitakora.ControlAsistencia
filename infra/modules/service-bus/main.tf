@@ -30,6 +30,9 @@ variable "topics_config" {
       # varias resoluciones sobre el mismo aggregate. ForceNew en Azure (no se puede alternar
       # sobre una subscription existente): default false preserva el comportamiento previo.
       requires_session = optional(bool, false)
+      # Fan-in (MEF-ADR-0026): nombre de una clave de queues_config a la que la subscription
+      # hace auto-forward. No puede combinarse con requires_session = true.
+      forward_to = optional(string)
     })), [])
   }))
   default = {}
@@ -47,6 +50,27 @@ variable "topics_config" {
     ]))
     error_message = "Cada correlation_filter debe declarar al menos una property de igualdad (ADR-0027)."
   }
+
+  # MEF-ADR-0026: una entidad con sesion no puede ser fuente de auto-forward; la sesion va
+  # solo en el queue destino. Validacion transitoria hasta que #1175 retire requires_session.
+  validation {
+    condition = alltrue(flatten([
+      for topic in values(var.topics_config) : [
+        for sub in topic.subscriptions :
+        sub.forward_to == null ? true : !sub.requires_session
+      ]
+    ]))
+    error_message = "Una subscription con forward_to no puede declarar requires_session = true: una entidad con sesion no puede ser fuente de auto-forward; la sesion va solo en el queue destino (MEF-ADR-0026)."
+  }
+}
+
+variable "queues_config" {
+  description = "Queues del namespace (p. ej. fan-in con sesion, MEF-ADR-0026)"
+  type = map(object({
+    requires_session    = optional(bool, false)
+    default_message_ttl = optional(string)
+  }))
+  default = {}
 }
 
 variable "tags" {
@@ -73,6 +97,15 @@ resource "azurerm_servicebus_topic" "topics" {
   namespace_id = azurerm_servicebus_namespace.this.id
 }
 
+resource "azurerm_servicebus_queue" "queues" {
+  for_each            = var.queues_config
+  name                = each.key
+  namespace_id        = azurerm_servicebus_namespace.this.id
+  requires_session    = each.value.requires_session
+  default_message_ttl = each.value.default_message_ttl
+  max_delivery_count  = 10
+}
+
 locals {
   subscriptions_flat = flatten([
     for topic_name, topic in var.topics_config : [
@@ -83,6 +116,7 @@ locals {
         correlation_filter  = sub.correlation_filter
         default_message_ttl = sub.default_message_ttl
         requires_session    = sub.requires_session
+        forward_to          = sub.forward_to
       }
     ]
   ])
@@ -96,6 +130,7 @@ resource "azurerm_servicebus_subscription" "subs" {
   max_delivery_count  = 10
   default_message_ttl = each.value.default_message_ttl
   requires_session    = each.value.requires_session
+  forward_to          = each.value.forward_to == null ? null : azurerm_servicebus_queue.queues[each.value.forward_to].name
 }
 
 # ADR-0001 / ADR-0027: se removio el escape-hatch SqlFilter. El enrutamiento
@@ -132,4 +167,9 @@ output "default_primary_connection_string" {
 output "topic_ids" {
   description = "IDs de los topics creados"
   value       = { for k, v in azurerm_servicebus_topic.topics : k => v.id }
+}
+
+output "queue_ids" {
+  description = "IDs de las queues creadas (MEF-ADR-0026)"
+  value       = { for k, v in azurerm_servicebus_queue.queues : k => v.id }
 }
