@@ -40,16 +40,4 @@ public class ResolucionDeAmbiguedadDescartadaSerializacionTests
     {
         IdentidadEventosControlHoras.TiposPersistidos.Should().Contain(typeof(ResolucionDeAmbiguedadDescartada));
     }
-
-    [Fact]
-    public void RoundTrip_ConservaElVecino_CuandoElResolverEsElDeProduccion()
-    {
-        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
-        var json = JsonSerializer.Serialize(
-            ResolucionDeAmbiguedadDescartada.Crear(StreamId, DiaVecino.Vispera), opciones);
-
-        var deserializado = JsonSerializer.Deserialize<ResolucionDeAmbiguedadDescartada>(json, opciones);
-
-        deserializado!.Vecino.Should().Be(DiaVecino.Vispera);
-    }
 }

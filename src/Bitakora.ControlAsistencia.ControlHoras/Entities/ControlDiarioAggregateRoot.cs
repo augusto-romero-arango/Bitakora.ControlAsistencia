@@ -67,7 +67,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         // Sin turno el dia no depura nada, asi que no necesita (ni registra) limites.
         if (DetalleTurno is null) return false;
 
-        var lado = vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
+        var lado = LadoDe(vecino);
         var (limite, actual) = lado == DiaVecino.Vispera
             ? (vecino.FinDeSuCobertura(), _finCoberturaVispera)
             : (vecino.InicioDeSuCobertura(), _inicioCoberturaDiaSiguiente);
@@ -175,17 +175,19 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Si este dia conserva una resolucion con el vecino y el vecino ya la descarto, la descarta.
+    // El vecino que cambio de plan ya descarto su mitad del par; este dia descarta la suya.
     // true si emitio el evento.
     internal bool AlinearResolucionCon(ControlDiarioAggregateRoot vecino)
     {
-        var lado = vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
-        var ladoInverso = lado == DiaVecino.Vispera ? DiaVecino.DiaSiguiente : DiaVecino.Vispera;
-        if (!_resoluciones.ContainsKey(lado) || vecino._resoluciones.ContainsKey(ladoInverso)) return false;
+        var lado = LadoDe(vecino);
+        if (!_resoluciones.ContainsKey(lado) || vecino._resoluciones.ContainsKey(vecino.LadoDe(this))) return false;
 
         Descartar(lado);
         return true;
     }
+
+    private DiaVecino LadoDe(ControlDiarioAggregateRoot vecino) =>
+        vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
 
     public void Apply(CoberturaVecinaActualizada e)
     {
