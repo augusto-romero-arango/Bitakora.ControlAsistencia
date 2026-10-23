@@ -119,7 +119,7 @@ public class WarmupFixture : IAsyncLifetime
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
 
         var turnoAsignado = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, WarmupTimeout,

@@ -11,5 +11,6 @@ internal enum ResultadoAprobacion
     ConflictosSinDecidir,
     CodigoSedeNoCandidata,
     DecisionParaFranjaInvalida,
-    DiaYaAprobado
+    DiaYaAprobado,
+    MarcacionesAmbiguasSinResolver
 }

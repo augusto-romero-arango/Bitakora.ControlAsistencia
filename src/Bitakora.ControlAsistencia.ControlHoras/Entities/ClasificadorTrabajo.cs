@@ -56,6 +56,8 @@ public static class ClasificadorTrabajo
         // inicio programado, que no se pagan y no aparecen en el desglose.
         var (trabajadoInicio, trabajadoFin) = Extremos(trabajado);
         var entradaEfectiva = trabajadoInicio.CompareTo(inicioFranja) < 0 ? inicioFranja : trabajadoInicio;
+        // Todo el trabajo cae antes del inicio programado (marcaciones de cobertura anticipada): nada que pagar.
+        if (trabajadoFin.CompareTo(entradaEfectiva) <= 0) return [];
         var trabajoRecortado = IntervaloTemporal.Crear(entradaEfectiva, trabajadoFin);
 
         // 3. Segmentar por banda horaria y por medianoche (cambio de tipo de dia).

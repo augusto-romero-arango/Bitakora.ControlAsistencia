@@ -28,7 +28,10 @@ public class AusenciaDiariaCanceladaEventHandler : IPrivateEventHandlerAsync<Aus
         {
             var control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
             if (control.CancelarAusencia(evento) == ResultadoCancelarAusencia.Liberado)
-                await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+            {
+                var diaDepurado = control.CrearDiaDepurado();
+                await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
+            }
         }
         else
         {

@@ -85,8 +85,9 @@ jobs:
       # todo scope no listado queda en 'none', asi que 'contents: read' es obligatorio para que
       # actions/checkout siga clonando.
       contents: read
-      # Lo necesita 'Esperar deploys ajenos del mismo commit': lista runs y jobs de OTROS
-      # workflows del repo, y ningun default concede ese scope.
+      # Lo necesitan 'Esperar el deploy del worker de proyecciones del mismo commit' y 'Esperar
+      # deploys ajenos del mismo commit': listan runs y jobs de OTROS workflows del repo, y
+      # ningun default concede ese scope.
       actions: read
     steps:
       - uses: actions/checkout@v7
@@ -94,6 +95,127 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+
+      # Carrera INVERSA a la de la guarda de abajo (issue #1157). Un push que toca
+      # '*.DomainEvents/**', 'PrivateEvents/**', 'PublicEvents/**' o 'global.json' dispara a la
+      # vez 'Deploy {Dominio}' y 'Deploy Projections' (los 'paths' de ambos los incluyen). El smoke
+      # del dominio espera su propio SHA en /api/version y /api/ready, pero nada espera la
+      # revision nueva del worker de proyecciones: los tests que leen vistas (GET/QUERY sobre
+      # read models) corren contra la revision vieja del worker o en pleno cambio de revision.
+      #
+      # Evidencia (smoke de Deploy ControlHoras vs job 'deploy' de Deploy Projections, mismo commit):
+      #
+      #   run smoke             | arranca el smoke | termina el deploy del worker
+      #   38281220818 (bc5048e7)| 17:02:24Z        | 17:02:42Z
+      #   38416138972 (ebfe593b)| 14:48:33Z        | 14:48:39Z
+      #
+      # En ambos fallo el mismo test (ListarAdvertenciasProgramacionSemanal_DebeMostrarAdvertencias...:
+      # 'advertencias' vacio, sin SuperaTopeDiario).
+      #
+      # Este paso va aparte de la guarda de #1154 y SIN 'if': esa guarda solo corre con
+      # expected_sha == '' y esta espera aplica a todo invocador, porque todos los dominios tienen
+      # vistas materializadas por el worker. El worker se identifica por la ruta exacta del run
+      # (.path sin '@ref') y no por nombre. Se espera el JOB 'deploy' del worker y NUNCA el run
+      # completo: su job de smoke pide el mismo grupo 'smoke-tests-dev' que este job ya tiene
+      # tomado, asi que esperar el run entero seria un deadlock. Ese job ya incluye "Verificar la
+      # revision activa" (imagen del SHA, revision activa). Se excluye github.run_id para que, en
+      # deploy-projections.yml, el paso no se espere a si mismo.
+      #
+      # Si el job 'deploy' del worker termina en failure o cancelled, la suite continua con un
+      # ::warning:: (corre contra la revision anterior; ese run ya queda en rojo). Si queda
+      # skipped o no hay run del worker, continua sin aviso.
+      - name: Esperar el deploy del worker de proyecciones del mismo commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          tmp=$(mktemp -d)
+          ruta_worker=".github/workflows/deploy-projections.yml"
+          # 5s x 120 = 10 min, como la guarda de abajo. Al agotarse se falla: continuar es la
+          # carrera que este paso existe para cerrar.
+          limite=120
+
+          for intento in $(seq 1 "$limite"); do
+            if ! gh api "repos/${REPO}/actions/runs?head_sha=${SHA}&per_page=100" > "${tmp}/runs.json"; then
+              echo "::error::No se pudieron listar los runs de ${SHA}."
+              echo "Revisa que este job conserve 'actions: read' y que el endpoint acepte head_sha."
+              exit 1
+            fi
+
+            workers=$(jq -r --arg propio "$RUN_ID" --arg ruta "$ruta_worker" '
+              .workflow_runs[]
+              | select((.id | tostring) != $propio)
+              | select((.path | split("@")[0]) == $ruta)
+              | "\(.id)|\(.status)|\(.name)"' "${tmp}/runs.json")
+
+            if [ -z "$workers" ]; then
+              echo "No hay run del worker de proyecciones para ${SHA}. Se continua."
+              exit 0
+            fi
+
+            bloqueantes=""
+            fallidos=""
+            terminados=""
+            while IFS='|' read -r id estado_run nombre; do
+              if [ -z "$id" ]; then
+                continue
+              fi
+              if ! gh api "repos/${REPO}/actions/runs/${id}/jobs" > "${tmp}/jobs.json"; then
+                echo "::error::No se pudieron leer los jobs del run ${id} (${nombre})."
+                exit 1
+              fi
+              # Estado agregado del job 'deploy' de ese run. 'ausente' cubre el run que sigue en
+              # 'build-and-test': el job 'deploy' (needs: build-and-test) puede no figurar todavia
+              # en /jobs, y tratarlo como terminado reabriria la carrera. Con el run ya
+              # 'completed', 'ausente' equivale a skipped (build-and-test fallo o se cancelo).
+              # No hay deadlock: el smoke del worker necesita su 'deploy', asi que mientras
+              # 'deploy' no exista ese run no pide el grupo 'smoke-tests-dev'.
+              estado_deploy=$(jq -r '
+                [.jobs[] | select(.name == "deploy")]
+                | if length == 0 then "ausente"
+                  elif any(.[]; .status != "completed") then "en_vuelo"
+                  elif any(.[]; .conclusion == "failure" or .conclusion == "cancelled") then "fallido"
+                  elif any(.[]; .conclusion == "success") then "success"
+                  else "skipped" end' "${tmp}/jobs.json")
+              case "$estado_deploy" in
+                en_vuelo)
+                  bloqueantes="${bloqueantes}${nombre} (run ${id})"$'\n' ;;
+                ausente)
+                  if [ "$estado_run" != "completed" ]; then
+                    bloqueantes="${bloqueantes}${nombre} (run ${id}, job 'deploy' aun no creado)"$'\n'
+                  else
+                    terminados="${terminados}${nombre} (run ${id}): sin job 'deploy' (skipped)"$'\n'
+                  fi ;;
+                fallido)
+                  fallidos="${fallidos}${nombre} (run ${id})"$'\n' ;;
+                *)
+                  terminados="${terminados}${nombre} (run ${id}): job 'deploy' en ${estado_deploy}"$'\n' ;;
+              esac
+            done <<< "$workers"
+
+            if [ -z "$bloqueantes" ]; then
+              if [ -n "$terminados" ]; then
+                echo "El job 'deploy' del worker de proyecciones de ${SHA} ya no esta en vuelo. Se continua."
+                printf '%s' "$terminados" | sed 's/^/  - /'
+              fi
+              if [ -n "$fallidos" ]; then
+                echo "::warning::El job 'deploy' del worker de proyecciones de ${SHA} termino en failure o cancelled; la suite corre contra la revision anterior del worker."
+                printf '%s' "$fallidos" | sed 's/^/  - /'
+              fi
+              exit 0
+            fi
+
+            echo "Intento ${intento}/${limite}: esperando el job 'deploy' del worker de proyecciones de:"
+            printf '%s' "$bloqueantes" | sed 's/^/  - /'
+            sleep 5
+          done
+
+          echo "::error::Timeout: tras 10 min el job 'deploy' del worker de proyecciones de ${SHA} sigue en vuelo."
+          printf '%s' "$bloqueantes" | sed 's/^/  - /'
+          echo "Correr la suite ahora la ejercitaria contra un worker a medio desplegar."
+          exit 1
 
       # Cierra la carrera diagnosticada el 2026-08-11 sobre los runs 31181921157 (sha 4eee1eb1),
       # 31151821734 (4c4d8b38) y 31134226036 (f11a5971) de Deploy Projections. En los tres,
@@ -136,9 +258,27 @@ jobs:
       # ajeno incluye su propio job de smoke, que pide el mismo grupo 'smoke-tests-dev' que este
       # job ya tiene tomado. Esperar el run entero seria un deadlock -- el ajeno no puede terminar
       # hasta que este libere el grupo, y este no continua hasta que el ajeno termine.
+      #
+      # PREMISA CORREGIDA (issue #1154): terminar el job 'deploy' ajeno NO implica que el FA ya
+      # sirva el binario nuevo. Ese job termina cuando Azure/functions-action sube el zip
+      # ("Successfully deployed web package"); el host reinicia despues, y mientras tanto
+      # /api/health lo contesta 200 el binario VIEJO. Evidencia (log del job vs traza
+      # 'Application started' de func-asist-dev-control-horas): la guarda liberaba entre 33 y 104 s
+      # antes de que arrancara la instancia nueva (39731983655: 76 s, 39738130960: 33 s,
+      # 39741202905: 104 s), y la suite corria contra la instancia vieja. Correlacion: 7 de 7
+      # fallos de smoke de Deploy Projections desde 2026-10-10 tienen un Deploy ControlHoras del
+      # mismo commit con 'deploy' en success; los commits sin ese deploy, 0 fallos.
+      #
+      # Por eso, al terminar la espera, si algun run ajeno de este commit desplego el FA bajo
+      # prueba (job 'deploy' en success y su workflow declara 'app-name: <app>' del base_url), la
+      # guarda emite expected_sha=<github.sha> y 'Warmup Function App' aplica el gate por SHA de
+      # MEF-ADR-0031 (/api/version + /api/ready). Si el ajeno quedo skipped/failure/cancelled, o
+      # desplego otro FA, se conserva el fallback a /api/health.
       - name: Esperar deploys ajenos del mismo commit
+        id: guarda
         if: inputs.expected_sha == ''
         env:
+          BASE_URL: ${{ inputs.base_url }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
@@ -199,6 +339,38 @@ jobs:
 
             if [ -z "$bloqueantes" ]; then
               echo "Ningun deploy ajeno de ${SHA} tiene su job 'deploy' en vuelo. Se continua."
+
+              # Que FA se prueba: sin https://, sin path, sin .azurewebsites.net (como el warmup).
+              app="${BASE_URL#https://}"
+              app="${app%%/*}"
+              app="${app%.azurewebsites.net}"
+
+              # Runs ajenos Deploy * del mismo commit; se relee la lista tras la espera.
+              candidatos=$(jq -r --arg propio "$RUN_ID" '
+                .workflow_runs[]
+                | select((.id | tostring) != $propio)
+                | select(.name | startswith("Deploy "))
+                | "\(.id)|\(.name)|\(.path)"' "${tmp}/runs.json")
+
+              while IFS='|' read -r id nombre ruta; do
+                if [ -z "$id" ]; then
+                  continue
+                fi
+                ruta="${ruta%%@*}"
+                exitoso=$(gh api "repos/${REPO}/actions/runs/${id}/jobs" \
+                  --jq '[.jobs[] | select(.name == "deploy") | select(.conclusion == "success")] | length') || exitoso=""
+                if ! [[ "$exitoso" =~ ^[0-9]+$ ]]; then
+                  echo "::error::No se pudieron leer los jobs del run ${id} (${nombre})."
+                  exit 1
+                fi
+                if [ "$exitoso" -gt 0 ] && [ -f "$ruta" ] && grep -Eq "^[[:space:]]*app-name:[[:space:]]*${app}[[:space:]]*$" "$ruta"; then
+                  echo "El run ${id} (${nombre}) desplego ${app} en ${SHA}. Se esperara /api/version == ${SHA}."
+                  echo "expected_sha=${SHA}" >> "$GITHUB_OUTPUT"
+                  exit 0
+                fi
+              done <<< "$candidatos"
+
+              echo "Ningun deploy ajeno exitoso de ${app} en ${SHA}. Se mantiene el fallback a /api/health."
               exit 0
             fi
 
@@ -214,7 +386,7 @@ jobs:
 
       - name: Warmup Function App
         run: |
-          expected_sha="${{ inputs.expected_sha }}"
+          expected_sha="${{ inputs.expected_sha || steps.guarda.outputs.expected_sha }}"
           if [ -n "$expected_sha" ]; then
             # MEF-ADR-0031 seccion 3 (enmienda 2026-09-12, run 34722573915): 230s del
             # WEBSITES_CONTAINER_START_TIME_LIMIT + ~95s de teardown/reinicio + 92s del peor

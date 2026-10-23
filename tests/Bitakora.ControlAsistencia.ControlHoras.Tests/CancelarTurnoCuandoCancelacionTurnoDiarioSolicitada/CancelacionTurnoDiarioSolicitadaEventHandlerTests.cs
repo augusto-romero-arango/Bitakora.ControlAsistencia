@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 // Al cancelar, el dia queda sin plan para efectos de calculo (DetalleTurno = null); la memoria del
 // acto vive en el stream y en la solicitud de Programacion -- por eso el no-op de CA-3/CA-4 no deja
 // evento de constancia.
@@ -83,7 +84,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.Marcaciones.Count, 1);
 
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -106,7 +107,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
         And<ControlDiarioAggregateRoot, DesgloseHoras>(StreamId, c => c.DesgloseHoras, DesgloseHoras.Vacio);
 
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -130,6 +131,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
 
         Then(StreamId);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     // Redelivery del mismo mensaje (Service Bus entrega at-least-once): el dia ya quedo sin plan
@@ -146,6 +148,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
 
         Then(StreamId);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
     }
 
@@ -161,6 +164,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
 
         Then(StreamId);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.Marcaciones.Count, 1);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
     }

@@ -167,7 +167,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             }
         };
 
-        await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, solicitudId.ToString());
     }
 
     // Franja ordinaria SIN la clave "Sede": sus bloques quedan con SedeId/NombreSede null.
@@ -687,7 +687,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
         string codigoColaborador, DateOnly fecha)
     {
         var ausenciaId = Guid.CreateVersion7();
-        await serviceBus.PublishAsync(TopicAusenciaEntrada, new
+        await serviceBus.PublishAsync(codigoColaborador, TopicAusenciaEntrada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = new ResumenColaborador(
@@ -716,6 +716,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 
         var solicitudCancelacionId = Guid.CreateVersion7();
         await serviceBus.PublishAsync(
+            codigoColaborador,
             TopicCancelacionEntrada,
             new
             {
