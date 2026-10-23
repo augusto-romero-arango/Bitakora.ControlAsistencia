@@ -608,6 +608,68 @@ public class AsistenciaDiariaProjectionTests
     }
 
     [Fact]
+    public void Create_MarcaNoSePresento_CuandoLaUnicaMarcacionEsFueraDeCobertura()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), "FueraDeCobertura")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.NoSePresento.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaNoSePresentoYAmbiguaPendiente_CuandoLaUnicaMarcacionEsAmbigua()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.NoSePresento.Should().BeTrue();
+        vista.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DejaNoSePresentoEnFalse_CuandoHayUnaMarcacionDelTurnoYOtraFueraDeCobertura()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), "FueraDeCobertura"),
+             MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.NoSePresento.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaNoSePresentoEnFalse_CuandoLasMarcacionesNoTraenPertenenciaOEsDesconocida()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), null)], SinHoras());
+        var eventoDesconocido = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "ValorNuevo")], SinHoras());
+
+        AsistenciaDiariaProjection.Create(evento).NoSePresento.Should().BeFalse();
+        AsistenciaDiariaProjection.Create(eventoDesconocido).NoSePresento.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ApagaNoSePresento_CuandoLaMarcacionAmbiguaPasaAserDelTurno()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", true, false, false, false, false, new Dictionary<string, decimal>(),
+            MarcacionAmbiguaPendiente: true);
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "DelTurno")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.NoSePresento.Should().BeFalse();
+    }
+
+    [Fact]
     public void Apply_ApagaMarcacionAmbiguaPendiente_CuandoLlegaDiaAprobado()
     {
         var vistaPrevia = new AsistenciaDiaria(
